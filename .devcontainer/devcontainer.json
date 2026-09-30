@@ -1,0 +1,17 @@
+{
+  "name": "Design Dawn",
+  "dockerComposeFile": ["../compose.yaml"],
+  "service": "dev",
+  "workspaceFolder": "/workspace",
+  "remoteUser": "dev",
+  "shutdownAction": "none",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "biomejs.biome",
+        "rust-lang.rust-analyzer",
+        "tauri-apps.tauri-vscode"
+      ]
+    }
+  }
+}
