@@ -1,0 +1,13 @@
+# Normalize all text files to LF (docs/file-format.md §8, docs/git-development.md §9)
+* text=auto eol=lf
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.icns binary
+*.woff binary
+*.woff2 binary
