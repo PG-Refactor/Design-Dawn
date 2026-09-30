@@ -1,0 +1,338 @@
+{
+  "fixtureVersion": 1,
+  "subject": "contentPath",
+  "description": "contentPath is relative to the Document root. TypeScript treats it as opaque and only rejects the empty string; Rust validates syntax, location and extension. Filesystem checks (existence, canonicalize, symlinks) belong to Phase 2. See docs/file-format.md §6.",
+  "cases": [
+    {
+      "name": "markdown in sheet blocks",
+      "input": {
+        "blockType": "markdown",
+        "path": "sheets/overview/blocks/markdown-1.md"
+      },
+      "expected": { "result": "accept" }
+    },
+    {
+      "name": "mermaid in sheet blocks",
+      "input": {
+        "blockType": "mermaid",
+        "path": "sheets/overview/blocks/mermaid-1.mmd"
+      },
+      "expected": { "result": "accept" }
+    },
+    {
+      "name": "png asset",
+      "input": { "blockType": "image", "path": "assets/system-overview.png" },
+      "expected": { "result": "accept" }
+    },
+    {
+      "name": "jpg asset",
+      "input": { "blockType": "image", "path": "assets/photo.jpg" },
+      "expected": { "result": "accept" }
+    },
+    {
+      "name": "jpeg asset",
+      "input": { "blockType": "image", "path": "assets/photo.jpeg" },
+      "expected": { "result": "accept" }
+    },
+    {
+      "name": "webp asset",
+      "input": { "blockType": "image", "path": "assets/photo.webp" },
+      "expected": { "result": "accept" }
+    },
+    {
+      "name": "svg asset",
+      "input": { "blockType": "image", "path": "assets/architecture.svg" },
+      "expected": { "result": "accept" }
+    },
+    {
+      "name": "gif asset",
+      "input": { "blockType": "image", "path": "assets/anim.gif" },
+      "expected": { "result": "accept" }
+    },
+    {
+      "name": "uppercase extension",
+      "input": { "blockType": "image", "path": "assets/Photo.PNG" },
+      "expected": { "result": "accept" },
+      "targets": ["rust"],
+      "note": "Extension matching is case-insensitive."
+    },
+    {
+      "name": "non-ascii file name",
+      "input": {
+        "blockType": "markdown",
+        "path": "sheets/overview/blocks/概要.md"
+      },
+      "expected": { "result": "accept" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "double dot inside file name",
+      "input": {
+        "blockType": "markdown",
+        "path": "sheets/overview/blocks/v1..2.md"
+      },
+      "expected": { "result": "accept" },
+      "targets": ["rust"],
+      "note": "Only a whole '..' segment is a traversal."
+    },
+    {
+      "name": "non-empty opaque path (ts)",
+      "input": {
+        "blockType": "markdown",
+        "path": "anything/the/backend/produced.md"
+      },
+      "expected": { "result": "accept" },
+      "targets": ["ts"],
+      "note": "TypeScript does not interpret contentPath."
+    },
+
+    {
+      "name": "empty",
+      "input": { "blockType": "markdown", "path": "" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" }
+    },
+    {
+      "name": "absolute posix",
+      "input": {
+        "blockType": "markdown",
+        "path": "/sheets/overview/blocks/markdown-1.md"
+      },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "absolute windows drive",
+      "input": { "blockType": "image", "path": "C:/assets/a.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "drive relative",
+      "input": { "blockType": "image", "path": "C:assets/a.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "unc path",
+      "input": { "blockType": "image", "path": "//server/share/a.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "backslash separator",
+      "input": { "blockType": "image", "path": "assets\\a.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "parent traversal escaping root",
+      "input": { "blockType": "image", "path": "../assets/a.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "parent traversal inside path",
+      "input": {
+        "blockType": "markdown",
+        "path": "sheets/overview/../overview/blocks/a.md"
+      },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "current directory segment",
+      "input": { "blockType": "image", "path": "./assets/a.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "empty segment",
+      "input": { "blockType": "image", "path": "assets//a.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "trailing slash",
+      "input": { "blockType": "image", "path": "assets/a.png/" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "whitespace only",
+      "input": { "blockType": "image", "path": " " },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "nul character",
+      "input": { "blockType": "image", "path": "assets/a\u0000.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "newline character",
+      "input": { "blockType": "image", "path": "assets/a\n.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "colon (alternate data stream)",
+      "input": { "blockType": "image", "path": "assets/a.png:hidden" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows forbidden character",
+      "input": { "blockType": "image", "path": "assets/a?.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "segment ending with dot",
+      "input": {
+        "blockType": "markdown",
+        "path": "sheets/overview./blocks/a.md"
+      },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "segment ending with space",
+      "input": {
+        "blockType": "markdown",
+        "path": "sheets/overview /blocks/a.md"
+      },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "reserved device name",
+      "input": { "blockType": "markdown", "path": "sheets/con/blocks/a.md" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "reserved device name with extension",
+      "input": { "blockType": "image", "path": "assets/NUL.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "reserved device name com1",
+      "input": { "blockType": "image", "path": "assets/Com1.gif" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "markdown outside blocks dir",
+      "input": {
+        "blockType": "markdown",
+        "path": "sheets/overview/markdown-1.md"
+      },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "markdown in assets",
+      "input": { "blockType": "markdown", "path": "assets/notes.md" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "markdown nested below blocks",
+      "input": {
+        "blockType": "markdown",
+        "path": "sheets/overview/blocks/sub/a.md"
+      },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "image in sheet blocks",
+      "input": { "blockType": "image", "path": "sheets/overview/blocks/a.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "image in assets subdirectory",
+      "input": { "blockType": "image", "path": "assets/sub/a.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "wrong top-level directory",
+      "input": {
+        "blockType": "markdown",
+        "path": "sheet/overview/blocks/a.md"
+      },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+
+    {
+      "name": "markdown with mermaid extension",
+      "input": {
+        "blockType": "markdown",
+        "path": "sheets/overview/blocks/a.mmd"
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidContentExtension"
+      },
+      "targets": ["rust"]
+    },
+    {
+      "name": "mermaid with markdown extension",
+      "input": {
+        "blockType": "mermaid",
+        "path": "sheets/overview/blocks/a.md"
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidContentExtension"
+      },
+      "targets": ["rust"]
+    },
+    {
+      "name": "image with unsupported extension",
+      "input": { "blockType": "image", "path": "assets/a.bmp" },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidContentExtension"
+      },
+      "targets": ["rust"]
+    },
+    {
+      "name": "no extension",
+      "input": {
+        "blockType": "markdown",
+        "path": "sheets/overview/blocks/readme"
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidContentExtension"
+      },
+      "targets": ["rust"]
+    },
+    {
+      "name": "dot file without stem",
+      "input": {
+        "blockType": "markdown",
+        "path": "sheets/overview/blocks/.md"
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidContentExtension"
+      },
+      "targets": ["rust"],
+      "note": "A file name needs a non-empty stem before the extension."
+    },
+    {
+      "name": "unknown block type",
+      "input": { "blockType": "python", "path": "sheets/overview/blocks/a.py" },
+      "expected": { "result": "reject", "errorKind": "unsupportedBlockType" },
+      "targets": ["rust"],
+      "note": "The block type is validated before the path."
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "fixtureVersion": 1,
+  "subject": "entityId",
+  "description": "Entity ID must be a canonical (lowercase, hyphenated) UUIDv7 with RFC 9562 variant. Non-canonical forms are rejected, never normalized. See docs/data-model.md §11.1.",
+  "cases": [
+    {
+      "name": "canonical v7 (variant 9)",
+      "input": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+      "expected": { "result": "accept" }
+    },
+    {
+      "name": "canonical v7 (variant a)",
+      "input": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+      "expected": { "result": "accept" }
+    },
+    {
+      "name": "canonical v7 (variant b)",
+      "input": "01928f3a-7d8e-7f90-b123-456789abcdef",
+      "expected": { "result": "accept" }
+    },
+    {
+      "name": "canonical v7 (variant 8)",
+      "input": "01928f3a-8e9f-7a01-8234-56789abcdef0",
+      "expected": { "result": "accept" }
+    },
+    {
+      "name": "uppercase",
+      "input": "01928F3A-5B6C-7D8E-9F01-23456789ABCD",
+      "expected": { "result": "reject", "errorKind": "invalidEntityId" }
+    },
+    {
+      "name": "mixed case",
+      "input": "01928f3a-5b6c-7d8e-9f01-23456789ABCD",
+      "expected": { "result": "reject", "errorKind": "invalidEntityId" }
+    },
+    {
+      "name": "braced",
+      "input": "{01928f3a-5b6c-7d8e-9f01-23456789abcd}",
+      "expected": { "result": "reject", "errorKind": "invalidEntityId" }
+    },
+    {
+      "name": "urn prefix",
+      "input": "urn:uuid:01928f3a-5b6c-7d8e-9f01-23456789abcd",
+      "expected": { "result": "reject", "errorKind": "invalidEntityId" }
+    },
+    {
+      "name": "no hyphens",
+      "input": "01928f3a5b6c7d8e9f0123456789abcd",
+      "expected": { "result": "reject", "errorKind": "invalidEntityId" }
+    },
+    {
+      "name": "leading whitespace",
+      "input": " 01928f3a-5b6c-7d8e-9f01-23456789abcd",
+      "expected": { "result": "reject", "errorKind": "invalidEntityId" }
+    },
+    {
+      "name": "trailing newline",
+      "input": "01928f3a-5b6c-7d8e-9f01-23456789abcd\n",
+      "expected": { "result": "reject", "errorKind": "invalidEntityId" }
+    },
+    {
+      "name": "version 4",
+      "input": "550e8400-e29b-41d4-a716-446655440000",
+      "expected": { "result": "reject", "errorKind": "invalidEntityId" }
+    },
+    {
+      "name": "version 1",
+      "input": "01928f3a-5b6c-1d8e-9f01-23456789abcd",
+      "expected": { "result": "reject", "errorKind": "invalidEntityId" }
+    },
+    {
+      "name": "invalid variant (c)",
+      "input": "01928f3a-5b6c-7d8e-cf01-23456789abcd",
+      "expected": { "result": "reject", "errorKind": "invalidEntityId" }
+    },
+    {
+      "name": "invalid variant (7)",
+      "input": "01928f3a-5b6c-7d8e-7f01-23456789abcd",
+      "expected": { "result": "reject", "errorKind": "invalidEntityId" }
+    },
+    {
+      "name": "nil uuid",
+      "input": "00000000-0000-0000-0000-000000000000",
+      "expected": { "result": "reject", "errorKind": "invalidEntityId" }
+    },
+    {
+      "name": "max uuid",
+      "input": "ffffffff-ffff-ffff-ffff-ffffffffffff",
+      "expected": { "result": "reject", "errorKind": "invalidEntityId" }
+    },
+    {
+      "name": "non-hex character",
+      "input": "01928f3a-5b6c-7d8e-9f01-23456789abcg",
+      "expected": { "result": "reject", "errorKind": "invalidEntityId" }
+    },
+    {
+      "name": "too short",
+      "input": "01928f3a-5b6c-7d8e-9f01-23456789abc",
+      "expected": { "result": "reject", "errorKind": "invalidEntityId" }
+    },
+    {
+      "name": "too long",
+      "input": "01928f3a-5b6c-7d8e-9f01-23456789abcde",
+      "expected": { "result": "reject", "errorKind": "invalidEntityId" }
+    },
+    {
+      "name": "misplaced hyphens",
+      "input": "01928f3a5-b6c-7d8e-9f01-23456789abcd",
+      "expected": { "result": "reject", "errorKind": "invalidEntityId" }
+    },
+    {
+      "name": "empty",
+      "input": "",
+      "expected": { "result": "reject", "errorKind": "invalidEntityId" }
+    }
+  ]
+}

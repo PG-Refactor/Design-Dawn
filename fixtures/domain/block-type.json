@@ -1,0 +1,43 @@
+{
+  "fixtureVersion": 1,
+  "subject": "blockType",
+  "description": "Only the defined block types are accepted, case-sensitively. See docs/data-model.md §11.4.",
+  "cases": [
+    {
+      "name": "markdown",
+      "input": "markdown",
+      "expected": { "result": "accept" }
+    },
+    {
+      "name": "mermaid",
+      "input": "mermaid",
+      "expected": { "result": "accept" }
+    },
+    { "name": "image", "input": "image", "expected": { "result": "accept" } },
+    {
+      "name": "capitalized",
+      "input": "Markdown",
+      "expected": { "result": "reject", "errorKind": "unsupportedBlockType" }
+    },
+    {
+      "name": "unknown type",
+      "input": "python",
+      "expected": { "result": "reject", "errorKind": "unsupportedBlockType" }
+    },
+    {
+      "name": "file extension instead of type",
+      "input": "md",
+      "expected": { "result": "reject", "errorKind": "unsupportedBlockType" }
+    },
+    {
+      "name": "empty",
+      "input": "",
+      "expected": { "result": "reject", "errorKind": "unsupportedBlockType" }
+    },
+    {
+      "name": "trailing space",
+      "input": "image ",
+      "expected": { "result": "reject", "errorKind": "unsupportedBlockType" }
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "fixtureVersion": 1,
+  "subject": "schemaVersion",
+  "description": "schemaVersion must be an integer >= 1 (invalidSchemaVersion) and not newer than the supported version, currently 1 for project, document and sheet (unsupportedSchemaVersion). See docs/data-model.md §11.6.",
+  "cases": [
+    {
+      "name": "project current",
+      "input": { "entity": "project", "value": 1 },
+      "expected": { "result": "accept" }
+    },
+    {
+      "name": "document current",
+      "input": { "entity": "document", "value": 1 },
+      "expected": { "result": "accept" }
+    },
+    {
+      "name": "sheet current",
+      "input": { "entity": "sheet", "value": 1 },
+      "expected": { "result": "accept" }
+    },
+    {
+      "name": "project newer",
+      "input": { "entity": "project", "value": 2 },
+      "expected": {
+        "result": "reject",
+        "errorKind": "unsupportedSchemaVersion"
+      }
+    },
+    {
+      "name": "sheet far newer",
+      "input": { "entity": "sheet", "value": 999 },
+      "expected": {
+        "result": "reject",
+        "errorKind": "unsupportedSchemaVersion"
+      }
+    },
+    {
+      "name": "zero",
+      "input": { "entity": "document", "value": 0 },
+      "expected": { "result": "reject", "errorKind": "invalidSchemaVersion" }
+    },
+    {
+      "name": "negative",
+      "input": { "entity": "sheet", "value": -1 },
+      "expected": { "result": "reject", "errorKind": "invalidSchemaVersion" }
+    },
+    {
+      "name": "fractional",
+      "input": { "entity": "project", "value": 1.5 },
+      "expected": { "result": "reject", "errorKind": "invalidSchemaVersion" },
+      "targets": ["ts"],
+      "note": "Rust domain takes integers; fractional JSON numbers are rejected when mapping file DTOs in Phase 2."
+    }
+  ]
+}
