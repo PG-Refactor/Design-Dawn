@@ -14,7 +14,7 @@ Nothing else is installed on the host. Node.js, Rust and all dependencies live i
 
 ## Setup
 
-Run from the repository root (PowerShell or any shell).
+The repository lives on the WSL2 filesystem (`~/GitHub/PG-Refactor/Design-Dawn` in the Ubuntu-22.04 distro). Run everything from a shell inside that distro (Docker Desktop WSL integration must be enabled for it).
 
 ```sh
 docker compose build          # build the dev image
@@ -41,6 +41,7 @@ docker compose exec -e GDK_BACKEND=wayland dev npm run tauri dev
 
 ## Notes
 
-- The repository is bind-mounted from Windows, which is slower than the WSL2 filesystem and may not deliver file change events. `node_modules`, `src-tauri/target` and the Cargo/npm caches therefore live on Docker named volumes, and `compose.yaml` sets `DAWN_WATCH_POLLING=true` so Vite polls for changes. Moving the repository into the WSL2 filesystem is recommended later.
+- `node_modules`, `src-tauri/target` and the Cargo/npm caches live on Docker named volumes, not in the source tree. `cargo clean` reports "Device or resource busy" because `src-tauri/target` is a mount point (its contents are still removed).
+- WSLg sockets are mounted from `WSLG_DIR` (default `/mnt/wslg`, correct when compose runs inside the distro). If you ever run compose from Windows instead, set `WSLG_DIR=/run/desktop/mnt/host/wslg`; if the repository is bind-mounted from `C:\`, also set `DAWN_WATCH_POLLING=true` because file change events may not arrive.
 - `npm ci` must be re-run after the `node_modules` volume is removed (`docker compose down -v`).
 - Windows native builds (MSVC / WebView2) are out of scope for Phase 0.
