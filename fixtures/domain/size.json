@@ -5,45 +5,89 @@
   "cases": [
     {
       "name": "typical",
-      "input": { "width": 480, "height": 320 },
-      "expected": { "result": "accept" }
+      "input": {
+        "width": 480,
+        "height": 320
+      },
+      "expected": {
+        "result": "accept"
+      }
     },
     {
       "name": "minimum",
-      "input": { "width": 1, "height": 1 },
-      "expected": { "result": "accept" }
+      "input": {
+        "width": 1,
+        "height": 1
+      },
+      "expected": {
+        "result": "accept"
+      }
     },
     {
       "name": "maximum",
-      "input": { "width": 2147483647, "height": 2147483647 },
-      "expected": { "result": "accept" }
+      "input": {
+        "width": 2147483647,
+        "height": 2147483647
+      },
+      "expected": {
+        "result": "accept"
+      }
     },
     {
       "name": "zero width",
-      "input": { "width": 0, "height": 100 },
-      "expected": { "result": "reject", "errorKind": "invalidSize" }
+      "input": {
+        "width": 0,
+        "height": 100
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidSize"
+      }
     },
     {
       "name": "zero height",
-      "input": { "width": 100, "height": 0 },
-      "expected": { "result": "reject", "errorKind": "invalidSize" }
+      "input": {
+        "width": 100,
+        "height": 0
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidSize"
+      }
     },
     {
       "name": "negative width",
-      "input": { "width": -1, "height": 100 },
-      "expected": { "result": "reject", "errorKind": "invalidSize" }
+      "input": {
+        "width": -1,
+        "height": 100
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidSize"
+      }
     },
     {
       "name": "height above maximum",
-      "input": { "width": 100, "height": 2147483648 },
-      "expected": { "result": "reject", "errorKind": "invalidSize" }
+      "input": {
+        "width": 100,
+        "height": 2147483648
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidSize"
+      }
     },
     {
       "name": "fractional width",
-      "input": { "width": 10.5, "height": 100 },
-      "expected": { "result": "reject", "errorKind": "invalidSize" },
-      "targets": ["ts"],
-      "note": "Rust domain takes integers; fractional JSON numbers are rejected when mapping file DTOs in Phase 2."
+      "input": {
+        "width": 10.5,
+        "height": 100
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidSize"
+      },
+      "note": "Rust checks this at the JSON DTO -> domain boundary (Rust domain constructors take integers only)."
     }
   ]
 }

@@ -1,7 +1,22 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Minimal permissions for the main window",
+  "description": "Minimal permissions for the main window: core defaults plus the application's own commands",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default",
+    "allow-create-project",
+    "allow-open-project",
+    "allow-open-entry-point",
+    "allow-save-project",
+    "allow-create-document",
+    "allow-load-document",
+    "allow-save-document",
+    "allow-create-sheet",
+    "allow-save-sheet",
+    "allow-create-block-content",
+    "allow-read-block-content",
+    "allow-write-block-content",
+    "allow-delete-block-content"
+  ]
 }

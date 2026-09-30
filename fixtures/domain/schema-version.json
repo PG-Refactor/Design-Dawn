@@ -5,22 +5,40 @@
   "cases": [
     {
       "name": "project current",
-      "input": { "entity": "project", "value": 1 },
-      "expected": { "result": "accept" }
+      "input": {
+        "entity": "project",
+        "value": 1
+      },
+      "expected": {
+        "result": "accept"
+      }
     },
     {
       "name": "document current",
-      "input": { "entity": "document", "value": 1 },
-      "expected": { "result": "accept" }
+      "input": {
+        "entity": "document",
+        "value": 1
+      },
+      "expected": {
+        "result": "accept"
+      }
     },
     {
       "name": "sheet current",
-      "input": { "entity": "sheet", "value": 1 },
-      "expected": { "result": "accept" }
+      "input": {
+        "entity": "sheet",
+        "value": 1
+      },
+      "expected": {
+        "result": "accept"
+      }
     },
     {
       "name": "project newer",
-      "input": { "entity": "project", "value": 2 },
+      "input": {
+        "entity": "project",
+        "value": 2
+      },
       "expected": {
         "result": "reject",
         "errorKind": "unsupportedSchemaVersion"
@@ -28,7 +46,10 @@
     },
     {
       "name": "sheet far newer",
-      "input": { "entity": "sheet", "value": 999 },
+      "input": {
+        "entity": "sheet",
+        "value": 999
+      },
       "expected": {
         "result": "reject",
         "errorKind": "unsupportedSchemaVersion"
@@ -36,20 +57,37 @@
     },
     {
       "name": "zero",
-      "input": { "entity": "document", "value": 0 },
-      "expected": { "result": "reject", "errorKind": "invalidSchemaVersion" }
+      "input": {
+        "entity": "document",
+        "value": 0
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidSchemaVersion"
+      }
     },
     {
       "name": "negative",
-      "input": { "entity": "sheet", "value": -1 },
-      "expected": { "result": "reject", "errorKind": "invalidSchemaVersion" }
+      "input": {
+        "entity": "sheet",
+        "value": -1
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidSchemaVersion"
+      }
     },
     {
       "name": "fractional",
-      "input": { "entity": "project", "value": 1.5 },
-      "expected": { "result": "reject", "errorKind": "invalidSchemaVersion" },
-      "targets": ["ts"],
-      "note": "Rust domain takes integers; fractional JSON numbers are rejected when mapping file DTOs in Phase 2."
+      "input": {
+        "entity": "project",
+        "value": 1.5
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidSchemaVersion"
+      },
+      "note": "Rust checks this at the JSON DTO -> domain boundary (Rust domain constructors take integers only)."
     }
   ]
 }

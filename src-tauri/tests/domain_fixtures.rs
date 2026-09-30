@@ -1,17 +1,16 @@
 //! Runs the shared fixtures in `fixtures/domain/` against the Rust domain (docs/testing.md §8).
 
-use design_dawn_lib::domain::block::{Block, BlockInput};
 use design_dawn_lib::domain::block_type::BlockType;
 use design_dawn_lib::domain::content_path::ContentPath;
 use design_dawn_lib::domain::display_name::DisplayName;
-use design_dawn_lib::domain::document::{Document, DocumentInput};
 use design_dawn_lib::domain::entity_id::ProjectId;
 use design_dawn_lib::domain::error::DomainError;
-use design_dawn_lib::domain::geometry::{Position, Size};
-use design_dawn_lib::domain::project::{Project, ProjectInput};
-use design_dawn_lib::domain::schema_version::{SchemaEntityKind, SchemaVersion};
-use design_dawn_lib::domain::sheet::{Sheet, SheetInput};
-use serde_json::Value;
+use design_dawn_lib::domain::schema_version::SchemaEntityKind;
+use design_dawn_lib::infrastructure::file_format::dto::{
+    parse_schema_version, BlockDto, DocumentDto, PositionDto, ProjectDto, SheetDto, SizeDto,
+};
+use serde::de::DeserializeOwned;
+use serde_json::{Number, Value};
 
 const CURRENT_LANGUAGE: &str = "rust";
 const KNOWN_LANGUAGES: [&str; 2] = ["ts", "rust"];
@@ -56,10 +55,11 @@ fn text(value: &Value, key: &str) -> Result<String, String> {
         .ok_or_else(|| format!("{key:?} is not a string"))
 }
 
-fn integer(value: &Value, key: &str) -> Result<i64, String> {
-    field(value, key)?
-        .as_i64()
-        .ok_or_else(|| format!("{key:?} is not an integer"))
+fn number(value: &Value, key: &str) -> Result<Number, String> {
+    match field(value, key)? {
+        Value::Number(number) => Ok(number.clone()),
+        _ => Err(format!("{key:?} is not a number")),
+    }
 }
 
 fn text_list(value: &Value, key: &str) -> Result<Vec<String>, String> {
@@ -75,18 +75,10 @@ fn text_list(value: &Value, key: &str) -> Result<Vec<String>, String> {
         .collect()
 }
 
-fn block_input(value: &Value) -> Result<BlockInput, String> {
-    let position = field(value, "position")?;
-    let size = field(value, "size")?;
-    Ok(BlockInput {
-        block_id: text(value, "blockId")?,
-        block_type: text(value, "blockType")?,
-        x: integer(position, "x")?,
-        y: integer(position, "y")?,
-        width: integer(size, "width")?,
-        height: integer(size, "height")?,
-        content_path: text(value, "contentPath")?,
-    })
+/// Numeric subjects and whole entities go through the same JSON -> DTO -> domain path the
+/// persistence layer uses, so that JSON-only cases (fractions) are judged by production code.
+fn dto<T: DeserializeOwned>(value: &Value) -> Result<T, String> {
+    serde_json::from_value(value.clone()).map_err(|error| format!("malformed input: {error}"))
 }
 
 fn schema_entity(name: &str) -> Result<SchemaEntityKind, String> {
@@ -102,36 +94,10 @@ fn run_entity(input: &Value) -> Verdict {
     let entity = text(input, "entity")?;
     let value = field(input, "value")?;
     let verdict = match entity.as_str() {
-        "project" => Project::new(&ProjectInput {
-            schema_version: integer(value, "schemaVersion")?,
-            project_id: text(value, "projectId")?,
-            name: text(value, "name")?,
-            document_order: text_list(value, "documentOrder")?,
-        })
-        .map(|_| ()),
-        "document" => Document::new(&DocumentInput {
-            schema_version: integer(value, "schemaVersion")?,
-            document_id: text(value, "documentId")?,
-            name: text(value, "name")?,
-            sheet_order: text_list(value, "sheetOrder")?,
-        })
-        .map(|_| ()),
-        "sheet" => {
-            let blocks = field(value, "blocks")?
-                .as_array()
-                .ok_or("\"blocks\" is not an array")?
-                .iter()
-                .map(block_input)
-                .collect::<Result<Vec<_>, _>>()?;
-            Sheet::new(&SheetInput {
-                schema_version: integer(value, "schemaVersion")?,
-                sheet_id: text(value, "sheetId")?,
-                name: text(value, "name")?,
-                blocks,
-            })
-            .map(|_| ())
-        }
-        "block" => Block::new(&block_input(value)?).map(|_| ()),
+        "project" => dto::<ProjectDto>(value)?.to_domain().map(|_| ()),
+        "document" => dto::<DocumentDto>(value)?.to_domain().map(|_| ()),
+        "sheet" => dto::<SheetDto>(value)?.to_domain().map(|_| ()),
+        "block" => dto::<BlockDto>(value)?.to_domain().map(|_| ()),
         other => return Err(format!("unknown entity kind {other:?}")),
     };
     Ok(verdict)
@@ -143,12 +109,12 @@ fn run_subject(subject: &str, input: &Value) -> Verdict {
         "displayName" => {
             DisplayName::new(input.as_str().ok_or("input is not a string")?).map(|_| ())
         }
-        "position" => Position::new(integer(input, "x")?, integer(input, "y")?).map(|_| ()),
-        "size" => Size::new(integer(input, "width")?, integer(input, "height")?).map(|_| ()),
+        "position" => dto::<PositionDto>(input)?.to_domain().map(|_| ()),
+        "size" => dto::<SizeDto>(input)?.to_domain().map(|_| ()),
         "blockType" => BlockType::parse(input.as_str().ok_or("input is not a string")?).map(|_| ()),
-        "schemaVersion" => SchemaVersion::parse(
+        "schemaVersion" => parse_schema_version(
             schema_entity(&text(input, "entity")?)?,
-            integer(input, "value")?,
+            &number(input, "value")?,
         )
         .map(|_| ()),
         "contentPath" => {

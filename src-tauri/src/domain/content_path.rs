@@ -68,6 +68,15 @@ fn check_syntax(path: &str) -> Result<Vec<&str>, DomainError> {
     Ok(segments)
 }
 
+/// Lexical rules of file-format.md §6 shared by every stored relative path (contentPath and
+/// the `.dawn` `path`); placement and extension rules are contentPath-specific.
+pub fn validate_relative_path(path: &str) -> Result<Vec<&str>, DomainError> {
+    if path.is_empty() {
+        return Err(invalid_path("empty"));
+    }
+    check_syntax(path)
+}
+
 fn file_name_for_location<'a>(
     location: ContentLocation,
     segments: &[&'a str],
@@ -114,10 +123,7 @@ fn check_extension(block_type: BlockType, file_name: &str) -> Result<(), DomainE
 impl ContentPath {
     /// Order: empty, syntax, location, extension. The block type must already be valid.
     pub fn parse(block_type: BlockType, path: &str) -> Result<Self, DomainError> {
-        if path.is_empty() {
-            return Err(invalid_path("empty"));
-        }
-        let segments = check_syntax(path)?;
+        let segments = validate_relative_path(path)?;
         let file_name = file_name_for_location(block_type.definition().location, &segments)?;
         check_extension(block_type, file_name)?;
         Ok(Self(path.to_owned()))
