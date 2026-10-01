@@ -31,4 +31,16 @@ describe("createAppServices", () => {
     const result = await workspace.openProject("stale");
     expect(!result.ok && result.error.kind).toBe("invalidFolderSelection");
   });
+
+  it("wires the theme controller to the app settings commands", async () => {
+    invokeMock.mockResolvedValue({
+      themePreference: "dark",
+      loadIssue: null,
+    });
+    const { themeController } = createAppServices();
+    await themeController.initialize();
+    expect(invokeMock).toHaveBeenCalledWith(COMMANDS.getAppSettings, {});
+    expect(themeController.store.getState().resolvedTheme).toBe("dark");
+    themeController.dispose();
+  });
 });

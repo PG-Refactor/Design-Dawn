@@ -442,3 +442,28 @@ fn concurrent_saves_of_different_sheets_do_not_lose_updates() {
         sheet_ids.len()
     );
 }
+
+// ---- theme settings and project data ----
+
+#[test]
+fn theme_operations_leave_an_open_project_untouched_and_write_only_to_the_config_dir() {
+    let opened = open_copy();
+    let project_before = tree_snapshot(&opened.root);
+    let fixture = fixture();
+
+    fixture.state.get_app_settings();
+    for preference in std::iter::once(THEME_SYSTEM).chain(THEME_IDS) {
+        fixture.state.set_theme_preference(preference).unwrap();
+        fixture.state.get_app_settings();
+    }
+
+    assert_eq!(tree_snapshot(&opened.root), project_before);
+    let written: Vec<String> = tree_snapshot(fixture.temp.path()).into_keys().collect();
+    assert!(
+        written
+            .iter()
+            .all(|path| path == "config" || path.starts_with("config/")),
+        "unexpected writes: {written:?}"
+    );
+    assert!(fixture.settings_path.exists());
+}
