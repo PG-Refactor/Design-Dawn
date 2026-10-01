@@ -88,8 +88,8 @@ describe("activating documents", () => {
         "tab",
       ),
     ).toHaveLength(2);
-    expect(screen.getByText("Active Document: Document A")).toBeTruthy();
-    expect(screen.getByText("Active Sheet: Sheet A1")).toBeTruthy();
+    expect(screen.getByRole("listbox", { name: "Sheet A1" })).toBeTruthy();
+    expect(screen.getByRole("listbox", { name: "Sheet A1" })).toBeTruthy();
     expect(gateway.methods("loadDocument")).toEqual(["loadDocument"]);
   });
 
@@ -185,7 +185,7 @@ describe("document tabs", () => {
 
     await user.click(documentTab(/Document A/));
     expect(isSelected(documentTab(/Document A/))).toBe(true);
-    expect(screen.getByText("Active Document: Document A")).toBeTruthy();
+    expect(screen.getByRole("listbox", { name: "Sheet A1" })).toBeTruthy();
 
     documentTab(/Document A/).focus();
     await user.keyboard("{ArrowRight}");
@@ -218,7 +218,7 @@ describe("document tabs", () => {
       expect(store.getState().documents.has(DOCUMENT_B)).toBe(false),
     );
     expect(isSelected(documentTab(/Document A/))).toBe(true);
-    expect(screen.getByText("Active Document: Document A")).toBeTruthy();
+    expect(screen.getByRole("listbox", { name: "Sheet A1" })).toBeTruthy();
     // The sheets of a closed document leave the tree.
     expect(within(treeItem("Document B")).queryAllByRole("treeitem")).toEqual(
       [],
@@ -248,19 +248,22 @@ describe("sheets", () => {
     expect(isSelected(sheetTab("Sheet A2"))).toBe(true);
     expect(isSelected(treeItem("Sheet A2"))).toBe(true);
     expect(isSelected(treeItem("Sheet A1"))).toBe(false);
-    expect(screen.getByText("Active Sheet: Sheet A2")).toBeTruthy();
+    expect(screen.getByRole("listbox", { name: "Sheet A2" })).toBeTruthy();
 
     await user.click(sheetTab("Sheet A1"));
     expect(isSelected(treeItem("Sheet A1"))).toBe(true);
-    expect(screen.getByText("Active Sheet: Sheet A1")).toBeTruthy();
+    expect(screen.getByRole("listbox", { name: "Sheet A1" })).toBeTruthy();
 
     sheetTab("Sheet A1").focus();
     await user.keyboard("{ArrowRight}");
     await waitFor(() => expect(isSelected(sheetTab("Sheet A2"))).toBe(true));
     expect(document.activeElement).toBe(sheetTab("Sheet A2"));
     expect(
-      screen.getByRole("tabpanel", { name: "Sheet A2" }).textContent,
-    ).toContain("Active Sheet: Sheet A2");
+      within(screen.getByRole("tabpanel", { name: "Sheet A2" })).getByRole(
+        "listbox",
+        { name: "Sheet A2" },
+      ),
+    ).toBeTruthy();
   });
 
   it("restores the remembered sheet when switching back to a document", async () => {
@@ -269,11 +272,11 @@ describe("sheets", () => {
     await user.click(within(treeItem("Document A")).getByText("Document A"));
     await user.click(within(treeItem("Sheet A2")).getByText("Sheet A2"));
     await user.click(within(treeItem("Document B")).getByText("Document B"));
-    expect(screen.getByText("Active Sheet: Sheet B1")).toBeTruthy();
+    expect(screen.getByRole("listbox", { name: "Sheet B1" })).toBeTruthy();
 
     await user.click(documentTab(/Document A/));
 
-    expect(screen.getByText("Active Sheet: Sheet A2")).toBeTruthy();
+    expect(screen.getByRole("listbox", { name: "Sheet A2" })).toBeTruthy();
     expect(isSelected(treeItem("Sheet A2"))).toBe(true);
   });
 });

@@ -2,6 +2,7 @@ import { createContext, type ReactNode, useContext } from "react";
 import type { ApplicationStore } from "../../application/state/application-state";
 import type { ThemeState } from "../../application/theme/theme-controller";
 import type { Store } from "../../shared/store/store";
+import type { CanvasActions } from "../canvas/canvas-actions";
 import type { ThemeSettingsController } from "../theme/theme-settings";
 import type { UiStateStore } from "./ui-state/ui-state";
 import type { WorkspaceActions } from "./workspace-actions";
@@ -12,6 +13,7 @@ export interface WorkspaceServices {
   readonly applicationStore: ApplicationStore;
   readonly uiStateStore: UiStateStore;
   readonly actions: WorkspaceActions;
+  readonly canvasActions: CanvasActions;
   readonly themeController: ThemeSettingsController & {
     readonly store: Store<ThemeState>;
   };

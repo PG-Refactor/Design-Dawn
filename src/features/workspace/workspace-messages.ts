@@ -45,9 +45,6 @@ export const MESSAGES = {
     error: "保存エラー",
   },
   placeholder: {
-    activeDocument: "Active Document",
-    activeSheet: "Active Sheet",
-    none: "（なし）",
     noDocument: "Documentをツリーから開いてください。",
     noProject: "Projectを開くか、新規Projectを作成してください。",
   },
@@ -121,6 +118,13 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   createSheet: "Sheetを作成できませんでした",
   deleteDocument: "Documentを削除できませんでした",
   deleteSheet: "Sheetを削除できませんでした",
+  moveBlocks: "Blockを移動できませんでした",
+  resizeBlocks: "Blockのサイズを変更できませんでした",
+  deleteBlocks: "Blockを削除できませんでした",
+  undo: "元に戻せませんでした",
+  redo: "やり直せませんでした",
+  loadViewport: "表示位置を読み込めませんでした（既定の表示位置を使います）",
+  saveViewport: "表示位置を保存できませんでした",
 };
 
 // A full record, so a new error kind cannot be added without a user-facing sentence.
@@ -218,14 +222,6 @@ export function summarizeNotificationCounts(
   if (errors > 0) return `エラー ${errors}件`;
   if (warnings > 0) return `警告 ${warnings}件`;
   return MESSAGES.notifications.none;
-}
-
-export function activeDocumentText(name: string): string {
-  return `${MESSAGES.placeholder.activeDocument}: ${name}`;
-}
-
-export function activeSheetText(name: string): string {
-  return `${MESSAGES.placeholder.activeSheet}: ${name}`;
 }
 
 export function closeTabLabel(name: string): string {

@@ -1,5 +1,5 @@
 import type { ApplicationState } from "../../application/state/application-state";
-import { SheetPlaceholder } from "./sheet-placeholder";
+import { CanvasPanel } from "../canvas/canvas-panel";
 import { SheetTabs } from "./sheet-tabs";
 import { documentPanelId, documentTabId } from "./tab-ids";
 import type { UiState } from "./ui-state/ui-state";
@@ -51,7 +51,7 @@ export function DocumentPanel() {
       className="document-panel"
     >
       <SheetTabs />
-      <SheetPlaceholder />
+      <CanvasPanel />
     </div>
   );
 }

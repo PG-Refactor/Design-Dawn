@@ -25,12 +25,15 @@ export interface ShellHarness extends ActionsHarness {
 
 export interface ShellOptions {
   readonly projectIssues?: readonly LoadIssue[];
+  // Puts data on the fake disk before the shell is rendered.
+  readonly seed?: (harness: ActionsHarness) => void;
 }
 
 export async function renderShell(
   options: ShellOptions = {},
 ): Promise<ShellHarness> {
   const harness = createActionsHarness();
+  options.seed?.(harness);
   if (options.projectIssues !== undefined) {
     await seedProjectIssues(harness, options.projectIssues);
   }

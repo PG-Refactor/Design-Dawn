@@ -1,0 +1,37 @@
+.canvas {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 12rem;
+  overflow: hidden;
+  background-color: var(--color-canvas-background);
+  background-image: radial-gradient(
+    var(--color-canvas-grid) 1px,
+    transparent 1px
+  );
+  color: var(--color-text);
+  /* The canvas handles every touch / pen gesture itself and selection would fight drags. */
+  touch-action: none;
+  user-select: none;
+}
+
+.canvas:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -2px;
+}
+
+/* Zero-sized origin at the canvas corner; blocks overflow it. */
+.canvas__world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+.canvas-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}

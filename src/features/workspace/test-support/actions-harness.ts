@@ -12,8 +12,15 @@ import {
   createFakeOsThemeSource,
 } from "../../../application/test-support/fake-theme";
 import {
+  createFakeViewportGateway,
+  type FakeViewportGateway,
+} from "../../../application/test-support/fake-viewport";
+import {
   blockIdOf,
+  createFakeScheduler,
   displayName,
+  type FakeScheduler,
+  filesForBlocks,
   position,
   size,
 } from "../../../application/test-support/fakes";
@@ -25,7 +32,18 @@ import {
   type WorkspaceHarness,
 } from "../../../application/test-support/workspace-harness";
 import { createThemeController } from "../../../application/theme/theme-controller";
+import type { Block } from "../../../domain/block/block";
 import type { DocumentId, SheetId } from "../../../domain/shared/entity-id";
+import { unwrap } from "../../../domain/shared/test-support";
+import { parseSheet } from "../../../domain/sheet/sheet";
+import {
+  type CanvasActions,
+  createCanvasActions,
+} from "../../canvas/canvas-actions";
+import {
+  createViewportPersistence,
+  type ViewportPersistence,
+} from "../../canvas/viewport-persistence";
 import { createUiStateStore, type UiStateStore } from "../ui-state/ui-state";
 import { connectWorkspaceToUiState } from "../ui-state/workspace-ui-connector";
 import {
@@ -37,6 +55,11 @@ import type { WorkspaceServices } from "../workspace-services-context";
 export interface ActionsHarness extends WorkspaceHarness {
   readonly uiStateStore: UiStateStore;
   readonly actions: WorkspaceActions;
+  readonly canvasActions: CanvasActions;
+  readonly viewportGateway: FakeViewportGateway;
+  // Its own clock, so viewport saves are advanced independently of auto-save.
+  readonly viewportScheduler: FakeScheduler;
+  readonly viewportPersistence: ViewportPersistence;
   readonly services: WorkspaceServices;
 }
 
@@ -49,6 +72,19 @@ export function createActionsHarness(): ActionsHarness {
     applicationStore: base.store,
     uiStateStore,
   });
+  const canvasActions = createCanvasActions({
+    workspace: base.workspace,
+    applicationStore: base.store,
+    uiStateStore,
+  });
+  const viewportGateway = createFakeViewportGateway();
+  const viewportScheduler = createFakeScheduler();
+  const viewportPersistence = createViewportPersistence({
+    gateway: viewportGateway,
+    scheduler: viewportScheduler,
+    applicationStore: base.store,
+    uiStateStore,
+  });
   const themeController = createThemeController({
     gateway: createFakeAppSettingsGateway(),
     osThemeSource: createFakeOsThemeSource("light"),
@@ -57,10 +93,15 @@ export function createActionsHarness(): ActionsHarness {
     ...base,
     uiStateStore,
     actions,
+    canvasActions,
+    viewportGateway,
+    viewportScheduler,
+    viewportPersistence,
     services: {
       applicationStore: base.store,
       uiStateStore,
       actions,
+      canvasActions,
       themeController,
     },
   };
@@ -134,4 +175,34 @@ export async function makeDocumentADirty(
     renameSheetCommand(SHEET_A1, displayName(name)),
   );
   if (!result.ok) throw new Error("rename must succeed");
+}
+
+// Puts blocks (and their content files) on the fake disk, so the next open of the
+// document loads a sheet that already has them. Call before the document is opened.
+export function seedSheetBlocks(
+  harness: WorkspaceHarness,
+  documentId: DocumentId,
+  sheetId: SheetId,
+  blocks: readonly Block[],
+): void {
+  const stored = harness.gateway.disk.documents.get(documentId);
+  const entry = stored?.sheets.get(sheetId);
+  if (stored === undefined || entry === undefined) {
+    throw new Error("the sheet must be seeded on the fake disk first");
+  }
+  // The sheet keeps its name: sheet tabs follow the name in the session state.
+  stored.sheets.set(sheetId, {
+    ...entry,
+    sheet: unwrap(
+      parseSheet({
+        schemaVersion: 1,
+        sheetId,
+        name: entry.name ?? "Sheet",
+        blocks,
+      }),
+    ),
+  });
+  for (const [path, text] of Object.entries(filesForBlocks(blocks))) {
+    harness.gateway.files.set(path, text);
+  }
 }

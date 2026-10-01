@@ -74,6 +74,13 @@ export const OPERATION_LABELS = [
   "createSheet",
   "deleteDocument",
   "deleteSheet",
+  "moveBlocks",
+  "resizeBlocks",
+  "deleteBlocks",
+  "undo",
+  "redo",
+  "loadViewport",
+  "saveViewport",
 ] as const;
 
 export type OperationLabel = (typeof OPERATION_LABELS)[number];

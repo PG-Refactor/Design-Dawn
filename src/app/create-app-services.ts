@@ -19,6 +19,14 @@ import {
   UNDO_HISTORY_LIMIT,
 } from "../config/session-config";
 import {
+  type CanvasActions,
+  createCanvasActions,
+} from "../features/canvas/canvas-actions";
+import {
+  createViewportPersistence,
+  type ViewportPersistence,
+} from "../features/canvas/viewport-persistence";
+import {
   createUiStateStore,
   type UiStateStore,
 } from "../features/workspace/ui-state/ui-state";
@@ -30,6 +38,7 @@ import {
 import { createMatchMediaOsThemeSource } from "../infrastructure/browser/match-media-os-theme-source";
 import { createTauriAppSettingsGateway } from "../infrastructure/tauri/tauri-app-settings-gateway";
 import { createTauriPersistenceGateway } from "../infrastructure/tauri/tauri-persistence-gateway";
+import { createTauriViewportGateway } from "../infrastructure/tauri/tauri-viewport-gateway";
 import { createTimeoutScheduler } from "../infrastructure/timer/timeout-scheduler";
 
 export interface AppServices {
@@ -38,6 +47,10 @@ export interface AppServices {
   readonly workspace: Workspace;
   // What the UI calls; the only path from components to the workspace.
   readonly actions: WorkspaceActions;
+  // What the canvas calls to change documents (one gesture = one application command).
+  readonly canvasActions: CanvasActions;
+  // Restores / saves the per-sheet viewport; watches the UI state on its own.
+  readonly viewportPersistence: ViewportPersistence;
   // App-level theme state; independent of the workspace, sessions and undo history.
   readonly themeController: ThemeController;
   // Detaches the workspace -> UI state connector.
@@ -62,6 +75,17 @@ export function createAppServices(): AppServices {
     applicationStore,
     uiStateStore,
   });
+  const canvasActions = createCanvasActions({
+    workspace,
+    applicationStore,
+    uiStateStore,
+  });
+  const viewportPersistence = createViewportPersistence({
+    gateway: createTauriViewportGateway(),
+    scheduler: createTimeoutScheduler(),
+    applicationStore,
+    uiStateStore,
+  });
   const disconnectUiState = connectWorkspaceToUiState(workspace, uiStateStore);
   const themeController = createThemeController({
     gateway: createTauriAppSettingsGateway(),
@@ -77,6 +101,8 @@ export function createAppServices(): AppServices {
     uiStateStore,
     workspace,
     actions,
+    canvasActions,
+    viewportPersistence,
     themeController,
     disconnectUiState,
   };
