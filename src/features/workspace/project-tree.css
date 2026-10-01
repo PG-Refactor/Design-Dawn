@@ -20,6 +20,7 @@
 }
 
 .tree-item__row {
+  position: relative;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -57,19 +58,53 @@
   font-size: 0.8125rem;
 }
 
-.tree-item__actions {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
+/* The name is replaced by the input while renaming; it stays in the DOM (visually hidden)
+   because it is the tree item's accessible name. */
+.tree-item__label--hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
-.tree-item__action {
-  padding: 0 var(--space-2);
-  border: 1px solid var(--color-border);
+.tree-rename {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.tree-rename__input {
+  min-width: 0;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--color-accent);
   border-radius: var(--radius-medium);
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
+}
+
+.tree-rename__input[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
+.tree-rename__error {
+  color: var(--color-danger);
   font-size: 0.8125rem;
-  cursor: pointer;
+}
+
+/* The menu button is always in the DOM and the accessibility tree; it is only revealed
+   on hover and focus. Opacity (not display) keeps it focusable. */
+.tree-item__menu .popup-menu__trigger {
+  opacity: 0;
+}
+
+.tree-item__row:hover .popup-menu__trigger,
+.tree-item__row:focus-within .popup-menu__trigger,
+.tree-item:focus > .tree-item__row .popup-menu__trigger,
+.tree-item__menu .popup-menu__trigger[aria-expanded="true"] {
+  opacity: 1;
 }

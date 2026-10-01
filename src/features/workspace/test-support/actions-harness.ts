@@ -8,6 +8,10 @@ import {
 import { renameSheetCommand } from "../../../application/commands/naming-commands";
 import type { LoadIssue } from "../../../application/ports/persistence-types";
 import {
+  type ApplicationStore,
+  createApplicationStore,
+} from "../../../application/state/application-state";
+import {
   createFakeAppSettingsGateway,
   createFakeOsThemeSource,
 } from "../../../application/test-support/fake-theme";
@@ -25,6 +29,7 @@ import {
   position,
   size,
 } from "../../../application/test-support/fakes";
+import { TEST_AUTO_SAVE_DELAY_MS } from "../../../application/test-support/session-harness";
 import {
   createWorkspaceHarness,
   DOCUMENT_A,
@@ -33,6 +38,10 @@ import {
   type WorkspaceHarness,
 } from "../../../application/test-support/workspace-harness";
 import { createThemeController } from "../../../application/theme/theme-controller";
+import {
+  createWorkspace,
+  type Workspace,
+} from "../../../application/workspace/workspace";
 import type { Block } from "../../../domain/block/block";
 import type { DocumentId, SheetId } from "../../../domain/shared/entity-id";
 import { unwrap } from "../../../domain/shared/test-support";
@@ -207,4 +216,42 @@ export function seedSheetBlocks(
   for (const [path, text] of Object.entries(filesForBlocks(blocks))) {
     harness.gateway.files.set(path, text);
   }
+}
+
+// How many entries the undo stack of an open document holds. Found by undoing them all
+// and redoing them again, so the document ends as it was.
+export async function undoDepth(
+  harness: WorkspaceHarness,
+  documentId: DocumentId = DOCUMENT_A,
+): Promise<number> {
+  const session = harness.workspace.getDocumentSession(documentId);
+  if (session === null) throw new Error("the document must be open");
+  let depth = 0;
+  while (session.getState().history.canUndo) {
+    await session.undo();
+    depth += 1;
+  }
+  for (let step = 0; step < depth; step += 1) await session.redo();
+  return depth;
+}
+
+// A fresh workspace over the SAME fake disk with the project open: what a restart sees.
+export async function reopenedWorkspace(harness: WorkspaceHarness): Promise<{
+  readonly workspace: Workspace;
+  readonly store: ApplicationStore;
+}> {
+  const store = createApplicationStore();
+  const reopened = createWorkspace({
+    gateway: harness.gateway,
+    scheduler: createFakeScheduler(),
+    idGenerator: createSequentialIdGenerator(),
+    store,
+    config: {
+      undoHistoryLimit: 50,
+      autoSaveDelayMs: TEST_AUTO_SAVE_DELAY_MS,
+    },
+  });
+  const opened = await reopened.openProject(SELECTION_ID);
+  if (!opened.ok) throw new Error(`reopen failed: ${opened.error.kind}`);
+  return { workspace: reopened, store };
 }

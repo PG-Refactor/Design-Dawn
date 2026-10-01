@@ -9,7 +9,9 @@ import {
 import { makeDocumentADirty } from "./test-support/actions-harness";
 import {
   applyOutsideUi,
+  chooseRowMenuItem,
   renderShell,
+  rowMenuButton,
   type ShellHarness,
 } from "./test-support/shell-harness";
 
@@ -19,8 +21,6 @@ afterEach(() => {
 
 const treeItem = (name: string | RegExp) =>
   screen.getByRole("treeitem", { name });
-const treeButton = (item: string | RegExp, label: string) =>
-  within(treeItem(item)).getByRole("button", { name: label });
 
 async function openDocumentByClick(harness: ShellHarness, name: string) {
   await harness.user.click(within(treeItem(name)).getByText(name));
@@ -31,7 +31,7 @@ describe("name dialog", () => {
   it("validates, announces the error inline, submits with Enter and opens the new document", async () => {
     const harness = await renderShell();
     await harness.openProjectInUi();
-    await harness.user.click(treeButton("Project", "Documentを作成"));
+    await chooseRowMenuItem(harness.user, "Project", "Documentを作成");
 
     const dialog = screen.getByRole("dialog", { name: "Documentを作成" });
     expect(dialog.getAttribute("aria-modal")).toBe("true");
@@ -62,8 +62,8 @@ describe("name dialog", () => {
   it("cancels with Escape and returns focus to the button that opened it", async () => {
     const harness = await renderShell();
     await harness.openProjectInUi();
-    const opener = treeButton("Project", "Documentを作成");
-    await harness.user.click(opener);
+    const opener = rowMenuButton("Project");
+    await chooseRowMenuItem(harness.user, "Project", "Documentを作成");
     await screen.findByRole("dialog");
 
     await harness.user.keyboard("{Escape}");
@@ -77,7 +77,7 @@ describe("name dialog", () => {
     const harness = await renderShell();
     await harness.openProjectInUi();
 
-    await harness.user.click(treeButton("Document B", "Sheetを作成"));
+    await chooseRowMenuItem(harness.user, "Document B", "Sheetを作成");
 
     const dialog = await screen.findByRole("dialog", { name: "Sheetを作成" });
     expect(harness.store.getState().documents.has(DOCUMENT_B)).toBe(true);
@@ -114,8 +114,8 @@ describe("delete confirmation", () => {
     const harness = await renderShell();
     await harness.openProjectInUi();
     await openDocumentByClick(harness, "Document A");
-    const opener = treeButton("Sheet A2", "Sheetを削除");
-    await harness.user.click(opener);
+    const opener = rowMenuButton("Sheet A2");
+    await chooseRowMenuItem(harness.user, "Sheet A2", "Sheetを削除");
     const dialog = await screen.findByRole("dialog", {
       name: "「Sheet A2」を削除しますか？",
     });
@@ -141,7 +141,7 @@ describe("delete confirmation", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(document.activeElement).toBe(opener);
 
-    await harness.user.click(opener);
+    await chooseRowMenuItem(harness.user, "Sheet A2", "Sheetを削除");
     await harness.user.click(
       screen.getByRole("button", { name: "キャンセル" }),
     );
@@ -183,7 +183,7 @@ describe("delete confirmation", () => {
     await openDocumentByClick(harness, "Document A");
     await openDocumentByClick(harness, "Document B");
 
-    await harness.user.click(treeButton("Document B", "Documentを削除"));
+    await chooseRowMenuItem(harness.user, "Document B", "Documentを削除");
 
     const dialog = await screen.findByRole("dialog", {
       name: "「Document B」を削除しますか？",

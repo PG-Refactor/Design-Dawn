@@ -20,6 +20,10 @@ export const MESSAGES = {
     createSheet: "Sheetを作成",
     deleteDocument: "Documentを削除",
     deleteSheet: "Sheetを削除",
+    rename: "名前変更",
+    moveUp: "上へ移動",
+    moveDown: "下へ移動",
+    menuButtonText: "⋮",
     unnamedEntity: "（名前を読み込めません）",
     loadFailedMarker: "読み込み失敗",
     loadFailedHint: "読み込みに失敗したため開けません（削除はできます）",
@@ -120,6 +124,10 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   createSheet: "Sheetを作成できませんでした",
   deleteDocument: "Documentを削除できませんでした",
   deleteSheet: "Sheetを削除できませんでした",
+  renameDocument: "名前の変更に失敗しました",
+  renameSheet: "名前の変更に失敗しました",
+  moveDocument: "並び順の変更に失敗しました",
+  moveSheet: "並び順の変更に失敗しました",
   moveBlocks: "Blockを移動できませんでした",
   resizeBlocks: "Blockのサイズを変更できませんでした",
   deleteBlocks: "Blockを削除できませんでした",
@@ -240,4 +248,12 @@ export function retrySaveLabel(name: string): string {
 
 export function deleteSheetTabLabel(name: string): string {
   return `${MESSAGES.tabs.deleteSheet}（${name}）`;
+}
+
+export function treeMenuLabel(name: string): string {
+  return `${name} のメニュー`;
+}
+
+export function renameInputLabel(name: string): string {
+  return `${name}の名前を変更`;
 }

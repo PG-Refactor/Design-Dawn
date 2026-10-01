@@ -6,7 +6,7 @@ import {
   DOCUMENT_B,
   FAILED_DOCUMENT_ID,
 } from "../../application/test-support/workspace-harness";
-import { renderShell } from "./test-support/shell-harness";
+import { openRowMenu, renderShell } from "./test-support/shell-harness";
 
 afterEach(() => {
   cleanup();
@@ -142,12 +142,18 @@ describe("activating documents", () => {
 
     expect(gateway.methods("loadDocument")).toEqual([]);
     expect(store.getState().documents.has(FAILED_DOCUMENT_ID)).toBe(false);
+    const menu = await openRowMenu(user, failed);
     expect(
-      within(failed).getByRole("button", { name: "Documentを削除" }),
-    ).toBeTruthy();
-    expect(
-      within(failed).queryByRole("button", { name: "Sheetを作成" }),
+      within(menu)
+        .getByRole("menuitem", { name: "Documentを削除" })
+        .getAttribute("aria-disabled"),
     ).toBeNull();
+    // Nothing can be added to a document that did not load.
+    expect(
+      within(menu)
+        .getByRole("menuitem", { name: "Sheetを作成" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
   });
 });
 

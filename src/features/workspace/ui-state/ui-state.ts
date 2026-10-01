@@ -74,6 +74,10 @@ export const OPERATION_LABELS = [
   "createSheet",
   "deleteDocument",
   "deleteSheet",
+  "renameDocument",
+  "renameSheet",
+  "moveDocument",
+  "moveSheet",
   "moveBlocks",
   "resizeBlocks",
   "deleteBlocks",
@@ -106,6 +110,17 @@ export interface EditingBlock {
   readonly blockId: BlockId;
 }
 
+// The Project Tree row whose name is being edited inline (at most one). Only WHICH row
+// lives here; the draft text is local to the input and reaches the application only when
+// the rename is committed.
+export type RenamingTarget =
+  | { readonly kind: "document"; readonly documentId: DocumentId }
+  | {
+      readonly kind: "sheet";
+      readonly documentId: DocumentId;
+      readonly sheetId: SheetId;
+    };
+
 export interface UiState {
   readonly activeDocumentId: DocumentId | null;
   readonly activeSheetIdByDocument: ReadonlyMap<DocumentId, SheetId>;
@@ -113,6 +128,7 @@ export interface UiState {
   readonly hoveredBlockId: BlockId | null;
   readonly interaction: Interaction;
   readonly editingBlock: EditingBlock | null;
+  readonly renaming: RenamingTarget | null;
   readonly viewportBySheet: ReadonlyMap<SheetId, Viewport>;
   readonly dialog: DialogState;
   readonly operationErrors: readonly OperationErrorEntry[];
@@ -135,6 +151,7 @@ export function createInitialUiState(): UiState {
     hoveredBlockId: null,
     interaction: IDLE,
     editingBlock: null,
+    renaming: null,
     viewportBySheet: new Map(),
     dialog: NO_DIALOG,
     operationErrors: [],
@@ -293,6 +310,32 @@ export function stopEditingSheet(state: UiState, sheetId: SheetId): UiState {
   return state.editingBlock?.sheetId === sheetId
     ? { ...state, editingBlock: null }
     : state;
+}
+
+export function sameRenamingTarget(
+  first: RenamingTarget | null,
+  second: RenamingTarget | null,
+): boolean {
+  if (first === null || second === null) return first === second;
+  if (first.kind === "document") {
+    return second.kind === "document" && first.documentId === second.documentId;
+  }
+  return (
+    second.kind === "sheet" &&
+    first.documentId === second.documentId &&
+    first.sheetId === second.sheetId
+  );
+}
+
+// Starting a rename replaces another one that is open: only one input exists at a time.
+export function beginRenaming(state: UiState, target: RenamingTarget): UiState {
+  return sameRenamingTarget(state.renaming, target)
+    ? state
+    : { ...state, renaming: target };
+}
+
+export function endRenaming(state: UiState): UiState {
+  return state.renaming === null ? state : { ...state, renaming: null };
 }
 
 export function setViewport(

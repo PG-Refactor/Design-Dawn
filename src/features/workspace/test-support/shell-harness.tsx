@@ -1,7 +1,7 @@
 // Renders the workspace shell over a real workspace and the fake gateway / scheduler.
 // DOM tests only; not imported by production code.
 
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { LoadIssue } from "../../../application/ports/persistence-types";
 import { settle } from "../../../application/test-support/fakes";
@@ -75,4 +75,46 @@ export async function waitForGone(text: string | RegExp): Promise<void> {
   await waitFor(() => {
     if (screen.queryByText(text) !== null) throw new Error("still shown");
   });
+}
+
+export type UserSession = ReturnType<typeof userEvent.setup>;
+
+// A tree row, given by its accessible name or as the element itself (rows that failed to
+// load have a name that includes the failure marker).
+export type TreeRow = string | HTMLElement;
+
+export const treeItemNamed = (name: string | RegExp): HTMLElement =>
+  screen.getByRole("treeitem", { name });
+
+function rowElement(row: TreeRow): HTMLElement {
+  return typeof row === "string" ? treeItemNamed(row) : row;
+}
+
+// The "⋮" button of the row itself ("<name> のメニュー"). A row's own button comes
+// first in document order; the ones of nested rows follow.
+export function rowMenuButton(row: TreeRow): HTMLElement {
+  const [own] = within(rowElement(row)).getAllByRole("button", {
+    name: /のメニュー$/,
+  });
+  if (own === undefined) throw new Error("the row has no menu button");
+  return own;
+}
+
+// Opens the row menu and returns it.
+export async function openRowMenu(
+  user: UserSession,
+  row: TreeRow,
+): Promise<HTMLElement> {
+  await user.click(rowMenuButton(row));
+  return screen.getByRole("menu");
+}
+
+// Opens the row menu and chooses one item.
+export async function chooseRowMenuItem(
+  user: UserSession,
+  row: TreeRow,
+  itemName: string,
+): Promise<void> {
+  const menu = await openRowMenu(user, row);
+  await user.click(within(menu).getByRole("menuitem", { name: itemName }));
 }

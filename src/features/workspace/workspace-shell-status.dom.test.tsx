@@ -15,6 +15,7 @@ import {
 } from "./test-support/actions-harness";
 import {
   applyOutsideUi,
+  chooseRowMenuItem,
   renderShell,
   waitForGone,
 } from "./test-support/shell-harness";
@@ -167,9 +168,7 @@ describe("load issues and warnings", () => {
     await harness.user.click(failed);
     expect(harness.gateway.methods("loadDocument")).toEqual([]);
 
-    await harness.user.click(
-      within(failed).getByRole("button", { name: "Documentを削除" }),
-    );
+    await chooseRowMenuItem(harness.user, failed, "Documentを削除");
     await harness.user.click(screen.getByRole("button", { name: "削除" }));
     await waitFor(() =>
       expect(

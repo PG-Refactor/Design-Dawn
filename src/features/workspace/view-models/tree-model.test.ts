@@ -128,3 +128,39 @@ describe("flattenProjectTree", () => {
     expect(items[6]?.opensOnExpand).toBe(false);
   });
 });
+
+describe("selectProjectTree move availability", () => {
+  it("disables up for the first and down for the last, counting entries that failed to load", async () => {
+    const { store } = await openedWorkspace();
+    const model = selectProjectTree(store.getState(), createInitialUiState());
+    const moves = model?.documents.map((node) => [
+      node.canMoveUp,
+      node.canMoveDown,
+    ]);
+    // A, B, failed: the failed one is the last position but cannot move itself, while B
+    // can still move down past it.
+    expect(moves).toEqual([
+      [false, true],
+      [true, true],
+      [false, false],
+    ]);
+  });
+
+  it("does the same for the sheets of an open document", async () => {
+    const { store, workspace } = await openedWorkspace();
+    await workspace.openDocument(DOCUMENT_A);
+    const model = selectProjectTree(store.getState(), createInitialUiState());
+    const sheets = model?.documents[0]?.sheets;
+    expect(
+      sheets?.map((sheet) => [
+        sheet.sheetId,
+        sheet.canMoveUp,
+        sheet.canMoveDown,
+      ]),
+    ).toEqual([
+      [SHEET_A1, false, true],
+      [SHEET_A2, true, true],
+      [FAILED_SHEET_ID, false, false],
+    ]);
+  });
+});

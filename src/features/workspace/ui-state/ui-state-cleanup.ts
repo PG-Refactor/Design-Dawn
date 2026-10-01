@@ -84,6 +84,10 @@ export function removeDocumentReferences(
   if (next.activeDocumentId === documentId) {
     next = { ...next, activeDocumentId: null };
   }
+  // Document and sheet renames of that document end with it.
+  if (next.renaming?.documentId === documentId) {
+    next = { ...next, renaming: null };
+  }
   return next;
 }
 
@@ -105,6 +109,13 @@ export function removeSheetFromUiState(
     const activeSheetIdByDocument = new Map(next.activeSheetIdByDocument);
     activeSheetIdByDocument.delete(documentId);
     next = { ...next, activeSheetIdByDocument };
+  }
+  if (
+    next.renaming?.kind === "sheet" &&
+    next.renaming.documentId === documentId &&
+    next.renaming.sheetId === sheetId
+  ) {
+    next = { ...next, renaming: null };
   }
   return next;
 }

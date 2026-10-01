@@ -8,8 +8,15 @@
 // A cancelled folder dialog is not an error and changes nothing.
 
 import {
+  moveSheetCommand,
+  renameDocumentCommand,
+  renameSheetCommand,
+} from "../../application/commands/naming-commands";
+import {
+  fromDomainResult,
   type OperationError,
   type OperationResult,
+  operationErr,
   operationOk,
 } from "../../application/ports/operation-error";
 import { FOLDER_SELECTION_STATUS } from "../../application/ports/persistence-types";
@@ -18,6 +25,10 @@ import type {
   DestructiveConfirmation,
   Workspace,
 } from "../../application/workspace/workspace";
+import {
+  type DisplayName,
+  parseDisplayName,
+} from "../../domain/shared/display-name";
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
 import {
   addOperationError,
@@ -28,11 +39,15 @@ import {
   setNotificationsOpen,
 } from "./ui-state/shell-ui-state";
 import {
+  beginRenaming,
+  endRenaming,
   type OperationLabel,
+  type RenamingTarget,
   setActiveDocument,
   setActiveSheet,
   type UiStateStore,
 } from "./ui-state/ui-state";
+import { type MoveDirection, oneStepMove } from "./view-models/reorder";
 import { firstLoadedSheetId } from "./view-models/tabs-model";
 import { MESSAGES } from "./workspace-messages";
 
@@ -66,6 +81,31 @@ export interface WorkspaceActions {
   // Runs the deletion the dialog asked for, passing the user's confirmation.
   confirmDelete(): Promise<OperationResult<void>>;
   cancelDialog(): void;
+
+  // Opens the inline name editor of a loaded document (opening the document first when it
+  // is not open) / of a loaded sheet. Nothing happens for entries that failed to load.
+  beginRenameDocument(documentId: DocumentId): Promise<OperationResult<void>>;
+  beginRenameSheet(
+    documentId: DocumentId,
+    sheetId: SheetId,
+  ): Promise<OperationResult<void>>;
+  cancelRename(): void;
+  // Ends the open rename with `name`. A name the domain refuses is returned as an error
+  // and NOT recorded: the editor stays open and shows the message. Otherwise the editor
+  // closes; an unchanged name does nothing, a changed one is ONE undoable command.
+  commitRename(name: string): Promise<OperationResult<void>>;
+  // One place up / down. Documents: project order, saved at once, not undoable. Sheets:
+  // one undoable command. At the boundary (or for an entry that failed to load) nothing
+  // happens at all.
+  moveDocumentBy(
+    documentId: DocumentId,
+    direction: MoveDirection,
+  ): Promise<OperationResult<void>>;
+  moveSheetBy(
+    documentId: DocumentId,
+    sheetId: SheetId,
+    direction: MoveDirection,
+  ): Promise<OperationResult<void>>;
 
   retryDocumentSave(documentId: DocumentId): Promise<OperationResult<void>>;
   retryProjectSave(): Promise<OperationResult<void>>;
@@ -199,6 +239,44 @@ export function createWorkspaceActions(
     const wasActive = uiStateStore.getState().activeDocumentId === documentId;
     const result = await removal();
     activateNeighbourTab(documentId, orderBefore, wasActive);
+    return result;
+  }
+
+  function startRenaming(target: RenamingTarget): void {
+    uiStateStore.setState((state) => beginRenaming(state, target));
+  }
+
+  // The name the document / sheet has right now (null when it is not loaded).
+  function currentNameOf(target: RenamingTarget): string | null {
+    const session = applicationStore
+      .getState()
+      .documents.get(target.documentId);
+    if (session === undefined) return null;
+    return target.kind === "document"
+      ? session.document.name
+      : (session.sheets.get(target.sheetId)?.name ?? null);
+  }
+
+  async function renameThroughSession(
+    target: RenamingTarget,
+    name: DisplayName,
+    subject: string | null,
+  ): Promise<OperationResult<void>> {
+    const operation =
+      target.kind === "document" ? "renameDocument" : "renameSheet";
+    const session = workspace.getDocumentSession(target.documentId);
+    const result =
+      session === null
+        ? operationErr(
+            "notWritable",
+            `document is not open: ${target.documentId}`,
+          )
+        : await session.execute(
+            target.kind === "document"
+              ? renameDocumentCommand(name)
+              : renameSheetCommand(target.sheetId, name),
+          );
+    if (!result.ok) record(operation, subject, result.error);
     return result;
   }
 
@@ -410,6 +488,89 @@ export function createWorkspaceActions(
     },
     cancelDialog() {
       uiStateStore.setState(closeDialog);
+    },
+
+    async beginRenameDocument(documentId) {
+      const entry = applicationStore
+        .getState()
+        .project?.documents.find(
+          (candidate) => candidate.documentId === documentId,
+        );
+      if (entry?.state !== "loaded") return operationOk(undefined);
+      // A document that is not open is opened (and becomes active) first; an open one
+      // keeps whatever is active, because renaming is not a navigation.
+      if (!applicationStore.getState().documents.has(documentId)) {
+        const opened = await ensureOpen(documentId);
+        if (!opened.ok) return opened;
+        if (!opened.value) return operationOk(undefined);
+        activateDocument(documentId);
+      }
+      startRenaming({ kind: "document", documentId });
+      return operationOk(undefined);
+    },
+    beginRenameSheet(documentId, sheetId) {
+      const entry = applicationStore
+        .getState()
+        .documentDetails.get(documentId)
+        ?.sheetEntries.find((candidate) => candidate.sheetId === sheetId);
+      if (entry?.state === "loaded") {
+        startRenaming({ kind: "sheet", documentId, sheetId });
+      }
+      return Promise.resolve(operationOk(undefined));
+    },
+    cancelRename() {
+      uiStateStore.setState(endRenaming);
+    },
+    async commitRename(name) {
+      const target = uiStateStore.getState().renaming;
+      if (target === null) return operationOk(undefined);
+      const parsed = parseDisplayName(name);
+      if (!parsed.ok) return fromDomainResult(parsed);
+      const current = currentNameOf(target);
+      // The editor closes before the command runs, so it cannot be submitted twice.
+      uiStateStore.setState(endRenaming);
+      if (current === name) return operationOk(undefined);
+      return renameThroughSession(target, parsed.value, current);
+    },
+
+    async moveDocumentBy(documentId, direction) {
+      const project = applicationStore.getState().project;
+      const entry = project?.documents.find(
+        (candidate) => candidate.documentId === documentId,
+      );
+      if (project === null || entry?.state !== "loaded") {
+        return operationOk(undefined);
+      }
+      const step = oneStepMove(
+        project.project.documentOrder,
+        documentId,
+        direction,
+      );
+      if (step === null) return operationOk(undefined);
+      const result = await workspace.moveDocument(documentId, step.before);
+      if (!result.ok) record("moveDocument", entry.name, result.error);
+      return result;
+    },
+    async moveSheetBy(documentId, sheetId, direction) {
+      const session = applicationStore.getState().documents.get(documentId);
+      const entry = applicationStore
+        .getState()
+        .documentDetails.get(documentId)
+        ?.sheetEntries.find((candidate) => candidate.sheetId === sheetId);
+      if (session === undefined || entry?.state !== "loaded") {
+        return operationOk(undefined);
+      }
+      const step = oneStepMove(session.document.sheetOrder, sheetId, direction);
+      if (step === null) return operationOk(undefined);
+      const result =
+        (await workspace
+          .getDocumentSession(documentId)
+          ?.execute(moveSheetCommand(sheetId, step.before))) ??
+        operationErr("notWritable", `document is not open: ${documentId}`);
+      if (!result.ok) {
+        record("moveSheet", documentNameOf(documentId), result.error);
+      }
+      return result;
     },
 
     async retryDocumentSave(documentId) {

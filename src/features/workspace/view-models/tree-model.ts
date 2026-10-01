@@ -7,12 +7,16 @@ import type { ApplicationState } from "../../../application/state/application-st
 import type { DocumentId, SheetId } from "../../../domain/shared/entity-id";
 import type { UiState } from "../ui-state/ui-state";
 import { MESSAGES } from "../workspace-messages";
+import { canMoveOneStep, MOVE_DIRECTIONS } from "./reorder";
 
 export interface SheetNode {
   readonly sheetId: SheetId;
   readonly name: string;
   readonly state: EntityState;
   readonly isActive: boolean;
+  // Moving by one place is possible: not at the boundary, and the sheet loaded.
+  readonly canMoveUp: boolean;
+  readonly canMoveDown: boolean;
 }
 
 export interface DocumentNode {
@@ -21,6 +25,8 @@ export interface DocumentNode {
   readonly state: EntityState;
   readonly isOpen: boolean;
   readonly isActive: boolean;
+  readonly canMoveUp: boolean;
+  readonly canMoveDown: boolean;
   // Empty unless the document is open.
   readonly sheets: readonly SheetNode[];
 }
@@ -60,6 +66,8 @@ export function selectProjectTree(
       const isOpen = application.documents.has(entry.documentId);
       const isActive = isOpen && ui.activeDocumentId === entry.documentId;
       const activeSheetId = ui.activeSheetIdByDocument.get(entry.documentId);
+      const sheetOrder =
+        application.documents.get(entry.documentId)?.document.sheetOrder ?? [];
       const sheetEntries = isOpen
         ? (application.documentDetails.get(entry.documentId)?.sheetEntries ??
           [])
@@ -71,12 +79,24 @@ export function selectProjectTree(
         state: entry.state,
         isOpen,
         isActive,
+        canMoveUp:
+          entry.state === "loaded" &&
+          canMoveOneStep(order, entry.documentId, MOVE_DIRECTIONS.up),
+        canMoveDown:
+          entry.state === "loaded" &&
+          canMoveOneStep(order, entry.documentId, MOVE_DIRECTIONS.down),
         sheets: sheetEntries.map(
           (sheet): SheetNode => ({
             sheetId: sheet.sheetId,
             name: sheet.name ?? MESSAGES.tree.unnamedEntity,
             state: sheet.state,
             isActive: isActive && activeSheetId === sheet.sheetId,
+            canMoveUp:
+              sheet.state === "loaded" &&
+              canMoveOneStep(sheetOrder, sheet.sheetId, MOVE_DIRECTIONS.up),
+            canMoveDown:
+              sheet.state === "loaded" &&
+              canMoveOneStep(sheetOrder, sheet.sheetId, MOVE_DIRECTIONS.down),
           }),
         ),
       };
