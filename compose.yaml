@@ -1,0 +1,45 @@
+# Development container (docs/environment.md). Run every npm / cargo / tauri
+# command inside this service; nothing is installed on the host.
+services:
+  dev:
+    build:
+      context: docker/dev
+    image: design-dawn-dev:local
+    working_dir: /workspace
+    # Keeps the container alive for `docker compose exec`; one-off commands can
+    # still use `docker compose run --rm dev <cmd>`.
+    command: sleep infinity
+    init: true
+    volumes:
+      - .:/workspace
+      # Dependencies and build output stay in named volumes so they never land
+      # in the source tree and survive container rebuilds.
+      - node_modules:/workspace/node_modules
+      - cargo_target:/workspace/src-tauri/target
+      - cargo_registry:/home/dev/.cargo/registry
+      - cargo_git:/home/dev/.cargo/git
+      - npm_cache:/home/dev/.npm
+      # WSLg sockets. Compose is run from the WSL2 distro, whose own /mnt/wslg
+      # is what Docker Desktop resolves. When running compose from Windows
+      # instead, set WSLG_DIR=/run/desktop/mnt/host/wslg.
+      - ${WSLG_DIR:-/mnt/wslg}/.X11-unix:/tmp/.X11-unix
+      - ${WSLG_DIR:-/mnt/wslg}:/mnt/wslg
+    environment:
+      DISPLAY: ":0"
+      WAYLAND_DISPLAY: wayland-0
+      XDG_RUNTIME_DIR: /mnt/wslg/runtime-dir
+      PULSE_SERVER: /mnt/wslg/PulseServer
+      # WebKitGTK window display is verified via WSLg's X11 (XWayland) only;
+      # the native Wayland path is unverified, so force X11 for predictability.
+      GDK_BACKEND: x11
+      # The repo lives on the WSL2 filesystem, where inotify works. Set
+      # DAWN_WATCH_POLLING=true only when the repo is bind-mounted from Windows
+      # (C:\...), where file change events may not arrive.
+      DAWN_WATCH_POLLING: ${DAWN_WATCH_POLLING:-false}
+
+volumes:
+  node_modules:
+  cargo_target:
+  cargo_registry:
+  cargo_git:
+  npm_cache:

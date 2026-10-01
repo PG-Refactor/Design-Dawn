@@ -1,0 +1,103 @@
+{
+  "fixtureVersion": 1,
+  "subject": "position",
+  "description": "position.x / position.y must be integers in the signed 32-bit range. See docs/data-model.md §11.3.",
+  "cases": [
+    {
+      "name": "origin",
+      "input": {
+        "x": 0,
+        "y": 0
+      },
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "positive",
+      "input": {
+        "x": 100,
+        "y": 200
+      },
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "negative",
+      "input": {
+        "x": -640,
+        "y": -480
+      },
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "minimum",
+      "input": {
+        "x": -2147483648,
+        "y": -2147483648
+      },
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "maximum",
+      "input": {
+        "x": 2147483647,
+        "y": 2147483647
+      },
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "x above maximum",
+      "input": {
+        "x": 2147483648,
+        "y": 0
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidPosition"
+      }
+    },
+    {
+      "name": "y below minimum",
+      "input": {
+        "x": 0,
+        "y": -2147483649
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidPosition"
+      }
+    },
+    {
+      "name": "x fractional",
+      "input": {
+        "x": 1.5,
+        "y": 0
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidPosition"
+      },
+      "note": "Rust checks this at the JSON DTO -> domain boundary (Rust domain constructors take integers only)."
+    },
+    {
+      "name": "y fractional",
+      "input": {
+        "x": 0,
+        "y": -0.25
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidPosition"
+      },
+      "note": "Rust checks this at the JSON DTO -> domain boundary (Rust domain constructors take integers only)."
+    }
+  ]
+}

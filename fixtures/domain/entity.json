@@ -1,0 +1,755 @@
+{
+  "fixtureVersion": 1,
+  "subject": "entity",
+  "description": "Whole-entity validation in file-format.md §3 shape. The first error in key order is reported (docs/data-model.md §11.8).",
+  "cases": [
+    {
+      "name": "project valid",
+      "input": {
+        "entity": "project",
+        "value": {
+          "schemaVersion": 1,
+          "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+          "name": "My Project",
+          "documentOrder": [
+            "01928f3a-6c7d-7e8f-a012-3456789abcde",
+            "01928f3a-6c7e-7e8f-a012-3456789abcde"
+          ]
+        }
+      },
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "project empty document order",
+      "input": {
+        "entity": "project",
+        "value": {
+          "schemaVersion": 1,
+          "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+          "name": "My Project",
+          "documentOrder": []
+        }
+      },
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "project newer schema",
+      "input": {
+        "entity": "project",
+        "value": {
+          "schemaVersion": 2,
+          "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+          "name": "My Project",
+          "documentOrder": [
+            "01928f3a-6c7d-7e8f-a012-3456789abcde",
+            "01928f3a-6c7e-7e8f-a012-3456789abcde"
+          ]
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "unsupportedSchemaVersion"
+      }
+    },
+    {
+      "name": "project invalid id",
+      "input": {
+        "entity": "project",
+        "value": {
+          "schemaVersion": 1,
+          "projectId": "not-a-uuid",
+          "name": "My Project",
+          "documentOrder": [
+            "01928f3a-6c7d-7e8f-a012-3456789abcde",
+            "01928f3a-6c7e-7e8f-a012-3456789abcde"
+          ]
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidEntityId"
+      }
+    },
+    {
+      "name": "project empty name",
+      "input": {
+        "entity": "project",
+        "value": {
+          "schemaVersion": 1,
+          "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+          "name": "",
+          "documentOrder": [
+            "01928f3a-6c7d-7e8f-a012-3456789abcde",
+            "01928f3a-6c7e-7e8f-a012-3456789abcde"
+          ]
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidDisplayName"
+      }
+    },
+    {
+      "name": "project invalid id in document order",
+      "input": {
+        "entity": "project",
+        "value": {
+          "schemaVersion": 1,
+          "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+          "name": "My Project",
+          "documentOrder": [
+            "01928f3a-6c7d-7e8f-a012-3456789abcde",
+            "550e8400-e29b-41d4-a716-446655440000"
+          ]
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidEntityId"
+      }
+    },
+    {
+      "name": "project duplicate document in order",
+      "input": {
+        "entity": "project",
+        "value": {
+          "schemaVersion": 1,
+          "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+          "name": "My Project",
+          "documentOrder": [
+            "01928f3a-6c7d-7e8f-a012-3456789abcde",
+            "01928f3a-6c7e-7e8f-a012-3456789abcde",
+            "01928f3a-6c7d-7e8f-a012-3456789abcde"
+          ]
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "duplicateId"
+      }
+    },
+    {
+      "name": "project schema error reported before id error",
+      "input": {
+        "entity": "project",
+        "value": {
+          "schemaVersion": 0,
+          "projectId": "bad",
+          "name": "My Project",
+          "documentOrder": [
+            "01928f3a-6c7d-7e8f-a012-3456789abcde",
+            "01928f3a-6c7e-7e8f-a012-3456789abcde"
+          ]
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidSchemaVersion"
+      },
+      "note": "docs/data-model.md §11.8: first error in key order."
+    },
+    {
+      "name": "project element error reported before duplicate",
+      "input": {
+        "entity": "project",
+        "value": {
+          "schemaVersion": 1,
+          "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+          "name": "My Project",
+          "documentOrder": [
+            "01928f3a-6c7d-7e8f-a012-3456789abcde",
+            "01928f3a-6c7d-7e8f-a012-3456789abcde",
+            "bad"
+          ]
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidEntityId"
+      },
+      "note": "Each element is validated before duplicates are checked."
+    },
+    {
+      "name": "document valid",
+      "input": {
+        "entity": "document",
+        "value": {
+          "schemaVersion": 1,
+          "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+          "name": "System Design",
+          "sheetOrder": [
+            "01928f3a-7d8e-7f90-b123-456789abcdef",
+            "01928f3a-7d8f-7f90-b123-456789abcdef"
+          ]
+        }
+      },
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "document invalid id",
+      "input": {
+        "entity": "document",
+        "value": {
+          "schemaVersion": 1,
+          "documentId": "01928F3A-6C7D-7E8F-A012-3456789ABCDE",
+          "name": "System Design",
+          "sheetOrder": [
+            "01928f3a-7d8e-7f90-b123-456789abcdef",
+            "01928f3a-7d8f-7f90-b123-456789abcdef"
+          ]
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidEntityId"
+      }
+    },
+    {
+      "name": "document whitespace-only name",
+      "input": {
+        "entity": "document",
+        "value": {
+          "schemaVersion": 1,
+          "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+          "name": "   ",
+          "sheetOrder": [
+            "01928f3a-7d8e-7f90-b123-456789abcdef",
+            "01928f3a-7d8f-7f90-b123-456789abcdef"
+          ]
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidDisplayName"
+      }
+    },
+    {
+      "name": "document duplicate sheet in order",
+      "input": {
+        "entity": "document",
+        "value": {
+          "schemaVersion": 1,
+          "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+          "name": "System Design",
+          "sheetOrder": [
+            "01928f3a-7d8e-7f90-b123-456789abcdef",
+            "01928f3a-7d8e-7f90-b123-456789abcdef"
+          ]
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "duplicateId"
+      }
+    },
+    {
+      "name": "document zero schema",
+      "input": {
+        "entity": "document",
+        "value": {
+          "schemaVersion": 0,
+          "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+          "name": "System Design",
+          "sheetOrder": [
+            "01928f3a-7d8e-7f90-b123-456789abcdef",
+            "01928f3a-7d8f-7f90-b123-456789abcdef"
+          ]
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidSchemaVersion"
+      }
+    },
+    {
+      "name": "sheet valid",
+      "input": {
+        "entity": "sheet",
+        "value": {
+          "schemaVersion": 1,
+          "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef",
+          "name": "Overview",
+          "blocks": [
+            {
+              "blockId": "01928f3a-8e9f-7a01-8234-56789abcdef0",
+              "blockType": "markdown",
+              "position": {
+                "x": 100,
+                "y": 200
+              },
+              "size": {
+                "width": 480,
+                "height": 320
+              },
+              "contentPath": "sheets/overview/blocks/markdown-1.md"
+            },
+            {
+              "blockId": "01928f3a-9fa0-7b12-9345-6789abcdef01",
+              "blockType": "image",
+              "position": {
+                "x": 640,
+                "y": 200
+              },
+              "size": {
+                "width": 400,
+                "height": 300
+              },
+              "contentPath": "assets/system-overview.png"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "sheet no blocks",
+      "input": {
+        "entity": "sheet",
+        "value": {
+          "schemaVersion": 1,
+          "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef",
+          "name": "Overview",
+          "blocks": []
+        }
+      },
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "sheet duplicate block id",
+      "input": {
+        "entity": "sheet",
+        "value": {
+          "schemaVersion": 1,
+          "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef",
+          "name": "Overview",
+          "blocks": [
+            {
+              "blockId": "01928f3a-8e9f-7a01-8234-56789abcdef0",
+              "blockType": "markdown",
+              "position": {
+                "x": 100,
+                "y": 200
+              },
+              "size": {
+                "width": 480,
+                "height": 320
+              },
+              "contentPath": "sheets/overview/blocks/markdown-1.md"
+            },
+            {
+              "blockId": "01928f3a-8e9f-7a01-8234-56789abcdef0",
+              "blockType": "image",
+              "position": {
+                "x": 640,
+                "y": 200
+              },
+              "size": {
+                "width": 400,
+                "height": 300
+              },
+              "contentPath": "assets/system-overview.png"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "duplicateId"
+      }
+    },
+    {
+      "name": "sheet invalid block inside",
+      "input": {
+        "entity": "sheet",
+        "value": {
+          "schemaVersion": 1,
+          "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef",
+          "name": "Overview",
+          "blocks": [
+            {
+              "blockId": "01928f3a-8e9f-7a01-8234-56789abcdef0",
+              "blockType": "markdown",
+              "position": {
+                "x": 100,
+                "y": 200
+              },
+              "size": {
+                "width": 480,
+                "height": 320
+              },
+              "contentPath": "sheets/overview/blocks/markdown-1.md"
+            },
+            {
+              "blockId": "01928f3a-9fa0-7b12-9345-6789abcdef01",
+              "blockType": "image",
+              "position": {
+                "x": 640,
+                "y": 200
+              },
+              "size": {
+                "width": 0,
+                "height": 300
+              },
+              "contentPath": "assets/system-overview.png"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidSize"
+      }
+    },
+    {
+      "name": "sheet name with newline",
+      "input": {
+        "entity": "sheet",
+        "value": {
+          "schemaVersion": 1,
+          "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef",
+          "name": "Over\nview",
+          "blocks": [
+            {
+              "blockId": "01928f3a-8e9f-7a01-8234-56789abcdef0",
+              "blockType": "markdown",
+              "position": {
+                "x": 100,
+                "y": 200
+              },
+              "size": {
+                "width": 480,
+                "height": 320
+              },
+              "contentPath": "sheets/overview/blocks/markdown-1.md"
+            },
+            {
+              "blockId": "01928f3a-9fa0-7b12-9345-6789abcdef01",
+              "blockType": "image",
+              "position": {
+                "x": 640,
+                "y": 200
+              },
+              "size": {
+                "width": 400,
+                "height": 300
+              },
+              "contentPath": "assets/system-overview.png"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidDisplayName"
+      }
+    },
+    {
+      "name": "sheet newer schema",
+      "input": {
+        "entity": "sheet",
+        "value": {
+          "schemaVersion": 3,
+          "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef",
+          "name": "Overview",
+          "blocks": [
+            {
+              "blockId": "01928f3a-8e9f-7a01-8234-56789abcdef0",
+              "blockType": "markdown",
+              "position": {
+                "x": 100,
+                "y": 200
+              },
+              "size": {
+                "width": 480,
+                "height": 320
+              },
+              "contentPath": "sheets/overview/blocks/markdown-1.md"
+            },
+            {
+              "blockId": "01928f3a-9fa0-7b12-9345-6789abcdef01",
+              "blockType": "image",
+              "position": {
+                "x": 640,
+                "y": 200
+              },
+              "size": {
+                "width": 400,
+                "height": 300
+              },
+              "contentPath": "assets/system-overview.png"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "unsupportedSchemaVersion"
+      }
+    },
+    {
+      "name": "block valid markdown",
+      "input": {
+        "entity": "block",
+        "value": {
+          "blockId": "01928f3a-8e9f-7a01-8234-56789abcdef0",
+          "blockType": "markdown",
+          "position": {
+            "x": 100,
+            "y": 200
+          },
+          "size": {
+            "width": 480,
+            "height": 320
+          },
+          "contentPath": "sheets/overview/blocks/markdown-1.md"
+        }
+      },
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "block valid image",
+      "input": {
+        "entity": "block",
+        "value": {
+          "blockId": "01928f3a-9fa0-7b12-9345-6789abcdef01",
+          "blockType": "image",
+          "position": {
+            "x": 640,
+            "y": 200
+          },
+          "size": {
+            "width": 400,
+            "height": 300
+          },
+          "contentPath": "assets/system-overview.png"
+        }
+      },
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "block invalid id",
+      "input": {
+        "entity": "block",
+        "value": {
+          "blockId": "{01928f3a-8e9f-7a01-8234-56789abcdef0}",
+          "blockType": "markdown",
+          "position": {
+            "x": 100,
+            "y": 200
+          },
+          "size": {
+            "width": 480,
+            "height": 320
+          },
+          "contentPath": "sheets/overview/blocks/markdown-1.md"
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidEntityId"
+      }
+    },
+    {
+      "name": "block unsupported type",
+      "input": {
+        "entity": "block",
+        "value": {
+          "blockId": "01928f3a-8e9f-7a01-8234-56789abcdef0",
+          "blockType": "python",
+          "position": {
+            "x": 100,
+            "y": 200
+          },
+          "size": {
+            "width": 480,
+            "height": 320
+          },
+          "contentPath": "sheets/overview/blocks/markdown-1.md"
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "unsupportedBlockType"
+      }
+    },
+    {
+      "name": "block position out of range",
+      "input": {
+        "entity": "block",
+        "value": {
+          "blockId": "01928f3a-8e9f-7a01-8234-56789abcdef0",
+          "blockType": "markdown",
+          "position": {
+            "x": 2147483648,
+            "y": 0
+          },
+          "size": {
+            "width": 480,
+            "height": 320
+          },
+          "contentPath": "sheets/overview/blocks/markdown-1.md"
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidPosition"
+      }
+    },
+    {
+      "name": "block zero size",
+      "input": {
+        "entity": "block",
+        "value": {
+          "blockId": "01928f3a-8e9f-7a01-8234-56789abcdef0",
+          "blockType": "markdown",
+          "position": {
+            "x": 100,
+            "y": 200
+          },
+          "size": {
+            "width": 480,
+            "height": 0
+          },
+          "contentPath": "sheets/overview/blocks/markdown-1.md"
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidSize"
+      }
+    },
+    {
+      "name": "block empty content path",
+      "input": {
+        "entity": "block",
+        "value": {
+          "blockId": "01928f3a-8e9f-7a01-8234-56789abcdef0",
+          "blockType": "markdown",
+          "position": {
+            "x": 100,
+            "y": 200
+          },
+          "size": {
+            "width": 480,
+            "height": 320
+          },
+          "contentPath": ""
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidContentPath"
+      }
+    },
+    {
+      "name": "block traversal content path",
+      "input": {
+        "entity": "block",
+        "value": {
+          "blockId": "01928f3a-8e9f-7a01-8234-56789abcdef0",
+          "blockType": "markdown",
+          "position": {
+            "x": 100,
+            "y": 200
+          },
+          "size": {
+            "width": 480,
+            "height": 320
+          },
+          "contentPath": "../outside.md"
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidContentPath"
+      },
+      "targets": ["rust"]
+    },
+    {
+      "name": "block traversal content path is opaque in ts",
+      "input": {
+        "entity": "block",
+        "value": {
+          "blockId": "01928f3a-8e9f-7a01-8234-56789abcdef0",
+          "blockType": "markdown",
+          "position": {
+            "x": 100,
+            "y": 200
+          },
+          "size": {
+            "width": 480,
+            "height": 320
+          },
+          "contentPath": "../outside.md"
+        }
+      },
+      "expected": {
+        "result": "accept"
+      },
+      "targets": ["ts"],
+      "note": "TypeScript treats contentPath as opaque; Rust rejects it."
+    },
+    {
+      "name": "block extension mismatch",
+      "input": {
+        "entity": "block",
+        "value": {
+          "blockId": "01928f3a-8e9f-7a01-8234-56789abcdef0",
+          "blockType": "markdown",
+          "position": {
+            "x": 100,
+            "y": 200
+          },
+          "size": {
+            "width": 480,
+            "height": 320
+          },
+          "contentPath": "sheets/overview/blocks/markdown-1.mmd"
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidContentExtension"
+      },
+      "targets": ["rust"]
+    },
+    {
+      "name": "block type error reported before size error",
+      "input": {
+        "entity": "block",
+        "value": {
+          "blockId": "01928f3a-8e9f-7a01-8234-56789abcdef0",
+          "blockType": "python",
+          "position": {
+            "x": 100,
+            "y": 200
+          },
+          "size": {
+            "width": 0,
+            "height": 0
+          },
+          "contentPath": "sheets/overview/blocks/markdown-1.md"
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "unsupportedBlockType"
+      },
+      "note": "docs/data-model.md §11.8."
+    }
+  ]
+}
