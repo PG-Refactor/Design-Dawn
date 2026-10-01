@@ -1,0 +1,652 @@
+{
+  "fixtureVersion": 1,
+  "targetsNote": "A case without `targets` runs on both sides. `rust` marks requests the typed TypeScript client cannot produce (invalid ids, paths, names or payloads are rejected by its parsers before any call) or that bypass the client entirely (missing or wrong-typed arguments, ACL).",
+  "description": "Real command-boundary contract (docs/testing.md). Rust runs it through Tauri IPC (src-tauri/tests/ipc_contract.rs); TypeScript checks the same request/response shapes against the client wrappers (src/infrastructure/tauri/ipc-contract.test.ts). Cases run in order within a scenario against one app instance.",
+  "selectionIdPlaceholder": "$selectionId",
+  "scenarios": [
+    {
+      "name": "open-and-edit-existing-project",
+      "description": "Select the project folder copy, open it, then exercise read, write and error paths against it.",
+      "folderPicker": ["projectCopy"],
+      "cases": [
+        {
+          "name": "select folder: selected",
+          "request": {
+            "command": "select_project_folder",
+            "args": {}
+          },
+          "expected": {
+            "ok": {
+              "status": "selected",
+              "selectionId": "$selectionId",
+              "displayPath": ""
+            }
+          },
+          "ignoreValuePaths": ["displayPath"]
+        },
+        {
+          "name": "open_project: missing selectionId",
+          "targets": ["rust"],
+          "request": {
+            "command": "open_project",
+            "args": {}
+          },
+          "expected": {
+            "tauriError": true
+          }
+        },
+        {
+          "name": "open_project: wrong-typed selectionId",
+          "targets": ["rust"],
+          "request": {
+            "command": "open_project",
+            "args": {
+              "selectionId": 5
+            }
+          },
+          "expected": {
+            "tauriError": true
+          }
+        },
+        {
+          "name": "open_project: unknown selectionId",
+          "request": {
+            "command": "open_project",
+            "args": {
+              "selectionId": "01928f3a-ffff-7fff-bfff-ffffffffffff"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidFolderSelection"
+            }
+          }
+        },
+        {
+          "name": "open_project: valid selectionId returns the project snapshot",
+          "request": {
+            "command": "open_project",
+            "args": {
+              "selectionId": "$selectionId"
+            }
+          },
+          "expected": {
+            "ok": {
+              "project": {
+                "schemaVersion": 1,
+                "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+                "name": "Basic Project",
+                "documentOrder": ["01928f3a-6c7d-7e8f-a012-3456789abcde"]
+              },
+              "documents": [
+                {
+                  "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+                  "name": "System Design",
+                  "state": "loaded"
+                }
+              ],
+              "issues": []
+            }
+          }
+        },
+        {
+          "name": "load_document: document snapshot",
+          "request": {
+            "command": "load_document",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde"
+            }
+          },
+          "expected": {
+            "ok": {
+              "document": {
+                "schemaVersion": 1,
+                "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+                "name": "System Design",
+                "sheetOrder": [
+                  "01928f3a-7d8e-7f90-b123-456789abcdef",
+                  "01928f3a-7d8f-7f90-b123-456789abcdef"
+                ]
+              },
+              "sheets": [
+                {
+                  "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef",
+                  "name": "Overview",
+                  "state": "loaded",
+                  "sheet": {
+                    "schemaVersion": 1,
+                    "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef",
+                    "name": "Overview",
+                    "blocks": [
+                      {
+                        "blockId": "01928f3a-8e9f-7a01-8234-56789abcdef0",
+                        "blockType": "markdown",
+                        "position": {
+                          "x": 100,
+                          "y": 200
+                        },
+                        "size": {
+                          "width": 480,
+                          "height": 320
+                        },
+                        "contentPath": "sheets/overview/blocks/markdown-1.md"
+                      },
+                      {
+                        "blockId": "01928f3a-a0b1-7c23-a456-789abcdef012",
+                        "blockType": "mermaid",
+                        "position": {
+                          "x": -640,
+                          "y": -120
+                        },
+                        "size": {
+                          "width": 400,
+                          "height": 300
+                        },
+                        "contentPath": "sheets/overview/blocks/mermaid-1.mmd"
+                      },
+                      {
+                        "blockId": "01928f3a-9fa0-7b12-9345-6789abcdef01",
+                        "blockType": "image",
+                        "position": {
+                          "x": 640,
+                          "y": 200
+                        },
+                        "size": {
+                          "width": 1,
+                          "height": 1
+                        },
+                        "contentPath": "assets/pixel.png"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "sheetId": "01928f3a-7d8f-7f90-b123-456789abcdef",
+                  "name": "Details",
+                  "state": "loaded",
+                  "sheet": {
+                    "schemaVersion": 1,
+                    "sheetId": "01928f3a-7d8f-7f90-b123-456789abcdef",
+                    "name": "Details",
+                    "blocks": [
+                      {
+                        "blockId": "01928f3a-b1c2-7d34-b567-89abcdef0123",
+                        "blockType": "markdown",
+                        "position": {
+                          "x": 0,
+                          "y": 0
+                        },
+                        "size": {
+                          "width": 320,
+                          "height": 240
+                        },
+                        "contentPath": "sheets/details/blocks/markdown-1.md"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "issues": []
+            }
+          }
+        },
+        {
+          "name": "load_document: unknown documentId",
+          "request": {
+            "command": "load_document",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-ffff-7fff-bfff-ffffffffffff"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "entityNotFound"
+            }
+          }
+        },
+        {
+          "name": "load_document: malformed documentId",
+          "targets": ["rust"],
+          "request": {
+            "command": "load_document",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "not-an-id"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidEntityId"
+            }
+          }
+        },
+        {
+          "name": "save_sheet: valid payload",
+          "request": {
+            "command": "save_sheet",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "sheet": {
+                "schemaVersion": 1,
+                "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef",
+                "name": "Overview",
+                "blocks": [
+                  {
+                    "blockId": "01928f3a-8e9f-7a01-8234-56789abcdef0",
+                    "blockType": "markdown",
+                    "position": {
+                      "x": 101,
+                      "y": 200
+                    },
+                    "size": {
+                      "width": 480,
+                      "height": 320
+                    },
+                    "contentPath": "sheets/overview/blocks/markdown-1.md"
+                  },
+                  {
+                    "blockId": "01928f3a-a0b1-7c23-a456-789abcdef012",
+                    "blockType": "mermaid",
+                    "position": {
+                      "x": -640,
+                      "y": -120
+                    },
+                    "size": {
+                      "width": 400,
+                      "height": 300
+                    },
+                    "contentPath": "sheets/overview/blocks/mermaid-1.mmd"
+                  },
+                  {
+                    "blockId": "01928f3a-9fa0-7b12-9345-6789abcdef01",
+                    "blockType": "image",
+                    "position": {
+                      "x": 640,
+                      "y": 200
+                    },
+                    "size": {
+                      "width": 1,
+                      "height": 1
+                    },
+                    "contentPath": "assets/pixel.png"
+                  }
+                ]
+              }
+            }
+          },
+          "expected": {
+            "ok": {
+              "written": true
+            }
+          }
+        },
+        {
+          "name": "save_sheet: unknown key in payload",
+          "targets": ["rust"],
+          "request": {
+            "command": "save_sheet",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "sheet": {
+                "schemaVersion": 1,
+                "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef",
+                "name": "Overview",
+                "blocks": [
+                  {
+                    "blockId": "01928f3a-8e9f-7a01-8234-56789abcdef0",
+                    "blockType": "markdown",
+                    "position": {
+                      "x": 100,
+                      "y": 200
+                    },
+                    "size": {
+                      "width": 480,
+                      "height": 320
+                    },
+                    "contentPath": "sheets/overview/blocks/markdown-1.md"
+                  },
+                  {
+                    "blockId": "01928f3a-a0b1-7c23-a456-789abcdef012",
+                    "blockType": "mermaid",
+                    "position": {
+                      "x": -640,
+                      "y": -120
+                    },
+                    "size": {
+                      "width": 400,
+                      "height": 300
+                    },
+                    "contentPath": "sheets/overview/blocks/mermaid-1.mmd"
+                  },
+                  {
+                    "blockId": "01928f3a-9fa0-7b12-9345-6789abcdef01",
+                    "blockType": "image",
+                    "position": {
+                      "x": 640,
+                      "y": 200
+                    },
+                    "size": {
+                      "width": 1,
+                      "height": 1
+                    },
+                    "contentPath": "assets/pixel.png"
+                  }
+                ],
+                "unknownKey": 1
+              }
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidFileStructure"
+            }
+          }
+        },
+        {
+          "name": "save_sheet: fractional position",
+          "targets": ["rust"],
+          "request": {
+            "command": "save_sheet",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "sheet": {
+                "schemaVersion": 1,
+                "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef",
+                "name": "Overview",
+                "blocks": [
+                  {
+                    "blockId": "01928f3a-8e9f-7a01-8234-56789abcdef0",
+                    "blockType": "markdown",
+                    "position": {
+                      "x": 1.5,
+                      "y": 200
+                    },
+                    "size": {
+                      "width": 480,
+                      "height": 320
+                    },
+                    "contentPath": "sheets/overview/blocks/markdown-1.md"
+                  },
+                  {
+                    "blockId": "01928f3a-a0b1-7c23-a456-789abcdef012",
+                    "blockType": "mermaid",
+                    "position": {
+                      "x": -640,
+                      "y": -120
+                    },
+                    "size": {
+                      "width": 400,
+                      "height": 300
+                    },
+                    "contentPath": "sheets/overview/blocks/mermaid-1.mmd"
+                  },
+                  {
+                    "blockId": "01928f3a-9fa0-7b12-9345-6789abcdef01",
+                    "blockType": "image",
+                    "position": {
+                      "x": 640,
+                      "y": 200
+                    },
+                    "size": {
+                      "width": 1,
+                      "height": 1
+                    },
+                    "contentPath": "assets/pixel.png"
+                  }
+                ]
+              }
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidPosition"
+            }
+          }
+        },
+        {
+          "name": "read_block_content: markdown text",
+          "request": {
+            "command": "read_block_content",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "contentPath": "sheets/overview/blocks/markdown-1.md"
+            }
+          },
+          "expected": {
+            "ok": "# Overview\n\nThis is the **basic** sample project.\n\n- first\n- second\n"
+          }
+        },
+        {
+          "name": "read_block_content: traversal contentPath",
+          "targets": ["rust"],
+          "request": {
+            "command": "read_block_content",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "contentPath": "sheets/../../project.json"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidContentPath"
+            }
+          }
+        },
+        {
+          "name": "create_block_content: returns the next contentPath",
+          "request": {
+            "command": "create_block_content",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef",
+              "blockType": "markdown",
+              "text": "# New"
+            }
+          },
+          "expected": {
+            "ok": "sheets/overview/blocks/markdown-2.md"
+          }
+        },
+        {
+          "name": "restore_block_content: existing path",
+          "request": {
+            "command": "restore_block_content",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "blockType": "markdown",
+              "contentPath": "sheets/overview/blocks/markdown-1.md",
+              "text": "# Back"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "alreadyExists"
+            }
+          }
+        },
+        {
+          "name": "delete_sheet: unknown sheetId",
+          "request": {
+            "command": "delete_sheet",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "sheetId": "01928f3a-ffff-7fff-bfff-ffffffffffff"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "entityNotFound"
+            }
+          }
+        },
+        {
+          "name": "ACL: command that is not registered",
+          "targets": ["rust"],
+          "request": {
+            "command": "import_asset",
+            "args": {}
+          },
+          "expected": {
+            "tauriError": true
+          }
+        },
+        {
+          "name": "ACL: dialog plugin is not exposed to the frontend",
+          "targets": ["rust"],
+          "request": {
+            "command": "plugin:dialog|open",
+            "args": {}
+          },
+          "expected": {
+            "tauriError": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "project-not-open",
+      "description": "No project has been opened in this app instance.",
+      "folderPicker": [],
+      "cases": [
+        {
+          "name": "load_document: project not open",
+          "request": {
+            "command": "load_document",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "projectNotOpen"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "empty-directory",
+      "description": "The selected folder is empty, so open fails and create succeeds with the same selection.",
+      "folderPicker": ["emptyDirectory"],
+      "cases": [
+        {
+          "name": "select folder: selected",
+          "request": {
+            "command": "select_project_folder",
+            "args": {}
+          },
+          "expected": {
+            "ok": {
+              "status": "selected",
+              "selectionId": "$selectionId",
+              "displayPath": ""
+            }
+          },
+          "ignoreValuePaths": ["displayPath"]
+        },
+        {
+          "name": "open_project: empty directory has no project.json",
+          "request": {
+            "command": "open_project",
+            "args": {
+              "selectionId": "$selectionId"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "fileNotFound"
+            }
+          }
+        },
+        {
+          "name": "create_project: whitespace-only name",
+          "targets": ["rust"],
+          "request": {
+            "command": "create_project",
+            "args": {
+              "selectionId": "$selectionId",
+              "name": "   "
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidDisplayName"
+            }
+          }
+        },
+        {
+          "name": "create_project: valid name",
+          "request": {
+            "command": "create_project",
+            "args": {
+              "selectionId": "$selectionId",
+              "name": "Created"
+            }
+          },
+          "expected": {
+            "ok": {
+              "project": {
+                "schemaVersion": 1,
+                "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+                "name": "Created",
+                "documentOrder": []
+              },
+              "documents": [],
+              "issues": []
+            }
+          },
+          "ignoreValuePaths": ["project.projectId"]
+        }
+      ]
+    },
+    {
+      "name": "dialog-cancelled",
+      "description": "Cancelling the dialog is an ok result, not an error.",
+      "folderPicker": ["cancelled"],
+      "cases": [
+        {
+          "name": "select folder: cancelled",
+          "request": {
+            "command": "select_project_folder",
+            "args": {}
+          },
+          "expected": {
+            "ok": {
+              "status": "cancelled"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "dialog-failed",
+      "description": "A dialog failure crosses the boundary as dialogFailed.",
+      "folderPicker": ["failed"],
+      "cases": [
+        {
+          "name": "select folder: dialog failure",
+          "request": {
+            "command": "select_project_folder",
+            "args": {}
+          },
+          "expected": {
+            "error": {
+              "kind": "dialogFailed"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

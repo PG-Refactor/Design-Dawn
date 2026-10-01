@@ -39,7 +39,9 @@ impl From<FolderPickerError> for ApplicationError {
     }
 }
 
-pub trait FolderPicker {
+/// `Send + Sync` because the picker is shared through Tauri's managed state and called from a
+/// blocking-pool thread.
+pub trait FolderPicker: Send + Sync {
     /// `Ok(Some(path))`: a folder was chosen. `Ok(None)`: the user cancelled.
     /// `Err`: the dialog could not be shown or its result could not be read.
     fn pick_folder(&self) -> Result<Option<PathBuf>, FolderPickerError>;

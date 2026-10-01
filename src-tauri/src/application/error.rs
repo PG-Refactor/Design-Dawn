@@ -6,6 +6,18 @@ use serde::{Serialize, Serializer};
 use crate::domain::error::{DomainError, DomainErrorKind};
 use crate::infrastructure::error::{PersistenceError, PersistenceErrorKind};
 
+/// Error conversion boundary (Rust side of the chain; the TypeScript side is `toCommandError`):
+///
+/// ```text
+/// DomainError / PersistenceError  --From-->  ApplicationError { kind, detail }
+///   --Serialize-->  { "kind": "<identifier>", "detail": "<text>" }   (Tauri rejection payload)
+///   --TS toCommandError-->  CommandError { kind, detail }
+/// ```
+///
+/// Only `kind` is a stable contract; `detail` is developer-facing. Errors Tauri raises itself
+/// before a command runs (bad arguments, ACL) are NOT this shape: they are plain strings, and
+/// the client maps them to `unexpectedCommandError`. `fixtures/ipc/` pins both cases.
+///
 /// The complete set of error identifiers a Command can return (docs/architecture.md §6.3):
 /// domain kinds, persistence kinds, and the session-level kinds defined here.
 /// Each identifier is defined exactly once, in its own enum's `as_str`.

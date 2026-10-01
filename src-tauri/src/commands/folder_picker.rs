@@ -3,22 +3,24 @@
 
 use std::path::PathBuf;
 
-use tauri::{AppHandle, Wry};
+use tauri::{AppHandle, Runtime};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::application::folder_selection::{FolderPicker, FolderPickerError};
 
-pub struct DialogFolderPicker {
-    app: AppHandle<Wry>,
+/// Generic over the runtime only so it type-checks wherever `configure` is generic; the
+/// production app is the only place that registers it (tests register a fake picker).
+pub struct DialogFolderPicker<R: Runtime> {
+    app: AppHandle<R>,
 }
 
-impl DialogFolderPicker {
-    pub fn new(app: AppHandle<Wry>) -> Self {
+impl<R: Runtime> DialogFolderPicker<R> {
+    pub fn new(app: AppHandle<R>) -> Self {
         Self { app }
     }
 }
 
-impl FolderPicker for DialogFolderPicker {
+impl<R: Runtime> FolderPicker for DialogFolderPicker<R> {
     /// Blocks the calling thread until the dialog closes, so it must never run on the main
     /// thread (the dialog is shown through the main thread's event loop and would deadlock).
     fn pick_folder(&self) -> Result<Option<PathBuf>, FolderPickerError> {

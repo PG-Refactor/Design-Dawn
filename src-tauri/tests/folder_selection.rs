@@ -3,7 +3,6 @@
 
 mod support;
 
-use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -24,15 +23,15 @@ const PROJECT_NAME: &str = "Created Here";
 
 type PickerOutcome = Result<Option<PathBuf>, FolderPickerError>;
 
-/// Replays prepared dialog outcomes in order.
+/// Replays prepared dialog outcomes in order (`Mutex` because `FolderPicker` is `Send + Sync`).
 struct FakePicker {
-    outcomes: RefCell<VecDeque<PickerOutcome>>,
+    outcomes: Mutex<VecDeque<PickerOutcome>>,
 }
 
 impl FakePicker {
     fn new(outcomes: Vec<PickerOutcome>) -> Self {
         Self {
-            outcomes: RefCell::new(outcomes.into()),
+            outcomes: Mutex::new(outcomes.into()),
         }
     }
 
@@ -44,7 +43,8 @@ impl FakePicker {
 impl FolderPicker for FakePicker {
     fn pick_folder(&self) -> PickerOutcome {
         self.outcomes
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .pop_front()
             .expect("fake picker has no outcome left")
     }

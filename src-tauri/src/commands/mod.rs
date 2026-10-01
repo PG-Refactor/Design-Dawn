@@ -4,16 +4,16 @@
 
 mod folder_picker;
 
-use std::sync::{Mutex, PoisonError};
+use std::sync::{Arc, Mutex, PoisonError};
 
 use serde_json::Value;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Manager, Runtime, State};
 
 use crate::application::block_content_operations as block_content;
 use crate::application::document_operations as documents;
 use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
 use crate::application::folder_selection::{
-    resolve_selection, select_project_folder as select_folder, FolderSelection,
+    resolve_selection, select_project_folder as select_folder, FolderPicker, FolderSelection,
     FolderSelectionState,
 };
 use crate::application::project_operations as projects;
@@ -43,6 +43,12 @@ pub const COMMAND_NAMES: [&str; 16] = [
     "delete_document",
 ];
 
+pub use folder_picker::DialogFolderPicker;
+
+/// The folder dialog as managed state. Production registers the real dialog-backed picker;
+/// integration tests register a fake, so the command itself runs unchanged in both.
+pub type SharedFolderPicker = Arc<dyn FolderPicker>;
+
 type SessionState<'a> = State<'a, Mutex<ProjectSessions>>;
 type FolderSelectionStateHandle<'a> = State<'a, Mutex<FolderSelectionState>>;
 
@@ -61,11 +67,15 @@ fn with_sessions<T>(
 /// Neither state lock is held while the dialog is open (the selection lock is taken only
 /// after it closed); the two locks are never held at the same time anywhere.
 #[tauri::command]
-pub async fn select_project_folder(app: AppHandle) -> Result<FolderSelection, ApplicationError> {
+pub async fn select_project_folder<R: Runtime>(
+    app: AppHandle<R>,
+) -> Result<FolderSelection, ApplicationError> {
     tauri::async_runtime::spawn_blocking(move || {
-        let picker = folder_picker::DialogFolderPicker::new(app.clone());
+        let picker = app.try_state::<SharedFolderPicker>().ok_or_else(|| {
+            ApplicationError::new(ErrorKind::DialogFailed, "no folder picker is registered")
+        })?;
         let selections = app.state::<Mutex<FolderSelectionState>>();
-        select_folder(&picker, &selections)
+        select_folder(picker.inner().as_ref(), &selections)
     })
     .await
     .map_err(|error| {

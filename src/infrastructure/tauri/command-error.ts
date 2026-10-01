@@ -71,6 +71,11 @@ function describeUnknown(value: unknown): string {
   }
 }
 
+// TypeScript side of the error conversion boundary:
+//   Rust DomainError / PersistenceError -> ApplicationError -> serialized `{ kind, detail }`
+//   -> this function -> CommandError.
+// A kind missing from RUST_ERROR_KINDS would silently degrade to `unexpectedCommandError`;
+// ipc-contract.test.ts compares the list with the identifiers in the Rust source.
 // Expected failures arrive as `{ kind, detail }`. Anything else is a bug or an IPC
 // level refusal, and is surfaced as a distinct kind instead of being mistaken for one.
 export function toCommandError(rejection: unknown): CommandError {
