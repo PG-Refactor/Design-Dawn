@@ -1,3 +1,4 @@
+import { LOCAL_STATE_ERROR_KINDS } from "../../application/local-state/local-state-result";
 import {
   DOMAIN_ERROR_KINDS,
   type DomainErrorKind,
@@ -16,6 +17,7 @@ export type CommandErrorKind =
   | (typeof PERSISTENCE_ERROR_KINDS)[number]
   | (typeof SESSION_ERROR_KINDS)[number]
   | (typeof FOLDER_SELECTION_ERROR_KINDS)[number]
+  | (typeof LOCAL_STATE_ERROR_KINDS)[number]
   | (typeof CLIENT_ERROR_KINDS)[number];
 
 export interface CommandError {
@@ -36,7 +38,13 @@ const RUST_ERROR_KINDS: readonly string[] = [
   ...PERSISTENCE_ERROR_KINDS,
   ...SESSION_ERROR_KINDS,
   ...FOLDER_SELECTION_ERROR_KINDS,
+  ...LOCAL_STATE_ERROR_KINDS,
 ];
+
+// For payloads that carry a Rust error kind (a `loadIssue`), not only a rejection.
+export function isRustErrorKind(value: string): value is CommandErrorKind {
+  return RUST_ERROR_KINDS.includes(value);
+}
 
 export function commandOk<T>(value: T): CommandResult<T> {
   return { ok: true, value };

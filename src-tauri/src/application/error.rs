@@ -34,6 +34,10 @@ pub enum ErrorKind {
     DialogFailed,
     /// A `selectionId` that is unknown or has been replaced by a newer selection.
     InvalidFolderSelection,
+    /// A theme preference that is not `system` or a defined theme id.
+    InvalidThemePreference,
+    /// A viewport with a non-finite or out-of-range `panX` / `panY` / `zoom`.
+    InvalidViewport,
 }
 
 impl ErrorKind {
@@ -46,6 +50,8 @@ impl ErrorKind {
             Self::EntityNotFound => "entityNotFound",
             Self::DialogFailed => "dialogFailed",
             Self::InvalidFolderSelection => "invalidFolderSelection",
+            Self::InvalidThemePreference => "invalidThemePreference",
+            Self::InvalidViewport => "invalidViewport",
         }
     }
 }

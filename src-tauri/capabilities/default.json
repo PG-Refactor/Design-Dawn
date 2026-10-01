@@ -20,6 +20,10 @@
     "allow-delete-block-content",
     "allow-restore-block-content",
     "allow-delete-sheet",
-    "allow-delete-document"
+    "allow-delete-document",
+    "allow-get-app-settings",
+    "allow-set-theme-preference",
+    "allow-get-sheet-viewport",
+    "allow-save-sheet-viewport"
   ]
 }

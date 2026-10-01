@@ -1,0 +1,145 @@
+{
+  "fixtureVersion": 1,
+  "subject": "viewport",
+  "description": "Viewport: panX / panY finite with absolute value <= 1e11; zoom finite within [0.1, 8]. Fractions are allowed (UI state). See docs/architecture.md §6.2.2.",
+  "cases": [
+    {
+      "name": "default-like",
+      "input": {
+        "panX": 0,
+        "panY": 0,
+        "zoom": 1
+      },
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "fractional pan and zoom",
+      "input": {
+        "panX": 120.5,
+        "panY": -48.25,
+        "zoom": 1.25
+      },
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "minimum zoom",
+      "input": {
+        "panX": 0,
+        "panY": 0,
+        "zoom": 0.1
+      },
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "maximum zoom",
+      "input": {
+        "panX": 0,
+        "panY": 0,
+        "zoom": 8
+      },
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "pan at positive limit",
+      "input": {
+        "panX": 100000000000,
+        "panY": 0,
+        "zoom": 1
+      },
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "pan at negative limit",
+      "input": {
+        "panX": 0,
+        "panY": -100000000000,
+        "zoom": 1
+      },
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "zoom below minimum",
+      "input": {
+        "panX": 0,
+        "panY": 0,
+        "zoom": 0.09
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidViewport"
+      }
+    },
+    {
+      "name": "zoom above maximum",
+      "input": {
+        "panX": 0,
+        "panY": 0,
+        "zoom": 8.01
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidViewport"
+      }
+    },
+    {
+      "name": "zero zoom",
+      "input": {
+        "panX": 0,
+        "panY": 0,
+        "zoom": 0
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidViewport"
+      }
+    },
+    {
+      "name": "negative zoom",
+      "input": {
+        "panX": 0,
+        "panY": 0,
+        "zoom": -1
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidViewport"
+      }
+    },
+    {
+      "name": "panX above limit",
+      "input": {
+        "panX": 100000000001,
+        "panY": 0,
+        "zoom": 1
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidViewport"
+      }
+    },
+    {
+      "name": "panY below limit",
+      "input": {
+        "panX": 0,
+        "panY": -100000000001,
+        "zoom": 1
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidViewport"
+      }
+    }
+  ]
+}

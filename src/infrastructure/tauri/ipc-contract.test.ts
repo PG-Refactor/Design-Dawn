@@ -8,6 +8,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import applicationErrorSource from "../../../src-tauri/src/application/error.rs?raw";
 import domainErrorSource from "../../../src-tauri/src/domain/error.rs?raw";
 import persistenceErrorSource from "../../../src-tauri/src/infrastructure/error.rs?raw";
+import { LOCAL_STATE_ERROR_KINDS } from "../../application/local-state/local-state-result";
+import {
+  parseThemePreference,
+  type ThemePreference,
+} from "../../application/local-state/theme";
+import {
+  parseViewport,
+  type RawViewport,
+} from "../../application/local-state/viewport";
 import { parseBlockType } from "../../domain/block/block-type";
 import { parseContentPath } from "../../domain/block/content-path";
 import { parseDisplayName } from "../../domain/shared/display-name";
@@ -26,6 +35,12 @@ import {
   SESSION_ERROR_KINDS,
 } from "./command-constants";
 import { type CommandResult, toCommandError } from "./command-error";
+import {
+  getAppSettings,
+  getSheetViewport,
+  saveSheetViewport,
+  setThemePreference,
+} from "./local-state-client";
 import {
   createBlockContent,
   createProject,
@@ -94,6 +109,20 @@ const id = {
   blockType: (args: Args) => unwrap(parseBlockType(args.blockType as string)),
 };
 
+function unwrapTheme(
+  result: ReturnType<typeof parseThemePreference>,
+): ThemePreference {
+  if (!result.ok)
+    throw new Error(`invalid theme in fixture: ${result.error.kind}`);
+  return result.value;
+}
+
+function unwrapViewport(result: ReturnType<typeof parseViewport>) {
+  if (!result.ok)
+    throw new Error(`invalid viewport in fixture: ${result.error.kind}`);
+  return result.value;
+}
+
 const WRAPPERS: Readonly<Record<string, Wrapper>> = {
   select_project_folder: () => selectProjectFolder(),
   open_project: (args) => openProject(args.selectionId as string),
@@ -129,6 +158,20 @@ const WRAPPERS: Readonly<Record<string, Wrapper>> = {
     ),
   delete_sheet: (args) =>
     deleteSheet(id.project(args), id.document(args), id.sheet(args)),
+  get_app_settings: () => getAppSettings(),
+  set_theme_preference: (args) =>
+    setThemePreference(
+      unwrapTheme(parseThemePreference(args.themePreference as string)),
+    ),
+  get_sheet_viewport: (args) =>
+    getSheetViewport(id.project(args), id.document(args), id.sheet(args)),
+  save_sheet_viewport: (args) =>
+    saveSheetViewport(
+      id.project(args),
+      id.document(args),
+      id.sheet(args),
+      unwrapViewport(parseViewport(args.viewport as RawViewport)),
+    ),
 };
 
 function substituteSelectionId(value: unknown): unknown {
@@ -277,6 +320,7 @@ describe("error kinds shared with Rust", () => {
         ...PERSISTENCE_ERROR_KINDS,
         ...SESSION_ERROR_KINDS,
         ...FOLDER_SELECTION_ERROR_KINDS,
+        ...LOCAL_STATE_ERROR_KINDS,
       ]),
     ].sort();
     expect(typeScriptKinds).toEqual(rustKinds);

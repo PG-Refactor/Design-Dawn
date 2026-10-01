@@ -2,7 +2,6 @@
 // only place that calls `invoke`. Expected failures come back as `{ ok: false, error }`;
 // nothing here throws for them.
 
-import { invoke } from "@tauri-apps/api/core";
 import type { BlockType } from "../../domain/block/block-type";
 import type { ContentPath } from "../../domain/block/content-path";
 import type { Document } from "../../domain/document/document";
@@ -14,12 +13,9 @@ import type {
   SheetId,
 } from "../../domain/shared/entity-id";
 import type { Sheet } from "../../domain/sheet/sheet";
-import { COMMANDS, type CommandName } from "./command-constants";
-import {
-  type CommandResult,
-  commandErr,
-  toCommandError,
-} from "./command-error";
+import { COMMANDS } from "./command-constants";
+import type { CommandResult } from "./command-error";
+import { call } from "./invoke-command";
 import {
   toContentPathResult,
   toDocumentSnapshotResult,
@@ -37,23 +33,6 @@ import type {
   SaveResult,
   SheetSnapshot,
 } from "./persistence-types";
-
-type CommandArguments = Readonly<Record<string, unknown>>;
-
-async function call<T>(
-  command: CommandName,
-  args: CommandArguments,
-  convert: (payload: unknown) => CommandResult<T>,
-): Promise<CommandResult<T>> {
-  let payload: unknown;
-  try {
-    payload = await invoke<unknown>(command, { ...args });
-  } catch (rejection) {
-    const error = toCommandError(rejection);
-    return commandErr(error.kind, error.detail);
-  }
-  return convert(payload);
-}
 
 // Opens the OS folder dialog in Rust. Cancelling is an ok result with status "cancelled".
 export function selectProjectFolder(): Promise<CommandResult<FolderSelection>> {

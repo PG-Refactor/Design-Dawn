@@ -1,0 +1,76 @@
+//! serde DTOs for the local state files. Field order is the key order written to disk.
+//! Numbers stay `serde_json::Number` so out-of-range values reach the application-layer
+//! validators and produce the same error kinds as in TypeScript.
+
+use serde::{Deserialize, Serialize};
+use serde_json::Number;
+
+use super::constants::MAX_EXACT_INTEGER_F64;
+use crate::infrastructure::error::{PersistenceError, PersistenceErrorKind};
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SettingsFileDto {
+    pub schema_version: Number,
+    pub theme_preference: String,
+}
+
+/// The `viewport` argument of `save_sheet_viewport`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ViewportDto {
+    pub pan_x: Number,
+    pub pan_y: Number,
+    pub zoom: Number,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SheetViewportEntryDto {
+    pub project_id: String,
+    pub document_id: String,
+    pub sheet_id: String,
+    pub pan_x: Number,
+    pub pan_y: Number,
+    pub zoom: Number,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SheetViewportsFileDto {
+    pub schema_version: Number,
+    pub viewports: Vec<SheetViewportEntryDto>,
+}
+
+/// Whole values are written as integers (`-48`, not `-48.0`) to match the documented format
+/// and keep Git diffs free of float noise.
+pub fn number_from_f64(value: f64) -> Result<Number, PersistenceError> {
+    if value.fract() == 0.0 && value.abs() < MAX_EXACT_INTEGER_F64 {
+        // Exactly representable, so the cast loses nothing.
+        return Ok(Number::from(value as i64));
+    }
+    Number::from_f64(value).ok_or_else(|| {
+        PersistenceError::new(
+            PersistenceErrorKind::IoError,
+            format!("cannot serialize a non-finite number: {value}"),
+        )
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn whole_values_are_written_as_integers() {
+        assert_eq!(number_from_f64(-48.0).unwrap().to_string(), "-48");
+        assert_eq!(number_from_f64(1.25).unwrap().to_string(), "1.25");
+        assert_eq!(number_from_f64(-0.0).unwrap().to_string(), "0");
+    }
+
+    #[test]
+    fn non_finite_values_are_rejected() {
+        assert!(number_from_f64(f64::NAN).is_err());
+        assert!(number_from_f64(f64::INFINITY).is_err());
+    }
+}

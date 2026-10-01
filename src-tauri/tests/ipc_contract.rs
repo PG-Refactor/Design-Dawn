@@ -1,4 +1,4 @@
-//! Runs `fixtures/ipc/persistence-commands.json` through the real Tauri IPC pipeline (mock
+//! Runs every file in `fixtures/ipc/` through the real Tauri IPC pipeline (mock
 //! runtime, real `tauri.conf.json` and capability file, the same `configure` as production):
 //! argument deserialization, managed state, ACL, Application layer, filesystem, and the
 //! serialized response or error. The TypeScript side replays the same file against the client
@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use design_dawn_lib::application::folder_selection::{FolderPicker, FolderPickerError};
+use design_dawn_lib::application::local_state::operations::{LocalState, LocalStateDirectories};
 use design_dawn_lib::commands::SharedFolderPicker;
 use serde_json::Value;
 use support::*;
@@ -23,10 +24,7 @@ use tauri::test::{get_ipc_response, mock_builder, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
 use tauri::{App, Manager, WebviewWindowBuilder};
 
-const FIXTURE_FILE: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../fixtures/ipc/persistence-commands.json"
-);
+const FIXTURE_DIRECTORY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../fixtures/ipc");
 const SUPPORTED_FIXTURE_VERSION: u64 = 1;
 const SELECTION_ID_PLACEHOLDER: &str = "$selectionId";
 const CURRENT_TARGET: &str = "rust";
@@ -37,6 +35,8 @@ const OTHER_WINDOW_LABEL: &str = "not-granted";
 const LOCAL_ORIGIN: &str = "tauri://localhost";
 const EMPTY_DIRECTORY_NAME: &str = "empty";
 const PROJECT_DIRECTORY_NAME: &str = "project";
+const CONFIG_DIRECTORY_NAME: &str = "config";
+const LOCAL_DATA_DIRECTORY_NAME: &str = "local-data";
 
 /// What the fake dialog does when the fixture says `folderPicker: [...]`.
 enum PickerOutcome {
@@ -65,12 +65,18 @@ impl FolderPicker for FakePicker {
     }
 }
 
-fn build_app(outcomes: Vec<PickerOutcome>) -> App<tauri::test::MockRuntime> {
+/// A fresh `LocalState` per app instance, so scenarios never share settings or viewports and
+/// nothing is written outside the scenario's temporary directory.
+fn build_app(
+    outcomes: Vec<PickerOutcome>,
+    directories: LocalStateDirectories,
+) -> App<tauri::test::MockRuntime> {
     let picker: SharedFolderPicker = Arc::new(FakePicker {
         outcomes: Mutex::new(outcomes.into()),
     });
     design_dawn_lib::configure(mock_builder())
         .manage(picker)
+        .manage(LocalState::new(directories))
         // The real context, so the real capability / app manifest is enforced.
         .build(tauri::generate_context!())
         .expect("build app")
@@ -178,6 +184,10 @@ impl Comparison<'_> {
                     );
                 }
             }
+            // JSON has one number type; serde_json would otherwise tell `-48` from `-48.0`,
+            // which JavaScript (the real consumer) cannot.
+            (Value::Number(expected_number), Value::Number(actual_number))
+                if expected_number.as_f64() == actual_number.as_f64() => {}
             _ if expected == actual => {}
             _ => self
                 .mismatches
@@ -283,6 +293,13 @@ fn run_case(
     vec!["expected must be ok, error or tauriError".to_owned()]
 }
 
+fn local_state_directories(root: &Path) -> LocalStateDirectories {
+    LocalStateDirectories {
+        config_dir: root.join(CONFIG_DIRECTORY_NAME),
+        local_data_dir: root.join(LOCAL_DATA_DIRECTORY_NAME),
+    }
+}
+
 fn picker_outcomes(
     names: &[Value],
     project_root: &Path,
@@ -300,10 +317,19 @@ fn picker_outcomes(
         .collect()
 }
 
-#[test]
-fn every_contract_case_matches_the_real_ipc_response() {
+fn contract_files() -> Vec<PathBuf> {
+    let mut files: Vec<PathBuf> = fs::read_dir(FIXTURE_DIRECTORY)
+        .expect("read fixture directory")
+        .map(|entry| entry.expect("directory entry").path())
+        .collect();
+    files.sort();
+    files
+}
+
+/// Returns (executed, mismatches) for one contract file.
+fn run_contract_file(file: &Path) -> (usize, Vec<String>) {
     let fixture: Value =
-        serde_json::from_str(&fs::read_to_string(FIXTURE_FILE).expect("read fixture")).unwrap();
+        serde_json::from_str(&fs::read_to_string(file).expect("read fixture")).unwrap();
     assert_eq!(fixture["fixtureVersion"], SUPPORTED_FIXTURE_VERSION);
     assert_eq!(fixture["selectionIdPlaceholder"], SELECTION_ID_PLACEHOLDER);
 
@@ -317,12 +343,14 @@ fn every_contract_case_matches_the_real_ipc_response() {
         let empty_directory = temp.path().join(EMPTY_DIRECTORY_NAME);
         fs::create_dir_all(&empty_directory).unwrap();
 
-        let outcomes = picker_outcomes(
-            scenario["folderPicker"].as_array().expect("folderPicker"),
-            &project_root,
-            &empty_directory,
-        );
-        let app = build_app(outcomes);
+        // Scenarios that never open a dialog (local state) omit `folderPicker`.
+        let picker_names = scenario
+            .get("folderPicker")
+            .and_then(Value::as_array)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let outcomes = picker_outcomes(picker_names, &project_root, &empty_directory);
+        let app = build_app(outcomes, local_state_directories(temp.path()));
         let webview = WebviewWindowBuilder::new(&app, MAIN_WINDOW_LABEL, Default::default())
             .build()
             .expect("create main window");
@@ -339,6 +367,21 @@ fn every_contract_case_matches_the_real_ipc_response() {
             }
         }
     }
+    (executed, mismatches)
+}
+
+#[test]
+fn every_contract_case_matches_the_real_ipc_response() {
+    let files = contract_files();
+    assert!(!files.is_empty(), "no contract file found");
+    let mut executed = 0;
+    let mut mismatches = Vec::new();
+    for file in &files {
+        let name = file.file_name().unwrap().to_string_lossy().into_owned();
+        let (file_executed, file_mismatches) = run_contract_file(file);
+        executed += file_executed;
+        mismatches.extend(file_mismatches.into_iter().map(|m| format!("{name} {m}")));
+    }
 
     assert!(
         mismatches.is_empty(),
@@ -351,7 +394,8 @@ fn every_contract_case_matches_the_real_ipc_response() {
 
 #[test]
 fn a_window_without_the_capability_is_refused_by_tauri() {
-    let app = build_app(Vec::new());
+    let temp = TempDir::new();
+    let app = build_app(Vec::new(), local_state_directories(temp.path()));
     let webview = WebviewWindowBuilder::new(&app, OTHER_WINDOW_LABEL, Default::default())
         .build()
         .expect("create window");

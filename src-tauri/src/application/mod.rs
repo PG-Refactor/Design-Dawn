@@ -9,6 +9,7 @@ pub mod error;
 pub mod folder_selection;
 pub mod load_issue;
 pub mod loader;
+pub mod local_state;
 pub mod project_operations;
 pub mod session;
 pub mod sheet_operations;

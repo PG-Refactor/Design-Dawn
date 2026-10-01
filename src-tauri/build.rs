@@ -18,6 +18,10 @@ const APP_COMMANDS: &[&str] = &[
     "restore_block_content",
     "delete_sheet",
     "delete_document",
+    "get_app_settings",
+    "set_theme_preference",
+    "get_sheet_viewport",
+    "save_sheet_viewport",
 ];
 
 fn main() {

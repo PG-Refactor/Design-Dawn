@@ -16,15 +16,17 @@ use crate::application::folder_selection::{
     resolve_selection, select_project_folder as select_folder, FolderPicker, FolderSelection,
     FolderSelectionState,
 };
+use crate::application::local_state::operations::{AppSettings, LocalState, SheetViewportResult};
 use crate::application::project_operations as projects;
 use crate::application::session::ProjectSessions;
 use crate::application::sheet_operations as sheets;
 use crate::application::snapshot::{DocumentSnapshot, ProjectSnapshot, SaveResult, SheetSnapshot};
+use crate::infrastructure::error::PersistenceErrorKind;
 use crate::infrastructure::file_format::dto::{parse_dto, DocumentDto, ProjectDto, SheetDto};
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 16] = [
+pub const COMMAND_NAMES: [&str; 20] = [
     "select_project_folder",
     "create_project",
     "open_project",
@@ -41,6 +43,10 @@ pub const COMMAND_NAMES: [&str; 16] = [
     "restore_block_content",
     "delete_sheet",
     "delete_document",
+    "get_app_settings",
+    "set_theme_preference",
+    "get_sheet_viewport",
+    "save_sheet_viewport",
 ];
 
 pub use folder_picker::DialogFolderPicker;
@@ -289,5 +295,60 @@ pub fn delete_document(
 ) -> Result<(), ApplicationError> {
     with_sessions(&state, |sessions| {
         documents::delete_document(sessions, &project_id, &document_id)
+    })
+}
+
+/// The directories are registered at startup (`run`) or by the test harness. A missing
+/// registration is a wiring bug, reported as an error instead of a panic.
+fn with_local_state<R: Runtime, T>(
+    app: &AppHandle<R>,
+    operation: impl FnOnce(&LocalState) -> ApplicationResult<T>,
+) -> Result<T, ApplicationError> {
+    let state = app.try_state::<LocalState>().ok_or_else(|| {
+        ApplicationError::persistence(
+            PersistenceErrorKind::IoError,
+            "the local state directories are not registered",
+        )
+    })?;
+    operation(state.inner())
+}
+
+#[tauri::command]
+pub fn get_app_settings<R: Runtime>(app: AppHandle<R>) -> Result<AppSettings, ApplicationError> {
+    with_local_state(&app, |local_state| Ok(local_state.get_app_settings()))
+}
+
+#[tauri::command]
+pub fn set_theme_preference<R: Runtime>(
+    app: AppHandle<R>,
+    theme_preference: String,
+) -> Result<AppSettings, ApplicationError> {
+    with_local_state(&app, |local_state| {
+        local_state.set_theme_preference(&theme_preference)
+    })
+}
+
+#[tauri::command]
+pub fn get_sheet_viewport<R: Runtime>(
+    app: AppHandle<R>,
+    project_id: String,
+    document_id: String,
+    sheet_id: String,
+) -> Result<SheetViewportResult, ApplicationError> {
+    with_local_state(&app, |local_state| {
+        local_state.get_sheet_viewport(&project_id, &document_id, &sheet_id)
+    })
+}
+
+#[tauri::command]
+pub fn save_sheet_viewport<R: Runtime>(
+    app: AppHandle<R>,
+    project_id: String,
+    document_id: String,
+    sheet_id: String,
+    viewport: Value,
+) -> Result<(), ApplicationError> {
+    with_local_state(&app, |local_state| {
+        local_state.save_sheet_viewport(&project_id, &document_id, &sheet_id, viewport)
     })
 }

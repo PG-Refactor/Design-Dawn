@@ -19,6 +19,10 @@ export const COMMANDS = {
   restoreBlockContent: "restore_block_content",
   deleteSheet: "delete_sheet",
   deleteDocument: "delete_document",
+  getAppSettings: "get_app_settings",
+  setThemePreference: "set_theme_preference",
+  getSheetViewport: "get_sheet_viewport",
+  saveSheetViewport: "save_sheet_viewport",
 } as const;
 
 export type CommandName = (typeof COMMANDS)[keyof typeof COMMANDS];
