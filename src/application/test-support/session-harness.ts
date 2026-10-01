@@ -11,12 +11,15 @@ import type { DocumentSessionState } from "../state/application-state";
 import {
   createFakeGateway,
   createFakeScheduler,
+  DOCUMENT_ID,
   type FakeGateway,
   type FakeScheduler,
   filesForBlocks,
   makeBlockAt,
   makeDocumentData,
+  OTHER_SHEET_ID,
   PROJECT_ID,
+  SHEET_ID,
 } from "./fakes";
 
 export const TEST_AUTO_SAVE_DELAY_MS = 100;
@@ -39,6 +42,10 @@ export function openSession(
 ): SessionHarness {
   const data = makeDocumentData(blocks);
   const gateway = createFakeGateway(filesForBlocks(blocks));
+  gateway.seedDocument({
+    documentId: DOCUMENT_ID,
+    sheets: [{ sheetId: SHEET_ID }, { sheetId: OTHER_SHEET_ID }],
+  });
   const scheduler = createFakeScheduler();
   const states: DocumentSessionState[] = [];
   const session = createDocumentSession({

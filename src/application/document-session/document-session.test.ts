@@ -302,9 +302,9 @@ describe("state publication", () => {
     expect(session.getState().save.dirtySheetIds.has(SHEET_ID)).toBe(true);
   });
 
-  it("rejects operations after dispose", async () => {
+  it("rejects operations after close", async () => {
     const { session } = openSession();
-    await session.dispose();
+    await session.close();
     const result = await session.execute(
       moveBlocksCommand(SHEET_ID, [move(1, 5, 5)]),
     );

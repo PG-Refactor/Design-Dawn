@@ -11,6 +11,7 @@
 // succeeded.
 
 import type { Document } from "../../domain/document/document";
+import type { DomainResult } from "../../domain/shared/domain-result";
 import type { ProjectId, SheetId } from "../../domain/shared/entity-id";
 import type { Sheet } from "../../domain/sheet/sheet";
 import {
@@ -43,6 +44,7 @@ import {
 import type { OperationWarning } from "../operation-warning";
 import {
   failWith,
+  fromDomainResult,
   type OperationResult,
   operationErr,
   operationOk,
@@ -67,6 +69,32 @@ export interface DocumentSessionOptions {
   readonly onStateChange: (state: DocumentSessionState) => void;
 }
 
+export interface StructuralChangeOptions {
+  // Sheet deletion drops history, because entries may reference the removed sheet.
+  readonly clearHistory: boolean;
+  // False when the caller has already persisted the new structure itself (the order
+  // was saved before the directory was deleted), so nothing is left to save.
+  readonly markDirty: boolean;
+}
+
+// What a workspace step may do while it holds the session's serial queue. Everything
+// here is only valid inside `runExclusive`'s task.
+export interface SessionExclusiveScope {
+  getData(): DocumentData;
+  // Saves everything dirty now, like `flush`, but without re-entering the queue.
+  saveDirty(): Promise<OperationResult<void>>;
+  markDirty(change: DocumentDataChange): void;
+  // Changes the document's structure (sheets added to / removed from the document).
+  // Deliberately NOT a history step: creating and deleting sheets is not undoable
+  // (docs/architecture.md §9.3), so it never goes through `execute`. Sheets that
+  // appear or disappear are not marked dirty: their files are created / deleted by
+  // the caller through the gateway, not saved by the coordinator.
+  applyStructuralChange(
+    change: (data: DocumentData) => DomainResult<DocumentData>,
+    options: StructuralChangeOptions,
+  ): OperationResult<void>;
+}
+
 export interface DocumentSession {
   getState(): DocumentSessionState;
   execute(command: ApplicationCommand): Promise<OperationResult<void>>;
@@ -76,8 +104,18 @@ export interface DocumentSession {
   flush(): Promise<OperationResult<void>>;
   // For when a sheet is deleted: no history entry may reference it any more.
   clearHistory(): void;
-  // Flushes, then stops timers. Further operations are rejected.
-  dispose(): Promise<OperationResult<void>>;
+  // Runs `task` on the serial queue, so it cannot interleave with commands or
+  // auto-save. Resolves to `notWritable` once the session is closed.
+  runExclusive<T>(
+    task: (scope: SessionExclusiveScope) => Promise<OperationResult<T>>,
+  ): Promise<OperationResult<T>>;
+  // Saves pending changes and only then closes the session (timers stop, history is
+  // dropped, further operations get `notWritable`). When saving fails the error is
+  // returned and the session stays open and editable: unsaved work is never dropped.
+  close(): Promise<OperationResult<void>>;
+  // Closes WITHOUT saving. Only for a document that is being deleted. Waits for work
+  // already in the queue (an in-flight save must not run after the directory is gone).
+  discard(): Promise<void>;
 }
 
 type Direction = "undo" | "redo";
@@ -319,7 +357,48 @@ export function createDocumentSession(
     return operationOk(undefined);
   }
 
-  // Wraps an operation: rejects after dispose and resets last operation's warnings.
+  function closeSession(): void {
+    closed = true;
+    coordinator.dispose();
+    undoStack = [];
+    redoStack = [];
+  }
+
+  function applyStructuralChange(
+    change: (current: DocumentData) => DomainResult<DocumentData>,
+    structuralOptions: StructuralChangeOptions,
+  ): OperationResult<void> {
+    const changed = fromDomainResult(change(data));
+    if (!changed.ok) return failWith(changed.error);
+    const diff = diffDocumentData(data, changed.value);
+    const pending: DocumentDataChange = {
+      documentChanged: diff.documentChanged,
+      changedSheetIds: diff.changedSheetIds.filter(
+        (sheetId) =>
+          data.sheets.has(sheetId) && changed.value.sheets.has(sheetId),
+      ),
+    };
+    data = changed.value;
+    if (structuralOptions.clearHistory) {
+      undoStack = [];
+      redoStack = [];
+    }
+    if (structuralOptions.markDirty && hasChanges(pending)) {
+      coordinator.markDirty(pending);
+    } else {
+      publish();
+    }
+    return operationOk(undefined);
+  }
+
+  const exclusiveScope: SessionExclusiveScope = {
+    getData: () => data,
+    saveDirty: () => coordinator.saveDirty(),
+    markDirty: (change) => coordinator.markDirty(change),
+    applyStructuralChange,
+  };
+
+  // Wraps an operation: rejects after close and resets last operation's warnings.
   function queued<T>(
     operation: () => Promise<OperationResult<T>>,
   ): Promise<OperationResult<T>> {
@@ -346,13 +425,25 @@ export function createDocumentSession(
       redoStack = [];
       publish();
     },
-    dispose: () =>
+    runExclusive: (task) =>
+      runExclusive(async () => {
+        if (closed) return closedError();
+        return task(exclusiveScope);
+      }),
+    close: () =>
       runExclusive(async () => {
         if (closed) return operationOk(undefined);
         const saved = await coordinator.saveDirty();
-        closed = true;
-        coordinator.dispose();
+        if (!saved.ok) return saved;
+        closeSession();
         return saved;
       }),
+    discard() {
+      // Timers and dirty marking stop immediately; the flag flips behind queued work.
+      coordinator.dispose();
+      return runExclusive(async () => {
+        closeSession();
+      });
+    },
   };
 }

@@ -1,12 +1,22 @@
-import type { BlockId } from "../domain/shared/entity-id";
-import { generateBlockId } from "./entity-id-generator";
+import type { BlockId, DocumentId, SheetId } from "../domain/shared/entity-id";
+import {
+  generateBlockId,
+  generateDocumentId,
+  generateSheetId,
+} from "./entity-id-generator";
 
-// Injectable so tests get deterministic ids. Extend with more entity kinds as operations
-// that create them move into the application layer.
+// Injectable so tests get deterministic ids. Projects get their id from Rust when they
+// are created, so there is no `projectId` here.
 export interface IdGenerator {
   blockId(): BlockId;
+  documentId(): DocumentId;
+  sheetId(): SheetId;
 }
 
 export function createDefaultIdGenerator(): IdGenerator {
-  return { blockId: generateBlockId };
+  return {
+    blockId: generateBlockId,
+    documentId: generateDocumentId,
+    sheetId: generateSheetId,
+  };
 }

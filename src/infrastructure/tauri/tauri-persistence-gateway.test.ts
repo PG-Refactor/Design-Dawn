@@ -107,4 +107,34 @@ describe("createTauriPersistenceGateway", () => {
       "t",
     );
   });
+
+  it("maps project, document and sheet operations onto the client", async () => {
+    vi.mocked(client.saveProject).mockResolvedValue({
+      ok: true,
+      value: { written: false },
+    });
+    vi.mocked(client.deleteSheet).mockResolvedValue({ ok: true, value: null });
+    vi.mocked(client.deleteDocument).mockResolvedValue(failure);
+    vi.mocked(client.selectProjectFolder).mockResolvedValue({
+      ok: true,
+      value: { status: "cancelled" },
+    });
+    const gateway = createTauriPersistenceGateway();
+    expect(await gateway.selectProjectFolder()).toEqual({
+      ok: true,
+      value: { status: "cancelled" },
+    });
+    expect(
+      await gateway.deleteSheet(PROJECT_ID, DOCUMENT_ID, SHEET_ID),
+    ).toEqual({ ok: true, value: undefined });
+    expect(await gateway.deleteDocument(PROJECT_ID, DOCUMENT_ID)).toEqual(
+      failure,
+    );
+    expect(client.deleteSheet).toHaveBeenCalledWith(
+      PROJECT_ID,
+      DOCUMENT_ID,
+      SHEET_ID,
+    );
+    expect(client.saveProject).not.toHaveBeenCalled();
+  });
 });

@@ -105,6 +105,9 @@ export function createSaveCoordinator(
 
   async function saveDirty(): Promise<OperationResult<void>> {
     stopTimer();
+    // A timer callback that was already queued when the session was discarded must not
+    // write into a document that is being deleted.
+    if (disposed) return operationOk(undefined);
     if (dirtySheetIds.size === 0 && !documentDirty)
       return operationOk(undefined);
     saving = true;

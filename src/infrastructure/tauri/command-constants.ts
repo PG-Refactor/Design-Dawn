@@ -37,25 +37,12 @@ export {
   SESSION_ERROR_KINDS,
 } from "../../application/ports/operation-error";
 
-// `status` values of a folder selection result.
-export const FOLDER_SELECTION_STATUS = {
-  selected: "selected",
-  cancelled: "cancelled",
-} as const;
-
-export const LOAD_ISSUE_KINDS = [
-  "unlistedEntity",
-  "missingEntity",
-  "invalidOrderEntry",
-  "duplicateEntityId",
-  "entityLoadFailed",
-  "missingContent",
-  "orphanContent",
-  "leftoverTempFile",
-  "unrecognizedDirectory",
-] as const;
-
-export type LoadIssueKind = (typeof LOAD_ISSUE_KINDS)[number];
-
-export const ENTITY_STATES = ["loaded", "loadFailed"] as const;
-export type EntityState = (typeof ENTITY_STATES)[number];
+// Snapshot-related constants are defined next to the snapshot types in the application
+// layer (its port names them); re-exported so the contract tests keep one import point.
+export {
+  ENTITY_STATES,
+  type EntityState,
+  FOLDER_SELECTION_STATUS,
+  LOAD_ISSUE_KINDS,
+  type LoadIssueKind,
+} from "../../application/ports/persistence-types";

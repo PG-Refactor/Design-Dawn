@@ -2,11 +2,20 @@ import { mapOperationResult } from "../../application/ports/operation-error";
 import type { PersistenceGateway } from "../../application/ports/persistence-gateway";
 import {
   createBlockContent,
+  createDocument,
+  createProject,
+  createSheet,
   deleteBlockContent,
+  deleteDocument,
+  deleteSheet,
+  loadDocument,
+  openProject,
   readBlockContent,
   restoreBlockContent,
   saveDocument,
+  saveProject,
   saveSheet,
+  selectProjectFolder,
 } from "./persistence-client";
 
 // Thin: maps the application port onto the Tauri client. `CommandResult` and
@@ -16,6 +25,21 @@ function discard(): void {}
 
 export function createTauriPersistenceGateway(): PersistenceGateway {
   return {
+    selectProjectFolder,
+    openProject,
+    createProject,
+    saveProject: async (projectId, project) =>
+      mapOperationResult(await saveProject(projectId, project), discard),
+    createDocument,
+    loadDocument,
+    createSheet,
+    deleteSheet: async (projectId, documentId, sheetId) =>
+      mapOperationResult(
+        await deleteSheet(projectId, documentId, sheetId),
+        discard,
+      ),
+    deleteDocument: async (projectId, documentId) =>
+      mapOperationResult(await deleteDocument(projectId, documentId), discard),
     saveSheet: async (projectId, documentId, sheet) =>
       mapOperationResult(
         await saveSheet(projectId, documentId, sheet),

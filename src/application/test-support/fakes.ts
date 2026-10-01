@@ -2,9 +2,16 @@
 // code. The fake gateway keeps an in-memory file system and records every call in order.
 
 import { parseContentPath } from "../../domain/block/content-path";
-import { parseDocument } from "../../domain/document/document";
+import { type Document, parseDocument } from "../../domain/document/document";
+import { type Project, parseProject } from "../../domain/project/project";
 import { parseDisplayName } from "../../domain/shared/display-name";
-import type { BlockId } from "../../domain/shared/entity-id";
+import {
+  type BlockId,
+  type DocumentId,
+  parseDocumentId,
+  parseSheetId,
+  type SheetId,
+} from "../../domain/shared/entity-id";
 import { parsePosition, parseSize } from "../../domain/shared/geometry";
 // Domain fixtures: ids and blocks / sheets with predictable content (Domain tests use them
 // too, so they live in the domain test support).
@@ -18,7 +25,7 @@ import {
   SHEET_ID,
 } from "../../domain/shared/test-fixtures";
 import { unwrap } from "../../domain/shared/test-support";
-import type { Sheet } from "../../domain/sheet/sheet";
+import { parseSheet, type Sheet } from "../../domain/sheet/sheet";
 import type { DocumentData } from "../commands/document-data";
 import type { IdGenerator } from "../id-generator";
 import {
@@ -28,6 +35,14 @@ import {
   operationOk,
 } from "../ports/operation-error";
 import type { PersistenceGateway } from "../ports/persistence-gateway";
+import type {
+  DocumentSnapshot,
+  EntityState,
+  FolderSelection,
+  LoadIssue,
+  ProjectSnapshot,
+  SheetSnapshot,
+} from "../ports/persistence-types";
 import type { Scheduler } from "../ports/scheduler";
 
 export {
@@ -40,9 +55,35 @@ export {
   SHEET_ID,
 };
 
+export function documentIdOf(counter: number): DocumentId {
+  return unwrap(
+    parseDocumentId(
+      `01928f3a-6c7d-7e8f-a012-${counter.toString(16).padStart(12, "0")}`,
+    ),
+  );
+}
+
+export function sheetIdOf(counter: number): SheetId {
+  return unwrap(
+    parseSheetId(
+      `01928f3a-7d8e-7f90-b123-${counter.toString(16).padStart(12, "0")}`,
+    ),
+  );
+}
+
+// Generated documents / sheets get numbers far from the ones tests pick by hand.
+const GENERATED_DOCUMENT_ID_START = 0x2000;
+const GENERATED_SHEET_ID_START = 0x3000;
+
 export function createSequentialIdGenerator(start = 0x1000): IdGenerator {
-  let next = start;
-  return { blockId: () => blockIdOf(next++) };
+  let nextBlock = start;
+  let nextDocument = GENERATED_DOCUMENT_ID_START;
+  let nextSheet = GENERATED_SHEET_ID_START;
+  return {
+    blockId: () => blockIdOf(nextBlock++),
+    documentId: () => documentIdOf(nextDocument++),
+    sheetId: () => sheetIdOf(nextSheet++),
+  };
 }
 
 export function makeDocumentData(
@@ -84,8 +125,59 @@ export interface RecordedCall {
   readonly detail: string;
 }
 
+// What the fake "disk" holds for a document: a persisted document (order as last saved)
+// and the sheets whose directories exist.
+export interface FakeDiskSheet {
+  readonly name: string | null;
+  readonly state: EntityState;
+  readonly sheet: Sheet | null;
+}
+
+export interface FakeDiskDocument {
+  document: Document;
+  readonly state: EntityState;
+  readonly sheets: Map<SheetId, FakeDiskSheet>;
+  readonly issues: readonly LoadIssue[];
+}
+
+export interface FakeDisk {
+  projectName: string;
+  // documentOrder as last saved by `saveProject`.
+  documentOrder: DocumentId[];
+  readonly documents: Map<DocumentId, FakeDiskDocument>;
+}
+
+export interface SeedDocumentOptions {
+  readonly documentId: DocumentId;
+  readonly name?: string;
+  // "loadFailed": the document's own metadata cannot be loaded.
+  readonly state?: EntityState;
+  readonly issues?: readonly LoadIssue[];
+  readonly sheets?: readonly {
+    readonly sheetId: SheetId;
+    readonly name?: string;
+    readonly state?: EntityState;
+  }[];
+}
+
+const DEFAULT_SELECTION_ID = "selection-1";
+const DEFAULT_SELECTION: FolderSelection = {
+  status: "selected",
+  selectionId: DEFAULT_SELECTION_ID,
+  displayPath: "/projects/example",
+};
+
 export interface FakeGateway extends PersistenceGateway {
   readonly calls: RecordedCall[];
+  // Persisted project / documents / sheets, to assert what is really "on disk".
+  readonly disk: FakeDisk;
+  // Adds a document that already exists on disk (and to the saved order).
+  seedDocument(options: SeedDocumentOptions): void;
+  // The result of the next `selectProjectFolder` call (default: a selection).
+  selectNext(selection: FolderSelection): void;
+  // Makes `openProject(selectionId)` return exactly this snapshot instead of one built
+  // from the disk (for a second project, or an invalid payload).
+  overrideProjectSnapshot(selectionId: string, snapshot: ProjectSnapshot): void;
   // Method names in call order, optionally narrowed to some methods.
   methods(...only: readonly string[]): string[];
   // Content files that currently exist: contentPath -> text.
@@ -113,6 +205,69 @@ export function createFakeGateway(
   const permanentFailures = new Map<string, OperationErrorKind>();
   const holds = new Map<string, Promise<void>>();
   let fileCounter = 0;
+  let nextSelection: FolderSelection = DEFAULT_SELECTION;
+  const snapshotOverrides = new Map<string, ProjectSnapshot>();
+  const disk: FakeDisk = {
+    projectName: "Project",
+    documentOrder: [],
+    documents: new Map(),
+  };
+
+  function projectOf(name: string, order: readonly DocumentId[]): Project {
+    return unwrap(
+      parseProject({
+        schemaVersion: 1,
+        projectId: PROJECT_ID,
+        name,
+        documentOrder: order,
+      }),
+    );
+  }
+
+  function projectSnapshot(): ProjectSnapshot {
+    return {
+      project: projectOf(disk.projectName, disk.documentOrder),
+      documents: disk.documentOrder.flatMap((documentId) => {
+        const stored = disk.documents.get(documentId);
+        return stored === undefined
+          ? []
+          : [
+              {
+                documentId,
+                name: stored.state === "loaded" ? stored.document.name : null,
+                state: stored.state,
+              },
+            ];
+      }),
+      issues: [],
+    };
+  }
+
+  function documentSnapshot(stored: FakeDiskDocument): DocumentSnapshot {
+    return {
+      document: stored.document,
+      sheets: [...stored.sheets.entries()].map(([sheetId, entry]) => ({
+        sheetId,
+        ...entry,
+      })),
+      issues: stored.issues,
+    };
+  }
+
+  function newDocument(documentId: DocumentId, name: string): Document {
+    return unwrap(
+      parseDocument({
+        schemaVersion: 1,
+        documentId,
+        name,
+        sheetOrder: [],
+      }),
+    );
+  }
+
+  function newSheet(sheetId: SheetId, name: string): Sheet {
+    return unwrap(parseSheet({ schemaVersion: 1, sheetId, name, blocks: [] }));
+  }
 
   async function enter<T>(
     method: string,
@@ -135,6 +290,126 @@ export function createFakeGateway(
 
   const gateway: FakeGateway = {
     calls,
+    disk,
+    seedDocument(options) {
+      const state = options.state ?? "loaded";
+      const sheets = new Map<SheetId, FakeDiskSheet>();
+      for (const entry of options.sheets ?? []) {
+        const sheetState = entry.state ?? "loaded";
+        sheets.set(
+          entry.sheetId,
+          sheetState === "loaded"
+            ? {
+                name: entry.name ?? "Sheet",
+                state: sheetState,
+                sheet: newSheet(entry.sheetId, entry.name ?? "Sheet"),
+              }
+            : { name: null, state: sheetState, sheet: null },
+        );
+      }
+      const document = unwrap(
+        parseDocument({
+          schemaVersion: 1,
+          documentId: options.documentId,
+          name: options.name ?? "Document",
+          sheetOrder: [...sheets.keys()],
+        }),
+      );
+      disk.documents.set(options.documentId, {
+        document,
+        state,
+        sheets,
+        issues: options.issues ?? [],
+      });
+      if (!disk.documentOrder.includes(options.documentId)) {
+        disk.documentOrder.push(options.documentId);
+      }
+    },
+    selectNext(selection) {
+      nextSelection = selection;
+    },
+    overrideProjectSnapshot(selectionId, snapshot) {
+      snapshotOverrides.set(selectionId, snapshot);
+    },
+    selectProjectFolder: () =>
+      enter("selectProjectFolder", "", () => operationOk(nextSelection)),
+    openProject: (selectionId) =>
+      enter("openProject", selectionId, () => {
+        const override = snapshotOverrides.get(selectionId);
+        if (override !== undefined) return operationOk(override);
+        return selectionId === DEFAULT_SELECTION_ID
+          ? operationOk(projectSnapshot())
+          : operationErr("invalidFolderSelection", selectionId);
+      }),
+    createProject: (selectionId, name) =>
+      enter("createProject", `${selectionId}:${name}`, () => {
+        if (selectionId !== DEFAULT_SELECTION_ID) {
+          return operationErr("invalidFolderSelection", selectionId);
+        }
+        disk.projectName = name;
+        disk.documentOrder = [];
+        disk.documents.clear();
+        return operationOk(projectSnapshot());
+      }),
+    saveProject: (_project, project) =>
+      enter("saveProject", project.documentOrder.join(","), () => {
+        disk.projectName = project.name;
+        disk.documentOrder = [...project.documentOrder];
+        return operationOk(undefined);
+      }),
+    createDocument: (_project, documentId, name) =>
+      enter("createDocument", documentId, () => {
+        if (disk.documents.has(documentId)) {
+          return operationErr("alreadyExists", documentId);
+        }
+        const stored: FakeDiskDocument = {
+          document: newDocument(documentId, name),
+          state: "loaded",
+          sheets: new Map(),
+          issues: [],
+        };
+        // Like Rust: the directory exists now, the order file is the caller's job.
+        disk.documents.set(documentId, stored);
+        return operationOk(documentSnapshot(stored));
+      }),
+    loadDocument: (_project, documentId) =>
+      enter("loadDocument", documentId, () => {
+        const stored = disk.documents.get(documentId);
+        if (stored === undefined) {
+          return operationErr("entityNotFound", documentId);
+        }
+        return stored.state === "loaded"
+          ? operationOk(documentSnapshot(stored))
+          : operationErr("invalidFileStructure", documentId);
+      }),
+    createSheet: (_project, documentId, sheetId, name) =>
+      enter("createSheet", sheetId, () => {
+        const stored = disk.documents.get(documentId);
+        if (stored === undefined) {
+          return operationErr("entityNotFound", documentId);
+        }
+        const entry: FakeDiskSheet = {
+          name,
+          state: "loaded",
+          sheet: newSheet(sheetId, name),
+        };
+        stored.sheets.set(sheetId, entry);
+        const snapshot: SheetSnapshot = { sheetId, ...entry };
+        return operationOk(snapshot);
+      }),
+    deleteSheet: (_project, documentId, sheetId) =>
+      enter("deleteSheet", sheetId, () => {
+        const deleted = disk.documents.get(documentId)?.sheets.delete(sheetId);
+        return deleted === true
+          ? operationOk(undefined)
+          : operationErr("entityNotFound", sheetId);
+      }),
+    deleteDocument: (_project, documentId) =>
+      enter("deleteDocument", documentId, () =>
+        disk.documents.delete(documentId)
+          ? operationOk(undefined)
+          : operationErr("entityNotFound", documentId),
+      ),
     files,
     savedSheets,
     savedDocumentNames: [],
@@ -171,7 +446,12 @@ export function createFakeGateway(
         return operationOk(undefined);
       }),
     saveDocument: (_project, document) =>
-      enter("saveDocument", document.name, () => {
+      enter("saveDocument", document.sheetOrder.join(","), () => {
+        const stored = disk.documents.get(document.documentId);
+        if (stored === undefined) {
+          return operationErr("entityNotFound", document.documentId);
+        }
+        stored.document = document;
         gateway.savedDocumentNames.push(document.name);
         return operationOk(undefined);
       }),

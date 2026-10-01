@@ -182,7 +182,7 @@ describe("dispose", () => {
   it("flushes pending changes and stops the timer", async () => {
     const { session, gateway, scheduler } = openSession();
     await session.execute(moveFirst(1));
-    expect((await session.dispose()).ok).toBe(true);
+    expect((await session.close()).ok).toBe(true);
     expect(gateway.methods()).toEqual(["saveSheet"]);
     expect(scheduler.pendingCount()).toBe(0);
     const afterClose = await session.execute(moveFirst(2));

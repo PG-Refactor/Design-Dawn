@@ -14,6 +14,7 @@ import { createStore, type Store } from "../../shared/store/store";
 import type { CommandKind } from "../commands/command-kind";
 import type { OperationWarning } from "../operation-warning";
 import type { OperationError } from "../ports/operation-error";
+import type { EntityState, LoadIssue } from "../ports/persistence-types";
 
 export interface HistoryState {
   readonly canUndo: boolean;
@@ -40,29 +41,55 @@ export interface DocumentSessionState {
   readonly warnings: readonly OperationWarning[];
 }
 
-// Minimal placeholder: opening projects and documents (workspace service) comes later.
 export interface OpenProjectDocumentEntry {
   readonly documentId: DocumentId;
-  // null when the document failed to load and its name is unknown.
+  // null when the document failed to load and its name is unknown. For an open document
+  // the name follows `renameDocument` commands.
   readonly name: string | null;
-  readonly loadFailed: boolean;
+  readonly state: EntityState;
+}
+
+// Mirrors the document save state: the project's own files (name, documentOrder) are
+// saved explicitly, not by a timer, so a failed save stays visible until it is retried.
+export interface ProjectSaveState {
+  readonly dirty: boolean;
+  readonly lastError: OperationError | null;
 }
 
 export interface OpenProjectState {
   readonly projectId: ProjectId;
   readonly project: Project;
   readonly documents: readonly OpenProjectDocumentEntry[];
+  readonly issues: readonly LoadIssue[];
+  readonly save: ProjectSaveState;
+}
+
+// A sheet of an open document. Sheets that failed to load are listed here but are not
+// in `DocumentSessionState.sheets`, so they cannot be edited.
+export interface SheetEntry {
+  readonly sheetId: SheetId;
+  readonly name: string | null;
+  readonly state: EntityState;
+}
+
+// Facts about an open document that are not part of its editable Domain values.
+export interface OpenDocumentDetails {
+  readonly sheetEntries: readonly SheetEntry[];
+  readonly issues: readonly LoadIssue[];
 }
 
 export interface ApplicationState {
   readonly project: OpenProjectState | null;
   readonly documents: ReadonlyMap<DocumentId, DocumentSessionState>;
+  // Sibling of `documents` (same keys): the session state stays exactly what the
+  // document session publishes.
+  readonly documentDetails: ReadonlyMap<DocumentId, OpenDocumentDetails>;
 }
 
 export type ApplicationStore = Store<ApplicationState>;
 
 export function createInitialApplicationState(): ApplicationState {
-  return { project: null, documents: new Map() };
+  return { project: null, documents: new Map(), documentDetails: new Map() };
 }
 
 export function createApplicationStore(): ApplicationStore {
@@ -87,16 +114,106 @@ export function putDocumentSession(
 }
 
 // Replaces only a document that is still open, so a late notification from a session
-// that was just closed cannot bring the document back.
+// that was just closed cannot bring the document back. Also keeps what is derived from
+// the session state in step: the sheet entries (names follow `renameSheet`) and the
+// project's document entry name (follows `renameDocument`).
 export function replaceDocumentSession(
   state: ApplicationState,
   documentState: DocumentSessionState,
 ): ApplicationState {
-  return state.documents.has(documentState.document.documentId)
-    ? putDocumentSession(state, documentState)
-    : state;
+  const documentId = documentState.document.documentId;
+  if (!state.documents.has(documentId)) return state;
+  return syncDerivedDocumentState(
+    putDocumentSession(state, documentState),
+    documentState,
+  );
 }
 
+function syncDerivedDocumentState(
+  state: ApplicationState,
+  documentState: DocumentSessionState,
+): ApplicationState {
+  const documentId = documentState.document.documentId;
+  let next = state;
+  const details = state.documentDetails.get(documentId);
+  if (details !== undefined) {
+    const sheetEntries = syncSheetEntries(details.sheetEntries, documentState);
+    if (sheetEntries !== details.sheetEntries) {
+      next = putDocumentDetails(next, documentId, { ...details, sheetEntries });
+    }
+  }
+  const project = next.project;
+  const entry = project?.documents.find(
+    (candidate) => candidate.documentId === documentId,
+  );
+  if (
+    project !== null &&
+    entry !== undefined &&
+    entry.name !== documentState.document.name
+  ) {
+    next = setOpenProject(next, {
+      ...project,
+      documents: project.documents.map((candidate) =>
+        candidate === entry
+          ? { ...candidate, name: documentState.document.name }
+          : candidate,
+      ),
+    });
+  }
+  return next;
+}
+
+// Entries follow `sheetOrder`; loaded sheets take their current name from the session.
+// Entries of sheets that failed to load are kept as they were (they cannot change), and
+// ones the order does not list come last. Returns `previous` when nothing differs, so
+// subscribers are not notified for unrelated session changes.
+export function syncSheetEntries(
+  previous: readonly SheetEntry[],
+  documentState: DocumentSessionState,
+): readonly SheetEntry[] {
+  const failedById = new Map(
+    previous
+      .filter((entry) => entry.state === "loadFailed")
+      .map((entry) => [entry.sheetId, entry]),
+  );
+  const ordered = documentState.document.sheetOrder.flatMap(
+    (sheetId): SheetEntry[] => {
+      const sheet = documentState.sheets.get(sheetId);
+      if (sheet !== undefined) {
+        return [{ sheetId, name: sheet.name, state: "loaded" }];
+      }
+      const failed = failedById.get(sheetId);
+      return failed === undefined ? [] : [failed];
+    },
+  );
+  const listed = new Set(ordered.map((entry) => entry.sheetId));
+  const unlisted = [...failedById.values()].filter(
+    (entry) => !listed.has(entry.sheetId),
+  );
+  const next = [...ordered, ...unlisted];
+  const unchanged =
+    next.length === previous.length &&
+    next.every(
+      (entry, index) =>
+        entry.sheetId === previous[index]?.sheetId &&
+        entry.name === previous[index]?.name &&
+        entry.state === previous[index]?.state,
+    );
+  return unchanged ? previous : next;
+}
+
+export function putDocumentDetails(
+  state: ApplicationState,
+  documentId: DocumentId,
+  details: OpenDocumentDetails,
+): ApplicationState {
+  return {
+    ...state,
+    documentDetails: new Map(state.documentDetails).set(documentId, details),
+  };
+}
+
+// Removes the session state together with the sibling details.
 export function removeDocumentSession(
   state: ApplicationState,
   documentId: DocumentId,
@@ -104,7 +221,9 @@ export function removeDocumentSession(
   if (!state.documents.has(documentId)) return state;
   const documents = new Map(state.documents);
   documents.delete(documentId);
-  return { ...state, documents };
+  const documentDetails = new Map(state.documentDetails);
+  documentDetails.delete(documentId);
+  return { ...state, documents, documentDetails };
 }
 
 // Callback for `createDocumentSession({ onStateChange })`. Uses `replace`, so register the
