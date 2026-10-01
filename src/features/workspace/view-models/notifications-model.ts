@@ -1,0 +1,397 @@
+// View model of the notifications: one flat, prioritised list built from state the
+// application layer already holds (save errors, load results, warnings) plus the theme
+// and operation errors. Nothing is stored here; the order follows docs/ui-design.md
+// §12.5: save errors > load failures > load warnings > orphan content files.
+
+import type { OperationError } from "../../../application/ports/operation-error";
+import type {
+  EntityState,
+  LoadIssue,
+} from "../../../application/ports/persistence-types";
+import type { ApplicationState } from "../../../application/state/application-state";
+import type { ThemeState } from "../../../application/theme/theme-controller";
+import type { DocumentId, SheetId } from "../../../domain/shared/entity-id";
+import type { OperationErrorEntry } from "../ui-state/ui-state";
+import {
+  describeDocumentLoadStatus,
+  describeErrorKind,
+  describeLoadIssueKind,
+  describeOperationFailure,
+  describeSaveFailure,
+  MESSAGES,
+} from "../workspace-messages";
+
+export type NotificationKind =
+  | "saveError"
+  | "operationError"
+  | "themeSaveError"
+  | "loadFailed"
+  | "loadIssue"
+  | "themeLoadIssue"
+  | "orphanContentFile";
+
+export type NotificationSeverity = "error" | "warning";
+
+// Lower number = shown first. Equal priorities keep the order they were collected in
+// (project before documents, documents in tab order).
+export const NOTIFICATION_PRIORITY: Record<NotificationKind, number> = {
+  saveError: 0,
+  operationError: 0,
+  themeSaveError: 0,
+  loadFailed: 1,
+  loadIssue: 2,
+  themeLoadIssue: 2,
+  orphanContentFile: 3,
+};
+
+const NOTIFICATION_SEVERITY: Record<NotificationKind, NotificationSeverity> = {
+  saveError: "error",
+  operationError: "error",
+  themeSaveError: "error",
+  loadFailed: "error",
+  loadIssue: "warning",
+  themeLoadIssue: "warning",
+  orphanContentFile: "warning",
+};
+
+export type NotificationSource =
+  | { readonly scope: "project" }
+  | {
+      readonly scope: "document";
+      readonly documentId: DocumentId;
+      readonly name: string;
+    }
+  | { readonly scope: "app" };
+
+export type NotificationRetry =
+  | { readonly kind: "document"; readonly documentId: DocumentId }
+  | { readonly kind: "project" };
+
+export interface NotificationDetail {
+  readonly label: string;
+  readonly value: string;
+}
+
+export interface NotificationItem {
+  readonly id: string;
+  readonly kind: NotificationKind;
+  readonly severity: NotificationSeverity;
+  readonly priority: number;
+  readonly source: NotificationSource;
+  readonly message: string;
+  readonly details: readonly NotificationDetail[];
+  readonly retry: NotificationRetry | null;
+  // Set for operation errors, which the user can dismiss.
+  readonly dismissId: number | null;
+}
+
+export interface NotificationCounts {
+  readonly errors: number;
+  readonly warnings: number;
+  readonly total: number;
+}
+
+export interface NotificationsModel {
+  readonly items: readonly NotificationItem[];
+  readonly counts: NotificationCounts;
+}
+
+export interface NotificationsInput {
+  readonly application: Pick<
+    ApplicationState,
+    "project" | "documents" | "documentDetails"
+  >;
+  readonly operationErrors: readonly OperationErrorEntry[];
+  readonly theme: Pick<ThemeState, "loadIssue" | "saveError">;
+}
+
+const DETAIL_LABELS = MESSAGES.notifications.detailLabels;
+
+function errorDetails(error: OperationError): readonly NotificationDetail[] {
+  return [
+    { label: DETAIL_LABELS.kind, value: error.kind },
+    { label: DETAIL_LABELS.detail, value: error.detail },
+  ];
+}
+
+function issueDetails(issue: LoadIssue): readonly NotificationDetail[] {
+  const details: NotificationDetail[] = [
+    { label: DETAIL_LABELS.kind, value: issue.kind },
+  ];
+  if (issue.path !== null) {
+    details.push({ label: DETAIL_LABELS.path, value: issue.path });
+  }
+  if (issue.entityId !== null) {
+    details.push({ label: DETAIL_LABELS.entityId, value: issue.entityId });
+  }
+  details.push({ label: DETAIL_LABELS.detail, value: issue.detail });
+  return details;
+}
+
+function makeItem(
+  fields: Omit<
+    NotificationItem,
+    "severity" | "priority" | "retry" | "dismissId"
+  > &
+    Partial<Pick<NotificationItem, "retry" | "dismissId">>,
+): NotificationItem {
+  return {
+    retry: null,
+    dismissId: null,
+    ...fields,
+    severity: NOTIFICATION_SEVERITY[fields.kind],
+    priority: NOTIFICATION_PRIORITY[fields.kind],
+  };
+}
+
+// An `entityLoadFailed` load issue and the loadFailed entity describe the same fact, so
+// the issue is folded into the entity's item instead of being counted twice.
+function loadFailedItems(
+  source: NotificationSource,
+  idPrefix: string,
+  failedEntityIds: ReadonlyMap<string, string>,
+  issues: readonly LoadIssue[],
+): readonly NotificationItem[] {
+  return [...failedEntityIds].map(([entityId, message]) => {
+    const issue = issues.find(
+      (candidate) =>
+        candidate.kind === "entityLoadFailed" &&
+        candidate.entityId === entityId,
+    );
+    return makeItem({
+      id: `${idPrefix}:${entityId}`,
+      kind: "loadFailed",
+      source,
+      message,
+      details:
+        issue === undefined
+          ? [{ label: DETAIL_LABELS.entityId, value: entityId }]
+          : issueDetails(issue),
+    });
+  });
+}
+
+function nonDuplicateIssues(
+  issues: readonly LoadIssue[],
+  failedEntityIds: ReadonlyMap<string, string>,
+): readonly LoadIssue[] {
+  return issues.filter(
+    (issue) =>
+      !(
+        issue.kind === "entityLoadFailed" &&
+        issue.entityId !== null &&
+        failedEntityIds.has(issue.entityId)
+      ),
+  );
+}
+
+function failedIds<Entry extends { readonly state: EntityState }>(
+  entries: readonly Entry[],
+  idOf: (entry: Entry) => string,
+  message: string,
+): ReadonlyMap<string, string> {
+  return new Map(
+    entries
+      .filter((entry) => entry.state === "loadFailed")
+      .map((entry) => [idOf(entry), message]),
+  );
+}
+
+function collectProjectItems(
+  input: NotificationsInput,
+): readonly NotificationItem[] {
+  const project = input.application.project;
+  if (project === null) return [];
+  const source: NotificationSource = { scope: "project" };
+  const items: NotificationItem[] = [];
+  if (project.save.lastError !== null) {
+    items.push(
+      makeItem({
+        id: "saveError:project",
+        kind: "saveError",
+        source,
+        message: describeSaveFailure(null, project.save.lastError.kind),
+        details: errorDetails(project.save.lastError),
+        retry: { kind: "project" },
+      }),
+    );
+  }
+  const failed = failedIds(
+    project.documents,
+    (entry) => entry.documentId,
+    MESSAGES.notifications.loadFailedDocument,
+  );
+  items.push(
+    ...loadFailedItems(source, "loadFailed:document", failed, project.issues),
+  );
+  nonDuplicateIssues(project.issues, failed).forEach((issue, index) => {
+    items.push(
+      makeItem({
+        id: `loadIssue:project:${index}`,
+        kind: "loadIssue",
+        source,
+        message: describeLoadIssueKind(issue.kind),
+        details: issueDetails(issue),
+      }),
+    );
+  });
+  return items;
+}
+
+function collectDocumentItems(
+  input: NotificationsInput,
+): readonly NotificationItem[] {
+  const items: NotificationItem[] = [];
+  for (const [documentId, session] of input.application.documents) {
+    const source: NotificationSource = {
+      scope: "document",
+      documentId,
+      name: session.document.name,
+    };
+    const details = input.application.documentDetails.get(documentId);
+    if (session.save.lastError !== null) {
+      items.push(
+        makeItem({
+          id: `saveError:document:${documentId}`,
+          kind: "saveError",
+          source,
+          message: describeSaveFailure(
+            session.document.name,
+            session.save.lastError.kind,
+          ),
+          details: errorDetails(session.save.lastError),
+          retry: { kind: "document", documentId },
+        }),
+      );
+    }
+    const issues = details?.issues ?? [];
+    const failed = failedIds<{ sheetId: SheetId; state: EntityState }>(
+      details?.sheetEntries ?? [],
+      (entry) => entry.sheetId,
+      MESSAGES.notifications.loadFailedSheet,
+    );
+    items.push(
+      ...loadFailedItems(
+        source,
+        `loadFailed:sheet:${documentId}`,
+        failed,
+        issues,
+      ),
+    );
+    nonDuplicateIssues(issues, failed).forEach((issue, index) => {
+      items.push(
+        makeItem({
+          id: `loadIssue:document:${documentId}:${index}`,
+          kind: "loadIssue",
+          source,
+          message: describeLoadIssueKind(issue.kind),
+          details: issueDetails(issue),
+        }),
+      );
+    });
+    session.warnings.forEach((warning, index) => {
+      items.push(
+        makeItem({
+          id: `orphanContentFile:${documentId}:${index}`,
+          kind: "orphanContentFile",
+          source,
+          message: MESSAGES.notifications.orphanContentFile,
+          details: [
+            { label: DETAIL_LABELS.path, value: warning.contentPath },
+            ...errorDetails(warning.error),
+          ],
+        }),
+      );
+    });
+  }
+  return items;
+}
+
+function collectAppItems(
+  input: NotificationsInput,
+): readonly NotificationItem[] {
+  const source: NotificationSource = { scope: "app" };
+  const items: NotificationItem[] = input.operationErrors.map((entry) =>
+    makeItem({
+      id: `operationError:${entry.id}`,
+      kind: "operationError",
+      source,
+      message: describeOperationFailure(
+        entry.operation,
+        entry.subject,
+        entry.error.kind,
+      ),
+      details: errorDetails(entry.error),
+      dismissId: entry.id,
+    }),
+  );
+  const { saveError, loadIssue } = input.theme;
+  if (saveError !== null) {
+    items.push(
+      makeItem({
+        id: "themeSaveError",
+        kind: "themeSaveError",
+        source,
+        message: `${MESSAGES.notifications.themeSaveError} ${describeErrorKind(saveError.kind)}`,
+        details: errorDetails(saveError),
+      }),
+    );
+  }
+  if (loadIssue !== null) {
+    items.push(
+      makeItem({
+        id: "themeLoadIssue",
+        kind: "themeLoadIssue",
+        source,
+        message: MESSAGES.notifications.themeLoadIssue,
+        details: errorDetails(loadIssue),
+      }),
+    );
+  }
+  return items;
+}
+
+export function countNotifications(
+  items: readonly NotificationItem[],
+): NotificationCounts {
+  const errors = items.filter((item) => item.severity === "error").length;
+  return { errors, warnings: items.length - errors, total: items.length };
+}
+
+export function selectNotifications(
+  input: NotificationsInput,
+): NotificationsModel {
+  const collected = [
+    ...collectProjectItems(input),
+    ...collectDocumentItems(input),
+    ...collectAppItems(input),
+  ];
+  // Array.prototype.sort is stable, so equal priorities keep the collection order.
+  const items = [...collected].sort(
+    (first, second) => first.priority - second.priority,
+  );
+  return { items, counts: countNotifications(items) };
+}
+
+// Messages for the polite live region: one per project / document that was loaded with
+// warnings. Load issues never go away while the entity stays open, so this is derived
+// state, not an event log.
+export function selectLoadStatusMessages(
+  application: Pick<
+    ApplicationState,
+    "project" | "documents" | "documentDetails"
+  >,
+): readonly string[] {
+  const messages: string[] = [];
+  const project = application.project;
+  if (project !== null && project.issues.length > 0) {
+    messages.push(MESSAGES.notifications.projectLoadedWithWarnings);
+  }
+  for (const [documentId, session] of application.documents) {
+    const issues = application.documentDetails.get(documentId)?.issues ?? [];
+    if (issues.length > 0) {
+      messages.push(describeDocumentLoadStatus(session.document.name));
+    }
+  }
+  return messages;
+}

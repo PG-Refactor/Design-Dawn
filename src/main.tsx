@@ -12,7 +12,8 @@ if (rootElement === null) {
   throw new Error(`Root element #${APP_CONFIG.rootElementId} not found`);
 }
 
-const { themeController } = createAppServices();
+const services = createAppServices();
+const { themeController } = services;
 
 void startApp({
   themeController,
@@ -20,7 +21,7 @@ void startApp({
   render: () =>
     createRoot(rootElement).render(
       <StrictMode>
-        <App themeController={themeController} />
+        <App services={services} />
       </StrictMode>,
     ),
   reportError: (error) => console.error("Theme initialization failed", error),

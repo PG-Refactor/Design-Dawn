@@ -14,6 +14,8 @@
   --color-accent-contrast: #ffffff;
   --color-selection: #d6e4fb;
   --color-danger: #b3261e;
+  --color-danger-contrast: #ffffff;
+  --color-warning: #8a5300;
   --color-focus-ring: #2859c0;
   --color-canvas-background: #eceff3;
   --color-canvas-grid: #d3d8e0;
@@ -32,6 +34,8 @@
   --color-accent-contrast: #0d1626;
   --color-selection: #25385c;
   --color-danger: #ff8a80;
+  --color-danger-contrast: #2a0a08;
+  --color-warning: #f2c14e;
   --color-focus-ring: #7aa7ff;
   --color-canvas-background: #101317;
   --color-canvas-grid: #272d37;

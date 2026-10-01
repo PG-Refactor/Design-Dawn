@@ -1,0 +1,115 @@
+.notifications {
+  position: relative;
+}
+
+.notifications__summary--error {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+.notifications__panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 10;
+  box-sizing: border-box;
+  width: min(36rem, calc(100vw - 2 * var(--space-3)));
+  max-height: 70vh;
+  margin-top: var(--space-1);
+  overflow: auto;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  box-shadow: var(--shadow-raised);
+}
+
+.notifications__empty {
+  margin: var(--space-2);
+  color: var(--color-text-muted);
+}
+
+.notifications__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notification {
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-left-width: 4px;
+  border-radius: var(--radius-medium);
+  background: var(--color-surface);
+}
+
+.notification--error {
+  border-left-color: var(--color-danger);
+}
+
+.notification--warning {
+  border-left-color: var(--color-warning);
+}
+
+.notification__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: 0.8125rem;
+}
+
+.notification__severity {
+  font-weight: 700;
+}
+
+.notification--error .notification__severity {
+  color: var(--color-danger);
+}
+
+.notification--warning .notification__severity {
+  color: var(--color-warning);
+}
+
+.notification__source {
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.notification__message {
+  margin: var(--space-1) 0;
+  overflow-wrap: anywhere;
+}
+
+.notification__detail-list {
+  margin: var(--space-1) 0 0;
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+.notification__detail-list dt {
+  color: var(--color-text-muted);
+}
+
+.notification__detail-list dd {
+  margin: 0 0 var(--space-1);
+}
+
+.notification__actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.load-status {
+  padding: 0 var(--space-3);
+}
+
+.load-status__message {
+  margin: 0;
+  color: var(--color-warning);
+}

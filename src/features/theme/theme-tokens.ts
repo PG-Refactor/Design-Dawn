@@ -12,6 +12,8 @@ export const COLOR_TOKEN_NAMES = [
   "--color-accent-contrast",
   "--color-selection",
   "--color-danger",
+  "--color-danger-contrast",
+  "--color-warning",
   "--color-focus-ring",
   "--color-canvas-background",
   "--color-canvas-grid",

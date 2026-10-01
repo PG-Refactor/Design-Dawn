@@ -1,0 +1,17 @@
+.sheet-placeholder {
+  flex: 1 1 auto;
+  min-height: 12rem;
+  padding: var(--space-4);
+  background: var(--color-canvas-background);
+  background-image: radial-gradient(
+    var(--color-canvas-grid) 1px,
+    transparent 1px
+  );
+  background-size: 24px 24px;
+  color: var(--color-text);
+}
+
+.sheet-placeholder__line {
+  margin: 0 0 var(--space-2);
+  overflow-wrap: anywhere;
+}

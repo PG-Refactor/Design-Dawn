@@ -7,6 +7,7 @@
 // nothing changes so store listeners are not notified needlessly.
 
 import type { Viewport } from "../../../application/local-state/viewport";
+import type { OperationError } from "../../../application/ports/operation-error";
 import type {
   BlockId,
   DocumentId,
@@ -42,6 +43,51 @@ export type Interaction =
       readonly frame: FramePreview;
     };
 
+// The modal that is open (at most one). Confirmation states carry the entity name as it
+// was when the user asked, so the text stays stable while the operation runs.
+export type DialogState =
+  | { readonly kind: "none" }
+  | { readonly kind: "createProject" }
+  | { readonly kind: "createDocument" }
+  | { readonly kind: "createSheet"; readonly documentId: DocumentId }
+  | {
+      readonly kind: "confirmDeleteDocument";
+      readonly documentId: DocumentId;
+      readonly name: string;
+    }
+  | {
+      readonly kind: "confirmDeleteSheet";
+      readonly documentId: DocumentId;
+      readonly sheetId: SheetId;
+      readonly name: string;
+    };
+
+// The user-level operations that can fail and be reported (one value per message).
+export const OPERATION_LABELS = [
+  "selectFolder",
+  "openProject",
+  "createProject",
+  "closeProject",
+  "openDocument",
+  "closeDocument",
+  "createDocument",
+  "createSheet",
+  "deleteDocument",
+  "deleteSheet",
+] as const;
+
+export type OperationLabel = (typeof OPERATION_LABELS)[number];
+
+// A failed operation, kept until the user dismisses it. Never swallowed: it is shown in
+// the notifications.
+export interface OperationErrorEntry {
+  readonly id: number;
+  readonly operation: OperationLabel;
+  // Name of the entity the operation was about, when there was one.
+  readonly subject: string | null;
+  readonly error: OperationError;
+}
+
 export interface UiState {
   readonly activeDocumentId: DocumentId | null;
   readonly activeSheetIdByDocument: ReadonlyMap<DocumentId, SheetId>;
@@ -49,11 +95,18 @@ export interface UiState {
   readonly hoveredBlockId: BlockId | null;
   readonly interaction: Interaction;
   readonly viewportBySheet: ReadonlyMap<SheetId, Viewport>;
+  readonly dialog: DialogState;
+  readonly operationErrors: readonly OperationErrorEntry[];
+  readonly nextOperationErrorId: number;
+  readonly notificationsOpen: boolean;
+  // A workspace operation is running; repeated clicks are disabled meanwhile.
+  readonly busy: boolean;
 }
 
 export type UiStateStore = Store<UiState>;
 
 const IDLE: Interaction = { kind: "idle" };
+const NO_DIALOG: DialogState = { kind: "none" };
 
 export function createInitialUiState(): UiState {
   return {
@@ -63,6 +116,11 @@ export function createInitialUiState(): UiState {
     hoveredBlockId: null,
     interaction: IDLE,
     viewportBySheet: new Map(),
+    dialog: NO_DIALOG,
+    operationErrors: [],
+    nextOperationErrorId: 1,
+    notificationsOpen: false,
+    busy: false,
   };
 }
 

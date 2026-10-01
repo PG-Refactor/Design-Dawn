@@ -1,5 +1,5 @@
 // Composition root: the only place that wires the real infrastructure to the application
-// layer. No React here; components receive the returned services later.
+// layer. No React here; `main.tsx` hands the returned services to the UI.
 
 import { createDefaultIdGenerator } from "../application/id-generator";
 import {
@@ -23,6 +23,10 @@ import {
   type UiStateStore,
 } from "../features/workspace/ui-state/ui-state";
 import { connectWorkspaceToUiState } from "../features/workspace/ui-state/workspace-ui-connector";
+import {
+  createWorkspaceActions,
+  type WorkspaceActions,
+} from "../features/workspace/workspace-actions";
 import { createMatchMediaOsThemeSource } from "../infrastructure/browser/match-media-os-theme-source";
 import { createTauriAppSettingsGateway } from "../infrastructure/tauri/tauri-app-settings-gateway";
 import { createTauriPersistenceGateway } from "../infrastructure/tauri/tauri-persistence-gateway";
@@ -32,6 +36,8 @@ export interface AppServices {
   readonly applicationStore: ApplicationStore;
   readonly uiStateStore: UiStateStore;
   readonly workspace: Workspace;
+  // What the UI calls; the only path from components to the workspace.
+  readonly actions: WorkspaceActions;
   // App-level theme state; independent of the workspace, sessions and undo history.
   readonly themeController: ThemeController;
   // Detaches the workspace -> UI state connector.
@@ -51,6 +57,11 @@ export function createAppServices(): AppServices {
       autoSaveDelayMs: AUTO_SAVE_DELAY_MS,
     },
   });
+  const actions = createWorkspaceActions({
+    workspace,
+    applicationStore,
+    uiStateStore,
+  });
   const disconnectUiState = connectWorkspaceToUiState(workspace, uiStateStore);
   const themeController = createThemeController({
     gateway: createTauriAppSettingsGateway(),
@@ -65,6 +76,7 @@ export function createAppServices(): AppServices {
     applicationStore,
     uiStateStore,
     workspace,
+    actions,
     themeController,
     disconnectUiState,
   };

@@ -1,21 +1,17 @@
-import { APP_CONFIG } from "../config/app-config";
 import {
-  ThemeSettings,
-  type ThemeSettingsController,
-} from "../features/theme/theme-settings";
-import "./app.css";
+  type WorkspaceServices,
+  WorkspaceServicesProvider,
+} from "../features/workspace/workspace-services-context";
+import { WorkspaceShell } from "../features/workspace/workspace-shell";
 
 export interface AppProps {
-  readonly themeController: ThemeSettingsController;
+  readonly services: WorkspaceServices;
 }
 
-// Minimal shell: the theme selector is a temporary placement until the toolbar / settings
-// screen exists.
-export function App({ themeController }: AppProps) {
+export function App({ services }: AppProps) {
   return (
-    <main className="app-shell">
-      <h1 className="app-shell__title">{APP_CONFIG.displayName}</h1>
-      <ThemeSettings controller={themeController} />
-    </main>
+    <WorkspaceServicesProvider services={services}>
+      <WorkspaceShell />
+    </WorkspaceServicesProvider>
   );
 }

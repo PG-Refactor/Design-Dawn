@@ -55,3 +55,73 @@ describe("architecture guard", () => {
     expect(violation("vitest")).toBeNull();
   });
 });
+
+// UI code (features and the app's React components) reaches the application layer only;
+// the infrastructure is wired in exactly one place, the composition root. main.tsx sits
+// outside these folders and imports no infrastructure either.
+const uiSources = import.meta.glob(
+  ["./features/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}"],
+  { query: "?raw", import: "default", eager: true },
+) as Record<string, string>;
+
+const COMPOSITION_ROOT_FILES = ["./app/create-app-services.ts"];
+const UI_FORBIDDEN_PACKAGES = ["@tauri-apps"];
+const UI_FORBIDDEN_PATH_PARTS = ["/infrastructure/"];
+
+function isProductionUiFile(file: string): boolean {
+  return !/\.test\.tsx?$/.test(file) && !file.includes("/test-support/");
+}
+
+function uiViolation(specifier: string): string | null {
+  const forbiddenPackage = UI_FORBIDDEN_PACKAGES.find(
+    (name) => specifier === name || specifier.startsWith(`${name}/`),
+  );
+  if (forbiddenPackage !== undefined) return `package ${forbiddenPackage}`;
+  const forbiddenPath = UI_FORBIDDEN_PATH_PARTS.find((part) =>
+    `/${specifier}/`.includes(part),
+  );
+  return forbiddenPath === undefined ? null : `path ${forbiddenPath}`;
+}
+
+describe("UI architecture guard", () => {
+  const files = Object.entries(uiSources).filter(([file]) =>
+    isProductionUiFile(file),
+  );
+
+  it("scans the UI sources", () => {
+    expect(files.length).toBeGreaterThan(20);
+    expect(files.some(([file]) => file.endsWith(".tsx"))).toBe(true);
+    for (const root of COMPOSITION_ROOT_FILES) {
+      expect(Object.keys(uiSources)).toContain(root);
+    }
+  });
+
+  it("keeps components and UI modules away from infrastructure and Tauri", () => {
+    const violations: string[] = [];
+    for (const [file, source] of files) {
+      if (COMPOSITION_ROOT_FILES.includes(file)) continue;
+      for (const match of source.matchAll(IMPORT_SPECIFIER_PATTERN)) {
+        const reason = uiViolation(match[1] ?? "");
+        if (reason !== null)
+          violations.push(`${file} imports ${match[1]} (${reason})`);
+      }
+    }
+    expect(violations).toEqual([]);
+  });
+
+  it("really needs the composition root exception", () => {
+    const root = uiSources[COMPOSITION_ROOT_FILES[0] ?? ""] ?? "";
+    expect(
+      [...root.matchAll(IMPORT_SPECIFIER_PATTERN)].some(
+        (match) => uiViolation(match[1] ?? "") !== null,
+      ),
+    ).toBe(true);
+  });
+
+  it("detects forbidden specifiers", () => {
+    expect(uiViolation("../../infrastructure/tauri/x")).not.toBeNull();
+    expect(uiViolation("@tauri-apps/api/core")).not.toBeNull();
+    expect(uiViolation("../../application/workspace/workspace")).toBeNull();
+    expect(uiViolation("react")).toBeNull();
+  });
+});
