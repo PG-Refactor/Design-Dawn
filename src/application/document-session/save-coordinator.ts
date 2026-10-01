@@ -3,8 +3,10 @@
 // before a file-backed sequence. It never runs concurrently with commands: the timer
 // goes through `runExclusive`, the session's serial queue.
 
+import type { ContentPath } from "../../domain/block/content-path";
 import type { Document } from "../../domain/document/document";
 import type {
+  BlockId,
   DocumentId,
   ProjectId,
   SheetId,
@@ -23,6 +25,7 @@ import type { SaveState } from "../state/application-state";
 export interface DirtyChange {
   readonly documentChanged: boolean;
   readonly changedSheetIds: readonly SheetId[];
+  readonly changedContentBlockIds: readonly BlockId[];
 }
 
 export interface SaveCoordinatorOptions {
@@ -41,6 +44,10 @@ export interface SaveCoordinator {
   getState(): SaveState;
   // Marks dirty, restarts the debounce timer, and notifies.
   markDirty(change: DirtyChange): void;
+  // Forgets dirty texts of blocks that are gone (their file is deleted or the sheet was
+  // removed), so no write to a missing file is attempted. Does not notify: the caller
+  // publishes with the change that removed the blocks.
+  retainContentBlocks(liveBlockIds: ReadonlySet<BlockId>): void;
   // Saves everything dirty now. Must be called from inside the session queue.
   saveDirty(): Promise<OperationResult<void>>;
   dispose(): void;
@@ -51,6 +58,7 @@ export function createSaveCoordinator(
 ): SaveCoordinator {
   const { projectId, documentId, gateway } = options;
   let dirtySheetIds: ReadonlySet<SheetId> = new Set();
+  let dirtyContentBlockIds: ReadonlySet<BlockId> = new Set();
   let documentDirty = false;
   let saving = false;
   let lastError: OperationError | null = null;
@@ -70,6 +78,42 @@ export function createSaveCoordinator(
     });
   }
 
+  // Content goes first: a sheet never references a text file that is older than the
+  // metadata saved with it (content -> metadata, like the file-backed sequences).
+  async function saveContents(
+    data: DocumentData,
+  ): Promise<OperationError | null> {
+    if (dirtyContentBlockIds.size === 0) return null;
+    const contentPaths = new Map<BlockId, ContentPath>();
+    for (const sheet of data.sheets.values()) {
+      for (const block of sheet.blocks) {
+        contentPaths.set(block.blockId, block.contentPath);
+      }
+    }
+    let firstError: OperationError | null = null;
+    for (const blockId of [...dirtyContentBlockIds]) {
+      const contentPath = contentPaths.get(blockId);
+      const text = data.contents.get(blockId);
+      if (contentPath === undefined || text === undefined) {
+        // The block no longer exists; there is nothing left to save for it.
+        dirtyContentBlockIds = withoutId(dirtyContentBlockIds, blockId);
+        continue;
+      }
+      const saved = await gateway.writeBlockContent(
+        projectId,
+        documentId,
+        contentPath,
+        text,
+      );
+      if (saved.ok) {
+        dirtyContentBlockIds = withoutId(dirtyContentBlockIds, blockId);
+      } else {
+        firstError ??= saved.error;
+      }
+    }
+    return firstError;
+  }
+
   async function saveSheets(
     data: DocumentData,
   ): Promise<OperationError | null> {
@@ -78,12 +122,12 @@ export function createSaveCoordinator(
       const sheet: Sheet | undefined = data.sheets.get(sheetId);
       if (sheet === undefined) {
         // The sheet no longer exists; there is nothing left to save for it.
-        dirtySheetIds = withoutSheet(dirtySheetIds, sheetId);
+        dirtySheetIds = withoutId(dirtySheetIds, sheetId);
         continue;
       }
       const saved = await gateway.saveSheet(projectId, documentId, sheet);
       if (saved.ok) {
-        dirtySheetIds = withoutSheet(dirtySheetIds, sheetId);
+        dirtySheetIds = withoutId(dirtySheetIds, sheetId);
       } else {
         firstError ??= saved.error;
       }
@@ -108,14 +152,20 @@ export function createSaveCoordinator(
     // A timer callback that was already queued when the session was discarded must not
     // write into a document that is being deleted.
     if (disposed) return operationOk(undefined);
-    if (dirtySheetIds.size === 0 && !documentDirty)
+    if (
+      dirtyContentBlockIds.size === 0 &&
+      dirtySheetIds.size === 0 &&
+      !documentDirty
+    ) {
       return operationOk(undefined);
+    }
     saving = true;
     options.onChange();
     const data = options.getData();
+    const contentError = await saveContents(data);
     const sheetError = await saveSheets(data);
     const documentError = await saveDocumentIfDirty(data.document);
-    const error = sheetError ?? documentError;
+    const error = contentError ?? sheetError ?? documentError;
     saving = false;
     // Dirty flags of failed parts stay set, so the next change or flush retries them.
     lastError = error;
@@ -124,15 +174,33 @@ export function createSaveCoordinator(
   }
 
   return {
-    getState: () => ({ dirtySheetIds, documentDirty, saving, lastError }),
+    getState: () => ({
+      dirtySheetIds,
+      dirtyContentBlockIds,
+      documentDirty,
+      saving,
+      lastError,
+    }),
     markDirty(change) {
       if (disposed) return;
       if (change.changedSheetIds.length > 0) {
         dirtySheetIds = new Set([...dirtySheetIds, ...change.changedSheetIds]);
       }
+      if (change.changedContentBlockIds.length > 0) {
+        dirtyContentBlockIds = new Set([
+          ...dirtyContentBlockIds,
+          ...change.changedContentBlockIds,
+        ]);
+      }
       documentDirty = documentDirty || change.documentChanged;
       startTimer();
       options.onChange();
+    },
+    retainContentBlocks(liveBlockIds) {
+      if ([...dirtyContentBlockIds].every((id) => liveBlockIds.has(id))) return;
+      dirtyContentBlockIds = new Set(
+        [...dirtyContentBlockIds].filter((id) => liveBlockIds.has(id)),
+      );
     },
     saveDirty,
     dispose() {
@@ -142,9 +210,6 @@ export function createSaveCoordinator(
   };
 }
 
-function withoutSheet(
-  sheetIds: ReadonlySet<SheetId>,
-  sheetId: SheetId,
-): ReadonlySet<SheetId> {
-  return new Set([...sheetIds].filter((candidate) => candidate !== sheetId));
+function withoutId<Id>(ids: ReadonlySet<Id>, id: Id): ReadonlySet<Id> {
+  return new Set([...ids].filter((candidate) => candidate !== id));
 }

@@ -40,11 +40,20 @@ import type { PersistenceGateway } from "../ports/persistence-gateway";
 import type { BlockSpec } from "./command";
 
 // A block together with what is needed to bring it back: its z-order index and its text.
+// `text` is null when the block's content file did not exist when the block was removed
+// (a block with missing content, docs/data-model.md §7). Such a block has no file to
+// delete and none to restore: undoing brings back the same "content missing" state.
 export interface CapturedBlock {
   readonly block: Block;
   readonly index: number;
-  readonly text: string;
+  readonly text: string | null;
 }
+
+// Why a missing file does not stop a removal: a block whose content is gone must still be
+// removable, and nothing can be lost because there is nothing on disk. Any other read
+// failure (the file exists but cannot be read) aborts, since deleting would destroy
+// content that undo could not bring back.
+const MISSING_CONTENT_KIND = "fileNotFound";
 
 export interface SequenceContext {
   readonly projectId: ProjectId;
@@ -194,8 +203,13 @@ export async function removeBlocksWithContent(
       ctx.documentId,
       block.contentPath,
     );
-    if (!text.ok) return failWith(text.error);
-    captured.push({ block, index, text: text.value });
+    if (text.ok) {
+      captured.push({ block, index, text: text.value });
+    } else if (text.error.kind === MISSING_CONTENT_KIND) {
+      captured.push({ block, index, text: null });
+    } else {
+      return failWith(text.error);
+    }
   }
 
   const saved = await ctx.gateway.saveSheet(
@@ -208,7 +222,9 @@ export async function removeBlocksWithContent(
   // From here the command has succeeded: the metadata no longer references the files.
   const failures = await deleteContentFiles(
     ctx,
-    captured.map((entry) => entry.block.contentPath),
+    captured
+      .filter((entry) => entry.text !== null)
+      .map((entry) => entry.block.contentPath),
   );
   const warnings = failures.map(({ path, error }) => ({
     kind: OPERATION_WARNING_KINDS.orphanContentFile,
@@ -237,6 +253,9 @@ export async function restoreBlocksWithContent(
   // `restoreBlockContent` fail with `alreadyExists` belongs to someone else.
   const restoredPaths: ContentPath[] = [];
   for (const { block, text } of captured) {
+    // The content was already missing when the block was removed; restoring the block
+    // must not invent a file.
+    if (text === null) continue;
     const restored = await ctx.gateway.restoreBlockContent(
       ctx.projectId,
       ctx.documentId,

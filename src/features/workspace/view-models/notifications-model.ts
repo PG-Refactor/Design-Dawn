@@ -8,7 +8,10 @@ import type {
   EntityState,
   LoadIssue,
 } from "../../../application/ports/persistence-types";
-import type { ApplicationState } from "../../../application/state/application-state";
+import type {
+  ApplicationState,
+  DocumentSessionState,
+} from "../../../application/state/application-state";
 import type { ThemeState } from "../../../application/theme/theme-controller";
 import type { DocumentId, SheetId } from "../../../domain/shared/entity-id";
 import type { OperationErrorEntry } from "../ui-state/ui-state";
@@ -28,7 +31,8 @@ export type NotificationKind =
   | "loadFailed"
   | "loadIssue"
   | "themeLoadIssue"
-  | "orphanContentFile";
+  | "orphanContentFile"
+  | "contentLoadFailed";
 
 export type NotificationSeverity = "error" | "warning";
 
@@ -42,6 +46,7 @@ export const NOTIFICATION_PRIORITY: Record<NotificationKind, number> = {
   loadIssue: 2,
   themeLoadIssue: 2,
   orphanContentFile: 3,
+  contentLoadFailed: 3,
 };
 
 const NOTIFICATION_SEVERITY: Record<NotificationKind, NotificationSeverity> = {
@@ -52,6 +57,7 @@ const NOTIFICATION_SEVERITY: Record<NotificationKind, NotificationSeverity> = {
   loadIssue: "warning",
   themeLoadIssue: "warning",
   orphanContentFile: "warning",
+  contentLoadFailed: "warning",
 };
 
 export type NotificationSource =
@@ -238,6 +244,39 @@ function collectProjectItems(
   return items;
 }
 
+// A text block whose file could not be read: shown as an error inside the block, and
+// listed here so it is not only visible while that sheet is on screen.
+function contentLoadFailedItems(
+  documentId: DocumentId,
+  source: NotificationSource,
+  session: DocumentSessionState,
+): readonly NotificationItem[] {
+  const contentPaths = new Map(
+    [...session.sheets.values()].flatMap((sheet) =>
+      sheet.blocks.map((block) => [block.blockId, block.contentPath] as const),
+    ),
+  );
+  return [...session.contentStatus].flatMap(([blockId, loadStatus]) => {
+    if (loadStatus.status !== "failed") return [];
+    const path = contentPaths.get(blockId);
+    return [
+      makeItem({
+        id: `contentLoadFailed:${documentId}:${blockId}`,
+        kind: "contentLoadFailed",
+        source,
+        message: MESSAGES.notifications.contentLoadFailed,
+        details: [
+          { label: DETAIL_LABELS.entityId, value: blockId },
+          ...(path === undefined
+            ? []
+            : [{ label: DETAIL_LABELS.path, value: path }]),
+          ...errorDetails(loadStatus.error),
+        ],
+      }),
+    ];
+  });
+}
+
 function collectDocumentItems(
   input: NotificationsInput,
 ): readonly NotificationItem[] {
@@ -289,6 +328,7 @@ function collectDocumentItems(
         }),
       );
     });
+    items.push(...contentLoadFailedItems(documentId, source, session));
     session.warnings.forEach((warning, index) => {
       items.push(
         makeItem({

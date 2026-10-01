@@ -17,6 +17,7 @@ export function withSheetAdded(
   const document = addSheet(data.document, sheet.sheetId);
   if (!document.ok) return document;
   return ok({
+    ...data,
     document: document.value,
     sheets: new Map(data.sheets).set(sheet.sheetId, sheet),
   });
@@ -41,5 +42,6 @@ export function withSheetRemoved(
   if (!document.ok) return document;
   const sheets = new Map(data.sheets);
   sheets.delete(sheetId);
-  return ok({ document: document.value, sheets });
+  // Texts of the removed sheet's blocks are dropped by the session's block-state sync.
+  return ok({ ...data, document: document.value, sheets });
 }

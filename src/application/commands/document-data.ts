@@ -1,14 +1,18 @@
 import type { Document } from "../../domain/document/document";
 import { type DomainResult, err, ok } from "../../domain/shared/domain-result";
-import type { SheetId } from "../../domain/shared/entity-id";
+import type { BlockId, SheetId } from "../../domain/shared/entity-id";
 import type { Sheet } from "../../domain/sheet/sheet";
 
 // The Domain values of one open Document. Immutable: a command returns a new value and
 // the session swaps it in. Unchanged parts keep their reference, which is how the session
-// detects no-ops and which sheets became dirty.
+// detects no-ops and which sheets / contents became dirty.
 export interface DocumentData {
   readonly document: Document;
   readonly sheets: ReadonlyMap<SheetId, Sheet>;
+  // The text of the blocks whose content is LOADED (docs/architecture.md §9). A block
+  // without an entry has not been read (or failed to): that is different from "", which
+  // is a valid, empty text. Blocks never get a made-up text.
+  readonly contents: ReadonlyMap<BlockId, string>;
 }
 
 export function findSheet(
@@ -51,9 +55,45 @@ export function updateDocument(
   return ok({ ...data, document: updated.value });
 }
 
+// Returns `data` itself when the entries are all already present with the same text.
+export function withContents(
+  data: DocumentData,
+  entries: Iterable<readonly [BlockId, string]>,
+): DocumentData {
+  let contents: Map<BlockId, string> | null = null;
+  for (const [blockId, text] of entries) {
+    if (data.contents.get(blockId) === text) continue;
+    contents ??= new Map(data.contents);
+    contents.set(blockId, text);
+  }
+  return contents === null ? data : { ...data, contents };
+}
+
+export function liveBlockIds(data: DocumentData): ReadonlySet<BlockId> {
+  const ids = new Set<BlockId>();
+  for (const sheet of data.sheets.values()) {
+    for (const block of sheet.blocks) ids.add(block.blockId);
+  }
+  return ids;
+}
+
+// Drops the texts of blocks that no sheet contains any more (deleted blocks, deleted
+// sheets). Returns `data` itself when nothing has to be dropped.
+export function pruneContents(data: DocumentData): DocumentData {
+  if (data.contents.size === 0) return data;
+  const live = liveBlockIds(data);
+  const kept = [...data.contents].filter(([blockId]) => live.has(blockId));
+  return kept.length === data.contents.size
+    ? data
+    : { ...data, contents: new Map(kept) };
+}
+
 export interface DocumentDataChange {
   readonly documentChanged: boolean;
   readonly changedSheetIds: readonly SheetId[];
+  // Blocks whose loaded text differs. Blocks that only appear or disappear are not
+  // listed: their files are created / deleted by the file-backed sequences.
+  readonly changedContentBlockIds: readonly BlockId[];
 }
 
 export function diffDocumentData(
@@ -61,7 +101,14 @@ export function diffDocumentData(
   after: DocumentData,
 ): DocumentDataChange {
   const sheetIds = new Set([...before.sheets.keys(), ...after.sheets.keys()]);
+  const changedContentBlockIds = [...after.contents].flatMap(
+    ([blockId, text]) => {
+      const previous = before.contents.get(blockId);
+      return previous !== undefined && previous !== text ? [blockId] : [];
+    },
+  );
   return {
+    changedContentBlockIds,
     documentChanged: before.document !== after.document,
     changedSheetIds: [...sheetIds].filter(
       (sheetId) => before.sheets.get(sheetId) !== after.sheets.get(sheetId),
@@ -70,7 +117,11 @@ export function diffDocumentData(
 }
 
 export function hasChanges(change: DocumentDataChange): boolean {
-  return change.documentChanged || change.changedSheetIds.length > 0;
+  return (
+    change.documentChanged ||
+    change.changedSheetIds.length > 0 ||
+    change.changedContentBlockIds.length > 0
+  );
 }
 
 // A command's `revert` ran although its `apply` never succeeded: nothing was captured.

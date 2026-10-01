@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { OperationError } from "../../../application/ports/operation-error";
 import { createApplicationStore } from "../../../application/state/application-state";
-import { settle } from "../../../application/test-support/fakes";
+import {
+  blockIdOf,
+  makeBlockAt,
+  settle,
+} from "../../../application/test-support/fakes";
 import {
   createWorkspaceHarness,
   DOCUMENT_A,
@@ -10,6 +14,7 @@ import {
   FAILED_DOCUMENT_ID,
   FAILED_SHEET_ID,
   SELECTION_ID,
+  SHEET_A1,
   SHEET_B1,
 } from "../../../application/test-support/workspace-harness";
 import {
@@ -17,6 +22,7 @@ import {
   PROJECT_ISSUE,
   produceOrphanContentWarning,
   seedProjectIssues,
+  seedSheetBlocks,
 } from "../test-support/actions-harness";
 import type { OperationErrorEntry } from "../ui-state/ui-state";
 import {
@@ -170,6 +176,57 @@ describe("countNotifications", () => {
     expect(
       countNotifications([item("error"), item("warning"), item("warning")]),
     ).toEqual({ errors: 1, warnings: 2, total: 3 });
+  });
+});
+
+describe("content load failures", () => {
+  it("lists a block whose text could not be read as a warning with its path and error", async () => {
+    const harness = createWorkspaceHarness();
+    const block = makeBlockAt(1, 0, 0);
+    seedSheetBlocks(harness, DOCUMENT_A, SHEET_A1, [block]);
+    await harness.workspace.openProject(SELECTION_ID);
+    await harness.workspace.openDocument(DOCUMENT_A);
+    harness.gateway.files.delete(block.contentPath);
+    await harness.workspace
+      .getDocumentSession(DOCUMENT_A)
+      ?.loadSheetContents(SHEET_A1);
+
+    const model = selectNotifications({
+      application: harness.store.getState(),
+      operationErrors: [],
+      theme: NO_THEME_PROBLEMS,
+    });
+    const item = model.items.find(
+      (candidate) => candidate.kind === "contentLoadFailed",
+    );
+    expect(item?.severity).toBe("warning");
+    expect(item?.source).toMatchObject({
+      scope: "document",
+      documentId: DOCUMENT_A,
+    });
+    expect(item?.details).toEqual(
+      expect.arrayContaining([
+        { label: "ID", value: blockIdOf(1) },
+        { label: "パス", value: block.contentPath },
+        { label: "種別", value: "fileNotFound" },
+      ]),
+    );
+  });
+
+  it("lists nothing for blocks that loaded", async () => {
+    const harness = createWorkspaceHarness();
+    seedSheetBlocks(harness, DOCUMENT_A, SHEET_A1, [makeBlockAt(1, 0, 0)]);
+    await harness.workspace.openProject(SELECTION_ID);
+    await harness.workspace.openDocument(DOCUMENT_A);
+    await harness.workspace
+      .getDocumentSession(DOCUMENT_A)
+      ?.loadSheetContents(SHEET_A1);
+    const model = selectNotifications({
+      application: harness.store.getState(),
+      operationErrors: [],
+      theme: NO_THEME_PROBLEMS,
+    });
+    expect(kindsOf(model.items)).not.toContain("contentLoadFailed");
   });
 });
 

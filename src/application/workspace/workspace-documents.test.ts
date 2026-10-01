@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { moveBlocksCommand } from "../commands/block-commands";
+import { editBlockContentCommand } from "../commands/content-commands";
+import { createBlocksCommand } from "../commands/file-backed-commands";
 import {
   renameDocumentCommand,
   renameSheetCommand,
@@ -10,6 +12,7 @@ import {
   documentIdOf,
   position,
   settle,
+  size,
 } from "../test-support/fakes";
 import {
   CONFIRMED,
@@ -122,6 +125,30 @@ describe("document sessions through the workspace", () => {
 });
 
 describe("closeDocument", () => {
+  it("saves edited block content before closing", async () => {
+    const { workspace, gateway } = await openedDocumentA();
+    const session = workspace.getDocumentSession(DOCUMENT_A);
+    const blockId = blockIdOf(50);
+    await session?.execute(
+      createBlocksCommand(SHEET_A1, [
+        {
+          blockId,
+          blockType: "markdown",
+          position: position(0, 0),
+          size: size(100, 80),
+          text: "created",
+        },
+      ]),
+    );
+    await session?.execute(
+      editBlockContentCommand({ sheetId: SHEET_A1, blockId, text: "edited" }),
+    );
+    gateway.clearCalls();
+    expect((await workspace.closeDocument(DOCUMENT_A)).ok).toBe(true);
+    expect(gateway.methods()).toEqual(["writeBlockContent"]);
+    expect([...gateway.files.values()]).toEqual(["edited"]);
+  });
+
   it("saves pending changes, then removes session and sibling data", async () => {
     const { workspace, store, gateway, events } = await openedDocumentA();
     const session = workspace.getDocumentSession(DOCUMENT_A);

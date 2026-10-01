@@ -69,6 +69,8 @@ export const MESSAGES = {
     loadFailedSheet: "Sheetの読み込みに失敗しました（開けません）",
     orphanContentFile:
       "Block本文ファイルを削除できませんでした（ファイルが残っています）",
+    contentLoadFailed:
+      "Blockの本文ファイルを読み込めませんでした（編集はできません）",
     detailLabels: {
       kind: "種別",
       path: "パス",
@@ -121,6 +123,10 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   moveBlocks: "Blockを移動できませんでした",
   resizeBlocks: "Blockのサイズを変更できませんでした",
   deleteBlocks: "Blockを削除できませんでした",
+  createBlock: "Blockを追加できませんでした",
+  editBlockContent:
+    "Blockの本文の編集を確定できませんでした（編集内容は画面に残っています）",
+  loadBlockContents: "Blockの本文を読み込めませんでした",
   undo: "元に戻せませんでした",
   redo: "やり直せませんでした",
   loadViewport: "表示位置を読み込めませんでした（既定の表示位置を使います）",

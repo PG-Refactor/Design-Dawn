@@ -18,6 +18,7 @@ import {
   setHoveredBlock,
   setViewport,
   startDrag,
+  startEditing,
   type UiState,
 } from "./ui-state";
 import {
@@ -102,6 +103,26 @@ describe("removeDocumentReferences", () => {
     expect(next.activeDocumentId).toBe(DOCUMENT_ID);
     expect(next.hoveredBlockId).toBe(blockIdOf(1));
     expect(next.selectionBySheet.has(OTHER_SHEET_ID)).toBe(false);
+  });
+});
+
+describe("editing block cleanup", () => {
+  it("is dropped with the sheet or the document that contains it", () => {
+    const editing = startEditing(populated(), SHEET_ID, blockIdOf(1));
+    expect(
+      removeSheetFromUiState(editing, DOCUMENT_ID, SHEET_ID).editingBlock,
+    ).toBeNull();
+    expect(
+      removeDocumentReferences(editing, DOCUMENT_ID, [SHEET_ID]).editingBlock,
+    ).toBeNull();
+  });
+
+  it("is kept when another sheet is removed", () => {
+    const editing = startEditing(populated(), SHEET_ID, blockIdOf(1));
+    expect(
+      removeSheetFromUiState(editing, OTHER_DOCUMENT_ID, OTHER_SHEET_ID)
+        .editingBlock,
+    ).toEqual({ sheetId: SHEET_ID, blockId: blockIdOf(1) });
   });
 });
 

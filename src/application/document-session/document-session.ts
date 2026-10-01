@@ -10,12 +10,18 @@
 // stacks exactly as they were. Data and stacks are only assigned after the operation
 // succeeded.
 
+import { isTextBlockType } from "../../domain/block/block-type";
 import type { Document } from "../../domain/document/document";
 import type { DomainResult } from "../../domain/shared/domain-result";
-import type { ProjectId, SheetId } from "../../domain/shared/entity-id";
+import type {
+  BlockId,
+  ProjectId,
+  SheetId,
+} from "../../domain/shared/entity-id";
 import type { Sheet } from "../../domain/sheet/sheet";
 import {
   addBlocksWithContent,
+  type CapturedBlock,
   removeBlocksWithContent,
   type SequenceContext,
   type SequenceSuccess,
@@ -32,7 +38,10 @@ import {
   diffDocumentData,
   findSheet,
   hasChanges,
+  liveBlockIds,
+  pruneContents,
   replaceSheet,
+  withContents,
 } from "../commands/document-data";
 import {
   entryLabel,
@@ -41,6 +50,7 @@ import {
   pushWithLimit,
   toggleFileBackedEntry,
 } from "../commands/history";
+import { normalizeLineEndings } from "../commands/text-content";
 import type { OperationWarning } from "../operation-warning";
 import {
   failWith,
@@ -51,7 +61,10 @@ import {
 } from "../ports/operation-error";
 import type { PersistenceGateway } from "../ports/persistence-gateway";
 import type { Scheduler } from "../ports/scheduler";
-import type { DocumentSessionState } from "../state/application-state";
+import type {
+  ContentLoadStatus,
+  DocumentSessionState,
+} from "../state/application-state";
 import { createSaveCoordinator } from "./save-coordinator";
 
 export interface DocumentSessionConfig {
@@ -100,7 +113,13 @@ export interface DocumentSession {
   execute(command: ApplicationCommand): Promise<OperationResult<void>>;
   undo(): Promise<OperationResult<void>>;
   redo(): Promise<OperationResult<void>>;
-  // Saves pending metadata now (also what Ctrl/Cmd+S calls).
+  // Reads the text of every text block of the sheet whose content is not loaded yet
+  // (blocks that failed earlier are retried). Not a history step and never dirty.
+  // Resolves ok even when some blocks failed: those are reported per block in
+  // `contentStatus` (a failed block never gets an empty text). Unknown sheet is
+  // `entityNotFound`. Idempotent: loaded blocks cause no gateway call.
+  loadSheetContents(sheetId: SheetId): Promise<OperationResult<void>>;
+  // Saves pending changes now (also what Ctrl/Cmd+S calls).
   flush(): Promise<OperationResult<void>>;
   // For when a sheet is deleted: no history entry may reference it any more.
   clearHistory(): void;
@@ -132,6 +151,7 @@ interface StepOutcome {
 const NO_PENDING_CHANGE: DocumentDataChange = {
   documentChanged: false,
   changedSheetIds: [],
+  changedContentBlockIds: [],
 };
 
 export function createDocumentSession(
@@ -142,7 +162,9 @@ export function createDocumentSession(
   let data: DocumentData = {
     document: options.document,
     sheets: options.sheets,
+    contents: new Map(),
   };
+  let contentStatus: ReadonlyMap<BlockId, ContentLoadStatus> = new Map();
   let undoStack: readonly HistoryEntry[] = [];
   let redoStack: readonly HistoryEntry[] = [];
   let warnings: readonly OperationWarning[] = [];
@@ -183,6 +205,8 @@ export function createDocumentSession(
     return {
       document: data.document,
       sheets: data.sheets,
+      contents: data.contents,
+      contentStatus,
       history: {
         canUndo: lastUndo !== undefined,
         canRedo: lastRedo !== undefined,
@@ -192,6 +216,47 @@ export function createDocumentSession(
       save: coordinator.getState(),
       warnings,
     };
+  }
+
+  function setContentStatus(
+    updates: Iterable<readonly [BlockId, ContentLoadStatus]>,
+  ): void {
+    contentStatus = new Map([...contentStatus, ...updates]);
+  }
+
+  // Keeps block-keyed state in step with the sheets after blocks appeared or
+  // disappeared: texts, load status and dirty flags of vanished blocks are dropped so
+  // nothing is written to a file that is gone. Returns the pruned data.
+  function syncBlockState(next: DocumentData): DocumentData {
+    const pruned = pruneContents(next);
+    const live = liveBlockIds(pruned);
+    const keptStatus = [...contentStatus].filter(([blockId]) =>
+      live.has(blockId),
+    );
+    if (keptStatus.length !== contentStatus.size) {
+      contentStatus = new Map(keptStatus);
+    }
+    coordinator.retainContentBlocks(live);
+    return pruned;
+  }
+
+  // Blocks that now exist with known text (created, pasted, restored): their text is
+  // loaded, and equals what was written to the file.
+  function withLoadedBlocks(
+    next: DocumentData,
+    blocks: readonly CapturedBlock[],
+  ): DocumentData {
+    // A block restored without content (its file was already missing) gets no text and
+    // no status: the next `loadSheetContents` reports it as failed again.
+    const withText = blocks.flatMap(({ block, text }) =>
+      text === null
+        ? []
+        : [[block.blockId, normalizeLineEndings(text)] as const],
+    );
+    setContentStatus(
+      withText.map(([blockId]) => [blockId, { status: "loaded" }] as const),
+    );
+    return withContents(next, withText);
   }
 
   function publish(): void {
@@ -266,8 +331,13 @@ export function createDocumentSession(
       blocks: outcome.value.captured,
       present: command.kind === COMMAND_KINDS.createBlocks,
     };
+    const replaced = replaceSheet(data, outcome.value.sheet);
     commit(
-      replaceSheet(data, outcome.value.sheet),
+      syncBlockState(
+        entry.present
+          ? withLoadedBlocks(replaced, outcome.value.captured)
+          : replaced,
+      ),
       {
         undo: pushWithLimit(undoStack, entry, config.undoHistoryLimit),
         redo: [],
@@ -311,8 +381,13 @@ export function createDocumentSession(
       entry,
     );
     if (!toggled.ok) return failWith(toggled.error);
+    const replaced = replaceSheet(data, toggled.value.sheet);
     return operationOk({
-      data: replaceSheet(data, toggled.value.sheet),
+      data: syncBlockState(
+        toggled.value.entry.present
+          ? withLoadedBlocks(replaced, toggled.value.captured)
+          : replaced,
+      ),
       entry: toggled.value.entry,
       warnings: toggled.value.warnings,
       pending: NO_PENDING_CHANGE,
@@ -372,13 +447,14 @@ export function createDocumentSession(
     if (!changed.ok) return failWith(changed.error);
     const diff = diffDocumentData(data, changed.value);
     const pending: DocumentDataChange = {
+      changedContentBlockIds: diff.changedContentBlockIds,
       documentChanged: diff.documentChanged,
       changedSheetIds: diff.changedSheetIds.filter(
         (sheetId) =>
           data.sheets.has(sheetId) && changed.value.sheets.has(sheetId),
       ),
     };
-    data = changed.value;
+    data = syncBlockState(changed.value);
     if (structuralOptions.clearHistory) {
       undoStack = [];
       redoStack = [];
@@ -397,6 +473,45 @@ export function createDocumentSession(
     markDirty: (change) => coordinator.markDirty(change),
     applyStructuralChange,
   };
+
+  async function loadContents(
+    sheetId: SheetId,
+  ): Promise<OperationResult<void>> {
+    const sheet = findSheet(data, sheetId);
+    if (!sheet.ok) return failWith(sheet.error);
+    const targets = sheet.value.blocks.filter(
+      (block) =>
+        isTextBlockType(block.blockType) &&
+        !data.contents.has(block.blockId) &&
+        contentStatus.get(block.blockId)?.status !== "loading",
+    );
+    if (targets.length === 0) return operationOk(undefined);
+    setContentStatus(
+      targets.map((block) => [block.blockId, { status: "loading" }] as const),
+    );
+    publish();
+    const outcomes: [BlockId, ContentLoadStatus][] = [];
+    const texts: [BlockId, string][] = [];
+    for (const block of targets) {
+      const read = await gateway.readBlockContent(
+        projectId,
+        documentId,
+        block.contentPath,
+      );
+      if (read.ok) {
+        texts.push([block.blockId, read.value]);
+        outcomes.push([block.blockId, { status: "loaded" }]);
+      } else {
+        outcomes.push([block.blockId, { status: "failed", error: read.error }]);
+      }
+    }
+    // Assigned after the reads: no command ran in between (serial queue), and the
+    // texts are not dirty because they equal the files.
+    data = withContents(data, texts);
+    setContentStatus(outcomes);
+    publish();
+    return operationOk(undefined);
+  }
 
   // Wraps an operation: rejects after close and resets last operation's warnings.
   function queued<T>(
@@ -419,6 +534,11 @@ export function createDocumentSession(
       ),
     undo: () => queued(() => step("undo")),
     redo: () => queued(() => step("redo")),
+    // Not `queued`: a read must not clear the warnings of the previous operation.
+    loadSheetContents: (sheetId) =>
+      runExclusive(async () =>
+        closed ? closedError<void>() : loadContents(sheetId),
+      ),
     flush: () => queued(() => coordinator.saveDirty()),
     clearHistory() {
       undoStack = [];

@@ -19,7 +19,10 @@ import {
   setHoveredBlock,
   setViewport,
   startDrag,
+  startEditing,
   startResize,
+  stopEditing,
+  stopEditingSheet,
   toggleBlockSelection,
   updateDrag,
   updateResize,
@@ -150,6 +153,55 @@ describe("pruneBlockReferences", () => {
   it("leaves an interaction on another sheet alone", () => {
     const state = startDrag(createInitialUiState(), OTHER_SHEET_ID, [second]);
     expect(pruneBlockReferences(state, SHEET_ID, new Set())).toBe(state);
+  });
+});
+
+describe("editing block", () => {
+  it("starts and stops the edit of one block; the same value keeps the state", () => {
+    const started = startEditing(createInitialUiState(), SHEET_ID, first);
+    expect(started.editingBlock).toEqual({ sheetId: SHEET_ID, blockId: first });
+    expect(startEditing(started, SHEET_ID, first)).toBe(started);
+    expect(stopEditing(started, SHEET_ID, first).editingBlock).toBeNull();
+  });
+
+  it("ignores a stop for a block that is not the one edited", () => {
+    const started = startEditing(createInitialUiState(), SHEET_ID, first);
+    expect(stopEditing(started, SHEET_ID, second)).toBe(started);
+    expect(stopEditing(started, OTHER_SHEET_ID, first)).toBe(started);
+    expect(stopEditing(createInitialUiState(), SHEET_ID, first)).toEqual(
+      createInitialUiState(),
+    );
+  });
+
+  it("switches to another block without needing a stop", () => {
+    const started = startEditing(createInitialUiState(), SHEET_ID, first);
+    expect(startEditing(started, SHEET_ID, second).editingBlock).toEqual({
+      sheetId: SHEET_ID,
+      blockId: second,
+    });
+  });
+
+  it("is dropped when its block disappears, kept for other blocks and sheets", () => {
+    const started = startEditing(createInitialUiState(), SHEET_ID, first);
+    expect(
+      pruneBlockReferences(started, SHEET_ID, new Set([second])).editingBlock,
+    ).toBeNull();
+    expect(pruneBlockReferences(started, SHEET_ID, new Set([first]))).toBe(
+      started,
+    );
+    expect(pruneBlockReferences(started, OTHER_SHEET_ID, new Set())).toBe(
+      started,
+    );
+  });
+
+  it("ends with the sheet that is left", () => {
+    const started = startEditing(createInitialUiState(), SHEET_ID, first);
+    expect(stopEditingSheet(started, SHEET_ID).editingBlock).toBeNull();
+    expect(stopEditingSheet(started, OTHER_SHEET_ID)).toBe(started);
+  });
+
+  it("starts with nothing edited", () => {
+    expect(createInitialUiState().editingBlock).toBeNull();
   });
 });
 

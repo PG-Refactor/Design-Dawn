@@ -16,6 +16,7 @@ import {
   saveProject,
   saveSheet,
   selectProjectFolder,
+  writeBlockContent,
 } from "./persistence-client";
 
 // Thin: maps the application port onto the Tauri client. `CommandResult` and
@@ -49,6 +50,11 @@ export function createTauriPersistenceGateway(): PersistenceGateway {
       mapOperationResult(await saveDocument(projectId, document), discard),
     createBlockContent,
     readBlockContent,
+    writeBlockContent: async (projectId, documentId, contentPath, text) =>
+      mapOperationResult(
+        await writeBlockContent(projectId, documentId, contentPath, text),
+        discard,
+      ),
     deleteBlockContent: async (projectId, documentId, contentPath) =>
       mapOperationResult(
         await deleteBlockContent(projectId, documentId, contentPath),

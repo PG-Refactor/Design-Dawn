@@ -100,6 +100,7 @@ describe("copyBlocks", () => {
       state: {
         document: harness.session.getState().document,
         sheets: harness.session.getState().sheets,
+        contents: harness.session.getState().contents,
       },
       sheetId: SHEET_ID,
       blockIds: [blockIdOf(1)],

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Block } from "../../domain/block/block";
+import type { DocumentSessionState } from "../state/application-state";
 import {
   blockIdOf,
   makeBlockAt,
@@ -252,6 +253,15 @@ describe("create blocks", () => {
   });
 });
 
+function remainingBlockIds(session: { getState(): DocumentSessionState }) {
+  return (
+    session
+      .getState()
+      .sheets.get(SHEET_ID)
+      ?.blocks.map((block) => block.blockId) ?? []
+  );
+}
+
 describe("delete blocks", () => {
   it("saves the sheet first, then deletes files; reads happen before", async () => {
     const { session, gateway } = openSession(FOUR_BLOCKS);
@@ -328,17 +338,51 @@ describe("delete blocks", () => {
     expect(gateway.calls).toEqual([]);
   });
 
-  it("fails without changes when reading a body fails", async () => {
+  it("fails without changes when a body exists but cannot be read", async () => {
     const { session, gateway } = openSession(THREE_BLOCKS);
     const before = session.getState();
-    gateway.failOn("readBlockContent", "fileNotFound", 2);
+    gateway.failOn("readBlockContent", "ioError", 2);
     const result = await session.execute(
       deleteBlocksCommand(SHEET_ID, [blockIdOf(1), blockIdOf(2)]),
     );
-    expect(!result.ok && result.error.kind).toBe("fileNotFound");
+    expect(!result.ok && result.error.kind).toBe("ioError");
     expect(gateway.methods("saveSheet", "deleteBlockContent")).toEqual([]);
     expect(session.getState().sheets).toBe(before.sheets);
     expect(session.getState().history.canUndo).toBe(false);
+  });
+
+  it("removes a block whose content file is missing and undo restores it without inventing a file", async () => {
+    const { session, gateway } = openSession(THREE_BLOCKS);
+    const missingPath = THREE_BLOCKS[1]?.contentPath ?? "";
+    gateway.files.delete(missingPath);
+    const filesBefore = new Map(gateway.files);
+    gateway.clearCalls();
+
+    const deleted = await session.execute(
+      deleteBlocksCommand(SHEET_ID, [blockIdOf(1), blockIdOf(2)]),
+    );
+    expect(deleted.ok).toBe(true);
+    expect(remainingBlockIds(session)).toEqual([blockIdOf(3)]);
+    // Only the file that existed is deleted; nothing is attempted for the missing one.
+    expect(gateway.methods("deleteBlockContent")).toHaveLength(1);
+    expect(session.getState().warnings).toEqual([]);
+
+    const undone = await session.undo();
+    expect(undone.ok).toBe(true);
+    expect(remainingBlockIds(session)).toEqual([
+      blockIdOf(1),
+      blockIdOf(2),
+      blockIdOf(3),
+    ]);
+    // Back to exactly the state before: one file restored, the missing one still missing.
+    expect(gateway.files).toEqual(filesBefore);
+    expect(gateway.files.has(missingPath)).toBe(false);
+    expect(session.getState().contents.has(blockIdOf(2))).toBe(false);
+    expect(session.getState().contentStatus.has(blockIdOf(2))).toBe(false);
+
+    const redone = await session.redo();
+    expect(redone.ok).toBe(true);
+    expect(remainingBlockIds(session)).toEqual([blockIdOf(3)]);
   });
 
   it("deletes no file when saving the sheet fails", async () => {

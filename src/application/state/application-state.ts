@@ -5,6 +5,7 @@
 import type { Document } from "../../domain/document/document";
 import type { Project } from "../../domain/project/project";
 import type {
+  BlockId,
   DocumentId,
   ProjectId,
   SheetId,
@@ -25,15 +26,26 @@ export interface HistoryState {
 
 export interface SaveState {
   readonly dirtySheetIds: ReadonlySet<SheetId>;
+  // Blocks whose text changed since it was last written to its content file.
+  readonly dirtyContentBlockIds: ReadonlySet<BlockId>;
   readonly documentDirty: boolean;
   readonly saving: boolean;
   // Set when the last save attempt failed; cleared by the next successful save.
   readonly lastError: OperationError | null;
 }
 
+// Where reading a block's text stands. A block without an entry has not been requested.
+export type ContentLoadStatus =
+  | { readonly status: "loading" }
+  | { readonly status: "loaded" }
+  | { readonly status: "failed"; readonly error: OperationError };
+
 export interface DocumentSessionState {
   readonly document: Document;
   readonly sheets: ReadonlyMap<SheetId, Sheet>;
+  // Texts of the blocks whose status is "loaded" (see `DocumentData.contents`).
+  readonly contents: ReadonlyMap<BlockId, string>;
+  readonly contentStatus: ReadonlyMap<BlockId, ContentLoadStatus>;
   readonly history: HistoryState;
   readonly save: SaveState;
   // Non-fatal problems of the most recent operation (for example a content file that

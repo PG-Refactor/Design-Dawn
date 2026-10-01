@@ -102,8 +102,12 @@ describe("rendering", () => {
     expect(first.style.width).toBe("100px");
     expect(first.style.height).toBe("50px");
     expect(frameOf(blockOption(1)).style.left).toBe("300px");
-    expect(within(blockOption(0)).getByText("markdown")).toBeTruthy();
-    expect(within(blockOption(0)).getByText("10, 20")).toBeTruthy();
+    // Markdown blocks show their rendered text (the placeholder is for other types).
+    expect(
+      within(blockOption(0)).getByRole("region", {
+        name: "Markdownプレビュー（00000001）",
+      }).textContent,
+    ).toContain("text of");
     expect(worldLayer().style.transform).toBe("translate(0px, 0px) scale(1)");
     expect(canvasElement().getAttribute("tabindex")).toBe("0");
   });

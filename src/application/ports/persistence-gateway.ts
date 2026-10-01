@@ -79,6 +79,14 @@ export interface PersistenceGateway {
     documentId: DocumentId,
     contentPath: ContentPath,
   ): Promise<OperationResult<string>>;
+  // Replaces the text of an EXISTING content file; a missing file is `fileNotFound`
+  // (content is never created implicitly).
+  writeBlockContent(
+    projectId: ProjectId,
+    documentId: DocumentId,
+    contentPath: ContentPath,
+    text: string,
+  ): Promise<OperationResult<void>>;
   deleteBlockContent(
     projectId: ProjectId,
     documentId: DocumentId,

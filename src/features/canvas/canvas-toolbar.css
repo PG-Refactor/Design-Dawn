@@ -1,0 +1,45 @@
+.canvas-toolbar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.block-create-menu {
+  position: relative;
+}
+
+.block-create-menu__list {
+  position: absolute;
+  z-index: 10;
+  top: 100%;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 10rem;
+  margin-top: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-raised);
+}
+
+.block-create-menu__item {
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  border-radius: var(--radius-medium);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.block-create-menu__item:hover,
+.block-create-menu__item:focus-visible {
+  background: var(--color-selection);
+}

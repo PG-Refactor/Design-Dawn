@@ -1,6 +1,7 @@
 import {
   type CSSProperties,
   type KeyboardEvent,
+  type MouseEvent,
   type PointerEvent,
   useCallback,
   useEffect,
@@ -16,14 +17,15 @@ import type {
   SheetId,
 } from "../../domain/shared/entity-id";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
-import { getSelection } from "../workspace/ui-state/ui-state";
+import { getSelection, stopEditingSheet } from "../workspace/ui-state/ui-state";
 import { useUiState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import {
   BLOCK_ID_ATTRIBUTE,
-  BlockFrame,
+  isInsideBlockEditor,
   RESIZE_HANDLE_ATTRIBUTE,
-} from "./block-frame";
+} from "./block-dom";
+import { BlockFrame } from "./block-frame";
 import { createCanvasInput } from "./canvas-input";
 import {
   CANVAS_KEY_COMMANDS,
@@ -92,6 +94,19 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
   // Leaving the sheet mid-gesture must not leave a preview behind.
   useEffect(() => () => input.cancel(), [input]);
 
+  // The block contents are read when the sheet is shown (this component is keyed by the
+  // sheet); the call is idempotent, so a repeat costs nothing.
+  useEffect(() => {
+    void canvasActions.loadSheetContents({ documentId, sheetId });
+  }, [canvasActions, documentId, sheetId]);
+
+  // Leaving the sheet ends the edit mode of its blocks (the editor commits its own draft).
+  useEffect(
+    () => () =>
+      uiStateStore.setState((state) => stopEditingSheet(state, sheetId)),
+    [uiStateStore, sheetId],
+  );
+
   const elementRef = useRef<HTMLDivElement>(null);
 
   // React registers wheel listeners as passive, which cannot stop the page from scrolling
@@ -100,6 +115,11 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
     const element = elementRef.current;
     if (element === null) return;
     const onWheel = (event: WheelEvent) => {
+      if (isInsideBlockEditor(event.target)) {
+        // The editor scrolls itself. Zoom with Ctrl would still zoom the whole page.
+        if (event.ctrlKey || event.metaKey) event.preventDefault();
+        return;
+      }
       event.preventDefault();
       input.wheel({
         point: pointRelativeTo(element, event),
@@ -120,6 +140,8 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
 
   function onPointerDown(event: PointerEvent<HTMLDivElement>) {
     if (event.button !== PRIMARY_BUTTON) return;
+    // A block editor owns its pointer events (text selection, caret, scrollbars).
+    if (isInsideBlockEditor(event.target)) return;
     const element = event.currentTarget;
     element.focus({ preventScroll: true });
     // jsdom has no pointer capture; real webviews do.
@@ -163,8 +185,19 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
     void input.pointerUp();
   }
 
+  function onDoubleClick(event: MouseEvent<HTMLDivElement>) {
+    const target = event.target as Element;
+    if (isInsideBlockEditor(target)) return;
+    if (target.closest(`[${RESIZE_HANDLE_ATTRIBUTE}]`)) return;
+    const blockId = blockIdOf(target, BLOCK_ID_ATTRIBUTE);
+    if (blockId === null) return;
+    canvasActions.beginBlockEdit({ documentId, sheetId, blockId });
+  }
+
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (isEditableTarget(event.target)) return;
+    if (isEditableTarget(event.target) || isInsideBlockEditor(event.target)) {
+      return;
+    }
     const command = keyCommandOf(event);
     if (command === null) return;
     if (command === CANVAS_KEY_COMMANDS.cancelGesture) {
@@ -187,6 +220,18 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
             .filter((blockId) => selection.has(blockId)),
         });
         return;
+      case CANVAS_KEY_COMMANDS.startEditing: {
+        const selected = blocks.filter((block) => selection.has(block.blockId));
+        const [only] = selected;
+        if (selected.length === 1 && only !== undefined) {
+          canvasActions.beginBlockEdit({
+            documentId,
+            sheetId,
+            blockId: only.blockId,
+          });
+        }
+        return;
+      }
       case CANVAS_KEY_COMMANDS.undo:
         void canvasActions.undo(documentId);
         return;
@@ -217,6 +262,7 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={() => input.cancel()}
+      onDoubleClick={onDoubleClick}
       onKeyDown={onKeyDown}
     >
       <div
@@ -229,6 +275,8 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
           return (
             <BlockFrame
               key={block.blockId}
+              documentId={documentId}
+              sheetId={sheetId}
               block={block}
               selected={selection.has(block.blockId)}
               interacting={isInteracting(block, interaction, sheetId)}

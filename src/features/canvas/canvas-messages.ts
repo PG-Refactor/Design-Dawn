@@ -6,6 +6,11 @@ import type { BlockId } from "../../domain/shared/entity-id";
 
 export const CANVAS_MESSAGES = {
   noSheet: "表示できるSheetがありません。Sheetを作成してください。",
+  toolbar: {
+    label: "Canvasツールバー",
+    addBlock: "+ Block",
+    blockTypeMenuLabel: "追加するBlockの種類",
+  },
   placeholder: {
     type: "種類",
     id: "ID",

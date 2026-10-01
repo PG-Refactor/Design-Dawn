@@ -565,7 +565,11 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
           // in-memory order back; when that fails too, leave the document dirty.
           const restored = await gateway.saveDocument(projectId, data.document);
           if (!restored.ok) {
-            scope.markDirty({ documentChanged: true, changedSheetIds: [] });
+            scope.markDirty({
+              documentChanged: true,
+              changedSheetIds: [],
+              changedContentBlockIds: [],
+            });
           }
         }
         return deleted;

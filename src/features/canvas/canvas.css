@@ -35,3 +35,10 @@
   flex-direction: column;
   min-height: 0;
 }
+
+/* Wraps the canvas so the toolbar above can measure the area a new block lands in. */
+.canvas-panel__canvas {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}

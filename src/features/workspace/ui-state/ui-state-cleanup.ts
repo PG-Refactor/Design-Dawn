@@ -41,11 +41,16 @@ function removeSheetReferences(
     ? IDLE_INTERACTION
     : state.interaction;
   const hoveredBlockId = hoverBelongsToRemoved ? null : state.hoveredBlockId;
+  const editingBlock =
+    state.editingBlock !== null && sheetIds.has(state.editingBlock.sheetId)
+      ? null
+      : state.editingBlock;
   if (
     selectionBySheet === state.selectionBySheet &&
     viewportBySheet === state.viewportBySheet &&
     interaction === state.interaction &&
-    hoveredBlockId === state.hoveredBlockId
+    hoveredBlockId === state.hoveredBlockId &&
+    editingBlock === state.editingBlock
   ) {
     return state;
   }
@@ -55,6 +60,7 @@ function removeSheetReferences(
     viewportBySheet,
     interaction,
     hoveredBlockId,
+    editingBlock,
   };
 }
 

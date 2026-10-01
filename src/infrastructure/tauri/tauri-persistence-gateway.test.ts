@@ -42,6 +42,37 @@ describe("createTauriPersistenceGateway", () => {
     expect(result).toEqual({ ok: true, value: undefined });
   });
 
+  it("maps writeBlockContent onto the client and drops the written flag", async () => {
+    vi.mocked(client.writeBlockContent).mockResolvedValue({
+      ok: true,
+      value: { written: false },
+    });
+    const gateway = createTauriPersistenceGateway();
+    expect(
+      await gateway.writeBlockContent(
+        PROJECT_ID,
+        DOCUMENT_ID,
+        contentPath,
+        "text",
+      ),
+    ).toEqual({ ok: true, value: undefined });
+    expect(client.writeBlockContent).toHaveBeenCalledWith(
+      PROJECT_ID,
+      DOCUMENT_ID,
+      contentPath,
+      "text",
+    );
+    vi.mocked(client.writeBlockContent).mockResolvedValue(failure);
+    expect(
+      await gateway.writeBlockContent(
+        PROJECT_ID,
+        DOCUMENT_ID,
+        contentPath,
+        "text",
+      ),
+    ).toEqual(failure);
+  });
+
   it("passes content results through unchanged", async () => {
     vi.mocked(client.createBlockContent).mockResolvedValue({
       ok: true,

@@ -77,6 +77,9 @@ export const OPERATION_LABELS = [
   "moveBlocks",
   "resizeBlocks",
   "deleteBlocks",
+  "createBlock",
+  "editBlockContent",
+  "loadBlockContents",
   "undo",
   "redo",
   "loadViewport",
@@ -95,12 +98,21 @@ export interface OperationErrorEntry {
   readonly error: OperationError;
 }
 
+// The block whose inline editor is open (at most one). Only WHICH block is edited lives
+// here; the draft text is local to the editor and reaches the application only when the
+// edit is committed.
+export interface EditingBlock {
+  readonly sheetId: SheetId;
+  readonly blockId: BlockId;
+}
+
 export interface UiState {
   readonly activeDocumentId: DocumentId | null;
   readonly activeSheetIdByDocument: ReadonlyMap<DocumentId, SheetId>;
   readonly selectionBySheet: ReadonlyMap<SheetId, ReadonlySet<BlockId>>;
   readonly hoveredBlockId: BlockId | null;
   readonly interaction: Interaction;
+  readonly editingBlock: EditingBlock | null;
   readonly viewportBySheet: ReadonlyMap<SheetId, Viewport>;
   readonly dialog: DialogState;
   readonly operationErrors: readonly OperationErrorEntry[];
@@ -122,6 +134,7 @@ export function createInitialUiState(): UiState {
     selectionBySheet: new Map(),
     hoveredBlockId: null,
     interaction: IDLE,
+    editingBlock: null,
     viewportBySheet: new Map(),
     dialog: NO_DIALOG,
     operationErrors: [],
@@ -248,6 +261,40 @@ export function endInteraction(state: UiState): UiState {
     : { ...state, interaction: IDLE };
 }
 
+export function startEditing(
+  state: UiState,
+  sheetId: SheetId,
+  blockId: BlockId,
+): UiState {
+  const { editingBlock } = state;
+  if (editingBlock?.sheetId === sheetId && editingBlock.blockId === blockId) {
+    return state;
+  }
+  return { ...state, editingBlock: { sheetId, blockId } };
+}
+
+// Only ends the edit of THIS block: a late "finished" from an editor that was already
+// replaced by another one must not close the new one.
+export function stopEditing(
+  state: UiState,
+  sheetId: SheetId,
+  blockId: BlockId,
+): UiState {
+  const { editingBlock } = state;
+  if (editingBlock?.sheetId !== sheetId || editingBlock.blockId !== blockId) {
+    return state;
+  }
+  return { ...state, editingBlock: null };
+}
+
+// For when the canvas of a sheet goes away (another sheet is shown): whatever is edited
+// there ends. The editor commits its own draft when it unmounts.
+export function stopEditingSheet(state: UiState, sheetId: SheetId): UiState {
+  return state.editingBlock?.sheetId === sheetId
+    ? { ...state, editingBlock: null }
+    : state;
+}
+
 export function setViewport(
   state: UiState,
   sheetId: SheetId,
@@ -303,6 +350,13 @@ export function pruneBlockReferences(
   }
   if (referencesMissingBlock(next.interaction, sheetId, existingBlockIds)) {
     next = { ...next, interaction: IDLE };
+  }
+  const { editingBlock } = next;
+  if (
+    editingBlock?.sheetId === sheetId &&
+    !existingBlockIds.has(editingBlock.blockId)
+  ) {
+    next = { ...next, editingBlock: null };
   }
   return next;
 }

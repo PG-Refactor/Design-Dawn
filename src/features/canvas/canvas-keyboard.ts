@@ -6,6 +6,7 @@ export const CANVAS_KEY_COMMANDS = {
   undo: "undo",
   redo: "redo",
   cancelGesture: "cancelGesture",
+  startEditing: "startEditing",
 } as const;
 
 export type CanvasKeyCommand =
@@ -22,6 +23,7 @@ const KEYS = {
   escape: "Escape",
   delete: "Delete",
   backspace: "Backspace",
+  enter: "Enter",
   undo: "z",
   redo: "y",
 } as const;
@@ -48,6 +50,7 @@ export function keyCommandOf(event: KeyEventLike): CanvasKeyCommand | null {
   if (event.key === KEYS.delete || event.key === KEYS.backspace) {
     return CANVAS_KEY_COMMANDS.deleteSelection;
   }
+  if (event.key === KEYS.enter) return CANVAS_KEY_COMMANDS.startEditing;
   return null;
 }
 

@@ -1,7 +1,7 @@
 import type { BlockType } from "../../domain/block/block-type";
-import type { DomainResult } from "../../domain/shared/domain-result";
 import type { BlockId, SheetId } from "../../domain/shared/entity-id";
 import type { Position, Size } from "../../domain/shared/geometry";
+import type { OperationResult } from "../ports/operation-error";
 import type { CommandKind } from "./command-kind";
 import type { DocumentData } from "./document-data";
 
@@ -13,8 +13,11 @@ export interface MetadataCommand {
   readonly category: "metadata";
   readonly kind: CommandKind;
   // Returns the same `DocumentData` reference when the command changes nothing.
-  apply(state: DocumentData): DomainResult<DocumentData>;
-  revert(state: DocumentData): DomainResult<DocumentData>;
+  // `OperationResult`, not `DomainResult`: editing text that was never loaded is the
+  // session-level `notWritable`, which is not a Domain error. Domain failures
+  // (`DomainResult`) are assignable to it.
+  apply(state: DocumentData): OperationResult<DocumentData>;
+  revert(state: DocumentData): OperationResult<DocumentData>;
 }
 
 export interface BlockSpec {

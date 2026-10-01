@@ -60,10 +60,11 @@ export interface AppServices {
 export function createAppServices(): AppServices {
   const applicationStore = createApplicationStore();
   const uiStateStore = createUiStateStore();
+  const idGenerator = createDefaultIdGenerator();
   const workspace = createWorkspace({
     gateway: createTauriPersistenceGateway(),
     scheduler: createTimeoutScheduler(),
-    idGenerator: createDefaultIdGenerator(),
+    idGenerator,
     store: applicationStore,
     config: {
       undoHistoryLimit: UNDO_HISTORY_LIMIT,
@@ -79,6 +80,7 @@ export function createAppServices(): AppServices {
     workspace,
     applicationStore,
     uiStateStore,
+    idGenerator,
   });
   const viewportPersistence = createViewportPersistence({
     gateway: createTauriViewportGateway(),

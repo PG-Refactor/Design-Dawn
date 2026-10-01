@@ -18,6 +18,7 @@ import {
 import {
   blockIdOf,
   createFakeScheduler,
+  createSequentialIdGenerator,
   displayName,
   type FakeScheduler,
   filesForBlocks,
@@ -76,6 +77,7 @@ export function createActionsHarness(): ActionsHarness {
     workspace: base.workspace,
     applicationStore: base.store,
     uiStateStore,
+    idGenerator: createSequentialIdGenerator(),
   });
   const viewportGateway = createFakeViewportGateway();
   const viewportScheduler = createFakeScheduler();

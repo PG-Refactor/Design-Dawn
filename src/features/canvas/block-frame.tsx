@@ -1,14 +1,18 @@
 import { memo } from "react";
 import type { Block } from "../../domain/block/block";
+import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
+import {
+  BLOCK_BODY_ATTRIBUTE,
+  BLOCK_ID_ATTRIBUTE,
+  RESIZE_HANDLE_ATTRIBUTE,
+} from "./block-dom";
 import { BlockRenderer } from "./block-renderer";
 import { blockAccessibleName, resizeHandleLabel } from "./canvas-messages";
 import "./block-frame.css";
 
-// The attributes the canvas reads from the DOM to find out what a pointer event hit.
-export const BLOCK_ID_ATTRIBUTE = "data-block-id";
-export const RESIZE_HANDLE_ATTRIBUTE = "data-canvas-handle";
-
 export interface BlockFrameProps {
+  readonly documentId: DocumentId;
+  readonly sheetId: SheetId;
   readonly block: Block;
   readonly selected: boolean;
   readonly interacting: boolean;
@@ -23,6 +27,8 @@ export interface BlockFrameProps {
 // Positions one block in the world layer and hosts its selection state and resize handle.
 // The handle is a sibling of the option because an option's children are presentational.
 export const BlockFrame = memo(function BlockFrame({
+  documentId,
+  sheetId,
   block,
   selected,
   interacting,
@@ -47,8 +53,13 @@ export const BlockFrame = memo(function BlockFrame({
         // Focusable by script and click only; keyboard events bubble to the canvas.
         tabIndex={-1}
         className="block-frame__body"
+        {...{ [BLOCK_BODY_ATTRIBUTE]: "" }}
       >
-        <BlockRenderer block={block} />
+        <BlockRenderer
+          documentId={documentId}
+          sheetId={sheetId}
+          block={block}
+        />
       </div>
       <button
         type="button"

@@ -44,7 +44,13 @@ export function saveStatusOf(session: DocumentSessionState): SaveStatus {
   const { save } = session;
   if (save.lastError !== null) return "error";
   if (save.saving) return "saving";
-  if (save.documentDirty || save.dirtySheetIds.size > 0) return "unsaved";
+  if (
+    save.documentDirty ||
+    save.dirtySheetIds.size > 0 ||
+    save.dirtyContentBlockIds.size > 0
+  ) {
+    return "unsaved";
+  }
   return "saved";
 }
 

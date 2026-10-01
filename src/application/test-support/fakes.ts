@@ -27,6 +27,7 @@ import {
 import { unwrap } from "../../domain/shared/test-support";
 import { parseSheet, type Sheet } from "../../domain/sheet/sheet";
 import type { DocumentData } from "../commands/document-data";
+import { normalizeLineEndings } from "../commands/text-content";
 import type { IdGenerator } from "../id-generator";
 import {
   type OperationErrorKind,
@@ -105,6 +106,7 @@ export function makeDocumentData(
       [sheet.sheetId, sheet],
       [otherSheet.sheetId, otherSheet],
     ]),
+    contents: new Map(),
   };
 }
 
@@ -461,7 +463,7 @@ export function createFakeGateway(
         const path = unwrap(
           parseContentPath(`sheets/s/blocks/${blockType}-c${fileCounter}.md`),
         );
-        files.set(path, text);
+        files.set(path, normalizeLineEndings(text));
         return operationOk(path);
       }),
     readBlockContent: (_project, _document, contentPath) =>
@@ -470,6 +472,15 @@ export function createFakeGateway(
         return text === undefined
           ? operationErr("fileNotFound", contentPath)
           : operationOk(text);
+      }),
+    writeBlockContent: (_project, _document, contentPath, text) =>
+      enter("writeBlockContent", contentPath, () => {
+        // Like Rust: saving never creates content, and CRLF is normalized on write.
+        if (!files.has(contentPath)) {
+          return operationErr("fileNotFound", contentPath);
+        }
+        files.set(contentPath, normalizeLineEndings(text));
+        return operationOk(undefined);
       }),
     deleteBlockContent: (_project, _document, contentPath) =>
       enter("deleteBlockContent", contentPath, () => {
@@ -481,7 +492,7 @@ export function createFakeGateway(
         if (files.has(contentPath)) {
           return operationErr("alreadyExists", contentPath);
         }
-        files.set(contentPath, text);
+        files.set(contentPath, normalizeLineEndings(text));
         return operationOk(undefined);
       }),
   };

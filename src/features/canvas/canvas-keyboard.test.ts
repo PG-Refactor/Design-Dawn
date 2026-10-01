@@ -41,6 +41,18 @@ describe("keyCommandOf", () => {
     );
   });
 
+  it("maps Enter (without Ctrl / Meta) to starting the edit", () => {
+    expect(keyCommandOf({ key: "Enter", ...NO_MODIFIERS })).toBe(
+      "startEditing",
+    );
+    expect(
+      keyCommandOf({ key: "Enter", ...NO_MODIFIERS, ctrlKey: true }),
+    ).toBeNull();
+    expect(
+      keyCommandOf({ key: "Enter", ...NO_MODIFIERS, metaKey: true }),
+    ).toBeNull();
+  });
+
   it("maps Escape to cancelling the gesture and ignores everything else", () => {
     expect(keyCommandOf({ key: "Escape", ...NO_MODIFIERS })).toBe(
       "cancelGesture",
