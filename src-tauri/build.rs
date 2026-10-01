@@ -15,6 +15,9 @@ const APP_COMMANDS: &[&str] = &[
     "read_block_content",
     "write_block_content",
     "delete_block_content",
+    "restore_block_content",
+    "delete_sheet",
+    "delete_document",
 ];
 
 fn main() {

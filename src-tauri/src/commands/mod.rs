@@ -21,7 +21,7 @@ use crate::infrastructure::file_format::dto::{parse_dto, DocumentDto, ProjectDto
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 13] = [
+pub const COMMAND_NAMES: [&str; 16] = [
     "create_project",
     "open_project",
     "open_entry_point",
@@ -35,6 +35,9 @@ pub const COMMAND_NAMES: [&str; 13] = [
     "read_block_content",
     "write_block_content",
     "delete_block_content",
+    "restore_block_content",
+    "delete_sheet",
+    "delete_document",
 ];
 
 type SessionState<'a> = State<'a, Mutex<ProjectSessions>>;
@@ -215,5 +218,49 @@ pub fn delete_block_content(
 ) -> Result<(), ApplicationError> {
     with_sessions(&state, |sessions| {
         block_content::delete_block_content(sessions, &project_id, &document_id, &content_path)
+    })
+}
+
+#[tauri::command]
+pub fn restore_block_content(
+    state: SessionState<'_>,
+    project_id: String,
+    document_id: String,
+    block_type: String,
+    content_path: String,
+    text: String,
+) -> Result<(), ApplicationError> {
+    with_sessions(&state, |sessions| {
+        block_content::restore_block_content(
+            sessions,
+            &project_id,
+            &document_id,
+            &block_type,
+            &content_path,
+            &text,
+        )
+    })
+}
+
+#[tauri::command]
+pub fn delete_sheet(
+    state: SessionState<'_>,
+    project_id: String,
+    document_id: String,
+    sheet_id: String,
+) -> Result<(), ApplicationError> {
+    with_sessions(&state, |sessions| {
+        sheets::delete_sheet(sessions, &project_id, &document_id, &sheet_id)
+    })
+}
+
+#[tauri::command]
+pub fn delete_document(
+    state: SessionState<'_>,
+    project_id: String,
+    document_id: String,
+) -> Result<(), ApplicationError> {
+    with_sessions(&state, |sessions| {
+        documents::delete_document(sessions, &project_id, &document_id)
     })
 }

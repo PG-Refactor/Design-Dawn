@@ -26,6 +26,9 @@ pub fn run() {
             commands::read_block_content,
             commands::write_block_content,
             commands::delete_block_content,
+            commands::restore_block_content,
+            commands::delete_sheet,
+            commands::delete_document,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Design Dawn");

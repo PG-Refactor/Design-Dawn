@@ -69,24 +69,67 @@ pub fn unique_directory_name(
         .expect("an unbounded counter always yields a free name")
 }
 
-/// `<blockType>-<n>.<extension>` with the smallest `n` that does not collide.
-/// Only block types whose content lives in a sheet's `blocks/` directory have such files.
+/// The extension of a text block type's content files. Only block types whose content
+/// lives in a sheet's `blocks/` directory have such files.
+fn text_content_extension(block_type: BlockType) -> Result<&'static str, DomainError> {
+    let definition = block_type.definition();
+    match (definition.location, definition.extensions.first()) {
+        (ContentLocation::SheetBlocks, Some(extension)) => Ok(*extension),
+        _ => Err(DomainError::new(
+            DomainErrorKind::UnsupportedBlockType,
+            format!("{} has no text content file", block_type.as_str()),
+        )),
+    }
+}
+
+/// The `<n>` of a `<blockType>-<n>.<ext>` file name, or `None` if the name does not follow
+/// that pattern for this block type. The identifier and extension are compared
+/// case-insensitively because collisions are (file-format.md §9.3); leading zeros are
+/// accepted and a number that does not fit `u64` is treated as no match.
+pub fn block_content_number(block_type: BlockType, file_name: &str) -> Option<u64> {
+    let (stem, extension) = file_name.rsplit_once(EXTENSION_SEPARATOR)?;
+    let extension_matches = block_type
+        .definition()
+        .extensions
+        .iter()
+        .any(|allowed| allowed.eq_ignore_ascii_case(extension));
+    let (identifier, digits) = stem.rsplit_once(BLOCK_CONTENT_NUMBER_SEPARATOR)?;
+    // `u64::from_str` would also accept a leading `+`, which is not part of the pattern.
+    let is_number = !digits.is_empty() && digits.bytes().all(|byte| byte.is_ascii_digit());
+    if extension_matches && is_number && identifier.eq_ignore_ascii_case(block_type.as_str()) {
+        digits.parse().ok()
+    } else {
+        None
+    }
+}
+
+/// Largest number among the existing content files of this block type.
+pub fn highest_block_content_number(
+    block_type: BlockType,
+    existing_names: &[String],
+) -> Option<u64> {
+    existing_names
+        .iter()
+        .filter_map(|name| block_content_number(block_type, name))
+        .max()
+}
+
+/// `<blockType>-<n>.<extension>` with `n` = largest known number + 1, so a deleted number is
+/// never handed out again (file-format.md §9.3). The largest known number is the larger of
+/// the files on disk and `session_high_water` (what this Project Session has already
+/// issued, restored or deleted). A name that is nevertheless taken is skipped.
 pub fn block_content_file_name(
     block_type: BlockType,
     existing_names: &[String],
+    session_high_water: Option<u64>,
 ) -> Result<String, DomainError> {
-    let definition = block_type.definition();
-    let extension = match (definition.location, definition.extensions.first()) {
-        (ContentLocation::SheetBlocks, Some(extension)) => *extension,
-        _ => {
-            return Err(DomainError::new(
-                DomainErrorKind::UnsupportedBlockType,
-                format!("{} has no text content file", block_type.as_str()),
-            ))
-        }
-    };
+    let extension = text_content_extension(block_type)?;
+    let highest = highest_block_content_number(block_type, existing_names).max(session_high_water);
+    let first_candidate = highest.map_or(BLOCK_CONTENT_FIRST_NUMBER, |number| {
+        number.saturating_add(1)
+    });
     let taken = lowercase_set(existing_names);
-    Ok((BLOCK_CONTENT_FIRST_NUMBER..)
+    (first_candidate..=u64::MAX)
         .map(|number| {
             format!(
                 "{}{BLOCK_CONTENT_NUMBER_SEPARATOR}{number}{EXTENSION_SEPARATOR}{extension}",
@@ -94,7 +137,12 @@ pub fn block_content_file_name(
             )
         })
         .find(|candidate| !taken.contains(candidate))
-        .expect("an unbounded counter always yields a free name"))
+        .ok_or_else(|| {
+            DomainError::new(
+                DomainErrorKind::InvalidContentPath,
+                format!("no free {} content number left", block_type.as_str()),
+            )
+        })
 }
 
 /// Asset file name: slugified stem (fallback `image`), lowercase extension, `-2`, `-3`, ...
@@ -182,21 +230,106 @@ mod tests {
     }
 
     #[test]
-    fn block_content_names_use_the_smallest_free_number() {
+    fn block_content_names_use_the_largest_number_plus_one() {
         let existing = names(&["markdown-1.md", "Markdown-2.MD", "markdown-4.md"]);
         assert_eq!(
-            block_content_file_name(BlockType::Markdown, &existing).unwrap(),
-            "markdown-3.md"
+            block_content_file_name(BlockType::Markdown, &existing, None).unwrap(),
+            "markdown-5.md"
         );
         assert_eq!(
-            block_content_file_name(BlockType::Mermaid, &existing).unwrap(),
+            block_content_file_name(BlockType::Mermaid, &existing, None).unwrap(),
             "mermaid-1.mmd"
+        );
+        assert_eq!(
+            block_content_file_name(BlockType::Markdown, &[], None).unwrap(),
+            "markdown-1.md"
+        );
+    }
+
+    #[test]
+    fn gaps_are_not_filled() {
+        let existing = names(&["markdown-1.md", "markdown-3.md"]);
+        assert_eq!(
+            block_content_file_name(BlockType::Markdown, &existing, None).unwrap(),
+            "markdown-4.md"
+        );
+    }
+
+    #[test]
+    fn the_session_high_water_mark_wins_when_it_is_larger() {
+        let existing = names(&["markdown-1.md", "markdown-3.md"]);
+        assert_eq!(
+            block_content_file_name(BlockType::Markdown, &existing, Some(7)).unwrap(),
+            "markdown-8.md"
+        );
+        assert_eq!(
+            block_content_file_name(BlockType::Markdown, &existing, Some(2)).unwrap(),
+            "markdown-4.md"
+        );
+        assert_eq!(
+            block_content_file_name(BlockType::Markdown, &[], Some(4)).unwrap(),
+            "markdown-5.md"
+        );
+    }
+
+    #[test]
+    fn only_names_of_the_exact_pattern_count() {
+        let ignored = names(&[
+            "markdown-.md",
+            "markdown-x.md",
+            "markdown-+9.md",
+            "markdown--9.md",
+            "markdown-9.txt",
+            "markdown-9.mmd",
+            "markdown-9",
+            "markdown9.md",
+            "notes-9.md",
+            "mermaid-9.md",
+            "xmarkdown-9.md",
+            "markdown-9.md.bak",
+            ".markdown-9.md.dawn-tmp",
+            "markdown-99999999999999999999999.md",
+        ]);
+        assert_eq!(
+            highest_block_content_number(BlockType::Markdown, &ignored),
+            None
+        );
+        assert_eq!(
+            block_content_file_name(BlockType::Markdown, &ignored, None).unwrap(),
+            "markdown-1.md"
+        );
+    }
+
+    #[test]
+    fn numbers_ignore_case_and_leading_zeros_and_parse_as_u64() {
+        assert_eq!(
+            block_content_number(BlockType::Markdown, "MARKDOWN-007.Md"),
+            Some(7)
+        );
+        assert_eq!(
+            block_content_number(BlockType::Mermaid, "mermaid-18446744073709551615.mmd"),
+            Some(u64::MAX)
+        );
+        assert_eq!(
+            block_content_number(BlockType::Mermaid, "mermaid-18446744073709551616.mmd"),
+            None
+        );
+    }
+
+    #[test]
+    fn an_exhausted_number_space_is_an_error_not_a_wrap_around() {
+        let existing = names(&["markdown-18446744073709551615.md"]);
+        assert_eq!(
+            block_content_file_name(BlockType::Markdown, &existing, None)
+                .unwrap_err()
+                .kind,
+            DomainErrorKind::InvalidContentPath
         );
     }
 
     #[test]
     fn image_blocks_have_no_text_content_file() {
-        let error = block_content_file_name(BlockType::Image, &[]).unwrap_err();
+        let error = block_content_file_name(BlockType::Image, &[], None).unwrap_err();
         assert_eq!(error.kind, DomainErrorKind::UnsupportedBlockType);
     }
 

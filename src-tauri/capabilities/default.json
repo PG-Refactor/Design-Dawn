@@ -17,6 +17,9 @@
     "allow-create-block-content",
     "allow-read-block-content",
     "allow-write-block-content",
-    "allow-delete-block-content"
+    "allow-delete-block-content",
+    "allow-restore-block-content",
+    "allow-delete-sheet",
+    "allow-delete-document"
   ]
 }

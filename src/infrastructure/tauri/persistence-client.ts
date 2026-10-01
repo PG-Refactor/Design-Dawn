@@ -194,3 +194,36 @@ export function deleteBlockContent(
     toVoidResult,
   );
 }
+
+export function restoreBlockContent(
+  projectId: ProjectId,
+  documentId: DocumentId,
+  blockType: BlockType,
+  contentPath: ContentPath,
+  text: string,
+): Promise<CommandResult<null>> {
+  return call(
+    COMMANDS.restoreBlockContent,
+    { projectId, documentId, blockType, contentPath, text },
+    toVoidResult,
+  );
+}
+
+export function deleteSheet(
+  projectId: ProjectId,
+  documentId: DocumentId,
+  sheetId: SheetId,
+): Promise<CommandResult<null>> {
+  return call(
+    COMMANDS.deleteSheet,
+    { projectId, documentId, sheetId },
+    toVoidResult,
+  );
+}
+
+export function deleteDocument(
+  projectId: ProjectId,
+  documentId: DocumentId,
+): Promise<CommandResult<null>> {
+  return call(COMMANDS.deleteDocument, { projectId, documentId }, toVoidResult);
+}

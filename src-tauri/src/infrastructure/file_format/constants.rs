@@ -35,5 +35,5 @@ pub const FALLBACK_FIRST_NUMBER: u32 = 1;
 /// A collision suffix starts at 2 (`name-2`); the unsuffixed name is implicitly number 1.
 pub const COLLISION_FIRST_SUFFIX: u32 = 2;
 /// Block content files are numbered from 1 (`markdown-1.md`).
-pub const BLOCK_CONTENT_FIRST_NUMBER: u32 = 1;
+pub const BLOCK_CONTENT_FIRST_NUMBER: u64 = 1;
 pub const BLOCK_CONTENT_NUMBER_SEPARATOR: char = '-';

@@ -16,6 +16,9 @@ export const COMMANDS = {
   readBlockContent: "read_block_content",
   writeBlockContent: "write_block_content",
   deleteBlockContent: "delete_block_content",
+  restoreBlockContent: "restore_block_content",
+  deleteSheet: "delete_sheet",
+  deleteDocument: "delete_document",
 } as const;
 
 export type CommandName = (typeof COMMANDS)[keyof typeof COMMANDS];

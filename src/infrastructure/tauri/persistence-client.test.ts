@@ -17,10 +17,13 @@ import {
   createBlockContent,
   createSheet,
   deleteBlockContent,
+  deleteDocument,
+  deleteSheet,
   loadDocument,
   openEntryPoint,
   openProject,
   readBlockContent,
+  restoreBlockContent,
   saveProject,
   saveSheet,
   writeBlockContent,
@@ -201,6 +204,40 @@ describe("successful conversion", () => {
     expect(deleted).toEqual({ ok: true, value: null });
   });
 
+  it("sends restore and delete commands with the documented arguments", async () => {
+    invokeMock.mockResolvedValue(null);
+    const restored = await restoreBlockContent(
+      projectId,
+      documentId,
+      "markdown",
+      contentPath,
+      "# Back",
+    );
+    expect(restored).toEqual({ ok: true, value: null });
+    expect(invokeMock).toHaveBeenLastCalledWith(COMMANDS.restoreBlockContent, {
+      projectId: PROJECT_ID,
+      documentId: DOCUMENT_ID,
+      blockType: "markdown",
+      contentPath: CONTENT_PATH,
+      text: "# Back",
+    });
+
+    const sheetDeleted = await deleteSheet(projectId, documentId, sheetId);
+    expect(sheetDeleted).toEqual({ ok: true, value: null });
+    expect(invokeMock).toHaveBeenLastCalledWith(COMMANDS.deleteSheet, {
+      projectId: PROJECT_ID,
+      documentId: DOCUMENT_ID,
+      sheetId: SHEET_ID,
+    });
+
+    const documentDeleted = await deleteDocument(projectId, documentId);
+    expect(documentDeleted).toEqual({ ok: true, value: null });
+    expect(invokeMock).toHaveBeenLastCalledWith(COMMANDS.deleteDocument, {
+      projectId: PROJECT_ID,
+      documentId: DOCUMENT_ID,
+    });
+  });
+
   it("sends domain entities as they are for saves", async () => {
     const project = unwrap(parseProject(rawProject));
     const sheet = unwrap(parseSheet(rawSheet));
@@ -286,6 +323,27 @@ describe("payload validation", () => {
       await deleteBlockContent(projectId, documentId, contentPath),
       "invalidCommandResponse",
     );
+    invokeMock.mockResolvedValueOnce({ surprise: true });
+    expectFailure(
+      await restoreBlockContent(
+        projectId,
+        documentId,
+        "markdown",
+        contentPath,
+        "",
+      ),
+      "invalidCommandResponse",
+    );
+    invokeMock.mockResolvedValueOnce("unexpected");
+    expectFailure(
+      await deleteSheet(projectId, documentId, sheetId),
+      "invalidCommandResponse",
+    );
+    invokeMock.mockResolvedValueOnce(42);
+    expectFailure(
+      await deleteDocument(projectId, documentId),
+      "invalidCommandResponse",
+    );
     invokeMock.mockResolvedValueOnce({ written: "yes" });
     expectFailure(
       await writeBlockContent(projectId, documentId, contentPath, ""),
@@ -306,6 +364,30 @@ describe("error mapping", () => {
       ok: false,
       error: { kind: "notWritable", detail: "sheet x" },
     });
+  });
+
+  it("passes the restore and delete refusals through", async () => {
+    invokeMock.mockRejectedValueOnce({ kind: "alreadyExists", detail: "d" });
+    expectFailure(
+      await restoreBlockContent(
+        projectId,
+        documentId,
+        "markdown",
+        contentPath,
+        "",
+      ),
+      "alreadyExists",
+    );
+    invokeMock.mockRejectedValueOnce({ kind: "pathOutsideRoot", detail: "d" });
+    expectFailure(
+      await deleteSheet(projectId, documentId, sheetId),
+      "pathOutsideRoot",
+    );
+    invokeMock.mockRejectedValueOnce({ kind: "entityNotFound", detail: "d" });
+    expectFailure(
+      await deleteDocument(projectId, documentId),
+      "entityNotFound",
+    );
   });
 
   it("accepts every documented error kind", async () => {

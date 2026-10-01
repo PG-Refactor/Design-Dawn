@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use serde_json::Value;
 
 use super::error::{ApplicationError, ApplicationResult};
+use crate::domain::block_type::BlockType;
 use crate::domain::constants::PATH_SEPARATOR;
 use crate::domain::entity_id::{DocumentId, ProjectId, SheetId};
 use crate::infrastructure::error::{PersistenceError, PersistenceErrorKind};
@@ -20,7 +21,7 @@ use crate::infrastructure::filesystem::atomic_write::{
 use crate::infrastructure::filesystem::directory::list_directory;
 use crate::infrastructure::filesystem::hashing::sha256_hex;
 use crate::infrastructure::filesystem::path_resolution::{
-    resolve_existing, resolve_for_create, resolve_for_write,
+    resolve_existing, resolve_for_create, resolve_for_write, resolve_removable_directory,
 };
 use crate::infrastructure::filesystem::text_content::decode_text;
 
@@ -53,6 +54,26 @@ impl HashLedger {
     pub fn is_empty(&self) -> bool {
         self.hashes.is_empty()
     }
+
+    /// Drops the entry for `directory_relative` itself and everything below it.
+    pub fn forget_under(&mut self, directory_relative: &str) {
+        let prefix = format!("{directory_relative}{PATH_SEPARATOR}");
+        self.hashes
+            .retain(|path, _| path != directory_relative && !path.starts_with(&prefix));
+    }
+}
+
+/// Identifies one numbering sequence: block content files of one type in one sheet
+/// directory (file-format.md §9.3).
+type BlockNumberKey = (DocumentId, String, BlockType);
+
+/// Why a directory could not be removed, and whether the entity can still be loaded.
+#[derive(Debug)]
+pub struct DirectoryRemovalError {
+    pub error: PersistenceError,
+    /// False only when the removal started and its metadata file is gone, so the entity can
+    /// no longer be loaded and the session must stop tracking it.
+    pub metadata_survives: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -76,6 +97,10 @@ pub struct ProjectSession {
     project_id: ProjectId,
     documents: BTreeMap<DocumentId, DocumentRecord>,
     ledger: HashLedger,
+    /// Highest block content number this session issued, restored or deleted per sequence.
+    /// Kept in memory only: numbers are derived from file names, never stored in metadata,
+    /// so after a restart a deleted highest number can be reused (file-format.md §9.3).
+    block_numbers: HashMap<BlockNumberKey, u64>,
 }
 
 fn join_key(base_relative: &str, relative: &str) -> String {
@@ -120,6 +145,7 @@ impl ProjectSession {
             project_id,
             documents: BTreeMap::new(),
             ledger,
+            block_numbers: HashMap::new(),
         }
     }
 
@@ -274,6 +300,78 @@ impl ProjectSession {
         self.ledger.record(relative_path, bytes);
     }
 
+    /// Highest number the session has seen for this sequence, if any.
+    pub fn block_number_high_water(
+        &self,
+        document_id: &DocumentId,
+        sheet_directory: &str,
+        block_type: BlockType,
+    ) -> Option<u64> {
+        self.block_numbers
+            .get(&(*document_id, sheet_directory.to_owned(), block_type))
+            .copied()
+    }
+
+    /// Raises (never lowers) the high-water mark of a sequence.
+    pub fn note_block_number(
+        &mut self,
+        document_id: &DocumentId,
+        sheet_directory: &str,
+        block_type: BlockType,
+        number: u64,
+    ) {
+        let mark = self
+            .block_numbers
+            .entry((*document_id, sheet_directory.to_owned(), block_type))
+            .or_insert(number);
+        *mark = (*mark).max(number);
+    }
+
+    /// Forgets the marks of one sheet directory, or of the whole document when `None`.
+    pub fn forget_block_numbers(
+        &mut self,
+        document_id: &DocumentId,
+        sheet_directory: Option<&str>,
+    ) {
+        self.block_numbers.retain(|(document, directory, _), _| {
+            document != document_id
+                || sheet_directory.is_some_and(|forgotten| forgotten != directory)
+        });
+    }
+
+    pub fn forget_ledger_under(&mut self, directory_relative: &str) {
+        self.ledger.forget_under(directory_relative);
+    }
+
+    pub fn remove_document_record(&mut self, document_id: &DocumentId) {
+        self.documents.remove(document_id);
+    }
+
+    /// Recursively deletes `parent_relative/directory_name` after proving it is a real
+    /// directory inside the Project (see `resolve_removable_directory`). `remove_dir_all`
+    /// removes symlinks it meets as links and never follows them. On failure the caller keeps
+    /// the entity only while its `metadata_file_name` still exists: a half-deleted entity
+    /// that can still load can be retried, one that cannot would only be reported as broken.
+    pub fn remove_directory_tree(
+        &mut self,
+        parent_relative: &str,
+        directory_name: &str,
+        metadata_file_name: &str,
+    ) -> Result<(), DirectoryRemovalError> {
+        let directory = resolve_removable_directory(&self.root, parent_relative, directory_name)
+            .map_err(|error| DirectoryRemovalError {
+                error,
+                metadata_survives: true,
+            })?;
+        fs::remove_dir_all(&directory).map_err(|error| DirectoryRemovalError {
+            error: PersistenceError::new(
+                PersistenceErrorKind::IoError,
+                format!("remove directory {directory_name:?}: {error}"),
+            ),
+            metadata_survives: fs::symlink_metadata(directory.join(metadata_file_name)).is_ok(),
+        })
+    }
+
     pub fn remove_file(
         &mut self,
         base_relative: &str,
@@ -324,5 +422,26 @@ impl ProjectSessions {
         self.sessions.get_mut(project_id).ok_or_else(|| {
             ApplicationError::project_not_open(format!("project is not open: {project_id}"))
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn forget_under_removes_a_directory_but_not_a_sibling_sharing_its_prefix() {
+        let mut ledger = HashLedger::default();
+        for path in [
+            "documents/a/document.json",
+            "documents/a",
+            "documents/ab/document.json",
+        ] {
+            ledger.record(path, b"x");
+        }
+        ledger.forget_under("documents/a");
+        assert!(ledger.hash_of("documents/a").is_none());
+        assert!(ledger.hash_of("documents/a/document.json").is_none());
+        assert!(ledger.hash_of("documents/ab/document.json").is_some());
     }
 }

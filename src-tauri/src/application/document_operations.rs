@@ -191,3 +191,31 @@ pub fn save_document(
         written: outcome == WriteOutcome::Written,
     })
 }
+
+/// Deletes a Document directory with all its Sheets and Assets. Destructive and not
+/// undoable; see `delete_sheet` for the contract. `project.json` is left alone (the caller
+/// saves the Project order first). A Document that failed to load can be deleted too.
+pub fn delete_document(
+    sessions: &mut ProjectSessions,
+    project_id: &str,
+    document_id: &str,
+) -> ApplicationResult<()> {
+    let session = sessions.session_mut(project_id)?;
+    let document_id = DocumentId::parse(document_id)?;
+    let directory_name = session.document(&document_id)?.directory_name.clone();
+    let removal = session.remove_directory_tree(
+        DOCUMENTS_DIRECTORY_NAME,
+        &directory_name,
+        DOCUMENT_FILE_NAME,
+    );
+    let forget = match &removal {
+        Ok(()) => true,
+        Err(failure) => !failure.metadata_survives,
+    };
+    if forget {
+        session.remove_document_record(&document_id);
+        session.forget_ledger_under(&super::session::document_base_path(&directory_name));
+        session.forget_block_numbers(&document_id, None);
+    }
+    removal.map_err(|failure| failure.error.into())
+}

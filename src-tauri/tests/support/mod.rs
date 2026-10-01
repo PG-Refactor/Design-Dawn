@@ -101,7 +101,8 @@ pub fn sheet_dir(root: &Path, name: &str) -> PathBuf {
     document_dir(root).join("sheets").join(name)
 }
 
-/// Every file (content) and directory (`None`) below `root`, for before/after comparisons.
+/// Every file (content), symlink (its target text) and directory (`None`) below `root`, for
+/// before/after comparisons.
 pub fn tree_snapshot(root: &Path) -> BTreeMap<String, Option<Vec<u8>>> {
     fn walk(base: &Path, directory: &Path, out: &mut BTreeMap<String, Option<Vec<u8>>>) {
         for entry in fs::read_dir(directory).expect("read dir") {
@@ -112,7 +113,16 @@ pub fn tree_snapshot(root: &Path) -> BTreeMap<String, Option<Vec<u8>>> {
                 .expect("inside base")
                 .to_string_lossy()
                 .replace('\\', "/");
-            if entry.file_type().expect("file type").is_dir() {
+            let file_type = entry.file_type().expect("file type");
+            if file_type.is_symlink() {
+                // Recorded as the link itself, never followed: a dangling link would fail
+                // to read and a link out of the tree would pull outside files in.
+                let target = fs::read_link(&path).expect("read link");
+                out.insert(
+                    key,
+                    Some(format!("symlink -> {}", target.display()).into_bytes()),
+                );
+            } else if file_type.is_dir() {
                 out.insert(key, None);
                 walk(base, &path, out);
             } else {
