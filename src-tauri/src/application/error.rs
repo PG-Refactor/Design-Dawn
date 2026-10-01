@@ -18,6 +18,10 @@ pub enum ErrorKind {
     ProjectNotOpen,
     /// An ID that the session (or the payload's own target) does not know.
     EntityNotFound,
+    /// The native folder dialog could not be shown or its result could not be read.
+    DialogFailed,
+    /// A `selectionId` that is unknown or has been replaced by a newer selection.
+    InvalidFolderSelection,
 }
 
 impl ErrorKind {
@@ -28,6 +32,8 @@ impl ErrorKind {
             Self::NotWritable => "notWritable",
             Self::ProjectNotOpen => "projectNotOpen",
             Self::EntityNotFound => "entityNotFound",
+            Self::DialogFailed => "dialogFailed",
+            Self::InvalidFolderSelection => "invalidFolderSelection",
         }
     }
 }

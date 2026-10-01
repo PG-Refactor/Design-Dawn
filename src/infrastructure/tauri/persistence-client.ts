@@ -23,7 +23,7 @@ import {
 import {
   toContentPathResult,
   toDocumentSnapshotResult,
-  toEntryPointSnapshotResult,
+  toFolderSelectionResult,
   toProjectSnapshotResult,
   toSaveResult,
   toSheetSnapshotResult,
@@ -32,7 +32,7 @@ import {
 } from "./persistence-payloads";
 import type {
   DocumentSnapshot,
-  EntryPointSnapshot,
+  FolderSelection,
   ProjectSnapshot,
   SaveResult,
   SheetSnapshot,
@@ -55,31 +55,27 @@ async function call<T>(
   return convert(payload);
 }
 
+// Opens the OS folder dialog in Rust. Cancelling is an ok result with status "cancelled".
+export function selectProjectFolder(): Promise<CommandResult<FolderSelection>> {
+  return call(COMMANDS.selectProjectFolder, {}, toFolderSelectionResult);
+}
+
+// `selectionId` comes from `selectProjectFolder`; the Frontend never passes a path.
 export function createProject(
-  projectRoot: string,
+  selectionId: string,
   name: DisplayName,
 ): Promise<CommandResult<ProjectSnapshot>> {
   return call(
     COMMANDS.createProject,
-    { projectRoot, name },
+    { selectionId, name },
     toProjectSnapshotResult,
   );
 }
 
 export function openProject(
-  projectRoot: string,
+  selectionId: string,
 ): Promise<CommandResult<ProjectSnapshot>> {
-  return call(COMMANDS.openProject, { projectRoot }, toProjectSnapshotResult);
-}
-
-export function openEntryPoint(
-  entryPointPath: string,
-): Promise<CommandResult<EntryPointSnapshot>> {
-  return call(
-    COMMANDS.openEntryPoint,
-    { entryPointPath },
-    toEntryPointSnapshotResult,
-  );
+  return call(COMMANDS.openProject, { selectionId }, toProjectSnapshotResult);
 }
 
 export function saveProject(

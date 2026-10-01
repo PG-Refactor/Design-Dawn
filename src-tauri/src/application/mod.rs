@@ -6,6 +6,7 @@ pub mod block_content_operations;
 pub mod document_operations;
 pub mod entity_id_generator;
 pub mod error;
+pub mod folder_selection;
 pub mod load_issue;
 pub mod loader;
 pub mod project_operations;

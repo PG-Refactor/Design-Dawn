@@ -20,6 +20,7 @@ import {
 import {
   ENTITY_STATES,
   type EntityState,
+  FOLDER_SELECTION_STATUS,
   LOAD_ISSUE_KINDS,
 } from "./command-constants";
 import { type CommandResult, commandErr, commandOk } from "./command-error";
@@ -37,7 +38,7 @@ import {
 import type {
   DocumentEntry,
   DocumentSnapshot,
-  EntryPointSnapshot,
+  FolderSelection,
   LoadIssue,
   ProjectSnapshot,
   SaveResult,
@@ -45,6 +46,9 @@ import type {
 } from "./persistence-types";
 
 const PAYLOAD_ROOT = "payload";
+
+type FolderSelectionStatus =
+  (typeof FOLDER_SELECTION_STATUS)[keyof typeof FOLDER_SELECTION_STATUS];
 
 const rawPosition = objectOf<RawPosition>({ x: decodeNumber, y: decodeNumber });
 const rawSize = objectOf<RawSize>({
@@ -106,10 +110,6 @@ interface RawDocumentSnapshot {
   readonly sheets: readonly RawSheetSnapshot[];
   readonly issues: readonly LoadIssue[];
 }
-interface RawEntryPointSnapshot {
-  readonly snapshot: RawProjectSnapshot;
-  readonly documentId: string;
-}
 
 const rawProjectSnapshot = objectOf<RawProjectSnapshot>({
   project: rawProject,
@@ -133,10 +133,10 @@ const rawDocumentSnapshot = objectOf<RawDocumentSnapshot>({
   sheets: arrayOf(rawSheetSnapshot),
   issues: arrayOf(decodeLoadIssue),
 });
-const rawEntryPointSnapshot = objectOf<RawEntryPointSnapshot>({
-  snapshot: rawProjectSnapshot,
-  documentId: decodeString,
-});
+const rawSelectedFolder = objectOf<{
+  readonly selectionId: string;
+  readonly displayPath: string;
+}>({ selectionId: decodeString, displayPath: decodeString });
 const rawSaveResult = objectOf<SaveResult>({ written: decodeBoolean });
 
 function decodePayload<T>(
@@ -225,16 +225,23 @@ export function toProjectSnapshotResult(
   return raw.ok ? toProjectSnapshot(raw.value) : raw;
 }
 
-export function toEntryPointSnapshotResult(
+export function toFolderSelectionResult(
   payload: unknown,
-): CommandResult<EntryPointSnapshot> {
-  const raw = decodePayload(rawEntryPointSnapshot, payload);
-  if (!raw.ok) return raw;
-  const snapshot = toProjectSnapshot(raw.value.snapshot);
-  if (!snapshot.ok) return snapshot;
-  const documentId = fromDomain(parseDocumentId(raw.value.documentId));
-  if (!documentId.ok) return documentId;
-  return commandOk({ snapshot: snapshot.value, documentId: documentId.value });
+): CommandResult<FolderSelection> {
+  const status = decodePayload(
+    objectOf<{ readonly status: FolderSelectionStatus }>({
+      status: oneOf(Object.values(FOLDER_SELECTION_STATUS)),
+    }),
+    payload,
+  );
+  if (!status.ok) return status;
+  if (status.value.status === FOLDER_SELECTION_STATUS.cancelled) {
+    return commandOk({ status: FOLDER_SELECTION_STATUS.cancelled });
+  }
+  const selected = decodePayload(rawSelectedFolder, payload);
+  return selected.ok
+    ? commandOk({ status: FOLDER_SELECTION_STATUS.selected, ...selected.value })
+    : selected;
 }
 
 export function toDocumentSnapshotResult(

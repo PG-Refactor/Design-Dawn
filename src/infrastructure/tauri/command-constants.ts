@@ -3,9 +3,9 @@
 // checks the command names against `src-tauri/src/commands/mod.rs`.
 
 export const COMMANDS = {
+  selectProjectFolder: "select_project_folder",
   createProject: "create_project",
   openProject: "open_project",
-  openEntryPoint: "open_entry_point",
   saveProject: "save_project",
   createDocument: "create_document",
   loadDocument: "load_document",
@@ -35,6 +35,19 @@ export const PERSISTENCE_ERROR_KINDS = [
 
 // `entityNotFound` is already part of the domain kinds in TypeScript.
 export const SESSION_ERROR_KINDS = ["notWritable", "projectNotOpen"] as const;
+
+// Folder selection (docs/architecture.md §6.2.2): the dialog failed, or a selectionId is
+// unknown / replaced by a newer selection. Cancelling is a result, not an error.
+export const FOLDER_SELECTION_ERROR_KINDS = [
+  "dialogFailed",
+  "invalidFolderSelection",
+] as const;
+
+// `status` values of a folder selection result.
+export const FOLDER_SELECTION_STATUS = {
+  selected: "selected",
+  cancelled: "cancelled",
+} as const;
 
 // Domain errors that only Rust can produce (TypeScript treats contentPath as opaque).
 export const RUST_ONLY_DOMAIN_ERROR_KINDS = [

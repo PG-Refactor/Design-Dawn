@@ -6,16 +6,20 @@ pub mod infrastructure;
 
 use std::sync::Mutex;
 
+use application::folder_selection::FolderSelectionState;
 use application::session::ProjectSessions;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // Used from Rust only (`DialogExt`); no dialog permission is granted to the Frontend.
+        .plugin(tauri_plugin_dialog::init())
         .manage(Mutex::new(ProjectSessions::default()))
+        .manage(Mutex::new(FolderSelectionState::default()))
         .invoke_handler(tauri::generate_handler![
+            commands::select_project_folder,
             commands::create_project,
             commands::open_project,
-            commands::open_entry_point,
             commands::save_project,
             commands::create_document,
             commands::load_document,

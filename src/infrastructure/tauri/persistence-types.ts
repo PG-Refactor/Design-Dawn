@@ -26,10 +26,15 @@ export interface ProjectSnapshot {
   readonly issues: readonly LoadIssue[];
 }
 
-export interface EntryPointSnapshot {
-  readonly snapshot: ProjectSnapshot;
-  readonly documentId: DocumentId;
-}
+// `selectionId` is an opaque handle for open_project / create_project. `displayPath` is for
+// display only and is never sent back to Rust.
+export type FolderSelection =
+  | {
+      readonly status: "selected";
+      readonly selectionId: string;
+      readonly displayPath: string;
+    }
+  | { readonly status: "cancelled" };
 
 export interface SheetSnapshot {
   readonly sheetId: SheetId;

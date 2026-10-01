@@ -2,9 +2,9 @@
 // permissions in capabilities/default.json (enforced by tests/command_permissions.rs).
 // Declaring the commands here makes Tauri require an explicit permission for each one.
 const APP_COMMANDS: &[&str] = &[
+    "select_project_folder",
     "create_project",
     "open_project",
-    "open_entry_point",
     "save_project",
     "create_document",
     "load_document",

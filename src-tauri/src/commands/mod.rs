@@ -2,29 +2,32 @@
 //! session state and calls the Application layer; no logic lives here. `import_asset` is
 //! intentionally absent until Phase 5.
 
-use std::path::Path;
+mod folder_picker;
+
 use std::sync::{Mutex, PoisonError};
 
 use serde_json::Value;
-use tauri::State;
+use tauri::{AppHandle, Manager, State};
 
 use crate::application::block_content_operations as block_content;
 use crate::application::document_operations as documents;
-use crate::application::error::{ApplicationError, ApplicationResult};
+use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
+use crate::application::folder_selection::{
+    resolve_selection, select_project_folder as select_folder, FolderSelection,
+    FolderSelectionState,
+};
 use crate::application::project_operations as projects;
 use crate::application::session::ProjectSessions;
 use crate::application::sheet_operations as sheets;
-use crate::application::snapshot::{
-    DocumentSnapshot, EntryPointSnapshot, ProjectSnapshot, SaveResult, SheetSnapshot,
-};
+use crate::application::snapshot::{DocumentSnapshot, ProjectSnapshot, SaveResult, SheetSnapshot};
 use crate::infrastructure::file_format::dto::{parse_dto, DocumentDto, ProjectDto, SheetDto};
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
 pub const COMMAND_NAMES: [&str; 16] = [
+    "select_project_folder",
     "create_project",
     "open_project",
-    "open_entry_point",
     "save_project",
     "create_document",
     "load_document",
@@ -41,6 +44,7 @@ pub const COMMAND_NAMES: [&str; 16] = [
 ];
 
 type SessionState<'a> = State<'a, Mutex<ProjectSessions>>;
+type FolderSelectionStateHandle<'a> = State<'a, Mutex<FolderSelectionState>>;
 
 fn with_sessions<T>(
     state: &SessionState<'_>,
@@ -52,35 +56,48 @@ fn with_sessions<T>(
     operation(&mut sessions)
 }
 
+/// Async so it never runs on the main thread, and the blocking dialog runs on a thread of
+/// the blocking pool so no async worker is held for as long as the user keeps it open.
+/// Neither state lock is held while the dialog is open (the selection lock is taken only
+/// after it closed); the two locks are never held at the same time anywhere.
+#[tauri::command]
+pub async fn select_project_folder(app: AppHandle) -> Result<FolderSelection, ApplicationError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let picker = folder_picker::DialogFolderPicker::new(app.clone());
+        let selections = app.state::<Mutex<FolderSelectionState>>();
+        select_folder(&picker, &selections)
+    })
+    .await
+    .map_err(|error| {
+        ApplicationError::new(
+            ErrorKind::DialogFailed,
+            format!("folder dialog task failed: {error}"),
+        )
+    })?
+}
+
 #[tauri::command]
 pub fn create_project(
     state: SessionState<'_>,
-    project_root: String,
+    selections: FolderSelectionStateHandle<'_>,
+    selection_id: String,
     name: String,
 ) -> Result<ProjectSnapshot, ApplicationError> {
+    let project_root = resolve_selection(&selections, &selection_id)?;
     with_sessions(&state, |sessions| {
-        projects::create_project(sessions, Path::new(&project_root), &name)
+        projects::create_project(sessions, &project_root, &name)
     })
 }
 
 #[tauri::command]
 pub fn open_project(
     state: SessionState<'_>,
-    project_root: String,
+    selections: FolderSelectionStateHandle<'_>,
+    selection_id: String,
 ) -> Result<ProjectSnapshot, ApplicationError> {
+    let project_root = resolve_selection(&selections, &selection_id)?;
     with_sessions(&state, |sessions| {
-        projects::open_project(sessions, Path::new(&project_root))
-    })
-}
-
-#[tauri::command]
-pub fn open_entry_point(
-    state: SessionState<'_>,
-    entry_point_path: String,
-) -> Result<EntryPointSnapshot, ApplicationError> {
-    with_sessions(&state, |sessions| {
-        projects::open_entry_point(sessions, Path::new(&entry_point_path))
-            .map(|opened| opened.snapshot)
+        projects::open_project(sessions, &project_root)
     })
 }
 

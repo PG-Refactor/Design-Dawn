@@ -4,6 +4,7 @@ import {
 } from "../../domain/shared/domain-error";
 import {
   type CLIENT_ERROR_KINDS,
+  FOLDER_SELECTION_ERROR_KINDS,
   PERSISTENCE_ERROR_KINDS,
   RUST_ONLY_DOMAIN_ERROR_KINDS,
   SESSION_ERROR_KINDS,
@@ -14,6 +15,7 @@ export type CommandErrorKind =
   | (typeof RUST_ONLY_DOMAIN_ERROR_KINDS)[number]
   | (typeof PERSISTENCE_ERROR_KINDS)[number]
   | (typeof SESSION_ERROR_KINDS)[number]
+  | (typeof FOLDER_SELECTION_ERROR_KINDS)[number]
   | (typeof CLIENT_ERROR_KINDS)[number];
 
 export interface CommandError {
@@ -33,6 +35,7 @@ const RUST_ERROR_KINDS: readonly string[] = [
   ...RUST_ONLY_DOMAIN_ERROR_KINDS,
   ...PERSISTENCE_ERROR_KINDS,
   ...SESSION_ERROR_KINDS,
+  ...FOLDER_SELECTION_ERROR_KINDS,
 ];
 
 export function commandOk<T>(value: T): CommandResult<T> {
