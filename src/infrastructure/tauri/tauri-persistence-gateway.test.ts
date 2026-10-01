@@ -1,0 +1,110 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { parseContentPath } from "../../domain/block/content-path";
+import {
+  DOCUMENT_ID,
+  makeSheetWith,
+  PROJECT_ID,
+  SHEET_ID,
+} from "../../domain/shared/test-fixtures";
+import { unwrap } from "../../domain/shared/test-support";
+import * as client from "./persistence-client";
+import { createTauriPersistenceGateway } from "./tauri-persistence-gateway";
+
+vi.mock("./persistence-client");
+
+const contentPath = unwrap(parseContentPath("sheets/s/blocks/markdown-1.md"));
+const sheet = makeSheetWith(SHEET_ID, []);
+const failure = {
+  ok: false,
+  error: { kind: "ioError", detail: "disk" },
+} as const;
+
+beforeEach(() => {
+  vi.resetAllMocks();
+});
+
+describe("createTauriPersistenceGateway", () => {
+  it("maps saves onto the client and drops the written flag", async () => {
+    vi.mocked(client.saveSheet).mockResolvedValue({
+      ok: true,
+      value: { written: true },
+    });
+    const result = await createTauriPersistenceGateway().saveSheet(
+      PROJECT_ID,
+      DOCUMENT_ID,
+      sheet,
+    );
+    expect(client.saveSheet).toHaveBeenCalledWith(
+      PROJECT_ID,
+      DOCUMENT_ID,
+      sheet,
+    );
+    expect(result).toEqual({ ok: true, value: undefined });
+  });
+
+  it("passes content results through unchanged", async () => {
+    vi.mocked(client.createBlockContent).mockResolvedValue({
+      ok: true,
+      value: contentPath,
+    });
+    vi.mocked(client.readBlockContent).mockResolvedValue({
+      ok: true,
+      value: "text",
+    });
+    const gateway = createTauriPersistenceGateway();
+    expect(
+      await gateway.createBlockContent(
+        PROJECT_ID,
+        DOCUMENT_ID,
+        SHEET_ID,
+        "markdown",
+        "t",
+      ),
+    ).toEqual({ ok: true, value: contentPath });
+    expect(client.createBlockContent).toHaveBeenCalledWith(
+      PROJECT_ID,
+      DOCUMENT_ID,
+      SHEET_ID,
+      "markdown",
+      "t",
+    );
+    expect(
+      await gateway.readBlockContent(PROJECT_ID, DOCUMENT_ID, contentPath),
+    ).toEqual({
+      ok: true,
+      value: "text",
+    });
+  });
+
+  it("maps delete and restore to void and keeps errors", async () => {
+    vi.mocked(client.deleteBlockContent).mockResolvedValue({
+      ok: true,
+      value: null,
+    });
+    vi.mocked(client.restoreBlockContent).mockResolvedValue(failure);
+    vi.mocked(client.saveDocument).mockResolvedValue(failure);
+    const gateway = createTauriPersistenceGateway();
+    expect(
+      await gateway.deleteBlockContent(PROJECT_ID, DOCUMENT_ID, contentPath),
+    ).toEqual({
+      ok: true,
+      value: undefined,
+    });
+    expect(
+      await gateway.restoreBlockContent(
+        PROJECT_ID,
+        DOCUMENT_ID,
+        "markdown",
+        contentPath,
+        "t",
+      ),
+    ).toEqual(failure);
+    expect(client.restoreBlockContent).toHaveBeenCalledWith(
+      PROJECT_ID,
+      DOCUMENT_ID,
+      "markdown",
+      contentPath,
+      "t",
+    );
+  });
+});

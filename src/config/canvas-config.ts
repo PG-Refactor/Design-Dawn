@@ -10,3 +10,7 @@ export const CANVAS_CONFIG = {
     zoomMax: 8,
   },
 } as const;
+
+// Offset applied to duplicated blocks so the copy does not hide the original. A tunable
+// setting; world coordinates (integers).
+export const PASTE_OFFSET = { x: 24, y: 24 } as const;

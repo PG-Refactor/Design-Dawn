@@ -1,24 +1,15 @@
 import { LOCAL_STATE_ERROR_KINDS } from "../../application/local-state/local-state-result";
 import {
-  DOMAIN_ERROR_KINDS,
-  type DomainErrorKind,
-} from "../../domain/shared/domain-error";
-import {
-  type CLIENT_ERROR_KINDS,
   FOLDER_SELECTION_ERROR_KINDS,
+  type OperationErrorKind,
   PERSISTENCE_ERROR_KINDS,
   RUST_ONLY_DOMAIN_ERROR_KINDS,
   SESSION_ERROR_KINDS,
-} from "./command-constants";
+} from "../../application/ports/operation-error";
+import { DOMAIN_ERROR_KINDS } from "../../domain/shared/domain-error";
 
-export type CommandErrorKind =
-  | DomainErrorKind
-  | (typeof RUST_ONLY_DOMAIN_ERROR_KINDS)[number]
-  | (typeof PERSISTENCE_ERROR_KINDS)[number]
-  | (typeof SESSION_ERROR_KINDS)[number]
-  | (typeof FOLDER_SELECTION_ERROR_KINDS)[number]
-  | (typeof LOCAL_STATE_ERROR_KINDS)[number]
-  | (typeof CLIENT_ERROR_KINDS)[number];
+// Same kinds the application layer names; one definition, no conversion at the boundary.
+export type CommandErrorKind = OperationErrorKind;
 
 export interface CommandError {
   readonly kind: CommandErrorKind;

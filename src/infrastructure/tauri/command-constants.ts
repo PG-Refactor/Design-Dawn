@@ -27,45 +27,21 @@ export const COMMANDS = {
 
 export type CommandName = (typeof COMMANDS)[keyof typeof COMMANDS];
 
-export const PERSISTENCE_ERROR_KINDS = [
-  "invalidJson",
-  "invalidFileStructure",
-  "invalidEncoding",
-  "pathOutsideRoot",
-  "fileNotFound",
-  "alreadyExists",
-  "ioError",
-] as const;
-
-// `entityNotFound` is already part of the domain kinds in TypeScript.
-export const SESSION_ERROR_KINDS = ["notWritable", "projectNotOpen"] as const;
-
-// Folder selection (docs/architecture.md §6.2.2): the dialog failed, or a selectionId is
-// unknown / replaced by a newer selection. Cancelling is a result, not an error.
-export const FOLDER_SELECTION_ERROR_KINDS = [
-  "dialogFailed",
-  "invalidFolderSelection",
-] as const;
+// The error identifiers are defined in the application layer (it names them in its
+// ports); re-exported here so the contract tests keep one import point.
+export {
+  CLIENT_ERROR_KINDS,
+  FOLDER_SELECTION_ERROR_KINDS,
+  PERSISTENCE_ERROR_KINDS,
+  RUST_ONLY_DOMAIN_ERROR_KINDS,
+  SESSION_ERROR_KINDS,
+} from "../../application/ports/operation-error";
 
 // `status` values of a folder selection result.
 export const FOLDER_SELECTION_STATUS = {
   selected: "selected",
   cancelled: "cancelled",
 } as const;
-
-// Domain errors that only Rust can produce (TypeScript treats contentPath as opaque).
-export const RUST_ONLY_DOMAIN_ERROR_KINDS = [
-  "invalidContentExtension",
-] as const;
-
-// Produced by this client, never by Rust.
-export const CLIENT_ERROR_KINDS = [
-  // The command succeeded but its payload does not have the documented shape.
-  "invalidCommandResponse",
-  // The command failed with something that is not a `{ kind, detail }` error
-  // (for example the IPC layer refusing the call).
-  "unexpectedCommandError",
-] as const;
 
 export const LOAD_ISSUE_KINDS = [
   "unlistedEntity",
