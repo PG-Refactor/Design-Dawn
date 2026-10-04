@@ -29,6 +29,15 @@ export const FOLDER_SELECTION_ERROR_KINDS = [
   "invalidFolderSelection",
 ] as const;
 
+// Image assets (docs/file-format.md §6): a dropped file or asset whose content is not a
+// valid image, one over the size limit, and a `dropId` that is unknown or replaced by a
+// newer drop (the same pattern as `invalidFolderSelection`).
+export const ASSET_ERROR_KINDS = [
+  "invalidImageContent",
+  "assetTooLarge",
+  "invalidDropSelection",
+] as const;
+
 // Domain errors that only Rust can produce (TypeScript treats contentPath as opaque).
 export const RUST_ONLY_DOMAIN_ERROR_KINDS = [
   "invalidContentExtension",
@@ -49,6 +58,7 @@ export type OperationErrorKind =
   | (typeof PERSISTENCE_ERROR_KINDS)[number]
   | (typeof SESSION_ERROR_KINDS)[number]
   | (typeof FOLDER_SELECTION_ERROR_KINDS)[number]
+  | (typeof ASSET_ERROR_KINDS)[number]
   | (typeof LOCAL_STATE_ERROR_KINDS)[number]
   | (typeof CLIENT_ERROR_KINDS)[number];
 

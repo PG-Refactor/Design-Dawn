@@ -1,5 +1,6 @@
 import { mapOperationResult } from "../../application/ports/operation-error";
 import type { PersistenceGateway } from "../../application/ports/persistence-gateway";
+import { copyAssetToDocument, importDroppedImages } from "./asset-client";
 import {
   createBlockContent,
   createDocument,
@@ -49,6 +50,8 @@ export function createTauriPersistenceGateway(): PersistenceGateway {
     saveDocument: async (projectId, document) =>
       mapOperationResult(await saveDocument(projectId, document), discard),
     createBlockContent,
+    importDroppedImages,
+    copyAssetToDocument,
     readBlockContent,
     writeBlockContent: async (projectId, documentId, contentPath, text) =>
       mapOperationResult(

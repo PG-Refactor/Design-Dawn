@@ -412,3 +412,112 @@ fn a_window_without_the_capability_is_refused_by_tauri() {
     }
     assert!(app.get_webview_window(MAIN_WINDOW_LABEL).is_none());
 }
+
+/// Drop events are the one input that originates in the OS window rather than in a command.
+/// The handler is called directly (a mock window cannot receive a native drop), and the app
+/// events it emits are captured by Rust listeners; the import then runs through real IPC.
+#[test]
+fn a_native_drop_is_announced_without_paths_and_imported_through_the_command() {
+    use design_dawn_lib::commands::{handle_window_event, DRAG_STATE_EVENT, FILES_DROPPED_EVENT};
+    use tauri::{DragDropEvent, Listener, PhysicalPosition, WindowEvent};
+
+    let temp = TempDir::new();
+    let project_root = temp.path().join(PROJECT_DIRECTORY_NAME);
+    copy_dir_all(Path::new(FIXTURE_PROJECT), &project_root);
+    let app = build_app(
+        vec![PickerOutcome::Folder(project_root.clone())],
+        local_state_directories(temp.path()),
+    );
+    let webview = WebviewWindowBuilder::new(&app, MAIN_WINDOW_LABEL, Default::default())
+        .build()
+        .expect("create main window");
+    let selection = invoke(&webview, "select_project_folder", &serde_json::json!({})).unwrap();
+    let snapshot = invoke(
+        &webview,
+        "open_project",
+        &serde_json::json!({ "selectionId": selection["selectionId"] }),
+    )
+    .unwrap();
+    let project_id = snapshot["project"]["projectId"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+
+    let dropped_events = Arc::new(Mutex::new(Vec::<String>::new()));
+    let drag_events = Arc::new(Mutex::new(Vec::<String>::new()));
+    for (event, sink) in [
+        (FILES_DROPPED_EVENT, Arc::clone(&dropped_events)),
+        (DRAG_STATE_EVENT, Arc::clone(&drag_events)),
+    ] {
+        webview.listen(event, move |received| {
+            sink.lock().unwrap().push(received.payload().to_owned());
+        });
+    }
+
+    let source = temp.path().join("dropped picture.png");
+    fs::write(&source, png_bytes(1920, 1080)).unwrap();
+    let window = AsRef::<tauri::Webview<tauri::test::MockRuntime>>::as_ref(&webview).window();
+    let position = PhysicalPosition::new(0.0, 0.0);
+    let paths = vec![source.clone()];
+    for event in [
+        DragDropEvent::Enter {
+            paths: paths.clone(),
+            position,
+        },
+        DragDropEvent::Over { position },
+        DragDropEvent::Leave,
+        DragDropEvent::Drop { paths, position },
+    ] {
+        handle_window_event(&window, &WindowEvent::DragDrop(event));
+    }
+
+    let temp_text = temp.path().to_string_lossy().into_owned();
+    let drag_payloads = drag_events.lock().unwrap().clone();
+    assert_eq!(
+        drag_payloads,
+        vec![
+            r#"{"active":true}"#,
+            r#"{"active":true}"#,
+            r#"{"active":false}"#,
+            r#"{"active":false}"#
+        ]
+    );
+    let dropped_payloads = dropped_events.lock().unwrap().clone();
+    assert_eq!(dropped_payloads.len(), 1);
+    assert!(
+        !dropped_payloads[0].contains(&temp_text),
+        "{}",
+        dropped_payloads[0]
+    );
+    let announced: Value = serde_json::from_str(&dropped_payloads[0]).unwrap();
+    assert_eq!(announced["fileCount"], 1);
+    assert_eq!(announced.as_object().unwrap().len(), 2);
+
+    let result = invoke(
+        &webview,
+        "import_dropped_images",
+        &serde_json::json!({
+            "dropId": announced["dropId"],
+            "projectId": project_id,
+            "documentId": DOCUMENT_ID,
+        }),
+    )
+    .unwrap();
+    assert_eq!(
+        result,
+        serde_json::json!({
+            "imported": [{
+                "contentPath": "assets/dropped-picture.png",
+                "naturalWidth": 1920,
+                "naturalHeight": 1080,
+                "initialWidth": 480,
+                "initialHeight": 270,
+                "blockType": "image",
+            }],
+            "rejected": [],
+        })
+    );
+    assert!(document_dir(&project_root)
+        .join("assets/dropped-picture.png")
+        .is_file());
+}

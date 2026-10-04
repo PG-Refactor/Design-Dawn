@@ -9,6 +9,7 @@ import type {
   SheetId,
 } from "../../domain/shared/entity-id";
 import type { Sheet } from "../../domain/sheet/sheet";
+import type { CopiedAsset, DropImportResult } from "./asset-types";
 import type { OperationResult } from "./operation-error";
 import type {
   DocumentSnapshot,
@@ -100,4 +101,21 @@ export interface PersistenceGateway {
     contentPath: ContentPath,
     text: string,
   ): Promise<OperationResult<void>>;
+  // Imports the files of the latest drop into the Document's assets. The dropped paths
+  // stay in Rust; `dropId` is the only handle. Rejected files are part of the ok result;
+  // an unknown or replaced `dropId` is `invalidDropSelection`.
+  importDroppedImages(
+    dropId: string,
+    projectId: ProjectId,
+    documentId: DocumentId,
+  ): Promise<OperationResult<DropImportResult>>;
+  // Validates an image asset and, for another Document, copies it there (the name is kept,
+  // `-2` on collision). Into the Document it already lives in nothing is copied: the same
+  // contentPath comes back, so this doubles as the validity check of copy / duplicate.
+  copyAssetToDocument(
+    projectId: ProjectId,
+    sourceDocumentId: DocumentId,
+    contentPath: ContentPath,
+    targetDocumentId: DocumentId,
+  ): Promise<OperationResult<CopiedAsset>>;
 }

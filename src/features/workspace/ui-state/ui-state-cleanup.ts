@@ -37,6 +37,7 @@ function removeSheetReferences(
 ): UiState {
   const selectionBySheet = withoutKeys(state.selectionBySheet, sheetIds);
   const viewportBySheet = withoutKeys(state.viewportBySheet, sheetIds);
+  const imageLoadFailures = withoutKeys(state.imageLoadFailures, sheetIds);
   const interaction = interactionTouches(state.interaction, sheetIds)
     ? IDLE_INTERACTION
     : state.interaction;
@@ -48,6 +49,7 @@ function removeSheetReferences(
   if (
     selectionBySheet === state.selectionBySheet &&
     viewportBySheet === state.viewportBySheet &&
+    imageLoadFailures === state.imageLoadFailures &&
     interaction === state.interaction &&
     hoveredBlockId === state.hoveredBlockId &&
     editingBlock === state.editingBlock
@@ -58,6 +60,7 @@ function removeSheetReferences(
     ...state,
     selectionBySheet,
     viewportBySheet,
+    imageLoadFailures,
     interaction,
     hoveredBlockId,
     editingBlock,

@@ -1,7 +1,10 @@
 // Test doubles and fixtures shared by the application tests. Not imported by production
 // code. The fake gateway keeps an in-memory file system and records every call in order.
 
-import { parseContentPath } from "../../domain/block/content-path";
+import {
+  type ContentPath,
+  parseContentPath,
+} from "../../domain/block/content-path";
 import { type Document, parseDocument } from "../../domain/document/document";
 import { type Project, parseProject } from "../../domain/project/project";
 import { parseDisplayName } from "../../domain/shared/display-name";
@@ -26,9 +29,12 @@ import {
 } from "../../domain/shared/test-fixtures";
 import { unwrap } from "../../domain/shared/test-support";
 import { parseSheet, type Sheet } from "../../domain/sheet/sheet";
+import type { ClipboardBlock } from "../clipboard/clipboard";
+import type { BlockSpec } from "../commands/command";
 import type { DocumentData } from "../commands/document-data";
 import { normalizeLineEndings } from "../commands/text-content";
 import type { IdGenerator } from "../id-generator";
+import type { ImportedImage, RejectedFile } from "../ports/asset-types";
 import {
   type OperationErrorKind,
   type OperationResult,
@@ -169,6 +175,25 @@ const DEFAULT_SELECTION: FolderSelection = {
   displayPath: "/projects/example",
 };
 
+// An image file of a scripted drop. `initialWidth` / `initialHeight` default to the natural
+// size (Rust's long-edge cap is not modelled).
+export type FakeDroppedFile =
+  | {
+      readonly fileName: string;
+      readonly naturalWidth: number;
+      readonly naturalHeight: number;
+      readonly initialWidth?: number;
+      readonly initialHeight?: number;
+    }
+  | { readonly fileName: string; readonly rejectKind: OperationErrorKind };
+
+export interface FakeAsset {
+  readonly naturalWidth: number;
+  readonly naturalHeight: number;
+}
+
+const ASSET_DIRECTORY = "assets/";
+
 export interface FakeGateway extends PersistenceGateway {
   readonly calls: RecordedCall[];
   // Persisted project / documents / sheets, to assert what is really "on disk".
@@ -187,6 +212,18 @@ export interface FakeGateway extends PersistenceGateway {
   // Latest sheet / document handed to the save methods.
   readonly savedSheets: Map<string, Sheet>;
   savedDocumentNames: string[];
+  // Asset files that exist, per Document: contentPath -> image.
+  readonly assets: Map<DocumentId, Map<string, FakeAsset>>;
+  // An asset that already exists in the Document (like one imported earlier).
+  seedAsset(
+    documentId: DocumentId,
+    contentPath: string,
+    image?: FakeAsset,
+  ): ContentPath;
+  hasAsset(documentId: DocumentId, contentPath: string): boolean;
+  // What the next `importDroppedImages(dropId, ...)` finds (each script is used once, like
+  // a drop in Rust).
+  scriptDrop(dropId: string, files: readonly FakeDroppedFile[]): void;
   // Fails the `occurrence`-th call (1-based, counted from now) of `method`, once.
   failOn(method: string, kind: OperationErrorKind, occurrence?: number): void;
   failAlways(method: string, kind: OperationErrorKind): void;
@@ -207,6 +244,8 @@ export function createFakeGateway(
   const permanentFailures = new Map<string, OperationErrorKind>();
   const holds = new Map<string, Promise<void>>();
   let fileCounter = 0;
+  const assets = new Map<DocumentId, Map<string, FakeAsset>>();
+  const drops = new Map<string, readonly FakeDroppedFile[]>();
   let nextSelection: FolderSelection = DEFAULT_SELECTION;
   const snapshotOverrides = new Map<string, ProjectSnapshot>();
   const disk: FakeDisk = {
@@ -269,6 +308,31 @@ export function createFakeGateway(
 
   function newSheet(sheetId: SheetId, name: string): Sheet {
     return unwrap(parseSheet({ schemaVersion: 1, sheetId, name, blocks: [] }));
+  }
+
+  function assetsOf(documentId: DocumentId): Map<string, FakeAsset> {
+    const existing = assets.get(documentId);
+    if (existing !== undefined) return existing;
+    const created = new Map<string, FakeAsset>();
+    assets.set(documentId, created);
+    return created;
+  }
+
+  // Like Rust: the name is kept; a collision gets `-2`, `-3`, ... before the extension.
+  function freeAssetPath(documentId: DocumentId, fileName: string): string {
+    const taken = assetsOf(documentId);
+    const dot = fileName.lastIndexOf(".");
+    const stem = dot < 0 ? fileName : fileName.slice(0, dot);
+    const extension = dot < 0 ? "" : fileName.slice(dot);
+    let candidate = `${ASSET_DIRECTORY}${fileName}`;
+    for (let attempt = 2; taken.has(candidate); attempt += 1) {
+      candidate = `${ASSET_DIRECTORY}${stem}-${attempt}${extension}`;
+    }
+    return candidate;
+  }
+
+  function baseName(contentPath: string): string {
+    return contentPath.slice(contentPath.lastIndexOf("/") + 1);
   }
 
   async function enter<T>(
@@ -413,6 +477,20 @@ export function createFakeGateway(
           : operationErr("entityNotFound", documentId),
       ),
     files,
+    assets,
+    seedAsset(
+      documentId,
+      contentPath,
+      image = { naturalWidth: 100, naturalHeight: 50 },
+    ) {
+      assetsOf(documentId).set(contentPath, image);
+      return unwrap(parseContentPath(contentPath));
+    },
+    hasAsset: (documentId, contentPath) =>
+      assetsOf(documentId).has(contentPath),
+    scriptDrop(dropId, files) {
+      drops.set(dropId, files);
+    },
     savedSheets,
     savedDocumentNames: [],
     methods: (...only) =>
@@ -487,6 +565,68 @@ export function createFakeGateway(
         files.delete(contentPath);
         return operationOk(undefined);
       }),
+    importDroppedImages: (dropId, _project, documentId) =>
+      enter("importDroppedImages", `${dropId}:${documentId}`, () => {
+        const files = drops.get(dropId);
+        if (files === undefined) {
+          return operationErr("invalidDropSelection", dropId);
+        }
+        drops.delete(dropId);
+        const imported: ImportedImage[] = [];
+        const rejected: RejectedFile[] = [];
+        for (const file of files) {
+          if ("rejectKind" in file) {
+            rejected.push({
+              fileName: file.fileName,
+              error: {
+                kind: file.rejectKind,
+                detail: `injected: ${file.fileName}`,
+              },
+            });
+            continue;
+          }
+          const path = freeAssetPath(documentId, file.fileName);
+          assetsOf(documentId).set(path, {
+            naturalWidth: file.naturalWidth,
+            naturalHeight: file.naturalHeight,
+          });
+          imported.push({
+            contentPath: unwrap(parseContentPath(path)),
+            naturalWidth: file.naturalWidth,
+            naturalHeight: file.naturalHeight,
+            initialWidth: file.initialWidth ?? file.naturalWidth,
+            initialHeight: file.initialHeight ?? file.naturalHeight,
+            blockType: "image",
+          });
+        }
+        return operationOk({ imported, rejected });
+      }),
+    copyAssetToDocument: (
+      _project,
+      sourceDocumentId,
+      contentPath,
+      targetDocumentId,
+    ) =>
+      enter(
+        "copyAssetToDocument",
+        `${sourceDocumentId}->${targetDocumentId}:${contentPath}`,
+        () => {
+          const source = assetsOf(sourceDocumentId).get(contentPath);
+          if (source === undefined) {
+            return operationErr("fileNotFound", contentPath);
+          }
+          // Same Document: the file is only validated, nothing is copied.
+          if (sourceDocumentId === targetDocumentId) {
+            return operationOk({ contentPath, ...source });
+          }
+          const path = freeAssetPath(targetDocumentId, baseName(contentPath));
+          assetsOf(targetDocumentId).set(path, source);
+          return operationOk({
+            contentPath: unwrap(parseContentPath(path)),
+            ...source,
+          });
+        },
+      ),
     restoreBlockContent: (_project, _document, _type, contentPath, text) =>
       enter("restoreBlockContent", contentPath, () => {
         if (files.has(contentPath)) {
@@ -548,4 +688,11 @@ export function filesForBlocks(
 
 export function textOf(blockId: BlockId): string {
   return `text of ${blockId}`;
+}
+
+// The text of a clipboard block or block spec, undefined for asset ones.
+export function textOfBlockLike(
+  value: ClipboardBlock | BlockSpec | undefined,
+): string | undefined {
+  return value !== undefined && "text" in value ? value.text : undefined;
 }

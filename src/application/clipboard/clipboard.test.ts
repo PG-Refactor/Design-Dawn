@@ -13,6 +13,7 @@ import {
   SHEET_ID,
   size,
   textOf,
+  textOfBlockLike,
 } from "../test-support/fakes";
 import { openSession } from "../test-support/session-harness";
 import { type ClipboardContent, createInMemoryClipboard } from "./clipboard";
@@ -72,12 +73,14 @@ describe("copyBlocks", () => {
       pasteCount: 0,
       blocks: [
         {
+          kind: "text",
           blockType: "markdown",
           size: { width: 100, height: 50 },
           offset: { x: 0, y: 0 },
           text: textOf(blockIdOf(1)),
         },
         {
+          kind: "text",
           blockType: "markdown",
           size: { width: 100, height: 50 },
           offset: { x: 300, y: 200 },
@@ -96,7 +99,7 @@ describe("copyBlocks", () => {
       blockIds: [blockIdOf(1)],
       clipboard,
     });
-    expect(clipboard.read()?.blocks[0]?.text).toBe("edited");
+    expect(textOfBlockLike(clipboard.read()?.blocks[0])).toBe("edited");
   });
 
   it("leaves blocks without loaded text out and reports them", () => {
@@ -227,6 +230,7 @@ describe("pasteBlocksCommand", () => {
       pasteCount: 0,
       blocks: [
         {
+          kind: "text" as const,
           blockType: "markdown" as const,
           size: size(1, 1),
           offset: { x: 0, y: 0 },
@@ -259,6 +263,7 @@ describe("pasteBlocksCommand", () => {
       pasteCount: 0,
       blocks: [
         {
+          kind: "text" as const,
           blockType: "markdown" as const,
           size: size(1, 1),
           offset: { x: 10, y: 0 },
@@ -293,7 +298,7 @@ describe("duplicateBlocks", () => {
       { x: 100 + PASTE_OFFSET.x, y: 100 + PASTE_OFFSET.y },
       { x: 150 + PASTE_OFFSET.x, y: 120 + PASTE_OFFSET.y },
     ]);
-    expect(command.specs.map((spec) => spec.text)).toEqual([
+    expect(command.specs.map((spec) => textOfBlockLike(spec))).toEqual([
       textOf(blockIdOf(1)),
       textOf(blockIdOf(2)),
     ]);

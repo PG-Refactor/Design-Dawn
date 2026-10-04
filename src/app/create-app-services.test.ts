@@ -43,4 +43,13 @@ describe("createAppServices", () => {
     expect(themeController.store.getState().resolvedTheme).toBe("dark");
     themeController.dispose();
   });
+
+  it("provides the drop event source and the asset URL resolver", () => {
+    const { dropEventSource, assetUrlResolver, disconnectUiState } =
+      createAppServices();
+    expect(typeof dropEventSource.subscribeFilesDropped).toBe("function");
+    expect(typeof dropEventSource.subscribeDragState).toBe("function");
+    expect(typeof assetUrlResolver.urlFor).toBe("function");
+    disconnectUiState();
+  });
 });

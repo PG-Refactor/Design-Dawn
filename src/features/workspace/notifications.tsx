@@ -20,6 +20,7 @@ const SEVERITY_ICON = { error: "✖", warning: "⚠" } as const;
 
 const identity = <Value,>(value: Value): Value => value;
 const selectOperationErrors = (ui: UiState) => ui.operationErrors;
+const selectImageLoadFailures = (ui: UiState) => ui.imageLoadFailures;
 const selectNotificationsOpen = (ui: UiState) => ui.notificationsOpen;
 
 function sourceLabel(source: NotificationSource): string {
@@ -102,12 +103,19 @@ export function Notifications() {
   const { applicationStore, themeController, actions } = useWorkspaceServices();
   const application = useStoreSelector(applicationStore, identity);
   const operationErrors = useUiState(selectOperationErrors);
+  const imageLoadFailures = useUiState(selectImageLoadFailures);
   const open = useUiState(selectNotificationsOpen);
   const theme = useStoreSelector(themeController.store, identity);
   const panelId = useId();
   const model = useMemo(
-    () => selectNotifications({ application, operationErrors, theme }),
-    [application, operationErrors, theme],
+    () =>
+      selectNotifications({
+        application,
+        operationErrors,
+        imageLoadFailures,
+        theme,
+      }),
+    [application, operationErrors, imageLoadFailures, theme],
   );
   const { counts } = model;
   return (

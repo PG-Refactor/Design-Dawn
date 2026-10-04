@@ -1,18 +1,33 @@
 // In-app clipboard (docs/architecture.md §9.5). The port is the single boundary where an
 // OS clipboard could be attached later; nothing here touches browser or OS APIs.
 
-import type { BlockType } from "../../domain/block/block-type";
+import type { ContentPath } from "../../domain/block/content-path";
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
 import type { Size } from "../../domain/shared/geometry";
+import type { AssetBlockType, TextBlockType } from "../commands/command";
 
-export interface ClipboardBlock {
-  readonly blockType: BlockType;
+interface ClipboardBlockBase {
   readonly size: Size;
   // Relative to the top-left corner of the copied group's bounding box.
   readonly offset: { readonly x: number; readonly y: number };
-  // Content as of the moment of copying.
+}
+
+// A block with a text file: its content is copied by value, as of the moment of copying.
+export interface TextClipboardBlock extends ClipboardBlockBase {
+  readonly kind: "text";
+  readonly blockType: TextBlockType;
   readonly text: string;
 }
+
+// A block that references an asset: only the Document-relative path is kept. Pasting into
+// the same Document reuses the file; another Document gets a copy at paste time.
+export interface AssetClipboardBlock extends ClipboardBlockBase {
+  readonly kind: "asset";
+  readonly blockType: AssetBlockType;
+  readonly contentPath: ContentPath;
+}
+
+export type ClipboardBlock = TextClipboardBlock | AssetClipboardBlock;
 
 // Where the content was copied from; decides how a paste is placed (docs/architecture.md
 // §9.5): next to the originals on the same sheet, centred in the view anywhere else.

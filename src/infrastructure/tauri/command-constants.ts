@@ -23,6 +23,8 @@ export const COMMANDS = {
   setThemePreference: "set_theme_preference",
   getSheetViewport: "get_sheet_viewport",
   saveSheetViewport: "save_sheet_viewport",
+  importDroppedImages: "import_dropped_images",
+  copyAssetToDocument: "copy_asset_to_document",
 } as const;
 
 export type CommandName = (typeof COMMANDS)[keyof typeof COMMANDS];
@@ -30,6 +32,7 @@ export type CommandName = (typeof COMMANDS)[keyof typeof COMMANDS];
 // The error identifiers are defined in the application layer (it names them in its
 // ports); re-exported here so the contract tests keep one import point.
 export {
+  ASSET_ERROR_KINDS,
   CLIENT_ERROR_KINDS,
   FOLDER_SELECTION_ERROR_KINDS,
   PERSISTENCE_ERROR_KINDS,

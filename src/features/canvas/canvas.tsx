@@ -24,6 +24,7 @@ import { useUiState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import {
   BLOCK_ID_ATTRIBUTE,
+  CANVAS_ATTRIBUTE,
   isInsideBlockEditor,
   RESIZE_HANDLE_ATTRIBUTE,
 } from "./block-dom";
@@ -36,6 +37,7 @@ import {
   isSnapSuspendKey,
   keyCommandOf,
 } from "./canvas-keyboard";
+import { CANVAS_MESSAGES } from "./canvas-messages";
 import { routePointerDown } from "./canvas-pointer-routing";
 import { displayedFrame, isInteracting } from "./geometry/preview-frame";
 import { normalizeRect } from "./geometry/range-selection";
@@ -111,6 +113,7 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
     useCallback((ui) => ui.viewportBySheet.get(sheetId), [sheetId]),
   );
   const viewport = storedViewport ?? DEFAULT_VIEWPORT;
+  const fileDragActive = useUiState((ui) => ui.fileDragActive);
 
   const input = useMemo(
     () =>
@@ -395,6 +398,7 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
       tabIndex={0}
       className={spaceHeld ? "canvas canvas--pan-ready" : "canvas"}
       style={style}
+      {...{ [CANVAS_ATTRIBUTE]: "" }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -433,6 +437,15 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
             />
           )}
       </div>
+      {fileDragActive && (
+        <div
+          aria-hidden="true"
+          data-testid="canvas-drop-overlay"
+          className="canvas__drop-overlay"
+        >
+          {CANVAS_MESSAGES.dropHint}
+        </div>
+      )}
     </div>
   );
 }

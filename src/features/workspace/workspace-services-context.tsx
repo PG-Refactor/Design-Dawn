@@ -1,4 +1,6 @@
 import { createContext, type ReactNode, useContext } from "react";
+import type { AssetUrlResolver } from "../../application/ports/asset-url-resolver";
+import type { DropEventSource } from "../../application/ports/drop-event-source";
 import type { ApplicationStore } from "../../application/state/application-state";
 import type { ThemeState } from "../../application/theme/theme-controller";
 import type { Store } from "../../shared/store/store";
@@ -14,6 +16,10 @@ export interface WorkspaceServices {
   readonly uiStateStore: UiStateStore;
   readonly actions: WorkspaceActions;
   readonly canvasActions: CanvasActions;
+  // Files dropped on the window (Rust reports ids and counts only).
+  readonly dropEventSource: DropEventSource;
+  // The `src` of an image block's `<img>`.
+  readonly assetUrlResolver: AssetUrlResolver;
   readonly themeController: ThemeSettingsController & {
     readonly store: Store<ThemeState>;
   };

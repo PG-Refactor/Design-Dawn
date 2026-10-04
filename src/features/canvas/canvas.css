@@ -59,3 +59,20 @@
   flex: 1 1 auto;
   min-height: 0;
 }
+
+/* Drop hint while files are dragged over the window. Decorative and see-through to
+   pointer events: Rust handles the drop itself. */
+.canvas__drop-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 3px dashed var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+  color: var(--color-text);
+  font-size: 1.25rem;
+  font-weight: bold;
+  pointer-events: none;
+}

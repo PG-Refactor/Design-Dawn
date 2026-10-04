@@ -1,4 +1,5 @@
-import type { BlockType } from "../../domain/block/block-type";
+import { type BlockType, isTextBlockType } from "../../domain/block/block-type";
+import type { ContentPath } from "../../domain/block/content-path";
 import type { BlockId, SheetId } from "../../domain/shared/entity-id";
 import type { Position, Size } from "../../domain/shared/geometry";
 import type { OperationResult } from "../ports/operation-error";
@@ -20,12 +21,34 @@ export interface MetadataCommand {
   revert(state: DocumentData): OperationResult<DocumentData>;
 }
 
-export interface BlockSpec {
+// Block types whose body is an imported asset instead of a text file (the domain's
+// `BLOCK_TYPE_DEFINITIONS` is the source of truth; `isTextBlockType` decides at run time).
+export type AssetBlockType = Extract<BlockType, "image">;
+export type TextBlockType = Exclude<BlockType, AssetBlockType>;
+
+interface BlockSpecBase {
   readonly blockId: BlockId;
-  readonly blockType: BlockType;
   readonly position: Position;
   readonly size: Size;
+}
+
+// A block whose text file is created when the command runs.
+export interface TextBlockSpec extends BlockSpecBase {
+  readonly blockType: TextBlockType;
   readonly text: string;
+}
+
+// A block that references an asset that already exists: assets are created by the import /
+// copy BEFORE the command, so the command never creates or deletes a file for it.
+export interface AssetBlockSpec extends BlockSpecBase {
+  readonly blockType: AssetBlockType;
+  readonly contentPath: ContentPath;
+}
+
+export type BlockSpec = TextBlockSpec | AssetBlockSpec;
+
+export function isAssetBlockSpec(spec: BlockSpec): spec is AssetBlockSpec {
+  return !isTextBlockType(spec.blockType);
 }
 
 // File-backed commands only describe the operation. They never call persistence

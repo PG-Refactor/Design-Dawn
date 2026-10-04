@@ -490,6 +490,76 @@
           }
         },
         {
+          "name": "import_dropped_images: expired dropId",
+          "request": {
+            "command": "import_dropped_images",
+            "args": {
+              "dropId": "01928f3a-0000-7000-8000-000000000000",
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidDropSelection"
+            }
+          }
+        },
+        {
+          "name": "copy_asset_to_document: missing source asset",
+          "request": {
+            "command": "copy_asset_to_document",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "sourceDocumentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "contentPath": "assets/missing.png",
+              "targetDocumentId": "01928f3a-6c7d-7e8f-a012-3456789abcde"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "fileNotFound"
+            }
+          }
+        },
+        {
+          "name": "copy_asset_to_document: traversal contentPath",
+          "targets": ["rust"],
+          "request": {
+            "command": "copy_asset_to_document",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "sourceDocumentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "contentPath": "assets/../document.json",
+              "targetDocumentId": "01928f3a-6c7d-7e8f-a012-3456789abcde"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidContentPath"
+            }
+          }
+        },
+        {
+          "name": "copy_asset_to_document: same document returns the same contentPath",
+          "request": {
+            "command": "copy_asset_to_document",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "sourceDocumentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "contentPath": "assets/pixel.png",
+              "targetDocumentId": "01928f3a-6c7d-7e8f-a012-3456789abcde"
+            }
+          },
+          "expected": {
+            "ok": {
+              "contentPath": "assets/pixel.png",
+              "naturalWidth": 1,
+              "naturalHeight": 1
+            }
+          }
+        },
+        {
           "name": "ACL: command that is not registered",
           "targets": ["rust"],
           "request": {

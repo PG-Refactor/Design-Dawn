@@ -3,6 +3,8 @@
 
 import { createInMemoryClipboard } from "../application/clipboard/clipboard";
 import { createDefaultIdGenerator } from "../application/id-generator";
+import type { AssetUrlResolver } from "../application/ports/asset-url-resolver";
+import type { DropEventSource } from "../application/ports/drop-event-source";
 import {
   type ApplicationStore,
   createApplicationStore,
@@ -38,6 +40,8 @@ import {
 } from "../features/workspace/workspace-actions";
 import { createMatchMediaOsThemeSource } from "../infrastructure/browser/match-media-os-theme-source";
 import { createTauriAppSettingsGateway } from "../infrastructure/tauri/tauri-app-settings-gateway";
+import { createTauriAssetUrlResolver } from "../infrastructure/tauri/tauri-asset-url-resolver";
+import { createTauriDropEventSource } from "../infrastructure/tauri/tauri-drop-event-source";
 import { createTauriPersistenceGateway } from "../infrastructure/tauri/tauri-persistence-gateway";
 import { createTauriViewportGateway } from "../infrastructure/tauri/tauri-viewport-gateway";
 import { createTimeoutScheduler } from "../infrastructure/timer/timeout-scheduler";
@@ -50,6 +54,9 @@ export interface AppServices {
   readonly actions: WorkspaceActions;
   // What the canvas calls to change documents (one gesture = one application command).
   readonly canvasActions: CanvasActions;
+  // Files dropped on the window, and the URLs of image assets, for the image blocks.
+  readonly dropEventSource: DropEventSource;
+  readonly assetUrlResolver: AssetUrlResolver;
   // Restores / saves the per-sheet viewport; watches the UI state on its own.
   readonly viewportPersistence: ViewportPersistence;
   // App-level theme state; independent of the workspace, sessions and undo history.
@@ -62,8 +69,9 @@ export function createAppServices(): AppServices {
   const applicationStore = createApplicationStore();
   const uiStateStore = createUiStateStore();
   const idGenerator = createDefaultIdGenerator();
+  const gateway = createTauriPersistenceGateway();
   const workspace = createWorkspace({
-    gateway: createTauriPersistenceGateway(),
+    gateway,
     scheduler: createTimeoutScheduler(),
     idGenerator,
     store: applicationStore,
@@ -82,6 +90,7 @@ export function createAppServices(): AppServices {
     applicationStore,
     uiStateStore,
     idGenerator,
+    gateway,
     // One clipboard for the whole app: copy in one sheet or document, paste in another.
     clipboard: createInMemoryClipboard(),
   });
@@ -107,6 +116,8 @@ export function createAppServices(): AppServices {
     workspace,
     actions,
     canvasActions,
+    dropEventSource: createTauriDropEventSource(),
+    assetUrlResolver: createTauriAssetUrlResolver(),
     viewportPersistence,
     themeController,
     disconnectUiState,

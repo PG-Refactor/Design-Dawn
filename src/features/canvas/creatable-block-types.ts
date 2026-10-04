@@ -1,8 +1,9 @@
+import type { TextBlockType } from "../../application/commands/command";
 import type { BlockType } from "../../domain/block/block-type";
 import { MARKDOWN_BLOCK_DEFAULTS } from "../markdown/markdown-block-defaults";
 
 export interface CreatableBlockType {
-  readonly blockType: BlockType;
+  readonly blockType: TextBlockType;
   // Shown in the "+ Block" menu.
   readonly label: string;
   // World units.

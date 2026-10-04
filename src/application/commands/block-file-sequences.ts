@@ -37,12 +37,14 @@ import {
   operationOk,
 } from "../ports/operation-error";
 import type { PersistenceGateway } from "../ports/persistence-gateway";
-import type { BlockSpec } from "./command";
+import { type BlockSpec, isAssetBlockSpec } from "./command";
 
 // A block together with what is needed to bring it back: its z-order index and its text.
-// `text` is null when the block's content file did not exist when the block was removed
-// (a block with missing content, docs/data-model.md §7). Such a block has no file to
-// delete and none to restore: undoing brings back the same "content missing" state.
+// `text` is null when the block has no text file of its own: an image block (its asset
+// is never touched by add / remove / restore), or a text block whose content file did
+// not exist when it was removed (docs/data-model.md §7). Such a block has no file to
+// delete and none to restore: undoing brings back the same state (an image block whose
+// asset has since gone simply shows its load error).
 export interface CapturedBlock {
   readonly block: Block;
   readonly index: number;
@@ -73,13 +75,6 @@ type SequenceResult = Promise<OperationResult<SequenceSuccess>>;
 
 function unchanged(sheet: Sheet): OperationResult<SequenceSuccess> {
   return operationOk({ sheet, captured: [], warnings: [] });
-}
-
-function unsupportedType(block: { readonly blockType: string }) {
-  return operationErr<SequenceSuccess>(
-    "unsupportedBlockType",
-    `blocks of type ${block.blockType} have no text content file`,
-  );
 }
 
 async function deleteContentFiles(
@@ -122,8 +117,6 @@ export async function addBlocksWithContent(
   specs: readonly BlockSpec[],
 ): SequenceResult {
   if (specs.length === 0) return unchanged(sheet);
-  const unsupported = specs.find((spec) => !isTextBlockType(spec.blockType));
-  if (unsupported !== undefined) return unsupportedType(unsupported);
   const duplicate = findDuplicate([
     ...sheet.blocks.map((block) => block.blockId),
     ...specs.map((spec) => spec.blockId),
@@ -137,6 +130,23 @@ export async function addBlocksWithContent(
   const createdPaths: ContentPath[] = [];
   const captured: CapturedBlock[] = [];
   for (const spec of specs) {
+    const index = sheet.blocks.length + captured.length;
+    if (isAssetBlockSpec(spec)) {
+      // The asset exists already (the import / copy ran first), so there is nothing to
+      // create and nothing to roll back for this block.
+      captured.push({
+        block: {
+          blockId: spec.blockId,
+          blockType: spec.blockType,
+          position: spec.position,
+          size: spec.size,
+          contentPath: spec.contentPath,
+        },
+        index,
+        text: null,
+      });
+      continue;
+    }
     const content = await ctx.gateway.createBlockContent(
       ctx.projectId,
       ctx.documentId,
@@ -156,7 +166,7 @@ export async function addBlocksWithContent(
         size: spec.size,
         contentPath: content.value,
       },
-      index: sheet.blocks.length + captured.length,
+      index,
       text: spec.text,
     });
   }
@@ -188,16 +198,18 @@ export async function removeBlocksWithContent(
   const targets = sheet.blocks
     .map((block, index) => ({ block, index }))
     .filter(({ block }) => targetIds.has(block.blockId));
-  const unsupported = targets.find(
-    ({ block }) => !isTextBlockType(block.blockType),
-  );
-  if (unsupported !== undefined) return unsupportedType(unsupported.block);
   const flushed = await ctx.flushPending();
   if (!flushed.ok) return flushed;
 
   // Text is read BEFORE the metadata is saved so a read failure leaves everything intact.
   const captured: CapturedBlock[] = [];
   for (const { block, index } of targets) {
+    // An image block has no text file; its asset stays where it is (it may still be used
+    // by other blocks, and undo needs it).
+    if (!isTextBlockType(block.blockType)) {
+      captured.push({ block, index, text: null });
+      continue;
+    }
     const text = await ctx.gateway.readBlockContent(
       ctx.projectId,
       ctx.documentId,
@@ -220,6 +232,7 @@ export async function removeBlocksWithContent(
   if (!saved.ok) return failWith(saved.error);
 
   // From here the command has succeeded: the metadata no longer references the files.
+  // Only text files are deleted (`text !== null`); assets are never deleted.
   const failures = await deleteContentFiles(
     ctx,
     captured
@@ -253,9 +266,10 @@ export async function restoreBlocksWithContent(
   // `restoreBlockContent` fail with `alreadyExists` belongs to someone else.
   const restoredPaths: ContentPath[] = [];
   for (const { block, text } of captured) {
-    // The content was already missing when the block was removed; restoring the block
-    // must not invent a file.
-    if (text === null) continue;
+    // No text file to bring back: the content was already missing when the block was
+    // removed (restoring must not invent a file), or this is an image block (its asset is
+    // never touched; if it is gone the block shows its load error).
+    if (text === null || !isTextBlockType(block.blockType)) continue;
     const restored = await ctx.gateway.restoreBlockContent(
       ctx.projectId,
       ctx.documentId,

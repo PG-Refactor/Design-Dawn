@@ -4,6 +4,7 @@
 pub mod asset_import;
 pub mod block_content_operations;
 pub mod document_operations;
+pub mod dropped_files;
 pub mod entity_id_generator;
 pub mod error;
 pub mod folder_selection;

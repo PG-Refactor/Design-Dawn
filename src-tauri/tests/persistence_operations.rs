@@ -575,7 +575,7 @@ mod symlink_escape {
         fs::remove_dir_all(&assets).unwrap();
         symlink(&outside, &assets).unwrap();
         let source = opened.temp.path().join("pic.png");
-        fs::write(&source, b"png").unwrap();
+        fs::write(&source, png_bytes(1, 1)).unwrap();
         let error =
             import_asset(&mut opened.sessions, PROJECT_ID, DOCUMENT_ID, &source).unwrap_err();
         assert_eq!(
@@ -592,17 +592,26 @@ mod symlink_escape {
 fn imported_assets_get_sanitized_unique_names_and_never_overwrite() {
     let mut opened = open_copy();
     let source = opened.temp.path().join("My Pic (1).PNG");
-    fs::write(&source, b"first").unwrap();
-    let first = import_asset(&mut opened.sessions, PROJECT_ID, DOCUMENT_ID, &source).unwrap();
+    let first_bytes = png_bytes(1, 1);
+    let second_bytes = png_bytes(2, 2);
+    fs::write(&source, &first_bytes).unwrap();
+    let first = import_asset(&mut opened.sessions, PROJECT_ID, DOCUMENT_ID, &source)
+        .unwrap()
+        .content_path;
     assert_eq!(first, "assets/my-pic-1.png");
-    fs::write(&source, b"second").unwrap();
-    let second = import_asset(&mut opened.sessions, PROJECT_ID, DOCUMENT_ID, &source).unwrap();
+    fs::write(&source, &second_bytes).unwrap();
+    let second = import_asset(&mut opened.sessions, PROJECT_ID, DOCUMENT_ID, &source)
+        .unwrap()
+        .content_path;
     assert_eq!(second, "assets/my-pic-1-2.png");
 
     let assets = document_dir(&opened.root).join("assets");
-    assert_eq!(fs::read(assets.join("my-pic-1.png")).unwrap(), b"first");
-    assert_eq!(fs::read(assets.join("my-pic-1-2.png")).unwrap(), b"second");
-    assert_eq!(fs::read(&source).unwrap(), b"second");
+    assert_eq!(fs::read(assets.join("my-pic-1.png")).unwrap(), first_bytes);
+    assert_eq!(
+        fs::read(assets.join("my-pic-1-2.png")).unwrap(),
+        second_bytes
+    );
+    assert_eq!(fs::read(&source).unwrap(), second_bytes);
 
     let unsupported = opened.temp.path().join("tool.exe");
     fs::write(&unsupported, b"x").unwrap();

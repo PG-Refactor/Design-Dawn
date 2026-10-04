@@ -1,5 +1,6 @@
 import { LOCAL_STATE_ERROR_KINDS } from "../../application/local-state/local-state-result";
 import {
+  ASSET_ERROR_KINDS,
   FOLDER_SELECTION_ERROR_KINDS,
   type OperationErrorKind,
   PERSISTENCE_ERROR_KINDS,
@@ -29,6 +30,7 @@ const RUST_ERROR_KINDS: readonly string[] = [
   ...PERSISTENCE_ERROR_KINDS,
   ...SESSION_ERROR_KINDS,
   ...FOLDER_SELECTION_ERROR_KINDS,
+  ...ASSET_ERROR_KINDS,
   ...LOCAL_STATE_ERROR_KINDS,
 ];
 

@@ -22,6 +22,8 @@ const APP_COMMANDS: &[&str] = &[
     "set_theme_preference",
     "get_sheet_viewport",
     "save_sheet_viewport",
+    "import_dropped_images",
+    "copy_asset_to_document",
 ];
 
 fn main() {

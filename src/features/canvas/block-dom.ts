@@ -18,3 +18,17 @@ export function isInsideBlockEditor(target: EventTarget | null): boolean {
     target instanceof Element && target.closest(BLOCK_EDITOR_SELECTOR) !== null
   );
 }
+
+// Marks the canvas element, so code outside the canvas component (the file drop handler)
+// can measure the canvas that is on screen.
+export const CANVAS_ATTRIBUTE = "data-canvas";
+
+export function measureActiveCanvas(): {
+  readonly width: number;
+  readonly height: number;
+} {
+  const rect = document
+    .querySelector(`[${CANVAS_ATTRIBUTE}]`)
+    ?.getBoundingClientRect();
+  return { width: rect?.width ?? 0, height: rect?.height ?? 0 };
+}

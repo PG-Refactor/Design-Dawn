@@ -29,6 +29,7 @@ export const CANVAS_MESSAGES = {
     verticalCenter: "上下中央揃え",
     bottom: "下揃え",
   },
+  dropHint: "ここに画像をドロップ",
   placeholder: {
     type: "種類",
     id: "ID",

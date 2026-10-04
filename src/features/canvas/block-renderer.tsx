@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import type { Block } from "../../domain/block/block";
 import type { BlockType } from "../../domain/block/block-type";
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
+import { ImageBlock } from "../image/image-block";
 import { MarkdownBlock } from "../markdown/markdown-block";
 import { BlockPlaceholder } from "./block-placeholder";
 
@@ -18,7 +19,7 @@ const BLOCK_RENDERERS: Readonly<
 > = {
   markdown: MarkdownBlock,
   mermaid: BlockPlaceholder,
-  image: BlockPlaceholder,
+  image: ImageBlock,
 };
 
 export function BlockRenderer(props: BlockRendererProps) {

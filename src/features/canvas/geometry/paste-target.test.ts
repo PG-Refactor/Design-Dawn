@@ -20,12 +20,14 @@ function content(pasteCount: number): ClipboardContent {
     // Bounding box 150 x 90.
     blocks: [
       {
+        kind: "text",
         blockType: "markdown",
         size: size(100, 50),
         offset: { x: 0, y: 0 },
         text: "",
       },
       {
+        kind: "text",
         blockType: "markdown",
         size: size(50, 50),
         offset: { x: 100, y: 40 },

@@ -5,6 +5,7 @@ use serde::{Serialize, Serializer};
 
 use crate::domain::error::{DomainError, DomainErrorKind};
 use crate::infrastructure::error::{PersistenceError, PersistenceErrorKind};
+use crate::infrastructure::file_format::image_validation::ImageContentError;
 
 /// Error conversion boundary (Rust side of the chain; the TypeScript side is `toCommandError`):
 ///
@@ -34,6 +35,13 @@ pub enum ErrorKind {
     DialogFailed,
     /// A `selectionId` that is unknown or has been replaced by a newer selection.
     InvalidFolderSelection,
+    /// A `dropId` that is unknown or has been replaced by a newer drop.
+    InvalidDropSelection,
+    /// An image whose content is not a valid image of the format its extension names, or
+    /// something that is not a regular file.
+    InvalidImageContent,
+    /// An asset larger than `ASSET_MAX_BYTES`.
+    AssetTooLarge,
     /// A theme preference that is not `system` or a defined theme id.
     InvalidThemePreference,
     /// A viewport with a non-finite or out-of-range `panX` / `panY` / `zoom`.
@@ -50,6 +58,9 @@ impl ErrorKind {
             Self::EntityNotFound => "entityNotFound",
             Self::DialogFailed => "dialogFailed",
             Self::InvalidFolderSelection => "invalidFolderSelection",
+            Self::InvalidDropSelection => "invalidDropSelection",
+            Self::InvalidImageContent => "invalidImageContent",
+            Self::AssetTooLarge => "assetTooLarge",
             Self::InvalidThemePreference => "invalidThemePreference",
             Self::InvalidViewport => "invalidViewport",
         }
@@ -99,6 +110,12 @@ impl From<DomainError> for ApplicationError {
 impl From<PersistenceError> for ApplicationError {
     fn from(error: PersistenceError) -> Self {
         Self::new(ErrorKind::Persistence(error.kind), error.detail)
+    }
+}
+
+impl From<ImageContentError> for ApplicationError {
+    fn from(error: ImageContentError) -> Self {
+        Self::new(ErrorKind::InvalidImageContent, error.detail)
     }
 }
 

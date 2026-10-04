@@ -14,7 +14,7 @@ import type {
 } from "../../../application/state/application-state";
 import type { ThemeState } from "../../../application/theme/theme-controller";
 import type { DocumentId, SheetId } from "../../../domain/shared/entity-id";
-import type { OperationErrorEntry } from "../ui-state/ui-state";
+import type { OperationErrorEntry, UiState } from "../ui-state/ui-state";
 import {
   describeDocumentLoadStatus,
   describeErrorKind,
@@ -32,7 +32,8 @@ export type NotificationKind =
   | "loadIssue"
   | "themeLoadIssue"
   | "orphanContentFile"
-  | "contentLoadFailed";
+  | "contentLoadFailed"
+  | "imageLoadFailed";
 
 export type NotificationSeverity = "error" | "warning";
 
@@ -47,6 +48,7 @@ export const NOTIFICATION_PRIORITY: Record<NotificationKind, number> = {
   themeLoadIssue: 2,
   orphanContentFile: 3,
   contentLoadFailed: 3,
+  imageLoadFailed: 3,
 };
 
 const NOTIFICATION_SEVERITY: Record<NotificationKind, NotificationSeverity> = {
@@ -58,6 +60,7 @@ const NOTIFICATION_SEVERITY: Record<NotificationKind, NotificationSeverity> = {
   themeLoadIssue: "warning",
   orphanContentFile: "warning",
   contentLoadFailed: "warning",
+  imageLoadFailed: "warning",
 };
 
 export type NotificationSource =
@@ -108,8 +111,14 @@ export interface NotificationsInput {
     "project" | "documents" | "documentDetails"
   >;
   readonly operationErrors: readonly OperationErrorEntry[];
+  // UI state: image blocks the `<img>` could not load (see `UiState.imageLoadFailures`).
+  readonly imageLoadFailures?: UiState["imageLoadFailures"];
   readonly theme: Pick<ThemeState, "loadIssue" | "saveError">;
 }
+
+const NO_IMAGE_LOAD_FAILURES: NonNullable<
+  NotificationsInput["imageLoadFailures"]
+> = new Map();
 
 const DETAIL_LABELS = MESSAGES.notifications.detailLabels;
 
@@ -277,6 +286,35 @@ function contentLoadFailedItems(
   });
 }
 
+// An image block whose picture could not be loaded: shown as an error inside the block,
+// and listed here so it is not only visible while that sheet is on screen. The block must
+// still exist (the failure set is pruned with the blocks, this is the second guard).
+function imageLoadFailedItems(
+  documentId: DocumentId,
+  source: NotificationSource,
+  session: DocumentSessionState,
+  failures: NonNullable<NotificationsInput["imageLoadFailures"]>,
+): readonly NotificationItem[] {
+  return [...session.sheets].flatMap(([sheetId, sheet]) => {
+    const failed = failures.get(sheetId);
+    if (failed === undefined) return [];
+    return sheet.blocks
+      .filter((block) => failed.has(block.blockId))
+      .map((block) =>
+        makeItem({
+          id: `imageLoadFailed:${documentId}:${block.blockId}`,
+          kind: "imageLoadFailed",
+          source,
+          message: MESSAGES.notifications.imageLoadFailed,
+          details: [
+            { label: DETAIL_LABELS.entityId, value: block.blockId },
+            { label: DETAIL_LABELS.path, value: block.contentPath },
+          ],
+        }),
+      );
+  });
+}
+
 function collectDocumentItems(
   input: NotificationsInput,
 ): readonly NotificationItem[] {
@@ -329,6 +367,14 @@ function collectDocumentItems(
       );
     });
     items.push(...contentLoadFailedItems(documentId, source, session));
+    items.push(
+      ...imageLoadFailedItems(
+        documentId,
+        source,
+        session,
+        input.imageLoadFailures ?? NO_IMAGE_LOAD_FAILURES,
+      ),
+    );
     session.warnings.forEach((warning, index) => {
       items.push(
         makeItem({

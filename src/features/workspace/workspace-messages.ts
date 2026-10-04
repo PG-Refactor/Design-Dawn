@@ -75,6 +75,8 @@ export const MESSAGES = {
       "Block本文ファイルを削除できませんでした（ファイルが残っています）",
     contentLoadFailed:
       "Blockの本文ファイルを読み込めませんでした（編集はできません）",
+    imageLoadFailed:
+      "画像を読み込めませんでした（画像ファイルが見つからないか、壊れています）",
     detailLabels: {
       kind: "種別",
       path: "パス",
@@ -132,12 +134,16 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   resizeBlocks: "Blockのサイズを変更できませんでした",
   deleteBlocks: "Blockを削除できませんでした",
   reorderBlocks: "Blockの重なり順を変更できませんでした",
-  copyBlocks: "コピーできないBlockがありました（本文を読み込めていません）",
+  copyBlocks:
+    "コピーできないBlockがありました（本文または画像を読み込めていません）",
   cutBlocks:
-    "切り取れないBlockがありました（本文を読み込めていないため、そのBlockは残しています）",
+    "切り取れないBlockがありました（本文または画像を読み込めていないため、そのBlockは残しています）",
   pasteBlocks: "Blockを貼り付けできませんでした",
-  duplicateBlocks: "複製できないBlockがありました（本文を読み込めていません）",
+  duplicateBlocks:
+    "複製できないBlockがありました（本文または画像を読み込めていません）",
   createBlock: "Blockを追加できませんでした",
+  importImages: "画像を取り込めませんでした",
+  importImagesWithoutSheet: "画像を追加するにはSheetを開いてください",
   editBlockContent:
     "Blockの本文の編集を確定できませんでした（編集内容は画面に残っています）",
   loadBlockContents: "Blockの本文を読み込めませんでした",
@@ -173,6 +179,10 @@ const ERROR_KIND_MESSAGES: Record<OperationErrorKind, string> = {
   dialogFailed: "フォルダ選択ダイアログを開けませんでした。",
   invalidFolderSelection:
     "選択したフォルダが無効です。もう一度選択してください。",
+  invalidImageContent: "画像として読み込めないファイルです。",
+  assetTooLarge: "画像ファイルが大きすぎます（上限 20 MiB）。",
+  invalidDropSelection:
+    "ドロップしたファイルが無効です。もう一度ドロップしてください。",
   invalidThemePreference: "テーマ設定の値が正しくありません。",
   invalidViewport: "表示位置の値が正しくありません。",
   invalidCommandResponse: "内部処理の応答が正しくありません。",

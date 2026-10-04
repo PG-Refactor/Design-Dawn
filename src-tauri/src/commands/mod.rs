@@ -1,7 +1,10 @@
 //! Thin Tauri commands (docs/architecture.md §6.2). Each one parses its arguments, locks the
 //! session state and calls the Application layer; no logic lives here. `import_asset` is
-//! intentionally absent until Phase 5.
+//! not a command: images enter through `import_dropped_images` (the dropped paths never
+//! reach the Frontend) or `copy_asset_to_document`.
 
+mod asset_protocol;
+mod drag_drop;
 mod folder_picker;
 
 use std::sync::{Arc, Mutex, PoisonError};
@@ -9,8 +12,13 @@ use std::sync::{Arc, Mutex, PoisonError};
 use serde_json::Value;
 use tauri::{AppHandle, Manager, Runtime, State};
 
+use crate::application::asset_import::{
+    copy_asset_to_document as copy_asset, import_dropped_images as import_dropped, CopiedAsset,
+    DropImportResult,
+};
 use crate::application::block_content_operations as block_content;
 use crate::application::document_operations as documents;
+use crate::application::dropped_files::DroppedFilesState;
 use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
 use crate::application::folder_selection::{
     resolve_selection, select_project_folder as select_folder, FolderPicker, FolderSelection,
@@ -26,7 +34,7 @@ use crate::infrastructure::file_format::dto::{parse_dto, DocumentDto, ProjectDto
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 20] = [
+pub const COMMAND_NAMES: [&str; 22] = [
     "select_project_folder",
     "create_project",
     "open_project",
@@ -47,8 +55,12 @@ pub const COMMAND_NAMES: [&str; 20] = [
     "set_theme_preference",
     "get_sheet_viewport",
     "save_sheet_viewport",
+    "import_dropped_images",
+    "copy_asset_to_document",
 ];
 
+pub use asset_protocol::{respond_to_asset_request, ASSET_URL_SCHEME};
+pub use drag_drop::{handle_window_event, DRAG_STATE_EVENT, FILES_DROPPED_EVENT};
 pub use folder_picker::DialogFolderPicker;
 
 /// The folder dialog as managed state. Production registers the real dialog-backed picker;
@@ -351,4 +363,56 @@ pub fn save_sheet_viewport<R: Runtime>(
     with_local_state(&app, |local_state| {
         local_state.save_sheet_viewport(&project_id, &document_id, &sheet_id, viewport)
     })
+}
+
+/// Asset files can be large (up to `ASSET_MAX_BYTES` each), so these two commands run on the
+/// blocking pool instead of the main thread, like the folder dialog.
+async fn run_blocking<T: Send + 'static>(
+    operation: impl FnOnce() -> ApplicationResult<T> + Send + 'static,
+) -> Result<T, ApplicationError> {
+    tauri::async_runtime::spawn_blocking(operation)
+        .await
+        .map_err(|error| {
+            ApplicationError::persistence(
+                PersistenceErrorKind::IoError,
+                format!("asset task failed: {error}"),
+            )
+        })?
+}
+
+/// `drop_id` comes from the `files dropped` event; the Frontend never passes a path.
+#[tauri::command]
+pub async fn import_dropped_images<R: Runtime>(
+    app: AppHandle<R>,
+    drop_id: String,
+    project_id: String,
+    document_id: String,
+) -> Result<DropImportResult, ApplicationError> {
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        let drops = app.state::<Mutex<DroppedFilesState>>();
+        import_dropped(&sessions, &drops, &drop_id, &project_id, &document_id)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn copy_asset_to_document<R: Runtime>(
+    app: AppHandle<R>,
+    project_id: String,
+    source_document_id: String,
+    content_path: String,
+    target_document_id: String,
+) -> Result<CopiedAsset, ApplicationError> {
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        copy_asset(
+            &sessions,
+            &project_id,
+            &source_document_id,
+            &content_path,
+            &target_document_id,
+        )
+    })
+    .await
 }

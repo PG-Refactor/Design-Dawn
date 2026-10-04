@@ -7,10 +7,12 @@ import {
   SHEET_ID,
 } from "../../domain/shared/test-fixtures";
 import { unwrap } from "../../domain/shared/test-support";
+import * as assetClient from "./asset-client";
 import * as client from "./persistence-client";
 import { createTauriPersistenceGateway } from "./tauri-persistence-gateway";
 
 vi.mock("./persistence-client");
+vi.mock("./asset-client");
 
 const contentPath = unwrap(parseContentPath("sheets/s/blocks/markdown-1.md"));
 const sheet = makeSheetWith(SHEET_ID, []);
@@ -167,5 +169,35 @@ describe("createTauriPersistenceGateway", () => {
       SHEET_ID,
     );
     expect(client.saveProject).not.toHaveBeenCalled();
+  });
+
+  it("maps the asset operations onto the asset client unchanged", async () => {
+    const dropResult = {
+      ok: true,
+      value: { imported: [], rejected: [] },
+    } as const;
+    vi.mocked(assetClient.importDroppedImages).mockResolvedValue(dropResult);
+    const gateway = createTauriPersistenceGateway();
+    expect(
+      await gateway.importDroppedImages("drop", PROJECT_ID, DOCUMENT_ID),
+    ).toBe(dropResult);
+    expect(assetClient.importDroppedImages).toHaveBeenCalledWith(
+      "drop",
+      PROJECT_ID,
+      DOCUMENT_ID,
+    );
+    const copied = {
+      ok: true,
+      value: { contentPath, naturalWidth: 1, naturalHeight: 1 },
+    } as const;
+    vi.mocked(assetClient.copyAssetToDocument).mockResolvedValue(copied);
+    expect(
+      await gateway.copyAssetToDocument(
+        PROJECT_ID,
+        DOCUMENT_ID,
+        contentPath,
+        DOCUMENT_ID,
+      ),
+    ).toBe(copied);
   });
 });

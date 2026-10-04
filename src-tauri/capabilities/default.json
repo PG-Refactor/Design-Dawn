@@ -24,6 +24,8 @@
     "allow-get-app-settings",
     "allow-set-theme-preference",
     "allow-get-sheet-viewport",
-    "allow-save-sheet-viewport"
+    "allow-save-sheet-viewport",
+    "allow-import-dropped-images",
+    "allow-copy-asset-to-document"
   ]
 }

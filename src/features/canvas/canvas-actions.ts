@@ -11,6 +11,8 @@ import {
   copyBlocks,
   duplicateBlocks,
   pasteBlocksCommand,
+  resolvePasteAssets,
+  validateAssetBlocks,
 } from "../../application/clipboard/copy-paste";
 import type {
   BlockFrame,
@@ -22,7 +24,10 @@ import {
   reorderBlocksCommand,
   resizeBlocksCommand,
 } from "../../application/commands/block-commands";
-import type { ApplicationCommand } from "../../application/commands/command";
+import type {
+  ApplicationCommand,
+  AssetBlockSpec,
+} from "../../application/commands/command";
 import { editBlockContentCommand } from "../../application/commands/content-commands";
 import {
   createBlocksCommand,
@@ -38,6 +43,7 @@ import {
   operationErr,
   operationOk,
 } from "../../application/ports/operation-error";
+import type { PersistenceGateway } from "../../application/ports/persistence-gateway";
 import type { ApplicationStore } from "../../application/state/application-state";
 import type { Workspace } from "../../application/workspace/workspace";
 import { PASTE_OFFSET } from "../../config/canvas-config";
@@ -46,6 +52,7 @@ import type { BlockType } from "../../domain/block/block-type";
 import type {
   BlockId,
   DocumentId,
+  ProjectId,
   SheetId,
 } from "../../domain/shared/entity-id";
 import type { Position, Size } from "../../domain/shared/geometry";
@@ -140,6 +147,13 @@ export interface PasteInput extends SelectionActionInput {
   readonly viewportSize: Extent;
 }
 
+export interface ImportDroppedImagesInput {
+  // The drop Rust announced; the dropped paths never reach the Frontend.
+  readonly dropId: string;
+  // Size of the canvas element in screen pixels (zero when no canvas is shown).
+  readonly viewportSize: Extent;
+}
+
 export interface CanvasActions {
   commitDrag(input: CommitDragInput): Promise<OperationResult<void>>;
   commitResize(input: CommitResizeInput): Promise<OperationResult<void>>;
@@ -164,6 +178,12 @@ export interface CanvasActions {
   duplicateSelection(
     input: SelectionActionInput,
   ): Promise<OperationResult<void>>;
+  // Files dropped on the window: imports the images into the active Document's assets and
+  // adds ONE image block per image (one history entry), then selects them. Rejected files
+  // are reported one by one; without an active sheet nothing is imported.
+  importDroppedImages(
+    input: ImportDroppedImagesInput,
+  ): Promise<OperationResult<void>>;
   // Adds one block of `blockType` (one history entry) and selects it.
   createBlock(input: CreateBlockInput): Promise<OperationResult<BlockId>>;
   // Reads the texts of the sheet's blocks (no history entry). Idempotent.
@@ -186,6 +206,10 @@ export interface CanvasActionsDependencies {
   readonly applicationStore: ApplicationStore;
   readonly uiStateStore: UiStateStore;
   readonly idGenerator: IdGenerator;
+  // Only for assets, which exist BEFORE the command that references them: importing
+  // dropped files and validating / copying images for copy and paste. Block content and
+  // sheet metadata are written by the document session, never from here.
+  readonly gateway: PersistenceGateway;
   // Shared by every sheet and document for the lifetime of the app.
   readonly clipboard: ClipboardPort;
 }
@@ -195,8 +219,14 @@ const NOTHING_TO_DO = operationOk(undefined);
 export function createCanvasActions(
   dependencies: CanvasActionsDependencies,
 ): CanvasActions {
-  const { workspace, applicationStore, uiStateStore, idGenerator, clipboard } =
-    dependencies;
+  const {
+    workspace,
+    applicationStore,
+    uiStateStore,
+    idGenerator,
+    gateway,
+    clipboard,
+  } = dependencies;
 
   function record<Value>(
     operation: OperationLabel,
@@ -273,10 +303,13 @@ export function createCanvasActions(
 
   // Top-left of a new block of `size` that is centred in the visible world rectangle. When
   // a block already sits exactly there, the position steps by the paste offset until it
-  // is free, so repeated additions fan out instead of stacking invisibly.
+  // is free, so repeated additions fan out instead of stacking invisibly. `alsoTaken` are
+  // positions of blocks of the same operation that are not on the sheet yet (several
+  // images dropped at once).
   function newBlockPosition(
-    input: CreateBlockInput,
+    input: Pick<CreateBlockInput, "documentId" | "sheetId" | "viewportSize">,
     size: Size,
+    alsoTaken: readonly Position[] = [],
   ): OperationResult<Position> {
     const viewport =
       uiStateStore.getState().viewportBySheet.get(input.sheetId) ??
@@ -287,13 +320,15 @@ export function createCanvasActions(
       y: visible.y + (visible.height - size.height) / 2,
     });
     if (!centred.ok) return fromDomainResult(centred);
-    const blocks = blocksOf(input.documentId, input.sheetId);
+    const taken = [
+      ...blocksOf(input.documentId, input.sheetId).map(
+        (block) => block.position,
+      ),
+      ...alsoTaken,
+    ];
     let position = centred.value;
     while (
-      blocks.some(
-        (block) =>
-          block.position.x === position.x && block.position.y === position.y,
-      )
+      taken.some((other) => other.x === position.x && other.y === position.y)
     ) {
       const stepped = commitPosition({
         x: position.x + PASTE_OFFSET.x,
@@ -303,6 +338,22 @@ export function createCanvasActions(
       position = stepped.value;
     }
     return operationOk(position);
+  }
+
+  // Where a drop goes: the sheet on screen. Null without a project, document or sheet.
+  function activeSheetTarget(): {
+    readonly projectId: ProjectId;
+    readonly documentId: DocumentId;
+    readonly sheetId: SheetId;
+  } | null {
+    const projectId = currentProjectId();
+    const { activeDocumentId, activeSheetIdByDocument } =
+      uiStateStore.getState();
+    if (projectId === null || activeDocumentId === null) return null;
+    const sheetId = activeSheetIdByDocument.get(activeDocumentId);
+    if (sheetId === undefined) return null;
+    const open = documentData(activeDocumentId)?.sheets.has(sheetId) === true;
+    return open ? { projectId, documentId: activeDocumentId, sheetId } : null;
   }
 
   function selectedBlockIds(
@@ -369,6 +420,50 @@ export function createCanvasActions(
     );
   }
 
+  // Blocks left out because their image asset could not be validated or copied: one entry
+  // like `reportSkipped`, with the count as subject and the first failure as the error.
+  function reportAssetFailures(
+    operation: OperationLabel,
+    errors: readonly OperationError[],
+  ): void {
+    const [first] = errors;
+    if (first === undefined) return;
+    uiStateStore.setState((state) =>
+      addOperationError(
+        state,
+        operation,
+        skippedBlocksSubject(errors.length),
+        first,
+      ),
+    );
+  }
+
+  function currentProjectId() {
+    return applicationStore.getState().project?.projectId ?? null;
+  }
+
+  // Image blocks of the selection that are not usable (their asset is missing or not an
+  // image any more). Reported here; the copy / duplicate leaves them out.
+  async function checkSelectedAssets(
+    operation: OperationLabel,
+    documentId: DocumentId,
+    sheetId: SheetId,
+    blockIds: readonly BlockId[],
+  ): Promise<ReadonlyMap<BlockId, OperationError>> {
+    const projectId = currentProjectId();
+    const state = documentData(documentId);
+    if (projectId === null || state === undefined) return new Map();
+    const errors = await validateAssetBlocks({
+      gateway,
+      projectId,
+      state,
+      sheetId,
+      blockIds,
+    });
+    reportAssetFailures(operation, [...errors.values()]);
+    return errors;
+  }
+
   // The part of copy / cut shared by both. Returns the copied block ids, or null when
   // nothing was copied (nothing selected, load or copy failed, no text available).
   async function copyForClipboard(
@@ -380,11 +475,18 @@ export function createCanvasActions(
     if (!(await ensureContentsLoaded(operation, documentId, sheetId))) {
       return null;
     }
+    const assetErrors = await checkSelectedAssets(
+      operation,
+      documentId,
+      sheetId,
+      blockIds,
+    );
+    // Read after the checks: the state may have moved while they ran.
     const state = documentData(documentId);
     if (state === undefined) return null;
     const copied = record(
       operation,
-      copyBlocks({ state, sheetId, blockIds, clipboard }),
+      copyBlocks({ state, sheetId, blockIds, clipboard, assetErrors }),
     );
     if (!copied.ok) return null;
     reportSkipped(operation, documentId, copied.value.skippedBlockIds);
@@ -444,8 +546,26 @@ export function createCanvasActions(
     },
 
     async pasteClipboard({ documentId, sheetId, viewportSize }) {
-      const content = clipboard.read();
-      if (content === null) return NOTHING_TO_DO;
+      const copied = clipboard.read();
+      if (copied === null) return NOTHING_TO_DO;
+      const projectId = currentProjectId();
+      if (projectId === null) {
+        return record(
+          "pasteBlocks",
+          operationErr("projectNotOpen", "no project is open"),
+        );
+      }
+      // Assets of another Document are copied first; blocks whose asset cannot be copied
+      // are left out and reported, and an empty result creates nothing.
+      const resolved = await resolvePasteAssets({
+        gateway,
+        projectId,
+        content: copied,
+        targetDocumentId: documentId,
+      });
+      reportAssetFailures("pasteBlocks", resolved.failures);
+      if (resolved.content.blocks.length === 0) return NOTHING_TO_DO;
+      const content = resolved.content;
       const sameSheet =
         content.source.documentId === documentId &&
         content.source.sheetId === sheetId;
@@ -479,8 +599,8 @@ export function createCanvasActions(
       );
       // Only when the clipboard still holds what was pasted (another copy may have
       // replaced it while the paste was waiting for its turn).
-      if (sameSheet && clipboard.read() === content) {
-        clipboard.write({ ...content, pasteCount: content.pasteCount + 1 });
+      if (sameSheet && clipboard.read() === copied) {
+        clipboard.write({ ...copied, pasteCount: copied.pasteCount + 1 });
       }
       return pasted;
     },
@@ -493,11 +613,17 @@ export function createCanvasActions(
       ) {
         return NOTHING_TO_DO;
       }
+      const assetErrors = await checkSelectedAssets(
+        "duplicateBlocks",
+        documentId,
+        sheetId,
+        blockIds,
+      );
       const state = documentData(documentId);
       if (state === undefined) return NOTHING_TO_DO;
       const duplicated = record(
         "duplicateBlocks",
-        duplicateBlocks({ state, sheetId, blockIds, idGenerator }),
+        duplicateBlocks({ state, sheetId, blockIds, idGenerator, assetErrors }),
       );
       if (!duplicated.ok) return failWith(duplicated.error);
       reportSkipped(
@@ -610,7 +736,7 @@ export function createCanvasActions(
         createBlocksCommand(sheetId, [
           {
             blockId,
-            blockType,
+            blockType: creatable.blockType,
             position: position.value,
             size: size.value,
             text: creatable.initialText,
@@ -620,6 +746,70 @@ export function createCanvasActions(
       if (!created.ok) return failWith(created.error);
       uiStateStore.setState((state) => selectBlocks(state, sheetId, [blockId]));
       return operationOk(blockId);
+    },
+
+    async importDroppedImages({ dropId, viewportSize }) {
+      const target = activeSheetTarget();
+      if (target === null) {
+        return record(
+          "importImagesWithoutSheet",
+          operationErr(
+            "entityNotFound",
+            "no sheet is open to receive the drop",
+          ),
+        );
+      }
+      const { projectId, documentId, sheetId } = target;
+      const imported = record(
+        "importImages",
+        await gateway.importDroppedImages(dropId, projectId, documentId),
+      );
+      if (!imported.ok) return failWith(imported.error);
+      // One entry per rejected file: the file name is the natural "subject" of each error
+      // and the kinds differ per file (not an image, too large ...).
+      for (const { fileName, error } of imported.value.rejected) {
+        uiStateStore.setState((state) =>
+          addOperationError(state, "importImages", fileName, error),
+        );
+      }
+      const specs: AssetBlockSpec[] = [];
+      for (const image of imported.value.imported) {
+        // The returned initial size is used as it is: the UI minimum only limits resizing.
+        const size = commitSize({
+          width: image.initialWidth,
+          height: image.initialHeight,
+        });
+        if (!size.ok) return record("importImages", fromDomainResult(size));
+        const position = newBlockPosition(
+          { documentId, sheetId, viewportSize },
+          size.value,
+          specs.map((spec) => spec.position),
+        );
+        if (!position.ok) return record("importImages", position);
+        specs.push({
+          blockId: idGenerator.blockId(),
+          blockType: "image",
+          position: position.value,
+          size: size.value,
+          contentPath: image.contentPath,
+        });
+      }
+      if (specs.length === 0) return NOTHING_TO_DO;
+      // The assets stay when the command fails: they are harmless files in assets/.
+      const created = await execute(
+        "importImages",
+        documentId,
+        createBlocksCommand(sheetId, specs),
+      );
+      if (!created.ok) return created;
+      uiStateStore.setState((state) =>
+        selectBlocks(
+          state,
+          sheetId,
+          specs.map((spec) => spec.blockId),
+        ),
+      );
+      return created;
     },
 
     async loadSheetContents({ documentId, sheetId }) {

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { settle, size, textOf } from "../../application/test-support/fakes";
+import {
+  settle,
+  size,
+  textOf,
+  textOfBlockLike,
+} from "../../application/test-support/fakes";
 import { TEST_AUTO_SAVE_DELAY_MS } from "../../application/test-support/session-harness";
 import {
   DOCUMENT_A,
@@ -93,7 +98,7 @@ describe("copySelection", () => {
     });
     select(harness, BLOCK_ONE);
     await harness.canvasActions.copySelection(SHEET_INPUT);
-    expect(harness.clipboard.read()?.blocks[0]?.text).toBe("edited");
+    expect(textOfBlockLike(harness.clipboard.read()?.blocks[0])).toBe("edited");
   });
 
   it("waits for the sheet's contents to load before copying", async () => {
@@ -102,7 +107,9 @@ describe("copySelection", () => {
     select(harness, BLOCK_ONE);
     await harness.canvasActions.copySelection(SHEET_INPUT);
     expect(harness.gateway.methods("readBlockContent")).toHaveLength(3);
-    expect(harness.clipboard.read()?.blocks[0]?.text).toBe(textOf(BLOCK_ONE));
+    expect(textOfBlockLike(harness.clipboard.read()?.blocks[0])).toBe(
+      textOf(BLOCK_ONE),
+    );
   });
 
   it("leaves out blocks that failed to load and reports how many", async () => {
@@ -232,6 +239,7 @@ describe("pasteClipboard on the same sheet", () => {
       pasteCount: 0,
       blocks: [
         {
+          kind: "text",
           blockType: "markdown",
           size: size(10, 10),
           offset: { x: 0, y: 0 },
@@ -374,7 +382,9 @@ describe("cutSelection", () => {
     select(harness, BLOCK_ONE);
     await harness.canvasActions.cutSelection(SHEET_INPUT);
     expect(orderOf(harness)).toEqual([BLOCK_TWO, BLOCK_THREE]);
-    expect(harness.clipboard.read()?.blocks[0]?.text).toBe(textOf(BLOCK_ONE));
+    expect(textOfBlockLike(harness.clipboard.read()?.blocks[0])).toBe(
+      textOf(BLOCK_ONE),
+    );
     expect(harness.session.getState().history.undoLabel).toBe("deleteBlocks");
     expect(harness.gateway.files.has(original.contentPath)).toBe(false);
     expect(await harness.undoDepth()).toBe(1);

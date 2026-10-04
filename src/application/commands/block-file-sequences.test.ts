@@ -11,7 +11,7 @@ import {
 } from "../test-support/fakes";
 import { openSession } from "../test-support/session-harness";
 import { moveBlocksCommand } from "./block-commands";
-import type { BlockSpec } from "./command";
+import type { BlockSpec, TextBlockType } from "./command";
 import {
   createBlocksCommand,
   deleteBlocksCommand,
@@ -20,7 +20,7 @@ import {
 function spec(
   counter: number,
   text: string,
-  blockType: BlockSpec["blockType"] = "markdown",
+  blockType: TextBlockType = "markdown",
 ): BlockSpec {
   return {
     blockId: blockIdOf(counter),
@@ -130,13 +130,9 @@ describe("create blocks", () => {
     expect(session.getState().history.canUndo).toBe(false);
   });
 
-  it("rejects image blocks and duplicate ids before any I/O", async () => {
+  it("rejects duplicate ids before any I/O", async () => {
     const { session, gateway } = openSession(THREE_BLOCKS);
     const before = session.getState();
-    const image = await session.execute(
-      createBlocksCommand(SHEET_ID, [spec(10, "", "image")]),
-    );
-    expect(!image.ok && image.error.kind).toBe("unsupportedBlockType");
     const duplicate = await session.execute(
       createBlocksCommand(SHEET_ID, [spec(1, "x")]),
     );
@@ -326,15 +322,6 @@ describe("delete blocks", () => {
       deleteBlocksCommand(SHEET_ID, [blockIdOf(1), blockIdOf(1)]),
     );
     expect(!repeated.ok && repeated.error.kind).toBe("duplicateId");
-    expect(gateway.calls).toEqual([]);
-  });
-
-  it("does not delete image blocks yet", async () => {
-    const { session, gateway } = openSession([makeBlockAt(1, 0, 0, "image")]);
-    const result = await session.execute(
-      deleteBlocksCommand(SHEET_ID, [blockIdOf(1)]),
-    );
-    expect(!result.ok && result.error.kind).toBe("unsupportedBlockType");
     expect(gateway.calls).toEqual([]);
   });
 

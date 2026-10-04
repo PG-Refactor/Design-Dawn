@@ -28,7 +28,9 @@ import {
 } from "../../domain/shared/entity-id";
 import { unwrap } from "../../domain/shared/test-support";
 import { parseSheet, type RawSheet } from "../../domain/sheet/sheet";
+import { copyAssetToDocument, importDroppedImages } from "./asset-client";
 import {
+  ASSET_ERROR_KINDS,
   FOLDER_SELECTION_ERROR_KINDS,
   PERSISTENCE_ERROR_KINDS,
   RUST_ONLY_DOMAIN_ERROR_KINDS,
@@ -158,6 +160,19 @@ const WRAPPERS: Readonly<Record<string, Wrapper>> = {
     ),
   delete_sheet: (args) =>
     deleteSheet(id.project(args), id.document(args), id.sheet(args)),
+  import_dropped_images: (args) =>
+    importDroppedImages(
+      args.dropId as string,
+      id.project(args),
+      id.document(args),
+    ),
+  copy_asset_to_document: (args) =>
+    copyAssetToDocument(
+      id.project(args),
+      unwrap(parseDocumentId(args.sourceDocumentId as string)),
+      id.contentPath(args),
+      unwrap(parseDocumentId(args.targetDocumentId as string)),
+    ),
   get_app_settings: () => getAppSettings(),
   set_theme_preference: (args) =>
     setThemePreference(
@@ -320,6 +335,7 @@ describe("error kinds shared with Rust", () => {
         ...PERSISTENCE_ERROR_KINDS,
         ...SESSION_ERROR_KINDS,
         ...FOLDER_SELECTION_ERROR_KINDS,
+        ...ASSET_ERROR_KINDS,
         ...LOCAL_STATE_ERROR_KINDS,
       ]),
     ].sort();

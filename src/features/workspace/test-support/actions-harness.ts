@@ -16,6 +16,11 @@ import {
   createApplicationStore,
 } from "../../../application/state/application-state";
 import {
+  createFakeAssetUrlResolver,
+  createFakeDropEventSource,
+  type FakeDropEventSource,
+} from "../../../application/test-support/fake-drop";
+import {
   createFakeAppSettingsGateway,
   createFakeOsThemeSource,
 } from "../../../application/test-support/fake-theme";
@@ -71,6 +76,7 @@ export interface ActionsHarness extends WorkspaceHarness {
   readonly actions: WorkspaceActions;
   readonly canvasActions: CanvasActions;
   readonly clipboard: ClipboardPort;
+  readonly dropEventSource: FakeDropEventSource;
   readonly viewportGateway: FakeViewportGateway;
   // Its own clock, so viewport saves are advanced independently of auto-save.
   readonly viewportScheduler: FakeScheduler;
@@ -93,8 +99,10 @@ export function createActionsHarness(): ActionsHarness {
     applicationStore: base.store,
     uiStateStore,
     idGenerator: createSequentialIdGenerator(),
+    gateway: base.gateway,
     clipboard,
   });
+  const dropEventSource = createFakeDropEventSource();
   const viewportGateway = createFakeViewportGateway();
   const viewportScheduler = createFakeScheduler();
   const viewportPersistence = createViewportPersistence({
@@ -113,6 +121,7 @@ export function createActionsHarness(): ActionsHarness {
     actions,
     canvasActions,
     clipboard,
+    dropEventSource,
     viewportGateway,
     viewportScheduler,
     viewportPersistence,
@@ -121,6 +130,8 @@ export function createActionsHarness(): ActionsHarness {
       uiStateStore,
       actions,
       canvasActions,
+      dropEventSource,
+      assetUrlResolver: createFakeAssetUrlResolver(),
       themeController,
     },
   };

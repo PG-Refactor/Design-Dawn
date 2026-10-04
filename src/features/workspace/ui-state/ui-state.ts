@@ -105,6 +105,8 @@ export const OPERATION_LABELS = [
   "pasteBlocks",
   "duplicateBlocks",
   "createBlock",
+  "importImages",
+  "importImagesWithoutSheet",
   "editBlockContent",
   "loadBlockContents",
   "undo",
@@ -153,6 +155,11 @@ export interface UiState {
   readonly editingBlock: EditingBlock | null;
   readonly renaming: RenamingTarget | null;
   readonly viewportBySheet: ReadonlyMap<SheetId, Viewport>;
+  // Image blocks whose picture could not be loaded by the `<img>` (the browser reports it,
+  // so only the UI knows). Listed in the notifications; cleared when a later load works.
+  readonly imageLoadFailures: ReadonlyMap<SheetId, ReadonlySet<BlockId>>;
+  // Files are being dragged over the window (Rust reports it): the canvas shows a drop hint.
+  readonly fileDragActive: boolean;
   readonly dialog: DialogState;
   readonly operationErrors: readonly OperationErrorEntry[];
   readonly nextOperationErrorId: number;
@@ -176,6 +183,8 @@ export function createInitialUiState(): UiState {
     editingBlock: null,
     renaming: null,
     viewportBySheet: new Map(),
+    imageLoadFailures: new Map(),
+    fileDragActive: false,
     dialog: NO_DIALOG,
     operationErrors: [],
     nextOperationErrorId: 1,
@@ -401,6 +410,59 @@ export function setViewport(
   };
 }
 
+export function setFileDragActive(state: UiState, active: boolean): UiState {
+  return state.fileDragActive === active
+    ? state
+    : { ...state, fileDragActive: active };
+}
+
+const NO_IMAGE_FAILURES: ReadonlySet<BlockId> = new Set();
+
+export function getImageLoadFailures(
+  state: UiState,
+  sheetId: SheetId,
+): ReadonlySet<BlockId> {
+  return state.imageLoadFailures.get(sheetId) ?? NO_IMAGE_FAILURES;
+}
+
+function withImageLoadFailures(
+  state: UiState,
+  sheetId: SheetId,
+  failures: ReadonlySet<BlockId>,
+): UiState {
+  if (sameMembers(getImageLoadFailures(state, sheetId), failures)) return state;
+  const imageLoadFailures = new Map(state.imageLoadFailures);
+  // Like the selection: an empty set is "no entry".
+  if (failures.size === 0) {
+    imageLoadFailures.delete(sheetId);
+  } else {
+    imageLoadFailures.set(sheetId, failures);
+  }
+  return { ...state, imageLoadFailures };
+}
+
+export function markImageLoadFailed(
+  state: UiState,
+  sheetId: SheetId,
+  blockId: BlockId,
+): UiState {
+  return withImageLoadFailures(
+    state,
+    sheetId,
+    new Set([...getImageLoadFailures(state, sheetId), blockId]),
+  );
+}
+
+export function clearImageLoadFailure(
+  state: UiState,
+  sheetId: SheetId,
+  blockId: BlockId,
+): UiState {
+  const remaining = new Set(getImageLoadFailures(state, sheetId));
+  remaining.delete(blockId);
+  return withImageLoadFailures(state, sheetId, remaining);
+}
+
 export function setActiveDocument(
   state: UiState,
   documentId: DocumentId | null,
@@ -436,6 +498,15 @@ export function pruneBlockReferences(
   const selection = getSelection(state, sheetId);
   const kept = [...selection].filter((id) => existingBlockIds.has(id));
   let next = withSelection(state, sheetId, new Set(kept));
+  next = withImageLoadFailures(
+    next,
+    sheetId,
+    new Set(
+      [...getImageLoadFailures(next, sheetId)].filter((id) =>
+        existingBlockIds.has(id),
+      ),
+    ),
+  );
   if (
     next.hoveredBlockId !== null &&
     !existingBlockIds.has(next.hoveredBlockId)

@@ -6,11 +6,14 @@ pub mod infrastructure;
 
 use std::sync::{Arc, Mutex};
 
+use application::dropped_files::DroppedFilesState;
 use application::folder_selection::FolderSelectionState;
 use application::local_state::operations::{LocalState, LocalStateDirectories};
 use application::session::ProjectSessions;
 use commands::{DialogFolderPicker, SharedFolderPicker};
 use tauri::{Builder, Manager, Runtime};
+
+use commands::{respond_to_asset_request, ASSET_URL_SCHEME};
 
 /// Registers the managed state and every command on `builder`. Production (`Wry`) and the
 /// command-boundary tests (`MockRuntime`) both go through this one function, so the tested
@@ -22,6 +25,20 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
     builder
         .manage(Mutex::new(ProjectSessions::default()))
         .manage(Mutex::new(FolderSelectionState::default()))
+        .manage(Mutex::new(DroppedFilesState::default()))
+        // Read-only image access for `<img>`; the handler runs on the blocking pool because
+        // an asset can be up to `ASSET_MAX_BYTES`.
+        .register_asynchronous_uri_scheme_protocol(
+            ASSET_URL_SCHEME,
+            |context, request, responder| {
+                let app = context.app_handle().clone();
+                let uri = request.uri().clone();
+                tauri::async_runtime::spawn_blocking(move || {
+                    let sessions = app.state::<Mutex<ProjectSessions>>();
+                    responder.respond(respond_to_asset_request(&sessions, &uri));
+                });
+            },
+        )
         .invoke_handler(tauri::generate_handler![
             commands::select_project_folder,
             commands::create_project,
@@ -43,12 +60,16 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::set_theme_preference,
             commands::get_sheet_viewport,
             commands::save_sheet_viewport,
+            commands::import_dropped_images,
+            commands::copy_asset_to_document,
         ])
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     configure(tauri::Builder::default())
+        // Registered here, not in `configure`: only the real window produces native drops.
+        .on_window_event(commands::handle_window_event)
         // Used from Rust only (`DialogExt`); no dialog permission is granted to the Frontend.
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
