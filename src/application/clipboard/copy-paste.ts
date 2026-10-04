@@ -1,11 +1,7 @@
 import { PASTE_OFFSET } from "../../config/canvas-config";
 import { isTextBlockType } from "../../domain/block/block-type";
 import { type DomainResult, ok } from "../../domain/shared/domain-result";
-import type {
-  BlockId,
-  ProjectId,
-  SheetId,
-} from "../../domain/shared/entity-id";
+import type { BlockId, SheetId } from "../../domain/shared/entity-id";
 import { type Position, parsePosition } from "../../domain/shared/geometry";
 import { findDuplicate } from "../../domain/shared/ordered-ids";
 import type { BlockSpec, CreateBlocksCommand } from "../commands/command";
@@ -18,7 +14,6 @@ import {
   operationErr,
   operationOk,
 } from "../ports/operation-error";
-import type { PersistenceGateway } from "../ports/persistence-gateway";
 import type {
   ClipboardBlock,
   ClipboardContent,
@@ -26,24 +21,27 @@ import type {
 } from "./clipboard";
 
 export interface CopyRequest {
+  // Application state of the document: block text comes from `contents` (the loaded
+  // text, including edits not saved yet), never from a file. Callers load the sheet's
+  // contents first.
   readonly state: DocumentData;
   readonly sheetId: SheetId;
   readonly blockIds: readonly BlockId[];
-  readonly projectId: ProjectId;
-  readonly gateway: PersistenceGateway;
 }
 
 interface CopiedGroup {
   readonly content: ClipboardContent;
-  // Top-left of the group's bounding box in world coordinates.
-  readonly origin: { readonly x: number; readonly y: number };
+  // Blocks that went into `content`, back-to-front.
+  readonly copiedBlockIds: readonly BlockId[];
 }
 
-// Reads the CURRENT text of each block. Callers flush the session first so content the
-// session has not saved yet is not missed. Targets come out back-to-front.
-async function readGroup(
-  request: CopyRequest,
-): Promise<OperationResult<CopiedGroup>> {
+// Targets come out back-to-front. Returns null content when no target has loaded text.
+function readGroup(request: CopyRequest): OperationResult<{
+  readonly group: CopiedGroup | null;
+  // Targets without loaded text (failed or never read). They are left out, never copied
+  // with a made-up text, and the caller reports them.
+  readonly skippedBlockIds: readonly BlockId[];
+}> {
   const sheet = findSheet(request.state, request.sheetId);
   if (!sheet.ok) return failWith(sheet.error);
   if (request.blockIds.length === 0) {
@@ -69,43 +67,69 @@ async function readGroup(
       `blocks of type ${unsupported.blockType} cannot be copied yet`,
     );
   }
+  const loaded = targets.filter((block) =>
+    request.state.contents.has(block.blockId),
+  );
+  const skippedBlockIds = targets
+    .filter((block) => !request.state.contents.has(block.blockId))
+    .map((block) => block.blockId);
+  if (loaded.length === 0) return operationOk({ group: null, skippedBlockIds });
   const origin = {
-    x: Math.min(...targets.map((block) => block.position.x)),
-    y: Math.min(...targets.map((block) => block.position.y)),
+    x: Math.min(...loaded.map((block) => block.position.x)),
+    y: Math.min(...loaded.map((block) => block.position.y)),
   };
-  const blocks: ClipboardBlock[] = [];
-  for (const block of targets) {
-    const text = await request.gateway.readBlockContent(
-      request.projectId,
-      request.state.document.documentId,
-      block.contentPath,
-    );
-    if (!text.ok) return failWith(text.error);
-    blocks.push({
-      blockType: block.blockType,
-      size: block.size,
-      offset: {
-        x: block.position.x - origin.x,
-        y: block.position.y - origin.y,
+  const blocks: ClipboardBlock[] = loaded.map((block) => ({
+    blockType: block.blockType,
+    size: block.size,
+    offset: {
+      x: block.position.x - origin.x,
+      y: block.position.y - origin.y,
+    },
+    text: request.state.contents.get(block.blockId) ?? "",
+  }));
+  return operationOk({
+    group: {
+      content: {
+        source: {
+          documentId: request.state.document.documentId,
+          sheetId: request.sheetId,
+          origin,
+        },
+        pasteCount: 0,
+        blocks,
       },
-      text: text.value,
-    });
-  }
-  return operationOk({ content: { blocks }, origin });
+      copiedBlockIds: loaded.map((block) => block.blockId),
+    },
+    skippedBlockIds,
+  });
 }
 
 export interface CopyBlocksRequest extends CopyRequest {
   readonly clipboard: ClipboardPort;
 }
 
-// Not a history step. On any failure the clipboard keeps its previous content.
-export async function copyBlocks(
+export interface CopyOutcome {
+  // The blocks that were copied (empty when none had loaded text), back-to-front.
+  readonly copiedBlockIds: readonly BlockId[];
+  readonly skippedBlockIds: readonly BlockId[];
+}
+
+// Not a history step and no I/O. The clipboard keeps its previous content on any
+// failure and when no target could be copied.
+export function copyBlocks(
   request: CopyBlocksRequest,
-): Promise<OperationResult<ClipboardContent>> {
-  const group = await readGroup(request);
-  if (!group.ok) return group;
-  request.clipboard.write(group.value.content);
-  return operationOk(group.value.content);
+): OperationResult<CopyOutcome> {
+  const read = readGroup(request);
+  if (!read.ok) return read;
+  const { group, skippedBlockIds } = read.value;
+  if (group === null) {
+    return operationOk({ copiedBlockIds: [], skippedBlockIds });
+  }
+  request.clipboard.write(group.content);
+  return operationOk({
+    copiedBlockIds: group.copiedBlockIds,
+    skippedBlockIds,
+  });
 }
 
 export interface PasteRequest {
@@ -157,21 +181,30 @@ export interface DuplicateRequest extends CopyRequest {
   readonly idGenerator: IdGenerator;
 }
 
+export interface DuplicateOutcome {
+  // null when no target had loaded text: nothing is created then.
+  readonly command: CreateBlocksCommand | null;
+  readonly skippedBlockIds: readonly BlockId[];
+}
+
 // Copy + paste in one step: the clipboard is not touched, and the copies land at
 // PASTE_OFFSET from the originals as a single command.
-export async function duplicateBlocks(
+export function duplicateBlocks(
   request: DuplicateRequest,
-): Promise<OperationResult<CreateBlocksCommand>> {
-  const group = await readGroup(request);
-  if (!group.ok) return group;
+): OperationResult<DuplicateOutcome> {
+  const read = readGroup(request);
+  if (!read.ok) return read;
+  const { group, skippedBlockIds } = read.value;
+  if (group === null) return operationOk({ command: null, skippedBlockIds });
+  const { origin } = group.content.source;
   const specs = pastedSpecs(
-    group.value.content,
-    {
-      x: group.value.origin.x + PASTE_OFFSET.x,
-      y: group.value.origin.y + PASTE_OFFSET.y,
-    },
+    group.content,
+    { x: origin.x + PASTE_OFFSET.x, y: origin.y + PASTE_OFFSET.y },
     request.idGenerator,
   );
   if (!specs.ok) return failWith(specs.error);
-  return operationOk(createBlocksCommand(request.sheetId, specs.value));
+  return operationOk({
+    command: createBlocksCommand(request.sheetId, specs.value),
+    skippedBlockIds,
+  });
 }

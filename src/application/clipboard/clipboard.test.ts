@@ -1,21 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { PASTE_OFFSET } from "../../config/canvas-config";
 import type { Block } from "../../domain/block/block";
+import { type DocumentData, withContents } from "../commands/document-data";
 import {
   blockIdOf,
-  createFakeGateway,
   createSequentialIdGenerator,
-  filesForBlocks,
+  DOCUMENT_ID,
   makeBlockAt,
   makeDocumentData,
-  PROJECT_ID,
+  OTHER_SHEET_ID,
   position,
   SHEET_ID,
   size,
   textOf,
 } from "../test-support/fakes";
 import { openSession } from "../test-support/session-harness";
-import { createInMemoryClipboard } from "./clipboard";
+import { type ClipboardContent, createInMemoryClipboard } from "./clipboard";
 import { copyBlocks, duplicateBlocks, pasteBlocksCommand } from "./copy-paste";
 
 // Back-to-front: 1 (at 100,100), 2 (at 150,120), 3 (at 400,300).
@@ -25,32 +25,51 @@ const BLOCKS: readonly Block[] = [
   makeBlockAt(3, 400, 300),
 ];
 
+const SOURCE = {
+  documentId: DOCUMENT_ID,
+  sheetId: SHEET_ID,
+  origin: { x: 0, y: 0 },
+} as const;
+
+// Application state whose texts are loaded for every block except `unloaded`.
+function loadedData(unloaded: readonly number[] = []): DocumentData {
+  const unloadedIds = new Set(unloaded.map(blockIdOf));
+  return withContents(
+    makeDocumentData(BLOCKS),
+    BLOCKS.filter((block) => !unloadedIds.has(block.blockId)).map(
+      (block) => [block.blockId, textOf(block.blockId)] as const,
+    ),
+  );
+}
+
 function setup() {
-  const data = makeDocumentData(BLOCKS);
-  const gateway = createFakeGateway(filesForBlocks(BLOCKS));
-  const clipboard = createInMemoryClipboard();
   return {
-    data,
-    gateway,
-    clipboard,
+    data: loadedData(),
+    clipboard: createInMemoryClipboard(),
     idGenerator: createSequentialIdGenerator(),
   };
 }
 
 describe("copyBlocks", () => {
-  it("reads each text and stores offsets relative to the group's top-left", async () => {
-    const { data, gateway, clipboard } = setup();
-    const result = await copyBlocks({
+  it("takes each text from the application state and stores offsets relative to the group's top-left", () => {
+    const { data, clipboard } = setup();
+    const result = copyBlocks({
       state: data,
       sheetId: SHEET_ID,
       // Selection order differs from z-order on purpose.
       blockIds: [blockIdOf(3), blockIdOf(1)],
-      projectId: PROJECT_ID,
-      gateway,
       clipboard,
     });
-    expect(result.ok).toBe(true);
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        copiedBlockIds: [blockIdOf(1), blockIdOf(3)],
+        skippedBlockIds: [],
+      },
+    });
     expect(clipboard.read()).toEqual({
+      source: { ...SOURCE, origin: { x: 100, y: 100 } },
+      pasteCount: 0,
       blocks: [
         {
           blockType: "markdown",
@@ -66,61 +85,96 @@ describe("copyBlocks", () => {
         },
       ],
     });
-    expect(gateway.methods()).toEqual(["readBlockContent", "readBlockContent"]);
   });
 
-  it("leaves the clipboard unchanged when a read fails or the request is invalid", async () => {
-    const { data, gateway, clipboard } = setup();
-    const request = {
-      state: data,
+  it("copies the current (edited, unsaved) text, not a file", () => {
+    const { clipboard } = setup();
+    const edited = withContents(loadedData(), [[blockIdOf(1), "edited"]]);
+    copyBlocks({
+      state: edited,
       sheetId: SHEET_ID,
-      projectId: PROJECT_ID,
-      gateway,
+      blockIds: [blockIdOf(1)],
       clipboard,
-    };
-    await copyBlocks({ ...request, blockIds: [blockIdOf(1)] });
+    });
+    expect(clipboard.read()?.blocks[0]?.text).toBe("edited");
+  });
+
+  it("leaves blocks without loaded text out and reports them", () => {
+    const { clipboard } = setup();
+    const result = copyBlocks({
+      state: loadedData([2]),
+      sheetId: SHEET_ID,
+      blockIds: [blockIdOf(1), blockIdOf(2), blockIdOf(3)],
+      clipboard,
+    });
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        copiedBlockIds: [blockIdOf(1), blockIdOf(3)],
+        skippedBlockIds: [blockIdOf(2)],
+      },
+    });
+    expect(clipboard.read()?.blocks).toHaveLength(2);
+  });
+
+  it("measures the origin from the copied blocks only", () => {
+    const { clipboard } = setup();
+    copyBlocks({
+      state: loadedData([1]),
+      sheetId: SHEET_ID,
+      blockIds: [blockIdOf(1), blockIdOf(2)],
+      clipboard,
+    });
+    expect(clipboard.read()?.source.origin).toEqual({ x: 150, y: 120 });
+  });
+
+  it("leaves the clipboard unchanged when nothing has loaded text or the request is invalid", () => {
+    const { data, clipboard } = setup();
+    const request = { state: data, sheetId: SHEET_ID, clipboard };
+    copyBlocks({ ...request, blockIds: [blockIdOf(1)] });
     const kept = clipboard.read();
-    gateway.failOn("readBlockContent", "ioError", 2);
-    const failed = await copyBlocks({
+    const nothingLoaded = copyBlocks({
       ...request,
+      state: loadedData([2, 3]),
       blockIds: [blockIdOf(2), blockIdOf(3)],
     });
-    expect(!failed.ok && failed.error.kind).toBe("ioError");
-    const unknown = await copyBlocks({ ...request, blockIds: [blockIdOf(99)] });
+    expect(nothingLoaded).toEqual({
+      ok: true,
+      value: {
+        copiedBlockIds: [],
+        skippedBlockIds: [blockIdOf(2), blockIdOf(3)],
+      },
+    });
+    const unknown = copyBlocks({ ...request, blockIds: [blockIdOf(99)] });
     expect(!unknown.ok && unknown.error.kind).toBe("entityNotFound");
-    const empty = await copyBlocks({ ...request, blockIds: [] });
+    const empty = copyBlocks({ ...request, blockIds: [] });
     expect(empty.ok).toBe(false);
     expect(clipboard.read()).toBe(kept);
   });
 
-  it("is not a history step", async () => {
+  it("is not a history step and does no I/O", async () => {
     const harness = openSession(BLOCKS);
+    await harness.session.loadSheetContents(SHEET_ID);
+    harness.gateway.clearCalls();
     const clipboard = createInMemoryClipboard();
-    await copyBlocks({
-      state: {
-        document: harness.session.getState().document,
-        sheets: harness.session.getState().sheets,
-        contents: harness.session.getState().contents,
-      },
+    copyBlocks({
+      state: harness.session.getState(),
       sheetId: SHEET_ID,
       blockIds: [blockIdOf(1)],
-      projectId: PROJECT_ID,
-      gateway: harness.gateway,
       clipboard,
     });
     expect(harness.session.getState().history.canUndo).toBe(false);
+    expect(harness.gateway.calls).toEqual([]);
   });
 });
 
 describe("pasteBlocksCommand", () => {
   it("creates new ids at target + offset in back-to-front order, as one history step", async () => {
-    const { data, gateway, clipboard, idGenerator } = setup();
-    await copyBlocks({
+    const { data, clipboard, idGenerator } = setup();
+    copyBlocks({
       state: data,
       sheetId: SHEET_ID,
       blockIds: [blockIdOf(1), blockIdOf(2)],
-      projectId: PROJECT_ID,
-      gateway,
       clipboard,
     });
     const content = clipboard.read();
@@ -168,7 +222,9 @@ describe("pasteBlocksCommand", () => {
 
   it("pastes the same content twice with distinct ids", () => {
     const { clipboard, idGenerator } = setup();
-    const content = {
+    const content: ClipboardContent = {
+      source: SOURCE,
+      pasteCount: 0,
       blocks: [
         {
           blockType: "markdown" as const,
@@ -198,7 +254,9 @@ describe("pasteBlocksCommand", () => {
 
   it("rejects a target that puts a block outside the coordinate range", () => {
     const { idGenerator } = setup();
-    const content = {
+    const content: ClipboardContent = {
+      source: SOURCE,
+      pasteCount: 0,
       blocks: [
         {
           blockType: "markdown" as const,
@@ -220,24 +278,29 @@ describe("pasteBlocksCommand", () => {
 
 describe("duplicateBlocks", () => {
   it("offsets the copies by PASTE_OFFSET as one command and leaves the clipboard alone", async () => {
-    const { data, gateway, clipboard, idGenerator } = setup();
-    const result = await duplicateBlocks({
+    const { data, clipboard, idGenerator } = setup();
+    const result = duplicateBlocks({
       state: data,
       sheetId: SHEET_ID,
       blockIds: [blockIdOf(2), blockIdOf(1)],
-      projectId: PROJECT_ID,
-      gateway,
       idGenerator,
     });
-    if (!result.ok) throw new Error("duplicate should build");
-    expect(result.value.specs.map((spec) => spec.position)).toEqual([
+    if (!result.ok || result.value.command === null) {
+      throw new Error("duplicate should build");
+    }
+    const { command } = result.value;
+    expect(command.specs.map((spec) => spec.position)).toEqual([
       { x: 100 + PASTE_OFFSET.x, y: 100 + PASTE_OFFSET.y },
       { x: 150 + PASTE_OFFSET.x, y: 120 + PASTE_OFFSET.y },
+    ]);
+    expect(command.specs.map((spec) => spec.text)).toEqual([
+      textOf(blockIdOf(1)),
+      textOf(blockIdOf(2)),
     ]);
     expect(clipboard.read()).toBeNull();
 
     const harness = openSession(BLOCKS);
-    await harness.session.execute(result.value);
+    await harness.session.execute(command);
     expect(
       harness.session.getState().sheets.get(SHEET_ID)?.blocks,
     ).toHaveLength(5);
@@ -248,18 +311,30 @@ describe("duplicateBlocks", () => {
     expect(harness.session.getState().history.canUndo).toBe(false);
   });
 
-  it("fails without a command when reading fails", async () => {
-    const { data, gateway, idGenerator } = setup();
-    gateway.failAlways("readBlockContent", "ioError");
-    const result = await duplicateBlocks({
-      state: data,
+  it("creates nothing when no target has loaded text and reports skipped blocks", () => {
+    const { idGenerator } = setup();
+    const result = duplicateBlocks({
+      state: loadedData([1, 2]),
       sheetId: SHEET_ID,
-      blockIds: [blockIdOf(1)],
-      projectId: PROJECT_ID,
-      gateway,
+      blockIds: [blockIdOf(1), blockIdOf(2)],
       idGenerator,
     });
-    expect(!result.ok && result.error.kind).toBe("ioError");
+    expect(result).toEqual({
+      ok: true,
+      value: { command: null, skippedBlockIds: [blockIdOf(1), blockIdOf(2)] },
+    });
+  });
+
+  it("duplicates only the blocks that have text", () => {
+    const { idGenerator } = setup();
+    const result = duplicateBlocks({
+      state: loadedData([1]),
+      sheetId: SHEET_ID,
+      blockIds: [blockIdOf(1), blockIdOf(2)],
+      idGenerator,
+    });
+    expect(result.ok && result.value.command?.specs).toHaveLength(1);
+    expect(result.ok && result.value.skippedBlockIds).toEqual([blockIdOf(1)]);
   });
 });
 
@@ -267,7 +342,11 @@ describe("in-memory clipboard", () => {
   it("starts empty and returns what was written", () => {
     const clipboard = createInMemoryClipboard();
     expect(clipboard.read()).toBeNull();
-    const content = { blocks: [] };
+    const content: ClipboardContent = {
+      source: { ...SOURCE, sheetId: OTHER_SHEET_ID },
+      pasteCount: 0,
+      blocks: [],
+    };
     clipboard.write(content);
     expect(clipboard.read()).toBe(content);
   });

@@ -43,3 +43,15 @@
 .block-create-menu__item:focus-visible {
   background: var(--color-selection);
 }
+
+/* Same look as the "+ Block" button; the menu opens below, aligned to the left edge. */
+.reorder-menu .popup-menu__trigger {
+  padding: var(--space-1) var(--space-3);
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+
+.reorder-menu .popup-menu__list {
+  right: auto;
+  left: 0;
+}

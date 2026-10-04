@@ -29,6 +29,23 @@
   transform-origin: 0 0;
 }
 
+/* Holding Space arms panning; the grab cursor must win over the block / handle cursors. */
+.canvas--pan-ready,
+.canvas--pan-ready .block-frame__body,
+.canvas--pan-ready .block-frame__resize-handle {
+  cursor: grab;
+}
+
+/* Zoom-independent border like the block outlines; the fill stays see-through so the
+   blocks under the rectangle remain visible. */
+.canvas__range-selection {
+  position: absolute;
+  box-sizing: border-box;
+  border: calc(1px / var(--canvas-zoom, 1)) solid var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+  pointer-events: none;
+}
+
 .canvas-panel {
   display: flex;
   flex: 1 1 auto;

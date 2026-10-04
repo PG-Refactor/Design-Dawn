@@ -28,6 +28,15 @@ export interface FramePreview {
   readonly height: number;
 }
 
+// A point in world coordinates (the space of Block positions).
+export interface WorldPoint {
+  readonly x: number;
+  readonly y: number;
+}
+
+// How a range selection applies to the current selection when it ends.
+export type RangeSelectionMode = "replace" | "toggle";
+
 export type Interaction =
   | { readonly kind: "idle" }
   | {
@@ -41,6 +50,15 @@ export type Interaction =
       readonly sheetId: SheetId;
       readonly blockId: BlockId;
       readonly frame: FramePreview;
+    }
+  // The selection rectangle. World coordinates, so it stays attached to the canvas
+  // content while the view is panned or zoomed. Never part of history.
+  | {
+      readonly kind: "rangeSelecting";
+      readonly sheetId: SheetId;
+      readonly start: WorldPoint;
+      readonly current: WorldPoint;
+      readonly mode: RangeSelectionMode;
     };
 
 // The modal that is open (at most one). Confirmation states carry the entity name as it
@@ -81,6 +99,11 @@ export const OPERATION_LABELS = [
   "moveBlocks",
   "resizeBlocks",
   "deleteBlocks",
+  "reorderBlocks",
+  "copyBlocks",
+  "cutBlocks",
+  "pasteBlocks",
+  "duplicateBlocks",
   "createBlock",
   "editBlockContent",
   "loadBlockContents",
@@ -270,7 +293,35 @@ export function updateResize(state: UiState, frame: FramePreview): UiState {
   return { ...state, interaction: { ...interaction, frame } };
 }
 
-// Ends or cancels a drag / resize. The caller reads `state.interaction` first when it
+export function startRangeSelection(
+  state: UiState,
+  sheetId: SheetId,
+  start: WorldPoint,
+  mode: RangeSelectionMode,
+): UiState {
+  return {
+    ...state,
+    interaction: {
+      kind: "rangeSelecting",
+      sheetId,
+      start,
+      current: start,
+      mode,
+    },
+  };
+}
+
+// Ignored unless a range selection is in progress (a late pointer event after cancel).
+export function updateRangeSelection(
+  state: UiState,
+  current: WorldPoint,
+): UiState {
+  const { interaction } = state;
+  if (interaction.kind !== "rangeSelecting") return state;
+  return { ...state, interaction: { ...interaction, current } };
+}
+
+// Ends or cancels a drag / resize / range selection. The caller reads `state.interaction` first when it
 // needs the final values to commit.
 export function endInteraction(state: UiState): UiState {
   return state.interaction.kind === "idle"

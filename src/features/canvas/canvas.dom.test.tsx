@@ -78,11 +78,12 @@ async function drag(
   target: HTMLElement,
   from: [number, number],
   to: [number, number],
+  extra: Record<string, unknown> = {},
 ) {
-  fireEvent.pointerDown(target, pointer(...from));
-  fireEvent.pointerMove(canvasElement(), pointer(...to));
+  fireEvent.pointerDown(target, pointer(...from, extra));
+  fireEvent.pointerMove(canvasElement(), pointer(...to, extra));
   await act(async () => {
-    fireEvent.pointerUp(canvasElement(), pointer(...to));
+    fireEvent.pointerUp(canvasElement(), pointer(...to, extra));
     await settle();
   });
 }
@@ -314,9 +315,9 @@ describe("pan, zoom and viewport persistence", () => {
     expect(panned?.panY).toBeCloseTo((zoomed?.panY ?? 0) - 20, 9);
   });
 
-  it("pans by dragging the empty canvas and keeps Domain data untouched", async () => {
+  it("pans by dragging with the middle button and keeps Domain data untouched", async () => {
     const { shell, canvas } = await renderOpenedCanvas();
-    await drag(canvasElement(), [400, 400], [430, 380]);
+    await drag(canvasElement(), [400, 400], [430, 380], { button: 1 });
     expect(
       shell.uiStateStore.getState().viewportBySheet.get(SHEET_A1),
     ).toMatchObject({

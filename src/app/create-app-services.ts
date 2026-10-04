@@ -1,6 +1,7 @@
 // Composition root: the only place that wires the real infrastructure to the application
 // layer. No React here; `main.tsx` hands the returned services to the UI.
 
+import { createInMemoryClipboard } from "../application/clipboard/clipboard";
 import { createDefaultIdGenerator } from "../application/id-generator";
 import {
   type ApplicationStore,
@@ -81,6 +82,8 @@ export function createAppServices(): AppServices {
     applicationStore,
     uiStateStore,
     idGenerator,
+    // One clipboard for the whole app: copy in one sheet or document, paste in another.
+    clipboard: createInMemoryClipboard(),
   });
   const viewportPersistence = createViewportPersistence({
     gateway: createTauriViewportGateway(),

@@ -1,5 +1,6 @@
 import {
   type CSSProperties,
+  type FocusEvent,
   type KeyboardEvent,
   type MouseEvent,
   type PointerEvent,
@@ -7,6 +8,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import type { ApplicationState } from "../../application/state/application-state";
 import { CANVAS_CONFIG } from "../../config/canvas-config";
@@ -30,18 +32,29 @@ import { createCanvasInput } from "./canvas-input";
 import {
   CANVAS_KEY_COMMANDS,
   isEditableTarget,
+  isPanModifierKey,
   keyCommandOf,
 } from "./canvas-keyboard";
+import { routePointerDown } from "./canvas-pointer-routing";
 import { displayedFrame, isInteracting } from "./geometry/preview-frame";
+import { normalizeRect } from "./geometry/range-selection";
 import {
   DEFAULT_VIEWPORT,
   type Point,
+  type Rect,
   worldLayerTransform,
 } from "./geometry/viewport-math";
 import "./canvas.css";
 
 const NO_BLOCKS: readonly Block[] = [];
-const PRIMARY_BUTTON = 0;
+
+// Key command -> z-order direction (the other key commands are not z-order changes).
+const REORDER_KEY_COMMANDS = {
+  [CANVAS_KEY_COMMANDS.bringForward]: "forward",
+  [CANVAS_KEY_COMMANDS.sendBackward]: "backward",
+  [CANVAS_KEY_COMMANDS.bringToFront]: "toFront",
+  [CANVAS_KEY_COMMANDS.sendToBack]: "toBack",
+} as const;
 
 // Screen position relative to the canvas element (the origin of `pan`).
 function pointRelativeTo(
@@ -50,6 +63,24 @@ function pointRelativeTo(
 ): Point {
   const rect = element.getBoundingClientRect();
   return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+}
+
+// The selection rectangle being dragged. Decorative: the selection result is announced
+// through the blocks' aria-selected.
+function RangeSelectionRect({ rect }: { readonly rect: Rect }) {
+  return (
+    <div
+      aria-hidden="true"
+      data-testid="canvas-range-selection"
+      className="canvas__range-selection"
+      style={{
+        left: rect.x,
+        top: rect.y,
+        width: rect.width,
+        height: rect.height,
+      }}
+    />
+  );
 }
 
 export interface CanvasProps {
@@ -109,6 +140,33 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
 
   const elementRef = useRef<HTMLDivElement>(null);
 
+  // Space held on the canvas = pan modifier. The ref is what handlers read (always
+  // current); the state only drives the grab cursor.
+  const spaceHeldRef = useRef(false);
+  const [spaceHeld, setSpaceHeld] = useState(false);
+  const updateSpaceHeld = useCallback((held: boolean) => {
+    spaceHeldRef.current = held;
+    setSpaceHeld(held);
+  }, []);
+  // A key-up that happens while the window is not focused would never be seen.
+  useEffect(() => {
+    const release = () => updateSpaceHeld(false);
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") release();
+    };
+    window.addEventListener("blur", release);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("blur", release);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [updateSpaceHeld]);
+
+  function canvasSize() {
+    const rect = elementRef.current?.getBoundingClientRect();
+    return { width: rect?.width ?? 0, height: rect?.height ?? 0 };
+  }
+
   // React registers wheel listeners as passive, which cannot stop the page from scrolling
   // or the webview from zooming; a native non-passive listener can.
   useEffect(() => {
@@ -139,7 +197,11 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
   }
 
   function onPointerDown(event: PointerEvent<HTMLDivElement>) {
-    if (event.button !== PRIMARY_BUTTON) return;
+    const route = routePointerDown({
+      button: event.button,
+      spaceHeld: spaceHeldRef.current,
+    });
+    if (route === "ignore") return;
     // A block editor owns its pointer events (text selection, caret, scrollbars).
     if (isInsideBlockEditor(event.target)) return;
     const element = event.currentTarget;
@@ -149,6 +211,12 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
       element.setPointerCapture(event.pointerId);
     }
     const point = pointRelativeTo(element, event);
+    if (route === "pan") {
+      // Stops the middle button's auto-scroll; panning must never change the selection.
+      event.preventDefault();
+      input.pointerDownForPan(point);
+      return;
+    }
     const target = event.target as Element;
     const handleBlockId = target.closest(`[${RESIZE_HANDLE_ATTRIBUTE}]`)
       ? blockIdOf(target, BLOCK_ID_ATTRIBUTE)
@@ -159,7 +227,10 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
     }
     const blockId = blockIdOf(target, BLOCK_ID_ATTRIBUTE);
     if (blockId === null) {
-      input.pointerDownOnBackground(point);
+      input.pointerDownOnBackground(
+        point,
+        event.ctrlKey || event.metaKey || event.shiftKey,
+      );
       return;
     }
     input.pointerDownOnBlock(
@@ -194,8 +265,25 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
     canvasActions.beginBlockEdit({ documentId, sheetId, blockId });
   }
 
+  function onKeyUp(event: KeyboardEvent<HTMLDivElement>) {
+    if (isPanModifierKey(event)) updateSpaceHeld(false);
+  }
+
+  function onBlur(event: FocusEvent<HTMLDivElement>) {
+    // Focus moving between the canvas and its blocks keeps the modifier.
+    const next = event.relatedTarget;
+    if (next instanceof Node && event.currentTarget.contains(next)) return;
+    updateSpaceHeld(false);
+  }
+
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    // Editors and inputs own their keys (Space, copy / paste, text undo ...).
     if (isEditableTarget(event.target) || isInsideBlockEditor(event.target)) {
+      return;
+    }
+    if (isPanModifierKey(event)) {
+      event.preventDefault();
+      updateSpaceHeld(true);
       return;
     }
     const command = keyCommandOf(event);
@@ -232,6 +320,32 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
         }
         return;
       }
+      case CANVAS_KEY_COMMANDS.copy:
+        void canvasActions.copySelection({ documentId, sheetId });
+        return;
+      case CANVAS_KEY_COMMANDS.cut:
+        void canvasActions.cutSelection({ documentId, sheetId });
+        return;
+      case CANVAS_KEY_COMMANDS.paste:
+        void canvasActions.pasteClipboard({
+          documentId,
+          sheetId,
+          viewportSize: canvasSize(),
+        });
+        return;
+      case CANVAS_KEY_COMMANDS.duplicate:
+        void canvasActions.duplicateSelection({ documentId, sheetId });
+        return;
+      case CANVAS_KEY_COMMANDS.bringForward:
+      case CANVAS_KEY_COMMANDS.sendBackward:
+      case CANVAS_KEY_COMMANDS.bringToFront:
+      case CANVAS_KEY_COMMANDS.sendToBack:
+        void canvasActions.reorderSelection({
+          documentId,
+          sheetId,
+          direction: REORDER_KEY_COMMANDS[command],
+        });
+        return;
       case CANVAS_KEY_COMMANDS.undo:
         void canvasActions.undo(documentId);
         return;
@@ -256,7 +370,7 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
       aria-multiselectable="true"
       aria-label={sheetName}
       tabIndex={0}
-      className="canvas"
+      className={spaceHeld ? "canvas canvas--pan-ready" : "canvas"}
       style={style}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -264,6 +378,8 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
       onPointerCancel={() => input.cancel()}
       onDoubleClick={onDoubleClick}
       onKeyDown={onKeyDown}
+      onKeyUp={onKeyUp}
+      onBlur={onBlur}
     >
       <div
         className="canvas__world"
@@ -287,6 +403,12 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
             />
           );
         })}
+        {interaction.kind === "rangeSelecting" &&
+          interaction.sheetId === sheetId && (
+            <RangeSelectionRect
+              rect={normalizeRect(interaction.start, interaction.current)}
+            />
+          )}
       </div>
     </div>
   );

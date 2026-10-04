@@ -230,9 +230,9 @@ describe("resize", () => {
 });
 
 describe("pan and wheel", () => {
-  it("pans the viewport (UI state) on a background drag and restores it on cancel", async () => {
+  it("pans the viewport (UI state) on a pan drag and restores it on cancel", async () => {
     const { harness, input } = await setup();
-    input.pointerDownOnBackground(ORIGIN);
+    input.pointerDownForPan(ORIGIN);
     input.pointerMove(moveBy(30, -12));
     expect(ui(harness).viewportBySheet.get(SHEET_A1)).toMatchObject({
       panX: 30,
@@ -249,7 +249,7 @@ describe("pan and wheel", () => {
     const { harness, input } = await setup();
     input.pointerDownOnBlock(BLOCK_ONE, ORIGIN, false);
     await input.pointerUp();
-    input.pointerDownOnBackground(ORIGIN);
+    input.pointerDownForPan(ORIGIN);
     input.pointerMove(moveBy(30, 30));
     await input.pointerUp();
     expect(selected(harness)).toEqual([BLOCK_ONE]);

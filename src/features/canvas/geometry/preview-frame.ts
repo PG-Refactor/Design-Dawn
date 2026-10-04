@@ -18,7 +18,11 @@ export function displayedFrame(
     width: block.size.width,
     height: block.size.height,
   };
-  if (interaction.kind === "idle" || interaction.sheetId !== sheetId) {
+  if (
+    interaction.kind === "idle" ||
+    interaction.kind === "rangeSelecting" ||
+    interaction.sheetId !== sheetId
+  ) {
     return base;
   }
   if (interaction.kind === "dragging") {
@@ -34,7 +38,11 @@ export function isInteracting(
   interaction: Interaction,
   sheetId: SheetId,
 ): boolean {
-  if (interaction.kind === "idle" || interaction.sheetId !== sheetId) {
+  if (
+    interaction.kind === "idle" ||
+    interaction.kind === "rangeSelecting" ||
+    interaction.sheetId !== sheetId
+  ) {
     return false;
   }
   return interaction.kind === "dragging"

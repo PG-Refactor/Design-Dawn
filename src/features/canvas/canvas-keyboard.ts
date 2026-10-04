@@ -7,6 +7,14 @@ export const CANVAS_KEY_COMMANDS = {
   redo: "redo",
   cancelGesture: "cancelGesture",
   startEditing: "startEditing",
+  copy: "copy",
+  cut: "cut",
+  paste: "paste",
+  duplicate: "duplicate",
+  bringForward: "bringForward",
+  sendBackward: "sendBackward",
+  bringToFront: "bringToFront",
+  sendToBack: "sendToBack",
 } as const;
 
 export type CanvasKeyCommand =
@@ -17,6 +25,9 @@ export interface KeyEventLike {
   readonly ctrlKey: boolean;
   readonly metaKey: boolean;
   readonly shiftKey: boolean;
+  // Physical key; used where `key` changes with Shift or the keyboard layout. Real
+  // keyboard events always have it.
+  readonly code?: string;
 }
 
 const KEYS = {
@@ -26,7 +37,29 @@ const KEYS = {
   enter: "Enter",
   undo: "z",
   redo: "y",
+  copy: "c",
+  cut: "x",
+  paste: "v",
+  duplicate: "d",
+  space: " ",
 } as const;
+
+// Z-order shortcuts are matched on the CHARACTER the key produces, not on its physical
+// position: on a Japanese (JIS) keyboard the key printed "]" is not at the US "]" position,
+// so matching `event.code` would make Ctrl+] do the opposite of what is printed. Shift
+// turns "]" / "[" into "}" / "{" on both US and JIS layouts, so both are accepted.
+const BRACKET_KEYS = {
+  forward: ["]", "}"],
+  backward: ["[", "{"],
+} as const;
+
+const CODES = {
+  space: "Space",
+} as const;
+
+function isOneOf(key: string, candidates: readonly string[]): boolean {
+  return candidates.includes(key);
+}
 
 // Matches keys case-insensitively: Shift turns "z" into "Z".
 function isLetter(event: KeyEventLike, letter: string): boolean {
@@ -45,6 +78,22 @@ export function keyCommandOf(event: KeyEventLike): CanvasKeyCommand | null {
     if (isLetter(event, KEYS.redo) && event.ctrlKey) {
       return CANVAS_KEY_COMMANDS.redo;
     }
+    if (isOneOf(event.key, BRACKET_KEYS.forward)) {
+      return event.shiftKey
+        ? CANVAS_KEY_COMMANDS.bringToFront
+        : CANVAS_KEY_COMMANDS.bringForward;
+    }
+    if (isOneOf(event.key, BRACKET_KEYS.backward)) {
+      return event.shiftKey
+        ? CANVAS_KEY_COMMANDS.sendToBack
+        : CANVAS_KEY_COMMANDS.sendBackward;
+    }
+    // Shift variants (for example Ctrl+Shift+V, "paste as plain text") are not ours.
+    if (event.shiftKey) return null;
+    if (isLetter(event, KEYS.copy)) return CANVAS_KEY_COMMANDS.copy;
+    if (isLetter(event, KEYS.cut)) return CANVAS_KEY_COMMANDS.cut;
+    if (isLetter(event, KEYS.paste)) return CANVAS_KEY_COMMANDS.paste;
+    if (isLetter(event, KEYS.duplicate)) return CANVAS_KEY_COMMANDS.duplicate;
     return null;
   }
   if (event.key === KEYS.delete || event.key === KEYS.backspace) {
@@ -52,6 +101,14 @@ export function keyCommandOf(event: KeyEventLike): CanvasKeyCommand | null {
   }
   if (event.key === KEYS.enter) return CANVAS_KEY_COMMANDS.startEditing;
   return null;
+}
+
+// The Space key is the pan modifier (hold Space and drag).
+export function isPanModifierKey(event: {
+  readonly key: string;
+  readonly code?: string;
+}): boolean {
+  return event.code === CODES.space || event.key === KEYS.space;
 }
 
 const EDITABLE_TAG_NAMES: ReadonlySet<string> = new Set([

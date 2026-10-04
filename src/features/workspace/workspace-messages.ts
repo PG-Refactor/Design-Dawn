@@ -131,6 +131,12 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   moveBlocks: "Blockを移動できませんでした",
   resizeBlocks: "Blockのサイズを変更できませんでした",
   deleteBlocks: "Blockを削除できませんでした",
+  reorderBlocks: "Blockの重なり順を変更できませんでした",
+  copyBlocks: "コピーできないBlockがありました（本文を読み込めていません）",
+  cutBlocks:
+    "切り取れないBlockがありました（本文を読み込めていないため、そのBlockは残しています）",
+  pasteBlocks: "Blockを貼り付けできませんでした",
+  duplicateBlocks: "複製できないBlockがありました（本文を読み込めていません）",
   createBlock: "Blockを追加できませんでした",
   editBlockContent:
     "Blockの本文の編集を確定できませんでした（編集内容は画面に残っています）",

@@ -21,10 +21,12 @@ import {
   selectBlocks,
   setViewport,
   startDrag,
+  startRangeSelection,
   startResize,
   toggleBlockSelection,
   type UiStateStore,
   updateDrag,
+  updateRangeSelection,
   updateResize,
 } from "../workspace/ui-state/ui-state";
 import type { CanvasActions } from "./canvas-actions";
@@ -34,10 +36,16 @@ import {
   resizePreviewFrame,
 } from "./geometry/interaction-math";
 import {
+  applyRangeHit,
+  blocksHitByRect,
+  normalizeRect,
+} from "./geometry/range-selection";
+import {
   DEFAULT_VIEWPORT,
   type Point,
   panBy,
   screenDeltaToWorld,
+  screenToWorld,
   zoomByWheel,
 } from "./geometry/viewport-math";
 
@@ -61,7 +69,11 @@ export interface CanvasInput {
   // `additive` (Ctrl / Meta / Shift) toggles the block in the selection.
   pointerDownOnBlock(blockId: BlockId, point: Point, additive: boolean): void;
   pointerDownOnResizeHandle(blockId: BlockId, point: Point): void;
-  pointerDownOnBackground(point: Point): void;
+  // Empty canvas: a click clears the selection, a drag draws the selection rectangle.
+  // `additive` (Ctrl / Meta / Shift) makes the rectangle toggle instead of replace.
+  pointerDownOnBackground(point: Point, additive?: boolean): void;
+  // Space + left button or the middle button, anywhere: pan, never touching selection.
+  pointerDownForPan(point: Point): void;
   pointerMove(point: Point): void;
   pointerUp(): Promise<void>;
   // Abandons the gesture in progress; nothing is committed.
@@ -97,7 +109,12 @@ type Gesture =
         height: number;
       };
     }
-  | { readonly kind: "backgroundPress"; readonly start: Point }
+  | {
+      readonly kind: "backgroundPress";
+      readonly start: Point;
+      readonly additive: boolean;
+    }
+  | { readonly kind: "rangeSelecting" }
   | {
       readonly kind: "panning";
       readonly start: Point;
@@ -186,9 +203,18 @@ export function createCanvasInput(
       gesture = { kind: "handlePress", blockId, start: point };
     },
 
-    pointerDownOnBackground(point) {
+    pointerDownOnBackground(point, additive = false) {
       if (committing) return;
-      gesture = { kind: "backgroundPress", start: point };
+      gesture = { kind: "backgroundPress", start: point, additive };
+    },
+
+    pointerDownForPan(point) {
+      if (committing) return;
+      gesture = {
+        kind: "panning",
+        start: point,
+        startViewport: currentViewport(),
+      };
     },
 
     pointerMove(point) {
@@ -218,14 +244,17 @@ export function createCanvasInput(
           );
           break;
         }
-        case "backgroundPress":
+        case "backgroundPress": {
           if (!exceedsDragThreshold(gesture.start, point)) return;
-          gesture = {
-            kind: "panning",
-            start: gesture.start,
-            startViewport: currentViewport(),
-          };
+          // The rectangle starts where the press was, not where the threshold was passed.
+          const startWorld = screenToWorld(gesture.start, currentViewport());
+          const mode = gesture.additive ? "toggle" : "replace";
+          gesture = { kind: "rangeSelecting" };
+          uiStateStore.setState((state) =>
+            startRangeSelection(state, sheetId, startWorld, mode),
+          );
           break;
+        }
         default:
           break;
       }
@@ -241,6 +270,11 @@ export function createCanvasInput(
             worldDeltaFrom(gesture.start, point),
           );
           uiStateStore.setState((state) => updateResize(state, frame));
+          break;
+        }
+        case "rangeSelecting": {
+          const world = screenToWorld(point, currentViewport());
+          uiStateStore.setState((state) => updateRangeSelection(state, world));
           break;
         }
         case "panning":
@@ -268,6 +302,23 @@ export function createCanvasInput(
         case "backgroundPress":
           uiStateStore.setState((state) => clearSelection(state, sheetId));
           return;
+        case "rangeSelecting": {
+          const { interaction } = uiStateStore.getState();
+          if (interaction.kind !== "rangeSelecting") return;
+          const hit = blocksHitByRect(
+            blocks(),
+            normalizeRect(interaction.start, interaction.current),
+          );
+          const next = applyRangeHit(
+            getSelection(uiStateStore.getState(), sheetId),
+            hit,
+            interaction.mode,
+          );
+          uiStateStore.setState((state) =>
+            endInteraction(selectBlocks(state, sheetId, next)),
+          );
+          return;
+        }
         case "dragging": {
           const { interaction } = uiStateStore.getState();
           if (interaction.kind !== "dragging") return;

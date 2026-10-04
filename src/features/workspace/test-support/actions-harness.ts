@@ -2,6 +2,10 @@
 // workspace UI (node and DOM). Not imported by production code.
 
 import {
+  type ClipboardPort,
+  createInMemoryClipboard,
+} from "../../../application/clipboard/clipboard";
+import {
   createBlocksCommand,
   deleteBlocksCommand,
 } from "../../../application/commands/file-backed-commands";
@@ -66,6 +70,7 @@ export interface ActionsHarness extends WorkspaceHarness {
   readonly uiStateStore: UiStateStore;
   readonly actions: WorkspaceActions;
   readonly canvasActions: CanvasActions;
+  readonly clipboard: ClipboardPort;
   readonly viewportGateway: FakeViewportGateway;
   // Its own clock, so viewport saves are advanced independently of auto-save.
   readonly viewportScheduler: FakeScheduler;
@@ -82,11 +87,13 @@ export function createActionsHarness(): ActionsHarness {
     applicationStore: base.store,
     uiStateStore,
   });
+  const clipboard = createInMemoryClipboard();
   const canvasActions = createCanvasActions({
     workspace: base.workspace,
     applicationStore: base.store,
     uiStateStore,
     idGenerator: createSequentialIdGenerator(),
+    clipboard,
   });
   const viewportGateway = createFakeViewportGateway();
   const viewportScheduler = createFakeScheduler();
@@ -105,6 +112,7 @@ export function createActionsHarness(): ActionsHarness {
     uiStateStore,
     actions,
     canvasActions,
+    clipboard,
     viewportGateway,
     viewportScheduler,
     viewportPersistence,
