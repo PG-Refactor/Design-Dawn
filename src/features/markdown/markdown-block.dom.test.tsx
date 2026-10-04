@@ -22,6 +22,7 @@ import {
   SHEET_A2,
 } from "../../application/test-support/workspace-harness";
 import { createWorkspace } from "../../application/workspace/workspace";
+import { RESIZE_HANDLE_ATTRIBUTE } from "../canvas/block-dom";
 import { BLOCK_ONE, BLOCK_TWO } from "../canvas/test-support/canvas-harness";
 import { setActiveSheet } from "../workspace/ui-state/ui-state";
 import { selectNotifications } from "../workspace/view-models/notifications-model";
@@ -180,6 +181,59 @@ describe("entering edit mode", () => {
     expect(document.activeElement).toBe(box);
     // Other blocks keep showing only their preview.
     expect(screen.getAllByRole("textbox")).toHaveLength(1);
+  });
+
+  describe("when the dblclick is aimed at the canvas itself (WebKitGTK pointer capture)", () => {
+    // After the canvas captured the pointer on pointerdown, WebKitGTK dispatches the
+    // dblclick to the canvas; only its coordinates still point at the block. jsdom has no
+    // elementFromPoint, so each test supplies the hit test.
+    const BLOCK_POINT = { clientX: 40, clientY: 30 };
+    function hitTestReturns(element: () => Element | null) {
+      Object.defineProperty(document, "elementFromPoint", {
+        configurable: true,
+        value: (x: number, y: number) =>
+          x === BLOCK_POINT.clientX && y === BLOCK_POINT.clientY
+            ? element()
+            : null,
+      });
+    }
+    const resizeHandleOf = (option: HTMLElement) =>
+      option.parentElement?.querySelector(
+        `[${RESIZE_HANDLE_ATTRIBUTE}]`,
+      ) as Element;
+    afterEach(() => {
+      Reflect.deleteProperty(document, "elementFromPoint");
+    });
+
+    it("opens the block under the pointer, found from an inner element", async () => {
+      await renderOpenedCanvas();
+      hitTestReturns(() => previewOf("00000002"));
+      fireEvent.doubleClick(canvasElement(), BLOCK_POINT);
+      const box = sourceBox("00000002");
+      expect(document.activeElement).toBe(box);
+      expect(screen.getAllByRole("textbox")).toHaveLength(1);
+    });
+
+    it("does nothing without a block under the pointer", async () => {
+      await renderOpenedCanvas();
+      for (const hit of [
+        () => null,
+        () => canvasElement(),
+        // Outside this canvas.
+        () => document.body,
+      ]) {
+        hitTestReturns(hit);
+        fireEvent.doubleClick(canvasElement(), BLOCK_POINT);
+        expect(screen.queryByRole("textbox")).toBeNull();
+      }
+    });
+
+    it("does nothing for the resize handle under the pointer", async () => {
+      await renderOpenedCanvas();
+      hitTestReturns(() => resizeHandleOf(blockOption(0)));
+      fireEvent.doubleClick(canvasElement(), BLOCK_POINT);
+      expect(screen.queryByRole("textbox")).toBeNull();
+    });
   });
 
   it("opens on Enter when exactly one Markdown block is selected", async () => {

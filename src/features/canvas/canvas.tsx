@@ -263,8 +263,25 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
     void input.pointerUp();
   }
 
+  // The element under the pointer, not `event.target`: the pointer capture taken on
+  // pointerdown (for dragging) makes WebKitGTK aim the dblclick at the canvas itself.
+  function elementUnderPointer(
+    event: MouseEvent<HTMLDivElement>,
+  ): Element | null {
+    const { ownerDocument } = event.currentTarget;
+    // jsdom has no layout (no elementFromPoint); real webviews do.
+    const hit =
+      typeof ownerDocument.elementFromPoint === "function"
+        ? ownerDocument.elementFromPoint(event.clientX, event.clientY)
+        : event.target;
+    return hit instanceof Element && event.currentTarget.contains(hit)
+      ? hit
+      : null;
+  }
+
   function onDoubleClick(event: MouseEvent<HTMLDivElement>) {
-    const target = event.target as Element;
+    const target = elementUnderPointer(event);
+    if (target === null) return;
     if (isInsideBlockEditor(target)) return;
     if (target.closest(`[${RESIZE_HANDLE_ATTRIBUTE}]`)) return;
     const blockId = blockIdOf(target, BLOCK_ID_ATTRIBUTE);
