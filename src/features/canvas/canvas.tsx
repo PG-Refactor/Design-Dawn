@@ -33,6 +33,7 @@ import {
   CANVAS_KEY_COMMANDS,
   isEditableTarget,
   isPanModifierKey,
+  isSnapSuspendKey,
   keyCommandOf,
 } from "./canvas-keyboard";
 import { routePointerDown } from "./canvas-pointer-routing";
@@ -242,7 +243,10 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
 
   function onPointerMove(event: PointerEvent<HTMLDivElement>) {
     if (!input.isGestureActive()) return;
-    input.pointerMove(pointRelativeTo(event.currentTarget, event));
+    input.pointerMove(
+      pointRelativeTo(event.currentTarget, event),
+      event.altKey,
+    );
   }
 
   function onPointerUp(event: PointerEvent<HTMLDivElement>) {
@@ -265,7 +269,25 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
     canvasActions.beginBlockEdit({ documentId, sheetId, blockId });
   }
 
+  // Alt toggles the grid snap of the move / resize in progress. Its default action (the
+  // menu bar taking focus on release) is suppressed only then, so the gesture is not
+  // interrupted; Alt outside a gesture and inside editors is left alone.
+  function onSnapSuspendKey(
+    event: KeyboardEvent<HTMLDivElement>,
+    suspended: boolean,
+  ): boolean {
+    if (!isSnapSuspendKey(event)) return false;
+    if (isEditableTarget(event.target) || isInsideBlockEditor(event.target)) {
+      return false;
+    }
+    if (!input.isGestureActive()) return false;
+    event.preventDefault();
+    input.setSnapSuspended(suspended);
+    return true;
+  }
+
   function onKeyUp(event: KeyboardEvent<HTMLDivElement>) {
+    if (onSnapSuspendKey(event, false)) return;
     if (isPanModifierKey(event)) updateSpaceHeld(false);
   }
 
@@ -281,6 +303,7 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
     if (isEditableTarget(event.target) || isInsideBlockEditor(event.target)) {
       return;
     }
+    if (onSnapSuspendKey(event, true)) return;
     if (isPanModifierKey(event)) {
       event.preventDefault();
       updateSpaceHeld(true);
@@ -355,7 +378,7 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
     }
   }
 
-  const { size: gridSize } = CANVAS_CONFIG.grid;
+  const { interval: gridSize } = CANVAS_CONFIG.grid;
   // The grid follows the viewport, so panning and zooming are visible on an empty canvas.
   const style = {
     "--canvas-zoom": viewport.zoom,

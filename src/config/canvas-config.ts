@@ -33,8 +33,9 @@ export const CANVAS_CONFIG = {
     shortIdLength: 8,
   },
   grid: {
-    // Spacing of the background dots at zoom 1 (screen pixels).
-    size: 24,
+    // Spacing of the background dots AND the snap interval of block move / resize, in
+    // WORLD units (the dots follow pan and zoom, so on screen it is interval * zoom).
+    interval: 24,
   },
 } as const;
 

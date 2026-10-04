@@ -8,6 +8,7 @@
 
 import type { Viewport } from "../../application/local-state/viewport";
 import type { ApplicationStore } from "../../application/state/application-state";
+import { CANVAS_CONFIG } from "../../config/canvas-config";
 import type { Block } from "../../domain/block/block";
 import type {
   BlockId,
@@ -40,10 +41,17 @@ import {
   blocksHitByRect,
   normalizeRect,
 } from "./geometry/range-selection";
+import { boundsOfRects } from "./geometry/selection-bounds";
+import {
+  type ResizeEdges,
+  snappedMoveDelta,
+  snappedResizeFrame,
+} from "./geometry/snap";
 import {
   DEFAULT_VIEWPORT,
   type Point,
   panBy,
+  type Rect,
   screenDeltaToWorld,
   screenToWorld,
   zoomByWheel,
@@ -74,7 +82,11 @@ export interface CanvasInput {
   pointerDownOnBackground(point: Point, additive?: boolean): void;
   // Space + left button or the middle button, anywhere: pan, never touching selection.
   pointerDownForPan(point: Point): void;
-  pointerMove(point: Point): void;
+  // `snapSuspended` (Alt held) switches the grid snap of a move / resize off.
+  pointerMove(point: Point, snapSuspended?: boolean): void;
+  // Alt pressed / released mid-gesture: the preview is recomputed from the last pointer
+  // position. Issues no command. Does nothing outside a move / resize.
+  setSnapSuspended(suspended: boolean): void;
   pointerUp(): Promise<void>;
   // Abandons the gesture in progress; nothing is committed.
   cancel(): void;
@@ -93,7 +105,12 @@ type Gesture =
       // selection to that block, a drag moves the whole selection.
       readonly narrowOnClick: boolean;
     }
-  | { readonly kind: "dragging"; readonly start: Point }
+  | {
+      readonly kind: "dragging";
+      readonly start: Point;
+      // Union of the dragged blocks: the unit that snaps (null: nothing to drag).
+      readonly bounds: Rect | null;
+    }
   | {
       readonly kind: "handlePress";
       readonly blockId: BlockId;
@@ -121,6 +138,9 @@ type Gesture =
       readonly startViewport: Viewport;
     };
 
+// The only handle is the bottom-right corner.
+const RESIZE_HANDLE_EDGES: ResizeEdges = { right: true, bottom: true };
+
 export function createCanvasInput(
   dependencies: CanvasInputDependencies,
 ): CanvasInput {
@@ -130,6 +150,10 @@ export function createCanvasInput(
   // True while a finished drag / resize is waiting for its command. The preview is still
   // on screen then, so starting another gesture (or changing the viewport) must wait.
   let committing = false;
+  // Alt held. Not persisted: it only lives as long as the gesture.
+  let snapSuspended = false;
+  // Where the pointer last was, so toggling Alt can recompute the preview.
+  let lastPoint: Point | null = null;
 
   function currentViewport(): Viewport {
     return (
@@ -168,6 +192,48 @@ export function createCanvasInput(
 
   function worldDeltaFrom(start: Point, point: Point): Point {
     return screenDeltaToWorld(pointDifference(point, start), currentViewport());
+  }
+
+  function boundsOfBlocks(blockIds: readonly BlockId[]): Rect | null {
+    return boundsOfRects(
+      blocks()
+        .filter((block) => blockIds.includes(block.blockId))
+        .map((block) => ({
+          x: block.position.x,
+          y: block.position.y,
+          width: block.size.width,
+          height: block.size.height,
+        })),
+    );
+  }
+
+  // Preview of a move / resize at the pointer: the snapped result (or the raw one while
+  // snapping is suspended). The commit on release uses exactly this preview.
+  function updateMoveOrResizePreview(point: Point): void {
+    if (gesture?.kind === "dragging") {
+      const raw = worldDeltaFrom(gesture.start, point);
+      const delta =
+        snapSuspended || gesture.bounds === null
+          ? raw
+          : snappedMoveDelta(gesture.bounds, raw, CANVAS_CONFIG.grid.interval);
+      uiStateStore.setState((state) => updateDrag(state, delta));
+    } else if (gesture?.kind === "resizing") {
+      const raw = worldDeltaFrom(gesture.start, point);
+      const frame = snapSuspended
+        ? resizePreviewFrame(gesture.startFrame, raw)
+        : snappedResizeFrame(
+            gesture.startFrame,
+            raw,
+            RESIZE_HANDLE_EDGES,
+            CANVAS_CONFIG.grid.interval,
+          );
+      uiStateStore.setState((state) => updateResize(state, frame));
+    }
+  }
+
+  function endGestureState(): void {
+    snapSuspended = false;
+    lastPoint = null;
   }
 
   return {
@@ -217,12 +283,18 @@ export function createCanvasInput(
       };
     },
 
-    pointerMove(point) {
+    pointerMove(point, suspended = false) {
       if (gesture === null) return;
+      snapSuspended = suspended;
+      lastPoint = point;
       switch (gesture.kind) {
         case "blockPress":
           if (!exceedsDragThreshold(gesture.start, point)) return;
-          gesture = { kind: "dragging", start: gesture.start };
+          gesture = {
+            kind: "dragging",
+            start: gesture.start,
+            bounds: boundsOfBlocks(selectedBlockIds()),
+          };
           beginDrag();
           break;
         case "handlePress": {
@@ -259,19 +331,10 @@ export function createCanvasInput(
           break;
       }
       switch (gesture?.kind) {
-        case "dragging": {
-          const delta = worldDeltaFrom(gesture.start, point);
-          uiStateStore.setState((state) => updateDrag(state, delta));
+        case "dragging":
+        case "resizing":
+          updateMoveOrResizePreview(point);
           break;
-        }
-        case "resizing": {
-          const frame = resizePreviewFrame(
-            gesture.startFrame,
-            worldDeltaFrom(gesture.start, point),
-          );
-          uiStateStore.setState((state) => updateResize(state, frame));
-          break;
-        }
         case "rangeSelecting": {
           const world = screenToWorld(point, currentViewport());
           uiStateStore.setState((state) => updateRangeSelection(state, world));
@@ -287,9 +350,15 @@ export function createCanvasInput(
       }
     },
 
+    setSnapSuspended(suspended) {
+      snapSuspended = suspended;
+      if (lastPoint !== null) updateMoveOrResizePreview(lastPoint);
+    },
+
     async pointerUp() {
       const finished = gesture;
       gesture = null;
+      endGestureState();
       if (finished === null) return;
       switch (finished.kind) {
         case "blockPress":
@@ -366,6 +435,7 @@ export function createCanvasInput(
     cancel() {
       const cancelled = gesture;
       gesture = null;
+      endGestureState();
       if (cancelled === null) return;
       uiStateStore.setState(endInteraction);
       // A cancelled pan goes back to where it started.

@@ -74,6 +74,9 @@ const pointer = (
   ...extra,
 });
 
+// Held Alt = no grid snap; for tests that assert unsnapped values.
+const ALT = { altKey: true };
+
 async function drag(
   target: HTMLElement,
   from: [number, number],
@@ -175,7 +178,7 @@ describe("drag", () => {
     const before = shell.store.getState();
 
     fireEvent.pointerDown(blockOption(0), pointer(100, 100));
-    fireEvent.pointerMove(canvasElement(), pointer(113.72, 100));
+    fireEvent.pointerMove(canvasElement(), pointer(113.72, 100, ALT));
     expect(shell.store.getState()).toBe(before);
     expect(canvas.session.getState().history.canUndo).toBe(false);
     expect(frameOf(blockOption(0)).style.left).toBe("23.72px");
@@ -196,7 +199,7 @@ describe("drag", () => {
     fireEvent.pointerDown(blockOption(2), pointer(0, 0, { shiftKey: true }));
     fireEvent.pointerUp(canvasElement(), pointer(0, 0));
 
-    await drag(blockOption(0), [0, 0], [30, 10]);
+    await drag(blockOption(0), [0, 0], [30, 10], ALT);
 
     const positions = canvas.blocksOfSheetA1().map((block) => block.position);
     expect(positions).toEqual([
@@ -229,12 +232,12 @@ describe("resize", () => {
   it("resizes through the handle with one entry and never below the minimum", async () => {
     const { canvas } = await renderOpenedCanvas();
     fireEvent.pointerDown(resizeHandle(0), pointer(0, 0));
-    fireEvent.pointerMove(canvasElement(), pointer(-5000, -5000));
+    fireEvent.pointerMove(canvasElement(), pointer(-5000, -5000, ALT));
     expect(frameOf(blockOption(0)).style.width).toBe(
       `${CANVAS_CONFIG.block.minSize.width}px`,
     );
 
-    fireEvent.pointerMove(canvasElement(), pointer(40, 25));
+    fireEvent.pointerMove(canvasElement(), pointer(40, 25, ALT));
     await act(async () => {
       fireEvent.pointerUp(canvasElement(), pointer(40, 25));
       await settle();

@@ -62,6 +62,7 @@ import {
 import { isEditableBlockType } from "./block-capabilities";
 import { skippedBlocksSubject } from "./canvas-messages";
 import { findCreatableBlockType } from "./creatable-block-types";
+import { type AlignMode, alignedMoves } from "./geometry/align";
 import { pasteTarget } from "./geometry/paste-target";
 import {
   DEFAULT_VIEWPORT,
@@ -129,6 +130,10 @@ export interface ReorderSelectionInput extends SelectionActionInput {
   readonly direction: ReorderDirection;
 }
 
+export interface AlignSelectionInput extends SelectionActionInput {
+  readonly mode: AlignMode;
+}
+
 export interface PasteInput extends SelectionActionInput {
   // Size of the canvas element in screen pixels; a paste into another sheet is centred in
   // what it shows.
@@ -144,6 +149,10 @@ export interface CanvasActions {
   reorderSelection(
     input: ReorderSelectionInput,
   ): Promise<OperationResult<void>>;
+  // Aligns the selected blocks to their bounding box: one move command (one history
+  // entry) holding only the blocks that change; nothing happens with fewer than two
+  // selected blocks or when they are already aligned.
+  alignSelection(input: AlignSelectionInput): Promise<OperationResult<void>>;
   // Copy / cut / duplicate read block text from the application state, after waiting for
   // the sheet's contents to be loaded. Blocks whose text is not available are left out and
   // reported; they are never copied empty and a cut never deletes them.
@@ -392,6 +401,29 @@ export function createCanvasActions(
         "reorderBlocks",
         documentId,
         reorderBlocksCommand(sheetId, blockIds, direction),
+      );
+    },
+
+    async alignSelection({ documentId, sheetId, mode }) {
+      const blockIds = new Set(selectedBlockIds(documentId, sheetId));
+      if (blockIds.size < 2) return NOTHING_TO_DO;
+      const moves = record(
+        "moveBlocks",
+        fromDomainResult(
+          alignedMoves(
+            blocksOf(documentId, sheetId).filter((block) =>
+              blockIds.has(block.blockId),
+            ),
+            mode,
+          ),
+        ),
+      );
+      if (!moves.ok) return failWith(moves.error);
+      if (moves.value.length === 0) return NOTHING_TO_DO;
+      return execute(
+        "moveBlocks",
+        documentId,
+        moveBlocksCommand(sheetId, moves.value),
       );
     },
 

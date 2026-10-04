@@ -19,6 +19,16 @@ export const CANVAS_MESSAGES = {
     toFront: "最前面へ",
     toBack: "最背面へ",
   },
+  align: {
+    menuButton: "整列",
+    menuLabel: "Blockの整列",
+    left: "左揃え",
+    horizontalCenter: "左右中央揃え",
+    right: "右揃え",
+    top: "上揃え",
+    verticalCenter: "上下中央揃え",
+    bottom: "下揃え",
+  },
   placeholder: {
     type: "種類",
     id: "ID",

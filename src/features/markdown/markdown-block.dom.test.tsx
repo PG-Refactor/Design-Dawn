@@ -138,7 +138,10 @@ describe("content loading", () => {
       harness.gateway.files.delete([...harness.gateway.files.keys()][0] ?? "");
     });
     fireEvent.pointerDown(blockOption(0), pointer(100, 100));
-    fireEvent.pointerMove(canvasElement(), pointer(130, 100));
+    fireEvent.pointerMove(canvasElement(), {
+      ...pointer(130, 100),
+      altKey: true,
+    });
     await act(async () => {
       fireEvent.pointerUp(canvasElement(), pointer(130, 100));
       await settle();
@@ -525,7 +528,10 @@ describe("a Markdown block outside edit mode", () => {
   it("is dragged from its preview content and moved as one undoable step", async () => {
     const { canvas } = await renderOpenedCanvas();
     fireEvent.pointerDown(previewOf("00000001"), pointer(100, 100));
-    fireEvent.pointerMove(canvasElement(), pointer(125, 110));
+    fireEvent.pointerMove(canvasElement(), {
+      ...pointer(125, 110),
+      altKey: true,
+    });
     await act(async () => {
       fireEvent.pointerUp(canvasElement(), pointer(125, 110));
       await settle();

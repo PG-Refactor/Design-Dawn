@@ -16,12 +16,24 @@ export interface PopupMenuItem {
   readonly onSelect: () => void;
 }
 
+// A divider between groups of items; not focusable and not chosen.
+export interface PopupMenuSeparator {
+  readonly id: string;
+  readonly separator: true;
+}
+
+export type PopupMenuEntry = PopupMenuItem | PopupMenuSeparator;
+
+function isSeparator(entry: PopupMenuEntry): entry is PopupMenuSeparator {
+  return "separator" in entry;
+}
+
 export interface PopupMenuProps {
   // Accessible name of the trigger button; `triggerContent` is only its visible glyph.
   readonly triggerLabel: string;
   readonly triggerContent: ReactNode;
   readonly menuLabel: string;
-  readonly items: readonly PopupMenuItem[];
+  readonly items: readonly PopupMenuEntry[];
   // Lets a roving-tabindex host (the tree) keep the trigger out of the Tab order.
   readonly triggerTabIndex?: number;
   readonly className?: string;
@@ -147,18 +159,22 @@ export function PopupMenu({
           className="popup-menu__list"
           onKeyDown={onMenuKeyDown}
         >
-          {items.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              role="menuitem"
-              className="popup-menu__item"
-              aria-disabled={item.disabled === true ? true : undefined}
-              onClick={() => choose(item)}
-            >
-              {item.label}
-            </button>
-          ))}
+          {items.map((item) =>
+            isSeparator(item) ? (
+              <hr key={item.id} className="popup-menu__separator" />
+            ) : (
+              <button
+                key={item.id}
+                type="button"
+                role="menuitem"
+                className="popup-menu__item"
+                aria-disabled={item.disabled === true ? true : undefined}
+                onClick={() => choose(item)}
+              >
+                {item.label}
+              </button>
+            ),
+          )}
         </div>
       )}
     </div>

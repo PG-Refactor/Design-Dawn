@@ -16,6 +16,8 @@ import {
 } from "./test-support/canvas-harness";
 
 const ORIGIN = { x: 100, y: 100 };
+// These tests assert exact (unsnapped) values, so they hold Alt.
+const SNAP_OFF = true;
 const { dragThresholdPx } = CANVAS_CONFIG.interaction;
 
 async function setup() {
@@ -89,8 +91,8 @@ describe("drag", () => {
     const { harness, input } = await setup();
     const before = harness.store.getState();
     input.pointerDownOnBlock(BLOCK_ONE, ORIGIN, false);
-    input.pointerMove(moveBy(10.5, -3.25));
-    input.pointerMove(moveBy(30.6, 5.4));
+    input.pointerMove(moveBy(10.5, -3.25), SNAP_OFF);
+    input.pointerMove(moveBy(30.6, 5.4), SNAP_OFF);
 
     const { interaction } = ui(harness);
     expect(interaction.kind).toBe("dragging");
@@ -112,14 +114,14 @@ describe("drag", () => {
     const { harness, input } = await setup();
     // Make the sheet dirty, then leave its save in flight so the next command must wait.
     input.pointerDownOnBlock(BLOCK_ONE, ORIGIN, false);
-    input.pointerMove(moveBy(30, 0));
+    input.pointerMove(moveBy(30, 0), SNAP_OFF);
     await input.pointerUp();
     const afterFirstDrag = positionOf(harness, 0);
     const releaseSave = harness.gateway.hold("saveSheet");
     const flushing = harness.session.flush();
 
     input.pointerDownOnBlock(BLOCK_ONE, ORIGIN, false);
-    input.pointerMove(moveBy(50, 0));
+    input.pointerMove(moveBy(50, 0), SNAP_OFF);
     const committing = input.pointerUp();
     await Promise.resolve();
 
@@ -155,7 +157,7 @@ describe("drag", () => {
     input.pointerDownOnBlock(BLOCK_ONE, ORIGIN, false);
     await input.pointerUp();
     input.pointerDownOnBlock(BLOCK_THREE, ORIGIN, true);
-    input.pointerMove(moveBy(15, 15));
+    input.pointerMove(moveBy(15, 15), SNAP_OFF);
     await input.pointerUp();
     expect(positionOf(harness, 0)).toEqual({ x: 25, y: 35 });
     expect(positionOf(harness, 1)).toEqual({ x: 300, y: 40 });
@@ -173,7 +175,7 @@ describe("drag", () => {
       ),
     );
     input.pointerDownOnBlock(BLOCK_ONE, ORIGIN, false);
-    input.pointerMove(moveBy(40, 20));
+    input.pointerMove(moveBy(40, 20), SNAP_OFF);
     await input.pointerUp();
     expect(positionOf(harness, 0)).toEqual({ x: 30, y: 30 });
   });
@@ -195,12 +197,12 @@ describe("resize", () => {
   it("previews, clamps at the minimum and commits one command", async () => {
     const { harness, input } = await setup();
     input.pointerDownOnResizeHandle(BLOCK_ONE, ORIGIN);
-    input.pointerMove(moveBy(40, 25));
+    input.pointerMove(moveBy(40, 25), SNAP_OFF);
     expect(ui(harness).interaction).toMatchObject({
       kind: "resizing",
       frame: { x: 10, y: 20, width: 140, height: 75 },
     });
-    input.pointerMove(moveBy(-5000, -5000));
+    input.pointerMove(moveBy(-5000, -5000), SNAP_OFF);
     expect(ui(harness).interaction).toMatchObject({
       frame: CANVAS_CONFIG.block.minSize,
     });
@@ -209,7 +211,7 @@ describe("resize", () => {
       height: 50,
     });
 
-    input.pointerMove(moveBy(40.4, 25.6));
+    input.pointerMove(moveBy(40.4, 25.6), SNAP_OFF);
     await input.pointerUp();
     expect(harness.blocksOfSheetA1()[0]?.size).toEqual({
       width: 140,

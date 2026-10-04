@@ -57,3 +57,12 @@
   color: var(--color-text-muted);
   cursor: not-allowed;
 }
+
+.popup-menu__separator {
+  /* <hr> carries the separator role; its default border is replaced by a 1px line. */
+  width: 100%;
+  height: 1px;
+  margin: var(--space-1) 0;
+  border: none;
+  background: var(--color-border);
+}
