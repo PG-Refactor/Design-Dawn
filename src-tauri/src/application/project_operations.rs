@@ -153,6 +153,7 @@ pub fn open_project(
             DocumentRecord {
                 directory_name: child.directory_name,
                 writable: loaded,
+                opened: false,
                 sheets: BTreeMap::new(),
             },
         );

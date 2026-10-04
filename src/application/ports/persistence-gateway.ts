@@ -42,6 +42,12 @@ export interface PersistenceGateway {
     projectId: ProjectId,
     documentId: DocumentId,
   ): Promise<OperationResult<DocumentSnapshot>>;
+  // Tells Rust the Document is no longer open (its assets stop being served). Touches no
+  // file; the caller has saved the Document before.
+  closeDocument(
+    projectId: ProjectId,
+    documentId: DocumentId,
+  ): Promise<OperationResult<void>>;
   createSheet(
     projectId: ProjectId,
     documentId: DocumentId,

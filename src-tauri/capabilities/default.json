@@ -1,16 +1,16 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Minimal permissions for the main window: core defaults plus the application's own commands",
+  "description": "Only the application's own commands; no core plugin permissions so the webview cannot listen to Tauri's built-in events (drag-drop paths) or resolve OS paths",
   "windows": ["main"],
   "permissions": [
-    "core:default",
     "allow-select-project-folder",
     "allow-create-project",
     "allow-open-project",
     "allow-save-project",
     "allow-create-document",
     "allow-load-document",
+    "allow-close-document",
     "allow-save-document",
     "allow-create-sheet",
     "allow-save-sheet",
@@ -26,6 +26,7 @@
     "allow-get-sheet-viewport",
     "allow-save-sheet-viewport",
     "allow-import-dropped-images",
-    "allow-copy-asset-to-document"
+    "allow-copy-asset-to-document",
+    "allow-subscribe-drop-notifications"
   ]
 }

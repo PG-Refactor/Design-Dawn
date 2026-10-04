@@ -12,7 +12,9 @@ use std::sync::Mutex;
 use design_dawn_lib::application::asset_import::{
     copy_asset_to_document, import_dropped_images, DropImportResult,
 };
-use design_dawn_lib::application::document_operations::create_document;
+use design_dawn_lib::application::document_operations::{
+    close_document, create_document, load_document,
+};
 use design_dawn_lib::application::dropped_files::{register_drop, DroppedFilesState};
 use design_dawn_lib::application::error::ErrorKind;
 use design_dawn_lib::application::session::ProjectSessions;
@@ -24,6 +26,8 @@ use support::*;
 use tauri::http::Uri;
 
 const SECOND_DOCUMENT_ID: &str = "01928f3a-0002-7aaa-8bbb-0123456789ab";
+/// A well-formed UUID of the wrong version; ids are UUIDv7.
+const UUID_V4: &str = "9b2f3c1e-4d5a-4b6c-8d7e-1f2a3b4c5d6e";
 const FIXTURE_ASSET: &str = "assets/pixel.png";
 const MIME_HEADER: &str = "content-type";
 const CSP_HEADER: &str = "content-security-policy";
@@ -42,6 +46,8 @@ struct Fixture {
 impl Fixture {
     fn new() -> Self {
         let mut opened = open_copy();
+        // Only an opened Document is served and may receive assets.
+        load_document(&mut opened.sessions, PROJECT_ID, DOCUMENT_ID).unwrap();
         create_document(
             &mut opened.sessions,
             PROJECT_ID,
@@ -105,6 +111,10 @@ impl Fixture {
     ) -> tauri::http::Response<std::borrow::Cow<'static, [u8]>> {
         let uri: Uri = format!("{host}{path}").parse().unwrap();
         respond_to_asset_request(&self.sessions, &uri)
+    }
+
+    fn close(&self, document_id: &str) {
+        close_document(&mut self.sessions.lock().unwrap(), PROJECT_ID, document_id).unwrap();
     }
 
     fn asset_path(&self, document_id: &str, content_path: &str) -> String {
@@ -359,7 +369,7 @@ fn import_fails_as_a_whole_for_unknown_or_unwritable_targets() {
 }
 
 #[test]
-fn a_document_that_failed_to_load_is_not_writable() {
+fn a_document_that_failed_to_load_is_not_opened_and_not_writable() {
     let (temp, root) = project_copy();
     replace_in_file(
         &document_dir(&root).join("document.json"),
@@ -368,6 +378,7 @@ fn a_document_that_failed_to_load_is_not_writable() {
     );
     let mut sessions = ProjectSessions::default();
     design_dawn_lib::application::project_operations::open_project(&mut sessions, &root).unwrap();
+    load_document(&mut sessions, PROJECT_ID, DOCUMENT_ID).unwrap_err();
     let sessions = Mutex::new(sessions);
     let drops = Mutex::new(DroppedFilesState::default());
     let source = temp.path().join("a.png");
@@ -376,8 +387,40 @@ fn a_document_that_failed_to_load_is_not_writable() {
 
     let error =
         import_dropped_images(&sessions, &drops, &drop_id, PROJECT_ID, DOCUMENT_ID).unwrap_err();
-    assert_eq!(error.kind, ErrorKind::NotWritable);
+    assert_eq!(error.kind, ErrorKind::EntityNotFound);
     assert!(!document_dir(&root).join("assets").join("a.png").exists());
+}
+
+#[test]
+fn import_into_a_document_that_was_never_loaded_fails_as_a_whole() {
+    let mut opened = open_copy();
+    let sessions = Mutex::new(std::mem::take(&mut opened.sessions));
+    let drops = Mutex::new(DroppedFilesState::default());
+    let source = opened.temp.path().join("a.png");
+    fs::write(&source, png_bytes(1, 1)).unwrap();
+    let drop_id = register_drop(&drops, vec![source]).unwrap().drop_id;
+
+    let error =
+        import_dropped_images(&sessions, &drops, &drop_id, PROJECT_ID, DOCUMENT_ID).unwrap_err();
+    assert_eq!(error.kind, ErrorKind::EntityNotFound);
+    assert!(!document_dir(&opened.root).join("assets/a.png").exists());
+}
+
+#[test]
+fn import_into_a_closed_document_fails_as_a_whole() {
+    let fixture = Fixture::new();
+    fixture.close(DOCUMENT_ID);
+    let drop_id = fixture.drop_files(vec![fixture.incoming_file("a.png", &png_bytes(1, 1))]);
+    let error = import_dropped_images(
+        &fixture.sessions,
+        &fixture.drops,
+        &drop_id,
+        PROJECT_ID,
+        DOCUMENT_ID,
+    )
+    .unwrap_err();
+    assert_eq!(error.kind, ErrorKind::EntityNotFound);
+    assert!(!fixture.first_assets().join("a.png").exists());
 }
 
 #[cfg(unix)]
@@ -507,7 +550,136 @@ fn a_copy_needs_known_documents_and_an_open_project() {
     );
 }
 
+#[test]
+fn a_copy_into_an_unopened_or_closed_target_fails() {
+    let fixture = Fixture::new();
+    let copy = |target: &str| {
+        copy_asset_to_document(
+            &fixture.sessions,
+            PROJECT_ID,
+            DOCUMENT_ID,
+            FIXTURE_ASSET,
+            target,
+        )
+    };
+    fixture.close(SECOND_DOCUMENT_ID);
+    assert_eq!(
+        copy(SECOND_DOCUMENT_ID).unwrap_err().kind,
+        ErrorKind::EntityNotFound
+    );
+    assert!(!fixture.assets_of("second").join("pixel.png").exists());
+    // The same target in the source's own Document is refused too once it is closed.
+    fixture.close(DOCUMENT_ID);
+    assert_eq!(
+        copy(DOCUMENT_ID).unwrap_err().kind,
+        ErrorKind::EntityNotFound
+    );
+}
+
+#[test]
+fn a_copy_from_a_closed_source_into_an_opened_target_succeeds() {
+    let fixture = Fixture::new();
+    fixture.close(DOCUMENT_ID);
+    let copied = copy_asset_to_document(
+        &fixture.sessions,
+        PROJECT_ID,
+        DOCUMENT_ID,
+        FIXTURE_ASSET,
+        SECOND_DOCUMENT_ID,
+    )
+    .unwrap();
+    assert_eq!(copied.content_path, FIXTURE_ASSET);
+    assert_eq!(copied.natural_width, 1);
+}
+
+#[test]
+fn a_copy_from_an_unknown_source_is_refused() {
+    // The source only has to belong to the Project (it need not be open).
+    let fixture = Fixture::new();
+    let error = copy_asset_to_document(
+        &fixture.sessions,
+        PROJECT_ID,
+        UNKNOWN_ID,
+        FIXTURE_ASSET,
+        SECOND_DOCUMENT_ID,
+    )
+    .unwrap_err();
+    assert_eq!(error.kind, ErrorKind::EntityNotFound);
+}
+
+// ---- close_document ----
+
+#[test]
+fn close_document_validates_its_ids_and_touches_no_file() {
+    let fixture = Fixture::new();
+    let before = tree_snapshot(&fixture.opened.root);
+    let mut sessions = fixture.sessions.lock().unwrap();
+    assert_eq!(
+        close_document(&mut sessions, UNKNOWN_ID, DOCUMENT_ID)
+            .unwrap_err()
+            .kind,
+        ErrorKind::ProjectNotOpen
+    );
+    assert_eq!(
+        close_document(&mut sessions, PROJECT_ID, UNKNOWN_ID)
+            .unwrap_err()
+            .kind,
+        ErrorKind::EntityNotFound
+    );
+    assert_eq!(
+        close_document(&mut sessions, PROJECT_ID, "bad")
+            .unwrap_err()
+            .kind,
+        ErrorKind::Domain(DomainErrorKind::InvalidEntityId)
+    );
+    close_document(&mut sessions, PROJECT_ID, DOCUMENT_ID).unwrap();
+    close_document(&mut sessions, PROJECT_ID, DOCUMENT_ID).unwrap();
+    drop(sessions);
+    assert_eq!(tree_snapshot(&fixture.opened.root), before);
+}
+
 // ---- dawn-asset protocol ----
+
+#[test]
+fn only_opened_documents_are_served() {
+    let fixture = Fixture::new();
+    let path = fixture.asset_path(DOCUMENT_ID, FIXTURE_ASSET);
+    // Open Document.
+    assert_eq!(fixture.get(UNIX_HOST_FORM, &path).status(), 200);
+    // Never loaded: the Document belongs to the Project but nobody opened it.
+    let (_temp, root) = project_copy();
+    let mut never_loaded = ProjectSessions::default();
+    design_dawn_lib::application::project_operations::open_project(&mut never_loaded, &root)
+        .unwrap();
+    let never_loaded = Mutex::new(never_loaded);
+    let uri: Uri = format!("{UNIX_HOST_FORM}{path}").parse().unwrap();
+    assert_eq!(respond_to_asset_request(&never_loaded, &uri).status(), 404);
+    // Loaded, then closed.
+    fixture.close(DOCUMENT_ID);
+    assert_eq!(fixture.get(UNIX_HOST_FORM, &path).status(), 404);
+    // Another Project: an unknown valid id.
+    let other = format!("/{UNKNOWN_ID}/{DOCUMENT_ID}/{FIXTURE_ASSET}");
+    assert_eq!(fixture.get(UNIX_HOST_FORM, &other).status(), 404);
+    // Invalid Document ID.
+    let invalid = format!("/{PROJECT_ID}/not-an-id/{FIXTURE_ASSET}");
+    assert_eq!(fixture.get(UNIX_HOST_FORM, &invalid).status(), 400);
+}
+
+#[test]
+fn a_replaced_project_does_not_serve_the_documents_it_had_open() {
+    let fixture = Fixture::new();
+    let path = fixture.asset_path(DOCUMENT_ID, FIXTURE_ASSET);
+    assert_eq!(fixture.get(UNIX_HOST_FORM, &path).status(), 200);
+    // Opening another Project (here: the same files again) replaces the session, so no
+    // Document is open in it until it is loaded.
+    let (_temp, other_root) = project_copy();
+    design_dawn_lib::application::project_operations::open_project(
+        &mut fixture.sessions.lock().unwrap(),
+        &other_root,
+    )
+    .unwrap();
+    assert_eq!(fixture.get(UNIX_HOST_FORM, &path).status(), 404);
+}
 
 #[test]
 fn a_valid_asset_is_served_with_its_bytes_and_hardening_headers_on_both_host_forms() {
@@ -564,7 +736,7 @@ fn percent_encoded_segments_are_decoded() {
 fn unsafe_or_unknown_urls_are_refused_without_leaking_paths() {
     let fixture = Fixture::new();
     fs::create_dir(fixture.first_assets().join("directory.png")).unwrap();
-    let cases: [(String, u16); 14] = [
+    let cases: [(String, u16); 20] = [
         (fixture.asset_path(DOCUMENT_ID, "assets/missing.png"), 404),
         (
             fixture.asset_path(DOCUMENT_ID, "assets/../document.json"),
@@ -594,6 +766,25 @@ fn unsafe_or_unknown_urls_are_refused_without_leaking_paths() {
             404,
         ),
         ("/nope".to_owned(), 400),
+        (format!("/not-an-id/{DOCUMENT_ID}/{FIXTURE_ASSET}"), 400),
+        (format!("/{PROJECT_ID}/not-an-id/{FIXTURE_ASSET}"), 400),
+        (
+            format!(
+                "/{}/{DOCUMENT_ID}/{FIXTURE_ASSET}",
+                PROJECT_ID.to_uppercase()
+            ),
+            400,
+        ),
+        (
+            format!(
+                "/{PROJECT_ID}/{}/{FIXTURE_ASSET}",
+                DOCUMENT_ID.to_uppercase()
+            ),
+            400,
+        ),
+        (format!("/{UUID_V4}/{DOCUMENT_ID}/{FIXTURE_ASSET}"), 400),
+        // The drive letter and backslash are percent-encoded, so only decoding reveals them.
+        (fixture.asset_path(DOCUMENT_ID, "assets/C%3A%5Cx.png"), 400),
     ];
     let temp_text = fixture.temp_text();
     for (path, status) in cases {
@@ -605,6 +796,23 @@ fn unsafe_or_unknown_urls_are_refused_without_leaking_paths() {
             "{path}: {body}"
         );
     }
+}
+
+/// Decoding happens once; a second level of encoding must stay a plain (unknown) file name,
+/// never become a `..` segment.
+#[test]
+fn a_double_encoded_traversal_is_not_served() {
+    let fixture = Fixture::new();
+    let response = fixture.get(
+        UNIX_HOST_FORM,
+        &fixture.asset_path(DOCUMENT_ID, "assets/%252e%252e/document.json"),
+    );
+    assert_ne!(response.status(), 200);
+    let body = String::from_utf8_lossy(response.body());
+    assert!(
+        !body.contains(&fixture.temp_text()) && !body.contains('/'),
+        "{body}"
+    );
 }
 
 #[test]
@@ -622,7 +830,32 @@ fn an_asset_too_large_is_refused_before_it_is_read() {
 #[cfg(unix)]
 mod symlinks {
     use super::*;
-    use std::os::unix::fs::symlink;
+    use std::os::unix::fs::{symlink, PermissionsExt};
+
+    const NO_PERMISSION_MODE: u32 = 0o000;
+    const UNREADABLE_ASSET_STATUS: u16 = 500;
+
+    #[test]
+    fn an_unreadable_asset_is_an_error_without_a_path() {
+        let fixture = Fixture::new();
+        let file = fixture.first_assets().join("locked.png");
+        fs::write(&file, png_bytes(1, 1)).unwrap();
+        fs::set_permissions(&file, fs::Permissions::from_mode(NO_PERMISSION_MODE)).unwrap();
+        // `root` ignores file modes, so the failure cannot be provoked there.
+        if fs::File::open(&file).is_ok() {
+            return;
+        }
+        let response = fixture.get(
+            UNIX_HOST_FORM,
+            &fixture.asset_path(DOCUMENT_ID, "assets/locked.png"),
+        );
+        assert_eq!(response.status(), UNREADABLE_ASSET_STATUS);
+        let body = String::from_utf8_lossy(response.body());
+        assert!(
+            !body.contains(&fixture.temp_text()) && !body.contains('/'),
+            "{body}"
+        );
+    }
 
     #[test]
     fn a_symlink_leaving_the_document_is_forbidden() {

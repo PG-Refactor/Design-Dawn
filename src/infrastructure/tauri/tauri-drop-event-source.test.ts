@@ -1,92 +1,129 @@
-import { type EventCallback, listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { settle } from "../../application/test-support/fakes";
-import { EVENTS } from "./event-constants";
 import { createTauriDropEventSource } from "./tauri-drop-event-source";
 
-vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
-const listenMock = vi.mocked(listen);
+const tauriCore = vi.hoisted(() => {
+  class FakeChannel {
+    onmessage: (message: unknown) => void = () => {};
+    constructor() {
+      FakeChannel.instances.push(this);
+    }
+    static instances: FakeChannel[] = [];
+  }
+  return { FakeChannel, invoke: vi.fn() };
+});
+vi.mock("@tauri-apps/api/core", () => ({
+  Channel: tauriCore.FakeChannel,
+  invoke: tauriCore.invoke,
+}));
+const invokeMock = vi.mocked(invoke);
 
-const handlers = new Map<string, EventCallback<unknown>>();
-const unlisteners = new Map<string, ReturnType<typeof vi.fn>>();
-
-function emit(eventName: string, payload: unknown): void {
-  handlers.get(eventName)?.({
-    event: eventName,
-    id: 1,
-    payload,
-  });
+function send(message: unknown): void {
+  tauriCore.FakeChannel.instances[0]?.onmessage(message);
 }
 
 beforeEach(() => {
-  handlers.clear();
-  unlisteners.clear();
-  listenMock.mockReset();
-  listenMock.mockImplementation(async (eventName, handler) => {
-    handlers.set(eventName, handler as EventCallback<unknown>);
-    const unlisten = vi.fn();
-    unlisteners.set(eventName, unlisten);
-    return unlisten;
-  });
+  tauriCore.FakeChannel.instances = [];
+  invokeMock.mockReset();
+  invokeMock.mockResolvedValue(null);
 });
 
 describe("createTauriDropEventSource", () => {
-  it("subscribes to the Rust event names", async () => {
+  it("creates nothing until the first subscription", async () => {
+    createTauriDropEventSource();
+    await settle();
+    expect(invokeMock).not.toHaveBeenCalled();
+    expect(tauriCore.FakeChannel.instances).toHaveLength(0);
+  });
+
+  it("subscribes once with one channel, however many listeners", async () => {
     const source = createTauriDropEventSource();
     source.subscribeFilesDropped(vi.fn());
     source.subscribeDragState(vi.fn());
+    source.subscribeDragState(vi.fn());
     await settle();
-    expect(listenMock.mock.calls.map(([eventName]) => eventName)).toEqual([
-      "dawn://files-dropped",
-      "dawn://drag-state",
-    ]);
-    expect(EVENTS).toEqual({
-      filesDropped: "dawn://files-dropped",
-      dragState: "dawn://drag-state",
+    expect(tauriCore.FakeChannel.instances).toHaveLength(1);
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+    expect(invokeMock).toHaveBeenCalledWith("subscribe_drop_notifications", {
+      channel: tauriCore.FakeChannel.instances[0],
     });
   });
 
-  it("hands decoded payloads to the listeners", async () => {
+  it("does not create a second channel after the first listener unsubscribed", async () => {
+    const source = createTauriDropEventSource();
+    source.subscribeDragState(vi.fn())();
+    source.subscribeDragState(vi.fn());
+    await settle();
+    expect(tauriCore.FakeChannel.instances).toHaveLength(1);
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("hands decoded messages to the listeners of their kind", async () => {
     const source = createTauriDropEventSource();
     const dropped = vi.fn();
     const dragState = vi.fn();
     source.subscribeFilesDropped(dropped);
     source.subscribeDragState(dragState);
     await settle();
-    emit(EVENTS.filesDropped, { dropId: "d1", fileCount: 2 });
-    emit(EVENTS.dragState, { active: true });
+    send({ kind: "filesDropped", dropId: "d1", fileCount: 2 });
+    send({ kind: "dragState", active: true });
+    expect(dropped).toHaveBeenCalledTimes(1);
     expect(dropped).toHaveBeenCalledWith({ dropId: "d1", fileCount: 2 });
+    expect(dragState).toHaveBeenCalledTimes(1);
     expect(dragState).toHaveBeenCalledWith({ active: true });
   });
 
-  it("ignores malformed payloads", async () => {
+  it("serves several listeners of the same kind", async () => {
+    const source = createTauriDropEventSource();
+    const first = vi.fn();
+    const second = vi.fn();
+    source.subscribeDragState(first);
+    source.subscribeDragState(second);
+    send({ kind: "dragState", active: false });
+    expect(first).toHaveBeenCalledWith({ active: false });
+    expect(second).toHaveBeenCalledWith({ active: false });
+  });
+
+  it("ignores malformed and unknown messages", async () => {
     const source = createTauriDropEventSource();
     const dropped = vi.fn();
     const dragState = vi.fn();
     source.subscribeFilesDropped(dropped);
     source.subscribeDragState(dragState);
     await settle();
-    emit(EVENTS.filesDropped, { dropId: 7 });
-    emit(EVENTS.filesDropped, null);
-    emit(EVENTS.dragState, { active: "yes" });
+    send({ kind: "filesDropped", dropId: 7 });
+    send({ kind: "filesDropped" });
+    send({ kind: "dragState", active: "yes" });
+    send({ kind: "somethingElse", active: true });
+    send({ dropId: "d1", fileCount: 1 });
+    send(null);
+    send("dragState");
     expect(dropped).not.toHaveBeenCalled();
     expect(dragState).not.toHaveBeenCalled();
   });
 
-  it("detaches the listener when unsubscribed", async () => {
-    const stop = createTauriDropEventSource().subscribeFilesDropped(vi.fn());
+  it("stops delivering to an unsubscribed listener only", async () => {
+    const source = createTauriDropEventSource();
+    const stopped = vi.fn();
+    const kept = vi.fn();
+    const stop = source.subscribeDragState(stopped);
+    source.subscribeDragState(kept);
     await settle();
     stop();
-    expect(unlisteners.get(EVENTS.filesDropped)).toHaveBeenCalledTimes(1);
+    send({ kind: "dragState", active: true });
+    expect(stopped).not.toHaveBeenCalled();
+    expect(kept).toHaveBeenCalledWith({ active: true });
   });
 
-  it("detaches a listener that was unsubscribed before the registration finished", async () => {
-    const listener = vi.fn();
-    const stop = createTauriDropEventSource().subscribeDragState(listener);
-    stop();
+  it("logs a rejected subscription", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    invokeMock.mockRejectedValue("denied");
+    createTauriDropEventSource().subscribeFilesDropped(vi.fn());
     await settle();
-    expect(unlisteners.get(EVENTS.dragState)).toHaveBeenCalledTimes(1);
-    emit(EVENTS.dragState, { active: true });
-    expect(listener).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    consoleError.mockRestore();
   });
 });

@@ -104,7 +104,7 @@ describe("openProject", () => {
       ]),
     );
     expect((await workspace.openProject(SELECTION_ID)).ok).toBe(true);
-    expect(gateway.methods()).toEqual(["openProject"]);
+    expect(gateway.methods()).toEqual(["closeDocument", "openProject"]);
     expect(store.getState().documents.size).toBe(0);
     expect(events.map((event) => event.type)).toEqual([
       "documentClosed",

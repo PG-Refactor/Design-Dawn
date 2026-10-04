@@ -14,6 +14,7 @@ import { parseSheet } from "../../domain/sheet/sheet";
 import { COMMANDS } from "./command-constants";
 import type { CommandResult } from "./command-error";
 import {
+  closeDocument,
   createBlockContent,
   createProject,
   createSheet,
@@ -223,6 +224,18 @@ describe("successful conversion", () => {
     const documentDeleted = await deleteDocument(projectId, documentId);
     expect(documentDeleted).toEqual({ ok: true, value: null });
     expect(invokeMock).toHaveBeenLastCalledWith(COMMANDS.deleteDocument, {
+      projectId: PROJECT_ID,
+      documentId: DOCUMENT_ID,
+    });
+  });
+
+  it("sends only the ids to close a document", async () => {
+    invokeMock.mockResolvedValue(null);
+    expect(await closeDocument(projectId, documentId)).toEqual({
+      ok: true,
+      value: null,
+    });
+    expect(invokeMock).toHaveBeenLastCalledWith(COMMANDS.closeDocument, {
       projectId: PROJECT_ID,
       documentId: DOCUMENT_ID,
     });

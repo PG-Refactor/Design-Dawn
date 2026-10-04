@@ -7,11 +7,13 @@ import {
   SHEET_A2,
   SHEET_B1,
 } from "../../application/test-support/workspace-harness";
-import { PASTE_OFFSET } from "../../config/canvas-config";
+import { CANVAS_CONFIG, PASTE_OFFSET } from "../../config/canvas-config";
 import type { Block } from "../../domain/block/block";
 import type { BlockId } from "../../domain/shared/entity-id";
 import { getSelection, selectBlocks } from "../workspace/ui-state/ui-state";
+import { createCanvasInput } from "./canvas-input";
 import {
+  BLOCK_ONE,
   type CanvasHarness,
   createCanvasHarness,
   openedCanvasHarness,
@@ -319,6 +321,7 @@ describe("clipboard with image blocks", () => {
     });
     expect(result.ok).toBe(true);
     expect(harness.gateway.methods("copyAssetToDocument")).toEqual([]);
+    expect(harness.gateway.assets.get(DOCUMENT_A)?.size).toBe(1);
     const pasted = harness.store
       .getState()
       .documents.get(DOCUMENT_A)
@@ -346,6 +349,8 @@ describe("clipboard with image blocks", () => {
     await harness.canvasActions.redo(DOCUMENT_A);
     expect(imageBlocks(harness)).toHaveLength(2);
     expect(harness.gateway.hasAsset(DOCUMENT_A, PHOTO)).toBe(true);
+    // Pasting into the same document shares the asset; it adds no file.
+    expect(harness.gateway.assets.get(DOCUMENT_A)?.size).toBe(1);
   });
 
   async function openedWithBothDocuments() {
@@ -371,7 +376,10 @@ describe("clipboard with image blocks", () => {
 
   it("copies the asset into another document before the command and uses the returned path", async () => {
     const { harness } = await openedWithBothDocuments();
+    const assetsBefore = harness.gateway.assets.get(DOCUMENT_B)?.size ?? 0;
     const result = await pasteIntoB(harness);
+    expect(harness.gateway.assets.get(DOCUMENT_B)?.size).toBe(assetsBefore + 1);
+    expect(harness.gateway.assets.get(DOCUMENT_A)?.size).toBe(1);
     expect(result.ok).toBe(true);
     expect(harness.gateway.methods()).toEqual([
       "copyAssetToDocument",
@@ -479,6 +487,18 @@ describe("cutSelection with image blocks", () => {
     });
   });
 
+  it("redo removes the block again and the asset stays", async () => {
+    const { harness, block } = await withDroppedImage();
+    select(harness, block.blockId);
+    await harness.canvasActions.cutSelection(SHEET_INPUT);
+    await harness.canvasActions.undo(DOCUMENT_A);
+    expect(imageBlocks(harness)).toHaveLength(1);
+    await harness.canvasActions.redo(DOCUMENT_A);
+    expect(imageBlocks(harness)).toHaveLength(0);
+    expect(harness.gateway.hasAsset(DOCUMENT_A, PHOTO)).toBe(true);
+    expect(harness.gateway.methods("deleteBlockContent")).toEqual([]);
+  });
+
   it("cuts nothing when the image cannot be validated", async () => {
     const { harness, block } = await withDroppedImage();
     harness.gateway.assets.get(DOCUMENT_A)?.delete(PHOTO);
@@ -486,5 +506,53 @@ describe("cutSelection with image blocks", () => {
     await harness.canvasActions.cutSelection(SHEET_INPUT);
     expect(imageBlocks(harness)).toHaveLength(1);
     expect(harness.clipboard.read()).toBeNull();
+  });
+});
+
+describe("align and snap with image blocks", () => {
+  it("aligns an image and a markdown block left as one history entry", async () => {
+    const { harness, block } = await withDroppedImage();
+    const depthBefore = await harness.undoDepth();
+    select(harness, BLOCK_ONE, block.blockId);
+    const result = await harness.canvasActions.alignSelection({
+      ...SHEET_INPUT,
+      mode: "alignLeft",
+    });
+    expect(result.ok).toBe(true);
+    const markdown = harness
+      .blocksOfSheetA1()
+      .find((candidate) => candidate.blockId === BLOCK_ONE);
+    const aligned = imageBlocks(harness)[0];
+    expect(aligned?.position.x).toBe(markdown?.position.x);
+    expect(aligned?.position.y).toBe(block.position.y);
+    expect(aligned?.size).toEqual(block.size);
+    expect(await harness.undoDepth()).toBe(depthBefore + 1);
+    await harness.canvasActions.undo(DOCUMENT_A);
+    expect(imageBlocks(harness)[0]?.position).toEqual(block.position);
+  });
+
+  it("snaps a dragged image to the grid with one history entry", async () => {
+    const { harness, block } = await withDroppedImage();
+    const depthBefore = await harness.undoDepth();
+    const input = createCanvasInput({
+      applicationStore: harness.store,
+      uiStateStore: harness.uiStateStore,
+      actions: harness.canvasActions,
+      documentId: DOCUMENT_A,
+      sheetId: SHEET_A1,
+    });
+    const origin = { x: 100, y: 100 };
+    const { interval } = CANVAS_CONFIG.grid;
+    // An offset that is not a multiple of the interval, so snapping has to move it.
+    const dragX = interval * 3 + 1;
+    const dragY = interval * 2 + 1;
+    input.pointerDownOnBlock(block.blockId, origin, false);
+    input.pointerMove({ x: origin.x + dragX, y: origin.y + dragY });
+    await input.pointerUp();
+    const moved = imageBlocks(harness)[0];
+    expect((moved?.position.x ?? 1) % interval).toBe(0);
+    expect((moved?.position.y ?? 1) % interval).toBe(0);
+    expect(moved?.size).toEqual(block.size);
+    expect(await harness.undoDepth()).toBe(depthBefore + 1);
   });
 });

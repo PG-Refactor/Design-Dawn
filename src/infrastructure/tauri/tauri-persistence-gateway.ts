@@ -2,6 +2,7 @@ import { mapOperationResult } from "../../application/ports/operation-error";
 import type { PersistenceGateway } from "../../application/ports/persistence-gateway";
 import { copyAssetToDocument, importDroppedImages } from "./asset-client";
 import {
+  closeDocument,
   createBlockContent,
   createDocument,
   createProject,
@@ -34,6 +35,8 @@ export function createTauriPersistenceGateway(): PersistenceGateway {
       mapOperationResult(await saveProject(projectId, project), discard),
     createDocument,
     loadDocument,
+    closeDocument: async (projectId, documentId) =>
+      mapOperationResult(await closeDocument(projectId, documentId), discard),
     createSheet,
     deleteSheet: async (projectId, documentId, sheetId) =>
       mapOperationResult(

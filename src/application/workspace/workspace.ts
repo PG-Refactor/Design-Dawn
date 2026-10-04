@@ -237,7 +237,11 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     const closed = await session.close();
     if (!closed.ok) return closed;
     detachDocument(documentId);
-    return operationOk(undefined);
+    const project = requireProject();
+    if (!project.ok) return project;
+    // After the detach: the Document is already closed in the UI, so a failure here only
+    // means Rust may keep serving its assets until the Project is replaced.
+    return gateway.closeDocument(project.value.projectId, documentId);
   }
 
   // Saves everything first (project, then every document) and only then closes, so a

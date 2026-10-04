@@ -448,6 +448,8 @@ export function createFakeGateway(
           ? operationOk(documentSnapshot(stored))
           : operationErr("invalidFileStructure", documentId);
       }),
+    closeDocument: (_project, documentId) =>
+      enter("closeDocument", documentId, () => operationOk(undefined)),
     createSheet: (_project, documentId, sheetId, name) =>
       enter("createSheet", sheetId, () => {
         const stored = disk.documents.get(documentId);

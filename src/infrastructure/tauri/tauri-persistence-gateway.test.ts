@@ -148,6 +148,10 @@ describe("createTauriPersistenceGateway", () => {
     });
     vi.mocked(client.deleteSheet).mockResolvedValue({ ok: true, value: null });
     vi.mocked(client.deleteDocument).mockResolvedValue(failure);
+    vi.mocked(client.closeDocument).mockResolvedValue({
+      ok: true,
+      value: null,
+    });
     vi.mocked(client.selectProjectFolder).mockResolvedValue({
       ok: true,
       value: { status: "cancelled" },
@@ -163,6 +167,11 @@ describe("createTauriPersistenceGateway", () => {
     expect(await gateway.deleteDocument(PROJECT_ID, DOCUMENT_ID)).toEqual(
       failure,
     );
+    expect(await gateway.closeDocument(PROJECT_ID, DOCUMENT_ID)).toEqual({
+      ok: true,
+      value: undefined,
+    });
+    expect(client.closeDocument).toHaveBeenCalledWith(PROJECT_ID, DOCUMENT_ID);
     expect(client.deleteSheet).toHaveBeenCalledWith(
       PROJECT_ID,
       DOCUMENT_ID,

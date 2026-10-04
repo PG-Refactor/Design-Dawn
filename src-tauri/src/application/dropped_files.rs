@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use super::error::{ApplicationError, ApplicationResult, ErrorKind};
 
-/// Payload of the `files dropped` app event. Deliberately carries no path or file name.
+/// Payload of the `filesDropped` drop notification. Deliberately carries no path or file name.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FilesDropped {
@@ -18,7 +18,7 @@ pub struct FilesDropped {
     pub file_count: usize,
 }
 
-/// Payload of the `drag state` app event, so the UI can show drop feedback.
+/// Payload of the `dragState` drop notification, so the UI can show drop feedback.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct DragState {
     pub active: bool,

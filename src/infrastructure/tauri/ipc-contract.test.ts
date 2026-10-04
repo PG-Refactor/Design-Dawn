@@ -44,6 +44,7 @@ import {
   setThemePreference,
 } from "./local-state-client";
 import {
+  closeDocument,
   createBlockContent,
   createProject,
   deleteSheet,
@@ -134,6 +135,7 @@ const WRAPPERS: Readonly<Record<string, Wrapper>> = {
       unwrap(parseDisplayName(args.name as string)),
     ),
   load_document: (args) => loadDocument(id.project(args), id.document(args)),
+  close_document: (args) => closeDocument(id.project(args), id.document(args)),
   save_sheet: (args) =>
     saveSheet(
       id.project(args),

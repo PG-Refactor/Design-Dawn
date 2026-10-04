@@ -87,6 +87,13 @@ export function loadDocument(
   );
 }
 
+export function closeDocument(
+  projectId: ProjectId,
+  documentId: DocumentId,
+): Promise<CommandResult<null>> {
+  return call(COMMANDS.closeDocument, { projectId, documentId }, toVoidResult);
+}
+
 export function saveDocument(
   projectId: ProjectId,
   document: Document,

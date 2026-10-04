@@ -125,3 +125,39 @@ describe("UI architecture guard", () => {
     expect(uiViolation("react")).toBeNull();
   });
 });
+
+// Tauri's built-in drag-drop events carry absolute paths, and an event listener is the only
+// way a script could read them. The capability grants no `core:event` permission, and no
+// frontend code may depend on events: drop notifications use an IPC channel instead.
+const allSources = import.meta.glob(["./**/*.{ts,tsx}"], {
+  query: "?raw",
+  import: "default",
+  eager: true,
+}) as Record<string, string>;
+
+const FORBIDDEN_EVENT_PACKAGE = "@tauri-apps/api/event";
+const BUILTIN_DRAG_EVENT_PREFIX = "tauri://drag";
+
+describe("Tauri event guard", () => {
+  const files = Object.entries(allSources).filter(([file]) =>
+    isProductionUiFile(file),
+  );
+
+  it("scans the production sources", () => {
+    expect(files.length).toBeGreaterThan(50);
+    expect(
+      files.some(([file]) => file.endsWith("tauri-drop-event-source.ts")),
+    ).toBe(true);
+  });
+
+  it("never imports the Tauri event API or names a built-in drag event", () => {
+    const violations: string[] = [];
+    for (const [file, source] of files) {
+      if (source.includes(FORBIDDEN_EVENT_PACKAGE))
+        violations.push(`${file} mentions ${FORBIDDEN_EVENT_PACKAGE}`);
+      if (source.includes(BUILTIN_DRAG_EVENT_PREFIX))
+        violations.push(`${file} mentions ${BUILTIN_DRAG_EVENT_PREFIX}`);
+    }
+    expect(violations).toEqual([]);
+  });
+});

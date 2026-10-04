@@ -111,6 +111,26 @@ fn require_writable(session: &ProjectSession, document_id: &DocumentId) -> Appli
     }
 }
 
+/// The `dawn-asset` protocol and asset imports only deal with Documents the user has open.
+fn require_opened(session: &ProjectSession, document_id: &DocumentId) -> ApplicationResult<()> {
+    if session.document(document_id)?.opened {
+        Ok(())
+    } else {
+        Err(ApplicationError::entity_not_found(format!(
+            "document {document_id} is not open"
+        )))
+    }
+}
+
+/// An asset can only be written into an opened, writable Document.
+fn require_open_and_writable(
+    session: &ProjectSession,
+    document_id: &DocumentId,
+) -> ApplicationResult<()> {
+    require_opened(session, document_id)?;
+    require_writable(session, document_id)
+}
+
 /// Follows symlinks (the link's target is what gets read). `label` is a base name, never a
 /// full path, because error details travel to the Frontend.
 fn regular_file_size(path: &Path, label: &str) -> ApplicationResult<u64> {
@@ -209,7 +229,8 @@ pub fn import_asset(
 ) -> ApplicationResult<ImportedImage> {
     let session = sessions.session_mut(project_id)?;
     let document_id = DocumentId::parse(document_id)?;
-    // Before reading anything, so a read-only Document does not cost a 20 MiB read.
+    // Before reading anything, so a read-only Document does not cost a 20 MiB read. Not a
+    // command: the open-Document rule applies to `import_dropped_images` only.
     require_writable(session, &document_id)?;
     let image = read_validated_image(source_path)?;
     let content_path = store_image(session, &document_id, &base_name(source_path), &image.bytes)?;
@@ -228,7 +249,7 @@ pub fn import_dropped_images(
 ) -> ApplicationResult<DropImportResult> {
     let paths = resolve_drop(drops, drop_id)?;
     let document_id = DocumentId::parse(document_id)?;
-    require_writable(
+    require_open_and_writable(
         lock_sessions(sessions).session_mut(project_id)?,
         &document_id,
     )?;
@@ -293,7 +314,7 @@ fn read_located(asset: &LocatedAsset) -> ApplicationResult<Vec<u8>> {
     read_within_limit(&asset.file_path, &asset.file_name, size)
 }
 
-/// For the `dawn-asset` protocol: the bytes and format of one asset of an open Project.
+/// For the `dawn-asset` protocol: the bytes and format of one asset of an opened Document.
 /// Only the bytes are read; content validation happened at import time. The session lock is
 /// held just long enough to resolve the path.
 pub fn read_asset_for_url(
@@ -307,7 +328,7 @@ pub fn read_asset_for_url(
     let asset = {
         let guard = lock_sessions(sessions);
         let session = guard.get(&project_id)?;
-        session.document(&document_id)?;
+        require_opened(session, &document_id)?;
         locate_asset(session, &document_id, content_path)?
     };
     Ok(AssetContent {
@@ -320,7 +341,7 @@ pub fn read_asset_for_url(
 /// Documents) under its own file name, with `-2`, `-3`, ... on collision. The source is
 /// validated like an import. Copying into the Document the asset already lives in copies
 /// nothing and returns the same contentPath: the pasted Block simply shares the file.
-/// The target must be writable in both cases, so the answer does not depend on the target.
+/// The target must be opened and writable in both cases, so the answer does not depend on the target.
 pub fn copy_asset_to_document(
     sessions: &Mutex<ProjectSessions>,
     project_id: &str,
@@ -333,8 +354,10 @@ pub fn copy_asset_to_document(
     let source = {
         let mut guard = lock_sessions(sessions);
         let session = guard.session_mut(project_id)?;
+        // The source only has to belong to the Project: a copied Block can outlive the tab
+        // it came from, and the bytes are copied here without ever reaching the Frontend.
         session.document(&source_document_id)?;
-        require_writable(session, &target_document_id)?;
+        require_open_and_writable(session, &target_document_id)?;
         locate_asset(session, &source_document_id, content_path)?
     };
     let image = validate_image(source.format, read_located(&source)?)?;

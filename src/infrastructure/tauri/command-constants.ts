@@ -9,6 +9,7 @@ export const COMMANDS = {
   saveProject: "save_project",
   createDocument: "create_document",
   loadDocument: "load_document",
+  closeDocument: "close_document",
   saveDocument: "save_document",
   createSheet: "create_sheet",
   saveSheet: "save_sheet",
@@ -25,6 +26,7 @@ export const COMMANDS = {
   saveSheetViewport: "save_sheet_viewport",
   importDroppedImages: "import_dropped_images",
   copyAssetToDocument: "copy_asset_to_document",
+  subscribeDropNotifications: "subscribe_drop_notifications",
 } as const;
 
 export type CommandName = (typeof COMMANDS)[keyof typeof COMMANDS];

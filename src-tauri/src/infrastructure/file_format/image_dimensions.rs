@@ -300,6 +300,13 @@ mod tests {
             (dimensions(481, 10), dimensions(480, 10)),
             (dimensions(480, 480), dimensions(480, 480)),
             (dimensions(1, 1), dimensions(1, 1)),
+            // Rounding of the scaled short edge.
+            (dimensions(1000, 333), dimensions(480, 160)),
+            // 3 * 480 / 960 is exactly 1.5, which rounds away from zero.
+            (dimensions(960, 3), dimensions(480, 2)),
+            (dimensions(1001, 1000), dimensions(480, 480)),
+            (dimensions(479, 100), dimensions(479, 100)),
+            (dimensions(333, 1000), dimensions(160, 480)),
         ];
         for (natural, expected) in cases {
             assert_eq!(initial_block_size(natural), expected, "{natural:?}");

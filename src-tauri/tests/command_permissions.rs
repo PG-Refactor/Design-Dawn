@@ -17,7 +17,6 @@ fn capability_grants_exactly_the_exposed_commands() {
         .unwrap()
         .iter()
         .map(|value| value.as_str().unwrap().to_owned())
-        .filter(|permission| !permission.starts_with(ENGINE_PERMISSION_PREFIX))
         .collect();
     granted.sort();
     let mut expected: Vec<String> = COMMAND_NAMES
@@ -26,6 +25,21 @@ fn capability_grants_exactly_the_exposed_commands() {
         .collect();
     expected.sort();
     assert_eq!(granted, expected);
+}
+
+/// A `core:` permission (`core:default` included) would let the webview listen to Tauri's
+/// built-in events, which carry the absolute paths of dropped files, or resolve OS paths.
+#[test]
+fn capability_grants_no_core_permission() {
+    let capability: serde_json::Value = serde_json::from_str(CAPABILITY_FILE).unwrap();
+    let core: Vec<&str> = capability["permissions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|value| value.as_str().unwrap())
+        .filter(|permission| permission.starts_with(ENGINE_PERMISSION_PREFIX))
+        .collect();
+    assert!(core.is_empty(), "core permissions granted: {core:?}");
 }
 
 #[test]

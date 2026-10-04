@@ -15,7 +15,8 @@ use crate::infrastructure::file_format::image_validation::ImageContentError;
 ///   --TS toCommandError-->  CommandError { kind, detail }
 /// ```
 ///
-/// Only `kind` is a stable contract; `detail` is developer-facing. Errors Tauri raises itself
+/// Only `kind` is a stable contract; the wire `detail` is a fixed per-kind description (the
+/// internal `detail` can contain paths and stays in Rust). Errors Tauri raises itself
 /// before a command runs (bad arguments, ACL) are NOT this shape: they are plain strings, and
 /// the client maps them to `unexpectedCommandError`. `fixtures/ipc/` pins both cases.
 ///
@@ -65,12 +66,34 @@ impl ErrorKind {
             Self::InvalidViewport => "invalidViewport",
         }
     }
+
+    /// The only `detail` text the Frontend receives: fixed per kind, with no interpolated
+    /// values, so absolute paths, Project roots and internal file names never cross the IPC
+    /// boundary. The full `detail` stays in Rust (Display / Debug / logs). The exhaustive
+    /// match forces a decision for every new kind.
+    pub fn public_description(&self) -> &'static str {
+        match self {
+            Self::Domain(kind) => kind.public_description(),
+            Self::Persistence(kind) => kind.public_description(),
+            Self::NotWritable => "the content is not open for writing",
+            Self::ProjectNotOpen => "the project is not open",
+            Self::EntityNotFound => "the requested item is not known or not open",
+            Self::DialogFailed => "the folder dialog failed",
+            Self::InvalidFolderSelection => "the folder selection is no longer valid",
+            Self::InvalidDropSelection => "the dropped files selection is no longer valid",
+            Self::InvalidImageContent => "the file is not a valid image",
+            Self::AssetTooLarge => "the image file is too large",
+            Self::InvalidThemePreference => "the theme preference is not valid",
+            Self::InvalidViewport => "the viewport is not valid",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ApplicationError {
     pub kind: ErrorKind,
-    /// Developer-facing only; callers must compare on `kind`.
+    /// Developer-facing only (may contain paths); never serialized as is. Callers must
+    /// compare on `kind`.
     pub detail: String,
 }
 
@@ -127,12 +150,84 @@ impl fmt::Display for ApplicationError {
 
 impl std::error::Error for ApplicationError {}
 
-/// Wire form: `{ kind, detail }`.
+/// Wire form: `{ kind, detail }`, where `detail` is `ErrorKind::public_description`.
 impl Serialize for ApplicationError {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut state = serializer.serialize_struct("ApplicationError", 2)?;
         state.serialize_field("kind", self.kind.as_str())?;
-        state.serialize_field("detail", &self.detail)?;
+        state.serialize_field("detail", self.kind.public_description())?;
         state.end()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const ALL_KINDS: [ErrorKind; 12 + 10 + 7 - 2] = [
+        ErrorKind::Domain(DomainErrorKind::InvalidEntityId),
+        ErrorKind::Domain(DomainErrorKind::InvalidDisplayName),
+        ErrorKind::Domain(DomainErrorKind::InvalidPosition),
+        ErrorKind::Domain(DomainErrorKind::InvalidSize),
+        ErrorKind::Domain(DomainErrorKind::UnsupportedBlockType),
+        ErrorKind::Domain(DomainErrorKind::InvalidContentPath),
+        ErrorKind::Domain(DomainErrorKind::InvalidContentExtension),
+        ErrorKind::Domain(DomainErrorKind::InvalidSchemaVersion),
+        ErrorKind::Domain(DomainErrorKind::UnsupportedSchemaVersion),
+        ErrorKind::Domain(DomainErrorKind::DuplicateId),
+        ErrorKind::Persistence(PersistenceErrorKind::InvalidJson),
+        ErrorKind::Persistence(PersistenceErrorKind::InvalidFileStructure),
+        ErrorKind::Persistence(PersistenceErrorKind::InvalidEncoding),
+        ErrorKind::Persistence(PersistenceErrorKind::PathOutsideRoot),
+        ErrorKind::Persistence(PersistenceErrorKind::FileNotFound),
+        ErrorKind::Persistence(PersistenceErrorKind::AlreadyExists),
+        ErrorKind::Persistence(PersistenceErrorKind::IoError),
+        ErrorKind::NotWritable,
+        ErrorKind::ProjectNotOpen,
+        ErrorKind::EntityNotFound,
+        ErrorKind::DialogFailed,
+        ErrorKind::InvalidFolderSelection,
+        ErrorKind::InvalidDropSelection,
+        ErrorKind::InvalidImageContent,
+        ErrorKind::AssetTooLarge,
+        ErrorKind::InvalidThemePreference,
+        ErrorKind::InvalidViewport,
+    ];
+
+    /// A Windows drive path (`C:\`) or any separator would mean a path leaked.
+    pub(crate) fn looks_like_path(text: &str) -> bool {
+        text.contains('/') || text.contains('\\') || text.contains(":\\")
+    }
+
+    #[test]
+    fn serialized_detail_is_the_public_description_not_the_internal_detail() {
+        let internal = PersistenceError::from_io(
+            "read /home/user/project/documents/secret/document.json",
+            &std::io::Error::from(std::io::ErrorKind::NotFound),
+        );
+        let json = serde_json::to_value(ApplicationError::from(internal)).unwrap();
+
+        assert_eq!(json["kind"], "fileNotFound");
+        assert_eq!(
+            json["detail"],
+            PersistenceErrorKind::FileNotFound.public_description()
+        );
+        assert!(!json.to_string().contains("secret"));
+        assert!(!looks_like_path(json["detail"].as_str().unwrap()));
+    }
+
+    #[test]
+    fn display_keeps_the_internal_detail_for_developers() {
+        let error = ApplicationError::new(ErrorKind::NotWritable, "read /tmp/x");
+        assert_eq!(error.to_string(), "notWritable: read /tmp/x");
+    }
+
+    #[test]
+    fn no_public_description_can_contain_a_path() {
+        for kind in ALL_KINDS {
+            let description = kind.public_description();
+            assert!(!description.is_empty(), "{kind:?}");
+            assert!(!looks_like_path(description), "{kind:?}: {description}");
+        }
     }
 }

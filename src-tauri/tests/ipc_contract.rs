@@ -413,15 +413,16 @@ fn a_window_without_the_capability_is_refused_by_tauri() {
     assert!(app.get_webview_window(MAIN_WINDOW_LABEL).is_none());
 }
 
-/// Drop events are the one input that originates in the OS window rather than in a command.
-/// The handler is called directly (a mock window cannot receive a native drop), and the app
-/// events it emits are captured by Rust listeners; the import then runs through real IPC.
-#[test]
-fn a_native_drop_is_announced_without_paths_and_imported_through_the_command() {
-    use design_dawn_lib::commands::{handle_window_event, DRAG_STATE_EVENT, FILES_DROPPED_EVENT};
-    use tauri::{DragDropEvent, Listener, PhysicalPosition, WindowEvent};
+/// Opens the fixture project through real IPC in a fresh main window and returns the app (kept
+/// alive), the window, the project root and the project id.
+struct OpenedProject {
+    app: App<tauri::test::MockRuntime>,
+    webview: tauri::WebviewWindow<tauri::test::MockRuntime>,
+    project_root: PathBuf,
+    project_id: String,
+}
 
-    let temp = TempDir::new();
+fn open_fixture_project(temp: &TempDir) -> OpenedProject {
     let project_root = temp.path().join(PROJECT_DIRECTORY_NAME);
     copy_dir_all(Path::new(FIXTURE_PROJECT), &project_root);
     let app = build_app(
@@ -442,21 +443,59 @@ fn a_native_drop_is_announced_without_paths_and_imported_through_the_command() {
         .as_str()
         .unwrap()
         .to_owned();
-
-    let dropped_events = Arc::new(Mutex::new(Vec::<String>::new()));
-    let drag_events = Arc::new(Mutex::new(Vec::<String>::new()));
-    for (event, sink) in [
-        (FILES_DROPPED_EVENT, Arc::clone(&dropped_events)),
-        (DRAG_STATE_EVENT, Arc::clone(&drag_events)),
-    ] {
-        webview.listen(event, move |received| {
-            sink.lock().unwrap().push(received.payload().to_owned());
-        });
+    // Only an opened Document is served and receives assets, like the Frontend's first step.
+    invoke(
+        &webview,
+        "load_document",
+        &serde_json::json!({ "projectId": project_id, "documentId": DOCUMENT_ID }),
+    )
+    .unwrap();
+    OpenedProject {
+        app,
+        webview,
+        project_root,
+        project_id,
     }
+}
+
+fn assert_refused_by_acl(outcome: Result<Value, Value>) {
+    match outcome {
+        Err(Value::String(message)) => assert!(message.contains("not allowed"), "{message}"),
+        other => panic!("expected a Tauri ACL refusal, got {other:?}"),
+    }
+}
+
+/// Drop events are the one input that originates in the OS window rather than in a command.
+/// The handler is called directly (a mock window cannot receive a native drop), and the
+/// notifications it sends are captured by a Rust-made channel installed as the subscriber;
+/// the import then runs through real IPC.
+#[test]
+fn a_native_drop_is_announced_without_paths_and_imported_through_the_command() {
+    use design_dawn_lib::commands::{handle_window_event, DropNotification, DropSubscriber};
+    use tauri::ipc::{Channel, InvokeResponseBody};
+    use tauri::{DragDropEvent, PhysicalPosition, WindowEvent};
+
+    let temp = TempDir::new();
+    let opened = open_fixture_project(&temp);
+    let (webview, project_root, project_id) =
+        (&opened.webview, &opened.project_root, &opened.project_id);
+
+    let messages = Arc::new(Mutex::new(Vec::<String>::new()));
+    let sink = Arc::clone(&messages);
+    opened
+        .app
+        .state::<DropSubscriber>()
+        .replace(Channel::<DropNotification>::new(move |body| {
+            match body {
+                InvokeResponseBody::Json(json) => sink.lock().unwrap().push(json),
+                InvokeResponseBody::Raw(_) => panic!("notifications are JSON"),
+            }
+            Ok(())
+        }));
 
     let source = temp.path().join("dropped picture.png");
     fs::write(&source, png_bytes(1920, 1080)).unwrap();
-    let window = AsRef::<tauri::Webview<tauri::test::MockRuntime>>::as_ref(&webview).window();
+    let window = AsRef::<tauri::Webview<tauri::test::MockRuntime>>::as_ref(webview).window();
     let position = PhysicalPosition::new(0.0, 0.0);
     let paths = vec![source.clone()];
     for event in [
@@ -472,29 +511,30 @@ fn a_native_drop_is_announced_without_paths_and_imported_through_the_command() {
     }
 
     let temp_text = temp.path().to_string_lossy().into_owned();
-    let drag_payloads = drag_events.lock().unwrap().clone();
+    let received = messages.lock().unwrap().clone();
+    assert_eq!(received.len(), 5, "{received:?}");
+    for message in &received {
+        assert!(!message.contains(&temp_text), "{message}");
+        assert!(!message.contains("dropped"), "{message}");
+    }
     assert_eq!(
-        drag_payloads,
-        vec![
-            r#"{"active":true}"#,
-            r#"{"active":true}"#,
-            r#"{"active":false}"#,
-            r#"{"active":false}"#
+        received[..4],
+        [
+            r#"{"kind":"dragState","active":true}"#,
+            r#"{"kind":"dragState","active":true}"#,
+            r#"{"kind":"dragState","active":false}"#,
+            r#"{"kind":"dragState","active":false}"#,
         ]
     );
-    let dropped_payloads = dropped_events.lock().unwrap().clone();
-    assert_eq!(dropped_payloads.len(), 1);
-    assert!(
-        !dropped_payloads[0].contains(&temp_text),
-        "{}",
-        dropped_payloads[0]
-    );
-    let announced: Value = serde_json::from_str(&dropped_payloads[0]).unwrap();
+    let announced: Value = serde_json::from_str(&received[4]).unwrap();
+    assert_eq!(announced["kind"], "filesDropped");
     assert_eq!(announced["fileCount"], 1);
-    assert_eq!(announced.as_object().unwrap().len(), 2);
+    let mut keys: Vec<&String> = announced.as_object().unwrap().keys().collect();
+    keys.sort();
+    assert_eq!(keys, ["dropId", "fileCount", "kind"]);
 
     let result = invoke(
-        &webview,
+        webview,
         "import_dropped_images",
         &serde_json::json!({
             "dropId": announced["dropId"],
@@ -517,7 +557,165 @@ fn a_native_drop_is_announced_without_paths_and_imported_through_the_command() {
             "rejected": [],
         })
     );
-    assert!(document_dir(&project_root)
+    assert!(document_dir(project_root)
         .join("assets/dropped-picture.png")
         .is_file());
+}
+
+/// Before the Frontend subscribed there is nobody to tell; the handler must not fail.
+#[test]
+fn a_native_drop_without_a_subscriber_is_ignored_quietly() {
+    use design_dawn_lib::commands::handle_window_event;
+    use tauri::{DragDropEvent, PhysicalPosition, WindowEvent};
+
+    let temp = TempDir::new();
+    let opened = open_fixture_project(&temp);
+    let source = temp.path().join("quiet.png");
+    fs::write(&source, png_bytes(10, 10)).unwrap();
+    let window =
+        AsRef::<tauri::Webview<tauri::test::MockRuntime>>::as_ref(&opened.webview).window();
+    handle_window_event(
+        &window,
+        &WindowEvent::DragDrop(DragDropEvent::Drop {
+            paths: vec![source],
+            position: PhysicalPosition::new(0.0, 0.0),
+        }),
+    );
+}
+
+#[test]
+fn subscribing_to_drop_notifications_with_a_channel_succeeds() {
+    let temp = TempDir::new();
+    let app = build_app(Vec::new(), local_state_directories(temp.path()));
+    let webview = WebviewWindowBuilder::new(&app, MAIN_WINDOW_LABEL, Default::default())
+        .build()
+        .expect("create main window");
+
+    let outcome = invoke(
+        &webview,
+        "subscribe_drop_notifications",
+        &serde_json::json!({ "channel": "__CHANNEL__:7" }),
+    );
+
+    assert_eq!(outcome, Ok(Value::Null));
+}
+
+#[test]
+fn subscribing_with_a_malformed_channel_is_a_tauri_error() {
+    let temp = TempDir::new();
+    let app = build_app(Vec::new(), local_state_directories(temp.path()));
+    let webview = WebviewWindowBuilder::new(&app, MAIN_WINDOW_LABEL, Default::default())
+        .build()
+        .expect("create main window");
+
+    let outcome = invoke(
+        &webview,
+        "subscribe_drop_notifications",
+        &serde_json::json!({ "channel": "not-a-channel" }),
+    );
+
+    assert!(matches!(outcome, Err(Value::String(_))), "{outcome:?}");
+}
+
+/// Tauri's built-in drag-drop events carry absolute paths. They reach a script only through a
+/// listener registered with `plugin:event|listen`, so that command must stay refused.
+#[test]
+fn the_webview_cannot_listen_to_tauris_builtin_drag_events() {
+    let temp = TempDir::new();
+    let app = build_app(Vec::new(), local_state_directories(temp.path()));
+    let webview = WebviewWindowBuilder::new(&app, MAIN_WINDOW_LABEL, Default::default())
+        .build()
+        .expect("create main window");
+
+    for event in ["tauri://drag-drop", "tauri://drag-enter"] {
+        let outcome = invoke(
+            &webview,
+            "plugin:event|listen",
+            &serde_json::json!({
+                "event": event,
+                "target": { "kind": "Any" },
+                "handler": 1,
+            }),
+        );
+        assert_refused_by_acl(outcome);
+    }
+}
+
+#[test]
+fn the_webview_cannot_resolve_operating_system_directories() {
+    let temp = TempDir::new();
+    let app = build_app(Vec::new(), local_state_directories(temp.path()));
+    let webview = WebviewWindowBuilder::new(&app, MAIN_WINDOW_LABEL, Default::default())
+        .build()
+        .expect("create main window");
+
+    let outcome = invoke(
+        &webview,
+        "plugin:path|resolve_directory",
+        &serde_json::json!({ "directory": 11 }),
+    );
+
+    assert_refused_by_acl(outcome);
+}
+
+/// The rejection is what the webview sees: it must carry neither absolute paths nor the
+/// Project's internal directory and file names, even though the internal detail has them.
+#[test]
+fn a_filesystem_error_rejection_carries_no_path() {
+    let temp = TempDir::new();
+    let opened = open_fixture_project(&temp);
+    fs::remove_file(document_dir(&opened.project_root).join(OVERVIEW_MARKDOWN_PATH)).unwrap();
+
+    let rejection = invoke(
+        &opened.webview,
+        "read_block_content",
+        &serde_json::json!({
+            "projectId": opened.project_id,
+            "documentId": DOCUMENT_ID,
+            "contentPath": OVERVIEW_MARKDOWN_PATH,
+        }),
+    )
+    .unwrap_err();
+
+    assert_eq!(rejection["kind"], "fileNotFound");
+    let text = rejection.to_string();
+    for forbidden in [
+        temp.path().to_string_lossy().as_ref(),
+        "system-design",
+        "documents",
+        "overview",
+        "markdown-1",
+        "sheets",
+    ] {
+        assert!(!text.contains(forbidden), "{forbidden} leaked: {text}");
+    }
+}
+
+#[test]
+fn close_document_through_ipc_stops_the_asset_from_being_served() {
+    use design_dawn_lib::application::session::ProjectSessions;
+    use design_dawn_lib::commands::respond_to_asset_request;
+
+    let temp = TempDir::new();
+    let opened = open_fixture_project(&temp);
+    let uri: tauri::http::Uri = format!(
+        "dawn-asset://localhost/{}/{DOCUMENT_ID}/assets/pixel.png",
+        opened.project_id
+    )
+    .parse()
+    .unwrap();
+    let serve = || {
+        let sessions = opened.app.state::<Mutex<ProjectSessions>>();
+        respond_to_asset_request(&sessions, &uri).status()
+    };
+    assert_eq!(serve(), 200);
+
+    invoke(
+        &opened.webview,
+        "close_document",
+        &serde_json::json!({ "projectId": opened.project_id, "documentId": DOCUMENT_ID }),
+    )
+    .unwrap();
+
+    assert_eq!(serve(), 404);
 }

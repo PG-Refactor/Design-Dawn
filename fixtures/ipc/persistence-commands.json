@@ -560,6 +560,67 @@
           }
         },
         {
+          "name": "close_document: unknown documentId",
+          "request": {
+            "command": "close_document",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-ffff-7fff-bfff-ffffffffffff"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "entityNotFound"
+            }
+          }
+        },
+        {
+          "name": "close_document: malformed documentId",
+          "targets": ["rust"],
+          "request": {
+            "command": "close_document",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "not-an-id"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidEntityId"
+            }
+          }
+        },
+        {
+          "name": "close_document: opened document is closed",
+          "request": {
+            "command": "close_document",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde"
+            }
+          },
+          "expected": {
+            "ok": null
+          }
+        },
+        {
+          "name": "copy_asset_to_document: closed target document is refused",
+          "request": {
+            "command": "copy_asset_to_document",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "sourceDocumentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "contentPath": "assets/pixel.png",
+              "targetDocumentId": "01928f3a-6c7d-7e8f-a012-3456789abcde"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "entityNotFound"
+            }
+          }
+        },
+        {
           "name": "ACL: command that is not registered",
           "targets": ["rust"],
           "request": {
@@ -592,6 +653,21 @@
           "name": "load_document: project not open",
           "request": {
             "command": "load_document",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "projectNotOpen"
+            }
+          }
+        },
+        {
+          "name": "close_document: project not open",
+          "request": {
+            "command": "close_document",
             "args": {
               "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
               "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde"

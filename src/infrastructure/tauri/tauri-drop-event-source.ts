@@ -1,69 +1,95 @@
-import { type EventCallback, listen } from "@tauri-apps/api/event";
+import { Channel } from "@tauri-apps/api/core";
 import type {
   DragStateEvent,
   DropEventSource,
   FilesDroppedEvent,
 } from "../../application/ports/drop-event-source";
-import { EVENTS } from "./event-constants";
+import { COMMANDS } from "./command-constants";
+import { commandOk } from "./command-error";
+import { call } from "./invoke-command";
+
+// `kind` values of the notifications Rust sends; they must match `DropNotification` in
+// `src-tauri/src/commands/drag_drop.rs`.
+const NOTIFICATION_KINDS = {
+  dragState: "dragState",
+  filesDropped: "filesDropped",
+} as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function toFilesDropped(payload: unknown): FilesDroppedEvent | null {
-  if (
-    isRecord(payload) &&
-    typeof payload.dropId === "string" &&
-    typeof payload.fileCount === "number"
-  ) {
-    return { dropId: payload.dropId, fileCount: payload.fileCount };
-  }
-  return null;
-}
-
-function toDragState(payload: unknown): DragStateEvent | null {
-  return isRecord(payload) && typeof payload.active === "boolean"
-    ? { active: payload.active }
+function toFilesDropped(
+  message: Record<string, unknown>,
+): FilesDroppedEvent | null {
+  return typeof message.dropId === "string" &&
+    typeof message.fileCount === "number"
+    ? { dropId: message.dropId, fileCount: message.fileCount }
     : null;
 }
 
-// `listen` is asynchronous but the port's unsubscribe is not: an unsubscribe that happens
-// before the registration finished must still detach the listener once it has.
-function subscribe<Event>(
-  eventName: string,
-  decode: (payload: unknown) => Event | null,
-  listener: (event: Event) => void,
-): () => void {
-  let unsubscribed = false;
-  let detach: (() => void) | null = null;
-  const handler: EventCallback<unknown> = (event) => {
-    // A malformed payload can only come from a bug on the Rust side; there is nothing
-    // the user could do about it, so the event is ignored rather than half-applied.
-    const decoded = decode(event.payload);
-    if (decoded !== null && !unsubscribed) listener(decoded);
-  };
-  listen(eventName, handler).then(
-    (unlisten) => {
-      if (unsubscribed) unlisten();
-      else detach = unlisten;
-    },
-    (rejection: unknown) => {
-      // Without the listener drops go unnoticed; surface it for developers.
-      console.error(`failed to listen to ${eventName}`, rejection);
-    },
-  );
-  return () => {
-    unsubscribed = true;
-    detach?.();
-    detach = null;
-  };
+function toDragState(message: Record<string, unknown>): DragStateEvent | null {
+  return typeof message.active === "boolean"
+    ? { active: message.active }
+    : null;
 }
 
+// Drop notifications arrive on an IPC channel, not as Tauri events: Tauri's own drag-drop
+// events carry absolute paths and the capability deliberately grants no `core:event`
+// permission, so the Frontend cannot listen to events at all.
 export function createTauriDropEventSource(): DropEventSource {
+  const filesDroppedListeners = new Set<(event: FilesDroppedEvent) => void>();
+  const dragStateListeners = new Set<(event: DragStateEvent) => void>();
+  let channel: Channel<unknown> | null = null;
+
+  function dispatch(message: unknown): void {
+    // A malformed message can only come from a bug on the Rust side; there is nothing
+    // the user could do about it, so it is ignored rather than half-applied.
+    if (!isRecord(message)) return;
+    if (message.kind === NOTIFICATION_KINDS.filesDropped) {
+      const event = toFilesDropped(message);
+      if (event !== null)
+        for (const listener of [...filesDroppedListeners]) listener(event);
+    } else if (message.kind === NOTIFICATION_KINDS.dragState) {
+      const event = toDragState(message);
+      if (event !== null)
+        for (const listener of [...dragStateListeners]) listener(event);
+    }
+  }
+
+  // One channel per source, created on the first subscription. Rust keeps only the latest
+  // subscriber, so subscribing again would silently cut off the earlier channel.
+  function ensureSubscribed(): void {
+    if (channel !== null) return;
+    const created = new Channel<unknown>();
+    created.onmessage = dispatch;
+    channel = created;
+    void call(COMMANDS.subscribeDropNotifications, { channel: created }, () =>
+      commandOk(undefined),
+    ).then((result) => {
+      // Without the subscription drops go unnoticed; surface it for developers.
+      if (!result.ok)
+        console.error(
+          "failed to subscribe to drop notifications",
+          result.error,
+        );
+    });
+  }
+
   return {
-    subscribeFilesDropped: (listener) =>
-      subscribe(EVENTS.filesDropped, toFilesDropped, listener),
-    subscribeDragState: (listener) =>
-      subscribe(EVENTS.dragState, toDragState, listener),
+    subscribeFilesDropped(listener) {
+      ensureSubscribed();
+      filesDroppedListeners.add(listener);
+      return () => {
+        filesDroppedListeners.delete(listener);
+      };
+    },
+    subscribeDragState(listener) {
+      ensureSubscribed();
+      dragStateListeners.add(listener);
+      return () => {
+        dragStateListeners.delete(listener);
+      };
+    },
   };
 }

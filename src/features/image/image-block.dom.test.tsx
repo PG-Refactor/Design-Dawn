@@ -251,6 +251,29 @@ describe("load failure", () => {
     expect(screen.getAllByRole("option")).toHaveLength(4);
   });
 
+  it("shows the error state for a block restored by undo whose asset is gone", async () => {
+    const { shell, canvas } = await renderWithImages();
+    // No asset is seeded for the document: the file is gone from the start.
+    expect(shell.gateway.hasAsset(DOCUMENT_A, PHOTO_PATH)).toBe(false);
+    fireEvent.pointerDown(blockOption(PHOTO_INDEX), pointer(410, 310));
+    fireEvent.pointerUp(canvasElement(), pointer(410, 310));
+    await act(async () => {
+      fireEvent.keyDown(canvasElement(), { key: "Delete" });
+      await settle();
+    });
+    await act(async () => {
+      await canvas.session.undo();
+      await settle();
+    });
+    const option = blockOption(PHOTO_INDEX);
+    fireEvent.error(imageOf(option));
+    expect(within(option).getByText("画像を読み込めません")).toBeTruthy();
+    expect(within(option).queryByRole("img")).toBeNull();
+    expect([
+      ...(shell.uiStateStore.getState().imageLoadFailures.get(SHEET_A1) ?? []),
+    ]).toEqual([blockIdOf(PHOTO_COUNTER)]);
+  });
+
   it("drops the failure record with the deleted block", async () => {
     const { shell } = await renderWithImages();
     fireEvent.error(imageOf(blockOption(PHOTO_INDEX)));

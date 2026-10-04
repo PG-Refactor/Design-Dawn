@@ -8,6 +8,7 @@ const APP_COMMANDS: &[&str] = &[
     "save_project",
     "create_document",
     "load_document",
+    "close_document",
     "save_document",
     "create_sheet",
     "save_sheet",
@@ -24,6 +25,7 @@ const APP_COMMANDS: &[&str] = &[
     "save_sheet_viewport",
     "import_dropped_images",
     "copy_asset_to_document",
+    "subscribe_drop_notifications",
 ];
 
 fn main() {

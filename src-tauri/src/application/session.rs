@@ -87,6 +87,10 @@ pub struct SheetRecord {
 pub struct DocumentRecord {
     pub directory_name: String,
     pub writable: bool,
+    /// True between a successful `load_document` / `create_document` and `close_document`.
+    /// Only an opened Document is served by the `dawn-asset` protocol or receives assets:
+    /// a Document the user has not opened has no reason to expose its files to the webview.
+    pub opened: bool,
     /// Filled by `load_document` / `create_sheet`; empty until then.
     pub sheets: BTreeMap<SheetId, SheetRecord>,
 }

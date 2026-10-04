@@ -10,6 +10,7 @@ mod folder_picker;
 use std::sync::{Arc, Mutex, PoisonError};
 
 use serde_json::Value;
+use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager, Runtime, State};
 
 use crate::application::asset_import::{
@@ -34,13 +35,14 @@ use crate::infrastructure::file_format::dto::{parse_dto, DocumentDto, ProjectDto
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 22] = [
+pub const COMMAND_NAMES: [&str; 24] = [
     "select_project_folder",
     "create_project",
     "open_project",
     "save_project",
     "create_document",
     "load_document",
+    "close_document",
     "save_document",
     "create_sheet",
     "save_sheet",
@@ -57,10 +59,11 @@ pub const COMMAND_NAMES: [&str; 22] = [
     "save_sheet_viewport",
     "import_dropped_images",
     "copy_asset_to_document",
+    "subscribe_drop_notifications",
 ];
 
 pub use asset_protocol::{respond_to_asset_request, ASSET_URL_SCHEME};
-pub use drag_drop::{handle_window_event, DRAG_STATE_EVENT, FILES_DROPPED_EVENT};
+pub use drag_drop::{handle_window_event, DropNotification, DropSubscriber};
 pub use folder_picker::DialogFolderPicker;
 
 /// The folder dialog as managed state. Production registers the real dialog-backed picker;
@@ -70,6 +73,16 @@ pub type SharedFolderPicker = Arc<dyn FolderPicker>;
 type SessionState<'a> = State<'a, Mutex<ProjectSessions>>;
 type FolderSelectionStateHandle<'a> = State<'a, Mutex<FolderSelectionState>>;
 
+/// The Frontend only receives a fixed description per error kind, so the full internal
+/// error (with paths) goes to the terminal here instead, for developers. Not a log file:
+/// nothing is persisted.
+fn log_failure<T>(command_result: ApplicationResult<T>) -> ApplicationResult<T> {
+    if let Err(error) = &command_result {
+        eprintln!("command failed: {error}");
+    }
+    command_result
+}
+
 fn with_sessions<T>(
     state: &SessionState<'_>,
     operation: impl FnOnce(&mut ProjectSessions) -> ApplicationResult<T>,
@@ -77,7 +90,7 @@ fn with_sessions<T>(
     // A panic in another command must not brick every later command; the session data is
     // still structurally valid, and writes are re-validated against the filesystem anyway.
     let mut sessions = state.lock().unwrap_or_else(PoisonError::into_inner);
-    operation(&mut sessions)
+    log_failure(operation(&mut sessions))
 }
 
 /// Async so it never runs on the main thread, and the blocking dialog runs on a thread of
@@ -161,6 +174,17 @@ pub fn load_document(
 ) -> Result<DocumentSnapshot, ApplicationError> {
     with_sessions(&state, |sessions| {
         documents::load_document(sessions, &project_id, &document_id)
+    })
+}
+
+#[tauri::command]
+pub fn close_document(
+    state: SessionState<'_>,
+    project_id: String,
+    document_id: String,
+) -> Result<(), ApplicationError> {
+    with_sessions(&state, |sessions| {
+        documents::close_document(sessions, &project_id, &document_id)
     })
 }
 
@@ -322,7 +346,7 @@ fn with_local_state<R: Runtime, T>(
             "the local state directories are not registered",
         )
     })?;
-    operation(state.inner())
+    log_failure(operation(state.inner()))
 }
 
 #[tauri::command]
@@ -370,7 +394,7 @@ pub fn save_sheet_viewport<R: Runtime>(
 async fn run_blocking<T: Send + 'static>(
     operation: impl FnOnce() -> ApplicationResult<T> + Send + 'static,
 ) -> Result<T, ApplicationError> {
-    tauri::async_runtime::spawn_blocking(operation)
+    tauri::async_runtime::spawn_blocking(move || log_failure(operation()))
         .await
         .map_err(|error| {
             ApplicationError::persistence(
@@ -415,4 +439,13 @@ pub async fn copy_asset_to_document<R: Runtime>(
         )
     })
     .await
+}
+
+/// Replaces the channel that receives drag and drop notifications (latest subscription wins).
+#[tauri::command]
+pub fn subscribe_drop_notifications(
+    subscriber: State<'_, DropSubscriber>,
+    channel: Channel<DropNotification>,
+) {
+    subscriber.replace(channel);
 }

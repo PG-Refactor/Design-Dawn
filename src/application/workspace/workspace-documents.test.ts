@@ -145,7 +145,7 @@ describe("closeDocument", () => {
     );
     gateway.clearCalls();
     expect((await workspace.closeDocument(DOCUMENT_A)).ok).toBe(true);
-    expect(gateway.methods()).toEqual(["writeBlockContent"]);
+    expect(gateway.methods()).toEqual(["writeBlockContent", "closeDocument"]);
     expect([...gateway.files.values()]).toEqual(["edited"]);
   });
 
@@ -154,7 +154,7 @@ describe("closeDocument", () => {
     const session = workspace.getDocumentSession(DOCUMENT_A);
     await session?.execute(renameSheetCommand(SHEET_A1, displayName("Saved")));
     expect((await workspace.closeDocument(DOCUMENT_A)).ok).toBe(true);
-    expect(gateway.methods()).toEqual(["saveSheet"]);
+    expect(gateway.methods()).toEqual(["saveSheet", "closeDocument"]);
     expect(gateway.savedSheets.get(SHEET_A1)?.name).toBe("Saved");
     expect(store.getState().documents.size).toBe(0);
     expect(store.getState().documentDetails.size).toBe(0);
@@ -176,6 +176,43 @@ describe("closeDocument", () => {
     expect(store.getState().documents.get(DOCUMENT_A)?.history.canUndo).toBe(
       false,
     );
+  });
+
+  it("tells Rust the document is closed, after the save", async () => {
+    const { workspace, gateway } = await openedDocumentA();
+    gateway.clearCalls();
+    expect((await workspace.closeDocument(DOCUMENT_A)).ok).toBe(true);
+    expect(gateway.calls).toEqual([
+      { method: "closeDocument", detail: DOCUMENT_A },
+    ]);
+  });
+
+  it("does not tell Rust when saving fails", async () => {
+    const { workspace, gateway } = await openedDocumentA();
+    const session = workspace.getDocumentSession(DOCUMENT_A);
+    await session?.execute(renameSheetCommand(SHEET_A1, displayName("Dirty")));
+    gateway.failOn("saveSheet", "ioError");
+    expect(errorKind(await workspace.closeDocument(DOCUMENT_A))).toBe(
+      "ioError",
+    );
+    expect(gateway.methods("closeDocument")).toEqual([]);
+  });
+
+  it("returns the error when Rust cannot be told, but the document is closed", async () => {
+    const { workspace, store, gateway } = await openedDocumentA();
+    gateway.failOn("closeDocument", "entityNotFound");
+    expect(errorKind(await workspace.closeDocument(DOCUMENT_A))).toBe(
+      "entityNotFound",
+    );
+    expect(workspace.getDocumentSession(DOCUMENT_A)).toBeNull();
+    expect(store.getState().documents.size).toBe(0);
+  });
+
+  it("tells Rust about every open document when the project is closed", async () => {
+    const { workspace, gateway } = await openedDocumentA();
+    gateway.clearCalls();
+    expect((await workspace.closeProject()).ok).toBe(true);
+    expect(gateway.methods("closeDocument")).toEqual(["closeDocument"]);
   });
 
   it("is idempotent", async () => {

@@ -59,6 +59,8 @@ pub fn create_document(
         DocumentRecord {
             directory_name,
             writable: true,
+            // Creating a Document opens it in the Frontend, which never loads it afterwards.
+            opened: true,
             sheets: BTreeMap::new(),
         },
     );
@@ -78,6 +80,8 @@ pub fn load_document(
     let document_id = DocumentId::parse(document_id)?;
     let base = session.document_base(&document_id)?;
     let document_file = join_path(&base, DOCUMENT_FILE_NAME);
+    // Cleared first so every failure path below leaves the Document not opened.
+    session.document_mut(&document_id)?.opened = false;
 
     let mut issues: Vec<LoadIssue> = Vec::new();
     let loaded = load_document_file(session, &document_file, &mut issues);
@@ -162,6 +166,7 @@ pub fn load_document(
     document_dto.sheet_order = effective_order;
     let record = session.document_mut(&document_id)?;
     record.writable = true;
+    record.opened = true;
     record.sheets = sheet_records;
     Ok(DocumentSnapshot {
         document: document_dto,
@@ -190,6 +195,18 @@ pub fn save_document(
     Ok(SaveResult {
         written: outcome == WriteOutcome::Written,
     })
+}
+
+/// Marks a Document as no longer open, so its assets stop being served. Touches no file.
+pub fn close_document(
+    sessions: &mut ProjectSessions,
+    project_id: &str,
+    document_id: &str,
+) -> ApplicationResult<()> {
+    let session = sessions.session_mut(project_id)?;
+    let document_id = DocumentId::parse(document_id)?;
+    session.document_mut(&document_id)?.opened = false;
+    Ok(())
 }
 
 /// Deletes a Document directory with all its Sheets and Assets. Destructive and not
