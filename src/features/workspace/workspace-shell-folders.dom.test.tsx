@@ -1,0 +1,414 @@
+// @vitest-environment jsdom
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+import {
+  DOCUMENT_A,
+  DOCUMENT_D,
+  FOLDER_1,
+  FOLDER_2,
+  seedFolderTree,
+} from "../../application/test-support/workspace-harness";
+import {
+  applyOutsideUi,
+  chooseRowMenuItem,
+  openRowMenu,
+  renderShell,
+  type ShellHarness,
+  treeItemNamed,
+} from "./test-support/shell-harness";
+import { MESSAGES } from "./workspace-messages";
+
+afterEach(() => {
+  cleanup();
+});
+
+const CTRL_UP = "{Control>}{ArrowUp}{/Control}";
+const CTRL_DOWN = "{Control>}{ArrowDown}{/Control}";
+const TREE = MESSAGES.tree;
+
+async function openedShell(): Promise<ShellHarness> {
+  const harness = await renderShell({
+    seed: (seeded) => seedFolderTree(seeded.gateway),
+  });
+  await harness.openProjectInUi();
+  harness.gateway.clearCalls();
+  return harness;
+}
+
+// Labels of the visible tree rows in display order.
+function treeLabels(): string[] {
+  return screen
+    .getAllByRole("treeitem")
+    .map(
+      (item) =>
+        item.querySelector(":scope > .tree-item__row > .tree-item__label")
+          ?.textContent ?? "",
+    );
+}
+
+const level = (name: string) => treeItemNamed(name).getAttribute("aria-level");
+const expanded = (name: string) =>
+  treeItemNamed(name).getAttribute("aria-expanded");
+
+const menuItemNames = (menu: HTMLElement) =>
+  within(menu)
+    .getAllByRole("menuitem")
+    .map((item) => item.textContent);
+
+const menuItem = (menu: HTMLElement, name: string) =>
+  within(menu).getByRole("menuitem", { name });
+
+describe("folder rows", () => {
+  it("shows folders with their documents nested, with tree semantics", async () => {
+    await openedShell();
+    expect(treeLabels()).toEqual([
+      "Project",
+      "Folder 1",
+      "Folder 2",
+      "Document D",
+      "Document C",
+      "Document A",
+      "Document B",
+    ]);
+    expect(level("Project")).toBe("1");
+    expect(level("Folder 1")).toBe("2");
+    expect(level("Document A")).toBe("2");
+    expect(level("Folder 2")).toBe("3");
+    expect(level("Document C")).toBe("3");
+    expect(level("Document D")).toBe("4");
+    // Folders are expanded by default; documents report whether they are open.
+    expect(expanded("Folder 1")).toBe("true");
+    expect(expanded("Folder 2")).toBe("true");
+    expect(expanded("Document A")).toBe("false");
+    // Nested items live in role="group" lists.
+    expect(
+      within(treeItemNamed("Folder 1")).getAllByRole("group").length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("folds and unfolds by clicking the row, without persisting anything", async () => {
+    const harness = await openedShell();
+    harness.gateway.clearCalls();
+    await harness.user.click(
+      within(treeItemNamed("Folder 1")).getByText("Folder 1"),
+    );
+    expect(expanded("Folder 1")).toBe("false");
+    expect(treeLabels()).toEqual([
+      "Project",
+      "Folder 1",
+      "Document A",
+      "Document B",
+    ]);
+    await harness.user.click(
+      within(treeItemNamed("Folder 1")).getByText("Folder 1"),
+    );
+    expect(expanded("Folder 1")).toBe("true");
+    expect(treeLabels()).toContain("Document D");
+    expect(harness.gateway.calls).toEqual([]);
+  });
+
+  it("folds with ArrowLeft, unfolds with ArrowRight, and moves into and out of a folder", async () => {
+    const harness = await openedShell();
+    treeItemNamed("Folder 2").focus();
+    await harness.user.keyboard("{ArrowLeft}");
+    expect(expanded("Folder 2")).toBe("false");
+    expect(screen.queryByRole("treeitem", { name: "Document D" })).toBeNull();
+    // Collapsed: ArrowLeft goes to the parent.
+    await harness.user.keyboard("{ArrowLeft}");
+    expect(document.activeElement).toBe(treeItemNamed("Folder 1"));
+    // Expanded: ArrowLeft folds it; ArrowRight unfolds it again.
+    await harness.user.keyboard("{ArrowLeft}");
+    expect(expanded("Folder 1")).toBe("false");
+    await harness.user.keyboard("{ArrowRight}");
+    expect(expanded("Folder 1")).toBe("true");
+    // Expanded: ArrowRight moves to the first child.
+    await harness.user.keyboard("{ArrowRight}");
+    expect(document.activeElement).toBe(treeItemNamed("Folder 2"));
+    // Home / End still span the visible rows.
+    await harness.user.keyboard("{End}");
+    expect(document.activeElement).toBe(treeItemNamed("Document B"));
+    await harness.user.keyboard("{Home}");
+    expect(document.activeElement).toBe(treeItemNamed("Project"));
+  });
+
+  it("toggles with Enter", async () => {
+    const harness = await openedShell();
+    treeItemNamed("Folder 2").focus();
+    await harness.user.keyboard("{Enter}");
+    expect(expanded("Folder 2")).toBe("false");
+    await harness.user.keyboard("{Enter}");
+    expect(expanded("Folder 2")).toBe("true");
+  });
+});
+
+describe("row menus", () => {
+  it("offers the project folder and document creation", async () => {
+    const harness = await openedShell();
+    const menu = await openRowMenu(harness.user, "Project");
+    expect(menuItemNames(menu)).toEqual([
+      TREE.createFolder,
+      TREE.createDocument,
+    ]);
+  });
+
+  it("offers a folder every action, and delete only when it is empty", async () => {
+    const harness = await openedShell();
+    const menu = await openRowMenu(harness.user, "Folder 1");
+    expect(menuItemNames(menu)).toEqual([
+      TREE.createFolder,
+      TREE.createDocument,
+      TREE.rename,
+      TREE.moveUp,
+      TREE.moveDown,
+      TREE.moveTo,
+      TREE.deleteFolder,
+    ]);
+    const remove = menuItem(menu, TREE.deleteFolder);
+    expect(remove.getAttribute("aria-disabled")).toBe("true");
+    expect(remove.getAttribute("title")).toBe(TREE.deleteFolderNotEmptyHint);
+    expect(menuItem(menu, TREE.moveUp).getAttribute("aria-disabled")).toBe(
+      "true",
+    );
+    expect(menuItem(menu, TREE.moveDown).getAttribute("aria-disabled")).toBe(
+      null,
+    );
+    // Choosing the disabled item does nothing.
+    await harness.user.click(remove);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("offers a document the move item, enabled while it is closed", async () => {
+    const harness = await openedShell();
+    const menu = await openRowMenu(harness.user, "Document A");
+    expect(menuItemNames(menu)).toEqual([
+      TREE.rename,
+      TREE.moveUp,
+      TREE.moveDown,
+      TREE.moveTo,
+      TREE.createSheet,
+      TREE.deleteDocument,
+    ]);
+    expect(menuItem(menu, TREE.moveTo).getAttribute("aria-disabled")).toBe(
+      null,
+    );
+  });
+
+  it("disables the move item of an open document and of a folder holding one, with the hint", async () => {
+    const harness = await openedShell();
+    await applyOutsideUi(async () => {
+      await harness.actions.openDocument(DOCUMENT_D);
+    });
+    const documentMenu = await openRowMenu(harness.user, "Document D");
+    const documentMove = menuItem(documentMenu, TREE.moveTo);
+    expect(documentMove.getAttribute("aria-disabled")).toBe("true");
+    expect(documentMove.getAttribute("title")).toBe(TREE.moveOpenHint);
+    expect(documentMove.getAttribute("aria-description")).toBe(
+      TREE.moveOpenHint,
+    );
+    await harness.user.keyboard("{Escape}");
+    const folderMenu = await openRowMenu(harness.user, "Folder 1");
+    const folderMove = menuItem(folderMenu, TREE.moveTo);
+    expect(folderMove.getAttribute("aria-disabled")).toBe("true");
+    expect(folderMove.getAttribute("title")).toBe(TREE.moveOpenHint);
+    await harness.user.click(folderMove);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+});
+
+describe("creating and renaming", () => {
+  it("creates a folder inside a folder through the name dialog", async () => {
+    const harness = await openedShell();
+    await chooseRowMenuItem(harness.user, "Folder 2", TREE.createFolder);
+    const dialog = screen.getByRole("dialog", {
+      name: MESSAGES.dialogs.createFolder.title,
+    });
+    await harness.user.type(
+      within(dialog).getByRole("textbox", {
+        name: MESSAGES.dialogs.createFolder.nameLabel,
+      }),
+      "Inner{Enter}",
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(level("Inner")).toBe("4");
+    expect(treeLabels().indexOf("Inner")).toBeGreaterThan(
+      treeLabels().indexOf("Folder 2"),
+    );
+    expect(harness.gateway.methods()).toEqual(["createFolder", "saveFolder"]);
+  });
+
+  it("creates a document in a folder and opens it", async () => {
+    const harness = await openedShell();
+    await chooseRowMenuItem(harness.user, "Folder 1", TREE.createDocument);
+    const dialog = screen.getByRole("dialog", {
+      name: MESSAGES.dialogs.createDocument.title,
+    });
+    await harness.user.type(
+      within(dialog).getByRole("textbox", {
+        name: MESSAGES.dialogs.createDocument.nameLabel,
+      }),
+      "Nested{Enter}",
+    );
+    await screen.findByRole("tab", { name: /Nested/ });
+    expect(level("Nested")).toBe("3");
+  });
+
+  it("renames a folder inline with F2 and Enter, saving its file", async () => {
+    const harness = await openedShell();
+    treeItemNamed("Folder 1").focus();
+    await harness.user.keyboard("{F2}");
+    const input = screen.getByRole("textbox", {
+      name: "Folder 1の名前を変更",
+    }) as HTMLInputElement;
+    expect(document.activeElement).toBe(input);
+    expect(input.value).toBe("Folder 1");
+    await harness.user.keyboard("Renamed{Enter}");
+    await screen.findByRole("treeitem", { name: "Renamed" });
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(harness.gateway.disk.folders.get(FOLDER_1)?.folder.name).toBe(
+      "Renamed",
+    );
+    expect(document.activeElement).toBe(treeItemNamed("Renamed"));
+  });
+
+  it("cancels a folder rename with Escape and from the menu starts it too", async () => {
+    const harness = await openedShell();
+    await chooseRowMenuItem(harness.user, "Folder 2", TREE.rename);
+    await harness.user.keyboard("Other{Escape}");
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(treeItemNamed("Folder 2")).toBeTruthy();
+    expect(harness.gateway.methods("saveFolder")).toEqual([]);
+  });
+});
+
+describe("reordering", () => {
+  it("moves a folder down and up among mixed siblings with Ctrl+Arrow, saving the project", async () => {
+    const harness = await openedShell();
+    treeItemNamed("Folder 1").focus();
+    await harness.user.keyboard(CTRL_DOWN);
+    await waitFor(() =>
+      expect(
+        treeLabels().filter((l) => /^(Folder 1|Document [AB])$/.test(l)),
+      ).toEqual(["Document A", "Folder 1", "Document B"]),
+    );
+    expect(harness.gateway.disk.childOrder).toEqual([
+      DOCUMENT_A,
+      FOLDER_1,
+      harness.store.getState().project?.project.childOrder[2],
+    ]);
+    await harness.user.keyboard(CTRL_UP);
+    await waitFor(() => expect(treeLabels()[1]).toBe("Folder 1"));
+  });
+
+  it("moves a nested document with the menu, saving its folder", async () => {
+    const harness = await openedShell();
+    await chooseRowMenuItem(harness.user, "Document C", TREE.moveUp);
+    await waitFor(() =>
+      expect(treeLabels().indexOf("Document C")).toBeLessThan(
+        treeLabels().indexOf("Folder 2"),
+      ),
+    );
+    expect(harness.gateway.methods("saveFolder")).toHaveLength(1);
+  });
+});
+
+describe("moving to another place", () => {
+  it("lists the targets, disabling the current parent, and moves the document there", async () => {
+    const harness = await openedShell();
+    await chooseRowMenuItem(harness.user, "Document A", TREE.moveTo);
+    const dialog = screen.getByRole("dialog", { name: /Document A/ });
+    const targets = within(dialog)
+      .getAllByRole("button")
+      .filter((button) => button.textContent !== MESSAGES.dialogs.cancel);
+    expect(targets.map((button) => button.textContent)).toEqual([
+      MESSAGES.dialogs.moveEntry.projectRoot,
+      "Folder 1",
+      "Folder 2",
+    ]);
+    expect(
+      targets.map((button) => (button as HTMLButtonElement).disabled),
+    ).toEqual([true, false, false]);
+    expect(targets[0]?.getAttribute("title")).toBe(
+      MESSAGES.dialogs.moveEntry.currentParentHint,
+    );
+
+    await harness.user.click(
+      within(dialog).getByRole("button", { name: "Folder 2" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(level("Document A")).toBe("4");
+    expect(harness.gateway.disk.documentParents.get(DOCUMENT_A)).toBe(FOLDER_2);
+    expect(harness.gateway.methods()).toEqual([
+      "moveEntry",
+      "saveFolder",
+      "saveProject",
+    ]);
+  });
+
+  it("disables the folder itself and its descendants as targets of a folder", async () => {
+    const harness = await openedShell();
+    await chooseRowMenuItem(harness.user, "Folder 1", TREE.moveTo);
+    const dialog = screen.getByRole("dialog", { name: /Folder 1/ });
+    const byName = (name: string) =>
+      within(dialog).getByRole("button", { name }) as HTMLButtonElement;
+    expect(byName(MESSAGES.dialogs.moveEntry.projectRoot).disabled).toBe(true);
+    expect(byName("Folder 1").disabled).toBe(true);
+    expect(byName("Folder 2").disabled).toBe(true);
+  });
+
+  it("closes without moving on Cancel", async () => {
+    const harness = await openedShell();
+    await chooseRowMenuItem(harness.user, "Document A", TREE.moveTo);
+    await harness.user.click(
+      screen.getByRole("button", { name: MESSAGES.dialogs.cancel }),
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(harness.gateway.methods("moveEntry")).toEqual([]);
+  });
+});
+
+describe("deleting a folder", () => {
+  it("asks for confirmation, then deletes the empty folder", async () => {
+    const harness = await openedShell();
+    await applyOutsideUi(async () => {
+      await harness.workspace.deleteDocument(DOCUMENT_D, {
+        confirmedByUser: true,
+      });
+    });
+    const menu = await openRowMenu(harness.user, "Folder 2");
+    expect(
+      menuItem(menu, TREE.deleteFolder).getAttribute("aria-disabled"),
+    ).toBe(null);
+    await harness.user.click(menuItem(menu, TREE.deleteFolder));
+    const dialog = screen.getByRole("dialog", { name: /Folder 2/ });
+    expect(dialog.textContent).toContain(MESSAGES.dialogs.undoNotice);
+    // Focus starts on Cancel, so Enter right away deletes nothing.
+    expect(document.activeElement).toBe(
+      within(dialog).getByRole("button", { name: MESSAGES.dialogs.cancel }),
+    );
+    await harness.user.click(
+      within(dialog).getByRole("button", { name: MESSAGES.dialogs.delete }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("treeitem", { name: "Folder 2" })).toBeNull(),
+    );
+    expect(harness.gateway.disk.folders.has(FOLDER_2)).toBe(false);
+  });
+
+  it("shows a refused deletion in the notifications", async () => {
+    const harness = await openedShell();
+    await applyOutsideUi(async () => {
+      await harness.workspace.deleteDocument(DOCUMENT_D, {
+        confirmedByUser: true,
+      });
+    });
+    harness.gateway.failOn("deleteFolder", "ioError");
+    await chooseRowMenuItem(harness.user, "Folder 2", TREE.deleteFolder);
+    await harness.user.click(
+      screen.getByRole("button", { name: MESSAGES.dialogs.delete }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText(/フォルダを削除できませんでした/)).toBeTruthy(),
+    );
+    expect(screen.getByRole("treeitem", { name: "Folder 2" })).toBeTruthy();
+  });
+});

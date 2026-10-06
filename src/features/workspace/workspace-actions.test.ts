@@ -194,7 +194,10 @@ describe("creating documents and sheets", () => {
   it("creates a document, opens and activates it", async () => {
     const harness = await openedActionsHarness();
     harness.actions.requestCreateDocument();
-    expect(ui(harness).dialog).toEqual({ kind: "createDocument" });
+    expect(ui(harness).dialog).toEqual({
+      kind: "createDocument",
+      parentFolderId: null,
+    });
     await harness.actions.createDocument("Design");
     expect(ui(harness).dialog).toEqual({ kind: "none" });
     const documentId = ui(harness).activeDocumentId;

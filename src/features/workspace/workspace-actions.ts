@@ -21,6 +21,13 @@ import {
 } from "../../application/ports/operation-error";
 import { FOLDER_SELECTION_STATUS } from "../../application/ports/persistence-types";
 import type { ApplicationStore } from "../../application/state/application-state";
+import {
+  childOrderOf,
+  documentsUnder,
+  findFolder,
+  findProjectEntry,
+  hasChildren,
+} from "../../application/workspace/project-entries";
 import type {
   DestructiveConfirmation,
   Workspace,
@@ -29,7 +36,12 @@ import {
   type DisplayName,
   parseDisplayName,
 } from "../../domain/shared/display-name";
-import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
+import type {
+  DocumentId,
+  EntryId,
+  FolderId,
+  SheetId,
+} from "../../domain/shared/entity-id";
 import type { DraftRegistry } from "./draft-registry";
 import {
   addOperationError,
@@ -46,6 +58,7 @@ import {
   type RenamingTarget,
   setActiveDocument,
   setActiveSheet,
+  setFolderCollapsed,
   type UiStateStore,
 } from "./ui-state/ui-state";
 import { type MoveDirection, oneStepMove } from "./view-models/reorder";
@@ -68,8 +81,17 @@ export interface WorkspaceActions {
     sheetId: SheetId,
   ): Promise<OperationResult<void>>;
 
-  requestCreateDocument(): void;
-  createDocument(name: string): Promise<OperationResult<void>>;
+  // `parentFolderId` null (the default) = directly under the Project.
+  requestCreateDocument(parentFolderId?: FolderId | null): void;
+  createDocument(
+    name: string,
+    parentFolderId?: FolderId | null,
+  ): Promise<OperationResult<void>>;
+  requestCreateFolder(parentFolderId?: FolderId | null): void;
+  createFolder(
+    name: string,
+    parentFolderId?: FolderId | null,
+  ): Promise<OperationResult<void>>;
   // Opens the document first if needed, then asks for the name.
   requestCreateSheet(documentId: DocumentId): Promise<OperationResult<void>>;
   createSheet(
@@ -79,6 +101,19 @@ export interface WorkspaceActions {
 
   requestDeleteDocument(documentId: DocumentId): void;
   requestDeleteSheet(documentId: DocumentId, sheetId: SheetId): void;
+  // Only an empty folder is offered a confirmation; anything else does nothing (the menu
+  // item is disabled, and the application refuses it again).
+  requestDeleteFolder(folderId: FolderId): void;
+  // Opens the target picker for a closed Document / a Folder that holds no open Document.
+  requestMoveEntry(entryId: EntryId): void;
+  // Moves the entry into `targetParentFolderId` (null = Project root) and closes the picker.
+  moveEntryTo(
+    entryId: EntryId,
+    targetParentFolderId: FolderId | null,
+  ): Promise<OperationResult<void>>;
+  // Folders are expanded unless folded; presentation only, never saved.
+  setFolderExpanded(folderId: FolderId, expanded: boolean): void;
+  toggleFolder(folderId: FolderId): void;
   // Runs the deletion the dialog asked for, passing the user's confirmation.
   confirmDelete(): Promise<OperationResult<void>>;
   cancelDialog(): void;
@@ -90,12 +125,14 @@ export interface WorkspaceActions {
     documentId: DocumentId,
     sheetId: SheetId,
   ): Promise<OperationResult<void>>;
+  beginRenameFolder(folderId: FolderId): Promise<OperationResult<void>>;
   cancelRename(): void;
   // Ends the open rename with `name`. A name the domain refuses is returned as an error
   // and NOT recorded: the editor stays open and shows the message. Otherwise the editor
   // closes; an unchanged name does nothing, a changed one is ONE undoable command.
   commitRename(name: string): Promise<OperationResult<void>>;
-  // One place up / down. Documents: project order, saved at once, not undoable. Sheets:
+  // One place up / down. Documents and folders: the order of their parent, saved at once,
+  // not undoable. Sheets:
   // one undoable command. At the boundary (or for an entry that failed to load) nothing
   // happens at all.
   moveDocumentBy(
@@ -108,7 +145,13 @@ export interface WorkspaceActions {
     direction: MoveDirection,
   ): Promise<OperationResult<void>>;
 
+  moveFolderBy(
+    folderId: FolderId,
+    direction: MoveDirection,
+  ): Promise<OperationResult<void>>;
+
   retryDocumentSave(documentId: DocumentId): Promise<OperationResult<void>>;
+  retryFolderSave(folderId: FolderId): Promise<OperationResult<void>>;
   retryProjectSave(): Promise<OperationResult<void>>;
   // Explicit "save everything": open drafts become commands first, then the project and
   // every document are written. The workspace save runs even when a draft failed to
@@ -256,6 +299,12 @@ export function createWorkspaceActions(
 
   // The name the document / sheet has right now (null when it is not loaded).
   function currentNameOf(target: RenamingTarget): string | null {
+    if (target.kind === "folder") {
+      const project = applicationStore.getState().project;
+      return project === null
+        ? null
+        : (findFolder(project, target.folderId)?.name ?? null);
+    }
     const session = applicationStore
       .getState()
       .documents.get(target.documentId);
@@ -266,7 +315,7 @@ export function createWorkspaceActions(
   }
 
   async function renameThroughSession(
-    target: RenamingTarget,
+    target: Exclude<RenamingTarget, { readonly kind: "folder" }>,
     name: DisplayName,
     subject: string | null,
   ): Promise<OperationResult<void>> {
@@ -285,6 +334,37 @@ export function createWorkspaceActions(
               : renameSheetCommand(target.sheetId, name),
           );
     if (!result.ok) record(operation, subject, result.error);
+    return result;
+  }
+
+  // Makes sure a folder that just received something is open, so the user sees it.
+  function expandFolder(folderId: FolderId | null): void {
+    if (folderId === null) return;
+    uiStateStore.setState((state) =>
+      setFolderCollapsed(state, folderId, false),
+    );
+  }
+
+  function folderNameOf(folderId: FolderId): string | null {
+    const project = applicationStore.getState().project;
+    return project === null
+      ? null
+      : (findFolder(project, folderId)?.name ?? null);
+  }
+
+  async function deleteFolderConfirmed(
+    folderId: FolderId,
+    name: string,
+  ): Promise<OperationResult<void>> {
+    const result = await workspace.deleteFolder(folderId, USER_CONFIRMATION);
+    if (!result.ok) {
+      record("deleteFolder", name, result.error);
+      return result;
+    }
+    // The folded state of a folder that no longer exists is not worth keeping.
+    uiStateStore.setState((state) =>
+      setFolderCollapsed(state, folderId, false),
+    );
     return result;
   }
 
@@ -401,22 +481,39 @@ export function createWorkspaceActions(
       return operationOk(undefined);
     },
 
-    requestCreateDocument() {
+    requestCreateDocument(parentFolderId = null) {
       uiStateStore.setState((state) =>
-        openDialog(state, { kind: "createDocument" }),
+        openDialog(state, { kind: "createDocument", parentFolderId }),
       );
     },
-    createDocument: (name) =>
+    createDocument: (name, parentFolderId = null) =>
       runBusy(async () => {
-        const created = await workspace.createDocument(name);
+        const created = await workspace.createDocument(name, parentFolderId);
         uiStateStore.setState(closeDialog);
         if (!created.ok) {
           record("createDocument", null, created.error);
           return created;
         }
+        expandFolder(parentFolderId);
         const opened = await ensureOpen(created.value);
         if (!opened.ok) return opened;
         if (opened.value) activateDocument(created.value);
+        return operationOk(undefined);
+      }),
+    requestCreateFolder(parentFolderId = null) {
+      uiStateStore.setState((state) =>
+        openDialog(state, { kind: "createFolder", parentFolderId }),
+      );
+    },
+    createFolder: (name, parentFolderId = null) =>
+      runBusy(async () => {
+        const created = await workspace.createFolder(parentFolderId, name);
+        uiStateStore.setState(closeDialog);
+        if (!created.ok) {
+          record("createFolder", null, created.error);
+          return created;
+        }
+        expandFolder(parentFolderId);
         return operationOk(undefined);
       }),
     async requestCreateSheet(documentId) {
@@ -470,12 +567,87 @@ export function createWorkspaceActions(
         }),
       );
     },
+    requestDeleteFolder(folderId) {
+      const project = applicationStore.getState().project;
+      if (project === null || findFolder(project, folderId) === undefined) {
+        return;
+      }
+      if (hasChildren(project, folderId)) return;
+      uiStateStore.setState((state) =>
+        openDialog(state, {
+          kind: "confirmDeleteFolder",
+          folderId,
+          name: folderNameOf(folderId) ?? MESSAGES.tree.unnamedEntity,
+        }),
+      );
+    },
+    requestMoveEntry(entryId) {
+      const application = applicationStore.getState();
+      const project = application.project;
+      const found =
+        project === null ? null : findProjectEntry(project, entryId);
+      if (project === null || found === null) return;
+      if (found.kind === "folder") {
+        const blocked =
+          found.entry.state !== "loaded" ||
+          documentsUnder(project, found.entry.folderId).some((documentId) =>
+            application.documents.has(documentId),
+          );
+        if (blocked) return;
+      } else if (
+        found.entry.state !== "loaded" ||
+        application.documents.has(found.entry.documentId)
+      ) {
+        return;
+      }
+      uiStateStore.setState((state) =>
+        openDialog(state, {
+          kind: "moveEntry",
+          entryId,
+          name: found.entry.name ?? MESSAGES.tree.unnamedEntity,
+        }),
+      );
+    },
+    moveEntryTo(entryId, targetParentFolderId) {
+      if (uiStateStore.getState().busy) {
+        return Promise.resolve(operationOk(undefined));
+      }
+      const project = applicationStore.getState().project;
+      const found =
+        project === null ? null : findProjectEntry(project, entryId);
+      const name = found?.entry.name ?? null;
+      return runBusy(async () => {
+        const result = await workspace.moveEntry(entryId, targetParentFolderId);
+        uiStateStore.setState(closeDialog);
+        if (!result.ok) {
+          record("moveEntry", name, result.error);
+          return result;
+        }
+        expandFolder(targetParentFolderId);
+        return result;
+      });
+    },
+    setFolderExpanded(folderId, expanded) {
+      uiStateStore.setState((state) =>
+        setFolderCollapsed(state, folderId, !expanded),
+      );
+    },
+    toggleFolder(folderId) {
+      uiStateStore.setState((state) =>
+        setFolderCollapsed(
+          state,
+          folderId,
+          !state.collapsedFolderIds.has(folderId),
+        ),
+      );
+    },
     confirmDelete() {
       const { dialog, busy } = uiStateStore.getState();
       if (busy) return Promise.resolve(operationOk(undefined));
       if (
         dialog.kind !== "confirmDeleteDocument" &&
-        dialog.kind !== "confirmDeleteSheet"
+        dialog.kind !== "confirmDeleteSheet" &&
+        dialog.kind !== "confirmDeleteFolder"
       ) {
         return Promise.resolve(operationOk(undefined));
       }
@@ -483,13 +655,15 @@ export function createWorkspaceActions(
       // after the entity is gone from the tree.
       return runBusy(async () => {
         const result =
-          dialog.kind === "confirmDeleteDocument"
-            ? await deleteDocumentConfirmed(dialog.documentId, dialog.name)
-            : await deleteSheetConfirmed(
-                dialog.documentId,
-                dialog.sheetId,
-                dialog.name,
-              );
+          dialog.kind === "confirmDeleteFolder"
+            ? await deleteFolderConfirmed(dialog.folderId, dialog.name)
+            : dialog.kind === "confirmDeleteDocument"
+              ? await deleteDocumentConfirmed(dialog.documentId, dialog.name)
+              : await deleteSheetConfirmed(
+                  dialog.documentId,
+                  dialog.sheetId,
+                  dialog.name,
+                );
         uiStateStore.setState(closeDialog);
         return result;
       });
@@ -526,6 +700,15 @@ export function createWorkspaceActions(
       }
       return Promise.resolve(operationOk(undefined));
     },
+    beginRenameFolder(folderId) {
+      const project = applicationStore.getState().project;
+      const entry =
+        project === null ? undefined : findFolder(project, folderId);
+      if (entry?.state === "loaded") {
+        startRenaming({ kind: "folder", folderId });
+      }
+      return Promise.resolve(operationOk(undefined));
+    },
     cancelRename() {
       uiStateStore.setState(endRenaming);
     },
@@ -538,6 +721,14 @@ export function createWorkspaceActions(
       // The editor closes before the command runs, so it cannot be submitted twice.
       uiStateStore.setState(endRenaming);
       if (current === name) return operationOk(undefined);
+      if (target.kind === "folder") {
+        const renamed = await workspace.renameFolder(
+          target.folderId,
+          parsed.value,
+        );
+        if (!renamed.ok) record("renameFolder", current, renamed.error);
+        return renamed;
+      }
       return renameThroughSession(target, parsed.value, current);
     },
 
@@ -549,14 +740,32 @@ export function createWorkspaceActions(
       if (project === null || entry?.state !== "loaded") {
         return operationOk(undefined);
       }
+      // The order of the document's own parent, which also lists Folders.
       const step = oneStepMove(
-        project.project.childOrder,
+        childOrderOf(project, entry.parentFolderId) ?? [],
         documentId,
         direction,
       );
       if (step === null) return operationOk(undefined);
       const result = await workspace.moveDocument(documentId, step.before);
       if (!result.ok) record("moveDocument", entry.name, result.error);
+      return result;
+    },
+    async moveFolderBy(folderId, direction) {
+      const project = applicationStore.getState().project;
+      const entry =
+        project === null ? undefined : findFolder(project, folderId);
+      if (project === null || entry?.state !== "loaded") {
+        return operationOk(undefined);
+      }
+      const step = oneStepMove(
+        childOrderOf(project, entry.parentFolderId) ?? [],
+        folderId,
+        direction,
+      );
+      if (step === null) return operationOk(undefined);
+      const result = await workspace.moveFolder(folderId, step.before);
+      if (!result.ok) record("moveFolder", entry.name, result.error);
       return result;
     },
     async moveSheetBy(documentId, sheetId, direction) {
@@ -585,6 +794,7 @@ export function createWorkspaceActions(
       const session = workspace.getDocumentSession(documentId);
       return session === null ? operationOk(undefined) : session.flush();
     },
+    retryFolderSave: (folderId) => workspace.saveFolder(folderId),
     retryProjectSave: () => workspace.saveProject(),
     async saveAll() {
       const drafts = await draftRegistry.commitAll();

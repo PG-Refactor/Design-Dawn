@@ -17,10 +17,18 @@ export const MESSAGES = {
     autoSave: "自動保存",
   },
   tree: {
+    createFolder: "フォルダを作成",
     createDocument: "Documentを作成",
     createSheet: "Sheetを作成",
+    deleteFolder: "フォルダを削除",
     deleteDocument: "Documentを削除",
     deleteSheet: "Sheetを削除",
+    moveTo: "移動…",
+    moveOpenHint: "閉じてから移動してください",
+    deleteFolderNotEmptyHint: "空のフォルダだけ削除できます",
+    folderExpandedMarker: "▾",
+    folderCollapsedMarker: "▸",
+    emptyFolder: "空のフォルダです",
     rename: "名前変更",
     moveUp: "上へ移動",
     moveDown: "下へ移動",
@@ -90,6 +98,7 @@ export const MESSAGES = {
     cancel: "キャンセル",
     delete: "削除",
     undoNotice: "この操作はUndoできません。",
+    deleteFolderConsequence: "このフォルダ（空）が削除されます。",
     deleteDocumentConsequence:
       "このDocumentのSheet、Block本文ファイル、Assetもすべて削除されます。",
     createProject: {
@@ -101,6 +110,18 @@ export const MESSAGES = {
       title: "Documentを作成",
       nameLabel: "Document名",
       submit: "作成",
+    },
+    createFolder: {
+      title: "フォルダを作成",
+      nameLabel: "フォルダ名",
+      submit: "作成",
+    },
+    moveEntry: {
+      description: "移動先を選んでください。",
+      projectRoot: "Project直下",
+      listLabel: "移動先",
+      currentParentHint: "現在の場所です",
+      selfOrDescendantHint: "自分自身またはその中には移動できません",
     },
     createSheet: {
       title: "Sheetを作成",
@@ -125,12 +146,17 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   openDocument: "Documentを開けませんでした",
   closeDocument: "Documentを閉じられませんでした",
   createDocument: "Documentを作成できませんでした",
+  createFolder: "フォルダを作成できませんでした",
   createSheet: "Sheetを作成できませんでした",
   deleteDocument: "Documentを削除できませんでした",
+  deleteFolder: "フォルダを削除できませんでした",
   deleteSheet: "Sheetを削除できませんでした",
   renameDocument: "名前の変更に失敗しました",
+  renameFolder: "名前の変更に失敗しました",
   renameSheet: "名前の変更に失敗しました",
   moveDocument: "並び順の変更に失敗しました",
+  moveFolder: "並び順の変更に失敗しました",
+  moveEntry: "移動できませんでした",
   moveSheet: "並び順の変更に失敗しました",
   moveBlocks: "Blockを移動できませんでした",
   resizeBlocks: "Blockのサイズを変更できませんでした",
@@ -228,6 +254,7 @@ export function describeOperationFailure(
   return `${subjectPart}${OPERATION_HEADLINES[operation]}。${describeErrorKind(kind)}`;
 }
 
+// Where a failed save belongs: the Project (null), or a named Document / Folder.
 export function describeSaveFailure(
   documentName: string | null,
   kind: OperationErrorKind,

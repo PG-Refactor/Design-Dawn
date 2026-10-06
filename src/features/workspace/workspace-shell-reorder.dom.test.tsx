@@ -412,6 +412,7 @@ describe("row menu accessibility", () => {
       MESSAGES.tree.rename,
       MESSAGES.tree.moveUp,
       MESSAGES.tree.moveDown,
+      MESSAGES.tree.moveTo,
       MESSAGES.tree.createSheet,
       MESSAGES.tree.deleteDocument,
     ]);
@@ -420,11 +421,11 @@ describe("row menu accessibility", () => {
     await harness.user.keyboard("{ArrowDown}");
     expect(document.activeElement).toBe(items[1]);
     await harness.user.keyboard("{End}");
-    expect(document.activeElement).toBe(items[4]);
+    expect(document.activeElement).toBe(items[5]);
     await harness.user.keyboard("{ArrowDown}");
     expect(document.activeElement).toBe(items[0]);
     await harness.user.keyboard("{ArrowUp}");
-    expect(document.activeElement).toBe(items[4]);
+    expect(document.activeElement).toBe(items[5]);
     await harness.user.keyboard("{Home}");
     expect(document.activeElement).toBe(items[0]);
 
@@ -434,14 +435,14 @@ describe("row menu accessibility", () => {
     expect(button.getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("closes when focus leaves and offers the project row only the create action", async () => {
+  it("closes when focus leaves and offers the project row only the create actions", async () => {
     const harness = await openedShell();
     const menu = await openRowMenu(harness.user, "Project");
     expect(
       within(menu)
         .getAllByRole("menuitem")
         .map((item) => item.textContent),
-    ).toEqual([MESSAGES.tree.createDocument]);
+    ).toEqual([MESSAGES.tree.createFolder, MESSAGES.tree.createDocument]);
 
     await harness.user.click(document.body);
     expect(screen.queryByRole("menu")).toBeNull();

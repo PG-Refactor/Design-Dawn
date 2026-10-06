@@ -88,7 +88,11 @@ export function removeDocumentReferences(
     next = { ...next, activeDocumentId: null };
   }
   // Document and sheet renames of that document end with it.
-  if (next.renaming?.documentId === documentId) {
+  if (
+    next.renaming !== null &&
+    next.renaming.kind !== "folder" &&
+    next.renaming.documentId === documentId
+  ) {
     next = { ...next, renaming: null };
   }
   return next;

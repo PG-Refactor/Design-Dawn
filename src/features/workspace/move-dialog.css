@@ -1,0 +1,19 @@
+.move-dialog__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The depth is a number from the view model; the indent unit is a spacing token. */
+.move-dialog__item {
+  padding-left: calc(var(--move-dialog-depth, 0) * var(--space-3));
+}
+
+.move-dialog__target {
+  width: 100%;
+  text-align: left;
+  overflow-wrap: anywhere;
+}

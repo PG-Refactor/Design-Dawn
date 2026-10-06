@@ -48,6 +48,7 @@ import {
   DOCUMENT_A,
   SELECTION_ID,
   SHEET_A1,
+  seedFolderTree,
   type WorkspaceHarness,
 } from "../../../application/test-support/workspace-harness";
 import { createThemeController } from "../../../application/theme/theme-controller";
@@ -155,6 +156,17 @@ export function createActionsHarness(): ActionsHarness {
 
 export async function openedActionsHarness(): Promise<ActionsHarness> {
   const harness = createActionsHarness();
+  const opened = await harness.actions.openProjectViaDialog();
+  if (!opened.ok) throw new Error(`open failed: ${opened.error.kind}`);
+  harness.gateway.clearCalls();
+  return harness;
+}
+
+// The project of `seedFolderTree` (root: Folder 1, Document A, Document B; Folder 1: Folder 2,
+// Document C; Folder 2: Document D) opened through the actions, calls cleared.
+export async function openedFolderActionsHarness(): Promise<ActionsHarness> {
+  const harness = createActionsHarness();
+  seedFolderTree(harness.gateway);
   const opened = await harness.actions.openProjectViaDialog();
   if (!opened.ok) throw new Error(`open failed: ${opened.error.kind}`);
   harness.gateway.clearCalls();

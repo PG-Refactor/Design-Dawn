@@ -16,7 +16,18 @@ import {
 } from "../ui-state/ui-state";
 import { MESSAGES } from "../workspace-messages";
 import { flattenProjectTree } from "./tree-items";
-import { selectProjectTree } from "./tree-model";
+import {
+  type DocumentNode,
+  type ProjectTreeModel,
+  selectProjectTree,
+} from "./tree-model";
+
+// The documents directly under the project (no folders in these projects).
+function rootDocuments(model: ProjectTreeModel | null): DocumentNode[] {
+  return (model?.entries ?? []).filter(
+    (entry): entry is DocumentNode => entry.kind === "document",
+  );
+}
 
 describe("selectProjectTree", () => {
   it("is null without a project", () => {
@@ -32,16 +43,16 @@ describe("selectProjectTree", () => {
     const { store } = await openedWorkspace();
     const model = selectProjectTree(store.getState(), createInitialUiState());
     expect(model?.projectName).toBe("Project");
-    expect(model?.documents.map((node) => node.documentId)).toEqual([
+    expect(rootDocuments(model).map((node) => node.documentId)).toEqual([
       DOCUMENT_A,
       DOCUMENT_B,
       FAILED_DOCUMENT_ID,
     ]);
-    expect(model?.documents.every((node) => !node.isOpen)).toBe(true);
-    expect(model?.documents.every((node) => node.sheets.length === 0)).toBe(
+    expect(rootDocuments(model).every((node) => !node.isOpen)).toBe(true);
+    expect(rootDocuments(model).every((node) => node.sheets.length === 0)).toBe(
       true,
     );
-    const failed = model?.documents[2];
+    const failed = rootDocuments(model)[2];
     expect(failed?.state).toBe("loadFailed");
     expect(failed?.name).toBe(MESSAGES.tree.unnamedEntity);
   });
@@ -50,7 +61,7 @@ describe("selectProjectTree", () => {
     const { store, workspace } = await openedWorkspace();
     await workspace.moveDocument(DOCUMENT_B, DOCUMENT_A);
     const model = selectProjectTree(store.getState(), createInitialUiState());
-    expect(model?.documents.map((node) => node.documentId)).toEqual([
+    expect(rootDocuments(model).map((node) => node.documentId)).toEqual([
       DOCUMENT_B,
       DOCUMENT_A,
       FAILED_DOCUMENT_ID,
@@ -66,7 +77,7 @@ describe("selectProjectTree", () => {
       SHEET_A2,
     );
     const model = selectProjectTree(store.getState(), ui);
-    const [documentA, documentB] = model?.documents ?? [];
+    const [documentA, documentB] = rootDocuments(model);
     expect(documentA?.isOpen).toBe(true);
     expect(documentA?.isActive).toBe(true);
     expect(documentB?.isOpen).toBe(false);
@@ -93,10 +104,10 @@ describe("selectProjectTree", () => {
       SHEET_A1,
     );
     const model = selectProjectTree(store.getState(), ui);
-    expect(model?.documents[0]?.isActive).toBe(false);
-    expect(model?.documents[0]?.sheets.some((sheet) => sheet.isActive)).toBe(
-      false,
-    );
+    expect(rootDocuments(model)[0]?.isActive).toBe(false);
+    expect(
+      rootDocuments(model)[0]?.sheets.some((sheet) => sheet.isActive),
+    ).toBe(false);
   });
 });
 
@@ -133,7 +144,7 @@ describe("selectProjectTree move availability", () => {
   it("disables up for the first and down for the last, counting entries that failed to load", async () => {
     const { store } = await openedWorkspace();
     const model = selectProjectTree(store.getState(), createInitialUiState());
-    const moves = model?.documents.map((node) => [
+    const moves = rootDocuments(model).map((node) => [
       node.canMoveUp,
       node.canMoveDown,
     ]);
@@ -150,7 +161,7 @@ describe("selectProjectTree move availability", () => {
     const { store, workspace } = await openedWorkspace();
     await workspace.openDocument(DOCUMENT_A);
     const model = selectProjectTree(store.getState(), createInitialUiState());
-    const sheets = model?.documents[0]?.sheets;
+    const sheets = rootDocuments(model)[0]?.sheets;
     expect(
       sheets?.map((sheet) => [
         sheet.sheetId,

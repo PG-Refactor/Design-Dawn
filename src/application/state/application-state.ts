@@ -63,6 +63,8 @@ export interface OpenProjectFolderEntry {
   readonly parentFolderId: FolderId | null;
   readonly childOrder: readonly EntryId[];
   readonly state: EntityState;
+  // Like `OpenProjectState.save`, for this folder's own file (name, childOrder).
+  readonly save: ProjectSaveState;
 }
 
 export interface OpenProjectDocumentEntry {

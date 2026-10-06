@@ -14,7 +14,11 @@ import type {
   DocumentSessionState,
 } from "../../../application/state/application-state";
 import type { ThemeState } from "../../../application/theme/theme-controller";
-import type { DocumentId, SheetId } from "../../../domain/shared/entity-id";
+import type {
+  DocumentId,
+  FolderId,
+  SheetId,
+} from "../../../domain/shared/entity-id";
 import type { OperationErrorEntry, UiState } from "../ui-state/ui-state";
 import {
   describeDocumentLoadStatus,
@@ -78,6 +82,12 @@ export type NotificationSource =
 
 export type NotificationRetry =
   | { readonly kind: "document"; readonly documentId: DocumentId }
+  | {
+      readonly kind: "folder";
+      readonly folderId: FolderId;
+      // Shown in the retry button's accessible name; null when the name is unknown.
+      readonly folderName: string | null;
+    }
   | { readonly kind: "project" };
 
 export interface NotificationDetail {
@@ -235,6 +245,23 @@ function collectProjectItems(
         message: describeSaveFailure(null, project.save.lastError.kind),
         details: errorDetails(project.save.lastError),
         retry: { kind: "project" },
+      }),
+    );
+  }
+  for (const folder of project.folders) {
+    if (folder.save.lastError === null) continue;
+    items.push(
+      makeItem({
+        id: `saveError:folder:${folder.folderId}`,
+        kind: "saveError",
+        source,
+        message: describeSaveFailure(folder.name, folder.save.lastError.kind),
+        details: errorDetails(folder.save.lastError),
+        retry: {
+          kind: "folder",
+          folderId: folder.folderId,
+          folderName: folder.name,
+        },
       }),
     );
   }

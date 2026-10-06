@@ -3,9 +3,11 @@ import type { DomainResult } from "../domain/shared/domain-result";
 import {
   type BlockId,
   type DocumentId,
+  type FolderId,
   type ProjectId,
   parseBlockId,
   parseDocumentId,
+  parseFolderId,
   parseProjectId,
   parseSheetId,
   type SheetId,
@@ -31,6 +33,10 @@ export function generateProjectId(): ProjectId {
 
 export function generateDocumentId(): DocumentId {
   return generate(parseDocumentId);
+}
+
+export function generateFolderId(): FolderId {
+  return generate(parseFolderId);
 }
 
 export function generateSheetId(): SheetId {

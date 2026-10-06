@@ -42,15 +42,20 @@ export interface FlatTreeItem {
   readonly firstChildIndex: number | null;
   // An unopened, loadable document: ArrowRight opens it.
   readonly opensOnExpand: boolean;
+  // Folders only: ArrowRight expands a collapsed one, ArrowLeft collapses an expanded one.
+  readonly folderState: "expanded" | "collapsed" | null;
 }
 
 export type TreeNavigation =
   | { readonly action: "focus"; readonly index: number }
-  | { readonly action: "open"; readonly index: number };
+  | { readonly action: "open"; readonly index: number }
+  | { readonly action: "expand"; readonly index: number }
+  | { readonly action: "collapse"; readonly index: number };
 
-// ArrowUp / ArrowDown / Home / End move between visible items; ArrowRight opens an
-// unopened document or moves to the first child; ArrowLeft moves to the parent. Items are
-// never collapsed because closing a document saves it, which is not a navigation key's job.
+// ArrowUp / ArrowDown / Home / End move between visible items. ArrowRight expands a
+// collapsed folder, opens an unopened document, or else moves to the first child;
+// ArrowLeft collapses an expanded folder, or else moves to the parent. Documents are never
+// collapsed because closing a document saves it, which is not a navigation key's job.
 export function treeNavigation(
   key: string,
   items: readonly FlatTreeItem[],
@@ -72,11 +77,17 @@ export function treeNavigation(
     case NAVIGATION_KEYS.end:
       return { action: "focus", index: items.length - 1 };
     case NAVIGATION_KEYS.arrowRight:
+      if (current.folderState === "collapsed") {
+        return { action: "expand", index: currentIndex };
+      }
       if (current.opensOnExpand) return { action: "open", index: currentIndex };
       return current.firstChildIndex === null
         ? null
         : { action: "focus", index: current.firstChildIndex };
     case NAVIGATION_KEYS.arrowLeft:
+      if (current.folderState === "expanded") {
+        return { action: "collapse", index: currentIndex };
+      }
       return current.parentIndex === null
         ? null
         : { action: "focus", index: current.parentIndex };

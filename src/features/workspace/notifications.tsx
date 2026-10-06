@@ -3,10 +3,12 @@ import { useStoreSelector } from "../../shared/store/use-store-selector";
 import type { UiState } from "./ui-state/ui-state";
 import {
   type NotificationItem,
+  type NotificationRetry,
   type NotificationSource,
   selectLoadStatusMessages,
   selectNotifications,
 } from "./view-models/notifications-model";
+import type { WorkspaceActions } from "./workspace-actions";
 import { useUiState, useWorkspaceModel } from "./workspace-hooks";
 import {
   MESSAGES,
@@ -35,9 +37,24 @@ function sourceLabel(source: NotificationSource): string {
 }
 
 function retryTargetName(item: NotificationItem): string {
-  return item.source.scope === "document"
-    ? item.source.name
+  if (item.source.scope === "document") return item.source.name;
+  return item.retry?.kind === "folder"
+    ? (item.retry.folderName ?? MESSAGES.tree.unnamedEntity)
     : MESSAGES.notifications.projectSource;
+}
+
+function runRetry(
+  actions: WorkspaceActions,
+  retry: NotificationRetry,
+): Promise<unknown> {
+  switch (retry.kind) {
+    case "project":
+      return actions.retryProjectSave();
+    case "folder":
+      return actions.retryFolderSave(retry.folderId);
+    case "document":
+      return actions.retryDocumentSave(retry.documentId);
+  }
 }
 
 function NotificationEntry({ item }: { readonly item: NotificationItem }) {
@@ -74,11 +91,7 @@ function NotificationEntry({ item }: { readonly item: NotificationItem }) {
             type="button"
             className="button"
             aria-label={retrySaveLabel(retryTargetName(item))}
-            onClick={() =>
-              void (retry.kind === "project"
-                ? actions.retryProjectSave()
-                : actions.retryDocumentSave(retry.documentId))
-            }
+            onClick={() => void runRetry(actions, retry)}
           >
             {MESSAGES.notifications.retry}
           </button>

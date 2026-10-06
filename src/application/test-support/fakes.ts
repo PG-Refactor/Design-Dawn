@@ -93,14 +93,17 @@ export function sheetIdOf(counter: number): SheetId {
 // Generated documents / sheets get numbers far from the ones tests pick by hand.
 const GENERATED_DOCUMENT_ID_START = 0x2000;
 const GENERATED_SHEET_ID_START = 0x3000;
+const GENERATED_FOLDER_ID_START = 0x4000;
 
 export function createSequentialIdGenerator(start = 0x1000): IdGenerator {
   let nextBlock = start;
   let nextDocument = GENERATED_DOCUMENT_ID_START;
   let nextSheet = GENERATED_SHEET_ID_START;
+  let nextFolder = GENERATED_FOLDER_ID_START;
   return {
     blockId: () => blockIdOf(nextBlock++),
     documentId: () => documentIdOf(nextDocument++),
+    folderId: () => folderIdOf(nextFolder++),
     sheetId: () => sheetIdOf(nextSheet++),
   };
 }

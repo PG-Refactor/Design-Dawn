@@ -21,7 +21,7 @@ describe("opening a project with folders", () => {
   it("keeps the folder tree: parents, child orders and states", async () => {
     const { store } = await openedFolderTreeWorkspace();
     const project = store.getState().project;
-    expect(project?.folders).toEqual(folderTreeSnapshot().folders);
+    expect(project?.folders).toMatchObject(folderTreeSnapshot().folders);
     expect(
       project?.documents.map((entry) => [
         entry.documentId,
@@ -110,7 +110,7 @@ describe("root operations in a project with folders", () => {
   it("renames the project without touching the folders", async () => {
     const { workspace, store } = await openedFolderTreeWorkspace();
     await workspace.renameProject("Renamed");
-    expect(store.getState().project?.folders).toEqual(
+    expect(store.getState().project?.folders).toMatchObject(
       folderTreeSnapshot().folders,
     );
   });

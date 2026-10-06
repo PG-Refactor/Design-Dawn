@@ -1,4 +1,5 @@
 import { ConfirmDialog } from "./confirm-dialog";
+import { MoveDialog } from "./move-dialog";
 import { NameDialog } from "./name-dialog";
 import type { UiState } from "./ui-state/ui-state";
 import { useUiState } from "./workspace-hooks";
@@ -37,7 +38,46 @@ export function WorkspaceDialogs() {
           submitLabel={texts.createDocument.submit}
           busy={busy}
           onCancel={actions.cancelDialog}
-          onSubmit={(name) => void actions.createDocument(name)}
+          onSubmit={(name) =>
+            void actions.createDocument(name, dialog.parentFolderId)
+          }
+        />
+      );
+    case "createFolder":
+      return (
+        <NameDialog
+          title={texts.createFolder.title}
+          nameLabel={texts.createFolder.nameLabel}
+          submitLabel={texts.createFolder.submit}
+          busy={busy}
+          onCancel={actions.cancelDialog}
+          onSubmit={(name) =>
+            void actions.createFolder(name, dialog.parentFolderId)
+          }
+        />
+      );
+    case "moveEntry":
+      return (
+        <MoveDialog
+          entryId={dialog.entryId}
+          name={dialog.name}
+          busy={busy}
+          onCancel={actions.cancelDialog}
+          onChoose={(target) =>
+            void actions.moveEntryTo(dialog.entryId, target)
+          }
+        />
+      );
+    case "confirmDeleteFolder":
+      return (
+        <ConfirmDialog
+          title={deleteConfirmationTitle(dialog.name)}
+          paragraphs={[texts.undoNotice, texts.deleteFolderConsequence]}
+          cancelLabel={texts.cancel}
+          confirmLabel={texts.delete}
+          busy={busy}
+          onCancel={actions.cancelDialog}
+          onConfirm={() => void actions.confirmDelete()}
         />
       );
     case "createSheet": {

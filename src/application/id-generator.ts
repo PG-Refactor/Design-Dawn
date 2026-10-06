@@ -1,7 +1,13 @@
-import type { BlockId, DocumentId, SheetId } from "../domain/shared/entity-id";
+import type {
+  BlockId,
+  DocumentId,
+  FolderId,
+  SheetId,
+} from "../domain/shared/entity-id";
 import {
   generateBlockId,
   generateDocumentId,
+  generateFolderId,
   generateSheetId,
 } from "./entity-id-generator";
 
@@ -10,6 +16,7 @@ import {
 export interface IdGenerator {
   blockId(): BlockId;
   documentId(): DocumentId;
+  folderId(): FolderId;
   sheetId(): SheetId;
 }
 
@@ -17,6 +24,7 @@ export function createDefaultIdGenerator(): IdGenerator {
   return {
     blockId: generateBlockId,
     documentId: generateDocumentId,
+    folderId: generateFolderId,
     sheetId: generateSheetId,
   };
 }

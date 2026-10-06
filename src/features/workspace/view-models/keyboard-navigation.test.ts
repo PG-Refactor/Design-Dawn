@@ -37,12 +37,43 @@ const ITEMS: readonly FlatTreeItem[] = [
     parentIndex: null,
     firstChildIndex: 1,
     opensOnExpand: false,
+    folderState: null,
   },
-  { key: "d1", parentIndex: 0, firstChildIndex: 2, opensOnExpand: false },
-  { key: "s1", parentIndex: 1, firstChildIndex: null, opensOnExpand: false },
-  { key: "s2", parentIndex: 1, firstChildIndex: null, opensOnExpand: false },
-  { key: "d2", parentIndex: 0, firstChildIndex: null, opensOnExpand: true },
-  { key: "d3", parentIndex: 0, firstChildIndex: null, opensOnExpand: false },
+  {
+    key: "d1",
+    parentIndex: 0,
+    firstChildIndex: 2,
+    opensOnExpand: false,
+    folderState: null,
+  },
+  {
+    key: "s1",
+    parentIndex: 1,
+    firstChildIndex: null,
+    opensOnExpand: false,
+    folderState: null,
+  },
+  {
+    key: "s2",
+    parentIndex: 1,
+    firstChildIndex: null,
+    opensOnExpand: false,
+    folderState: null,
+  },
+  {
+    key: "d2",
+    parentIndex: 0,
+    firstChildIndex: null,
+    opensOnExpand: true,
+    folderState: null,
+  },
+  {
+    key: "d3",
+    parentIndex: 0,
+    firstChildIndex: null,
+    opensOnExpand: false,
+    folderState: null,
+  },
 ];
 
 describe("treeNavigation", () => {

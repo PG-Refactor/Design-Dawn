@@ -32,6 +32,11 @@ export interface TreeItemProps {
   readonly isRoving: boolean;
   readonly selected?: boolean;
   readonly expanded?: boolean;
+  // Nesting depth for assistive technology (the Project is 1).
+  readonly level?: number;
+  // A decorative glyph before the name (the fold state of a folder). Not part of the
+  // accessible name, which `aria-expanded` already covers.
+  readonly leadingMarker?: string;
   // Failed to load: shown with a text marker, cannot be activated.
   readonly failed?: boolean;
   readonly register: (key: string, element: HTMLLIElement | null) => void;
@@ -69,6 +74,8 @@ export function TreeItem({
   isRoving,
   selected,
   expanded,
+  level,
+  leadingMarker,
   failed = false,
   register,
   onFocusItem,
@@ -153,6 +160,7 @@ export function TreeItem({
       aria-labelledby={failed ? `${labelId} ${markerId}` : labelId}
       aria-selected={selected}
       aria-expanded={expanded}
+      aria-level={level}
       aria-disabled={failed ? true : undefined}
       tabIndex={isRoving ? 0 : -1}
       className={classNames(selected === true, failed)}
@@ -164,6 +172,11 @@ export function TreeItem({
       {...fallbackProps}
     >
       <div className="tree-item__row">
+        {leadingMarker === undefined ? null : (
+          <span className="tree-item__folder-marker" aria-hidden="true">
+            {leadingMarker}
+          </span>
+        )}
         <span
           id={labelId}
           className={

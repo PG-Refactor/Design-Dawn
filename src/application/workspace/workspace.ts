@@ -10,16 +10,12 @@
 // When a step fails AFTER an entity was created on disk, the entity stays in memory and
 // the affected save state is left dirty with `lastError`, so a retry persists it.
 
-import {
-  addDocument,
-  moveDocument,
-  removeDocument,
-  renameProject,
-} from "../../domain/project/project";
+import { renameProject } from "../../domain/project/project";
 import { parseDisplayName } from "../../domain/shared/display-name";
 import type {
   DocumentId,
   EntryId,
+  FolderId,
   ProjectId,
   SheetId,
 } from "../../domain/shared/entity-id";
@@ -46,7 +42,6 @@ import {
   type ApplicationState,
   connectSessionToStore,
   createInitialApplicationState,
-  type OpenProjectDocumentEntry,
   type OpenProjectState,
   putDocumentDetails,
   putDocumentSession,
@@ -54,6 +49,17 @@ import {
   setOpenProject,
   syncSheetEntries,
 } from "../state/application-state";
+import {
+  CLEAN_SAVE,
+  findProjectEntry,
+  orderWithout,
+  type ParentId,
+  requireWritableParent,
+  withAppendedChild,
+  withChildOrder,
+  withParentSave,
+} from "./project-entries";
+import { createProjectTreeSteps } from "./project-tree-steps";
 import {
   documentWithoutSheet,
   withSheetAdded,
@@ -105,7 +111,40 @@ export interface Workspace {
   // The session of an open document (execute / undo / redo / flush), or null.
   getDocumentSession(documentId: DocumentId): DocumentSession | null;
 
-  createDocument(name: string): Promise<OperationResult<DocumentId>>;
+  // `parentFolderId` null (the default) creates it directly under the Project; otherwise
+  // inside that loaded Folder. Appended to the parent's order.
+  createDocument(
+    name: string,
+    parentFolderId?: FolderId | null,
+  ): Promise<OperationResult<DocumentId>>;
+  createFolder(
+    parentFolderId: FolderId | null,
+    name: string,
+  ): Promise<OperationResult<FolderId>>;
+  renameFolder(
+    folderId: FolderId,
+    name: string,
+  ): Promise<OperationResult<void>>;
+  // Reorder among the siblings of the same parent (Project or Folder), directly before
+  // `beforeEntryId`, or last when null. Saves the parent's file; not undoable.
+  moveFolder(
+    folderId: FolderId,
+    beforeEntryId: EntryId | null,
+  ): Promise<OperationResult<void>>;
+  // Moves a closed Document / Folder (one that holds no open Document) into another loaded
+  // Folder or the Project root, appended to the target's order. Rejected with
+  // `invalidMove` for itself / a descendant / an open entry.
+  moveEntry(
+    entryId: EntryId,
+    targetParentFolderId: FolderId | null,
+  ): Promise<OperationResult<void>>;
+  // Only an empty Folder (`folderNotEmpty` otherwise).
+  deleteFolder(
+    folderId: FolderId,
+    confirmation: DestructiveConfirmation,
+  ): Promise<OperationResult<void>>;
+  // Explicit retry of a folder save that failed.
+  saveFolder(folderId: FolderId): Promise<OperationResult<void>>;
   deleteDocument(
     documentId: DocumentId,
     confirmation: DestructiveConfirmation,
@@ -130,22 +169,6 @@ export interface Workspace {
     sheetId: SheetId,
     confirmation: DestructiveConfirmation,
   ): Promise<OperationResult<void>>;
-}
-
-const CLEAN_PROJECT_SAVE = { dirty: false, lastError: null } as const;
-
-function reorderEntries(
-  entries: readonly OpenProjectDocumentEntry[],
-  order: readonly EntryId[],
-): readonly OpenProjectDocumentEntry[] {
-  const position = (entry: OpenProjectDocumentEntry): number => {
-    const index = order.indexOf(entry.documentId);
-    // Entries the order does not list (load issues) stay behind the listed ones.
-    return index < 0 ? order.length : index;
-  };
-  return [...entries].sort(
-    (first, second) => position(first) - position(second),
-  );
 }
 
 export function createWorkspace(options: WorkspaceOptions): Workspace {
@@ -206,7 +229,7 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
       project.value.project,
     );
     if (saved.ok) {
-      updateProject((current) => ({ ...current, save: CLEAN_PROJECT_SAVE }));
+      updateProject((current) => ({ ...current, save: CLEAN_SAVE }));
     } else {
       markProjectDirty(saved.error);
     }
@@ -223,6 +246,15 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     }));
     return saveCurrentProject();
   }
+
+  const treeSteps = createProjectTreeSteps({
+    gateway,
+    idGenerator,
+    requireProject,
+    updateProject,
+    saveCurrentProject,
+    isDocumentOpen: (documentId) => sessions.has(documentId),
+  });
 
   // ---- documents: open / close ----
 
@@ -267,6 +299,8 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
       const saved = await saveCurrentProject();
       if (!saved.ok) firstFailure = saved;
     }
+    const foldersSaved = await treeSteps.saveDirtyFolders(false);
+    if (!foldersSaved.ok) firstFailure ??= foldersSaved;
     for (const session of [...sessions.values()]) {
       const flushed = await session.flush();
       if (!flushed.ok && firstFailure === null) firstFailure = flushed;
@@ -282,6 +316,8 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
       const saved = await saveCurrentProject();
       if (!saved.ok) return saved;
     }
+    const foldersSaved = await treeSteps.saveDirtyFolders(true);
+    if (!foldersSaved.ok) return foldersSaved;
     const open = [...sessions.entries()];
     for (const [, session] of open) {
       const flushed = await session.flush();
@@ -323,6 +359,7 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
           parentFolderId: entry.parentFolderId,
           childOrder: entry.childOrder,
           state: entry.state,
+          save: CLEAN_SAVE,
         })),
         documents: valid.value.documents.map((entry) => ({
           documentId: entry.documentId,
@@ -331,7 +368,7 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
           state: entry.state,
         })),
         issues: valid.value.issues,
-        save: CLEAN_PROJECT_SAVE,
+        save: CLEAN_SAVE,
       });
       return operationOk(undefined);
     });
@@ -393,10 +430,13 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
 
   function createDocumentStep(
     name: string,
+    parentFolderId: ParentId,
   ): Promise<OperationResult<DocumentId>> {
     return runLifecycle(async () => {
       const project = requireProject();
       if (!project.ok) return project;
+      const parent = requireWritableParent(project.value, parentFolderId);
+      if (!parent.ok) return parent;
       const displayName = fromDomainResult(parseDisplayName(name));
       if (!displayName.ok) return failWith(displayName.error);
       const documentId = idGenerator.documentId();
@@ -404,30 +444,33 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
         project.value.projectId,
         documentId,
         displayName.value,
+        parentFolderId,
       );
       if (!created.ok) return created;
       const valid = validateDocumentSnapshot(created.value, documentId);
       if (!valid.ok) return valid;
-      const ordered = fromDomainResult(
-        addDocument(project.value.project, documentId),
+      const current = requireProject();
+      if (!current.ok) return current;
+      const listed = withAppendedChild(
+        {
+          ...current.value,
+          documents: [
+            ...current.value.documents,
+            {
+              documentId,
+              parentFolderId,
+              name: valid.value.document.name,
+              state: "loaded",
+            },
+          ],
+        },
+        parentFolderId,
+        documentId,
       );
-      if (!ordered.ok) return failWith(ordered.error);
+      if (!listed.ok) return failWith(listed.error);
       // The directory exists now, so it is listed even if saving the order fails.
-      const saved = await applyProjectChange((current) => ({
-        ...current,
-        project: ordered.value,
-        documents: [
-          ...current.documents,
-          {
-            documentId,
-            // Documents are created directly under the Project until Folders can be a
-            // parent (Folder operations are not implemented yet).
-            parentFolderId: null,
-            name: valid.value.document.name,
-            state: "loaded",
-          },
-        ],
-      }));
+      updateProject(() => listed.value);
+      const saved = await treeSteps.saveParent(parentFolderId);
       return saved.ok ? operationOk(documentId) : saved;
     });
   }
@@ -438,37 +481,38 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     return runLifecycle(async () => {
       const project = requireProject();
       if (!project.ok) return project;
-      const entry = project.value.documents.find(
-        (candidate) => candidate.documentId === documentId,
-      );
-      if (entry === undefined) {
+      const found = findProjectEntry(project.value, documentId);
+      if (found === null || found.kind !== "document") {
         return operationErr(
           "entityNotFound",
           `document not found: ${documentId}`,
         );
       }
-      // Only a root Document is in the Project's order. A Document inside a Folder is
-      // listed by its parent Folder, whose order the Folder operations will maintain;
-      // until then a stale entry there is dropped as `missingEntity` on the next load.
-      const without = project.value.project.childOrder.includes(documentId)
-        ? fromDomainResult(removeDocument(project.value.project, documentId))
-        : operationOk(project.value.project);
+      const entry = found.entry;
+      const parentId = entry.parentFolderId;
+      const without = orderWithout(project.value, parentId, documentId);
       if (!without.ok) return failWith(without.error);
       // Order first: if the process dies before the directory is deleted, an unlisted
-      // directory remains (reported on load) instead of a listed one that is gone.
-      const saved = await gateway.saveProject(
-        project.value.projectId,
-        without.value,
-      );
-      if (!saved.ok) return saved;
-      updateProject((current) => ({
-        ...current,
-        project: without.value,
-        documents: current.documents.filter(
-          (candidate) => candidate.documentId !== documentId,
-        ),
-        save: CLEAN_PROJECT_SAVE,
-      }));
+      // directory remains (reported on load) instead of a listed one that is gone. A
+      // Document that its parent does not list has nothing to remove.
+      if (without.value !== null) {
+        const saved = await treeSteps.saveOrderOf(parentId, without.value);
+        if (!saved.ok) return saved;
+      }
+      updateProject((current) => {
+        const removed = {
+          ...current,
+          documents: current.documents.filter(
+            (candidate) => candidate.documentId !== documentId,
+          ),
+        };
+        if (without.value === null) return removed;
+        return withParentSave(
+          withChildOrder(removed, parentId, without.value),
+          parentId,
+          CLEAN_SAVE,
+        );
+      });
       const session = sessions.get(documentId);
       if (session !== undefined) {
         // Unsaved edits of a document that is being deleted are meant to be dropped.
@@ -481,14 +525,20 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
       );
       if (deleted.ok) return deleted;
       // The directory still exists, but the saved order no longer lists it: show it
-      // again and keep the project dirty so the order is saved again.
-      const restored = fromDomainResult(addDocument(without.value, documentId));
-      updateProject((current) => ({
-        ...current,
-        project: restored.ok ? restored.value : current.project,
-        documents: [...current.documents, entry],
-        save: { dirty: true, lastError: deleted.error },
-      }));
+      // again and keep the parent dirty so the order is saved again.
+      updateProject((current) => {
+        const restored = {
+          ...current,
+          documents: [...current.documents, entry],
+        };
+        if (without.value === null) return restored;
+        // Appended: the original position is not worth a second order of truth.
+        const listed = withAppendedChild(restored, parentId, documentId);
+        return withParentSave(listed.ok ? listed.value : restored, parentId, {
+          dirty: true,
+          lastError: deleted.error,
+        });
+      });
       return deleted;
     });
   }
@@ -506,25 +556,6 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
       return applyProjectChange((current) => ({
         ...current,
         project: renamed.value,
-      }));
-    });
-  }
-
-  function moveDocumentStep(
-    documentId: DocumentId,
-    beforeEntryId: EntryId | null,
-  ): Promise<OperationResult<void>> {
-    return runLifecycle(async () => {
-      const project = requireProject();
-      if (!project.ok) return project;
-      const moved = fromDomainResult(
-        moveDocument(project.value.project, documentId, beforeEntryId),
-      );
-      if (!moved.ok) return failWith(moved.error);
-      return applyProjectChange((current) => ({
-        ...current,
-        project: moved.value,
-        documents: reorderEntries(current.documents, moved.value.childOrder),
       }));
     });
   }
@@ -676,10 +707,26 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     closeDocument: (documentId) =>
       runLifecycle(() => closeOpenDocument(documentId)),
     getDocumentSession: (documentId) => sessions.get(documentId) ?? null,
-    createDocument: createDocumentStep,
+    createDocument: (name, parentFolderId = null) =>
+      createDocumentStep(name, parentFolderId),
+    createFolder: (parentFolderId, name) =>
+      runLifecycle(() => treeSteps.createFolder(parentFolderId, name)),
+    renameFolder: (folderId, name) =>
+      runLifecycle(() => treeSteps.renameFolder(folderId, name)),
+    moveFolder: (folderId, beforeEntryId) =>
+      runLifecycle(() => treeSteps.reorder("folder", folderId, beforeEntryId)),
+    moveEntry: (entryId, targetParentFolderId) =>
+      runLifecycle(() => treeSteps.moveEntry(entryId, targetParentFolderId)),
+    deleteFolder: (folderId) =>
+      runLifecycle(() => treeSteps.deleteFolder(folderId)),
+    saveFolder: (folderId) =>
+      runLifecycle(() => treeSteps.saveFolder(folderId)),
     deleteDocument: (documentId) => deleteDocumentStep(documentId),
     renameProject: renameProjectStep,
-    moveDocument: moveDocumentStep,
+    moveDocument: (documentId, beforeEntryId) =>
+      runLifecycle(() =>
+        treeSteps.reorder("document", documentId, beforeEntryId),
+      ),
     saveProject: () => runLifecycle(saveCurrentProject),
     saveAll: () => runLifecycle(saveEverything),
     createSheet: createSheetStep,

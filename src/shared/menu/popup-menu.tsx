@@ -13,6 +13,9 @@ export interface PopupMenuItem {
   readonly label: string;
   // Stays focusable (so it can be discovered) but does nothing when chosen.
   readonly disabled?: boolean;
+  // Why the item is disabled (or a note about it): shown as a tooltip and exposed to
+  // assistive technology as the item's description.
+  readonly hint?: string;
   readonly onSelect: () => void;
 }
 
@@ -169,6 +172,8 @@ export function PopupMenu({
                 role="menuitem"
                 className="popup-menu__item"
                 aria-disabled={item.disabled === true ? true : undefined}
+                aria-description={item.hint}
+                title={item.hint}
                 onClick={() => choose(item)}
               >
                 {item.label}

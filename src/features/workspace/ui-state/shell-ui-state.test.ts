@@ -65,7 +65,7 @@ describe("shell ui state", () => {
   it("is cleared with everything else when the project closes", () => {
     const state = openDialog(
       addOperationError(createInitialUiState(), "openProject", null, ERROR),
-      { kind: "createDocument" },
+      { kind: "createDocument", parentFolderId: null },
     );
     expect(state.operationErrors).toHaveLength(1);
     expect(resetUiState()).toEqual(createInitialUiState());

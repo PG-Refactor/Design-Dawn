@@ -11,6 +11,8 @@ import type { OperationError } from "../../../application/ports/operation-error"
 import type {
   BlockId,
   DocumentId,
+  EntryId,
+  FolderId,
   SheetId,
 } from "../../../domain/shared/entity-id";
 import { createStore, type Store } from "../../../shared/store/store";
@@ -66,8 +68,27 @@ export type Interaction =
 export type DialogState =
   | { readonly kind: "none" }
   | { readonly kind: "createProject" }
-  | { readonly kind: "createDocument" }
+  // `parentFolderId` null = directly under the Project.
+  | {
+      readonly kind: "createDocument";
+      readonly parentFolderId: FolderId | null;
+    }
+  | {
+      readonly kind: "createFolder";
+      readonly parentFolderId: FolderId | null;
+    }
   | { readonly kind: "createSheet"; readonly documentId: DocumentId }
+  // The target picker of "move to..." for a Document or a Folder.
+  | {
+      readonly kind: "moveEntry";
+      readonly entryId: EntryId;
+      readonly name: string;
+    }
+  | {
+      readonly kind: "confirmDeleteFolder";
+      readonly folderId: FolderId;
+      readonly name: string;
+    }
   | {
       readonly kind: "confirmDeleteDocument";
       readonly documentId: DocumentId;
@@ -89,12 +110,17 @@ export const OPERATION_LABELS = [
   "openDocument",
   "closeDocument",
   "createDocument",
+  "createFolder",
   "createSheet",
   "deleteDocument",
+  "deleteFolder",
   "deleteSheet",
   "renameDocument",
+  "renameFolder",
   "renameSheet",
   "moveDocument",
+  "moveFolder",
+  "moveEntry",
   "moveSheet",
   "moveBlocks",
   "resizeBlocks",
@@ -140,6 +166,7 @@ export interface EditingBlock {
 // the rename is committed.
 export type RenamingTarget =
   | { readonly kind: "document"; readonly documentId: DocumentId }
+  | { readonly kind: "folder"; readonly folderId: FolderId }
   | {
       readonly kind: "sheet";
       readonly documentId: DocumentId;
@@ -154,6 +181,9 @@ export interface UiState {
   readonly interaction: Interaction;
   readonly editingBlock: EditingBlock | null;
   readonly renaming: RenamingTarget | null;
+  // Folders the user folded in the Project Tree. Folders are expanded by default, so the
+  // set holds the exceptions; like the rest of the tree's presentation it is not persisted.
+  readonly collapsedFolderIds: ReadonlySet<FolderId>;
   readonly viewportBySheet: ReadonlyMap<SheetId, Viewport>;
   // Image blocks whose picture could not be loaded by the `<img>` (the browser reports it,
   // so only the UI knows). Listed in the notifications; cleared when a later load works.
@@ -182,6 +212,7 @@ export function createInitialUiState(): UiState {
     interaction: IDLE,
     editingBlock: null,
     renaming: null,
+    collapsedFolderIds: new Set(),
     viewportBySheet: new Map(),
     imageLoadFailures: new Map(),
     fileDragActive: false,
@@ -377,6 +408,9 @@ export function sameRenamingTarget(
   second: RenamingTarget | null,
 ): boolean {
   if (first === null || second === null) return first === second;
+  if (first.kind === "folder") {
+    return second.kind === "folder" && first.folderId === second.folderId;
+  }
   if (first.kind === "document") {
     return second.kind === "document" && first.documentId === second.documentId;
   }
@@ -392,6 +426,22 @@ export function beginRenaming(state: UiState, target: RenamingTarget): UiState {
   return sameRenamingTarget(state.renaming, target)
     ? state
     : { ...state, renaming: target };
+}
+
+export function isFolderCollapsed(state: UiState, folderId: FolderId): boolean {
+  return state.collapsedFolderIds.has(folderId);
+}
+
+export function setFolderCollapsed(
+  state: UiState,
+  folderId: FolderId,
+  collapsed: boolean,
+): UiState {
+  if (state.collapsedFolderIds.has(folderId) === collapsed) return state;
+  const collapsedFolderIds = new Set(state.collapsedFolderIds);
+  if (collapsed) collapsedFolderIds.add(folderId);
+  else collapsedFolderIds.delete(folderId);
+  return { ...state, collapsedFolderIds };
 }
 
 export function endRenaming(state: UiState): UiState {

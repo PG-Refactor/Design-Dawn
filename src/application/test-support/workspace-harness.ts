@@ -208,3 +208,46 @@ export async function openedFolderTreeWorkspace(): Promise<WorkspaceHarness> {
   harness.gateway.clearCalls();
   return harness;
 }
+
+// The same tree as `folderTreeSnapshot()`, but really on the fake disk, so the folder
+// operations (which call the gateway) work on it. Documents C and D each have one sheet.
+export const SHEET_C1 = sheetIdOf(20);
+export const SHEET_D1 = sheetIdOf(21);
+
+export function seedFolderTree(gateway: FakeGateway): void {
+  gateway.seedFolder({
+    folderId: FOLDER_1,
+    name: "Folder 1",
+    childOrder: [FOLDER_2, DOCUMENT_C],
+  });
+  gateway.seedFolder({
+    folderId: FOLDER_2,
+    name: "Folder 2",
+    parentFolderId: FOLDER_1,
+    childOrder: [DOCUMENT_D],
+  });
+  gateway.seedDocument({
+    documentId: DOCUMENT_C,
+    name: "Document C",
+    sheets: [{ sheetId: SHEET_C1, name: "Sheet C1" }],
+  });
+  gateway.seedDocument({
+    documentId: DOCUMENT_D,
+    name: "Document D",
+    sheets: [{ sheetId: SHEET_D1, name: "Sheet D1" }],
+  });
+  // `seedDocument` lists a document at the root; these two live in folders.
+  gateway.disk.childOrder = [FOLDER_1, DOCUMENT_A, DOCUMENT_B];
+  gateway.disk.documentParents.set(DOCUMENT_C, FOLDER_1);
+  gateway.disk.documentParents.set(DOCUMENT_D, FOLDER_2);
+}
+
+// Opens the project of `seedFolderTree` (root: FOLDER_1, A, B). Calls are cleared.
+export async function openedFolderDiskWorkspace(): Promise<WorkspaceHarness> {
+  const harness = createWorkspaceHarness();
+  seedFolderTree(harness.gateway);
+  const opened = await harness.workspace.openProject(SELECTION_ID);
+  if (!opened.ok) throw new Error(`open failed: ${opened.error.kind}`);
+  harness.gateway.clearCalls();
+  return harness;
+}
