@@ -32,6 +32,10 @@ services:
       # WebKitGTK window display is verified via WSLg's X11 (XWayland) only;
       # the native Wayland path is unverified, so force X11 for predictability.
       GDK_BACKEND: x11
+      # The container has no D-Bus session, so GTK's dconf settings backend
+      # cannot save (e.g. the folder dialog's size) and warns on every write.
+      # Keep GTK settings in memory instead; nothing of the app depends on them.
+      GSETTINGS_BACKEND: memory
       # The repo lives on the WSL2 filesystem, where inotify works. Set
       # DAWN_WATCH_POLLING=true only when the repo is bind-mounted from Windows
       # (C:\...), where file change events may not arrive.
