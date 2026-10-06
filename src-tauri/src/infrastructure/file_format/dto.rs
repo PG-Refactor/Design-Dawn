@@ -1,4 +1,4 @@
-//! serde DTOs for `project.json`, `document.json`, `sheet.json` and `.dawn`.
+//! serde DTOs for `project.json`, `folder.json`, `document.json`, `sheet.json` and `.dawn`.
 //!
 //! Field order is the key order written to disk (docs/file-format.md §3). Numbers are
 //! kept as `serde_json::Number` so that fractional or out-of-range values reach the
@@ -10,10 +10,13 @@ use serde_json::{Number, Value};
 
 use super::constants::{CURRENT_ENTRY_POINT_SCHEMA_VERSION, JSON_TRAILING_NEWLINE};
 use crate::domain::block::{Block, BlockInput};
-use crate::domain::constants::{MIN_SCHEMA_VERSION, POSITION_MAX, SIZE_MIN};
+use crate::domain::constants::{
+    CURRENT_PROJECT_SCHEMA_VERSION, MIN_SCHEMA_VERSION, POSITION_MAX, SIZE_MIN,
+};
 use crate::domain::document::{Document, DocumentInput};
 use crate::domain::entity_id::DocumentId;
 use crate::domain::error::{DomainError, DomainErrorKind};
+use crate::domain::folder::{Folder, FolderInput};
 use crate::domain::geometry::{Position, Size};
 use crate::domain::project::{Project, ProjectInput};
 use crate::domain::schema_version::{SchemaEntityKind, SchemaVersion};
@@ -26,7 +29,27 @@ pub struct ProjectDto {
     pub schema_version: Number,
     pub project_id: String,
     pub name: String,
+    pub child_order: Vec<String>,
+}
+
+/// `project.json` as written by schemaVersion 1, which listed only Documents. It is read,
+/// never written: `into_current` maps it to the current shape (file-format.md §3.5).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct LegacyProjectDto {
+    pub schema_version: Number,
+    pub project_id: String,
+    pub name: String,
     pub document_order: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct FolderDto {
+    pub schema_version: Number,
+    pub folder_id: String,
+    pub name: String,
+    pub child_order: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -161,7 +184,7 @@ impl ProjectDto {
             schema_version: schema_version_value(&self.schema_version),
             project_id: self.project_id.clone(),
             name: self.name.clone(),
-            document_order: self.document_order.clone(),
+            child_order: self.child_order.clone(),
         })
     }
 
@@ -170,8 +193,45 @@ impl ProjectDto {
             schema_version: Number::from(project.schema_version().get()),
             project_id: project.project_id().to_string(),
             name: project.name().as_str().to_owned(),
-            document_order: project
-                .document_order()
+            child_order: project
+                .child_order()
+                .iter()
+                .map(ToString::to_string)
+                .collect(),
+        }
+    }
+}
+
+impl LegacyProjectDto {
+    /// The schema version is raised to the current one: the value is migrated in memory
+    /// only, so a later save writes the current format while loading never rewrites the file.
+    pub fn into_current(self) -> ProjectDto {
+        ProjectDto {
+            schema_version: Number::from(CURRENT_PROJECT_SCHEMA_VERSION),
+            project_id: self.project_id,
+            name: self.name,
+            child_order: self.document_order,
+        }
+    }
+}
+
+impl FolderDto {
+    pub fn to_domain(&self) -> Result<Folder, DomainError> {
+        Folder::new(&FolderInput {
+            schema_version: schema_version_value(&self.schema_version),
+            folder_id: self.folder_id.clone(),
+            name: self.name.clone(),
+            child_order: self.child_order.clone(),
+        })
+    }
+
+    pub fn from_domain(folder: &Folder) -> Self {
+        Self {
+            schema_version: Number::from(folder.schema_version().get()),
+            folder_id: folder.folder_id().to_string(),
+            name: folder.name().as_str().to_owned(),
+            child_order: folder
+                .child_order()
                 .iter()
                 .map(ToString::to_string)
                 .collect(),
@@ -352,7 +412,7 @@ mod tests {
             schema_version: number(text),
             project_id: "01928f3a-5b6c-7d8e-9f01-23456789abcd".to_owned(),
             name: "P".to_owned(),
-            document_order: Vec::new(),
+            child_order: Vec::new(),
         };
         let kind = |text: &str| dto(text).to_domain().unwrap_err().kind;
         assert_eq!(kind("1.5"), DomainErrorKind::InvalidSchemaVersion);
@@ -361,7 +421,7 @@ mod tests {
             kind("-99999999999999999999"),
             DomainErrorKind::InvalidSchemaVersion
         );
-        assert_eq!(kind("2"), DomainErrorKind::UnsupportedSchemaVersion);
+        assert_eq!(kind("3"), DomainErrorKind::UnsupportedSchemaVersion);
         assert_eq!(
             kind("99999999999999999999"),
             DomainErrorKind::UnsupportedSchemaVersion

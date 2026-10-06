@@ -54,10 +54,10 @@ fn create_project_writes_the_layout_and_opens_the_session() {
     let snapshot = create_project(&mut sessions, &root, "Brand New").unwrap();
 
     assert_eq!(snapshot.project.name, "Brand New");
-    assert!(snapshot.project.document_order.is_empty());
+    assert!(snapshot.project.child_order.is_empty());
     let project_text = read_text(&root.join("project.json"));
     assert!(project_text.ends_with("}\n"));
-    assert!(project_text.contains("\"documentOrder\": []"));
+    assert!(project_text.contains("\"childOrder\": []"));
     assert!(root.join("documents").is_dir());
     assert_eq!(
         read_text(&root.join(".gitattributes")),
@@ -163,7 +163,7 @@ fn documents_get_slug_directories_with_fallbacks_and_collision_suffixes() {
         assert!(directory.join("sheets").is_dir());
         assert!(directory.join("assets").is_dir());
     }
-    // Creation does not touch project.json; adding to documentOrder is a separate save.
+    // Creation does not touch project.json; adding to childOrder is a separate save.
     assert!(!read_text(&opened.root.join("project.json")).contains(&new_id(10)));
 }
 
@@ -559,8 +559,9 @@ mod symlink_escape {
             .filter(|issue| issue.path.as_deref() == Some("documents/linked"))
             .collect();
         assert_eq!(failed.len(), 1);
+        assert_eq!(failed[0].kind, LoadIssueKind::UnrecognizedDirectory);
         assert!(
-            failed[0].detail.contains("pathOutsideRoot"),
+            failed[0].detail.contains("symbolic link"),
             "{}",
             failed[0].detail
         );

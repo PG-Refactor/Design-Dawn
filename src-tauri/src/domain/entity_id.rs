@@ -67,6 +67,22 @@ macro_rules! define_entity_id {
 
 define_entity_id!(ProjectId);
 define_entity_id!(DocumentId);
+define_entity_id!(FolderId);
+// The ID of a Folder or a Document: what a `childOrder` lists. IDs are unique across both
+// kinds, so the order does not need to say which kind an entry is.
+define_entity_id!(EntryId);
+
+impl From<FolderId> for EntryId {
+    fn from(id: FolderId) -> Self {
+        Self(*id.as_uuid())
+    }
+}
+
+impl From<DocumentId> for EntryId {
+    fn from(id: DocumentId) -> Self {
+        Self(*id.as_uuid())
+    }
+}
 define_entity_id!(SheetId);
 define_entity_id!(BlockId);
 

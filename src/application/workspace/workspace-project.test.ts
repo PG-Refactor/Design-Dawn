@@ -55,10 +55,26 @@ describe("openProject", () => {
     const project = store.getState().project;
     expect(project?.projectId).toBe(PROJECT_ID);
     expect(project?.documents).toEqual([
-      { documentId: DOCUMENT_A, name: "Document A", state: "loaded" },
-      { documentId: DOCUMENT_B, name: "Document B", state: "loaded" },
-      { documentId: FAILED_DOCUMENT_ID, name: null, state: "loadFailed" },
+      {
+        documentId: DOCUMENT_A,
+        parentFolderId: null,
+        name: "Document A",
+        state: "loaded",
+      },
+      {
+        documentId: DOCUMENT_B,
+        parentFolderId: null,
+        name: "Document B",
+        state: "loaded",
+      },
+      {
+        documentId: FAILED_DOCUMENT_ID,
+        parentFolderId: null,
+        name: null,
+        state: "loadFailed",
+      },
     ]);
+    expect(project?.folders).toEqual([]);
     expect(project?.save).toEqual({ dirty: false, lastError: null });
   });
 
@@ -78,14 +94,15 @@ describe("openProject", () => {
     const before = store.getState();
     const base = unwrap(
       parseProject({
-        schemaVersion: 1,
+        schemaVersion: 2,
         projectId: PROJECT_ID,
         name: "Broken",
-        documentOrder: [],
+        childOrder: [],
       }),
     );
     gateway.overrideProjectSnapshot("selection-bad", {
-      project: { ...base, documentOrder: [DOCUMENT_A, DOCUMENT_A] },
+      project: { ...base, childOrder: [DOCUMENT_A, DOCUMENT_A] },
+      folders: [],
       documents: [],
       issues: [],
     });
@@ -241,7 +258,7 @@ describe("project-level operations", () => {
     expect((await workspace.moveDocument(DOCUMENT_B, DOCUMENT_A)).ok).toBe(
       true,
     );
-    expect(store.getState().project?.project.documentOrder).toEqual([
+    expect(store.getState().project?.project.childOrder).toEqual([
       DOCUMENT_B,
       DOCUMENT_A,
       FAILED_DOCUMENT_ID,
@@ -249,7 +266,7 @@ describe("project-level operations", () => {
     expect(
       store.getState().project?.documents.map((entry) => entry.documentId),
     ).toEqual([DOCUMENT_B, DOCUMENT_A, FAILED_DOCUMENT_ID]);
-    expect(gateway.disk.documentOrder).toEqual([
+    expect(gateway.disk.childOrder).toEqual([
       DOCUMENT_B,
       DOCUMENT_A,
       FAILED_DOCUMENT_ID,
@@ -262,9 +279,9 @@ describe("project-level operations", () => {
     expect(
       errorKind(await workspace.moveDocument(DOCUMENT_B, DOCUMENT_A)),
     ).toBe("ioError");
-    expect(store.getState().project?.project.documentOrder[0]).toBe(DOCUMENT_B);
+    expect(store.getState().project?.project.childOrder[0]).toBe(DOCUMENT_B);
     expect(store.getState().project?.save.dirty).toBe(true);
-    expect(gateway.disk.documentOrder[0]).toBe(DOCUMENT_A);
+    expect(gateway.disk.childOrder[0]).toBe(DOCUMENT_A);
   });
 
   it("rejects moving an unknown document without saving", async () => {

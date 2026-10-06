@@ -283,11 +283,12 @@ describe("createDocument", () => {
     if (!result.ok) return;
     expect(gateway.methods()).toEqual(["createDocument", "saveProject"]);
     expect(gateway.disk.documents.has(result.value)).toBe(true);
-    expect(gateway.disk.documentOrder.at(-1)).toBe(result.value);
+    expect(gateway.disk.childOrder.at(-1)).toBe(result.value);
     const project = store.getState().project;
-    expect(project?.project.documentOrder.at(-1)).toBe(result.value);
+    expect(project?.project.childOrder.at(-1)).toBe(result.value);
     expect(project?.documents.at(-1)).toEqual({
       documentId: result.value,
+      parentFolderId: null,
       name: "New document",
       state: "loaded",
     });
@@ -312,21 +313,21 @@ describe("createDocument", () => {
     gateway.failOn("saveProject", "ioError");
     expect(errorKind(await workspace.createDocument("New"))).toBe("ioError");
     const project = store.getState().project;
-    const created = project?.project.documentOrder.at(-1);
+    const created = project?.project.childOrder.at(-1);
     expect(created).toBeDefined();
     expect(project?.documents.at(-1)?.name).toBe("New");
     expect(project?.save.dirty).toBe(true);
     expect(project?.save.lastError?.kind).toBe("ioError");
     // On disk: the directory exists but the order does not list it yet.
-    expect(created !== undefined && gateway.disk.documents.has(created)).toBe(
-      true,
-    );
     expect(
-      created !== undefined && gateway.disk.documentOrder.includes(created),
+      [...gateway.disk.documents.keys()].some((id) => id === created),
+    ).toBe(true);
+    expect(
+      created !== undefined && gateway.disk.childOrder.includes(created),
     ).toBe(false);
     expect((await workspace.saveProject()).ok).toBe(true);
     expect(
-      created !== undefined && gateway.disk.documentOrder.includes(created),
+      created !== undefined && gateway.disk.childOrder.includes(created),
     ).toBe(true);
     expect(store.getState().project?.save.dirty).toBe(false);
   });
@@ -340,13 +341,13 @@ describe("deleteDocument", () => {
     );
     expect(gateway.methods()).toEqual(["saveProject", "deleteDocument"]);
     expect(gateway.disk.documents.has(DOCUMENT_B)).toBe(false);
-    expect(gateway.disk.documentOrder).not.toContain(DOCUMENT_B);
+    expect(gateway.disk.childOrder).not.toContain(DOCUMENT_B);
     expect(
       store
         .getState()
         .project?.documents.some((entry) => entry.documentId === DOCUMENT_B),
     ).toBe(false);
-    expect(store.getState().project?.project.documentOrder).not.toContain(
+    expect(store.getState().project?.project.childOrder).not.toContain(
       DOCUMENT_B,
     );
   });
@@ -374,7 +375,7 @@ describe("deleteDocument", () => {
     expect(store.getState()).toBe(before);
     expect(gateway.methods("deleteDocument")).toHaveLength(0);
     expect(gateway.disk.documents.has(DOCUMENT_B)).toBe(true);
-    expect(gateway.disk.documentOrder).toContain(DOCUMENT_B);
+    expect(gateway.disk.childOrder).toContain(DOCUMENT_B);
   });
 
   it("puts the entry back at the end, dirty, when the directory cannot be deleted", async () => {
@@ -385,14 +386,14 @@ describe("deleteDocument", () => {
     ).toBe("ioError");
     // Disk: directory still there, saved order without it.
     expect(gateway.disk.documents.has(DOCUMENT_A)).toBe(true);
-    expect(gateway.disk.documentOrder).not.toContain(DOCUMENT_A);
+    expect(gateway.disk.childOrder).not.toContain(DOCUMENT_A);
     const project = store.getState().project;
-    expect(project?.project.documentOrder.at(-1)).toBe(DOCUMENT_A);
+    expect(project?.project.childOrder.at(-1)).toBe(DOCUMENT_A);
     expect(project?.documents.at(-1)?.documentId).toBe(DOCUMENT_A);
     expect(project?.save.dirty).toBe(true);
     expect(project?.save.lastError?.kind).toBe("ioError");
     expect((await workspace.saveProject()).ok).toBe(true);
-    expect(gateway.disk.documentOrder).toContain(DOCUMENT_A);
+    expect(gateway.disk.childOrder).toContain(DOCUMENT_A);
   });
 
   it("discards an open document without saving and emits the event", async () => {

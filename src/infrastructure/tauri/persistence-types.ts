@@ -2,6 +2,7 @@
 export type {
   DocumentEntry,
   DocumentSnapshot,
+  FolderEntry,
   FolderSelection,
   LoadIssue,
   ProjectSnapshot,

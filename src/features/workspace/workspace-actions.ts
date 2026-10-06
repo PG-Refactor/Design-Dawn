@@ -550,7 +550,7 @@ export function createWorkspaceActions(
         return operationOk(undefined);
       }
       const step = oneStepMove(
-        project.project.documentOrder,
+        project.project.childOrder,
         documentId,
         direction,
       );

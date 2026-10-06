@@ -2,8 +2,11 @@
 // collected. Documents A and B load fine; FAILED_DOCUMENT_ID's own metadata is broken.
 
 import { DEFAULT_AUTO_SAVE_ENABLED } from "../../config/session-config";
+import { parseProject } from "../../domain/project/project";
+import { PROJECT_ID } from "../../domain/shared/test-fixtures";
+import { unwrap } from "../../domain/shared/test-support";
 import type { OperationResult } from "../ports/operation-error";
-import type { LoadIssue } from "../ports/persistence-types";
+import type { LoadIssue, ProjectSnapshot } from "../ports/persistence-types";
 import {
   type AutoSaveController,
   createAutoSaveController,
@@ -25,6 +28,7 @@ import {
   documentIdOf,
   type FakeGateway,
   type FakeScheduler,
+  folderIdOf,
   sheetIdOf,
 } from "./fakes";
 import { TEST_AUTO_SAVE_DELAY_MS } from "./session-harness";
@@ -124,3 +128,83 @@ export function errorKind(result: OperationResult<unknown>): string | null {
 }
 
 export const CONFIRMED = { confirmedByUser: true } as const;
+
+// A project with Folders, handed to the workspace through `overrideProjectSnapshot`:
+//
+//   (root)  FOLDER_1, DOCUMENT_A, DOCUMENT_B
+//   FOLDER_1  FOLDER_2, DOCUMENT_C
+//   FOLDER_2  DOCUMENT_D
+export const FOLDER_TREE_SELECTION_ID = "selection-folders";
+export const FOLDER_1 = folderIdOf(1);
+export const FOLDER_2 = folderIdOf(2);
+export const DOCUMENT_C = documentIdOf(10);
+export const DOCUMENT_D = documentIdOf(11);
+
+export function folderTreeSnapshot(): ProjectSnapshot {
+  return {
+    project: unwrap(
+      parseProject({
+        schemaVersion: 2,
+        projectId: PROJECT_ID,
+        name: "Project",
+        childOrder: [FOLDER_1, DOCUMENT_A, DOCUMENT_B],
+      }),
+    ),
+    folders: [
+      {
+        folderId: FOLDER_1,
+        name: "Folder 1",
+        parentFolderId: null,
+        childOrder: [FOLDER_2, DOCUMENT_C],
+        state: "loaded",
+      },
+      {
+        folderId: FOLDER_2,
+        name: "Folder 2",
+        parentFolderId: FOLDER_1,
+        childOrder: [DOCUMENT_D],
+        state: "loaded",
+      },
+    ],
+    documents: [
+      {
+        documentId: DOCUMENT_A,
+        parentFolderId: null,
+        name: "Document A",
+        state: "loaded",
+      },
+      {
+        documentId: DOCUMENT_B,
+        parentFolderId: null,
+        name: "Document B",
+        state: "loaded",
+      },
+      {
+        documentId: DOCUMENT_C,
+        parentFolderId: FOLDER_1,
+        name: "Document C",
+        state: "loaded",
+      },
+      {
+        documentId: DOCUMENT_D,
+        parentFolderId: FOLDER_2,
+        name: "Document D",
+        state: "loaded",
+      },
+    ],
+    issues: [],
+  };
+}
+
+// Opens `folderTreeSnapshot()` (Documents A and B exist on the fake disk, C and D do not).
+export async function openedFolderTreeWorkspace(): Promise<WorkspaceHarness> {
+  const harness = createWorkspaceHarness();
+  harness.gateway.overrideProjectSnapshot(
+    FOLDER_TREE_SELECTION_ID,
+    folderTreeSnapshot(),
+  );
+  const opened = await harness.workspace.openProject(FOLDER_TREE_SELECTION_ID);
+  if (!opened.ok) throw new Error(`open failed: ${opened.error.kind}`);
+  harness.gateway.clearCalls();
+  return harness;
+}

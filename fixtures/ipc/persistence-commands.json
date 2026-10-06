@@ -73,14 +73,16 @@
           "expected": {
             "ok": {
               "project": {
-                "schemaVersion": 1,
+                "schemaVersion": 2,
                 "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
                 "name": "Basic Project",
-                "documentOrder": ["01928f3a-6c7d-7e8f-a012-3456789abcde"]
+                "childOrder": ["01928f3a-6c7d-7e8f-a012-3456789abcde"]
               },
+              "folders": [],
               "documents": [
                 {
                   "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+                  "parentFolderId": null,
                   "name": "System Design",
                   "state": "loaded"
                 }
@@ -743,16 +745,124 @@
           "expected": {
             "ok": {
               "project": {
-                "schemaVersion": 1,
+                "schemaVersion": 2,
                 "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
                 "name": "Created",
-                "documentOrder": []
+                "childOrder": []
               },
+              "folders": [],
               "documents": [],
               "issues": []
             }
           },
           "ignoreValuePaths": ["project.projectId"]
+        }
+      ]
+    },
+    {
+      "name": "open-project-with-folders",
+      "description": "A schemaVersion 2 project with nested Folders: the snapshot lists Folders and Documents flat with their parent, in depth-first display order, and a Document inside Folders loads and reads content like any other.",
+      "project": "folders",
+      "folderPicker": ["projectCopy"],
+      "cases": [
+        {
+          "name": "select folder: selected",
+          "request": {
+            "command": "select_project_folder",
+            "args": {}
+          },
+          "expected": {
+            "ok": {
+              "status": "selected",
+              "selectionId": "$selectionId",
+              "displayPath": ""
+            }
+          },
+          "ignoreValuePaths": ["displayPath"]
+        },
+        {
+          "name": "open_project: folder tree snapshot",
+          "request": {
+            "command": "open_project",
+            "args": {
+              "selectionId": "$selectionId"
+            }
+          },
+          "expected": {
+            "ok": {
+              "project": {
+                "schemaVersion": 2,
+                "projectId": "01928f3a-1000-7000-8000-000000000001",
+                "name": "Folders Project",
+                "childOrder": [
+                  "01928f3a-2000-7000-8000-000000000001",
+                  "01928f3a-3000-7000-8000-000000000003",
+                  "01928f3a-2000-7000-8000-000000000003"
+                ]
+              },
+              "folders": [
+                {
+                  "folderId": "01928f3a-2000-7000-8000-000000000001",
+                  "name": "Architecture",
+                  "parentFolderId": null,
+                  "childOrder": [
+                    "01928f3a-2000-7000-8000-000000000002",
+                    "01928f3a-3000-7000-8000-000000000002"
+                  ],
+                  "state": "loaded"
+                },
+                {
+                  "folderId": "01928f3a-2000-7000-8000-000000000002",
+                  "name": "Backend",
+                  "parentFolderId": "01928f3a-2000-7000-8000-000000000001",
+                  "childOrder": ["01928f3a-3000-7000-8000-000000000001"],
+                  "state": "loaded"
+                },
+                {
+                  "folderId": "01928f3a-2000-7000-8000-000000000003",
+                  "name": "Archive",
+                  "parentFolderId": null,
+                  "childOrder": [],
+                  "state": "loaded"
+                }
+              ],
+              "documents": [
+                {
+                  "documentId": "01928f3a-3000-7000-8000-000000000001",
+                  "parentFolderId": "01928f3a-2000-7000-8000-000000000002",
+                  "name": "API Design",
+                  "state": "loaded"
+                },
+                {
+                  "documentId": "01928f3a-3000-7000-8000-000000000002",
+                  "parentFolderId": "01928f3a-2000-7000-8000-000000000001",
+                  "name": "Overview",
+                  "state": "loaded"
+                },
+                {
+                  "documentId": "01928f3a-3000-7000-8000-000000000003",
+                  "parentFolderId": null,
+                  "name": "Glossary",
+                  "state": "loaded"
+                }
+              ],
+              "issues": []
+            }
+          }
+        },
+        {
+          "name": "read_block_content: nested document",
+          "request": {
+            "command": "read_block_content",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "documentId": "01928f3a-3000-7000-8000-000000000001",
+              "contentPath": "sheets/main/blocks/markdown-1.md"
+            }
+          },
+          "expected": {
+            "ok": "## API\n"
+          }
         }
       ]
     },

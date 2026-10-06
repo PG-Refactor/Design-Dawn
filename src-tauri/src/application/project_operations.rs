@@ -2,29 +2,34 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use serde_json::{Number, Value};
+
 use super::entity_id_generator::generate_project_id;
 use super::error::{ApplicationError, ApplicationResult};
-use super::loader::{
-    normalize_order, reconcile_children, report_leftover_temp_files, scan_document_directories,
-};
+use super::loader::{normalize_order, report_leftover_temp_files, scan_entry_tree};
 use super::session::{
-    document_base_path, read_json_value, DocumentRecord, HashLedger, ProjectSession,
+    document_base_path, read_json_value, DocumentRecord, FolderRecord, HashLedger, ProjectSession,
     ProjectSessions,
 };
 use super::snapshot::{
-    DocumentEntry, EntityState, EntryPointSnapshot, ProjectSnapshot, SaveResult,
+    DocumentEntry, EntityState, EntryPointSnapshot, FolderEntry, ProjectSnapshot, SaveResult,
 };
-use crate::domain::constants::{CURRENT_PROJECT_SCHEMA_VERSION, PATH_SEPARATOR};
+use crate::domain::constants::{
+    CURRENT_PROJECT_SCHEMA_VERSION, LEGACY_PROJECT_SCHEMA_VERSION, PATH_SEPARATOR,
+};
 use crate::domain::content_path::validate_relative_path;
 use crate::domain::display_name::DisplayName;
-use crate::domain::entity_id::{DocumentId, ProjectId};
+use crate::domain::entity_id::{EntryId, ProjectId};
 use crate::domain::project::{Project, ProjectInput};
+use crate::domain::schema_version::{SchemaEntityKind, SchemaVersion};
 use crate::infrastructure::error::{PersistenceError, PersistenceErrorKind};
 use crate::infrastructure::file_format::constants::{
     DOCUMENTS_DIRECTORY_NAME, GITATTRIBUTES_CONTENT, GITATTRIBUTES_FILE_NAME, PROJECT_FILE_NAME,
 };
-use crate::infrastructure::file_format::dto::{parse_dto, parse_json_text, to_json_bytes};
-use crate::infrastructure::file_format::dto::{EntryPointDto, ProjectDto};
+use crate::infrastructure::file_format::dto::{
+    parse_dto, parse_json_text, schema_version_value, to_json_bytes, EntryPointDto,
+    LegacyProjectDto, ProjectDto,
+};
 use crate::infrastructure::filesystem::atomic_write::WriteOutcome;
 use crate::infrastructure::filesystem::path_resolution::{
     canonicalize_root, join_relative, resolve_existing,
@@ -88,7 +93,7 @@ pub fn create_project(
         schema_version: i64::from(CURRENT_PROJECT_SCHEMA_VERSION),
         project_id: generate_project_id().to_string(),
         name: name.as_str().to_owned(),
-        document_order: Vec::new(),
+        child_order: Vec::new(),
     })?;
     ensure_no_project_entries(project_root)?;
     let root = canonicalize_root(project_root)?;
@@ -109,9 +114,30 @@ pub fn create_project(
     sessions.insert(session);
     Ok(ProjectSnapshot {
         project: dto,
+        folders: Vec::new(),
         documents: Vec::new(),
         issues: Vec::new(),
     })
+}
+
+/// Reads `project.json` of either supported schema. The version decides the shape, so a
+/// version-1 file with `childOrder` or a version-2 file with `documentOrder` is an
+/// `invalidFileStructure` rather than being guessed at. A newer version is reported as
+/// such before its (unknown) structure is looked at.
+fn parse_project_file(value: Value) -> ApplicationResult<ProjectDto> {
+    let version = value
+        .get("schemaVersion")
+        .and_then(Value::as_number)
+        .map(|number| {
+            SchemaVersion::parse(SchemaEntityKind::Project, schema_version_value(number))
+        });
+    match version {
+        Some(Err(error)) => Err(error.into()),
+        Some(Ok(version)) if version.get() == LEGACY_PROJECT_SCHEMA_VERSION => {
+            Ok(parse_dto::<LegacyProjectDto>(value)?.into_current())
+        }
+        _ => Ok(parse_dto::<ProjectDto>(value)?),
+    }
 }
 
 pub fn open_project(
@@ -121,11 +147,11 @@ pub fn open_project(
     let root = canonicalize_root(project_root)?;
     let mut ledger = HashLedger::default();
     let value = read_json_value(&root, &mut ledger, "", PROJECT_FILE_NAME)?;
-    let mut dto: ProjectDto = parse_dto(value)?;
+    let mut dto = parse_project_file(value)?;
     let mut issues = Vec::new();
-    dto.document_order = normalize_order(
-        &dto.document_order,
-        DocumentId::parse,
+    dto.child_order = normalize_order(
+        &dto.child_order,
+        EntryId::parse,
         PROJECT_FILE_NAME,
         &mut issues,
     );
@@ -133,47 +159,59 @@ pub fn open_project(
 
     let mut session = ProjectSession::new(root, *project.project_id(), ledger);
     report_leftover_temp_files(&session, "", &mut issues);
-    let scans = scan_document_directories(&mut session, DOCUMENTS_DIRECTORY_NAME, &mut issues);
-    let accepted = reconcile_children(
-        scans,
-        project.document_order(),
-        DOCUMENTS_DIRECTORY_NAME,
-        PROJECT_FILE_NAME,
-        "document",
-        &mut issues,
-    );
+    let tree = scan_entry_tree(&mut session, project.child_order(), &mut issues);
 
-    let mut records = BTreeMap::new();
-    let mut documents = Vec::with_capacity(accepted.len());
-    let mut effective_order = Vec::with_capacity(accepted.len());
-    for child in accepted {
-        let loaded = child.payload.is_some();
-        records.insert(
-            child.id,
+    let state_of = |loaded: bool| {
+        if loaded {
+            EntityState::Loaded
+        } else {
+            EntityState::LoadFailed
+        }
+    };
+    let mut document_records = BTreeMap::new();
+    let mut documents = Vec::with_capacity(tree.documents.len());
+    for document in tree.documents {
+        document_records.insert(
+            document.document_id,
             DocumentRecord {
-                directory_name: child.directory_name,
-                writable: loaded,
+                relative_path: document.relative_path,
+                writable: document.loaded,
                 opened: false,
                 sheets: BTreeMap::new(),
             },
         );
-        effective_order.push(child.id.to_string());
         documents.push(DocumentEntry {
-            document_id: child.id.to_string(),
-            name: child.name,
-            state: if loaded {
-                EntityState::Loaded
-            } else {
-                EntityState::LoadFailed
+            document_id: document.document_id.to_string(),
+            parent_folder_id: document.parent.map(|parent| parent.to_string()),
+            name: document.name,
+            state: state_of(document.loaded),
+        });
+    }
+    let mut folder_records = BTreeMap::new();
+    let mut folders = Vec::with_capacity(tree.folders.len());
+    for folder in tree.folders {
+        folder_records.insert(
+            folder.folder_id,
+            FolderRecord {
+                relative_path: folder.relative_path,
+                writable: folder.loaded,
             },
+        );
+        folders.push(FolderEntry {
+            folder_id: folder.folder_id.to_string(),
+            name: folder.name,
+            parent_folder_id: folder.parent.map(|parent| parent.to_string()),
+            child_order: folder.child_order,
+            state: state_of(folder.loaded),
         });
     }
     let mut project_dto = ProjectDto::from_domain(&project);
-    project_dto.document_order = effective_order;
-    session.replace_documents(records);
+    project_dto.child_order = tree.child_order;
+    session.replace_tree(document_records, folder_records);
     sessions.insert(session);
     Ok(ProjectSnapshot {
         project: project_dto,
+        folders,
         documents,
         issues,
     })
@@ -193,7 +231,10 @@ pub fn save_project(
             session.project_id()
         )));
     }
-    let bytes = to_json_bytes(&ProjectDto::from_domain(&project))?;
+    // Always the current format, even for a Project that was read as schemaVersion 1.
+    let mut dto = ProjectDto::from_domain(&project);
+    dto.schema_version = Number::from(CURRENT_PROJECT_SCHEMA_VERSION);
+    let bytes = to_json_bytes(&dto)?;
     let outcome = session.write_file("", PROJECT_FILE_NAME, &bytes)?;
     Ok(SaveResult {
         written: outcome == WriteOutcome::Written,
@@ -255,7 +296,7 @@ pub fn open_entry_point(
     let path_hit = validate_relative_path(&entry.path).is_ok()
         && fs::canonicalize(join_relative(&entry_directory, &entry.path))
             .ok()
-            .zip(resolve_existing(session.root(), &document_base_path(&record.directory_name)).ok())
+            .zip(resolve_existing(session.root(), &document_base_path(&record.relative_path)).ok())
             .is_some_and(|(pointed_at, document_directory)| pointed_at == document_directory);
     Ok(OpenedEntryPoint {
         snapshot: EntryPointSnapshot {

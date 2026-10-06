@@ -4,14 +4,14 @@
   "description": "Whole-entity validation in file-format.md §3 shape. The first error in key order is reported (docs/data-model.md §11.8).",
   "cases": [
     {
-      "name": "project valid",
+      "name": "project schema 1 valid",
       "input": {
         "entity": "project",
         "value": {
           "schemaVersion": 1,
           "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
           "name": "My Project",
-          "documentOrder": [
+          "childOrder": [
             "01928f3a-6c7d-7e8f-a012-3456789abcde",
             "01928f3a-6c7e-7e8f-a012-3456789abcde"
           ]
@@ -22,14 +22,32 @@
       }
     },
     {
-      "name": "project empty document order",
+      "name": "project schema 2 valid",
+      "input": {
+        "entity": "project",
+        "value": {
+          "schemaVersion": 2,
+          "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+          "name": "My Project",
+          "childOrder": [
+            "01928f3a-6c7d-7e8f-a012-3456789abcde",
+            "01928f3a-6c7e-7e8f-a012-3456789abcde"
+          ]
+        }
+      },
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "project empty child order",
       "input": {
         "entity": "project",
         "value": {
           "schemaVersion": 1,
           "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
           "name": "My Project",
-          "documentOrder": []
+          "childOrder": []
         }
       },
       "expected": {
@@ -41,10 +59,10 @@
       "input": {
         "entity": "project",
         "value": {
-          "schemaVersion": 2,
+          "schemaVersion": 3,
           "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
           "name": "My Project",
-          "documentOrder": [
+          "childOrder": [
             "01928f3a-6c7d-7e8f-a012-3456789abcde",
             "01928f3a-6c7e-7e8f-a012-3456789abcde"
           ]
@@ -63,7 +81,7 @@
           "schemaVersion": 1,
           "projectId": "not-a-uuid",
           "name": "My Project",
-          "documentOrder": [
+          "childOrder": [
             "01928f3a-6c7d-7e8f-a012-3456789abcde",
             "01928f3a-6c7e-7e8f-a012-3456789abcde"
           ]
@@ -82,7 +100,7 @@
           "schemaVersion": 1,
           "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
           "name": "",
-          "documentOrder": [
+          "childOrder": [
             "01928f3a-6c7d-7e8f-a012-3456789abcde",
             "01928f3a-6c7e-7e8f-a012-3456789abcde"
           ]
@@ -94,14 +112,14 @@
       }
     },
     {
-      "name": "project invalid id in document order",
+      "name": "project invalid id in child order",
       "input": {
         "entity": "project",
         "value": {
           "schemaVersion": 1,
           "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
           "name": "My Project",
-          "documentOrder": [
+          "childOrder": [
             "01928f3a-6c7d-7e8f-a012-3456789abcde",
             "550e8400-e29b-41d4-a716-446655440000"
           ]
@@ -113,14 +131,14 @@
       }
     },
     {
-      "name": "project duplicate document in order",
+      "name": "project duplicate entry in order",
       "input": {
         "entity": "project",
         "value": {
           "schemaVersion": 1,
           "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
           "name": "My Project",
-          "documentOrder": [
+          "childOrder": [
             "01928f3a-6c7d-7e8f-a012-3456789abcde",
             "01928f3a-6c7e-7e8f-a012-3456789abcde",
             "01928f3a-6c7d-7e8f-a012-3456789abcde"
@@ -140,7 +158,7 @@
           "schemaVersion": 0,
           "projectId": "bad",
           "name": "My Project",
-          "documentOrder": [
+          "childOrder": [
             "01928f3a-6c7d-7e8f-a012-3456789abcde",
             "01928f3a-6c7e-7e8f-a012-3456789abcde"
           ]
@@ -160,7 +178,7 @@
           "schemaVersion": 1,
           "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
           "name": "My Project",
-          "documentOrder": [
+          "childOrder": [
             "01928f3a-6c7d-7e8f-a012-3456789abcde",
             "01928f3a-6c7d-7e8f-a012-3456789abcde",
             "bad"
@@ -750,6 +768,176 @@
         "errorKind": "unsupportedBlockType"
       },
       "note": "docs/data-model.md §11.8."
+    },
+    {
+      "name": "folder valid",
+      "input": {
+        "entity": "folder",
+        "value": {
+          "schemaVersion": 1,
+          "folderId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+          "name": "My Project",
+          "childOrder": [
+            "01928f3a-6c7d-7e8f-a012-3456789abcde",
+            "01928f3a-6c7e-7e8f-a012-3456789abcde"
+          ]
+        }
+      },
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "folder empty child order",
+      "input": {
+        "entity": "folder",
+        "value": {
+          "schemaVersion": 1,
+          "folderId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+          "name": "My Project",
+          "childOrder": []
+        }
+      },
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "folder newer schema",
+      "input": {
+        "entity": "folder",
+        "value": {
+          "schemaVersion": 2,
+          "folderId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+          "name": "My Project",
+          "childOrder": [
+            "01928f3a-6c7d-7e8f-a012-3456789abcde",
+            "01928f3a-6c7e-7e8f-a012-3456789abcde"
+          ]
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "unsupportedSchemaVersion"
+      }
+    },
+    {
+      "name": "folder invalid folder id",
+      "input": {
+        "entity": "folder",
+        "value": {
+          "schemaVersion": 1,
+          "folderId": "not-a-uuid",
+          "name": "My Project",
+          "childOrder": [
+            "01928f3a-6c7d-7e8f-a012-3456789abcde",
+            "01928f3a-6c7e-7e8f-a012-3456789abcde"
+          ]
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidEntityId"
+      }
+    },
+    {
+      "name": "folder empty name",
+      "input": {
+        "entity": "folder",
+        "value": {
+          "schemaVersion": 1,
+          "folderId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+          "name": "",
+          "childOrder": [
+            "01928f3a-6c7d-7e8f-a012-3456789abcde",
+            "01928f3a-6c7e-7e8f-a012-3456789abcde"
+          ]
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidDisplayName"
+      }
+    },
+    {
+      "name": "folder invalid id in child order",
+      "input": {
+        "entity": "folder",
+        "value": {
+          "schemaVersion": 1,
+          "folderId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+          "name": "My Project",
+          "childOrder": [
+            "01928f3a-6c7d-7e8f-a012-3456789abcde",
+            "550e8400-e29b-41d4-a716-446655440000"
+          ]
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidEntityId"
+      }
+    },
+    {
+      "name": "folder duplicate entry in order",
+      "input": {
+        "entity": "folder",
+        "value": {
+          "schemaVersion": 1,
+          "folderId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+          "name": "My Project",
+          "childOrder": [
+            "01928f3a-6c7d-7e8f-a012-3456789abcde",
+            "01928f3a-6c7e-7e8f-a012-3456789abcde",
+            "01928f3a-6c7d-7e8f-a012-3456789abcde"
+          ]
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "duplicateId"
+      }
+    },
+    {
+      "name": "folder schema error reported before id error",
+      "input": {
+        "entity": "folder",
+        "value": {
+          "schemaVersion": 0,
+          "folderId": "bad",
+          "name": "My Project",
+          "childOrder": [
+            "01928f3a-6c7d-7e8f-a012-3456789abcde",
+            "01928f3a-6c7e-7e8f-a012-3456789abcde"
+          ]
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidSchemaVersion"
+      },
+      "note": "docs/data-model.md §11.8: first error in key order."
+    },
+    {
+      "name": "folder element error reported before duplicate",
+      "input": {
+        "entity": "folder",
+        "value": {
+          "schemaVersion": 1,
+          "folderId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+          "name": "My Project",
+          "childOrder": [
+            "01928f3a-6c7d-7e8f-a012-3456789abcde",
+            "01928f3a-6c7d-7e8f-a012-3456789abcde",
+            "bad"
+          ]
+        }
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidEntityId"
+      },
+      "note": "Each element is validated before duplicates are checked."
     }
   ]
 }

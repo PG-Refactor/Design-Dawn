@@ -165,7 +165,7 @@ export const PROJECT_ISSUE: LoadIssue = {
   kind: "unlistedEntity",
   path: "documents/unlisted",
   entityId: null,
-  detail: "directory is not in documentOrder",
+  detail: "directory is not in childOrder",
 };
 
 // Makes the next project open report load issues (the fake disk has none of its own).

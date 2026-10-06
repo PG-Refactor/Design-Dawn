@@ -19,6 +19,7 @@ import {
 import { parseDisplayName } from "../../domain/shared/display-name";
 import type {
   DocumentId,
+  EntryId,
   ProjectId,
   SheetId,
 } from "../../domain/shared/entity-id";
@@ -112,7 +113,7 @@ export interface Workspace {
   renameProject(name: string): Promise<OperationResult<void>>;
   moveDocument(
     documentId: DocumentId,
-    beforeDocumentId: DocumentId | null,
+    beforeEntryId: EntryId | null,
   ): Promise<OperationResult<void>>;
   // Explicit retry of a project save that failed.
   saveProject(): Promise<OperationResult<void>>;
@@ -135,7 +136,7 @@ const CLEAN_PROJECT_SAVE = { dirty: false, lastError: null } as const;
 
 function reorderEntries(
   entries: readonly OpenProjectDocumentEntry[],
-  order: readonly DocumentId[],
+  order: readonly EntryId[],
 ): readonly OpenProjectDocumentEntry[] {
   const position = (entry: OpenProjectDocumentEntry): number => {
     const index = order.indexOf(entry.documentId);
@@ -316,8 +317,16 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
       installProject({
         projectId: valid.value.project.projectId,
         project: valid.value.project,
+        folders: valid.value.folders.map((entry) => ({
+          folderId: entry.folderId,
+          name: entry.name,
+          parentFolderId: entry.parentFolderId,
+          childOrder: entry.childOrder,
+          state: entry.state,
+        })),
         documents: valid.value.documents.map((entry) => ({
           documentId: entry.documentId,
+          parentFolderId: entry.parentFolderId,
           name: entry.name,
           state: entry.state,
         })),
@@ -409,7 +418,14 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
         project: ordered.value,
         documents: [
           ...current.documents,
-          { documentId, name: valid.value.document.name, state: "loaded" },
+          {
+            documentId,
+            // Documents are created directly under the Project until Folders can be a
+            // parent (Folder operations are not implemented yet).
+            parentFolderId: null,
+            name: valid.value.document.name,
+            state: "loaded",
+          },
         ],
       }));
       return saved.ok ? operationOk(documentId) : saved;
@@ -431,7 +447,10 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
           `document not found: ${documentId}`,
         );
       }
-      const without = project.value.project.documentOrder.includes(documentId)
+      // Only a root Document is in the Project's order. A Document inside a Folder is
+      // listed by its parent Folder, whose order the Folder operations will maintain;
+      // until then a stale entry there is dropped as `missingEntity` on the next load.
+      const without = project.value.project.childOrder.includes(documentId)
         ? fromDomainResult(removeDocument(project.value.project, documentId))
         : operationOk(project.value.project);
       if (!without.ok) return failWith(without.error);
@@ -493,19 +512,19 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
 
   function moveDocumentStep(
     documentId: DocumentId,
-    beforeDocumentId: DocumentId | null,
+    beforeEntryId: EntryId | null,
   ): Promise<OperationResult<void>> {
     return runLifecycle(async () => {
       const project = requireProject();
       if (!project.ok) return project;
       const moved = fromDomainResult(
-        moveDocument(project.value.project, documentId, beforeDocumentId),
+        moveDocument(project.value.project, documentId, beforeEntryId),
       );
       if (!moved.ok) return failWith(moved.error);
       return applyProjectChange((current) => ({
         ...current,
         project: moved.value,
-        documents: reorderEntries(current.documents, moved.value.documentOrder),
+        documents: reorderEntries(current.documents, moved.value.childOrder),
       }));
     });
   }

@@ -46,7 +46,7 @@ describe("selectProjectTree", () => {
     expect(failed?.name).toBe(MESSAGES.tree.unnamedEntity);
   });
 
-  it("follows the project's documentOrder", async () => {
+  it("follows the project's childOrder", async () => {
     const { store, workspace } = await openedWorkspace();
     await workspace.moveDocument(DOCUMENT_B, DOCUMENT_A);
     const model = selectProjectTree(store.getState(), createInitialUiState());

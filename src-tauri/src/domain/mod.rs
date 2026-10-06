@@ -8,6 +8,7 @@ pub mod display_name;
 pub mod document;
 pub mod entity_id;
 pub mod error;
+pub mod folder;
 pub mod geometry;
 pub mod project;
 pub mod schema_version;

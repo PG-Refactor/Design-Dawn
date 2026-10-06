@@ -7,6 +7,8 @@ import type { Project } from "../../domain/project/project";
 import type {
   BlockId,
   DocumentId,
+  EntryId,
+  FolderId,
   ProjectId,
   SheetId,
 } from "../../domain/shared/entity-id";
@@ -53,15 +55,27 @@ export interface DocumentSessionState {
   readonly warnings: readonly OperationWarning[];
 }
 
+export interface OpenProjectFolderEntry {
+  readonly folderId: FolderId;
+  // null when the folder failed to load and its name is unknown.
+  readonly name: string | null;
+  // null = directly under the Project.
+  readonly parentFolderId: FolderId | null;
+  readonly childOrder: readonly EntryId[];
+  readonly state: EntityState;
+}
+
 export interface OpenProjectDocumentEntry {
   readonly documentId: DocumentId;
+  // null = directly under the Project.
+  readonly parentFolderId: FolderId | null;
   // null when the document failed to load and its name is unknown. For an open document
   // the name follows `renameDocument` commands.
   readonly name: string | null;
   readonly state: EntityState;
 }
 
-// Mirrors the document save state: the project's own files (name, documentOrder) are
+// Mirrors the document save state: the project's own files (name, childOrder) are
 // saved explicitly, not by a timer, so a failed save stays visible until it is retried.
 export interface ProjectSaveState {
   readonly dirty: boolean;
@@ -71,6 +85,9 @@ export interface ProjectSaveState {
 export interface OpenProjectState {
   readonly projectId: ProjectId;
   readonly project: Project;
+  // Every Folder of the Project, flat; the tree follows `parentFolderId` and `childOrder`.
+  readonly folders: readonly OpenProjectFolderEntry[];
+  // Every Document of the Project, including those inside Folders.
   readonly documents: readonly OpenProjectDocumentEntry[];
   readonly issues: readonly LoadIssue[];
   readonly save: ProjectSaveState;

@@ -57,7 +57,8 @@ pub fn create_document(
     session.insert_document(
         *document.document_id(),
         DocumentRecord {
-            directory_name,
+            // Created directly under `documents/` until Folders can be a parent (F2).
+            relative_path: directory_name,
             writable: true,
             // Creating a Document opens it in the Frontend, which never loads it afterwards.
             opened: true,
@@ -219,19 +220,16 @@ pub fn delete_document(
 ) -> ApplicationResult<()> {
     let session = sessions.session_mut(project_id)?;
     let document_id = DocumentId::parse(document_id)?;
-    let directory_name = session.document(&document_id)?.directory_name.clone();
-    let removal = session.remove_directory_tree(
-        DOCUMENTS_DIRECTORY_NAME,
-        &directory_name,
-        DOCUMENT_FILE_NAME,
-    );
+    let relative_path = session.document(&document_id)?.relative_path.clone();
+    let (parent, directory_name) = super::session::split_entry_path(&relative_path);
+    let removal = session.remove_directory_tree(&parent, directory_name, DOCUMENT_FILE_NAME);
     let forget = match &removal {
         Ok(()) => true,
         Err(failure) => !failure.metadata_survives,
     };
     if forget {
         session.remove_document_record(&document_id);
-        session.forget_ledger_under(&super::session::document_base_path(&directory_name));
+        session.forget_ledger_under(&super::session::document_base_path(&relative_path));
         session.forget_block_numbers(&document_id, None);
     }
     removal.map_err(|failure| failure.error.into())

@@ -10,7 +10,14 @@ import {
 } from "../../domain/document/document";
 import { parseProject, type RawProject } from "../../domain/project/project";
 import type { DomainResult } from "../../domain/shared/domain-result";
-import { parseDocumentId, parseSheetId } from "../../domain/shared/entity-id";
+import {
+  type EntryId,
+  type FolderId,
+  parseDocumentId,
+  parseEntryId,
+  parseFolderId,
+  parseSheetId,
+} from "../../domain/shared/entity-id";
 import type { RawPosition, RawSize } from "../../domain/shared/geometry";
 import {
   parseSheet,
@@ -38,6 +45,7 @@ import {
 import type {
   DocumentEntry,
   DocumentSnapshot,
+  FolderEntry,
   FolderSelection,
   LoadIssue,
   ProjectSnapshot,
@@ -66,7 +74,7 @@ const rawProject = objectOf<RawProject>({
   schemaVersion: decodeNumber,
   projectId: decodeString,
   name: decodeString,
-  documentOrder: arrayOf(decodeString),
+  childOrder: arrayOf(decodeString),
 });
 const rawDocument = objectOf<RawDocument>({
   schemaVersion: decodeNumber,
@@ -91,11 +99,20 @@ const decodeLoadIssue = objectOf<LoadIssue>({
 
 interface RawDocumentEntry {
   readonly documentId: string;
+  readonly parentFolderId: string | null;
   readonly name: string | null;
+  readonly state: EntityState;
+}
+interface RawFolderEntry {
+  readonly folderId: string;
+  readonly name: string | null;
+  readonly parentFolderId: string | null;
+  readonly childOrder: readonly string[];
   readonly state: EntityState;
 }
 interface RawProjectSnapshot {
   readonly project: RawProject;
+  readonly folders: readonly RawFolderEntry[];
   readonly documents: readonly RawDocumentEntry[];
   readonly issues: readonly LoadIssue[];
 }
@@ -113,9 +130,19 @@ interface RawDocumentSnapshot {
 
 const rawProjectSnapshot = objectOf<RawProjectSnapshot>({
   project: rawProject,
+  folders: arrayOf(
+    objectOf<RawFolderEntry>({
+      folderId: decodeString,
+      name: nullable(decodeString),
+      parentFolderId: nullable(decodeString),
+      childOrder: arrayOf(decodeString),
+      state: decodeEntityState,
+    }),
+  ),
   documents: arrayOf(
     objectOf<RawDocumentEntry>({
       documentId: decodeString,
+      parentFolderId: nullable(decodeString),
       name: nullable(decodeString),
       state: decodeEntityState,
     }),
@@ -168,27 +195,55 @@ function mapAll<A, B>(
   return commandOk(converted);
 }
 
+function toParentFolderId(raw: string | null): CommandResult<FolderId | null> {
+  return raw === null ? commandOk(null) : fromDomain(parseFolderId(raw));
+}
+
+function toFolderEntry(raw: RawFolderEntry): CommandResult<FolderEntry> {
+  const folderId = fromDomain(parseFolderId(raw.folderId));
+  if (!folderId.ok) return folderId;
+  const parentFolderId = toParentFolderId(raw.parentFolderId);
+  if (!parentFolderId.ok) return parentFolderId;
+  const childOrder = mapAll(
+    raw.childOrder,
+    (entry): CommandResult<EntryId> => fromDomain(parseEntryId(entry)),
+  );
+  if (!childOrder.ok) return childOrder;
+  return commandOk({
+    folderId: folderId.value,
+    name: raw.name,
+    parentFolderId: parentFolderId.value,
+    childOrder: childOrder.value,
+    state: raw.state,
+  });
+}
+
 function toProjectSnapshot(
   raw: RawProjectSnapshot,
 ): CommandResult<ProjectSnapshot> {
   const project = fromDomain(parseProject(raw.project));
   if (!project.ok) return project;
+  const folders = mapAll(raw.folders, toFolderEntry);
+  if (!folders.ok) return folders;
   const documents = mapAll(
     raw.documents,
     (entry): CommandResult<DocumentEntry> => {
       const documentId = fromDomain(parseDocumentId(entry.documentId));
-      return documentId.ok
-        ? commandOk({
-            documentId: documentId.value,
-            name: entry.name,
-            state: entry.state,
-          })
-        : documentId;
+      if (!documentId.ok) return documentId;
+      const parentFolderId = toParentFolderId(entry.parentFolderId);
+      if (!parentFolderId.ok) return parentFolderId;
+      return commandOk({
+        documentId: documentId.value,
+        parentFolderId: parentFolderId.value,
+        name: entry.name,
+        state: entry.state,
+      });
     },
   );
   if (!documents.ok) return documents;
   return commandOk({
     project: project.value,
+    folders: folders.value,
     documents: documents.value,
     issues: raw.issues,
   });

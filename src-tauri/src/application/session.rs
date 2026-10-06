@@ -11,7 +11,7 @@ use serde_json::Value;
 use super::error::{ApplicationError, ApplicationResult};
 use crate::domain::block_type::BlockType;
 use crate::domain::constants::PATH_SEPARATOR;
-use crate::domain::entity_id::{DocumentId, ProjectId, SheetId};
+use crate::domain::entity_id::{DocumentId, FolderId, ProjectId, SheetId};
 use crate::infrastructure::error::{PersistenceError, PersistenceErrorKind};
 use crate::infrastructure::file_format::constants::DOCUMENTS_DIRECTORY_NAME;
 use crate::infrastructure::file_format::dto::parse_json_text;
@@ -83,9 +83,20 @@ pub struct SheetRecord {
     pub writable: bool,
 }
 
+/// Where a Folder lives and whether it may be written.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FolderRecord {
+    /// Path relative to `documents/` (`/`-separated, one segment per nesting level).
+    pub relative_path: String,
+    /// Only a folder whose `folder.json` loaded (or was created here) may be written.
+    pub writable: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DocumentRecord {
-    pub directory_name: String,
+    /// Path relative to `documents/` (`/`-separated). A Document inside Folders has several
+    /// segments, so this is never joined as a single directory name.
+    pub relative_path: String,
     pub writable: bool,
     /// True between a successful `load_document` / `create_document` and `close_document`.
     /// Only an opened Document is served by the `dawn-asset` protocol or receives assets:
@@ -100,6 +111,7 @@ pub struct ProjectSession {
     root: PathBuf,
     project_id: ProjectId,
     documents: BTreeMap<DocumentId, DocumentRecord>,
+    folders: BTreeMap<FolderId, FolderRecord>,
     ledger: HashLedger,
     /// Highest block content number this session issued, restored or deleted per sequence.
     /// Kept in memory only: numbers are derived from file names, never stored in metadata,
@@ -148,6 +160,7 @@ impl ProjectSession {
             root,
             project_id,
             documents: BTreeMap::new(),
+            folders: BTreeMap::new(),
             ledger,
             block_numbers: HashMap::new(),
         }
@@ -169,8 +182,25 @@ impl ProjectSession {
         &self.documents
     }
 
-    pub fn replace_documents(&mut self, documents: BTreeMap<DocumentId, DocumentRecord>) {
+    pub fn folders(&self) -> &BTreeMap<FolderId, FolderRecord> {
+        &self.folders
+    }
+
+    /// Replaces everything the session knows about the Document tree, as one step so the two
+    /// maps cannot disagree after a (re)load.
+    pub fn replace_tree(
+        &mut self,
+        documents: BTreeMap<DocumentId, DocumentRecord>,
+        folders: BTreeMap<FolderId, FolderRecord>,
+    ) {
         self.documents = documents;
+        self.folders = folders;
+    }
+
+    pub fn folder(&self, folder_id: &FolderId) -> ApplicationResult<&FolderRecord> {
+        self.folders.get(folder_id).ok_or_else(|| {
+            ApplicationError::entity_not_found(format!("unknown folderId: {folder_id}"))
+        })
     }
 
     pub fn insert_document(&mut self, document_id: DocumentId, record: DocumentRecord) {
@@ -195,7 +225,7 @@ impl ProjectSession {
     /// Project-root-relative directory of a Document.
     pub fn document_base(&self, document_id: &DocumentId) -> ApplicationResult<String> {
         Ok(document_base_path(
-            &self.document(document_id)?.directory_name,
+            &self.document(document_id)?.relative_path,
         ))
     }
 
@@ -394,8 +424,18 @@ impl ProjectSession {
     }
 }
 
-pub fn document_base_path(directory_name: &str) -> String {
-    format!("{DOCUMENTS_DIRECTORY_NAME}{PATH_SEPARATOR}{directory_name}")
+/// Project-root-relative directory of a Document or Folder given its path under `documents/`.
+pub fn document_base_path(relative_path: &str) -> String {
+    format!("{DOCUMENTS_DIRECTORY_NAME}{PATH_SEPARATOR}{relative_path}")
+}
+
+/// Splits a path under `documents/` into the Project-root-relative parent directory and the
+/// last segment, which is the form `remove_directory_tree` needs.
+pub fn split_entry_path(relative_path: &str) -> (String, &str) {
+    match relative_path.rsplit_once(PATH_SEPARATOR) {
+        Some((parent, name)) => (document_base_path(parent), name),
+        None => (DOCUMENTS_DIRECTORY_NAME.to_owned(), relative_path),
+    }
 }
 
 /// All opened Projects, keyed by ID. Held as Tauri managed state behind a `Mutex`.

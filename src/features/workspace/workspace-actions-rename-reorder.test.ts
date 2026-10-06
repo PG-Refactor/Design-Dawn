@@ -24,8 +24,8 @@ function sessionOf(harness: ActionsHarness, documentId = DOCUMENT_A) {
   return session;
 }
 
-const documentOrder = (harness: ActionsHarness) =>
-  harness.store.getState().project?.project.documentOrder;
+const childOrder = (harness: ActionsHarness) =>
+  harness.store.getState().project?.project.childOrder;
 const sheetOrder = (harness: ActionsHarness) =>
   harness.store.getState().documents.get(DOCUMENT_A)?.document.sheetOrder;
 const documentName = (harness: ActionsHarness, documentId = DOCUMENT_A) =>
@@ -204,7 +204,7 @@ describe("moving a document", () => {
     const harness = await withOpenDocumentA();
     const result = await harness.actions.moveDocumentBy(DOCUMENT_B, "up");
     expect(result.ok).toBe(true);
-    expect(documentOrder(harness)).toEqual([
+    expect(childOrder(harness)).toEqual([
       DOCUMENT_B,
       DOCUMENT_A,
       FAILED_DOCUMENT_ID,
@@ -213,7 +213,7 @@ describe("moving a document", () => {
     expect(await undoDepth(harness)).toBe(0);
 
     await harness.actions.moveDocumentBy(DOCUMENT_B, "down");
-    expect(documentOrder(harness)).toEqual([
+    expect(childOrder(harness)).toEqual([
       DOCUMENT_A,
       DOCUMENT_B,
       FAILED_DOCUMENT_ID,
@@ -223,7 +223,7 @@ describe("moving a document", () => {
   it("moves past an entry that failed to load, keeping its place", async () => {
     const harness = await withOpenDocumentA();
     await harness.actions.moveDocumentBy(DOCUMENT_B, "down");
-    expect(documentOrder(harness)).toEqual([
+    expect(childOrder(harness)).toEqual([
       DOCUMENT_A,
       FAILED_DOCUMENT_ID,
       DOCUMENT_B,

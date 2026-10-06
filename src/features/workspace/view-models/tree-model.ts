@@ -51,13 +51,18 @@ export function selectProjectTree(
 ): ProjectTreeModel | null {
   const project = application.project;
   if (project === null) return null;
-  const order = project.project.documentOrder;
+  const order = project.project.childOrder;
   // Entries the order does not list stay behind the listed ones (stable sort).
   const position = (documentId: DocumentId): number => {
     const index = order.indexOf(documentId);
     return index < 0 ? order.length : index;
   };
-  const entries = [...project.documents].sort(
+  // Documents inside Folders are not shown until the Tree can show Folders; only the
+  // Project's direct Documents are listed, ordered by the order that also lists Folders.
+  const rootDocuments = project.documents.filter(
+    (entry) => entry.parentFolderId === null,
+  );
+  const entries = [...rootDocuments].sort(
     (first, second) => position(first.documentId) - position(second.documentId),
   );
   return {

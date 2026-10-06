@@ -3,6 +3,7 @@
 //! live in `crate::domain::constants`.
 
 pub const PROJECT_FILE_NAME: &str = "project.json";
+pub const FOLDER_FILE_NAME: &str = "folder.json";
 pub const DOCUMENT_FILE_NAME: &str = "document.json";
 pub const SHEET_FILE_NAME: &str = "sheet.json";
 pub const DOCUMENTS_DIRECTORY_NAME: &str = "documents";

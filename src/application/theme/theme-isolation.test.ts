@@ -17,7 +17,7 @@ describe("theme isolation", () => {
     const callsBefore = [...gateway.calls];
     const diskBefore = structuredClone({
       projectName: gateway.disk.projectName,
-      documentOrder: gateway.disk.documentOrder,
+      childOrder: gateway.disk.childOrder,
     });
     const filesBefore = new Map(gateway.files);
 
@@ -39,7 +39,7 @@ describe("theme isolation", () => {
     expect(gateway.calls).toEqual([]);
     expect({
       projectName: gateway.disk.projectName,
-      documentOrder: gateway.disk.documentOrder,
+      childOrder: gateway.disk.childOrder,
     }).toEqual(diskBefore);
     expect(gateway.files).toEqual(filesBefore);
   });

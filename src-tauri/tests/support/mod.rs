@@ -14,8 +14,23 @@ use design_dawn_lib::application::session::ProjectSessions;
 use design_dawn_lib::application::snapshot::ProjectSnapshot;
 use uuid::Uuid;
 
+pub const FIXTURE_PROJECTS_DIRECTORY: &str =
+    concat!(env!("CARGO_MANIFEST_DIR"), "/../fixtures/projects");
 pub const FIXTURE_PROJECT: &str =
     concat!(env!("CARGO_MANIFEST_DIR"), "/../fixtures/projects/basic");
+/// The schemaVersion 2 sample with nested Folders (`fixtures/projects/folders`).
+pub const FOLDERS_FIXTURE_PROJECT: &str =
+    concat!(env!("CARGO_MANIFEST_DIR"), "/../fixtures/projects/folders");
+
+pub const FOLDERS_PROJECT_ID: &str = "01928f3a-1000-7000-8000-000000000001";
+pub const ARCHITECTURE_FOLDER_ID: &str = "01928f3a-2000-7000-8000-000000000001";
+pub const BACKEND_FOLDER_ID: &str = "01928f3a-2000-7000-8000-000000000002";
+pub const ARCHIVE_FOLDER_ID: &str = "01928f3a-2000-7000-8000-000000000003";
+pub const API_DESIGN_DOCUMENT_ID: &str = "01928f3a-3000-7000-8000-000000000001";
+pub const OVERVIEW_DOCUMENT_ID: &str = "01928f3a-3000-7000-8000-000000000002";
+pub const GLOSSARY_DOCUMENT_ID: &str = "01928f3a-3000-7000-8000-000000000003";
+pub const API_DESIGN_SHEET_ID: &str = "01928f3a-4000-7000-8000-000000000001";
+pub const API_DESIGN_RELATIVE_PATH: &str = "architecture/backend/api-design";
 
 pub const PROJECT_ID: &str = "01928f3a-5b6c-7d8e-9f01-23456789abcd";
 pub const DOCUMENT_ID: &str = "01928f3a-6c7d-7e8f-a012-3456789abcde";
@@ -71,6 +86,14 @@ pub fn project_copy() -> (TempDir, PathBuf) {
     let temp = TempDir::new();
     let root = temp.path().join("project");
     copy_dir_all(Path::new(FIXTURE_PROJECT), &root);
+    (temp, root)
+}
+
+/// A fresh copy of the folder-tree sample project.
+pub fn folders_project_copy() -> (TempDir, PathBuf) {
+    let temp = TempDir::new();
+    let root = temp.path().join("project");
+    copy_dir_all(Path::new(FOLDERS_FIXTURE_PROJECT), &root);
     (temp, root)
 }
 

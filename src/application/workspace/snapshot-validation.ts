@@ -9,7 +9,9 @@ import type { Project } from "../../domain/project/project";
 import { parseProject } from "../../domain/project/project";
 import {
   type DocumentId,
+  type FolderId,
   parseDocumentId,
+  parseFolderId,
   parseSheetId,
   type SheetId,
 } from "../../domain/shared/entity-id";
@@ -25,6 +27,7 @@ import {
 import type {
   DocumentEntry,
   DocumentSnapshot,
+  FolderEntry,
   LoadIssue,
   ProjectSnapshot,
   SheetSnapshot,
@@ -33,8 +36,57 @@ import type { SheetEntry } from "../state/application-state";
 
 export interface ValidProjectSnapshot {
   readonly project: Project;
+  readonly folders: readonly FolderEntry[];
   readonly documents: readonly DocumentEntry[];
   readonly issues: readonly LoadIssue[];
+}
+
+// The folder tree must be a forest: every parent exists and following parents never
+// loops. A snapshot that violates this cannot be shown, so it is rejected as a whole.
+function validateFolderTree(
+  folders: readonly FolderEntry[],
+  documents: readonly DocumentEntry[],
+): OperationResult<void> {
+  const parentOf = new Map<FolderId, FolderId | null>();
+  for (const folder of folders) {
+    const folderId = fromDomainResult(parseFolderId(folder.folderId));
+    if (!folderId.ok) return failWith(folderId.error);
+    parentOf.set(folder.folderId, folder.parentFolderId);
+  }
+  const duplicate = findDuplicate([
+    ...folders.map((entry) => entry.folderId as string),
+    ...documents.map((entry) => entry.documentId as string),
+  ]);
+  if (duplicate !== null) {
+    return operationErr("duplicateId", `duplicate project entry: ${duplicate}`);
+  }
+  const parents = [
+    ...folders.map((entry) => entry.parentFolderId),
+    ...documents.map((entry) => entry.parentFolderId),
+  ];
+  for (const parent of parents) {
+    if (parent !== null && !parentOf.has(parent)) {
+      return operationErr(
+        "invalidCommandResponse",
+        `unknown parent folder: ${parent}`,
+      );
+    }
+  }
+  for (const start of parentOf.keys()) {
+    const visited = new Set<FolderId>();
+    let current: FolderId | null = start;
+    while (current !== null) {
+      if (visited.has(current)) {
+        return operationErr(
+          "invalidCommandResponse",
+          `folder ${start} is its own ancestor`,
+        );
+      }
+      visited.add(current);
+      current = parentOf.get(current) ?? null;
+    }
+  }
+  return operationOk(undefined);
 }
 
 export function validateProjectSnapshot(
@@ -46,17 +98,11 @@ export function validateProjectSnapshot(
     const documentId = fromDomainResult(parseDocumentId(entry.documentId));
     if (!documentId.ok) return failWith(documentId.error);
   }
-  const duplicate = findDuplicate(
-    snapshot.documents.map((entry) => entry.documentId),
-  );
-  if (duplicate !== null) {
-    return operationErr(
-      "duplicateId",
-      `duplicate document entry: ${duplicate}`,
-    );
-  }
+  const tree = validateFolderTree(snapshot.folders, snapshot.documents);
+  if (!tree.ok) return tree;
   return operationOk({
     project: project.value,
+    folders: snapshot.folders,
     documents: snapshot.documents,
     issues: snapshot.issues,
   });

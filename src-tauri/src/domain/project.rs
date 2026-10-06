@@ -1,5 +1,5 @@
 use super::display_name::DisplayName;
-use super::entity_id::{parse_unique_ids, DocumentId, ProjectId};
+use super::entity_id::{parse_unique_ids, EntryId, ProjectId};
 use super::error::DomainError;
 use super::schema_version::{SchemaEntityKind, SchemaVersion};
 
@@ -8,7 +8,7 @@ pub struct ProjectInput {
     pub schema_version: i64,
     pub project_id: String,
     pub name: String,
-    pub document_order: Vec<String>,
+    pub child_order: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -16,7 +16,7 @@ pub struct Project {
     schema_version: SchemaVersion,
     project_id: ProjectId,
     name: DisplayName,
-    document_order: Vec<DocumentId>,
+    child_order: Vec<EntryId>,
 }
 
 impl Project {
@@ -24,12 +24,12 @@ impl Project {
         let schema_version = SchemaVersion::parse(SchemaEntityKind::Project, input.schema_version)?;
         let project_id = ProjectId::parse(&input.project_id)?;
         let name = DisplayName::new(&input.name)?;
-        let document_order = parse_unique_ids(&input.document_order, DocumentId::parse)?;
+        let child_order = parse_unique_ids(&input.child_order, EntryId::parse)?;
         Ok(Self {
             schema_version,
             project_id,
             name,
-            document_order,
+            child_order,
         })
     }
 
@@ -45,7 +45,7 @@ impl Project {
         &self.name
     }
 
-    pub fn document_order(&self) -> &[DocumentId] {
-        &self.document_order
+    pub fn child_order(&self) -> &[EntryId] {
+        &self.child_order
     }
 }

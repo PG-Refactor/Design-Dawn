@@ -1,10 +1,20 @@
 {
   "fixtureVersion": 1,
   "subject": "schemaVersion",
-  "description": "schemaVersion must be an integer >= 1 (invalidSchemaVersion) and not newer than the supported version, currently 1 for project, document and sheet (unsupportedSchemaVersion). See docs/data-model.md §11.6.",
+  "description": "schemaVersion must be an integer >= 1 (invalidSchemaVersion) and not newer than the supported version, currently 2 for project (1 is the legacy documentOrder format that is still read) and 1 for folder, document and sheet (unsupportedSchemaVersion). See docs/data-model.md §11.6.",
   "cases": [
     {
       "name": "project current",
+      "input": {
+        "entity": "project",
+        "value": 2
+      },
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "project legacy",
       "input": {
         "entity": "project",
         "value": 1
@@ -37,7 +47,7 @@
       "name": "project newer",
       "input": {
         "entity": "project",
-        "value": 2
+        "value": 3
       },
       "expected": {
         "result": "reject",
@@ -88,6 +98,27 @@
         "errorKind": "invalidSchemaVersion"
       },
       "note": "Rust checks this at the JSON DTO -> domain boundary (Rust domain constructors take integers only)."
+    },
+    {
+      "name": "folder current",
+      "input": {
+        "entity": "folder",
+        "value": 1
+      },
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "folder newer",
+      "input": {
+        "entity": "folder",
+        "value": 2
+      },
+      "expected": {
+        "result": "reject",
+        "errorKind": "unsupportedSchemaVersion"
+      }
     }
   ]
 }

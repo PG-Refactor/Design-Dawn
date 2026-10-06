@@ -11,7 +11,10 @@ import { parseDisplayName } from "../../domain/shared/display-name";
 import {
   type BlockId,
   type DocumentId,
+  type EntryId,
+  type FolderId,
   parseDocumentId,
+  parseFolderId,
   parseSheetId,
   type SheetId,
 } from "../../domain/shared/entity-id";
@@ -66,6 +69,14 @@ export function documentIdOf(counter: number): DocumentId {
   return unwrap(
     parseDocumentId(
       `01928f3a-6c7d-7e8f-a012-${counter.toString(16).padStart(12, "0")}`,
+    ),
+  );
+}
+
+export function folderIdOf(counter: number): FolderId {
+  return unwrap(
+    parseFolderId(
+      `01928f3a-2000-7000-8000-${counter.toString(16).padStart(12, "0")}`,
     ),
   );
 }
@@ -150,8 +161,9 @@ export interface FakeDiskDocument {
 
 export interface FakeDisk {
   projectName: string;
-  // documentOrder as last saved by `saveProject`.
-  documentOrder: DocumentId[];
+  // childOrder as last saved by `saveProject`. Folders are not faked on disk; tests that
+  // need a folder tree hand the workspace a snapshot through `overrideProjectSnapshot`.
+  childOrder: EntryId[];
   readonly documents: Map<DocumentId, FakeDiskDocument>;
 }
 
@@ -250,35 +262,39 @@ export function createFakeGateway(
   const snapshotOverrides = new Map<string, ProjectSnapshot>();
   const disk: FakeDisk = {
     projectName: "Project",
-    documentOrder: [],
+    childOrder: [],
     documents: new Map(),
   };
 
-  function projectOf(name: string, order: readonly DocumentId[]): Project {
+  function projectOf(name: string, order: readonly EntryId[]): Project {
     return unwrap(
       parseProject({
-        schemaVersion: 1,
+        schemaVersion: 2,
         projectId: PROJECT_ID,
         name,
-        documentOrder: order,
+        childOrder: order,
       }),
     );
   }
 
   function projectSnapshot(): ProjectSnapshot {
     return {
-      project: projectOf(disk.projectName, disk.documentOrder),
-      documents: disk.documentOrder.flatMap((documentId) => {
-        const stored = disk.documents.get(documentId);
-        return stored === undefined
-          ? []
-          : [
-              {
-                documentId,
-                name: stored.state === "loaded" ? stored.document.name : null,
-                state: stored.state,
-              },
-            ];
+      project: projectOf(disk.projectName, disk.childOrder),
+      folders: [],
+      documents: disk.childOrder.flatMap((entryId) => {
+        const found = [...disk.documents.entries()].find(
+          ([documentId]) => documentId === entryId,
+        );
+        if (found === undefined) return [];
+        const [documentId, stored] = found;
+        return [
+          {
+            documentId,
+            parentFolderId: null,
+            name: stored.state === "loaded" ? stored.document.name : null,
+            state: stored.state,
+          },
+        ];
       }),
       issues: [],
     };
@@ -387,8 +403,8 @@ export function createFakeGateway(
         sheets,
         issues: options.issues ?? [],
       });
-      if (!disk.documentOrder.includes(options.documentId)) {
-        disk.documentOrder.push(options.documentId);
+      if (!disk.childOrder.includes(options.documentId)) {
+        disk.childOrder.push(options.documentId);
       }
     },
     selectNext(selection) {
@@ -413,14 +429,14 @@ export function createFakeGateway(
           return operationErr("invalidFolderSelection", selectionId);
         }
         disk.projectName = name;
-        disk.documentOrder = [];
+        disk.childOrder = [];
         disk.documents.clear();
         return operationOk(projectSnapshot());
       }),
     saveProject: (_project, project) =>
-      enter("saveProject", project.documentOrder.join(","), () => {
+      enter("saveProject", project.childOrder.join(","), () => {
         disk.projectName = project.name;
-        disk.documentOrder = [...project.documentOrder];
+        disk.childOrder = [...project.childOrder];
         return operationOk(undefined);
       }),
     createDocument: (_project, documentId, name) =>

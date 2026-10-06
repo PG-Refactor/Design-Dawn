@@ -339,7 +339,12 @@ fn run_contract_file(file: &Path) -> (usize, Vec<String>) {
         let scenario_name = scenario["name"].as_str().expect("scenario name");
         let temp = TempDir::new();
         let project_root = temp.path().join(PROJECT_DIRECTORY_NAME);
-        copy_dir_all(Path::new(FIXTURE_PROJECT), &project_root);
+        // A scenario may name another sample project; the default is the basic one.
+        let fixture_project = scenario.get("project").and_then(Value::as_str).map_or_else(
+            || PathBuf::from(FIXTURE_PROJECT),
+            |name| Path::new(FIXTURE_PROJECTS_DIRECTORY).join(name),
+        );
+        copy_dir_all(&fixture_project, &project_root);
         let empty_directory = temp.path().join(EMPTY_DIRECTORY_NAME);
         fs::create_dir_all(&empty_directory).unwrap();
 

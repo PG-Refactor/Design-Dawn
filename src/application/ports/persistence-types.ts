@@ -4,7 +4,12 @@
 
 import type { Document } from "../../domain/document/document";
 import type { Project } from "../../domain/project/project";
-import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
+import type {
+  DocumentId,
+  EntryId,
+  FolderId,
+  SheetId,
+} from "../../domain/shared/entity-id";
 import type { Sheet } from "../../domain/sheet/sheet";
 
 // `status` values of a folder selection result.
@@ -39,15 +44,29 @@ export interface LoadIssue {
   readonly detail: string;
 }
 
+// A Folder of the Project. Folders and Documents are listed flat; the tree is rebuilt from
+// `parentFolderId` (null = directly under the Project) and each `childOrder`.
+export interface FolderEntry {
+  readonly folderId: FolderId;
+  readonly name: string | null;
+  readonly parentFolderId: FolderId | null;
+  // Effective order (unlisted appended, missing dropped); empty when the folder failed to
+  // load, because its children are not scanned.
+  readonly childOrder: readonly EntryId[];
+  readonly state: EntityState;
+}
+
 export interface DocumentEntry {
   readonly documentId: DocumentId;
+  readonly parentFolderId: FolderId | null;
   readonly name: string | null;
   readonly state: EntityState;
 }
 
-// `project.documentOrder` is the effective order (unlisted appended, missing dropped).
+// `project.childOrder` is the effective order (unlisted appended, missing dropped).
 export interface ProjectSnapshot {
   readonly project: Project;
+  readonly folders: readonly FolderEntry[];
   readonly documents: readonly DocumentEntry[];
   readonly issues: readonly LoadIssue[];
 }

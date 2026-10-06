@@ -49,10 +49,10 @@ const contentPath = unwrap(parseContentPath(CONTENT_PATH));
 const name = unwrap(parseDisplayName("Name"));
 
 const rawProject = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   projectId: PROJECT_ID,
   name: "Project",
-  documentOrder: [DOCUMENT_ID],
+  childOrder: [DOCUMENT_ID],
 };
 const rawBlock = {
   blockId: BLOCK_ID,
@@ -75,8 +75,14 @@ const rawIssue = {
 };
 const rawProjectSnapshot = {
   project: rawProject,
+  folders: [],
   documents: [
-    { documentId: DOCUMENT_ID, name: "System Design", state: "loaded" },
+    {
+      documentId: DOCUMENT_ID,
+      parentFolderId: null,
+      name: "System Design",
+      state: "loaded",
+    },
   ],
   issues: [rawIssue],
 };
@@ -114,9 +120,15 @@ describe("successful conversion", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.project.projectId).toBe(PROJECT_ID);
-    expect(result.value.project.documentOrder).toEqual([DOCUMENT_ID]);
+    expect(result.value.project.childOrder).toEqual([DOCUMENT_ID]);
+    expect(result.value.folders).toEqual([]);
     expect(result.value.documents).toEqual([
-      { documentId: DOCUMENT_ID, name: "System Design", state: "loaded" },
+      {
+        documentId: DOCUMENT_ID,
+        parentFolderId: null,
+        name: "System Design",
+        state: "loaded",
+      },
     ]);
     expect(result.value.issues).toEqual([rawIssue]);
   });
@@ -258,6 +270,87 @@ describe("successful conversion", () => {
     });
     const document = unwrap(parseDocument(rawDocumentSnapshot.document));
     expect(document.sheetOrder).toHaveLength(2);
+  });
+});
+
+const FOLDER_ID = "01928f3a-2000-7000-8000-000000000001";
+const CHILD_FOLDER_ID = "01928f3a-2000-7000-8000-000000000002";
+
+const rawFolderTreeSnapshot = {
+  project: { ...rawProject, childOrder: [FOLDER_ID] },
+  folders: [
+    {
+      folderId: FOLDER_ID,
+      name: "Architecture",
+      parentFolderId: null,
+      childOrder: [CHILD_FOLDER_ID, DOCUMENT_ID],
+      state: "loaded",
+    },
+    {
+      folderId: CHILD_FOLDER_ID,
+      name: null,
+      parentFolderId: FOLDER_ID,
+      childOrder: [],
+      state: "loadFailed",
+    },
+  ],
+  documents: [
+    {
+      documentId: DOCUMENT_ID,
+      parentFolderId: FOLDER_ID,
+      name: "System Design",
+      state: "loaded",
+    },
+  ],
+  issues: [],
+};
+
+describe("folder tree payloads", () => {
+  it("converts folders with their parent, child order and state", async () => {
+    invokeMock.mockResolvedValue(rawFolderTreeSnapshot);
+    const result = await openProject(SELECTION_ID);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.project.childOrder).toEqual([FOLDER_ID]);
+    expect(result.value.folders).toEqual([
+      {
+        folderId: FOLDER_ID,
+        name: "Architecture",
+        parentFolderId: null,
+        childOrder: [CHILD_FOLDER_ID, DOCUMENT_ID],
+        state: "loaded",
+      },
+      {
+        folderId: CHILD_FOLDER_ID,
+        name: null,
+        parentFolderId: FOLDER_ID,
+        childOrder: [],
+        state: "loadFailed",
+      },
+    ]);
+    expect(result.value.documents[0]?.parentFolderId).toBe(FOLDER_ID);
+  });
+
+  it("rejects a snapshot without the folders list", async () => {
+    invokeMock.mockResolvedValue({ ...rawProjectSnapshot, folders: undefined });
+    expectFailure(await openProject(SELECTION_ID), "invalidCommandResponse");
+  });
+
+  it("rejects malformed folder ids, parents and child entries", async () => {
+    const [folder] = rawFolderTreeSnapshot.folders;
+    for (const broken of [
+      { ...folder, folderId: "not-an-id" },
+      { ...folder, parentFolderId: "not-an-id" },
+      { ...folder, childOrder: ["not-an-id"] },
+      { ...folder, state: "gone" },
+    ]) {
+      invokeMock.mockResolvedValue({
+        ...rawFolderTreeSnapshot,
+        folders: [broken],
+      });
+      const result = await openProject(SELECTION_ID);
+      expect(result.ok).toBe(false);
+    }
   });
 });
 

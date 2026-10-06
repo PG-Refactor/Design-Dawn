@@ -53,7 +53,7 @@ const documentTabNames = () =>
     .map((tab) => tab.textContent?.replace(/保存.*|未保存/, "").trim());
 
 const storedDocumentOrder = (harness: ShellHarness) =>
-  harness.store.getState().project?.project.documentOrder;
+  harness.store.getState().project?.project.childOrder;
 const storedSheetOrder = (harness: ShellHarness) =>
   harness.store.getState().documents.get(DOCUMENT_A)?.document.sheetOrder;
 
@@ -236,7 +236,7 @@ describe("document reorder", () => {
     );
 
     const { store } = await reopenedWorkspace(harness);
-    expect(store.getState().project?.project.documentOrder).toEqual([
+    expect(store.getState().project?.project.childOrder).toEqual([
       DOCUMENT_B,
       DOCUMENT_A,
       FAILED_DOCUMENT_ID,

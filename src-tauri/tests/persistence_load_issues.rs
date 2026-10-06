@@ -74,7 +74,7 @@ fn unlisted_entities_are_appended_in_name_order_and_reported() {
     let unlisted = issues_of_kind(&snapshot.issues, LoadIssueKind::UnlistedEntity);
     assert_eq!(unlisted.len(), 1);
     assert_eq!(unlisted[0].path.as_deref(), Some("documents/system-design"));
-    assert_eq!(snapshot.project.document_order, [DOCUMENT_ID]);
+    assert_eq!(snapshot.project.child_order, [DOCUMENT_ID]);
 
     let unlisted = issues_of_kind(&document.issues, LoadIssueKind::UnlistedEntity);
     assert_eq!(unlisted.len(), 1);
@@ -109,7 +109,7 @@ fn listed_but_missing_entities_are_ignored_and_reported() {
     let missing = issues_of_kind(&snapshot.issues, LoadIssueKind::MissingEntity);
     assert_eq!(missing.len(), 1);
     assert_eq!(missing[0].entity_id.as_deref(), Some(UNKNOWN_ID));
-    assert_eq!(snapshot.project.document_order, [DOCUMENT_ID]);
+    assert_eq!(snapshot.project.child_order, [DOCUMENT_ID]);
     assert_eq!(
         issues_of_kind(&document.issues, LoadIssueKind::MissingEntity).len(),
         1
@@ -134,7 +134,7 @@ fn invalid_and_duplicate_order_entries_are_ignored_and_reported() {
         issues_of_kind(&snapshot.issues, LoadIssueKind::InvalidOrderEntry).len(),
         2
     );
-    assert_eq!(snapshot.project.document_order, [DOCUMENT_ID]);
+    assert_eq!(snapshot.project.child_order, [DOCUMENT_ID]);
     assert_eq!(
         issues_of_kind(&document.issues, LoadIssueKind::InvalidOrderEntry).len(),
         2
@@ -169,7 +169,7 @@ fn a_second_document_directory_with_the_same_id_is_excluded() {
         .document(&DocumentId::parse(DOCUMENT_ID).unwrap())
         .unwrap()
         .clone();
-    assert_eq!(record.directory_name, "system-design");
+    assert_eq!(record.relative_path, "system-design");
 }
 
 #[test]
@@ -349,7 +349,7 @@ fn a_newer_document_schema_lists_the_document_as_failed_and_blocks_writes() {
 
 #[test]
 fn an_unreadable_project_file_is_a_command_error_with_a_specific_kind() {
-    let cases: [(&str, &[u8], ErrorKind); 5] = [
+    let cases: [(&str, &[u8], ErrorKind); 8] = [
         ("broken json", b"{ nope", ErrorKind::Persistence(PersistenceErrorKind::InvalidJson)),
         (
             "unknown key",
@@ -364,8 +364,23 @@ fn an_unreadable_project_file_is_a_command_error_with_a_specific_kind() {
         ("not utf-8", &[0xFF, 0xFE, 0x00], ErrorKind::Persistence(PersistenceErrorKind::InvalidEncoding)),
         (
             "newer schema",
-            br#"{"schemaVersion":2,"projectId":"01928f3a-5b6c-7d8e-9f01-23456789abcd","name":"P","documentOrder":[]}"#,
+            br#"{"schemaVersion":3,"projectId":"01928f3a-5b6c-7d8e-9f01-23456789abcd","name":"P","childOrder":[]}"#,
             ErrorKind::Domain(DomainErrorKind::UnsupportedSchemaVersion),
+        ),
+        (
+            "newer schema with a structure this app does not know",
+            br#"{"schemaVersion":3,"future":true}"#,
+            ErrorKind::Domain(DomainErrorKind::UnsupportedSchemaVersion),
+        ),
+        (
+            "schema 2 with the old documentOrder key",
+            br#"{"schemaVersion":2,"projectId":"01928f3a-5b6c-7d8e-9f01-23456789abcd","name":"P","documentOrder":[]}"#,
+            ErrorKind::Persistence(PersistenceErrorKind::InvalidFileStructure),
+        ),
+        (
+            "schema 1 with the new childOrder key",
+            br#"{"schemaVersion":1,"projectId":"01928f3a-5b6c-7d8e-9f01-23456789abcd","name":"P","childOrder":[]}"#,
+            ErrorKind::Persistence(PersistenceErrorKind::InvalidFileStructure),
         ),
     ];
     for (label, bytes, expected) in cases {

@@ -17,6 +17,8 @@ pub struct DirectoryEntry {
     pub name: String,
     pub is_utf8_name: bool,
     pub kind: EntryKind,
+    /// The entry itself is a symbolic link (`kind` describes what it points at).
+    pub is_symlink: bool,
 }
 
 /// Entries sorted by the byte order of their names, so every load is deterministic
@@ -47,6 +49,9 @@ pub fn list_directory(path: &Path) -> Result<Vec<DirectoryEntry>, PersistenceErr
                 is_utf8_name: utf8_name.is_some(),
                 name: utf8_name.unwrap_or_else(|| file_name.to_string_lossy().into_owned()),
                 kind,
+                is_symlink: entry
+                    .file_type()
+                    .is_ok_and(|file_type| file_type.is_symlink()),
             }
         })
         .collect())

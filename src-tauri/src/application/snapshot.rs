@@ -14,21 +14,40 @@ pub enum EntityState {
     LoadFailed,
 }
 
+/// Every Folder of the Project, flat; the tree is rebuilt from `parent_folder_id`.
+/// Listed depth-first in effective display order.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FolderEntry {
+    pub folder_id: String,
+    /// Recovered from the file when possible; absent if the file is unreadable.
+    pub name: Option<String>,
+    /// `None` for a Folder directly under the Project.
+    pub parent_folder_id: Option<String>,
+    /// Effective order, like `project.childOrder`; empty for a Folder that failed to load
+    /// (its children are not scanned).
+    pub child_order: Vec<String>,
+    pub state: EntityState,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentEntry {
     pub document_id: String,
+    /// `None` for a Document directly under the Project.
+    pub parent_folder_id: Option<String>,
     /// Recovered from the file when possible; absent if the file is unreadable.
     pub name: Option<String>,
     pub state: EntityState,
 }
 
-/// `project.documentOrder` is the effective order: unlisted Documents appended, missing or
+/// `project.childOrder` is the effective order: unlisted entries appended, missing or
 /// invalid entries dropped, so saving it writes the reconciled order back.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectSnapshot {
     pub project: ProjectDto,
+    pub folders: Vec<FolderEntry>,
     pub documents: Vec<DocumentEntry>,
     pub issues: Vec<LoadIssue>,
 }

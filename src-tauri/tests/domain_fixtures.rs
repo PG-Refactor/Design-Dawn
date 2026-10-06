@@ -7,7 +7,8 @@ use design_dawn_lib::domain::entity_id::ProjectId;
 use design_dawn_lib::domain::error::DomainError;
 use design_dawn_lib::domain::schema_version::SchemaEntityKind;
 use design_dawn_lib::infrastructure::file_format::dto::{
-    parse_schema_version, BlockDto, DocumentDto, PositionDto, ProjectDto, SheetDto, SizeDto,
+    parse_schema_version, BlockDto, DocumentDto, FolderDto, PositionDto, ProjectDto, SheetDto,
+    SizeDto,
 };
 use serde::de::DeserializeOwned;
 use serde_json::{Number, Value};
@@ -84,6 +85,7 @@ fn dto<T: DeserializeOwned>(value: &Value) -> Result<T, String> {
 fn schema_entity(name: &str) -> Result<SchemaEntityKind, String> {
     match name {
         "project" => Ok(SchemaEntityKind::Project),
+        "folder" => Ok(SchemaEntityKind::Folder),
         "document" => Ok(SchemaEntityKind::Document),
         "sheet" => Ok(SchemaEntityKind::Sheet),
         other => Err(format!("unknown schema entity {other:?}")),
@@ -95,6 +97,7 @@ fn run_entity(input: &Value) -> Verdict {
     let value = field(input, "value")?;
     let verdict = match entity.as_str() {
         "project" => dto::<ProjectDto>(value)?.to_domain().map(|_| ()),
+        "folder" => dto::<FolderDto>(value)?.to_domain().map(|_| ()),
         "document" => dto::<DocumentDto>(value)?.to_domain().map(|_| ()),
         "sheet" => dto::<SheetDto>(value)?.to_domain().map(|_| ()),
         "block" => dto::<BlockDto>(value)?.to_domain().map(|_| ()),
