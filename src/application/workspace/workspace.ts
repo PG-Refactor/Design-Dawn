@@ -51,6 +51,7 @@ import {
 } from "../state/application-state";
 import {
   CLEAN_SAVE,
+  documentsUnder,
   findProjectEntry,
   orderWithout,
   type ParentId,
@@ -131,9 +132,10 @@ export interface Workspace {
     folderId: FolderId,
     beforeEntryId: EntryId | null,
   ): Promise<OperationResult<void>>;
-  // Moves a closed Document / Folder (one that holds no open Document) into another loaded
-  // Folder or the Project root, appended to the target's order. Rejected with
-  // `invalidMove` for itself / a descendant / an open entry.
+  // Moves a Document / Folder into another loaded Folder or the Project root, appended to
+  // the target's order. Open Documents (and Folders holding some) move too and stay open:
+  // Rust rebases the session paths. Rejected with `invalidMove` for a Folder moved into
+  // itself / a descendant. Unsaved changes are not flushed here; see `flushDocuments`.
   moveEntry(
     entryId: EntryId,
     targetParentFolderId: FolderId | null,
@@ -156,6 +158,15 @@ export interface Workspace {
   ): Promise<OperationResult<void>>;
   // Explicit retry of a project save that failed.
   saveProject(): Promise<OperationResult<void>>;
+  // The open Documents a move of `entryId` would carry along: the Document itself, or the
+  // open Documents at any depth inside the Folder. Empty for an unknown entry.
+  openDocumentsUnder(entryId: EntryId): readonly DocumentId[];
+  // Saves the pending changes of just these open Documents (not the project, folders or
+  // other Documents). Tries all of them; returns the first error. Ids that are not open
+  // are skipped.
+  flushDocuments(
+    documentIds: readonly DocumentId[],
+  ): Promise<OperationResult<void>>;
   // Saves everything that is unsaved (the project, then every open document) without
   // closing anything. Tries all of it; returns the first error.
   saveAll(): Promise<OperationResult<void>>;
@@ -253,7 +264,6 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     requireProject,
     updateProject,
     saveCurrentProject,
-    isDocumentOpen: (documentId) => sessions.has(documentId),
   });
 
   // ---- documents: open / close ----
@@ -306,6 +316,30 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
       if (!flushed.ok && firstFailure === null) firstFailure = flushed;
     }
     return firstFailure ?? operationOk(undefined);
+  }
+
+  async function flushOpenDocuments(
+    documentIds: readonly DocumentId[],
+  ): Promise<OperationResult<void>> {
+    let firstFailure: OperationResult<void> | null = null;
+    for (const documentId of documentIds) {
+      const flushed = await sessions.get(documentId)?.flush();
+      if (flushed !== undefined && !flushed.ok && firstFailure === null) {
+        firstFailure = flushed;
+      }
+    }
+    return firstFailure ?? operationOk(undefined);
+  }
+
+  function openDocumentsUnderEntry(entryId: EntryId): readonly DocumentId[] {
+    const project = store.getState().project;
+    const found = project === null ? null : findProjectEntry(project, entryId);
+    if (project === null || found === null) return [];
+    const documentIds =
+      found.kind === "folder"
+        ? documentsUnder(project, found.entry.folderId)
+        : [found.entry.documentId];
+    return documentIds.filter((documentId) => sessions.has(documentId));
   }
 
   // Saves everything first (project, then every document) and only then closes, so a
@@ -728,6 +762,9 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
         treeSteps.reorder("document", documentId, beforeEntryId),
       ),
     saveProject: () => runLifecycle(saveCurrentProject),
+    openDocumentsUnder: openDocumentsUnderEntry,
+    flushDocuments: (documentIds) =>
+      runLifecycle(() => flushOpenDocuments(documentIds)),
     saveAll: () => runLifecycle(saveEverything),
     createSheet: createSheetStep,
     deleteSheet: (documentId, sheetId) => deleteSheetStep(documentId, sheetId),

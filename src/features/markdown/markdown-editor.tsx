@@ -109,8 +109,13 @@ export function MarkdownEditor({
   // registered committer always sees the latest text even though it is registered once.
   const { draftRegistry } = services;
   useEffect(
-    () => draftRegistry.register({ commitDraft }),
-    [draftRegistry, commitDraft],
+    () =>
+      draftRegistry.register({
+        documentId,
+        commitDraft,
+        hasPendingDraft: () => draftRef.current !== committedTextRef.current,
+      }),
+    [draftRegistry, documentId, commitDraft],
   );
 
   const finish = useCallback(

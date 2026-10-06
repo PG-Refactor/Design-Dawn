@@ -417,14 +417,6 @@ impl ProjectSession {
             || self.folders.keys().any(|id| id.as_uuid() == entry_id)
     }
 
-    /// True if a Document under `folder_relative_path` (any depth) is currently opened.
-    pub fn has_opened_document_under(&self, folder_relative_path: &str) -> bool {
-        let prefix = format!("{folder_relative_path}{PATH_SEPARATOR}");
-        self.documents
-            .values()
-            .any(|record| record.opened && record.relative_path.starts_with(&prefix))
-    }
-
     /// Moves the directory `source_parent_relative/source_name` into
     /// `target_parent_relative` (both Project-root-relative) and returns the name it now has
     /// there: the same name, or a collision-free variant. Nothing is overwritten and no link

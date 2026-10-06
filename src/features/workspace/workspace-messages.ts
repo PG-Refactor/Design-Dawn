@@ -24,7 +24,6 @@ export const MESSAGES = {
     deleteDocument: "Documentを削除",
     deleteSheet: "Sheetを削除",
     moveTo: "移動…",
-    moveOpenHint: "閉じてから移動してください",
     deleteFolderNotEmptyHint: "空のフォルダだけ削除できます",
     folderExpandedMarker: "▾",
     folderCollapsedMarker: "▸",
@@ -116,8 +115,15 @@ export const MESSAGES = {
       nameLabel: "フォルダ名",
       submit: "作成",
     },
+    confirmMoveSave: {
+      body: "未保存の変更があります。保存して移動しますか？",
+      confirm: "保存して移動",
+    },
     moveEntry: {
       description: "移動先を選んでください。",
+      choose: "ここに移動",
+      newFolder: "新しいフォルダ",
+      newFolderInputLabel: "新しいフォルダの名前",
       projectRoot: "Project直下",
       listLabel: "移動先",
       currentParentHint: "現在の場所です",
@@ -213,8 +219,7 @@ const ERROR_KIND_MESSAGES: Record<OperationErrorKind, string> = {
     "ドロップしたファイルが無効です。もう一度ドロップしてください。",
   folderNotEmpty:
     "フォルダが空ではありません。中のDocumentやフォルダを移動または削除してください。",
-  invalidMove:
-    "ここへは移動できません（移動先が自分自身の中、または開いているDocumentが含まれています）。",
+  invalidMove: "ここへは移動できません（移動先が自分自身の中です）。",
   invalidThemePreference: "テーマ設定の値が正しくありません。",
   invalidViewport: "表示位置の値が正しくありません。",
   invalidCommandResponse: "内部処理の応答が正しくありません。",

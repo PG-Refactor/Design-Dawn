@@ -66,6 +66,20 @@ export function WorkspaceDialogs() {
           onChoose={(target) =>
             void actions.moveEntryTo(dialog.entryId, target)
           }
+          onCreateFolder={actions.createFolderForMove}
+        />
+      );
+    case "confirmMoveSave":
+      return (
+        <ConfirmDialog
+          title={`「${dialog.name}」${MESSAGES.tree.moveTo}`}
+          paragraphs={[texts.confirmMoveSave.body]}
+          cancelLabel={texts.cancel}
+          confirmLabel={texts.confirmMoveSave.confirm}
+          confirmVariant="primary"
+          busy={busy}
+          onCancel={actions.cancelDialog}
+          onConfirm={() => void actions.confirmMoveSave()}
         />
       );
     case "confirmDeleteFolder":

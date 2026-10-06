@@ -399,6 +399,8 @@ describe("saveAll", () => {
     harness.gateway.clearCalls();
     const order: string[] = [];
     harness.draftRegistry.register({
+      documentId: DOCUMENT_A,
+      hasPendingDraft: () => true,
       async commitDraft() {
         order.push("draft");
         return { ok: true, value: undefined };
@@ -415,6 +417,8 @@ describe("saveAll", () => {
     await makeDocumentADirty(harness);
     harness.gateway.clearCalls();
     harness.draftRegistry.register({
+      documentId: DOCUMENT_A,
+      hasPendingDraft: () => true,
       async commitDraft() {
         return operationErr("notWritable", "draft failed");
       },

@@ -185,7 +185,7 @@ describe("reordering nested entries", () => {
 });
 
 describe("moving entries", () => {
-  it("opens the target picker for a closed document and a folder without open documents", async () => {
+  it("opens the target picker for a document and a folder", async () => {
     const harness = await openedFolderActionsHarness();
     harness.actions.requestMoveEntry(DOCUMENT_A);
     expect(state(harness).dialog).toMatchObject({
@@ -198,15 +198,17 @@ describe("moving entries", () => {
     expect(state(harness).dialog.kind).toBe("moveEntry");
   });
 
-  it("does not offer the picker for an open document or a folder holding one", async () => {
+  it("also offers the picker for an open document and a folder holding one", async () => {
     const harness = await openedFolderActionsHarness();
     await harness.actions.openDocument(DOCUMENT_D);
-    harness.actions.requestMoveEntry(DOCUMENT_D);
-    expect(state(harness).dialog.kind).toBe("none");
-    harness.actions.requestMoveEntry(FOLDER_2);
-    expect(state(harness).dialog.kind).toBe("none");
-    harness.actions.requestMoveEntry(FOLDER_1);
-    expect(state(harness).dialog.kind).toBe("none");
+    for (const entryId of [DOCUMENT_D, FOLDER_2, FOLDER_1]) {
+      harness.actions.requestMoveEntry(entryId);
+      expect(state(harness).dialog).toMatchObject({
+        kind: "moveEntry",
+        entryId,
+      });
+      harness.actions.cancelDialog();
+    }
   });
 
   it("moves to the target, closes the picker and unfolds the target folder", async () => {

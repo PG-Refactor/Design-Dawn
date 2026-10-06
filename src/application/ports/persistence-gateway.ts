@@ -56,8 +56,8 @@ export interface PersistenceGateway {
     projectId: ProjectId,
     folder: Folder,
   ): Promise<OperationResult<void>>;
-  // Moves a closed Folder / Document into another Folder (null = Project root). Rejected
-  // with `invalidMove` for itself / a descendant / an open entry. Neither parent's order is
+  // Moves a Folder / Document (open or not) into another Folder (null = Project root). Rejected
+  // with `invalidMove` for a Folder moved into itself / a descendant. Neither parent's order is
   // touched: the caller saves the target parent, then the source parent.
   moveEntry(
     projectId: ProjectId,

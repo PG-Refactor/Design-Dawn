@@ -324,13 +324,6 @@ export function createFakeGateway(
     return false;
   }
 
-  function folderHoldsOpenDocument(folderId: FolderId): boolean {
-    return [...openDocuments].some((documentId) => {
-      const parent = disk.documentParents.get(documentId);
-      return parent !== undefined && isAtOrBelow(parent, folderId);
-    });
-  }
-
   function hasChildren(folderId: FolderId): boolean {
     return (
       [...disk.folders.values()].some(
@@ -651,10 +644,7 @@ export function createFakeGateway(
           }
           if (currentParent === targetParentFolderId)
             return operationOk(undefined);
-          const isOpen = isFolder
-            ? folderHoldsOpenDocument(entryId as FolderId)
-            : openDocuments.has(entryId as DocumentId);
-          if (isOpen) return operationErr("invalidMove", entryId);
+          // Like Rust: open documents move too (their session paths are rebased).
           if (isFolder) {
             const stored = disk.folders.get(entryId as FolderId);
             if (stored !== undefined)

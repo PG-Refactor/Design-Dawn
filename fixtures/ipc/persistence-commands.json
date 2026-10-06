@@ -1278,7 +1278,7 @@
           }
         },
         {
-          "name": "move_entry: a created document is open and cannot move",
+          "name": "move_entry: an open document moves into a folder",
           "request": {
             "command": "move_entry",
             "args": {
@@ -1288,9 +1288,7 @@
             }
           },
           "expected": {
-            "error": {
-              "kind": "invalidMove"
-            }
+            "ok": null
           }
         },
         {

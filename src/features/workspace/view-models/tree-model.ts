@@ -7,10 +7,7 @@ import type {
   ApplicationState,
   OpenProjectState,
 } from "../../../application/state/application-state";
-import {
-  documentsUnder,
-  type ParentId,
-} from "../../../application/workspace/project-entries";
+import type { ParentId } from "../../../application/workspace/project-entries";
 import type {
   DocumentId,
   EntryId,
@@ -52,8 +49,6 @@ export interface FolderNode {
   readonly isExpanded: boolean;
   readonly canMoveUp: boolean;
   readonly canMoveDown: boolean;
-  // Something inside is open: the folder cannot be moved until it is closed.
-  readonly holdsOpenDocument: boolean;
   readonly children: readonly TreeEntryNode[];
 }
 
@@ -173,9 +168,6 @@ function selectFolderNode(
     canMoveDown:
       loaded &&
       canMoveOneStep(siblingOrder, entry.folderId, MOVE_DIRECTIONS.down),
-    holdsOpenDocument: documentsUnder(project, entry.folderId).some(
-      (documentId) => application.documents.has(documentId),
-    ),
     children: selectChildren(
       project,
       entry.folderId,

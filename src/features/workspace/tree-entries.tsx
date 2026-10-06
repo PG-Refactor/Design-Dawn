@@ -150,8 +150,6 @@ function DocumentTreeItem({
     kind: "document",
     documentId,
   });
-  // An open document is held by its session and its tab, so it is closed before it moves.
-  const moveBlockedByOpen = !failed && documentNode.isOpen;
   const menuItems: PopupMenuItem[] = [
     {
       id: "rename",
@@ -163,8 +161,7 @@ function DocumentTreeItem({
     {
       id: "moveTo",
       label: MESSAGES.tree.moveTo,
-      disabled: failed || moveBlockedByOpen,
-      hint: moveBlockedByOpen ? MESSAGES.tree.moveOpenHint : undefined,
+      disabled: failed,
       onSelect: () => actions.requestMoveEntry(documentId),
     },
     {
@@ -239,7 +236,6 @@ function FolderTreeItem({
     folderId,
   });
   const isEmpty = folderNode.children.length === 0;
-  const moveBlockedByOpen = !failed && folderNode.holdsOpenDocument;
   const menuItems: PopupMenuItem[] = [
     {
       id: "createFolder",
@@ -263,8 +259,7 @@ function FolderTreeItem({
     {
       id: "moveTo",
       label: MESSAGES.tree.moveTo,
-      disabled: failed || moveBlockedByOpen,
-      hint: moveBlockedByOpen ? MESSAGES.tree.moveOpenHint : undefined,
+      disabled: failed,
       onSelect: () => actions.requestMoveEntry(folderId),
     },
     {

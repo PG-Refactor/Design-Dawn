@@ -18,6 +18,7 @@ use design_dawn_lib::application::folder_operations::{
 };
 use design_dawn_lib::application::project_operations::open_project;
 use design_dawn_lib::application::session::ProjectSessions;
+use design_dawn_lib::application::sheet_operations::save_sheet;
 use design_dawn_lib::application::snapshot::{EntityState, ProjectSnapshot};
 use design_dawn_lib::domain::error::DomainErrorKind;
 use design_dawn_lib::infrastructure::error::PersistenceErrorKind;
@@ -561,39 +562,99 @@ mod move_entry_command {
         assert_eq!(tree_snapshot(&opened.root), before);
     }
 
-    #[test]
-    fn an_opened_document_and_a_folder_holding_one_cannot_move() {
+    /// Opens the deep document, moves `entry` into the archive folder, then writes through
+    /// the same IDs: a block text and the sheet. Everything must land under `new_base`.
+    fn move_open_document_then_write(entry: &str, new_base: &str, old_top: &str) {
         let mut opened = open_folders();
-        load_document(
+        let loaded = load_document(
             &mut opened.sessions,
             FOLDERS_PROJECT_ID,
             API_DESIGN_DOCUMENT_ID,
         )
         .unwrap();
-        let before = tree_snapshot(&opened.root);
-        for (entry, target) in [
-            (API_DESIGN_DOCUMENT_ID, Some(ARCHIVE_FOLDER_ID)),
-            (BACKEND_FOLDER_ID, Some(ARCHIVE_FOLDER_ID)),
-            // Any ancestor of the open document.
-            (ARCHITECTURE_FOLDER_ID, Some(ARCHIVE_FOLDER_ID)),
-        ] {
-            let error = move_to(&mut opened, entry, target).unwrap_err();
-            assert_eq!(error.kind, ErrorKind::InvalidMove, "{entry}");
-            assert_no_path_leak(&error, &opened.root);
-        }
-        assert_eq!(tree_snapshot(&opened.root), before);
+        let sheet = loaded.sheets[0].sheet.clone().unwrap();
+        let content_path = sheet.blocks[0].content_path.clone();
 
-        close_document(
+        move_to(&mut opened, entry, Some(ARCHIVE_FOLDER_ID)).unwrap();
+        assert!(!opened.documents().join(old_top).exists());
+        assert!(opened
+            .documents()
+            .join(new_base)
+            .join("document.json")
+            .is_file());
+
+        // The session was rebased, so the still-open document writes at the new path.
+        assert_eq!(
+            read_block_content(
+                &mut opened.sessions,
+                FOLDERS_PROJECT_ID,
+                API_DESIGN_DOCUMENT_ID,
+                &content_path,
+            )
+            .unwrap(),
+            "## API\n"
+        );
+        write_block_content(
             &mut opened.sessions,
             FOLDERS_PROJECT_ID,
             API_DESIGN_DOCUMENT_ID,
+            &content_path,
+            "## After move\n",
         )
         .unwrap();
-        move_to(&mut opened, BACKEND_FOLDER_ID, Some(ARCHIVE_FOLDER_ID)).unwrap();
+        let mut renamed = sheet.clone();
+        renamed.name = "Renamed after move".to_owned();
+        assert!(
+            save_sheet(
+                &mut opened.sessions,
+                FOLDERS_PROJECT_ID,
+                API_DESIGN_DOCUMENT_ID,
+                &renamed,
+            )
+            .unwrap()
+            .written
+        );
+
+        let sheet_directory = opened.documents().join(new_base).join("sheets/main");
+        assert_eq!(
+            read_text(&sheet_directory.join("blocks/markdown-1.md")),
+            "## After move\n"
+        );
+        assert!(read_text(&sheet_directory.join("sheet.json")).contains("Renamed after move"));
+        // Nothing was recreated at the old location.
+        assert!(!opened.documents().join(old_top).exists());
     }
 
     #[test]
-    fn a_created_document_is_open_until_it_is_closed() {
+    fn an_open_document_moves_and_later_writes_land_at_the_new_path() {
+        move_open_document_then_write(
+            API_DESIGN_DOCUMENT_ID,
+            "archive/api-design",
+            "architecture/backend/api-design",
+        );
+    }
+
+    #[test]
+    fn a_folder_holding_an_open_document_moves_and_later_writes_land_at_the_new_path() {
+        for (folder, new_base, old_top) in [
+            (
+                BACKEND_FOLDER_ID,
+                "archive/backend/api-design",
+                "architecture/backend",
+            ),
+            // Any ancestor of the open document.
+            (
+                ARCHITECTURE_FOLDER_ID,
+                "archive/architecture/backend/api-design",
+                "architecture",
+            ),
+        ] {
+            move_open_document_then_write(folder, new_base, old_top);
+        }
+    }
+
+    #[test]
+    fn a_created_document_stays_open_after_it_moves() {
         let mut opened = open_folders();
         create_document(
             &mut opened.sessions,
@@ -603,10 +664,12 @@ mod move_entry_command {
             None,
         )
         .unwrap();
-        let error = move_to(&mut opened, &id(1), Some(ARCHIVE_FOLDER_ID)).unwrap_err();
-        assert_eq!(error.kind, ErrorKind::InvalidMove);
-        close_document(&mut opened.sessions, FOLDERS_PROJECT_ID, &id(1)).unwrap();
         move_to(&mut opened, &id(1), Some(ARCHIVE_FOLDER_ID)).unwrap();
+        close_document(&mut opened.sessions, FOLDERS_PROJECT_ID, &id(1)).unwrap();
+        assert!(opened
+            .documents()
+            .join("archive/new/document.json")
+            .is_file());
     }
 
     #[test]

@@ -9,11 +9,7 @@
 // stays in memory with its save state dirty and `lastError`, so a retry persists it.
 
 import { parseDisplayName } from "../../domain/shared/display-name";
-import type {
-  DocumentId,
-  EntryId,
-  FolderId,
-} from "../../domain/shared/entity-id";
+import type { EntryId, FolderId } from "../../domain/shared/entity-id";
 import { moveInOrder } from "../../domain/shared/ordered-ids";
 import type { IdGenerator } from "../id-generator";
 import {
@@ -28,7 +24,6 @@ import type { OpenProjectState } from "../state/application-state";
 import {
   CLEAN_SAVE,
   childOrderOf,
-  documentsUnder,
   findFolder,
   findProjectEntry,
   folderValueOf,
@@ -51,7 +46,6 @@ export interface ProjectTreeContext {
   updateProject(update: (project: OpenProjectState) => OpenProjectState): void;
   // Saves `project.json` from memory and settles the project's save state.
   saveCurrentProject(): Promise<OperationResult<void>>;
-  isDocumentOpen(documentId: DocumentId): boolean;
 }
 
 export interface ProjectTreeSteps {
@@ -293,27 +287,14 @@ export function createProjectTreeSteps(
     }
     const target = requireWritableParent(project, targetParentFolderId);
     if (!target.ok) return target;
-    if (found.kind === "folder") {
-      if (
-        isFolderAtOrBelow(project, targetParentFolderId, found.entry.folderId)
-      ) {
-        return operationErr(
-          "invalidMove",
-          "a folder cannot move into itself or a descendant",
-        );
-      }
-      if (
-        documentsUnder(project, found.entry.folderId).some(
-          context.isDocumentOpen,
-        )
-      ) {
-        return operationErr(
-          "invalidMove",
-          "the folder contains an open document",
-        );
-      }
-    } else if (context.isDocumentOpen(found.entry.documentId)) {
-      return operationErr("invalidMove", "the document is open");
+    if (
+      found.kind === "folder" &&
+      isFolderAtOrBelow(project, targetParentFolderId, found.entry.folderId)
+    ) {
+      return operationErr(
+        "invalidMove",
+        "a folder cannot move into itself or a descendant",
+      );
     }
     return operationOk(undefined);
   }

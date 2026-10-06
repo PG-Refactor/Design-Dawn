@@ -11,7 +11,12 @@ import {
 } from "../../../application/test-support/workspace-harness";
 import { createInitialUiState, setFolderCollapsed } from "../ui-state/ui-state";
 import { treeNavigation } from "./keyboard-navigation";
-import { selectMoveTargets } from "./move-targets";
+import {
+  canCreateFolderIn,
+  MOVE_TARGET_ROOT_KEY,
+  selectMoveTargets,
+  visibleMoveTargets,
+} from "./move-targets";
 import {
   documentTreeKey,
   flattenProjectTree,
@@ -94,16 +99,6 @@ describe("selectProjectTree with folders", () => {
       [false, true],
       [true, false],
     ]);
-  });
-
-  it("marks folders that hold an open document, at any depth", async () => {
-    const { store, workspace } = await openedFolderDiskWorkspace();
-    await workspace.openDocument(DOCUMENT_D);
-    const model = selectProjectTree(store.getState(), createInitialUiState());
-    expect(folderNode(model, FOLDER_1).holdsOpenDocument).toBe(true);
-    expect(folderNode(model, FOLDER_2).holdsOpenDocument).toBe(true);
-    const sibling = folderNode(model, FOLDER_1).children[1];
-    expect(sibling?.kind === "document" && sibling.isOpen).toBe(false);
   });
 
   it("shows a folder that failed to load, with no children and no moves", async () => {
@@ -244,5 +239,48 @@ describe("selectMoveTargets", () => {
     const { store } = await openedFolderDiskWorkspace();
     expect(selectMoveTargets(store.getState(), folderIdOf(99))).toEqual([]);
     expect(selectMoveTargets({ project: null }, DOCUMENT_A)).toEqual([]);
+  });
+
+  it("links rows to their parents and reports which rows have child folders", async () => {
+    const { store } = await openedFolderDiskWorkspace();
+    const targets = selectMoveTargets(store.getState(), DOCUMENT_A);
+    expect(
+      targets.map((target) => [
+        target.key,
+        target.parentKey,
+        target.hasChildFolders,
+      ]),
+    ).toEqual([
+      [MOVE_TARGET_ROOT_KEY, null, true],
+      [FOLDER_1, MOVE_TARGET_ROOT_KEY, true],
+      [FOLDER_2, FOLDER_1, false],
+    ]);
+  });
+
+  it("hides the rows below a folded row", async () => {
+    const { store } = await openedFolderDiskWorkspace();
+    const targets = selectMoveTargets(store.getState(), DOCUMENT_A);
+    const keysOf = (expanded: string[]) =>
+      visibleMoveTargets(targets, new Set(expanded)).map(
+        (target) => target.key,
+      );
+    expect(keysOf([])).toEqual([MOVE_TARGET_ROOT_KEY]);
+    expect(keysOf([MOVE_TARGET_ROOT_KEY])).toEqual([
+      MOVE_TARGET_ROOT_KEY,
+      FOLDER_1,
+    ]);
+    // An expanded row below a folded one stays hidden.
+    expect(keysOf([FOLDER_1])).toEqual([MOVE_TARGET_ROOT_KEY]);
+    expect(keysOf([MOVE_TARGET_ROOT_KEY, FOLDER_1])).toEqual([
+      MOVE_TARGET_ROOT_KEY,
+      FOLDER_1,
+      FOLDER_2,
+    ]);
+  });
+
+  it("allows a new folder in the current parent but not in the moved folder or its descendants", async () => {
+    const { store } = await openedFolderDiskWorkspace();
+    const targets = selectMoveTargets(store.getState(), FOLDER_1);
+    expect(targets.map(canCreateFolderIn)).toEqual([true, false, false]);
   });
 });

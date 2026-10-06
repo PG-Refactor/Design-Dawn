@@ -84,6 +84,13 @@ export type DialogState =
       readonly entryId: EntryId;
       readonly name: string;
     }
+  // Asked after a target was picked while a Document that would move has unsaved changes.
+  | {
+      readonly kind: "confirmMoveSave";
+      readonly entryId: EntryId;
+      readonly name: string;
+      readonly targetParentFolderId: FolderId | null;
+    }
   | {
       readonly kind: "confirmDeleteFolder";
       readonly folderId: FolderId;

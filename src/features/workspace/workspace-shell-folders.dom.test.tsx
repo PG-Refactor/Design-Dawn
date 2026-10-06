@@ -177,7 +177,7 @@ describe("row menus", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("offers a document the move item, enabled while it is closed", async () => {
+  it("offers a document the move item", async () => {
     const harness = await openedShell();
     const menu = await openRowMenu(harness.user, "Document A");
     expect(menuItemNames(menu)).toEqual([
@@ -193,25 +193,21 @@ describe("row menus", () => {
     );
   });
 
-  it("disables the move item of an open document and of a folder holding one, with the hint", async () => {
+  it("enables the move item of an open document and of a folder holding one", async () => {
     const harness = await openedShell();
     await applyOutsideUi(async () => {
       await harness.actions.openDocument(DOCUMENT_D);
     });
     const documentMenu = await openRowMenu(harness.user, "Document D");
     const documentMove = menuItem(documentMenu, TREE.moveTo);
-    expect(documentMove.getAttribute("aria-disabled")).toBe("true");
-    expect(documentMove.getAttribute("title")).toBe(TREE.moveOpenHint);
-    expect(documentMove.getAttribute("aria-description")).toBe(
-      TREE.moveOpenHint,
-    );
+    expect(documentMove.getAttribute("aria-disabled")).toBe(null);
+    expect(documentMove.getAttribute("title")).toBe(null);
     await harness.user.keyboard("{Escape}");
     const folderMenu = await openRowMenu(harness.user, "Folder 1");
     const folderMove = menuItem(folderMenu, TREE.moveTo);
-    expect(folderMove.getAttribute("aria-disabled")).toBe("true");
-    expect(folderMove.getAttribute("title")).toBe(TREE.moveOpenHint);
+    expect(folderMove.getAttribute("aria-disabled")).toBe(null);
     await harness.user.click(folderMove);
-    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByRole("dialog", { name: /Folder 1/ })).toBeTruthy();
   });
 });
 
@@ -312,27 +308,32 @@ describe("reordering", () => {
 });
 
 describe("moving to another place", () => {
-  it("lists the targets, disabling the current parent, and moves the document there", async () => {
+  const MOVE = MESSAGES.dialogs.moveEntry;
+
+  it("lists the folders as a tree, disabling the current parent, and moves the document there", async () => {
     const harness = await openedShell();
     await chooseRowMenuItem(harness.user, "Document A", TREE.moveTo);
     const dialog = screen.getByRole("dialog", { name: /Document A/ });
-    const targets = within(dialog)
-      .getAllByRole("button")
-      .filter((button) => button.textContent !== MESSAGES.dialogs.cancel);
-    expect(targets.map((button) => button.textContent)).toEqual([
-      MESSAGES.dialogs.moveEntry.projectRoot,
-      "Folder 1",
-      "Folder 2",
-    ]);
+    const rows = within(dialog).getAllByRole("treeitem");
     expect(
-      targets.map((button) => (button as HTMLButtonElement).disabled),
-    ).toEqual([true, false, false]);
-    expect(targets[0]?.getAttribute("title")).toBe(
-      MESSAGES.dialogs.moveEntry.currentParentHint,
-    );
+      rows.map((row) => [
+        row.textContent,
+        row.getAttribute("aria-level"),
+        row.getAttribute("aria-disabled"),
+      ]),
+    ).toEqual([
+      [`▾${MOVE.projectRoot}`, "1", "true"],
+      ["▾Folder 1", "2", null],
+      ["Folder 2", "3", null],
+    ]);
+    expect(rows[0]?.getAttribute("title")).toBe(MOVE.currentParentHint);
+    // The first possible target starts highlighted and focused.
+    expect(rows[1]?.getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(rows[1]);
 
+    await harness.user.click(within(dialog).getByText("Folder 2"));
     await harness.user.click(
-      within(dialog).getByRole("button", { name: "Folder 2" }),
+      within(dialog).getByRole("button", { name: MOVE.choose }),
     );
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(level("Document A")).toBe("4");
@@ -348,11 +349,20 @@ describe("moving to another place", () => {
     const harness = await openedShell();
     await chooseRowMenuItem(harness.user, "Folder 1", TREE.moveTo);
     const dialog = screen.getByRole("dialog", { name: /Folder 1/ });
-    const byName = (name: string) =>
-      within(dialog).getByRole("button", { name }) as HTMLButtonElement;
-    expect(byName(MESSAGES.dialogs.moveEntry.projectRoot).disabled).toBe(true);
-    expect(byName("Folder 1").disabled).toBe(true);
-    expect(byName("Folder 2").disabled).toBe(true);
+    const rows = within(dialog).getAllByRole("treeitem");
+    expect(rows.map((row) => row.getAttribute("aria-disabled"))).toEqual([
+      "true",
+      "true",
+      "true",
+    ]);
+    expect(rows[1]?.getAttribute("title")).toBe(MOVE.selfOrDescendantHint);
+    // Nothing can be chosen, by button, Enter or double-click.
+    const choose = within(dialog).getByRole("button", { name: MOVE.choose });
+    expect((choose as HTMLButtonElement).disabled).toBe(true);
+    await harness.user.dblClick(rows[2] as HTMLElement);
+    rows[1]?.focus();
+    await harness.user.keyboard("{Enter}");
+    expect(harness.gateway.methods("moveEntry")).toEqual([]);
   });
 
   it("closes without moving on Cancel", async () => {

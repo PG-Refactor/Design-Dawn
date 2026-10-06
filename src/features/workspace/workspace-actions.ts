@@ -23,7 +23,6 @@ import { FOLDER_SELECTION_STATUS } from "../../application/ports/persistence-typ
 import type { ApplicationStore } from "../../application/state/application-state";
 import {
   childOrderOf,
-  documentsUnder,
   findFolder,
   findProjectEntry,
   hasChildren,
@@ -104,13 +103,26 @@ export interface WorkspaceActions {
   // Only an empty folder is offered a confirmation; anything else does nothing (the menu
   // item is disabled, and the application refuses it again).
   requestDeleteFolder(folderId: FolderId): void;
-  // Opens the target picker for a closed Document / a Folder that holds no open Document.
+  // Opens the target picker for a Document / a loaded Folder (open Documents move too).
   requestMoveEntry(entryId: EntryId): void;
-  // Moves the entry into `targetParentFolderId` (null = Project root) and closes the picker.
+  // Moves the entry into `targetParentFolderId` (null = Project root) and closes the
+  // picker. When a Document that moves has unsaved changes it asks first (see
+  // `confirmMoveSave`) and moves nothing yet.
   moveEntryTo(
     entryId: EntryId,
     targetParentFolderId: FolderId | null,
   ): Promise<OperationResult<void>>;
+  // The answer "save and move": commits the drafts and saves only the Documents that move,
+  // then moves. Any failure leaves everything in place (the errors stay visible) and
+  // closes the dialog.
+  confirmMoveSave(): Promise<OperationResult<void>>;
+  // Creates a folder from the move picker: immediate and not undoable, like any folder
+  // creation, but the dialog stays open. Returns the new folder's id so the picker can
+  // highlight it. The folder stays if the move is cancelled afterwards.
+  createFolderForMove(
+    parentFolderId: FolderId | null,
+    name: string,
+  ): Promise<OperationResult<FolderId>>;
   // Folders are expanded unless folded; presentation only, never saved.
   setFolderExpanded(folderId: FolderId, expanded: boolean): void;
   toggleFolder(folderId: FolderId): void;
@@ -343,6 +355,44 @@ export function createWorkspaceActions(
     uiStateStore.setState((state) =>
       setFolderCollapsed(state, folderId, false),
     );
+  }
+
+  function entryNameOf(entryId: EntryId): string | null {
+    const project = applicationStore.getState().project;
+    const found = project === null ? null : findProjectEntry(project, entryId);
+    return found?.entry.name ?? null;
+  }
+
+  // Anything a move would carry along that is not on disk yet: a command still waiting for
+  // its save, a failed save, a save in progress, or a Markdown draft not yet committed.
+  function hasUnsavedChangesIn(documentIds: readonly DocumentId[]): boolean {
+    if (draftRegistry.hasPendingFor(documentIds)) return true;
+    const documents = applicationStore.getState().documents;
+    return documentIds.some((documentId) => {
+      const save = documents.get(documentId)?.save;
+      return (
+        save !== undefined &&
+        (save.dirtySheetIds.size > 0 ||
+          save.dirtyContentBlockIds.size > 0 ||
+          save.documentDirty ||
+          save.saving ||
+          save.lastError !== null)
+      );
+    });
+  }
+
+  async function performMove(
+    entryId: EntryId,
+    name: string | null,
+    targetParentFolderId: FolderId | null,
+  ): Promise<OperationResult<void>> {
+    const result = await workspace.moveEntry(entryId, targetParentFolderId);
+    if (!result.ok) {
+      record("moveEntry", name, result.error);
+      return result;
+    }
+    expandFolder(targetParentFolderId);
+    return result;
   }
 
   function folderNameOf(folderId: FolderId): string | null {
@@ -582,24 +632,10 @@ export function createWorkspaceActions(
       );
     },
     requestMoveEntry(entryId) {
-      const application = applicationStore.getState();
-      const project = application.project;
+      const project = applicationStore.getState().project;
       const found =
         project === null ? null : findProjectEntry(project, entryId);
-      if (project === null || found === null) return;
-      if (found.kind === "folder") {
-        const blocked =
-          found.entry.state !== "loaded" ||
-          documentsUnder(project, found.entry.folderId).some((documentId) =>
-            application.documents.has(documentId),
-          );
-        if (blocked) return;
-      } else if (
-        found.entry.state !== "loaded" ||
-        application.documents.has(found.entry.documentId)
-      ) {
-        return;
-      }
+      if (found === null || found.entry.state !== "loaded") return;
       uiStateStore.setState((state) =>
         openDialog(state, {
           kind: "moveEntry",
@@ -612,21 +648,57 @@ export function createWorkspaceActions(
       if (uiStateStore.getState().busy) {
         return Promise.resolve(operationOk(undefined));
       }
-      const project = applicationStore.getState().project;
-      const found =
-        project === null ? null : findProjectEntry(project, entryId);
-      const name = found?.entry.name ?? null;
+      const name = entryNameOf(entryId);
+      if (hasUnsavedChangesIn(workspace.openDocumentsUnder(entryId))) {
+        uiStateStore.setState((state) =>
+          openDialog(state, {
+            kind: "confirmMoveSave",
+            entryId,
+            name: name ?? MESSAGES.tree.unnamedEntity,
+            targetParentFolderId,
+          }),
+        );
+        return Promise.resolve(operationOk(undefined));
+      }
       return runBusy(async () => {
-        const result = await workspace.moveEntry(entryId, targetParentFolderId);
+        const result = await performMove(entryId, name, targetParentFolderId);
         uiStateStore.setState(closeDialog);
-        if (!result.ok) {
-          record("moveEntry", name, result.error);
-          return result;
-        }
-        expandFolder(targetParentFolderId);
         return result;
       });
     },
+    confirmMoveSave() {
+      const { dialog, busy } = uiStateStore.getState();
+      if (busy || dialog.kind !== "confirmMoveSave") {
+        return Promise.resolve(operationOk(undefined));
+      }
+      const { entryId, targetParentFolderId } = dialog;
+      const name = entryNameOf(entryId);
+      return runBusy(async () => {
+        // Only what moves is saved; other documents keep their own (auto-)save state.
+        const affected = workspace.openDocumentsUnder(entryId);
+        const drafts = await draftRegistry.commitFor(affected);
+        const flushed = drafts.ok
+          ? await workspace.flushDocuments(affected)
+          : drafts;
+        if (!flushed.ok) {
+          uiStateStore.setState(closeDialog);
+          return flushed;
+        }
+        const result = await performMove(entryId, name, targetParentFolderId);
+        uiStateStore.setState(closeDialog);
+        return result;
+      });
+    },
+    createFolderForMove: (parentFolderId, name) =>
+      runBusy(async () => {
+        const created = await workspace.createFolder(parentFolderId, name);
+        if (!created.ok) {
+          record("createFolder", null, created.error);
+          return created;
+        }
+        expandFolder(parentFolderId);
+        return created;
+      }),
     setFolderExpanded(folderId, expanded) {
       uiStateStore.setState((state) =>
         setFolderCollapsed(state, folderId, !expanded),

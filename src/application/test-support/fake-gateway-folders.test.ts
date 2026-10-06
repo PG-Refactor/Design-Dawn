@@ -108,7 +108,7 @@ describe("fake gateway folders", () => {
     ).toBe("notWritable");
   });
 
-  it("moves closed entries and rejects self, descendant and open moves", async () => {
+  it("moves entries, open or not, and rejects self and descendant moves", async () => {
     const gateway = createFakeGateway();
     gateway.seedFolder({ folderId: FOLDER_A });
     gateway.seedFolder({ folderId: FOLDER_B, parentFolderId: FOLDER_A });
@@ -139,13 +139,15 @@ describe("fake gateway folders", () => {
     ).toBe(true);
     expect(gateway.disk.documentParents.get(DOCUMENT_ID)).toBe(FOLDER_B);
 
-    // An opened document pins itself and every folder above it.
+    // An opened document moves like any other entry, and so does a folder above it.
     await gateway.loadDocument(PROJECT_ID, DOCUMENT_ID);
-    for (const entry of [DOCUMENT_ID, FOLDER_B, FOLDER_A]) {
-      expect(
-        errorKindOf(await gateway.moveEntry(PROJECT_ID, entry, FOLDER_C)),
-      ).toBe("invalidMove");
-    }
+    expect(
+      (await gateway.moveEntry(PROJECT_ID, DOCUMENT_ID, FOLDER_C)).ok,
+    ).toBe(true);
+    expect((await gateway.moveEntry(PROJECT_ID, FOLDER_C, FOLDER_B)).ok).toBe(
+      true,
+    );
+    expect((await gateway.moveEntry(PROJECT_ID, FOLDER_C, null)).ok).toBe(true);
     await gateway.closeDocument(PROJECT_ID, DOCUMENT_ID);
     expect((await gateway.moveEntry(PROJECT_ID, FOLDER_A, FOLDER_C)).ok).toBe(
       true,

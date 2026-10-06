@@ -6,6 +6,8 @@ export interface ConfirmDialogProps {
   readonly paragraphs: readonly string[];
   readonly cancelLabel: string;
   readonly confirmLabel: string;
+  // Destructive by default; a plain confirmation (save and move) uses the primary look.
+  readonly confirmVariant?: "danger" | "primary";
   readonly onCancel: () => void;
   readonly onConfirm: () => void;
   readonly busy: boolean;
@@ -18,6 +20,7 @@ export function ConfirmDialog({
   paragraphs,
   cancelLabel,
   confirmLabel,
+  confirmVariant = "danger",
   onCancel,
   onConfirm,
   busy,
@@ -53,7 +56,7 @@ export function ConfirmDialog({
         </button>
         <button
           type="button"
-          className="button button--danger"
+          className={`button button--${confirmVariant}`}
           disabled={busy}
           onClick={onConfirm}
         >

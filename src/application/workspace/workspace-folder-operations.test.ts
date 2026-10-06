@@ -397,21 +397,6 @@ describe("moveEntry", () => {
     expect(harness.gateway.calls).toEqual([]);
   });
 
-  it("rejects an open document and a folder that contains one", async () => {
-    const harness = await openedFolderDiskWorkspace();
-    await harness.workspace.openDocument(DOCUMENT_D);
-    harness.gateway.clearCalls();
-    expect(errorKind(await harness.workspace.moveEntry(DOCUMENT_D, null))).toBe(
-      "invalidMove",
-    );
-    expect(errorKind(await harness.workspace.moveEntry(FOLDER_2, null))).toBe(
-      "invalidMove",
-    );
-    expect(harness.gateway.calls).toEqual([]);
-    // A closed sibling is still movable.
-    expect((await harness.workspace.moveEntry(DOCUMENT_C, null)).ok).toBe(true);
-  });
-
   it("rejects an unknown entry and an unknown target", async () => {
     const harness = await openedFolderDiskWorkspace();
     expect(

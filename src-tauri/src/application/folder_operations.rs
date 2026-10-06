@@ -145,10 +145,11 @@ fn is_at_or_below(path: &str, ancestor: &str) -> bool {
 }
 
 /// Moves a Folder or Document directory into another Folder (or the Project root with
-/// `None`). Only closed entries move: a Document that is open, or a Folder containing one,
-/// is `invalidMove`, because the Frontend holds loaded data for it and its `dawn-asset`
-/// URLs would otherwise break mid-session. A move into the current parent succeeds without
-/// touching anything. Neither parent's order array is changed here.
+/// `None`). Open Documents (and Folders holding some) may move: every command resolves
+/// paths from the session under the sessions lock, and `rename_tree` rebases the session
+/// paths, so later reads and writes through the same IDs land at the new location. Moving
+/// a Folder into itself or a descendant is `invalidMove`. A move into the current parent
+/// succeeds without touching anything. Neither parent's order array is changed here.
 pub fn move_entry(
     sessions: &mut ProjectSessions,
     project_id: &str,
@@ -183,18 +184,6 @@ pub fn move_entry(
     if current_parent_path == target_path {
         return Ok(());
     }
-    let opened = if is_folder {
-        session.has_opened_document_under(&source_path)
-    } else {
-        let document_id = DocumentId::parse(entry_id)?;
-        session.document(&document_id)?.opened
-    };
-    if opened {
-        return Err(invalid_move(format!(
-            "{entry_id} is open (or holds an open document) and cannot move"
-        )));
-    }
-
     let target_base = super::session::document_base_path(&target_path);
     let new_name = session.move_directory(&source_parent_base, source_name, &target_base)?;
     let new_path = if target_path.is_empty() {
