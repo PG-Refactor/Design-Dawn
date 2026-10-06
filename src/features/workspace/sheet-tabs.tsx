@@ -4,12 +4,13 @@ import { restoreFocus } from "./focus-utils";
 import { sheetPanelId, sheetTabId } from "./tab-ids";
 import { TreeRenameInput } from "./tree-rename-input";
 import { sameRenamingTarget } from "./ui-state/ui-state";
-import { useSheetTabDrag } from "./use-sheet-tab-drag";
+import { useTabDrag } from "./use-tab-drag";
 import {
   NAVIGATION_KEYS,
   tabTargetIndex,
 } from "./view-models/keyboard-navigation";
 import { MOVE_DIRECTIONS, oneStepMove } from "./view-models/reorder";
+import { dropMarker, tabClassName, ZERO_RECT } from "./view-models/tab-drag";
 import { type SheetTabsModel, selectSheetTabs } from "./view-models/tabs-model";
 import { useUiState, useWorkspaceModel } from "./workspace-hooks";
 import {
@@ -21,36 +22,6 @@ import { useWorkspaceServices } from "./workspace-services-context";
 import "./tabs.css";
 
 const RENAME_KEY = "F2";
-
-const ZERO_RECT = { left: 0, right: 0, top: 0, bottom: 0 } as const;
-
-type DropMarker = "before" | "after" | null;
-
-// The slot between two tabs is drawn on the tab after it (or, at the end, on the last).
-function dropMarker(
-  slot: number | null,
-  index: number,
-  tabCount: number,
-): DropMarker {
-  if (slot === null) return null;
-  if (slot === index) return "before";
-  return slot === tabCount && index === tabCount - 1 ? "after" : null;
-}
-
-function tabClassName(
-  isActive: boolean,
-  isDragged: boolean,
-  marker: DropMarker,
-): string {
-  return [
-    "tab",
-    isActive ? "tab--active" : "",
-    isDragged ? "tab--dragging" : "",
-    marker === null ? "" : `tab--drop-${marker}`,
-  ]
-    .filter((name) => name !== "")
-    .join(" ");
-}
 
 function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
   const { actions } = useWorkspaceServices();
@@ -67,7 +38,7 @@ function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
     });
   }
 
-  const drag = useSheetTabDrag({
+  const drag = useTabDrag({
     tabIds,
     getRects: () =>
       tabIds.map(
@@ -138,7 +109,7 @@ function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
             key={tab.sheetId}
             className={tabClassName(
               tab.isActive,
-              dragState?.sheetId === tab.sheetId,
+              dragState?.tabId === tab.sheetId,
               dropMarker(dragState?.slot ?? null, index, tabs.length),
             )}
           >

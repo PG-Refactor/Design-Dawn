@@ -257,6 +257,48 @@ export function removeDocumentSession(
   return { ...state, documents, documentDetails };
 }
 
+function reordered<Value>(
+  map: ReadonlyMap<DocumentId, Value>,
+  documentId: DocumentId,
+  before: DocumentId | null,
+): Map<DocumentId, Value> {
+  const moved = map.get(documentId);
+  const result = new Map<DocumentId, Value>();
+  if (moved === undefined) return result;
+  const place = () => result.set(documentId, moved);
+  for (const [id, value] of map) {
+    if (id === documentId) continue;
+    if (id === before) place();
+    result.set(id, value);
+  }
+  if (!result.has(documentId)) place();
+  return result;
+}
+
+// Puts an open document in front of `before` (null = last) in the open-document order,
+// which is the order of the Document Tabs (the insertion order of `documents`). The order
+// is view state only: it is not saved and not part of the Project's childOrder. Returns
+// the same state when the document is not open, `before` is not open, or nothing moves.
+export function moveOpenDocument(
+  state: ApplicationState,
+  documentId: DocumentId,
+  before: DocumentId | null,
+): ApplicationState {
+  if (!state.documents.has(documentId) || before === documentId) return state;
+  if (before !== null && !state.documents.has(before)) return state;
+  const order = [...state.documents.keys()];
+  const index = order.indexOf(documentId);
+  const next = before === null ? null : order[index + 1];
+  if (before === null ? index === order.length - 1 : next === before) {
+    return state;
+  }
+  return {
+    ...state,
+    documents: reordered(state.documents, documentId, before),
+    documentDetails: reordered(state.documentDetails, documentId, before),
+  };
+}
+
 // Callback for `createDocumentSession({ onStateChange })`. Uses `replace`, so register the
 // session's initial state with `putDocumentSession` when the document is opened.
 export function connectSessionToStore(

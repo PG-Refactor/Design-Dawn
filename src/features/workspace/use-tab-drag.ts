@@ -5,7 +5,6 @@ import {
   useRef,
   useState,
 } from "react";
-import type { SheetId } from "../../domain/shared/entity-id";
 import {
   dropSlotAt,
   dropTargetOf,
@@ -17,8 +16,8 @@ import {
 const PRIMARY_BUTTON = 0;
 const ESCAPE_KEY = "Escape";
 
-interface DragSession {
-  readonly sheetId: SheetId;
+interface DragSession<Id> {
+  readonly tabId: Id;
   readonly pointerId: number;
   readonly start: PointerPoint;
   // True once the pointer travelled far enough: before that it is still a click.
@@ -28,37 +27,37 @@ interface DragSession {
   slot: number | null;
 }
 
-export interface SheetTabDragState {
-  readonly sheetId: SheetId;
+export interface TabDragState<Id> {
+  readonly tabId: Id;
   // The insertion slot to indicate (0..tabs), or null when a drop would not move the tab.
   readonly slot: number | null;
 }
 
-export interface SheetTabDragOptions {
-  readonly tabIds: readonly SheetId[];
+export interface TabDragOptions<Id> {
+  readonly tabIds: readonly Id[];
   readonly getRects: () => readonly TabRect[];
-  readonly onDrop: (sheetId: SheetId, before: SheetId | null) => void;
+  readonly onDrop: (tabId: Id, before: Id | null) => void;
 }
 
-export interface SheetTabPointerHandlers {
+export interface TabPointerHandlers {
   readonly onPointerDown: (event: PointerEvent<HTMLElement>) => void;
   readonly onPointerMove: (event: PointerEvent<HTMLElement>) => void;
   readonly onPointerUp: (event: PointerEvent<HTMLElement>) => void;
   readonly onPointerCancel: () => void;
 }
 
-// Reorders tabs with pointer events. HTML5 drag and drop is not used: the Tauri window
+// Reorders tabs (Sheet Tabs and Document Tabs alike) with pointer events. HTML5 drag and drop is not used: the Tauri window
 // keeps its own file-drop handling on, which turns HTML5 DnD off in WebView2 on Windows.
-export function useSheetTabDrag({
+export function useTabDrag<Id>({
   tabIds,
   getRects,
   onDrop,
-}: SheetTabDragOptions) {
-  const session = useRef<DragSession | null>(null);
+}: TabDragOptions<Id>) {
+  const session = useRef<DragSession<Id> | null>(null);
   // The click that ends a drag (the browser still sends it to the captured tab) must not
   // select the tab.
   const suppressClick = useRef(false);
-  const [dragState, setDragState] = useState<SheetTabDragState | null>(null);
+  const [dragState, setDragState] = useState<TabDragState<Id> | null>(null);
   const dragging = dragState !== null;
 
   const finish = useCallback(() => {
@@ -76,20 +75,20 @@ export function useSheetTabDrag({
       session.current.cancelled = true;
       session.current.slot = null;
       setDragState((state) =>
-        state === null ? null : { sheetId: state.sheetId, slot: null },
+        state === null ? null : { tabId: state.tabId, slot: null },
       );
     }
     document.addEventListener("keydown", handleKeyDown, true);
     return () => document.removeEventListener("keydown", handleKeyDown, true);
   }, [dragging]);
 
-  function handlersFor(sheetId: SheetId): SheetTabPointerHandlers {
+  function handlersFor(tabId: Id): TabPointerHandlers {
     return {
       onPointerDown(event) {
         suppressClick.current = false;
         if (event.button !== PRIMARY_BUTTON || !event.isPrimary) return;
         session.current = {
-          sheetId,
+          tabId,
           pointerId: event.pointerId,
           start: { x: event.clientX, y: event.clientY },
           active: false,
@@ -103,7 +102,7 @@ export function useSheetTabDrag({
         const current = session.current;
         if (
           current === null ||
-          current.sheetId !== sheetId ||
+          current.tabId !== tabId ||
           current.pointerId !== event.pointerId ||
           current.cancelled
         ) {
@@ -115,9 +114,9 @@ export function useSheetTabDrag({
           current.active = true;
         }
         const slot = dropSlotAt(getRects(), point);
-        const target = dropTargetOf(tabIds, sheetId, slot);
+        const target = dropTargetOf(tabIds, tabId, slot);
         current.slot = target === null ? null : slot;
-        setDragState({ sheetId, slot: current.slot });
+        setDragState({ tabId, slot: current.slot });
       },
       onPointerUp(event) {
         const current = session.current;
@@ -127,8 +126,8 @@ export function useSheetTabDrag({
         if (!active) return;
         suppressClick.current = true;
         if (cancelled || slot === null) return;
-        const target = dropTargetOf(tabIds, sheetId, slot);
-        if (target !== null) onDrop(sheetId, target.before);
+        const target = dropTargetOf(tabIds, tabId, slot);
+        if (target !== null) onDrop(tabId, target.before);
       },
       onPointerCancel() {
         finish();

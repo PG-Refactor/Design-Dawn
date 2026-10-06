@@ -21,7 +21,10 @@ import {
   operationOk,
 } from "../../application/ports/operation-error";
 import { FOLDER_SELECTION_STATUS } from "../../application/ports/persistence-types";
-import type { ApplicationStore } from "../../application/state/application-state";
+import {
+  type ApplicationStore,
+  moveOpenDocument,
+} from "../../application/state/application-state";
 import {
   childOrderOf,
   findFolder,
@@ -176,6 +179,11 @@ export interface WorkspaceActions {
     sheetId: SheetId,
     before: SheetId | null,
   ): Promise<OperationResult<void>>;
+
+  // Document Tabs: puts the open document's tab in front of the tab of `before` (null =
+  // last). The tab order is view state: not undoable, not saved, and independent of the
+  // Project Tree order. Unknown or closed documents and a drop in place do nothing.
+  moveDocumentTab(documentId: DocumentId, before: DocumentId | null): void;
 
   moveFolderBy(
     folderId: FolderId,
@@ -1030,6 +1038,11 @@ export function createWorkspaceActions(
       const result = await workspace.moveFolder(folderId, step.before);
       if (!result.ok) record("moveFolder", entry.name, result.error);
       return result;
+    },
+    moveDocumentTab(documentId, before) {
+      applicationStore.setState((state) =>
+        moveOpenDocument(state, documentId, before),
+      );
     },
     async moveSheetTo(documentId, sheetId, before) {
       const session = applicationStore.getState().documents.get(documentId);

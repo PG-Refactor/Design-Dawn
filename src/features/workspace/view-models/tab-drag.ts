@@ -1,4 +1,4 @@
-// Pure geometry and decisions of the pointer drag that reorders the Sheet Tabs. Kept free
+// Pure geometry and decisions of the pointer drag that reorders the tabs (Sheet Tabs and Document Tabs). Kept free
 // of the DOM so the rules are testable without layout.
 
 // How far the pointer must travel from where it went down before a press becomes a drag;
@@ -57,3 +57,34 @@ export function dropTargetOf<Id>(
   if (index < 0 || slot === index || slot === index + 1) return null;
   return { before: tabIds[slot] ?? null };
 }
+
+export type DropMarker = "before" | "after" | null;
+
+// The slot between two tabs is drawn on the tab after it (or, at the end, on the last).
+export function dropMarker(
+  slot: number | null,
+  index: number,
+  tabCount: number,
+): DropMarker {
+  if (slot === null) return null;
+  if (slot === index) return "before";
+  return slot === tabCount && index === tabCount - 1 ? "after" : null;
+}
+
+export function tabClassName(
+  isActive: boolean,
+  isDragged: boolean,
+  marker: DropMarker,
+): string {
+  return [
+    "tab",
+    isActive ? "tab--active" : "",
+    isDragged ? "tab--dragging" : "",
+    marker === null ? "" : `tab--drop-${marker}`,
+  ]
+    .filter((name) => name !== "")
+    .join(" ");
+}
+
+// Stand-in for a tab whose element is not mounted (yet).
+export const ZERO_RECT: TabRect = { left: 0, right: 0, top: 0, bottom: 0 };
