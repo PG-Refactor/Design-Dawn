@@ -1,4 +1,4 @@
-// The rows below the Project row: folders (which nest), documents and their sheets. Split
+// The rows below the Project row: folders (which nest) and documents. Split
 // from `project-tree.tsx` so the tree view keeps to focus handling and shortcuts.
 
 import type { KeyboardEvent } from "react";
@@ -6,15 +6,10 @@ import type { PopupMenuItem } from "../../shared/menu/popup-menu";
 import { TreeItem, type TreeItemRenaming } from "./tree-item";
 import { type RenamingTarget, sameRenamingTarget } from "./ui-state/ui-state";
 import { MOVE_DIRECTIONS, type MoveDirection } from "./view-models/reorder";
-import {
-  documentTreeKey,
-  folderTreeKey,
-  sheetTreeKey,
-} from "./view-models/tree-items";
+import { documentTreeKey, folderTreeKey } from "./view-models/tree-items";
 import type {
   DocumentNode,
   FolderNode,
-  SheetNode,
   TreeEntryNode,
 } from "./view-models/tree-model";
 import type { WorkspaceActions } from "./workspace-actions";
@@ -71,65 +66,6 @@ function moveMenuItems(
   ];
 }
 
-function SheetTreeItem({
-  documentNode,
-  sheetNode,
-  level,
-  handlers,
-}: {
-  readonly documentNode: DocumentNode;
-  readonly sheetNode: SheetNode;
-  readonly level: number;
-  readonly handlers: TreeHandlers;
-}) {
-  const { actions, keepFocus } = handlers;
-  const { documentId } = documentNode;
-  const { sheetId } = sheetNode;
-  const itemKey = sheetTreeKey(documentId, sheetId);
-  const failed = sheetNode.state === "loadFailed";
-  const move = (direction: MoveDirection) =>
-    keepFocus(actions.moveSheetBy(documentId, sheetId, direction));
-  const rename = () => void actions.beginRenameSheet(documentId, sheetId);
-  const isRenaming = sameRenamingTarget(handlers.renaming, {
-    kind: "sheet",
-    documentId,
-    sheetId,
-  });
-  return (
-    <TreeItem
-      itemKey={itemKey}
-      label={sheetNode.name}
-      level={level}
-      isRoving={handlers.rovingKey === itemKey}
-      selected={failed ? false : sheetNode.isActive}
-      failed={failed}
-      register={handlers.register}
-      onFocusItem={handlers.onFocusItem}
-      onNavigate={handlers.onNavigate}
-      onActivate={
-        failed ? undefined : () => void actions.selectSheet(documentId, sheetId)
-      }
-      onRename={failed ? undefined : rename}
-      onMove={failed ? undefined : move}
-      renaming={renamingProps(actions, isRenaming)}
-      menuItems={[
-        {
-          id: "rename",
-          label: MESSAGES.tree.rename,
-          disabled: failed,
-          onSelect: rename,
-        },
-        ...moveMenuItems(sheetNode.canMoveUp, sheetNode.canMoveDown, move),
-        {
-          id: "delete",
-          label: MESSAGES.tree.deleteSheet,
-          onSelect: () => actions.requestDeleteSheet(documentId, sheetId),
-        },
-      ]}
-    />
-  );
-}
-
 function DocumentTreeItem({
   documentNode,
   level,
@@ -184,7 +120,6 @@ function DocumentTreeItem({
       level={level}
       isRoving={handlers.rovingKey === itemKey}
       selected={documentNode.isActive}
-      expanded={failed ? undefined : documentNode.isOpen}
       failed={failed}
       register={handlers.register}
       onFocusItem={handlers.onFocusItem}
@@ -196,22 +131,7 @@ function DocumentTreeItem({
       onMove={failed ? undefined : move}
       renaming={renamingProps(actions, isRenaming)}
       menuItems={menuItems}
-    >
-      {documentNode.sheets.length > 0 ? (
-        // biome-ignore lint/a11y/useSemanticElements: the ARIA tree pattern nests items in a role="group" list.
-        <ul role="group" className="project-tree__group">
-          {documentNode.sheets.map((sheetNode) => (
-            <SheetTreeItem
-              key={sheetNode.sheetId}
-              documentNode={documentNode}
-              sheetNode={sheetNode}
-              level={level + 1}
-              handlers={handlers}
-            />
-          ))}
-        </ul>
-      ) : null}
-    </TreeItem>
+    />
   );
 }
 

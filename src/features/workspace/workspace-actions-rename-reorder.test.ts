@@ -263,12 +263,12 @@ describe("moving a document", () => {
 });
 
 describe("moving a sheet", () => {
-  it("moves one place with one history entry; undo and redo restore the order", async () => {
+  it("moves to the given position with one history entry; undo and redo restore the order", async () => {
     const harness = await withOpenDocumentA();
-    const result = await harness.actions.moveSheetBy(
+    const result = await harness.actions.moveSheetTo(
       DOCUMENT_A,
       SHEET_A2,
-      "up",
+      SHEET_A1,
     );
     expect(result.ok).toBe(true);
     expect(sheetOrder(harness)).toEqual([SHEET_A2, SHEET_A1, FAILED_SHEET_ID]);
@@ -280,30 +280,42 @@ describe("moving a sheet", () => {
     expect(sheetOrder(harness)).toEqual([SHEET_A2, SHEET_A1, FAILED_SHEET_ID]);
   });
 
-  it("moves down past a sheet that failed to load, which keeps its place", async () => {
+  it("jumps several positions as ONE history entry (null = last)", async () => {
     const harness = await withOpenDocumentA();
-    await harness.actions.moveSheetBy(DOCUMENT_A, SHEET_A2, "down");
-    expect(sheetOrder(harness)).toEqual([SHEET_A1, FAILED_SHEET_ID, SHEET_A2]);
+    await harness.actions.moveSheetTo(DOCUMENT_A, SHEET_A1, null);
+    expect(sheetOrder(harness)).toEqual([SHEET_A2, FAILED_SHEET_ID, SHEET_A1]);
+    expect(await undoDepth(harness)).toBe(1);
+    await harness.canvasActions.undo(DOCUMENT_A);
+    expect(sheetOrder(harness)).toEqual([SHEET_A1, SHEET_A2, FAILED_SHEET_ID]);
+    expect(await undoDepth(harness)).toBe(0);
   });
 
-  it("is a safe no-op at the boundaries, for failed sheets and for closed documents", async () => {
+  it("is a safe no-op where the sheet already is, for failed sheets and closed documents", async () => {
     const harness = await withOpenDocumentA();
     const before = harness.store.getState();
-    for (const [sheetId, direction] of [
-      [SHEET_A1, "up"],
-      [FAILED_SHEET_ID, "down"],
-      [FAILED_SHEET_ID, "up"],
+    for (const [sheetId, target] of [
+      [SHEET_A1, SHEET_A1],
+      [SHEET_A1, SHEET_A2],
+      [FAILED_SHEET_ID, null],
+      [FAILED_SHEET_ID, SHEET_A1],
     ] as const) {
       expect(
-        (await harness.actions.moveSheetBy(DOCUMENT_A, sheetId, direction)).ok,
+        (await harness.actions.moveSheetTo(DOCUMENT_A, sheetId, target)).ok,
       ).toBe(true);
     }
     expect(
-      (await harness.actions.moveSheetBy(DOCUMENT_B, SHEET_A1, "down")).ok,
+      (await harness.actions.moveSheetTo(DOCUMENT_B, SHEET_A1, null)).ok,
     ).toBe(true);
     expect(harness.gateway.calls).toEqual([]);
     expect(harness.store.getState()).toBe(before);
     expect(await undoDepth(harness)).toBe(0);
     expect(ui(harness).operationErrors).toEqual([]);
+  });
+
+  it("treats moving the last sheet to the end as staying", async () => {
+    const harness = await withOpenDocumentA();
+    // FAILED_SHEET_ID is last in the stored order; SHEET_A2 before it is "stay" for A2.
+    await harness.actions.moveSheetTo(DOCUMENT_A, SHEET_A2, FAILED_SHEET_ID);
+    expect(await undoDepth(harness)).toBe(0);
   });
 });

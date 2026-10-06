@@ -1,11 +1,10 @@
 // @vitest-environment jsdom
-import { cleanup, screen, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   DOCUMENT_A,
   DOCUMENT_B,
   FAILED_DOCUMENT_ID,
-  FAILED_SHEET_ID,
   SHEET_A1,
   SHEET_A2,
 } from "../../application/test-support/workspace-harness";
@@ -247,104 +246,122 @@ describe("document rename (inline)", () => {
   });
 });
 
-describe("sheet rename (inline)", () => {
+describe("sheet rename (inline, in the Sheet Tabs)", () => {
   async function withDocumentA() {
     const harness = await openedShell();
     await openDocumentByClick(harness, "Document A");
     return harness;
   }
 
-  it("F2 + Enter renames once; tree and sheet tab follow; the active sheet is unchanged", async () => {
+  async function startSheetRenameWithF2(harness: ShellHarness, name: string) {
+    sheetTab(name).focus();
+    await harness.user.keyboard("{F2}");
+  }
+
+  const sheetTabNames = () =>
+    within(screen.getByRole("tablist", { name: "Sheet Tabs" }))
+      .getAllByRole("tab")
+      .map((tab) => tab.textContent);
+
+  it("F2 + Enter renames once in the tab; the active sheet is unchanged; undo and redo follow", async () => {
     const harness = await withDocumentA();
     expect(sheetTab("Sheet A1").getAttribute("aria-selected")).toBe("true");
 
-    await startRenameWithF2(harness, "Sheet A2");
+    await startSheetRenameWithF2(harness, "Sheet A2");
     const input = renameBox("Sheet A2") as HTMLInputElement;
     expect(document.activeElement).toBe(input);
     expect(input.selectionEnd).toBe("Sheet A2".length);
     await harness.user.keyboard("Second{Enter}");
 
-    await screen.findByRole("treeitem", { name: "Second" });
-    expect(sheetTab("Second")).toBeTruthy();
+    await waitFor(() =>
+      expect(sheetTabNames()).toEqual(["Sheet A1", "Second"]),
+    );
+    expect(screen.queryByRole("textbox")).toBeNull();
     expect(sheetTab("Sheet A1").getAttribute("aria-selected")).toBe("true");
     expect(await undoDepth(harness)).toBe(1);
-    expect(document.activeElement).toBe(treeItemNamed("Second"));
+    expect(document.activeElement).toBe(sheetTab("Second"));
 
-    await harness.user.keyboard(UNDO_KEYS);
-    await screen.findByRole("treeitem", { name: "Sheet A2" });
-    expect(sheetTab("Sheet A2")).toBeTruthy();
-    await harness.user.keyboard(REDO_KEYS);
-    await screen.findByRole("treeitem", { name: "Second" });
+    await applyOutsideUi(() => harness.canvasActions.undo(DOCUMENT_A));
+    expect(sheetTabNames()).toEqual(["Sheet A1", "Sheet A2"]);
+    await applyOutsideUi(() => harness.canvasActions.redo(DOCUMENT_A));
+    expect(sheetTabNames()).toEqual(["Sheet A1", "Second"]);
   });
 
-  it("starts from the second click on the selected sheet and from the menu", async () => {
+  it("starts from a double-click on a tab and selects it on the way", async () => {
     const harness = await withDocumentA();
-    const label = () => within(treeItemNamed("Sheet A2")).getByText("Sheet A2");
-    await harness.user.click(label());
-    expect(screen.queryByRole("textbox")).toBeNull();
-    await harness.user.pointer({ target: document.body });
-    await harness.user.click(label());
-    expect(renameBox("Sheet A2")).toBeTruthy();
+    await harness.user.dblClick(sheetTab("Sheet A2"));
+    expect(document.activeElement).toBe(renameBox("Sheet A2"));
+    expect(sheetTab("Sheet A2").getAttribute("aria-selected")).toBe("true");
     await harness.user.keyboard("{Escape}");
-
-    await chooseRowMenuItem(harness.user, "Sheet A1", "名前変更");
-    expect(document.activeElement).toBe(renameBox("Sheet A1"));
+    expect(await undoDepth(harness)).toBe(0);
   });
 
-  it("Escape, an unchanged name and invalid names create no history entry", async () => {
+  it("Escape and losing focus cancel; an unchanged name and invalid names create no history entry", async () => {
     const harness = await withDocumentA();
-    await startRenameWithF2(harness, "Sheet A2");
+    await startSheetRenameWithF2(harness, "Sheet A2");
     await harness.user.keyboard("Other{Escape}");
+    expect(screen.queryByRole("textbox")).toBeNull();
     expect(await undoDepth(harness)).toBe(0);
-    expect(document.activeElement).toBe(treeItemNamed("Sheet A2"));
+    expect(document.activeElement).toBe(sheetTab("Sheet A2"));
 
-    await startRenameWithF2(harness, "Sheet A2");
+    await startSheetRenameWithF2(harness, "Sheet A2");
+    await harness.user.keyboard("Other");
+    await harness.user.click(document.body);
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(sheetTabNames()).toEqual(["Sheet A1", "Sheet A2"]);
+    expect(await undoDepth(harness)).toBe(0);
+
+    await startSheetRenameWithF2(harness, "Sheet A2");
     await harness.user.keyboard("{Enter}");
     expect(await undoDepth(harness)).toBe(0);
 
-    await startRenameWithF2(harness, "Sheet A2");
-    await harness.user.clear(renameBox("Sheet A2"));
+    await startSheetRenameWithF2(harness, "Sheet A2");
+    const input = renameBox("Sheet A2");
+    await harness.user.clear(input);
     await harness.user.keyboard("{Enter}");
     expect(screen.getByRole("alert").textContent).toBe(
       "名前を入力してください。",
     );
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    expect(document.activeElement).toBe(input);
     await harness.user.keyboard("{Escape}");
     expect(await undoDepth(harness)).toBe(0);
     expect(sheetTab("Sheet A2")).toBeTruthy();
   });
 
-  it("is unavailable for a sheet that failed to load", async () => {
+  it("keeps the keys in the input: arrows, Ctrl+Arrow and F2 do not move, reorder or restart anything", async () => {
     const harness = await withDocumentA();
-    const failed = within(treeItemNamed("Document A")).getByRole("treeitem", {
-      name: /読み込み失敗/,
-    });
-    failed.focus();
-    await harness.user.keyboard("{F2}");
-    expect(screen.queryByRole("textbox")).toBeNull();
-    const menu = await openRowMenu(harness.user, failed);
-    expect(
-      within(menu)
-        .getByRole("menuitem", { name: "名前変更" })
-        .getAttribute("aria-disabled"),
-    ).toBe("true");
-    expect(
-      harness.store
-        .getState()
-        .documentDetails.get(DOCUMENT_A)
-        ?.sheetEntries.some((entry) => entry.sheetId === FAILED_SHEET_ID),
-    ).toBe(true);
+    await startSheetRenameWithF2(harness, "Sheet A2");
+    const input = renameBox("Sheet A2");
+    await harness.user.keyboard(
+      "{ArrowLeft}{Control>}{ArrowLeft}{/Control}{F2}{Home}",
+    );
+    expect(document.activeElement).toBe(input);
+    expect(sheetTabNames()).toEqual(["Sheet A1", "Sheet A2"]);
+    expect(sheetTab("Sheet A1").getAttribute("aria-selected")).toBe("true");
+    expect(await undoDepth(harness)).toBe(0);
   });
 
   it("is saved: the sheet file handed to the gateway has the new name", async () => {
     const harness = await withDocumentA();
-    await startRenameWithF2(harness, "Sheet A2");
+    await startSheetRenameWithF2(harness, "Sheet A2");
     await harness.user.keyboard("Second{Enter}");
-    await screen.findByRole("treeitem", { name: "Second" });
+    await waitFor(() => expect(sheetTab("Second")).toBeTruthy());
     await harness.runAutoSave();
 
     // The fake gateway records saved sheets instead of writing them to its fake disk.
     expect(harness.gateway.savedSheets.get(SHEET_A2)?.name).toBe("Second");
     expect(harness.gateway.methods("saveSheet")).toEqual(["saveSheet"]);
+  });
+
+  it("the failed sheet is not a tab, so it cannot be renamed", async () => {
+    await withDocumentA();
+    expect(
+      within(screen.getByRole("tablist", { name: "Sheet Tabs" })).getAllByRole(
+        "tab",
+      ),
+    ).toHaveLength(2);
+    expect(screen.queryByRole("treeitem", { name: /Sheet/ })).toBeNull();
   });
 });
 

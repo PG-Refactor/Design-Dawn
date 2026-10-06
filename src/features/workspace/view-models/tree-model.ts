@@ -1,6 +1,6 @@
-// View model of the Project Tree: project -> folders / documents (folders nest) -> sheets
-// (sheets only for open documents, because unopened documents have not been read yet). Pure; derived from the
-// application and UI state, never stored.
+// View model of the Project Tree: project -> folders / documents (folders nest). Sheets
+// are not tree rows: they are chosen in the Sheet Tabs. Pure; derived from the application
+// and UI state, never stored.
 
 import type { EntityState } from "../../../application/ports/persistence-types";
 import type {
@@ -12,21 +12,10 @@ import type {
   DocumentId,
   EntryId,
   FolderId,
-  SheetId,
 } from "../../../domain/shared/entity-id";
 import type { UiState } from "../ui-state/ui-state";
 import { MESSAGES } from "../workspace-messages";
 import { canMoveOneStep, MOVE_DIRECTIONS } from "./reorder";
-
-export interface SheetNode {
-  readonly sheetId: SheetId;
-  readonly name: string;
-  readonly state: EntityState;
-  readonly isActive: boolean;
-  // Moving by one place is possible: not at the boundary, and the sheet loaded.
-  readonly canMoveUp: boolean;
-  readonly canMoveDown: boolean;
-}
 
 export interface DocumentNode {
   readonly kind: "document";
@@ -37,8 +26,6 @@ export interface DocumentNode {
   readonly isActive: boolean;
   readonly canMoveUp: boolean;
   readonly canMoveDown: boolean;
-  // Sheets of an open document; empty otherwise.
-  readonly sheets: readonly SheetNode[];
 }
 
 export interface FolderNode {
@@ -66,7 +53,7 @@ export type TreeStateInput = Pick<
 >;
 export type TreeUiInput = Pick<
   UiState,
-  "activeDocumentId" | "activeSheetIdByDocument" | "collapsedFolderIds"
+  "activeDocumentId" | "collapsedFolderIds"
 >;
 
 function selectDocumentNode(
@@ -77,12 +64,6 @@ function selectDocumentNode(
 ): DocumentNode {
   const isOpen = application.documents.has(entry.documentId);
   const isActive = isOpen && ui.activeDocumentId === entry.documentId;
-  const activeSheetId = ui.activeSheetIdByDocument.get(entry.documentId);
-  const sheetOrder =
-    application.documents.get(entry.documentId)?.document.sheetOrder ?? [];
-  const sheetEntries = isOpen
-    ? (application.documentDetails.get(entry.documentId)?.sheetEntries ?? [])
-    : [];
   return {
     kind: "document",
     documentId: entry.documentId,
@@ -97,20 +78,6 @@ function selectDocumentNode(
     canMoveDown:
       entry.state === "loaded" &&
       canMoveOneStep(order, entry.documentId, MOVE_DIRECTIONS.down),
-    sheets: sheetEntries.map(
-      (sheet): SheetNode => ({
-        sheetId: sheet.sheetId,
-        name: sheet.name ?? MESSAGES.tree.unnamedEntity,
-        state: sheet.state,
-        isActive: isActive && activeSheetId === sheet.sheetId,
-        canMoveUp:
-          sheet.state === "loaded" &&
-          canMoveOneStep(sheetOrder, sheet.sheetId, MOVE_DIRECTIONS.up),
-        canMoveDown:
-          sheet.state === "loaded" &&
-          canMoveOneStep(sheetOrder, sheet.sheetId, MOVE_DIRECTIONS.down),
-      }),
-    ),
   };
 }
 

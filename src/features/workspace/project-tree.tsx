@@ -13,7 +13,6 @@ import {
   flattenProjectTree,
   folderTreeKey,
   PROJECT_TREE_KEY,
-  sheetTreeKey,
 } from "./view-models/tree-items";
 import {
   type ProjectTreeModel,
@@ -35,10 +34,7 @@ function activeKeyOf(entries: readonly TreeEntryNode[]): string | null {
       continue;
     }
     if (!entry.isActive) continue;
-    const activeSheet = entry.sheets.find((sheet) => sheet.isActive);
-    return activeSheet === undefined
-      ? documentTreeKey(entry.documentId)
-      : sheetTreeKey(entry.documentId, activeSheet.sheetId);
+    return documentTreeKey(entry.documentId);
   }
   return null;
 }

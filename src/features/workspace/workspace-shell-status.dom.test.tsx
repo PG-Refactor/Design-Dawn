@@ -260,7 +260,7 @@ describe("accessibility roles and names", () => {
     await openDocumentByClick(harness.user, "Document A");
 
     expect(screen.getByRole("tree", { name: "Project Tree" })).toBeTruthy();
-    expect(screen.getAllByRole("treeitem").length).toBeGreaterThan(4);
+    expect(screen.getAllByRole("treeitem")).toHaveLength(4);
     expect(screen.getByRole("tablist", { name: "Document Tabs" })).toBeTruthy();
     expect(screen.getByRole("tablist", { name: "Sheet Tabs" })).toBeTruthy();
     expect(screen.getAllByRole("tabpanel")).toHaveLength(2);

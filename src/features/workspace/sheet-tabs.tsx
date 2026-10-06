@@ -1,22 +1,113 @@
 import { type KeyboardEvent, useRef } from "react";
 import type { SheetId } from "../../domain/shared/entity-id";
+import { restoreFocus } from "./focus-utils";
 import { sheetPanelId, sheetTabId } from "./tab-ids";
-import { tabTargetIndex } from "./view-models/keyboard-navigation";
+import { TreeRenameInput } from "./tree-rename-input";
+import { sameRenamingTarget } from "./ui-state/ui-state";
+import { useSheetTabDrag } from "./use-sheet-tab-drag";
+import {
+  NAVIGATION_KEYS,
+  tabTargetIndex,
+} from "./view-models/keyboard-navigation";
+import { MOVE_DIRECTIONS, oneStepMove } from "./view-models/reorder";
 import { type SheetTabsModel, selectSheetTabs } from "./view-models/tabs-model";
-import { useWorkspaceModel } from "./workspace-hooks";
-import { deleteSheetTabLabel, MESSAGES } from "./workspace-messages";
+import { useUiState, useWorkspaceModel } from "./workspace-hooks";
+import {
+  deleteSheetTabLabel,
+  MESSAGES,
+  renameInputLabel,
+} from "./workspace-messages";
 import { useWorkspaceServices } from "./workspace-services-context";
 import "./tabs.css";
+
+const RENAME_KEY = "F2";
+
+const ZERO_RECT = { left: 0, right: 0, top: 0, bottom: 0 } as const;
+
+type DropMarker = "before" | "after" | null;
+
+// The slot between two tabs is drawn on the tab after it (or, at the end, on the last).
+function dropMarker(
+  slot: number | null,
+  index: number,
+  tabCount: number,
+): DropMarker {
+  if (slot === null) return null;
+  if (slot === index) return "before";
+  return slot === tabCount && index === tabCount - 1 ? "after" : null;
+}
+
+function tabClassName(
+  isActive: boolean,
+  isDragged: boolean,
+  marker: DropMarker,
+): string {
+  return [
+    "tab",
+    isActive ? "tab--active" : "",
+    isDragged ? "tab--dragging" : "",
+    marker === null ? "" : `tab--drop-${marker}`,
+  ]
+    .filter((name) => name !== "")
+    .join(" ");
+}
 
 function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
   const { actions } = useWorkspaceServices();
   const tabElements = useRef(new Map<SheetId, HTMLButtonElement>());
+  const renaming = useUiState((ui) => ui.renaming);
   const { tabs, documentId, activeSheetId } = model;
+  const tabIds = tabs.map((tab) => tab.sheetId);
+
+  // Reordering moves DOM nodes, which can drop focus; put it back on the moved tab.
+  function moveSheet(sheetId: SheetId, before: SheetId | null): void {
+    const previous = document.activeElement;
+    void actions.moveSheetTo(documentId, sheetId, before).then(() => {
+      if (document.activeElement !== previous) restoreFocus(previous);
+    });
+  }
+
+  const drag = useSheetTabDrag({
+    tabIds,
+    getRects: () =>
+      tabIds.map(
+        (sheetId) =>
+          tabElements.current
+            .get(sheetId)
+            ?.parentElement?.getBoundingClientRect() ?? ZERO_RECT,
+      ),
+    onDrop: moveSheet,
+  });
 
   function handleKeyDown(
     event: KeyboardEvent<HTMLButtonElement>,
     index: number,
   ) {
+    const tab = tabs[index];
+    if (tab === undefined) return;
+    if (event.key === RENAME_KEY) {
+      event.preventDefault();
+      void actions.beginRenameSheet(documentId, tab.sheetId);
+      return;
+    }
+    // Ctrl/Cmd+Arrow moves the tab by one place (among the tabs shown); plain arrows
+    // keep moving focus. Nothing happens at the ends.
+    if (
+      (event.ctrlKey || event.metaKey) &&
+      (event.key === NAVIGATION_KEYS.arrowLeft ||
+        event.key === NAVIGATION_KEYS.arrowRight)
+    ) {
+      event.preventDefault();
+      const step = oneStepMove(
+        tabIds,
+        tab.sheetId,
+        event.key === NAVIGATION_KEYS.arrowLeft
+          ? MOVE_DIRECTIONS.up
+          : MOVE_DIRECTIONS.down,
+      );
+      if (step !== null) moveSheet(tab.sheetId, step.before);
+      return;
+    }
     const target = tabTargetIndex(event.key, index, tabs.length);
     const targetTab = target === null ? undefined : tabs[target];
     if (targetTab === undefined) return;
@@ -35,10 +126,21 @@ function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
     >
       {tabs.map((tab, index) => {
         const isTabStop = activeSheetId === null ? index === 0 : tab.isActive;
+        const isRenaming = sameRenamingTarget(renaming, {
+          kind: "sheet",
+          documentId,
+          sheetId: tab.sheetId,
+        });
+        const pointerHandlers = drag.handlersFor(tab.sheetId);
+        const dragState = drag.dragState;
         return (
           <div
             key={tab.sheetId}
-            className={`tab${tab.isActive ? " tab--active" : ""}`}
+            className={tabClassName(
+              tab.isActive,
+              dragState?.sheetId === tab.sheetId,
+              dropMarker(dragState?.slot ?? null, index, tabs.length),
+            )}
           >
             <button
               ref={(element) => {
@@ -53,12 +155,32 @@ function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
                 tab.isActive ? sheetPanelId(documentId) : undefined
               }
               tabIndex={isTabStop ? 0 : -1}
-              className="tab__select"
-              onClick={() => void actions.selectSheet(documentId, tab.sheetId)}
+              className={
+                isRenaming ? "tab__select tab__select--hidden" : "tab__select"
+              }
+              onClick={() => {
+                if (drag.consumeClickSuppression()) return;
+                void actions.selectSheet(documentId, tab.sheetId);
+              }}
+              onDoubleClick={() =>
+                void actions.beginRenameSheet(documentId, tab.sheetId)
+              }
               onKeyDown={(event) => handleKeyDown(event, index)}
+              {...pointerHandlers}
             >
               <span className="tab__name">{tab.name}</span>
             </button>
+            {isRenaming ? (
+              <TreeRenameInput
+                initialName={tab.name}
+                label={renameInputLabel(tab.name)}
+                onSubmit={(name) => void actions.commitRename(name)}
+                onCancel={actions.cancelRename}
+                restoreFocus={() =>
+                  tabElements.current.get(tab.sheetId)?.focus()
+                }
+              />
+            ) : null}
             <button
               type="button"
               className="tab__control"

@@ -94,6 +94,13 @@ export type NotificationRetry =
     }
   | { readonly kind: "project" };
 
+// A load-failed Sheet is not a tab, so the notification is the only place left to delete
+// it (Documents and Folders that failed to load stay deletable from the tree).
+export interface NotificationSheetDeletion {
+  readonly documentId: DocumentId;
+  readonly sheetId: SheetId;
+}
+
 export interface NotificationDetail {
   readonly label: string;
   readonly value: string;
@@ -108,6 +115,7 @@ export interface NotificationItem {
   readonly message: string;
   readonly details: readonly NotificationDetail[];
   readonly retry: NotificationRetry | null;
+  readonly sheetDeletion: NotificationSheetDeletion | null;
   // Set for operation errors, which the user can dismiss.
   readonly dismissId: number | null;
 }
@@ -168,13 +176,14 @@ function issueDetails(issue: LoadIssue): readonly NotificationDetail[] {
 function makeItem(
   fields: Omit<
     NotificationItem,
-    "severity" | "priority" | "retry" | "dismissId"
+    "severity" | "priority" | "retry" | "dismissId" | "sheetDeletion"
   > &
-    Partial<Pick<NotificationItem, "retry" | "dismissId">>,
+    Partial<Pick<NotificationItem, "retry" | "dismissId" | "sheetDeletion">>,
 ): NotificationItem {
   return {
     retry: null,
     dismissId: null,
+    sheetDeletion: null,
     ...fields,
     severity: NOTIFICATION_SEVERITY[fields.kind],
     priority: NOTIFICATION_PRIORITY[fields.kind],
@@ -188,6 +197,7 @@ function loadFailedItems(
   idPrefix: string,
   failedEntityIds: ReadonlyMap<string, string>,
   issues: readonly LoadIssue[],
+  sheetDeletionOf?: (entityId: string) => NotificationSheetDeletion,
 ): readonly NotificationItem[] {
   return [...failedEntityIds].map(([entityId, message]) => {
     const issue = issues.find(
@@ -204,6 +214,7 @@ function loadFailedItems(
         issue === undefined
           ? [{ label: DETAIL_LABELS.entityId, value: entityId }]
           : issueDetails(issue),
+      sheetDeletion: sheetDeletionOf?.(entityId) ?? null,
     });
   });
 }
@@ -392,6 +403,7 @@ function collectDocumentItems(
         `loadFailed:sheet:${documentId}`,
         failed,
         issues,
+        (entityId) => ({ documentId, sheetId: entityId as SheetId }),
       ),
     );
     nonDuplicateIssues(issues, failed).forEach((issue, index) => {

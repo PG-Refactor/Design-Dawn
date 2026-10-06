@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   DOCUMENT_A,
@@ -11,6 +17,7 @@ import {
 } from "../../application/test-support/workspace-harness";
 import { reopenedWorkspace, undoDepth } from "./test-support/actions-harness";
 import {
+  applyOutsideUi,
   chooseRowMenuItem,
   openRowMenu,
   renderShell,
@@ -23,8 +30,6 @@ afterEach(() => {
   cleanup();
 });
 
-const UNDO_KEYS = "{Control>}z{/Control}";
-const REDO_KEYS = "{Control>}{Shift>}z{/Shift}{/Control}";
 const CTRL_UP = "{Control>}{ArrowUp}{/Control}";
 const CTRL_DOWN = "{Control>}{ArrowDown}{/Control}";
 const UNNAMED = MESSAGES.tree.unnamedEntity;
@@ -93,9 +98,6 @@ describe("document reorder", () => {
       "Project",
       "Document B",
       "Document A",
-      "Sheet A1",
-      "Sheet A2",
-      UNNAMED,
       UNNAMED,
     ]);
     expect(harness.gateway.methods("saveProject")).toEqual(["saveProject"]);
@@ -255,81 +257,122 @@ describe("document reorder", () => {
   });
 });
 
-describe("sheet reorder", () => {
+const CTRL_LEFT = "{Control>}{ArrowLeft}{/Control}";
+const CTRL_RIGHT = "{Control>}{ArrowRight}{/Control}";
+const TAB_WIDTH = 100;
+const TAB_HEIGHT = 20;
+
+const sheetTabElement = (name: string) =>
+  within(screen.getByRole("tablist", { name: "Sheet Tabs" })).getByRole("tab", {
+    name,
+  });
+
+// jsdom has no layout: gives every sheet tab a rectangle in a single row, in DOM order.
+function layoutSheetTabs(): void {
+  within(screen.getByRole("tablist", { name: "Sheet Tabs" }))
+    .getAllByRole("tab")
+    .forEach((tab, index) => {
+      const left = index * TAB_WIDTH;
+      const rect = {
+        left,
+        right: left + TAB_WIDTH,
+        top: 0,
+        bottom: TAB_HEIGHT,
+        width: TAB_WIDTH,
+        height: TAB_HEIGHT,
+        x: left,
+        y: 0,
+        toJSON: () => ({}),
+      };
+      const container = tab.parentElement;
+      if (container !== null) container.getBoundingClientRect = () => rect;
+    });
+}
+
+// The x that puts the pointer at the given slot (0 = before the first tab).
+// A tab is passed once the pointer is beyond its middle, so a slot boundary is a slot.
+const xAtSlot = (slot: number) => slot * TAB_WIDTH;
+const POINTER_Y = TAB_HEIGHT / 2;
+const DRAG_DISTANCE = 40;
+
+describe("sheet reorder (Sheet Tabs)", () => {
   async function withDocumentA() {
     const harness = await openedShell();
     await openDocumentByClick(harness, "Document A");
     expect(sheetTabNames()).toEqual(["Sheet A1", "Sheet A2"]);
+    layoutSheetTabs();
     return harness;
   }
 
-  it("moves up and down from the menu; tree and tabs follow; undo and redo work", async () => {
+  it("shows no sheet rows in the tree, whichever document is open", async () => {
     const harness = await withDocumentA();
+    expect(treeLabels()).toEqual([
+      "Project",
+      "Document A",
+      "Document B",
+      UNNAMED,
+    ]);
+    await openDocumentByClick(harness, "Document B");
+    expect(screen.queryByRole("treeitem", { name: /Sheet/ })).toBeNull();
+  });
 
-    await chooseRowMenuItem(harness.user, "Sheet A2", MESSAGES.tree.moveUp);
+  it("moves with Ctrl+Arrow, keeps focus on the moved tab, one history entry per step; undo and redo restore", async () => {
+    const harness = await withDocumentA();
+    sheetTabElement("Sheet A1").focus();
 
+    await harness.user.keyboard(CTRL_RIGHT);
+    // Moving past the last visible tab goes to the end of the stored order, behind the
+    // sheet that failed to load.
     await waitFor(() =>
       expect(storedSheetOrder(harness)).toEqual([
         SHEET_A2,
-        SHEET_A1,
         FAILED_SHEET_ID,
+        SHEET_A1,
       ]),
     );
     expect(sheetTabNames()).toEqual(["Sheet A2", "Sheet A1"]);
-    expect(treeLabels().slice(2, 5)).toEqual(["Sheet A2", "Sheet A1", UNNAMED]);
+    expect(document.activeElement).toBe(sheetTabElement("Sheet A1"));
+    // Reordering moves; it does not select.
+    expect(sheetTabElement("Sheet A1").getAttribute("aria-selected")).toBe(
+      "true",
+    );
     expect(await undoDepth(harness)).toBe(1);
 
-    treeItemNamed("Sheet A2").focus();
-    await harness.user.keyboard(UNDO_KEYS);
+    await harness.user.keyboard(CTRL_LEFT);
     await waitFor(() =>
-      expect(storedSheetOrder(harness)).toEqual([
-        SHEET_A1,
-        SHEET_A2,
-        FAILED_SHEET_ID,
-      ]),
+      expect(sheetTabNames()).toEqual(["Sheet A1", "Sheet A2"]),
+    );
+    expect(document.activeElement).toBe(sheetTabElement("Sheet A1"));
+    expect(await undoDepth(harness)).toBe(2);
+
+    await applyOutsideUi(() => harness.canvasActions.undo(DOCUMENT_A));
+    expect(sheetTabNames()).toEqual(["Sheet A2", "Sheet A1"]);
+    await applyOutsideUi(() => harness.canvasActions.undo(DOCUMENT_A));
+    expect(sheetTabNames()).toEqual(["Sheet A1", "Sheet A2"]);
+    await applyOutsideUi(() => harness.canvasActions.redo(DOCUMENT_A));
+    expect(sheetTabNames()).toEqual(["Sheet A2", "Sheet A1"]);
+  });
+
+  it("keeps plain arrows for focus and selection", async () => {
+    const harness = await withDocumentA();
+    sheetTabElement("Sheet A1").focus();
+    await harness.user.keyboard("{ArrowRight}");
+    await waitFor(() =>
+      expect(sheetTabElement("Sheet A2").getAttribute("aria-selected")).toBe(
+        "true",
+      ),
     );
     expect(sheetTabNames()).toEqual(["Sheet A1", "Sheet A2"]);
-
-    await harness.user.keyboard(REDO_KEYS);
-    await waitFor(() =>
-      expect(sheetTabNames()).toEqual(["Sheet A2", "Sheet A1"]),
-    );
-
-    await chooseRowMenuItem(harness.user, "Sheet A2", MESSAGES.tree.moveDown);
-    await waitFor(() =>
-      expect(sheetTabNames()).toEqual(["Sheet A1", "Sheet A2"]),
-    );
+    expect(await undoDepth(harness)).toBe(0);
   });
 
-  it("moves with Ctrl+Arrow and keeps focus on the moved sheet", async () => {
-    const harness = await withDocumentA();
-    treeItemNamed("Sheet A1").focus();
-
-    await harness.user.keyboard(CTRL_DOWN);
-
-    await waitFor(() =>
-      expect(sheetTabNames()).toEqual(["Sheet A2", "Sheet A1"]),
-    );
-    expect(document.activeElement).toBe(treeItemNamed("Sheet A1"));
-    await harness.user.keyboard(CTRL_UP);
-    await waitFor(() =>
-      expect(sheetTabNames()).toEqual(["Sheet A1", "Sheet A2"]),
-    );
-    expect(document.activeElement).toBe(treeItemNamed("Sheet A1"));
-    expect(await undoDepth(harness)).toBe(2);
-  });
-
-  it("is a no-op at the boundaries: disabled items, no command, no history", async () => {
+  it("is a no-op at the ends: no command, no history, no save", async () => {
     const harness = await withDocumentA();
     harness.gateway.clearCalls();
-
-    const menu = await openRowMenu(harness.user, "Sheet A1");
-    const up = menuItemOf(menu, MESSAGES.tree.moveUp);
-    expect(up.getAttribute("aria-disabled")).toBe("true");
-    await harness.user.click(up);
-    await harness.user.keyboard("{Escape}");
-    treeItemNamed("Sheet A1").focus();
-    await harness.user.keyboard(CTRL_UP);
+    sheetTabElement("Sheet A1").focus();
+    await harness.user.keyboard(CTRL_LEFT);
+    sheetTabElement("Sheet A2").focus();
+    await harness.user.keyboard(CTRL_RIGHT);
 
     expect(await undoDepth(harness)).toBe(0);
     expect(storedSheetOrder(harness)).toEqual([
@@ -341,42 +384,26 @@ describe("sheet reorder", () => {
     expect(harness.uiStateStore.getState().operationErrors).toEqual([]);
   });
 
-  it("keeps a sheet that failed to load listed, out of the tabs, in place and immovable", async () => {
+  it("moves past a sheet that failed to load without showing it, keeping its place", async () => {
     const harness = await withDocumentA();
-
-    await chooseRowMenuItem(harness.user, "Sheet A2", MESSAGES.tree.moveDown);
-
+    sheetTabElement("Sheet A1").focus();
+    await harness.user.keyboard(CTRL_RIGHT + CTRL_RIGHT);
     await waitFor(() =>
-      expect(storedSheetOrder(harness)).toEqual([
-        SHEET_A1,
-        FAILED_SHEET_ID,
-        SHEET_A2,
-      ]),
+      expect(sheetTabNames()).toEqual(["Sheet A2", "Sheet A1"]),
     );
-    expect(treeLabels().slice(2, 5)).toEqual(["Sheet A1", UNNAMED, "Sheet A2"]);
-    expect(sheetTabNames()).toEqual(["Sheet A1", "Sheet A2"]);
-
-    const failed = within(treeItemNamed("Document A")).getByRole("treeitem", {
-      name: /読み込み失敗/,
-    });
-    const menu = await openRowMenu(harness.user, failed);
-    for (const name of [
-      MESSAGES.tree.rename,
-      MESSAGES.tree.moveUp,
-      MESSAGES.tree.moveDown,
-    ]) {
-      expect(menuItemOf(menu, name).getAttribute("aria-disabled")).toBe("true");
-    }
-    await harness.user.keyboard("{Escape}");
-    harness.gateway.clearCalls();
-    failed.focus();
-    await harness.user.keyboard(CTRL_UP + CTRL_DOWN);
-    expect(harness.gateway.calls).toEqual([]);
+    // The second step is at the end of the visible tabs: nothing more happens.
+    expect(storedSheetOrder(harness)).toEqual([
+      SHEET_A2,
+      FAILED_SHEET_ID,
+      SHEET_A1,
+    ]);
+    expect(await undoDepth(harness)).toBe(1);
   });
 
   it("is saved: a new workspace over the same disk has the order", async () => {
     const harness = await withDocumentA();
-    await chooseRowMenuItem(harness.user, "Sheet A2", MESSAGES.tree.moveUp);
+    sheetTabElement("Sheet A2").focus();
+    await harness.user.keyboard(CTRL_LEFT);
     await waitFor(() =>
       expect(sheetTabNames()).toEqual(["Sheet A2", "Sheet A1"]),
     );
@@ -387,6 +414,227 @@ describe("sheet reorder", () => {
     expect(
       store.getState().documents.get(DOCUMENT_A)?.document.sheetOrder,
     ).toEqual([SHEET_A2, SHEET_A1, FAILED_SHEET_ID]);
+  });
+
+  describe("pointer drag", () => {
+    async function dragTab(
+      harness: ShellHarness,
+      name: string,
+      toSlot: number,
+      release = true,
+    ) {
+      const tab = sheetTabElement(name);
+      const fromX = tab.parentElement?.getBoundingClientRect().left ?? 0;
+      await harness.user.pointer([
+        {
+          keys: "[MouseLeft>]",
+          target: tab,
+          coords: { clientX: fromX + 1, clientY: POINTER_Y },
+        },
+        {
+          target: tab,
+          coords: { clientX: fromX + 1 + DRAG_DISTANCE, clientY: POINTER_Y },
+        },
+        {
+          target: tab,
+          coords: { clientX: xAtSlot(toSlot), clientY: POINTER_Y },
+        },
+      ]);
+      if (release)
+        await harness.user.pointer({
+          keys: "[/MouseLeft]",
+          target: tab,
+          coords: { clientX: xAtSlot(toSlot), clientY: POINTER_Y },
+        });
+    }
+
+    it("shows the drop indicator while dragging and moves to it as ONE history entry on release", async () => {
+      const harness = await withDocumentA();
+      await dragTab(harness, "Sheet A1", 2, false);
+      const indicated = () =>
+        document.querySelectorAll(".tab--drop-before, .tab--drop-after");
+      expect(indicated()).toHaveLength(1);
+      expect(
+        sheetTabElement("Sheet A2").parentElement?.classList.contains(
+          "tab--drop-after",
+        ),
+      ).toBe(true);
+
+      await harness.user.pointer({
+        keys: "[/MouseLeft]",
+        target: sheetTabElement("Sheet A1"),
+      });
+      await waitFor(() =>
+        expect(sheetTabNames()).toEqual(["Sheet A2", "Sheet A1"]),
+      );
+      expect(indicated()).toHaveLength(0);
+      expect(await undoDepth(harness)).toBe(1);
+      // The click that ends a drag does not select the dragged tab.
+      expect(sheetTabElement("Sheet A1").getAttribute("aria-selected")).toBe(
+        "true",
+      );
+      await applyOutsideUi(() => harness.canvasActions.undo(DOCUMENT_A));
+      expect(sheetTabNames()).toEqual(["Sheet A1", "Sheet A2"]);
+      expect(await undoDepth(harness)).toBe(0);
+    });
+
+    it("drops in front of a tab, however far it jumps, as one entry (three tabs)", async () => {
+      const harness = await withDocumentA();
+      await applyOutsideUi(async () => {
+        await harness.actions.requestCreateSheet(DOCUMENT_A);
+      });
+      const dialog = await screen.findByRole("dialog", { name: "Sheetを作成" });
+      await harness.user.type(
+        within(dialog).getByRole("textbox", { name: "Sheet名" }),
+        "Third{Enter}",
+      );
+      await waitFor(() =>
+        expect(sheetTabNames()).toEqual(["Sheet A1", "Sheet A2", "Third"]),
+      );
+      layoutSheetTabs();
+      const depthBefore = await undoDepth(harness);
+
+      await dragTab(harness, "Third", 0);
+
+      await waitFor(() =>
+        expect(sheetTabNames()).toEqual(["Third", "Sheet A1", "Sheet A2"]),
+      );
+      expect(await undoDepth(harness)).toBe(depthBefore + 1);
+    });
+
+    it("a click without movement only selects", async () => {
+      const harness = await withDocumentA();
+      const tab = sheetTabElement("Sheet A2");
+      await harness.user.pointer([
+        {
+          keys: "[MouseLeft>]",
+          target: tab,
+          coords: { clientX: 150, clientY: POINTER_Y },
+        },
+        { target: tab, coords: { clientX: 152, clientY: POINTER_Y } },
+        { keys: "[/MouseLeft]", target: tab },
+      ]);
+      expect(tab.getAttribute("aria-selected")).toBe("true");
+      expect(sheetTabNames()).toEqual(["Sheet A1", "Sheet A2"]);
+      expect(await undoDepth(harness)).toBe(0);
+    });
+
+    it("Escape cancels: nothing moves and the indicator goes away", async () => {
+      const harness = await withDocumentA();
+      await dragTab(harness, "Sheet A1", 2, false);
+      expect(document.querySelectorAll(".tab--drop-after")).toHaveLength(1);
+
+      await harness.user.keyboard("{Escape}");
+      expect(document.querySelectorAll(".tab--drop-after")).toHaveLength(0);
+      await harness.user.pointer({
+        keys: "[/MouseLeft]",
+        target: sheetTabElement("Sheet A1"),
+      });
+
+      expect(sheetTabNames()).toEqual(["Sheet A1", "Sheet A2"]);
+      expect(await undoDepth(harness)).toBe(0);
+      expect(sheetTabElement("Sheet A1").getAttribute("aria-selected")).toBe(
+        "true",
+      );
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+
+    it("pointercancel cancels", async () => {
+      const harness = await withDocumentA();
+      await dragTab(harness, "Sheet A1", 2, false);
+      fireEvent.pointerCancel(sheetTabElement("Sheet A1"), { pointerId: 1 });
+      expect(document.querySelectorAll(".tab--drop-after")).toHaveLength(0);
+      await harness.user.pointer({
+        keys: "[/MouseLeft]",
+        target: sheetTabElement("Sheet A1"),
+      });
+      expect(sheetTabNames()).toEqual(["Sheet A1", "Sheet A2"]);
+      expect(await undoDepth(harness)).toBe(0);
+    });
+
+    it("dropping at the original position does nothing", async () => {
+      const harness = await withDocumentA();
+      harness.gateway.clearCalls();
+      await dragTab(harness, "Sheet A2", 2);
+      await dragTab(harness, "Sheet A2", 1);
+      await dragTab(harness, "Sheet A1", 0);
+      await dragTab(harness, "Sheet A1", 1);
+      expect(sheetTabNames()).toEqual(["Sheet A1", "Sheet A2"]);
+      expect(await undoDepth(harness)).toBe(0);
+      expect(harness.gateway.calls).toEqual([]);
+    });
+
+    it("ignores non-primary buttons", async () => {
+      const harness = await withDocumentA();
+      const tab = sheetTabElement("Sheet A1");
+      await harness.user.pointer([
+        {
+          keys: "[MouseRight>]",
+          target: tab,
+          coords: { clientX: 1, clientY: POINTER_Y },
+        },
+        { target: tab, coords: { clientX: xAtSlot(2), clientY: POINTER_Y } },
+        { keys: "[/MouseRight]", target: tab },
+      ]);
+      expect(document.querySelectorAll(".tab--drop-after")).toHaveLength(0);
+      expect(sheetTabNames()).toEqual(["Sheet A1", "Sheet A2"]);
+      expect(await undoDepth(harness)).toBe(0);
+    });
+
+    it("leaves the close button and tab selection working", async () => {
+      const harness = await withDocumentA();
+      await harness.user.click(sheetTabElement("Sheet A2"));
+      expect(sheetTabElement("Sheet A2").getAttribute("aria-selected")).toBe(
+        "true",
+      );
+      await harness.user.click(
+        screen.getByRole("button", { name: "Sheetを削除（Sheet A2）" }),
+      );
+      expect(
+        await screen.findByRole("dialog", {
+          name: "「Sheet A2」を削除しますか？",
+        }),
+      ).toBeTruthy();
+      await harness.user.keyboard("{Escape}");
+      expect(sheetTabNames()).toEqual(["Sheet A1", "Sheet A2"]);
+      expect(await undoDepth(harness)).toBe(0);
+    });
+  });
+});
+
+describe("sheet that failed to load", () => {
+  it("is not in the tree or the tabs; the notification offers to delete it", async () => {
+    const harness = await openedShell();
+    await openDocumentByClick(harness, "Document A");
+    expect(
+      screen.queryByRole("treeitem", { name: /読み込み失敗/ }),
+    ).not.toBeNull();
+    // The only failed row left in the tree is the failed Document, not the failed Sheet.
+    expect(
+      screen.getAllByRole("treeitem", { name: /読み込み失敗/ }),
+    ).toHaveLength(1);
+    expect(sheetTabNames()).toEqual(["Sheet A1", "Sheet A2"]);
+
+    await harness.user.click(screen.getByRole("button", { name: /^エラー/ }));
+    await harness.user.click(
+      await screen.findByRole("button", { name: "このSheetを削除" }),
+    );
+    await harness.user.click(
+      await screen.findByRole("button", { name: "削除" }),
+    );
+
+    await waitFor(() =>
+      expect(
+        harness.store
+          .getState()
+          .documentDetails.get(DOCUMENT_A)
+          ?.sheetEntries.some((entry) => entry.sheetId === FAILED_SHEET_ID),
+      ).toBe(false),
+    );
+    expect(harness.gateway.methods("deleteSheet")).toEqual(["deleteSheet"]);
+    expect(
+      screen.queryByRole("button", { name: "このSheetを削除" }),
+    ).toBeNull();
   });
 });
 
@@ -446,28 +694,5 @@ describe("row menu accessibility", () => {
 
     await harness.user.click(document.body);
     expect(screen.queryByRole("menu")).toBeNull();
-  });
-
-  it("offers the sheet row rename, moves and delete; the tree semantics are unchanged", async () => {
-    const harness = await openedShell();
-    await openDocumentByClick(harness, "Document A");
-    const menu = await openRowMenu(harness.user, "Sheet A1");
-    expect(
-      within(menu)
-        .getAllByRole("menuitem")
-        .map((item) => item.textContent),
-    ).toEqual([
-      MESSAGES.tree.rename,
-      MESSAGES.tree.moveUp,
-      MESSAGES.tree.moveDown,
-      MESSAGES.tree.deleteSheet,
-    ]);
-    await harness.user.keyboard("{Escape}");
-    expect(screen.getByRole("tree").getAttribute("aria-label")).toBe(
-      "Project Tree",
-    );
-    expect(treeItemNamed("Sheet A1").getAttribute("aria-selected")).toBe(
-      "true",
-    );
   });
 });

@@ -56,7 +56,7 @@ describe("name dialog", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(harness.gateway.methods("createDocument")).toHaveLength(1);
     expect(await screen.findByRole("tab", { name: /Design/ })).toBeTruthy();
-    expect(treeItem("Design").getAttribute("aria-expanded")).toBe("true");
+    expect(treeItem("Design").getAttribute("aria-selected")).toBe("true");
   });
 
   it("cancels with Escape and returns focus to the button that opened it", async () => {
@@ -109,13 +109,16 @@ describe("name dialog", () => {
   });
 });
 
+const deleteTabButton = () =>
+  screen.getByRole("button", { name: "Sheetを削除（Sheet A2）" });
+
 describe("delete confirmation", () => {
   async function withSheetDeleteDialog() {
     const harness = await renderShell();
     await harness.openProjectInUi();
     await openDocumentByClick(harness, "Document A");
-    const opener = rowMenuButton("Sheet A2");
-    await chooseRowMenuItem(harness.user, "Sheet A2", "Sheetを削除");
+    const opener = deleteTabButton();
+    await harness.user.click(opener);
     const dialog = await screen.findByRole("dialog", {
       name: "「Sheet A2」を削除しますか？",
     });
@@ -141,7 +144,7 @@ describe("delete confirmation", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(document.activeElement).toBe(opener);
 
-    await chooseRowMenuItem(harness.user, "Sheet A2", "Sheetを削除");
+    await harness.user.click(opener);
     await harness.user.click(
       screen.getByRole("button", { name: "キャンセル" }),
     );
@@ -159,7 +162,6 @@ describe("delete confirmation", () => {
 
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(harness.gateway.methods("deleteSheet")).toEqual(["deleteSheet"]);
-    expect(screen.queryByRole("treeitem", { name: "Sheet A2" })).toBeNull();
     expect(
       within(screen.getByRole("tablist", { name: "Sheet Tabs" })).queryByRole(
         "tab",

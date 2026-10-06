@@ -4,16 +4,9 @@ import {
   DOCUMENT_A,
   DOCUMENT_B,
   FAILED_DOCUMENT_ID,
-  FAILED_SHEET_ID,
   openedWorkspace,
-  SHEET_A1,
-  SHEET_A2,
 } from "../../../application/test-support/workspace-harness";
-import {
-  createInitialUiState,
-  setActiveDocument,
-  setActiveSheet,
-} from "../ui-state/ui-state";
+import { createInitialUiState, setActiveDocument } from "../ui-state/ui-state";
 import { MESSAGES } from "../workspace-messages";
 import { flattenProjectTree } from "./tree-items";
 import {
@@ -39,7 +32,7 @@ describe("selectProjectTree", () => {
     ).toBeNull();
   });
 
-  it("lists documents in order; unopened ones have no sheets", async () => {
+  it("lists documents in order", async () => {
     const { store } = await openedWorkspace();
     const model = selectProjectTree(store.getState(), createInitialUiState());
     expect(model?.projectName).toBe("Project");
@@ -49,9 +42,6 @@ describe("selectProjectTree", () => {
       FAILED_DOCUMENT_ID,
     ]);
     expect(rootDocuments(model).every((node) => !node.isOpen)).toBe(true);
-    expect(rootDocuments(model).every((node) => node.sheets.length === 0)).toBe(
-      true,
-    );
     const failed = rootDocuments(model)[2];
     expect(failed?.state).toBe("loadFailed");
     expect(failed?.name).toBe(MESSAGES.tree.unnamedEntity);
@@ -68,46 +58,19 @@ describe("selectProjectTree", () => {
     ]);
   });
 
-  it("shows sheets of open documents in sheet order, including failed ones", async () => {
-    const { store, workspace } = await openedWorkspace();
-    await workspace.openDocument(DOCUMENT_A);
-    const ui = setActiveSheet(
-      setActiveDocument(createInitialUiState(), DOCUMENT_A),
-      DOCUMENT_A,
-      SHEET_A2,
-    );
-    const model = selectProjectTree(store.getState(), ui);
-    const [documentA, documentB] = rootDocuments(model);
-    expect(documentA?.isOpen).toBe(true);
-    expect(documentA?.isActive).toBe(true);
-    expect(documentB?.isOpen).toBe(false);
-    expect(documentA?.sheets.map((sheet) => sheet.sheetId)).toEqual([
-      SHEET_A1,
-      SHEET_A2,
-      FAILED_SHEET_ID,
-    ]);
-    expect(documentA?.sheets.map((sheet) => sheet.isActive)).toEqual([
-      false,
-      true,
-      false,
-    ]);
-    expect(documentA?.sheets[2]?.state).toBe("loadFailed");
-  });
-
-  it("marks a sheet active only while its document is the active one", async () => {
+  it("marks only the active document, and has no sheet nodes", async () => {
     const { store, workspace } = await openedWorkspace();
     await workspace.openDocument(DOCUMENT_A);
     await workspace.openDocument(DOCUMENT_B);
-    const ui = setActiveSheet(
+    const model = selectProjectTree(
+      store.getState(),
       setActiveDocument(createInitialUiState(), DOCUMENT_B),
-      DOCUMENT_A,
-      SHEET_A1,
     );
-    const model = selectProjectTree(store.getState(), ui);
-    expect(rootDocuments(model)[0]?.isActive).toBe(false);
-    expect(
-      rootDocuments(model)[0]?.sheets.some((sheet) => sheet.isActive),
-    ).toBe(false);
+    const [documentA, documentB] = rootDocuments(model);
+    expect(documentA?.isOpen).toBe(true);
+    expect(documentA?.isActive).toBe(false);
+    expect(documentB?.isActive).toBe(true);
+    expect(documentA).not.toHaveProperty("sheets");
   });
 });
 
@@ -121,22 +84,19 @@ describe("flattenProjectTree", () => {
     expect(items.map((item) => item.key.split(":")[0])).toEqual([
       "project",
       "document",
-      "sheet",
-      "sheet",
-      "sheet",
       "document",
       "document",
     ]);
     expect(items[0]).toMatchObject({ parentIndex: null, firstChildIndex: 1 });
+    // An open document has no child rows: its sheets are tabs, not tree items.
     expect(items[1]).toMatchObject({
       parentIndex: 0,
-      firstChildIndex: 2,
+      firstChildIndex: null,
       opensOnExpand: false,
     });
-    expect(items[2]).toMatchObject({ parentIndex: 1, firstChildIndex: null });
     // Unopened and loadable: ArrowRight opens it. Failed to load: it does not.
-    expect(items[5]?.opensOnExpand).toBe(true);
-    expect(items[6]?.opensOnExpand).toBe(false);
+    expect(items[2]?.opensOnExpand).toBe(true);
+    expect(items[3]?.opensOnExpand).toBe(false);
   });
 });
 
@@ -154,24 +114,6 @@ describe("selectProjectTree move availability", () => {
       [false, true],
       [true, true],
       [false, false],
-    ]);
-  });
-
-  it("does the same for the sheets of an open document", async () => {
-    const { store, workspace } = await openedWorkspace();
-    await workspace.openDocument(DOCUMENT_A);
-    const model = selectProjectTree(store.getState(), createInitialUiState());
-    const sheets = rootDocuments(model)[0]?.sheets;
-    expect(
-      sheets?.map((sheet) => [
-        sheet.sheetId,
-        sheet.canMoveUp,
-        sheet.canMoveDown,
-      ]),
-    ).toEqual([
-      [SHEET_A1, false, true],
-      [SHEET_A2, true, true],
-      [FAILED_SHEET_ID, false, false],
     ]);
   });
 });

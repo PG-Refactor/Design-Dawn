@@ -163,17 +163,18 @@ export interface WorkspaceActions {
   // closes; an unchanged name does nothing, a changed one is ONE undoable command.
   commitRename(name: string): Promise<OperationResult<void>>;
   // One place up / down. Documents and folders: the order of their parent, saved at once,
-  // not undoable. Sheets:
-  // one undoable command. At the boundary (or for an entry that failed to load) nothing
-  // happens at all.
+  // not undoable. At the boundary (or for an entry that failed to load) nothing happens.
   moveDocumentBy(
     documentId: DocumentId,
     direction: MoveDirection,
   ): Promise<OperationResult<void>>;
-  moveSheetBy(
+  // Sheets (Sheet Tabs): puts the sheet directly in front of `before` (null = last) as
+  // ONE undoable command, however far it travels. Staying where it is, an unknown or
+  // failed sheet and a closed document do nothing at all (no history, no save).
+  moveSheetTo(
     documentId: DocumentId,
     sheetId: SheetId,
-    direction: MoveDirection,
+    before: SheetId | null,
   ): Promise<OperationResult<void>>;
 
   moveFolderBy(
@@ -1030,7 +1031,7 @@ export function createWorkspaceActions(
       if (!result.ok) record("moveFolder", entry.name, result.error);
       return result;
     },
-    async moveSheetBy(documentId, sheetId, direction) {
+    async moveSheetTo(documentId, sheetId, before) {
       const session = applicationStore.getState().documents.get(documentId);
       const entry = applicationStore
         .getState()
@@ -1039,12 +1040,19 @@ export function createWorkspaceActions(
       if (session === undefined || entry?.state !== "loaded") {
         return operationOk(undefined);
       }
-      const step = oneStepMove(session.document.sheetOrder, sheetId, direction);
-      if (step === null) return operationOk(undefined);
+      const order = session.document.sheetOrder;
+      const index = order.indexOf(sheetId);
+      const stays =
+        before === sheetId ||
+        (before !== null && !order.includes(before)) ||
+        (before === null
+          ? index === order.length - 1
+          : order[index + 1] === before);
+      if (stays) return operationOk(undefined);
       const result =
         (await workspace
           .getDocumentSession(documentId)
-          ?.execute(moveSheetCommand(sheetId, step.before))) ??
+          ?.execute(moveSheetCommand(sheetId, before))) ??
         operationErr("notWritable", `document is not open: ${documentId}`);
       if (!result.ok) {
         record("moveSheet", documentNameOf(documentId), result.error);

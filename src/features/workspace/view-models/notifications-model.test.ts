@@ -73,6 +73,14 @@ describe("selectNotifications", () => {
       `loadIssue:document:${DOCUMENT_A}:0`,
     ]);
     expect(model.counts).toEqual({ errors: 2, warnings: 2, total: 4 });
+    // Only the failed sheet carries a deletion: it is not a tab, and a failed document
+    // is still deletable from the tree.
+    expect(model.items.map((item) => item.sheetDeletion)).toEqual([
+      null,
+      { documentId: DOCUMENT_A, sheetId: FAILED_SHEET_ID },
+      null,
+      null,
+    ]);
     const documentIssue = model.items[3];
     expect(documentIssue?.source).toEqual({
       scope: "document",

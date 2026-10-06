@@ -72,8 +72,8 @@ export function selectDocumentTabs(
   });
 }
 
-// Only sheets that loaded are tabs; sheets that failed to load appear in the tree and
-// the notifications (where they can be deleted).
+// Only sheets that loaded are tabs; sheets that failed to load are listed only in the
+// notifications (where they can be deleted).
 export function selectSheetTabs(
   application: TabsStateInput,
   ui: TabsUiInput,

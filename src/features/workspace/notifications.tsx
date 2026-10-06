@@ -63,7 +63,7 @@ function NotificationEntry({ item }: { readonly item: NotificationItem }) {
     item.severity === "error"
       ? MESSAGES.notifications.errorSeverity
       : MESSAGES.notifications.warningSeverity;
-  const { retry, dismissId } = item;
+  const { retry, dismissId, sheetDeletion } = item;
   return (
     <li className={`notification notification--${item.severity}`}>
       <div className="notification__head">
@@ -94,6 +94,20 @@ function NotificationEntry({ item }: { readonly item: NotificationItem }) {
             onClick={() => void runRetry(actions, retry)}
           >
             {MESSAGES.notifications.retry}
+          </button>
+        )}
+        {sheetDeletion === null ? null : (
+          <button
+            type="button"
+            className="button"
+            onClick={() =>
+              actions.requestDeleteSheet(
+                sheetDeletion.documentId,
+                sheetDeletion.sheetId,
+              )
+            }
+          >
+            {MESSAGES.notifications.deleteSheet}
           </button>
         )}
         {dismissId === null ? null : (

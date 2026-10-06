@@ -45,11 +45,11 @@ describe("empty state and opening a project", () => {
     expect(names[1]).toContain("Document A");
     expect(names[2]).toContain("Document B");
     expect(names[3]).toContain("読み込み失敗");
-    // Unopened documents are single rows without children.
+    // Documents are single rows: no children and nothing to expand.
     for (const name of ["Document A", "Document B"]) {
       const item = treeItem(name);
       expect(within(item).queryAllByRole("treeitem")).toEqual([]);
-      expect(item.getAttribute("aria-expanded")).toBe("false");
+      expect(item.getAttribute("aria-expanded")).toBeNull();
     }
     expect(screen.queryByRole("tablist", { name: "Document Tabs" })).toBeNull();
     expect(
@@ -64,7 +64,7 @@ describe("empty state and opening a project", () => {
 });
 
 describe("activating documents", () => {
-  it("opens a tab, shows sheets in tree and tabs, and the placeholder, on click", async () => {
+  it("opens a tab, shows the sheets as tabs only, and the placeholder, on click", async () => {
     const { user, openProjectInUi, gateway } = await renderShell();
     await openProjectInUi();
 
@@ -72,14 +72,12 @@ describe("activating documents", () => {
 
     await waitFor(() => expect(documentTab(/Document A/)).toBeTruthy());
     expect(isSelected(documentTab(/Document A/))).toBe(true);
-    expect(treeItem("Document A").getAttribute("aria-expanded")).toBe("true");
-    const sheetItems = within(treeItem("Document A")).getAllByRole("treeitem");
-    expect(sheetItems.map((item) => item.textContent)).toEqual([
-      expect.stringContaining("Sheet A1"),
-      expect.stringContaining("Sheet A2"),
-      expect.stringContaining("読み込み失敗"),
-    ]);
-    expect(isSelected(treeItem("Sheet A1"))).toBe(true);
+    expect(isSelected(treeItem("Document A"))).toBe(true);
+    // The tree has no sheet rows: sheets are chosen in the Sheet Tabs.
+    expect(screen.queryByRole("treeitem", { name: /Sheet/ })).toBeNull();
+    expect(within(treeItem("Document A")).queryAllByRole("treeitem")).toEqual(
+      [],
+    );
     expect(isSelected(sheetTab("Sheet A1"))).toBe(true);
     expect(sheetTab("Sheet A2")).toBeTruthy();
     // The sheet that failed to load is not a tab.
@@ -111,19 +109,24 @@ describe("activating documents", () => {
     expect(isSelected(documentTab(/Document B/))).toBe(true);
   });
 
-  it("moves through the tree with the arrow keys, Home, End and ArrowLeft", async () => {
+  it("moves through the tree with the arrow keys, Home and End", async () => {
     const { user, openProjectInUi } = await renderShell();
     await openProjectInUi();
     await user.click(within(treeItem("Document A")).getByText("Document A"));
-    await screen.findByRole("treeitem", { name: "Sheet A1" });
+    await screen.findByRole("tab", { name: "Sheet A1" });
 
-    treeItem("Document A").focus();
-    await user.keyboard("{ArrowRight}");
-    expect(document.activeElement).toBe(treeItem("Sheet A1"));
+    treeItem("Project").focus();
     await user.keyboard("{ArrowDown}");
-    expect(document.activeElement).toBe(treeItem("Sheet A2"));
-    await user.keyboard("{ArrowLeft}");
     expect(document.activeElement).toBe(treeItem("Document A"));
+    await user.keyboard("{ArrowDown}");
+    expect(document.activeElement).toBe(treeItem("Document B"));
+    await user.keyboard("{ArrowUp}");
+    expect(document.activeElement).toBe(treeItem("Document A"));
+    // With no sheets below it, ArrowRight on an open document goes nowhere.
+    await user.keyboard("{ArrowRight}");
+    expect(document.activeElement).toBe(treeItem("Document A"));
+    await user.keyboard("{ArrowLeft}");
+    expect(document.activeElement).toBe(treeItem("Project"));
     await user.keyboard("{End}");
     expect(document.activeElement).toBe(screen.getAllByRole("treeitem").at(-1));
     await user.keyboard("{Home}");
@@ -225,10 +228,6 @@ describe("document tabs", () => {
     );
     expect(isSelected(documentTab(/Document A/))).toBe(true);
     expect(screen.getByRole("listbox", { name: "Sheet A1" })).toBeTruthy();
-    // The sheets of a closed document leave the tree.
-    expect(within(treeItem("Document B")).queryAllByRole("treeitem")).toEqual(
-      [],
-    );
     await waitFor(() =>
       expect(document.activeElement).toBe(documentTab(/Document A/)),
     );
@@ -244,20 +243,17 @@ describe("document tabs", () => {
 });
 
 describe("sheets", () => {
-  it("keeps the tree selection and the sheet tabs in step", async () => {
+  it("selects sheets in the Sheet Tabs, with click and arrow keys", async () => {
     const { user, openProjectInUi } = await renderShell();
     await openProjectInUi();
     await user.click(within(treeItem("Document A")).getByText("Document A"));
-    await screen.findByRole("treeitem", { name: "Sheet A2" });
+    await screen.findByRole("tab", { name: "Sheet A2" });
 
-    await user.click(within(treeItem("Sheet A2")).getByText("Sheet A2"));
+    await user.click(sheetTab("Sheet A2"));
     expect(isSelected(sheetTab("Sheet A2"))).toBe(true);
-    expect(isSelected(treeItem("Sheet A2"))).toBe(true);
-    expect(isSelected(treeItem("Sheet A1"))).toBe(false);
     expect(screen.getByRole("listbox", { name: "Sheet A2" })).toBeTruthy();
 
     await user.click(sheetTab("Sheet A1"));
-    expect(isSelected(treeItem("Sheet A1"))).toBe(true);
     expect(screen.getByRole("listbox", { name: "Sheet A1" })).toBeTruthy();
 
     sheetTab("Sheet A1").focus();
@@ -276,13 +272,13 @@ describe("sheets", () => {
     const { user, openProjectInUi } = await renderShell();
     await openProjectInUi();
     await user.click(within(treeItem("Document A")).getByText("Document A"));
-    await user.click(within(treeItem("Sheet A2")).getByText("Sheet A2"));
+    await user.click(sheetTab("Sheet A2"));
     await user.click(within(treeItem("Document B")).getByText("Document B"));
     expect(screen.getByRole("listbox", { name: "Sheet B1" })).toBeTruthy();
 
     await user.click(documentTab(/Document A/));
 
     expect(screen.getByRole("listbox", { name: "Sheet A2" })).toBeTruthy();
-    expect(isSelected(treeItem("Sheet A2"))).toBe(true);
+    expect(isSelected(sheetTab("Sheet A2"))).toBe(true);
   });
 });

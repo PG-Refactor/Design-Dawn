@@ -76,10 +76,10 @@ describe("folder rows", () => {
     expect(level("Folder 2")).toBe("3");
     expect(level("Document C")).toBe("3");
     expect(level("Document D")).toBe("4");
-    // Folders are expanded by default; documents report whether they are open.
+    // Folders are expanded by default; documents have no children, so no aria-expanded.
     expect(expanded("Folder 1")).toBe("true");
     expect(expanded("Folder 2")).toBe("true");
-    expect(expanded("Document A")).toBe("false");
+    expect(expanded("Document A")).toBeNull();
     // Nested items live in role="group" lists.
     expect(
       within(treeItemNamed("Folder 1")).getAllByRole("group").length,

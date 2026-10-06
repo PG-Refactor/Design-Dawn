@@ -2,11 +2,7 @@
 // tree component uses for focus handling. Kept next to the model so both agree. Children
 // of a collapsed folder are not visible, so they are not items.
 
-import type {
-  DocumentId,
-  FolderId,
-  SheetId,
-} from "../../../domain/shared/entity-id";
+import type { DocumentId, FolderId } from "../../../domain/shared/entity-id";
 import type { FlatTreeItem } from "./keyboard-navigation";
 import type { ProjectTreeModel, TreeEntryNode } from "./tree-model";
 
@@ -18,10 +14,6 @@ export function documentTreeKey(documentId: DocumentId): string {
 
 export function folderTreeKey(folderId: FolderId): string {
   return `folder:${folderId}`;
-}
-
-export function sheetTreeKey(documentId: DocumentId, sheetId: SheetId): string {
-  return `sheet:${documentId}:${sheetId}`;
 }
 
 function pushEntries(
@@ -46,19 +38,10 @@ function pushEntries(
     items.push({
       key: documentTreeKey(entry.documentId),
       parentIndex,
-      firstChildIndex: entry.sheets.length > 0 ? index + 1 : null,
+      firstChildIndex: null,
       opensOnExpand: !entry.isOpen && entry.state === "loaded",
       folderState: null,
     });
-    for (const sheetNode of entry.sheets) {
-      items.push({
-        key: sheetTreeKey(entry.documentId, sheetNode.sheetId),
-        parentIndex: index,
-        firstChildIndex: null,
-        opensOnExpand: false,
-        folderState: null,
-      });
-    }
   }
 }
 
