@@ -380,4 +380,215 @@ mod tests {
             );
         }
     }
+
+    // ---- Windows-problematic names (file-format.md §5, §6, §9.3) ----
+
+    fn assert_safe_directory_name(name: &str) {
+        assert!(!name.is_empty());
+        assert!(name.len() <= SLUG_MAX_LENGTH + "-99".len(), "{name}");
+        assert!(
+            name.bytes()
+                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-'),
+            "{name}"
+        );
+        assert!(!name.starts_with('-') && !name.ends_with('-'), "{name}");
+        assert!(!is_reserved_device_name(name), "{name}");
+    }
+
+    #[test]
+    fn reserved_device_names_in_any_case_fall_back() {
+        for reserved in RESERVED_DEVICE_NAMES {
+            for variant in [
+                reserved.to_owned(),
+                reserved.to_lowercase(),
+                // Mixed case, e.g. `Con`, `Nul`, `Com1`.
+                format!("{}{}", &reserved[..1], reserved[1..].to_lowercase()),
+            ] {
+                let name = unique_directory_name(&variant, "document", &[]);
+                assert_eq!(name, "document-1", "{variant}");
+            }
+        }
+    }
+
+    #[test]
+    fn reserved_names_with_extensions_suffixes_and_padding_fall_back_or_stay_safe() {
+        // The extension / dot / space are separators for the slug, so the stem is judged.
+        for display in [
+            "con.txt",
+            "Nul.",
+            "com1 ",
+            " aux ",
+            "LPT9.md",
+            "prn..",
+            "CON.tar.gz",
+        ] {
+            let name = unique_directory_name(display, "folder", &[]);
+            assert!(
+                name == "folder-1" || name.starts_with("con-") || name.starts_with("lpt9-"),
+                "{display} -> {name}"
+            );
+            assert_safe_directory_name(&name);
+        }
+        assert_eq!(unique_directory_name("con.txt", "folder", &[]), "con-txt");
+        assert_eq!(unique_directory_name("Nul.", "folder", &[]), "folder-1");
+        assert_eq!(unique_directory_name("com1 ", "folder", &[]), "folder-1");
+        // A reserved name is only reserved on its own: a longer stem or a suffix is fine.
+        assert_eq!(unique_directory_name("COM10", "sheet", &[]), "com10");
+        assert_eq!(unique_directory_name("COM0", "sheet", &[]), "com0");
+        assert_eq!(unique_directory_name("con-2", "sheet", &[]), "con-2");
+        assert_eq!(unique_directory_name("console", "sheet", &[]), "console");
+    }
+
+    #[test]
+    fn fallback_names_skip_taken_numbers_case_insensitively() {
+        assert_eq!(
+            unique_directory_name("NUL", "sheet", &names(&["Sheet-1", "SHEET-2"])),
+            "sheet-3"
+        );
+    }
+
+    #[test]
+    fn characters_forbidden_on_windows_never_reach_a_directory_name() {
+        for display in [
+            "a<b>c",
+            "a:b",
+            "say \"hi\"",
+            "a/b\\c",
+            "what?",
+            "star*",
+            "pipe|pipe",
+            "tab\tnewline\nnul\0del\u{7f}",
+            "<>:\"/\\|?*",
+        ] {
+            let slug = slugify(display);
+            assert!(
+                slug.bytes()
+                    .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-'),
+                "{display:?} -> {slug:?}"
+            );
+            assert_safe_directory_name(&unique_directory_name(display, "folder", &[]));
+        }
+        assert_eq!(slugify("a<b>c:d"), "a-b-c-d");
+        assert_eq!(
+            unique_directory_name("<>:\"/\\|?*", "folder", &[]),
+            "folder-1"
+        );
+    }
+
+    #[test]
+    fn trailing_dots_and_spaces_are_dropped() {
+        assert_eq!(unique_directory_name("Plan.", "folder", &[]), "plan");
+        assert_eq!(unique_directory_name("Plan...   ", "folder", &[]), "plan");
+        assert_eq!(unique_directory_name("  .Plan ", "folder", &[]), "plan");
+    }
+
+    #[test]
+    fn names_that_slug_to_nothing_fall_back() {
+        for display in ["設計書", "!!!", "...", "   ", "日本語 only 日本語", "---"] {
+            let name = unique_directory_name(display, "document", &[]);
+            if slugify(display).is_empty() {
+                assert_eq!(name, "document-1", "{display:?}");
+            } else {
+                assert_safe_directory_name(&name);
+            }
+        }
+        assert_eq!(slugify("設計書"), "");
+        assert_eq!(slugify("!!!"), "");
+        assert_eq!(slugify("日本語 only 日本語"), "only");
+        // Accented / full-width letters are not ASCII and so are separators, never kept.
+        assert_eq!(slugify("Café ＣＯＮ"), "caf");
+    }
+
+    #[test]
+    fn very_long_names_are_truncated_and_never_end_with_a_separator() {
+        let long_words = "word ".repeat(200);
+        let slug = slugify(&long_words);
+        assert!(slug.len() <= SLUG_MAX_LENGTH);
+        assert!(!slug.ends_with(SLUG_SEPARATOR));
+        // Cut exactly on a separator boundary at every possible position.
+        for prefix_length in 1..=SLUG_MAX_LENGTH + 2 {
+            let display = format!("{} tail", "a".repeat(prefix_length));
+            let slug = slugify(&display);
+            assert!(slug.len() <= SLUG_MAX_LENGTH, "{prefix_length}");
+            assert!(!slug.ends_with(SLUG_SEPARATOR), "{prefix_length}");
+            assert!(!slug.is_empty());
+        }
+        let longest = "x".repeat(SLUG_MAX_LENGTH * 4);
+        let existing = names(&[&slugify(&longest)]);
+        let collided = unique_directory_name(&longest, "sheet", &existing);
+        assert_eq!(collided, format!("{}-2", "x".repeat(SLUG_MAX_LENGTH)));
+        assert_safe_directory_name(&collided);
+    }
+
+    #[test]
+    fn collisions_between_case_variants_get_numeric_suffixes() {
+        assert_eq!(
+            unique_directory_name("design", "folder", &names(&["Design"])),
+            "design-2"
+        );
+        assert_eq!(
+            unique_directory_name("Design", "folder", &names(&["DESIGN", "Design-2"])),
+            "design-3"
+        );
+        // A suffixed name collides with a hand-made differently-cased directory too.
+        assert_eq!(
+            unique_directory_name("Design", "folder", &names(&["design", "DESIGN-2"])),
+            "design-3"
+        );
+    }
+
+    #[test]
+    fn asset_names_with_reserved_forbidden_or_empty_stems_are_sanitized() {
+        for (original, expected) in [
+            ("CON.png", "image.png"),
+            ("aux.PNG", "image.png"),
+            ("Nul.png", "image.png"),
+            ("COM1.gif", "image.gif"),
+            ("lpt9.JPEG", "image.jpeg"),
+            ("com1 .png", "image.png"),
+            ("con .webp", "image.webp"),
+            ("a<b>:c|d?e*.png", "a-b-c-d-e.png"),
+            ("say \"hi\".svg", "say-hi.svg"),
+            ("..png.png", "png.png"),
+            ("写真.png", "image.png"),
+            ("!!!.png", "image.png"),
+            ("Photo.PnG", "photo.png"),
+            ("con.txt.png", "con-txt.png"),
+            ("COM10.png", "com10.png"),
+        ] {
+            assert_eq!(
+                asset_file_name(original, &[]).unwrap(),
+                expected,
+                "{original}"
+            );
+        }
+        let long = format!("{}.png", "n".repeat(SLUG_MAX_LENGTH * 3));
+        let name = asset_file_name(&long, &[]).unwrap();
+        assert_eq!(name, format!("{}.png", "n".repeat(SLUG_MAX_LENGTH)));
+    }
+
+    #[test]
+    fn asset_names_that_would_end_in_a_dot_or_space_after_the_extension_are_refused() {
+        // The extension is what follows the last dot, so a trailing dot / space leaves no
+        // supported extension and nothing is written (no `photo.png.` file can be created).
+        for original in ["photo.png.", "photo.png ", "photo.png.  ", "photo."] {
+            assert_eq!(
+                asset_file_name(original, &[]).unwrap_err().kind,
+                DomainErrorKind::InvalidContentExtension,
+                "{original:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn asset_collisions_ignore_case_for_reserved_fallbacks_too() {
+        assert_eq!(
+            asset_file_name("NUL.png", &names(&["Image.PNG", "IMAGE-2.png"])).unwrap(),
+            "image-3.png"
+        );
+        assert_eq!(
+            asset_file_name("Design.png", &names(&["design.PNG"])).unwrap(),
+            "design-2.png"
+        );
+    }
 }
