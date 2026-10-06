@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use super::error::{ApplicationError, ApplicationResult};
+use super::folder_operations::resolve_parent_directory;
 use super::load_issue::LoadIssue;
 use super::loader::{
     assets_path, check_duplicate_block_ids, check_sheet_content, join_path, load_document_file,
@@ -16,7 +17,6 @@ use crate::domain::display_name::DisplayName;
 use crate::domain::document::{Document, DocumentInput};
 use crate::domain::entity_id::DocumentId;
 use crate::domain::sheet::Sheet;
-use crate::infrastructure::file_format::constants::DOCUMENTS_DIRECTORY_NAME;
 use crate::infrastructure::file_format::constants::{DOCUMENT_FILE_NAME, DOCUMENT_NAME_BASE};
 use crate::infrastructure::file_format::dto::{to_json_bytes, DocumentDto, SheetDto};
 use crate::infrastructure::file_format::naming::unique_directory_name;
@@ -27,6 +27,7 @@ pub fn create_document(
     project_id: &str,
     document_id: &str,
     name: &str,
+    parent_folder_id: Option<&str>,
 ) -> ApplicationResult<DocumentSnapshot> {
     let session = sessions.session_mut(project_id)?;
     let document = Document::new(&DocumentInput {
@@ -35,30 +36,33 @@ pub fn create_document(
         name: DisplayName::new(name)?.as_str().to_owned(),
         sheet_order: Vec::new(),
     })?;
-    if session.documents().contains_key(document.document_id()) {
+    if session.entry_id_in_use(document.document_id().as_uuid()) {
         return Err(crate::domain::error::DomainError::new(
             crate::domain::error::DomainErrorKind::DuplicateId,
             format!("documentId already exists: {}", document.document_id()),
         )
         .into());
     }
-    session.ensure_directory("", DOCUMENTS_DIRECTORY_NAME)?;
-    let existing = session.entry_names("", DOCUMENTS_DIRECTORY_NAME)?;
+    let parent = resolve_parent_directory(session, parent_folder_id)?;
+    let existing = session.entry_names("", &parent.base)?;
     let directory_name = unique_directory_name(name, DOCUMENT_NAME_BASE, &existing);
-    let base = super::session::document_base_path(&directory_name);
+    let relative_path = parent.child_relative_path(&directory_name);
+    let base = super::session::document_base_path(&relative_path);
 
     // document.json goes in first: a directory without it is reported as unrecognized,
     // while a document.json without its sub-directories still loads.
     let dto = DocumentDto::from_domain(&document);
-    session.create_directory("", &base)?;
+    session.create_directory(&parent.base, &directory_name)?;
     session.create_file(&base, DOCUMENT_FILE_NAME, &to_json_bytes(&dto)?)?;
     session.create_directory(&base, SHEETS_DIRECTORY_NAME)?;
     session.create_directory(&base, ASSETS_DIRECTORY_NAME)?;
     session.insert_document(
         *document.document_id(),
         DocumentRecord {
-            directory_name,
+            relative_path,
             writable: true,
+            // Creating a Document opens it in the Frontend, which never loads it afterwards.
+            opened: true,
             sheets: BTreeMap::new(),
         },
     );
@@ -78,6 +82,8 @@ pub fn load_document(
     let document_id = DocumentId::parse(document_id)?;
     let base = session.document_base(&document_id)?;
     let document_file = join_path(&base, DOCUMENT_FILE_NAME);
+    // Cleared first so every failure path below leaves the Document not opened.
+    session.document_mut(&document_id)?.opened = false;
 
     let mut issues: Vec<LoadIssue> = Vec::new();
     let loaded = load_document_file(session, &document_file, &mut issues);
@@ -162,6 +168,7 @@ pub fn load_document(
     document_dto.sheet_order = effective_order;
     let record = session.document_mut(&document_id)?;
     record.writable = true;
+    record.opened = true;
     record.sheets = sheet_records;
     Ok(DocumentSnapshot {
         document: document_dto,
@@ -190,4 +197,41 @@ pub fn save_document(
     Ok(SaveResult {
         written: outcome == WriteOutcome::Written,
     })
+}
+
+/// Marks a Document as no longer open, so its assets stop being served. Touches no file.
+pub fn close_document(
+    sessions: &mut ProjectSessions,
+    project_id: &str,
+    document_id: &str,
+) -> ApplicationResult<()> {
+    let session = sessions.session_mut(project_id)?;
+    let document_id = DocumentId::parse(document_id)?;
+    session.document_mut(&document_id)?.opened = false;
+    Ok(())
+}
+
+/// Deletes a Document directory with all its Sheets and Assets. Destructive and not
+/// undoable; see `delete_sheet` for the contract. `project.json` is left alone (the caller
+/// saves the Project order first). A Document that failed to load can be deleted too.
+pub fn delete_document(
+    sessions: &mut ProjectSessions,
+    project_id: &str,
+    document_id: &str,
+) -> ApplicationResult<()> {
+    let session = sessions.session_mut(project_id)?;
+    let document_id = DocumentId::parse(document_id)?;
+    let relative_path = session.document(&document_id)?.relative_path.clone();
+    let (parent, directory_name) = super::session::split_entry_path(&relative_path);
+    let removal = session.remove_directory_tree(&parent, directory_name, DOCUMENT_FILE_NAME);
+    let forget = match &removal {
+        Ok(()) => true,
+        Err(failure) => !failure.metadata_survives,
+    };
+    if forget {
+        session.remove_document_record(&document_id);
+        session.forget_ledger_under(&super::session::document_base_path(&relative_path));
+        session.forget_block_numbers(&document_id, None);
+    }
+    removal.map_err(|failure| failure.error.into())
 }

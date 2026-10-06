@@ -1,15 +1,15 @@
 import { type DisplayName, parseDisplayName } from "../shared/display-name";
-import { type DomainResult, err, ok } from "../shared/domain-result";
+import { type DomainResult, ok } from "../shared/domain-result";
 import {
   type DocumentId,
+  type EntryId,
   type ProjectId,
-  parseDocumentId,
   parseProjectId,
 } from "../shared/entity-id";
 import {
   addToOrder,
-  findDuplicate,
   moveInOrder,
+  parseChildOrder,
   removeFromOrder,
 } from "../shared/ordered-ids";
 import {
@@ -21,33 +21,15 @@ export interface Project {
   readonly schemaVersion: SchemaVersion;
   readonly projectId: ProjectId;
   readonly name: DisplayName;
-  readonly documentOrder: readonly DocumentId[];
+  // Folders and Documents directly under the Project, in display order.
+  readonly childOrder: readonly EntryId[];
 }
 
 export interface RawProject {
   readonly schemaVersion: number;
   readonly projectId: string;
   readonly name: string;
-  readonly documentOrder: readonly string[];
-}
-
-function parseDocumentOrder(
-  rawIds: readonly string[],
-): DomainResult<readonly DocumentId[]> {
-  const ids: DocumentId[] = [];
-  for (const rawId of rawIds) {
-    const id = parseDocumentId(rawId);
-    if (!id.ok) return id;
-    ids.push(id.value);
-  }
-  const duplicate = findDuplicate(ids);
-  if (duplicate !== null) {
-    return err(
-      "duplicateId",
-      `duplicate documentId in documentOrder: ${duplicate}`,
-    );
-  }
-  return ok(ids);
+  readonly childOrder: readonly string[];
 }
 
 export function parseProject(raw: RawProject): DomainResult<Project> {
@@ -57,13 +39,13 @@ export function parseProject(raw: RawProject): DomainResult<Project> {
   if (!projectId.ok) return projectId;
   const name = parseDisplayName(raw.name);
   if (!name.ok) return name;
-  const documentOrder = parseDocumentOrder(raw.documentOrder);
-  if (!documentOrder.ok) return documentOrder;
+  const childOrder = parseChildOrder(raw.childOrder, "childOrder");
+  if (!childOrder.ok) return childOrder;
   return ok({
     schemaVersion: schemaVersion.value,
     projectId: projectId.value,
     name: name.value,
-    documentOrder: documentOrder.value,
+    childOrder: childOrder.value,
   });
 }
 
@@ -74,41 +56,38 @@ export function renameProject(
   return ok({ ...project, name });
 }
 
-function withDocumentOrder(
+function withChildOrder(
   project: Project,
-  order: DomainResult<readonly DocumentId[]>,
+  order: DomainResult<readonly EntryId[]>,
 ): DomainResult<Project> {
   if (!order.ok) return order;
-  return ok({ ...project, documentOrder: order.value });
+  return ok({ ...project, childOrder: order.value });
 }
 
 export function addDocument(
   project: Project,
   documentId: DocumentId,
 ): DomainResult<Project> {
-  return withDocumentOrder(
-    project,
-    addToOrder(project.documentOrder, documentId),
-  );
+  return withChildOrder(project, addToOrder(project.childOrder, documentId));
 }
 
 export function removeDocument(
   project: Project,
   documentId: DocumentId,
 ): DomainResult<Project> {
-  return withDocumentOrder(
+  return withChildOrder(
     project,
-    removeFromOrder(project.documentOrder, documentId),
+    removeFromOrder(project.childOrder, documentId),
   );
 }
 
 export function moveDocument(
   project: Project,
   documentId: DocumentId,
-  beforeDocumentId: DocumentId | null,
+  beforeEntryId: EntryId | null,
 ): DomainResult<Project> {
-  return withDocumentOrder(
+  return withChildOrder(
     project,
-    moveInOrder(project.documentOrder, documentId, beforeDocumentId),
+    moveInOrder(project.childOrder, documentId, beforeEntryId),
   );
 }

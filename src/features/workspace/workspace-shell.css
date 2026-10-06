@@ -1,0 +1,57 @@
+.workspace-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+.workspace-shell__body {
+  display: grid;
+  flex: 1 1 auto;
+  /* The tree is capped so the document area keeps its minimum width in a narrow window. */
+  grid-template-columns:
+    min(
+      var(--project-tree-width),
+      calc(100% - var(--document-area-min-width) - var(--splitter-width))
+    )
+    var(--splitter-width) minmax(0, 1fr);
+  min-height: 0;
+}
+
+.workspace-shell__sidebar {
+  padding: var(--space-2);
+  overflow: auto;
+  background: var(--color-surface);
+}
+
+.workspace-shell__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+}
+
+.document-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.document-panel__empty {
+  margin: var(--space-3) 0;
+  color: var(--color-text-muted);
+}
+
+/* Narrow windows stack the tree above the main area. */
+@media (max-width: 40rem) {
+  .workspace-shell__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .workspace-shell__sidebar {
+    border-bottom: 1px solid var(--color-border);
+  }
+}

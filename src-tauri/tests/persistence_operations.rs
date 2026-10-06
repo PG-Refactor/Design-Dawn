@@ -54,10 +54,10 @@ fn create_project_writes_the_layout_and_opens_the_session() {
     let snapshot = create_project(&mut sessions, &root, "Brand New").unwrap();
 
     assert_eq!(snapshot.project.name, "Brand New");
-    assert!(snapshot.project.document_order.is_empty());
+    assert!(snapshot.project.child_order.is_empty());
     let project_text = read_text(&root.join("project.json"));
     assert!(project_text.ends_with("}\n"));
-    assert!(project_text.contains("\"documentOrder\": []"));
+    assert!(project_text.contains("\"childOrder\": []"));
     assert!(root.join("documents").is_dir());
     assert_eq!(
         read_text(&root.join(".gitattributes")),
@@ -70,6 +70,7 @@ fn create_project_writes_the_layout_and_opens_the_session() {
         &snapshot.project.project_id,
         &new_id(1),
         "First",
+        None,
     )
     .unwrap();
     let reopened = open_project(&mut ProjectSessions::default(), &root).unwrap();
@@ -152,7 +153,7 @@ fn documents_get_slug_directories_with_fallbacks_and_collision_suffixes() {
     for (index, (name, expected_directory)) in names.iter().enumerate() {
         let document_id = new_id(index as u32 + 10);
         let snapshot =
-            create_document(&mut opened.sessions, PROJECT_ID, &document_id, name).unwrap();
+            create_document(&mut opened.sessions, PROJECT_ID, &document_id, name, None).unwrap();
         assert_eq!(snapshot.document.name, *name);
         assert_eq!(snapshot.document.document_id, document_id);
         let directory = opened.root.join("documents").join(expected_directory);
@@ -163,7 +164,7 @@ fn documents_get_slug_directories_with_fallbacks_and_collision_suffixes() {
         assert!(directory.join("sheets").is_dir());
         assert!(directory.join("assets").is_dir());
     }
-    // Creation does not touch project.json; adding to documentOrder is a separate save.
+    // Creation does not touch project.json; adding to childOrder is a separate save.
     assert!(!read_text(&opened.root.join("project.json")).contains(&new_id(10)));
 }
 
@@ -172,11 +173,13 @@ fn creating_a_document_with_a_known_id_or_a_bad_name_is_rejected() {
     let mut opened = open_copy();
     let before = tree_snapshot(&opened.root);
     let error =
-        create_document(&mut opened.sessions, PROJECT_ID, DOCUMENT_ID, "Again").unwrap_err();
+        create_document(&mut opened.sessions, PROJECT_ID, DOCUMENT_ID, "Again", None).unwrap_err();
     assert_eq!(error.kind, domain(DomainErrorKind::DuplicateId));
-    let error = create_document(&mut opened.sessions, PROJECT_ID, "nope", "Name").unwrap_err();
+    let error =
+        create_document(&mut opened.sessions, PROJECT_ID, "nope", "Name", None).unwrap_err();
     assert_eq!(error.kind, domain(DomainErrorKind::InvalidEntityId));
-    let error = create_document(&mut opened.sessions, PROJECT_ID, &new_id(2), "").unwrap_err();
+    let error =
+        create_document(&mut opened.sessions, PROJECT_ID, &new_id(2), "", None).unwrap_err();
     assert_eq!(error.kind, domain(DomainErrorKind::InvalidDisplayName));
     assert_eq!(tree_snapshot(&opened.root), before);
 }
@@ -559,8 +562,9 @@ mod symlink_escape {
             .filter(|issue| issue.path.as_deref() == Some("documents/linked"))
             .collect();
         assert_eq!(failed.len(), 1);
+        assert_eq!(failed[0].kind, LoadIssueKind::UnrecognizedDirectory);
         assert!(
-            failed[0].detail.contains("pathOutsideRoot"),
+            failed[0].detail.contains("symbolic link"),
             "{}",
             failed[0].detail
         );
@@ -575,7 +579,7 @@ mod symlink_escape {
         fs::remove_dir_all(&assets).unwrap();
         symlink(&outside, &assets).unwrap();
         let source = opened.temp.path().join("pic.png");
-        fs::write(&source, b"png").unwrap();
+        fs::write(&source, png_bytes(1, 1)).unwrap();
         let error =
             import_asset(&mut opened.sessions, PROJECT_ID, DOCUMENT_ID, &source).unwrap_err();
         assert_eq!(
@@ -592,17 +596,26 @@ mod symlink_escape {
 fn imported_assets_get_sanitized_unique_names_and_never_overwrite() {
     let mut opened = open_copy();
     let source = opened.temp.path().join("My Pic (1).PNG");
-    fs::write(&source, b"first").unwrap();
-    let first = import_asset(&mut opened.sessions, PROJECT_ID, DOCUMENT_ID, &source).unwrap();
+    let first_bytes = png_bytes(1, 1);
+    let second_bytes = png_bytes(2, 2);
+    fs::write(&source, &first_bytes).unwrap();
+    let first = import_asset(&mut opened.sessions, PROJECT_ID, DOCUMENT_ID, &source)
+        .unwrap()
+        .content_path;
     assert_eq!(first, "assets/my-pic-1.png");
-    fs::write(&source, b"second").unwrap();
-    let second = import_asset(&mut opened.sessions, PROJECT_ID, DOCUMENT_ID, &source).unwrap();
+    fs::write(&source, &second_bytes).unwrap();
+    let second = import_asset(&mut opened.sessions, PROJECT_ID, DOCUMENT_ID, &source)
+        .unwrap()
+        .content_path;
     assert_eq!(second, "assets/my-pic-1-2.png");
 
     let assets = document_dir(&opened.root).join("assets");
-    assert_eq!(fs::read(assets.join("my-pic-1.png")).unwrap(), b"first");
-    assert_eq!(fs::read(assets.join("my-pic-1-2.png")).unwrap(), b"second");
-    assert_eq!(fs::read(&source).unwrap(), b"second");
+    assert_eq!(fs::read(assets.join("my-pic-1.png")).unwrap(), first_bytes);
+    assert_eq!(
+        fs::read(assets.join("my-pic-1-2.png")).unwrap(),
+        second_bytes
+    );
+    assert_eq!(fs::read(&source).unwrap(), second_bytes);
 
     let unsupported = opened.temp.path().join("tool.exe");
     fs::write(&unsupported, b"x").unwrap();

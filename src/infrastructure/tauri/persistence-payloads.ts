@@ -10,7 +10,14 @@ import {
 } from "../../domain/document/document";
 import { parseProject, type RawProject } from "../../domain/project/project";
 import type { DomainResult } from "../../domain/shared/domain-result";
-import { parseDocumentId, parseSheetId } from "../../domain/shared/entity-id";
+import {
+  type EntryId,
+  type FolderId,
+  parseDocumentId,
+  parseEntryId,
+  parseFolderId,
+  parseSheetId,
+} from "../../domain/shared/entity-id";
 import type { RawPosition, RawSize } from "../../domain/shared/geometry";
 import {
   parseSheet,
@@ -20,6 +27,7 @@ import {
 import {
   ENTITY_STATES,
   type EntityState,
+  FOLDER_SELECTION_STATUS,
   LOAD_ISSUE_KINDS,
 } from "./command-constants";
 import { type CommandResult, commandErr, commandOk } from "./command-error";
@@ -37,7 +45,9 @@ import {
 import type {
   DocumentEntry,
   DocumentSnapshot,
-  EntryPointSnapshot,
+  FolderEntry,
+  FolderSelection,
+  FolderSnapshot,
   LoadIssue,
   ProjectSnapshot,
   SaveResult,
@@ -45,6 +55,9 @@ import type {
 } from "./persistence-types";
 
 const PAYLOAD_ROOT = "payload";
+
+type FolderSelectionStatus =
+  (typeof FOLDER_SELECTION_STATUS)[keyof typeof FOLDER_SELECTION_STATUS];
 
 const rawPosition = objectOf<RawPosition>({ x: decodeNumber, y: decodeNumber });
 const rawSize = objectOf<RawSize>({
@@ -62,7 +75,7 @@ const rawProject = objectOf<RawProject>({
   schemaVersion: decodeNumber,
   projectId: decodeString,
   name: decodeString,
-  documentOrder: arrayOf(decodeString),
+  childOrder: arrayOf(decodeString),
 });
 const rawDocument = objectOf<RawDocument>({
   schemaVersion: decodeNumber,
@@ -87,11 +100,20 @@ const decodeLoadIssue = objectOf<LoadIssue>({
 
 interface RawDocumentEntry {
   readonly documentId: string;
+  readonly parentFolderId: string | null;
   readonly name: string | null;
+  readonly state: EntityState;
+}
+interface RawFolderEntry {
+  readonly folderId: string;
+  readonly name: string | null;
+  readonly parentFolderId: string | null;
+  readonly childOrder: readonly string[];
   readonly state: EntityState;
 }
 interface RawProjectSnapshot {
   readonly project: RawProject;
+  readonly folders: readonly RawFolderEntry[];
   readonly documents: readonly RawDocumentEntry[];
   readonly issues: readonly LoadIssue[];
 }
@@ -106,16 +128,21 @@ interface RawDocumentSnapshot {
   readonly sheets: readonly RawSheetSnapshot[];
   readonly issues: readonly LoadIssue[];
 }
-interface RawEntryPointSnapshot {
-  readonly snapshot: RawProjectSnapshot;
-  readonly documentId: string;
-}
 
+const rawFolderEntry = objectOf<RawFolderEntry>({
+  folderId: decodeString,
+  name: nullable(decodeString),
+  parentFolderId: nullable(decodeString),
+  childOrder: arrayOf(decodeString),
+  state: decodeEntityState,
+});
 const rawProjectSnapshot = objectOf<RawProjectSnapshot>({
   project: rawProject,
+  folders: arrayOf(rawFolderEntry),
   documents: arrayOf(
     objectOf<RawDocumentEntry>({
       documentId: decodeString,
+      parentFolderId: nullable(decodeString),
       name: nullable(decodeString),
       state: decodeEntityState,
     }),
@@ -133,10 +160,10 @@ const rawDocumentSnapshot = objectOf<RawDocumentSnapshot>({
   sheets: arrayOf(rawSheetSnapshot),
   issues: arrayOf(decodeLoadIssue),
 });
-const rawEntryPointSnapshot = objectOf<RawEntryPointSnapshot>({
-  snapshot: rawProjectSnapshot,
-  documentId: decodeString,
-});
+const rawSelectedFolder = objectOf<{
+  readonly selectionId: string;
+  readonly displayPath: string;
+}>({ selectionId: decodeString, displayPath: decodeString });
 const rawSaveResult = objectOf<SaveResult>({ written: decodeBoolean });
 
 function decodePayload<T>(
@@ -168,27 +195,55 @@ function mapAll<A, B>(
   return commandOk(converted);
 }
 
+function toParentFolderId(raw: string | null): CommandResult<FolderId | null> {
+  return raw === null ? commandOk(null) : fromDomain(parseFolderId(raw));
+}
+
+function toFolderEntry(raw: RawFolderEntry): CommandResult<FolderEntry> {
+  const folderId = fromDomain(parseFolderId(raw.folderId));
+  if (!folderId.ok) return folderId;
+  const parentFolderId = toParentFolderId(raw.parentFolderId);
+  if (!parentFolderId.ok) return parentFolderId;
+  const childOrder = mapAll(
+    raw.childOrder,
+    (entry): CommandResult<EntryId> => fromDomain(parseEntryId(entry)),
+  );
+  if (!childOrder.ok) return childOrder;
+  return commandOk({
+    folderId: folderId.value,
+    name: raw.name,
+    parentFolderId: parentFolderId.value,
+    childOrder: childOrder.value,
+    state: raw.state,
+  });
+}
+
 function toProjectSnapshot(
   raw: RawProjectSnapshot,
 ): CommandResult<ProjectSnapshot> {
   const project = fromDomain(parseProject(raw.project));
   if (!project.ok) return project;
+  const folders = mapAll(raw.folders, toFolderEntry);
+  if (!folders.ok) return folders;
   const documents = mapAll(
     raw.documents,
     (entry): CommandResult<DocumentEntry> => {
       const documentId = fromDomain(parseDocumentId(entry.documentId));
-      return documentId.ok
-        ? commandOk({
-            documentId: documentId.value,
-            name: entry.name,
-            state: entry.state,
-          })
-        : documentId;
+      if (!documentId.ok) return documentId;
+      const parentFolderId = toParentFolderId(entry.parentFolderId);
+      if (!parentFolderId.ok) return parentFolderId;
+      return commandOk({
+        documentId: documentId.value,
+        parentFolderId: parentFolderId.value,
+        name: entry.name,
+        state: entry.state,
+      });
     },
   );
   if (!documents.ok) return documents;
   return commandOk({
     project: project.value,
+    folders: folders.value,
     documents: documents.value,
     issues: raw.issues,
   });
@@ -225,16 +280,30 @@ export function toProjectSnapshotResult(
   return raw.ok ? toProjectSnapshot(raw.value) : raw;
 }
 
-export function toEntryPointSnapshotResult(
+export function toFolderSnapshotResult(
   payload: unknown,
-): CommandResult<EntryPointSnapshot> {
-  const raw = decodePayload(rawEntryPointSnapshot, payload);
-  if (!raw.ok) return raw;
-  const snapshot = toProjectSnapshot(raw.value.snapshot);
-  if (!snapshot.ok) return snapshot;
-  const documentId = fromDomain(parseDocumentId(raw.value.documentId));
-  if (!documentId.ok) return documentId;
-  return commandOk({ snapshot: snapshot.value, documentId: documentId.value });
+): CommandResult<FolderSnapshot> {
+  const raw = decodePayload(rawFolderEntry, payload);
+  return raw.ok ? toFolderEntry(raw.value) : raw;
+}
+
+export function toFolderSelectionResult(
+  payload: unknown,
+): CommandResult<FolderSelection> {
+  const status = decodePayload(
+    objectOf<{ readonly status: FolderSelectionStatus }>({
+      status: oneOf(Object.values(FOLDER_SELECTION_STATUS)),
+    }),
+    payload,
+  );
+  if (!status.ok) return status;
+  if (status.value.status === FOLDER_SELECTION_STATUS.cancelled) {
+    return commandOk({ status: FOLDER_SELECTION_STATUS.cancelled });
+  }
+  const selected = decodePayload(rawSelectedFolder, payload);
+  return selected.ok
+    ? commandOk({ status: FOLDER_SELECTION_STATUS.selected, ...selected.value })
+    : selected;
 }
 
 export function toDocumentSnapshotResult(

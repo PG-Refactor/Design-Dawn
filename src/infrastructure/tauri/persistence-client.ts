@@ -2,28 +2,28 @@
 // only place that calls `invoke`. Expected failures come back as `{ ok: false, error }`;
 // nothing here throws for them.
 
-import { invoke } from "@tauri-apps/api/core";
 import type { BlockType } from "../../domain/block/block-type";
 import type { ContentPath } from "../../domain/block/content-path";
 import type { Document } from "../../domain/document/document";
+import type { Folder } from "../../domain/folder/folder";
 import type { Project } from "../../domain/project/project";
 import type { DisplayName } from "../../domain/shared/display-name";
 import type {
   DocumentId,
+  EntryId,
+  FolderId,
   ProjectId,
   SheetId,
 } from "../../domain/shared/entity-id";
 import type { Sheet } from "../../domain/sheet/sheet";
-import { COMMANDS, type CommandName } from "./command-constants";
-import {
-  type CommandResult,
-  commandErr,
-  toCommandError,
-} from "./command-error";
+import { COMMANDS } from "./command-constants";
+import type { CommandResult } from "./command-error";
+import { call } from "./invoke-command";
 import {
   toContentPathResult,
   toDocumentSnapshotResult,
-  toEntryPointSnapshotResult,
+  toFolderSelectionResult,
+  toFolderSnapshotResult,
   toProjectSnapshotResult,
   toSaveResult,
   toSheetSnapshotResult,
@@ -32,54 +32,34 @@ import {
 } from "./persistence-payloads";
 import type {
   DocumentSnapshot,
-  EntryPointSnapshot,
+  FolderSelection,
+  FolderSnapshot,
   ProjectSnapshot,
   SaveResult,
   SheetSnapshot,
 } from "./persistence-types";
 
-type CommandArguments = Readonly<Record<string, unknown>>;
-
-async function call<T>(
-  command: CommandName,
-  args: CommandArguments,
-  convert: (payload: unknown) => CommandResult<T>,
-): Promise<CommandResult<T>> {
-  let payload: unknown;
-  try {
-    payload = await invoke<unknown>(command, { ...args });
-  } catch (rejection) {
-    const error = toCommandError(rejection);
-    return commandErr(error.kind, error.detail);
-  }
-  return convert(payload);
+// Opens the OS folder dialog in Rust. Cancelling is an ok result with status "cancelled".
+export function selectProjectFolder(): Promise<CommandResult<FolderSelection>> {
+  return call(COMMANDS.selectProjectFolder, {}, toFolderSelectionResult);
 }
 
+// `selectionId` comes from `selectProjectFolder`; the Frontend never passes a path.
 export function createProject(
-  projectRoot: string,
+  selectionId: string,
   name: DisplayName,
 ): Promise<CommandResult<ProjectSnapshot>> {
   return call(
     COMMANDS.createProject,
-    { projectRoot, name },
+    { selectionId, name },
     toProjectSnapshotResult,
   );
 }
 
 export function openProject(
-  projectRoot: string,
+  selectionId: string,
 ): Promise<CommandResult<ProjectSnapshot>> {
-  return call(COMMANDS.openProject, { projectRoot }, toProjectSnapshotResult);
-}
-
-export function openEntryPoint(
-  entryPointPath: string,
-): Promise<CommandResult<EntryPointSnapshot>> {
-  return call(
-    COMMANDS.openEntryPoint,
-    { entryPointPath },
-    toEntryPointSnapshotResult,
-  );
+  return call(COMMANDS.openProject, { selectionId }, toProjectSnapshotResult);
 }
 
 export function saveProject(
@@ -89,16 +69,60 @@ export function saveProject(
   return call(COMMANDS.saveProject, { projectId, project }, toSaveResult);
 }
 
+// `parentFolderId` null = directly under the Project.
 export function createDocument(
   projectId: ProjectId,
   documentId: DocumentId,
   name: DisplayName,
+  parentFolderId: FolderId | null = null,
 ): Promise<CommandResult<DocumentSnapshot>> {
   return call(
     COMMANDS.createDocument,
-    { projectId, documentId, name },
+    { projectId, documentId, name, parentFolderId },
     toDocumentSnapshotResult,
   );
+}
+
+// Creates the directory and `folder.json`; the caller saves the parent's order afterwards.
+export function createFolder(
+  projectId: ProjectId,
+  parentFolderId: FolderId | null,
+  folderId: FolderId,
+  name: DisplayName,
+): Promise<CommandResult<FolderSnapshot>> {
+  return call(
+    COMMANDS.createFolder,
+    { projectId, parentFolderId, folderId, name },
+    toFolderSnapshotResult,
+  );
+}
+
+export function saveFolder(
+  projectId: ProjectId,
+  folder: Folder,
+): Promise<CommandResult<SaveResult>> {
+  return call(COMMANDS.saveFolder, { projectId, folder }, toSaveResult);
+}
+
+// Only a closed entry moves; the caller saves both parents' order afterwards.
+export function moveEntry(
+  projectId: ProjectId,
+  entryId: EntryId,
+  targetParentFolderId: FolderId | null,
+): Promise<CommandResult<null>> {
+  return call(
+    COMMANDS.moveEntry,
+    { projectId, entryId, targetParentFolderId },
+    toVoidResult,
+  );
+}
+
+// Only an empty folder; anything else is `folderNotEmpty`.
+export function deleteFolder(
+  projectId: ProjectId,
+  folderId: FolderId,
+): Promise<CommandResult<null>> {
+  return call(COMMANDS.deleteFolder, { projectId, folderId }, toVoidResult);
 }
 
 export function loadDocument(
@@ -110,6 +134,13 @@ export function loadDocument(
     { projectId, documentId },
     toDocumentSnapshotResult,
   );
+}
+
+export function closeDocument(
+  projectId: ProjectId,
+  documentId: DocumentId,
+): Promise<CommandResult<null>> {
+  return call(COMMANDS.closeDocument, { projectId, documentId }, toVoidResult);
 }
 
 export function saveDocument(
@@ -193,4 +224,37 @@ export function deleteBlockContent(
     { projectId, documentId, contentPath },
     toVoidResult,
   );
+}
+
+export function restoreBlockContent(
+  projectId: ProjectId,
+  documentId: DocumentId,
+  blockType: BlockType,
+  contentPath: ContentPath,
+  text: string,
+): Promise<CommandResult<null>> {
+  return call(
+    COMMANDS.restoreBlockContent,
+    { projectId, documentId, blockType, contentPath, text },
+    toVoidResult,
+  );
+}
+
+export function deleteSheet(
+  projectId: ProjectId,
+  documentId: DocumentId,
+  sheetId: SheetId,
+): Promise<CommandResult<null>> {
+  return call(
+    COMMANDS.deleteSheet,
+    { projectId, documentId, sheetId },
+    toVoidResult,
+  );
+}
+
+export function deleteDocument(
+  projectId: ProjectId,
+  documentId: DocumentId,
+): Promise<CommandResult<null>> {
+  return call(COMMANDS.deleteDocument, { projectId, documentId }, toVoidResult);
 }

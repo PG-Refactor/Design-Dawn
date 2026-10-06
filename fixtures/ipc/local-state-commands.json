@@ -1,0 +1,430 @@
+{
+  "fixtureVersion": 1,
+  "targetsNote": "Same format and `targets` rules as persistence-commands.json. `rust` marks requests the typed TypeScript client cannot produce (a theme or viewport its parsers reject, a malformed id) or that bypass the client (missing arguments). Rust runs every scenario against fresh temporary local state directories.",
+  "description": "Representative command-boundary cases for the Application Local State commands (docs/architecture.md §6.2.2). File behaviour (broken files, limits, locking) is covered by src-tauri/tests/local_state.rs, not repeated here.",
+  "selectionIdPlaceholder": "$selectionId",
+  "scenarios": [
+    {
+      "name": "theme-preference",
+      "description": "Defaults, round trips of both settings (neither overwrites the other), and rejection of invalid input.",
+      "cases": [
+        {
+          "name": "get_app_settings: defaults when nothing was saved",
+          "request": {
+            "command": "get_app_settings",
+            "args": {}
+          },
+          "expected": {
+            "ok": {
+              "themePreference": "system",
+              "autoSave": true,
+              "projectTreeWidth": 320,
+              "loadIssue": null
+            }
+          }
+        },
+        {
+          "name": "set_theme_preference: dark",
+          "request": {
+            "command": "set_theme_preference",
+            "args": {
+              "themePreference": "dark"
+            }
+          },
+          "expected": {
+            "ok": {
+              "themePreference": "dark",
+              "autoSave": true,
+              "projectTreeWidth": 320,
+              "loadIssue": null
+            }
+          }
+        },
+        {
+          "name": "get_app_settings: returns the saved preference",
+          "request": {
+            "command": "get_app_settings",
+            "args": {}
+          },
+          "expected": {
+            "ok": {
+              "themePreference": "dark",
+              "autoSave": true,
+              "projectTreeWidth": 320,
+              "loadIssue": null
+            }
+          }
+        },
+        {
+          "name": "set_auto_save: off keeps the saved theme",
+          "request": {
+            "command": "set_auto_save",
+            "args": {
+              "enabled": false
+            }
+          },
+          "expected": {
+            "ok": {
+              "themePreference": "dark",
+              "autoSave": false,
+              "projectTreeWidth": 320,
+              "loadIssue": null
+            }
+          }
+        },
+        {
+          "name": "get_app_settings: returns the saved auto-save setting",
+          "request": {
+            "command": "get_app_settings",
+            "args": {}
+          },
+          "expected": {
+            "ok": {
+              "themePreference": "dark",
+              "autoSave": false,
+              "projectTreeWidth": 320,
+              "loadIssue": null
+            }
+          }
+        },
+        {
+          "name": "set_theme_preference: keeps auto-save off",
+          "request": {
+            "command": "set_theme_preference",
+            "args": {
+              "themePreference": "light"
+            }
+          },
+          "expected": {
+            "ok": {
+              "themePreference": "light",
+              "autoSave": false,
+              "projectTreeWidth": 320,
+              "loadIssue": null
+            }
+          }
+        },
+        {
+          "name": "set_auto_save: on",
+          "request": {
+            "command": "set_auto_save",
+            "args": {
+              "enabled": true
+            }
+          },
+          "expected": {
+            "ok": {
+              "themePreference": "light",
+              "autoSave": true,
+              "projectTreeWidth": 320,
+              "loadIssue": null
+            }
+          }
+        },
+        {
+          "name": "set_project_tree_width: keeps theme and auto-save",
+          "request": {
+            "command": "set_project_tree_width",
+            "args": {
+              "width": 400
+            }
+          },
+          "expected": {
+            "ok": {
+              "themePreference": "light",
+              "autoSave": true,
+              "projectTreeWidth": 400,
+              "loadIssue": null
+            }
+          }
+        },
+        {
+          "name": "get_app_settings: returns the saved width",
+          "request": {
+            "command": "get_app_settings",
+            "args": {}
+          },
+          "expected": {
+            "ok": {
+              "themePreference": "light",
+              "autoSave": true,
+              "projectTreeWidth": 400,
+              "loadIssue": null
+            }
+          }
+        },
+        {
+          "name": "set_theme_preference: unknown preference",
+          "targets": ["rust"],
+          "request": {
+            "command": "set_theme_preference",
+            "args": {
+              "themePreference": "sepia"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidThemePreference"
+            }
+          }
+        },
+        {
+          "name": "set_theme_preference: missing argument",
+          "targets": ["rust"],
+          "request": {
+            "command": "set_theme_preference",
+            "args": {}
+          },
+          "expected": {
+            "tauriError": true
+          }
+        },
+        {
+          "name": "set_auto_save: missing argument",
+          "targets": ["rust"],
+          "request": {
+            "command": "set_auto_save",
+            "args": {}
+          },
+          "expected": {
+            "tauriError": true
+          }
+        },
+        {
+          "name": "set_auto_save: not a boolean",
+          "targets": ["rust"],
+          "request": {
+            "command": "set_auto_save",
+            "args": {
+              "enabled": "yes"
+            }
+          },
+          "expected": {
+            "tauriError": true
+          }
+        },
+        {
+          "name": "set_project_tree_width: below the minimum",
+          "targets": ["rust"],
+          "request": {
+            "command": "set_project_tree_width",
+            "args": {
+              "width": 159
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidProjectTreeWidth"
+            }
+          }
+        },
+        {
+          "name": "set_project_tree_width: above the maximum",
+          "targets": ["rust"],
+          "request": {
+            "command": "set_project_tree_width",
+            "args": {
+              "width": 641
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidProjectTreeWidth"
+            }
+          }
+        },
+        {
+          "name": "set_project_tree_width: not an integer",
+          "targets": ["rust"],
+          "request": {
+            "command": "set_project_tree_width",
+            "args": {
+              "width": 400.5
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidProjectTreeWidth"
+            }
+          }
+        },
+        {
+          "name": "set_project_tree_width: negative",
+          "targets": ["rust"],
+          "request": {
+            "command": "set_project_tree_width",
+            "args": {
+              "width": -1
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidProjectTreeWidth"
+            }
+          }
+        },
+        {
+          "name": "set_project_tree_width: missing argument",
+          "targets": ["rust"],
+          "request": {
+            "command": "set_project_tree_width",
+            "args": {}
+          },
+          "expected": {
+            "tauriError": true
+          }
+        },
+        {
+          "name": "set_project_tree_width: not a number",
+          "targets": ["rust"],
+          "request": {
+            "command": "set_project_tree_width",
+            "args": {
+              "width": "wide"
+            }
+          },
+          "expected": {
+            "tauriError": true
+          }
+        },
+        {
+          "name": "get_app_settings: a rejected width keeps the saved one",
+          "request": {
+            "command": "get_app_settings",
+            "args": {}
+          },
+          "expected": {
+            "ok": {
+              "themePreference": "light",
+              "autoSave": true,
+              "projectTreeWidth": 400,
+              "loadIssue": null
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "sheet-viewport",
+      "description": "Unsaved key, save and read back, and rejection of invalid input.",
+      "cases": [
+        {
+          "name": "get_sheet_viewport: unsaved key",
+          "request": {
+            "command": "get_sheet_viewport",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef"
+            }
+          },
+          "expected": {
+            "ok": {
+              "viewport": null,
+              "loadIssue": null
+            }
+          }
+        },
+        {
+          "name": "save_sheet_viewport: valid viewport",
+          "request": {
+            "command": "save_sheet_viewport",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef",
+              "viewport": {
+                "panX": 120.5,
+                "panY": -48,
+                "zoom": 1.25
+              }
+            }
+          },
+          "expected": {
+            "ok": null
+          }
+        },
+        {
+          "name": "get_sheet_viewport: returns the saved viewport",
+          "request": {
+            "command": "get_sheet_viewport",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef"
+            }
+          },
+          "expected": {
+            "ok": {
+              "viewport": {
+                "panX": 120.5,
+                "panY": -48,
+                "zoom": 1.25
+              },
+              "loadIssue": null
+            }
+          }
+        },
+        {
+          "name": "save_sheet_viewport: zoom out of range",
+          "targets": ["rust"],
+          "request": {
+            "command": "save_sheet_viewport",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef",
+              "viewport": {
+                "panX": 0,
+                "panY": 0,
+                "zoom": 8.01
+              }
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidViewport"
+            }
+          }
+        },
+        {
+          "name": "save_sheet_viewport: malformed id",
+          "targets": ["rust"],
+          "request": {
+            "command": "save_sheet_viewport",
+            "args": {
+              "projectId": "not-an-id",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef",
+              "viewport": {
+                "panX": 0,
+                "panY": 0,
+                "zoom": 1
+              }
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidEntityId"
+            }
+          }
+        },
+        {
+          "name": "save_sheet_viewport: missing viewport argument",
+          "targets": ["rust"],
+          "request": {
+            "command": "save_sheet_viewport",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef"
+            }
+          },
+          "expected": {
+            "tauriError": true
+          }
+        }
+      ]
+    }
+  ]
+}

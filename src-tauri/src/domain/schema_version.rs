@@ -1,12 +1,13 @@
 use super::constants::{
-    CURRENT_DOCUMENT_SCHEMA_VERSION, CURRENT_PROJECT_SCHEMA_VERSION, CURRENT_SHEET_SCHEMA_VERSION,
-    MIN_SCHEMA_VERSION,
+    CURRENT_DOCUMENT_SCHEMA_VERSION, CURRENT_FOLDER_SCHEMA_VERSION, CURRENT_PROJECT_SCHEMA_VERSION,
+    CURRENT_SHEET_SCHEMA_VERSION, MIN_SCHEMA_VERSION,
 };
 use super::error::{DomainError, DomainErrorKind};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SchemaEntityKind {
     Project,
+    Folder,
     Document,
     Sheet,
 }
@@ -15,6 +16,7 @@ impl SchemaEntityKind {
     pub fn current_version(&self) -> u32 {
         match self {
             Self::Project => CURRENT_PROJECT_SCHEMA_VERSION,
+            Self::Folder => CURRENT_FOLDER_SCHEMA_VERSION,
             Self::Document => CURRENT_DOCUMENT_SCHEMA_VERSION,
             Self::Sheet => CURRENT_SHEET_SCHEMA_VERSION,
         }

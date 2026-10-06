@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "sheetId": "01928f3a-4000-7000-8000-000000000001",
+  "name": "Main",
+  "blocks": [
+    {
+      "blockId": "01928f3a-5000-7000-8000-000000000001",
+      "blockType": "markdown",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "size": {
+        "width": 320,
+        "height": 240
+      },
+      "contentPath": "sheets/main/blocks/markdown-1.md"
+    }
+  ]
+}

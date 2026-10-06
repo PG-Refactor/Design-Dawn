@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   parseBlockId,
   parseDocumentId,
+  parseFolderId,
   parseProjectId,
   parseSheetId,
 } from "../domain/shared/entity-id";
 import {
   generateBlockId,
   generateDocumentId,
+  generateFolderId,
   generateProjectId,
   generateSheetId,
 } from "./entity-id-generator";
@@ -20,6 +22,7 @@ describe("entity id generator", () => {
   it("generates IDs accepted by the domain parsers", () => {
     expect(parseProjectId(generateProjectId()).ok).toBe(true);
     expect(parseDocumentId(generateDocumentId()).ok).toBe(true);
+    expect(parseFolderId(generateFolderId()).ok).toBe(true);
     expect(parseSheetId(generateSheetId()).ok).toBe(true);
     expect(parseBlockId(generateBlockId()).ok).toBe(true);
   });

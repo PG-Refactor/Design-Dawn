@@ -1,0 +1,22 @@
+/* The rows reuse the Project Tree classes (project-tree.css); only the flat indentation
+   and the disabled look are specific to the dialog. */
+.move-dialog__tree {
+  max-height: 50vh;
+  overflow: auto;
+}
+
+/* The depth is a number from the view model; the indent unit is a spacing token. */
+.move-dialog__item {
+  padding-left: calc(var(--move-dialog-depth, 0) * var(--space-3));
+  list-style: none;
+}
+
+.move-dialog__item--disabled > .tree-item__row .tree-item__label {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+/* Keeps names aligned whether or not a row has a fold marker. */
+.move-target__marker {
+  min-width: 1ch;
+}

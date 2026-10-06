@@ -3,12 +3,17 @@
 // checks the command names against `src-tauri/src/commands/mod.rs`.
 
 export const COMMANDS = {
+  selectProjectFolder: "select_project_folder",
   createProject: "create_project",
   openProject: "open_project",
-  openEntryPoint: "open_entry_point",
   saveProject: "save_project",
+  createFolder: "create_folder",
+  saveFolder: "save_folder",
+  moveEntry: "move_entry",
+  deleteFolder: "delete_folder",
   createDocument: "create_document",
   loadDocument: "load_document",
+  closeDocument: "close_document",
   saveDocument: "save_document",
   createSheet: "create_sheet",
   saveSheet: "save_sheet",
@@ -16,50 +21,42 @@ export const COMMANDS = {
   readBlockContent: "read_block_content",
   writeBlockContent: "write_block_content",
   deleteBlockContent: "delete_block_content",
+  restoreBlockContent: "restore_block_content",
+  deleteSheet: "delete_sheet",
+  deleteDocument: "delete_document",
+  getAppSettings: "get_app_settings",
+  setThemePreference: "set_theme_preference",
+  setAutoSave: "set_auto_save",
+  setProjectTreeWidth: "set_project_tree_width",
+  getSheetViewport: "get_sheet_viewport",
+  saveSheetViewport: "save_sheet_viewport",
+  importDroppedImages: "import_dropped_images",
+  copyAssetToDocument: "copy_asset_to_document",
+  subscribeDropNotifications: "subscribe_drop_notifications",
+  subscribeCloseRequests: "subscribe_close_requests",
+  confirmWindowClose: "confirm_window_close",
 } as const;
 
 export type CommandName = (typeof COMMANDS)[keyof typeof COMMANDS];
 
-export const PERSISTENCE_ERROR_KINDS = [
-  "invalidJson",
-  "invalidFileStructure",
-  "invalidEncoding",
-  "pathOutsideRoot",
-  "fileNotFound",
-  "alreadyExists",
-  "ioError",
-] as const;
+// The error identifiers are defined in the application layer (it names them in its
+// ports); re-exported here so the contract tests keep one import point.
+export {
+  ASSET_ERROR_KINDS,
+  CLIENT_ERROR_KINDS,
+  FOLDER_ERROR_KINDS,
+  FOLDER_SELECTION_ERROR_KINDS,
+  PERSISTENCE_ERROR_KINDS,
+  RUST_ONLY_DOMAIN_ERROR_KINDS,
+  SESSION_ERROR_KINDS,
+} from "../../application/ports/operation-error";
 
-// `entityNotFound` is already part of the domain kinds in TypeScript.
-export const SESSION_ERROR_KINDS = ["notWritable", "projectNotOpen"] as const;
-
-// Domain errors that only Rust can produce (TypeScript treats contentPath as opaque).
-export const RUST_ONLY_DOMAIN_ERROR_KINDS = [
-  "invalidContentExtension",
-] as const;
-
-// Produced by this client, never by Rust.
-export const CLIENT_ERROR_KINDS = [
-  // The command succeeded but its payload does not have the documented shape.
-  "invalidCommandResponse",
-  // The command failed with something that is not a `{ kind, detail }` error
-  // (for example the IPC layer refusing the call).
-  "unexpectedCommandError",
-] as const;
-
-export const LOAD_ISSUE_KINDS = [
-  "unlistedEntity",
-  "missingEntity",
-  "invalidOrderEntry",
-  "duplicateEntityId",
-  "entityLoadFailed",
-  "missingContent",
-  "orphanContent",
-  "leftoverTempFile",
-  "unrecognizedDirectory",
-] as const;
-
-export type LoadIssueKind = (typeof LOAD_ISSUE_KINDS)[number];
-
-export const ENTITY_STATES = ["loaded", "loadFailed"] as const;
-export type EntityState = (typeof ENTITY_STATES)[number];
+// Snapshot-related constants are defined next to the snapshot types in the application
+// layer (its port names them); re-exported so the contract tests keep one import point.
+export {
+  ENTITY_STATES,
+  type EntityState,
+  FOLDER_SELECTION_STATUS,
+  LOAD_ISSUE_KINDS,
+  type LoadIssueKind,
+} from "../../application/ports/persistence-types";

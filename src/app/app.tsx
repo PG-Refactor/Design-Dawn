@@ -1,9 +1,17 @@
-import { APP_CONFIG } from "../config/app-config";
+import {
+  type WorkspaceServices,
+  WorkspaceServicesProvider,
+} from "../features/workspace/workspace-services-context";
+import { WorkspaceShell } from "../features/workspace/workspace-shell";
 
-export function App() {
+export interface AppProps {
+  readonly services: WorkspaceServices;
+}
+
+export function App({ services }: AppProps) {
   return (
-    <main>
-      <h1>{APP_CONFIG.displayName}</h1>
-    </main>
+    <WorkspaceServicesProvider services={services}>
+      <WorkspaceShell />
+    </WorkspaceServicesProvider>
   );
 }

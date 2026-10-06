@@ -1,20 +1,17 @@
+import { LOCAL_STATE_ERROR_KINDS } from "../../application/local-state/local-state-result";
 import {
-  DOMAIN_ERROR_KINDS,
-  type DomainErrorKind,
-} from "../../domain/shared/domain-error";
-import {
-  type CLIENT_ERROR_KINDS,
+  ASSET_ERROR_KINDS,
+  FOLDER_ERROR_KINDS,
+  FOLDER_SELECTION_ERROR_KINDS,
+  type OperationErrorKind,
   PERSISTENCE_ERROR_KINDS,
   RUST_ONLY_DOMAIN_ERROR_KINDS,
   SESSION_ERROR_KINDS,
-} from "./command-constants";
+} from "../../application/ports/operation-error";
+import { DOMAIN_ERROR_KINDS } from "../../domain/shared/domain-error";
 
-export type CommandErrorKind =
-  | DomainErrorKind
-  | (typeof RUST_ONLY_DOMAIN_ERROR_KINDS)[number]
-  | (typeof PERSISTENCE_ERROR_KINDS)[number]
-  | (typeof SESSION_ERROR_KINDS)[number]
-  | (typeof CLIENT_ERROR_KINDS)[number];
+// Same kinds the application layer names; one definition, no conversion at the boundary.
+export type CommandErrorKind = OperationErrorKind;
 
 export interface CommandError {
   readonly kind: CommandErrorKind;
@@ -33,7 +30,16 @@ const RUST_ERROR_KINDS: readonly string[] = [
   ...RUST_ONLY_DOMAIN_ERROR_KINDS,
   ...PERSISTENCE_ERROR_KINDS,
   ...SESSION_ERROR_KINDS,
+  ...FOLDER_SELECTION_ERROR_KINDS,
+  ...ASSET_ERROR_KINDS,
+  ...FOLDER_ERROR_KINDS,
+  ...LOCAL_STATE_ERROR_KINDS,
 ];
+
+// For payloads that carry a Rust error kind (a `loadIssue`), not only a rejection.
+export function isRustErrorKind(value: string): value is CommandErrorKind {
+  return RUST_ERROR_KINDS.includes(value);
+}
 
 export function commandOk<T>(value: T): CommandResult<T> {
   return { ok: true, value };
@@ -68,6 +74,11 @@ function describeUnknown(value: unknown): string {
   }
 }
 
+// TypeScript side of the error conversion boundary:
+//   Rust DomainError / PersistenceError -> ApplicationError -> serialized `{ kind, detail }`
+//   -> this function -> CommandError.
+// A kind missing from RUST_ERROR_KINDS would silently degrade to `unexpectedCommandError`;
+// ipc-contract.test.ts compares the list with the identifiers in the Rust source.
 // Expected failures arrive as `{ kind, detail }`. Anything else is a bug or an IPC
 // level refusal, and is surfaced as a distinct kind instead of being mistaken for one.
 export function toCommandError(rejection: unknown): CommandError {

@@ -14,13 +14,20 @@ export const SIZE_MAX = INT32_MAX;
 
 export const MIN_SCHEMA_VERSION = 1;
 
-export const SCHEMA_ENTITY_KINDS = ["project", "document", "sheet"] as const;
+export const SCHEMA_ENTITY_KINDS = [
+  "project",
+  "folder",
+  "document",
+  "sheet",
+] as const;
 export type SchemaEntityKind = (typeof SCHEMA_ENTITY_KINDS)[number];
 
 export const CURRENT_SCHEMA_VERSIONS: Readonly<
   Record<SchemaEntityKind, number>
 > = {
-  project: 1,
+  // 2 replaced `childOrder` with `childOrder`; version 1 files are still read by Rust.
+  project: 2,
+  folder: 1,
   document: 1,
   sheet: 1,
 };

@@ -6,6 +6,10 @@ export type ProjectId = Brand<string, "ProjectId">;
 export type DocumentId = Brand<string, "DocumentId">;
 export type SheetId = Brand<string, "SheetId">;
 export type BlockId = Brand<string, "BlockId">;
+export type FolderId = Brand<string, "FolderId">;
+// What a `childOrder` lists: a Folder or a Document. IDs are unique across both kinds,
+// so an entry does not say which one it is.
+export type EntryId = DocumentId | FolderId;
 
 // Rejects rather than normalizes: a non-canonical ID in a file is a corrupt file,
 // and silently rewriting it would change identity across Git history.
@@ -34,4 +38,12 @@ export function parseSheetId(value: string): DomainResult<SheetId> {
 
 export function parseBlockId(value: string): DomainResult<BlockId> {
   return parseEntityIdText<BlockId>(value);
+}
+
+export function parseFolderId(value: string): DomainResult<FolderId> {
+  return parseEntityIdText<FolderId>(value);
+}
+
+export function parseEntryId(value: string): DomainResult<EntryId> {
+  return parseEntityIdText<EntryId>(value);
 }

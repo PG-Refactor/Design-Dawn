@@ -1,0 +1,78 @@
+.canvas {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 12rem;
+  overflow: hidden;
+  background-color: var(--color-canvas-background);
+  background-image: radial-gradient(
+    var(--color-canvas-grid) 1px,
+    transparent 1px
+  );
+  color: var(--color-text);
+  /* The canvas handles every touch / pen gesture itself and selection would fight drags. */
+  touch-action: none;
+  user-select: none;
+}
+
+.canvas:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -2px;
+}
+
+/* Zero-sized origin at the canvas corner; blocks overflow it. */
+.canvas__world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+/* Holding Space arms panning; the grab cursor must win over the block / handle cursors. */
+.canvas--pan-ready,
+.canvas--pan-ready .block-frame__body,
+.canvas--pan-ready .block-frame__resize-handle {
+  cursor: grab;
+}
+
+/* Zoom-independent border like the block outlines; the fill stays see-through so the
+   blocks under the rectangle remain visible. */
+.canvas__range-selection {
+  position: absolute;
+  box-sizing: border-box;
+  border: calc(1px / var(--canvas-zoom, 1)) solid var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+  pointer-events: none;
+}
+
+.canvas-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Wraps the canvas so the toolbar above can measure the area a new block lands in. */
+.canvas-panel__canvas {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Drop hint while files are dragged over the window. Decorative and see-through to
+   pointer events: Rust handles the drop itself. */
+.canvas__drop-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 3px dashed var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+  color: var(--color-text);
+  font-size: 1.25rem;
+  font-weight: bold;
+  pointer-events: none;
+}

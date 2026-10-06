@@ -29,6 +29,8 @@ export default defineConfig(({ mode }) => {
     },
     test: {
       environment: "node",
+      // CSS sources are read as text by the token tests; without this vitest returns "".
+      css: { include: [/\.css/] },
     },
   };
 });

@@ -1,0 +1,43 @@
+/* The only file that contains colour values. Each theme block must define exactly the
+   token names listed in src/features/theme/theme-tokens.ts; a new theme is one more block.
+   Text/background pairs meet WCAG AA (4.5:1), checked by theme-tokens.test.ts. */
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-background: #f6f7f9;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-text: #1c2330;
+  --color-text-muted: #566074;
+  --color-border: #c9cfd9;
+  --color-accent: #2859c0;
+  --color-accent-contrast: #ffffff;
+  --color-selection: #d6e4fb;
+  --color-danger: #b3261e;
+  --color-danger-contrast: #ffffff;
+  --color-warning: #8a5300;
+  --color-focus-ring: #2859c0;
+  --color-canvas-background: #eceff3;
+  --color-canvas-grid: #d3d8e0;
+  --shadow-raised: 0 1px 3px rgba(28, 35, 48, 0.18);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-background: #14171c;
+  --color-surface: #1c2027;
+  --color-surface-raised: #252a33;
+  --color-text: #e6e9ef;
+  --color-text-muted: #a3acba;
+  --color-border: #3a4150;
+  --color-accent: #7aa7ff;
+  --color-accent-contrast: #0d1626;
+  --color-selection: #25385c;
+  --color-danger: #ff8a80;
+  --color-danger-contrast: #2a0a08;
+  --color-warning: #f2c14e;
+  --color-focus-ring: #7aa7ff;
+  --color-canvas-background: #101317;
+  --color-canvas-grid: #272d37;
+  --shadow-raised: 0 1px 3px rgba(0, 0, 0, 0.5);
+}

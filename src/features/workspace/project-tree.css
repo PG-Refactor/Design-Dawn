@@ -1,0 +1,115 @@
+.project-tree,
+.project-tree__group {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.project-tree__group {
+  padding-left: var(--space-3);
+}
+
+.project-tree__empty {
+  margin: var(--space-1) 0 var(--space-1) var(--space-3);
+  color: var(--color-text-muted);
+}
+
+.tree-item {
+  border-radius: var(--radius-medium);
+  cursor: pointer;
+}
+
+.tree-item__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-medium);
+}
+
+.tree-item__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tree-item--selected > .tree-item__row {
+  background: var(--color-selection);
+}
+
+/* Selection is also shown by a bar, so it does not rely on colour alone. */
+.tree-item--selected > .tree-item__row {
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.tree-item--selected > .tree-item__row .tree-item__label {
+  font-weight: 700;
+}
+
+.tree-item--failed > .tree-item__row .tree-item__label {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.tree-item__folder-marker {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+}
+
+.tree-item__marker {
+  color: var(--color-warning);
+  font-size: 0.8125rem;
+}
+
+/* The name is replaced by the input while renaming; it stays in the DOM (visually hidden)
+   because it is the tree item's accessible name. */
+.tree-item__label--hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.tree-rename {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.tree-rename__input {
+  min-width: 0;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.tree-rename__input[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
+.tree-rename__error {
+  color: var(--color-danger);
+  font-size: 0.8125rem;
+}
+
+/* The menu button is always in the DOM and the accessibility tree; it is only revealed
+   on hover and focus. Opacity (not display) keeps it focusable. */
+.tree-item__menu .popup-menu__trigger {
+  opacity: 0;
+}
+
+.tree-item__row:hover .popup-menu__trigger,
+.tree-item__row:focus-within .popup-menu__trigger,
+.tree-item:focus > .tree-item__row .popup-menu__trigger,
+.tree-item__menu .popup-menu__trigger[aria-expanded="true"] {
+  opacity: 1;
+}

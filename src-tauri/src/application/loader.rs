@@ -5,6 +5,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::hash::Hash;
+use uuid::Uuid;
 
 use serde_json::Value;
 
@@ -16,12 +17,16 @@ use crate::domain::constants::{
 };
 use crate::domain::display_name::DisplayName;
 use crate::domain::document::Document;
-use crate::domain::entity_id::{BlockId, DocumentId, SheetId};
+use crate::domain::entity_id::{BlockId, DocumentId, EntryId, FolderId, SheetId};
 use crate::domain::error::DomainError;
+use crate::domain::folder::Folder;
 use crate::domain::sheet::Sheet;
 use crate::infrastructure::error::PersistenceErrorKind;
-use crate::infrastructure::file_format::constants::{DOCUMENT_FILE_NAME, SHEET_FILE_NAME};
-use crate::infrastructure::file_format::dto::{parse_dto, DocumentDto, SheetDto};
+use crate::infrastructure::file_format::constants::{
+    DOCUMENTS_DIRECTORY_NAME, DOCUMENT_FILE_NAME, FOLDER_FILE_NAME, PROJECT_FILE_NAME,
+    SHEET_FILE_NAME,
+};
+use crate::infrastructure::file_format::dto::{parse_dto, DocumentDto, FolderDto, SheetDto};
 use crate::infrastructure::filesystem::atomic_write::is_temp_file_name;
 use crate::infrastructure::filesystem::directory::{list_directory, DirectoryEntry, EntryKind};
 use crate::infrastructure::filesystem::path_resolution::resolve_existing;
@@ -215,16 +220,35 @@ pub(super) fn report_leftover_temp_files(
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SymlinkPolicy {
+    /// Sheets: a link to a directory inside the Project is read like a directory.
+    Follow,
+    /// The Folder / Document tree: links are reported and never entered, so a link cannot
+    /// make a directory appear twice or lead a recursive scan into a cycle.
+    Skip,
+}
+
 /// Lists the subdirectories of `container_path` in byte order. Non-directories are ignored;
 /// directories with names that are not valid UTF-8 cannot be addressed and are reported.
 fn child_directories(
     session: &ProjectSession,
     container_path: &str,
+    symlinks: SymlinkPolicy,
     issues: &mut Vec<LoadIssue>,
 ) -> Vec<String> {
     let mut names = Vec::new();
     for entry in list_optional_directory(session, container_path, issues) {
         if entry.kind != EntryKind::Directory {
+            continue;
+        }
+        if entry.is_symlink && symlinks == SymlinkPolicy::Skip {
+            issues.push(LoadIssue::new(
+                LoadIssueKind::UnrecognizedDirectory,
+                Some(&child_path(container_path, &entry.name)),
+                None,
+                "symbolic links are not followed",
+            ));
             continue;
         }
         if entry.is_utf8_name {
@@ -302,47 +326,398 @@ pub(super) fn load_sheet_file(
     }
 }
 
-/// Scans `documents/` for Document directories. Order issues inside each `document.json`
-/// are not reported here; `load_document` reports them when that Document is opened.
-pub(super) fn scan_document_directories(
+pub(super) fn load_folder_file(
     session: &mut ProjectSession,
-    container_path: &str,
+    relative_file: &str,
     issues: &mut Vec<LoadIssue>,
-) -> Vec<ScannedChild<DocumentId, Document>> {
-    let mut scans = Vec::new();
-    for name in child_directories(session, container_path, issues) {
-        let directory_path = child_path(container_path, &name);
-        let file_path = child_path(&directory_path, DOCUMENT_FILE_NAME);
-        match classify_metadata_file(session, &file_path) {
-            MetadataPresence::Absent => {
-                issues.push(unrecognized_directory(&directory_path, DOCUMENT_FILE_NAME))
+) -> MetadataLoad<Folder, FolderId> {
+    let value = match session.read_json("", relative_file) {
+        Ok(value) => value,
+        Err(error) => {
+            return MetadataLoad {
+                entity: Err(error.into()),
+                recovered_id: None,
+                recovered_name: None,
             }
-            MetadataPresence::Unusable(error) => scans.push(ScannedChild {
-                directory_name: name,
-                id: None,
-                name: None,
-                payload: Err(error),
-            }),
-            MetadataPresence::Present => {
-                let mut discarded = Vec::new();
-                let loaded = load_document_file(session, &file_path, &mut discarded);
-                let (id, display_name) = match &loaded.entity {
-                    Ok(document) => (
-                        Some(*document.document_id()),
-                        Some(document.name().as_str().to_owned()),
+        }
+    };
+    let (recovered_id, recovered_name) = recover_identity(&value, "folderId", FolderId::parse);
+    let entity = parse_dto::<FolderDto>(value)
+        .map_err(ApplicationError::from)
+        .and_then(|mut dto| {
+            dto.child_order =
+                normalize_order(&dto.child_order, EntryId::parse, relative_file, issues);
+            dto.to_domain().map_err(ApplicationError::from)
+        });
+    MetadataLoad {
+        entity,
+        recovered_id,
+        recovered_name,
+    }
+}
+
+/// A Folder or Document found on disk, with the data the session and snapshot need.
+pub(super) struct ScannedFolder {
+    pub folder_id: FolderId,
+    /// Relative to `documents/`.
+    pub relative_path: String,
+    pub name: Option<String>,
+    pub parent: Option<FolderId>,
+    /// Effective (normalized) order; empty for a Folder that failed to load.
+    pub child_order: Vec<String>,
+    pub loaded: bool,
+}
+
+pub(super) struct ScannedDocument {
+    pub document_id: DocumentId,
+    /// Relative to `documents/`.
+    pub relative_path: String,
+    pub name: Option<String>,
+    pub parent: Option<FolderId>,
+    pub loaded: bool,
+}
+
+/// The reconciled content of one container (the Project's `documents/` or a Folder).
+/// `folders` / `documents` hold the whole subtree, in effective display order depth-first.
+#[derive(Default)]
+pub(super) struct EntryTree {
+    pub child_order: Vec<String>,
+    pub folders: Vec<ScannedFolder>,
+    pub documents: Vec<ScannedDocument>,
+}
+
+enum FoundKind {
+    Folder(Box<(ScannedFolder, EntryTree)>),
+    Document(ScannedDocument),
+}
+
+struct FoundEntry {
+    directory_path: String,
+    entry_id: EntryId,
+    kind: FoundKind,
+}
+
+impl FoundEntry {
+    fn label(&self) -> &'static str {
+        match self.kind {
+            FoundKind::Folder(_) => "folder",
+            FoundKind::Document(_) => "document",
+        }
+    }
+}
+
+struct TreeScan<'a> {
+    session: &'a mut ProjectSession,
+    issues: &'a mut Vec<LoadIssue>,
+    /// IDs are unique across Folders and Documents. The first directory in depth-first byte
+    /// order keeps an ID, like among sibling Documents; the value is its path for the report.
+    seen: HashMap<Uuid, String>,
+}
+
+/// Scans `documents/` recursively for Folders and Documents and applies each parent's order
+/// (data-model.md §7). A directory with both `folder.json` and `document.json`, or neither,
+/// is reported and not entered. A Folder that fails to load is listed but not entered: its
+/// children cannot be ordered or attributed to it. Order issues inside each
+/// `document.json` are reported by `load_document` when that Document is opened.
+pub(super) fn scan_entry_tree(
+    session: &mut ProjectSession,
+    project_order: &[EntryId],
+    issues: &mut Vec<LoadIssue>,
+) -> EntryTree {
+    let mut scan = TreeScan {
+        session,
+        issues,
+        seen: HashMap::new(),
+    };
+    scan.container("", None, project_order, PROJECT_FILE_NAME)
+}
+
+impl TreeScan<'_> {
+    fn container(
+        &mut self,
+        relative_path: &str,
+        parent: Option<FolderId>,
+        listed_order: &[EntryId],
+        order_owner_path: &str,
+    ) -> EntryTree {
+        let container_path = join_documents_path(relative_path);
+        let mut found = Vec::new();
+        for name in child_directories(
+            self.session,
+            &container_path,
+            SymlinkPolicy::Skip,
+            self.issues,
+        ) {
+            if let Some(entry) = self.directory(relative_path, &name, parent) {
+                found.push(entry);
+            }
+        }
+        self.reconcile(found, listed_order, order_owner_path)
+    }
+
+    fn directory(
+        &mut self,
+        container_relative: &str,
+        name: &str,
+        parent: Option<FolderId>,
+    ) -> Option<FoundEntry> {
+        let relative_path = child_path(container_relative, name);
+        let directory_path = join_documents_path(&relative_path);
+        let folder_file = child_path(&directory_path, FOLDER_FILE_NAME);
+        let document_file = child_path(&directory_path, DOCUMENT_FILE_NAME);
+        let folder_presence = classify_metadata_file(self.session, &folder_file);
+        let document_presence = classify_metadata_file(self.session, &document_file);
+        let is_folder = !matches!(folder_presence, MetadataPresence::Absent);
+        let is_document = !matches!(document_presence, MetadataPresence::Absent);
+        match (is_folder, is_document) {
+            (true, true) => {
+                self.issues.push(LoadIssue::new(
+                    LoadIssueKind::UnrecognizedDirectory,
+                    Some(&directory_path),
+                    None,
+                    format!(
+                        "both {FOLDER_FILE_NAME} and {DOCUMENT_FILE_NAME} exist in this directory"
                     ),
-                    Err(_) => (loaded.recovered_id, loaded.recovered_name),
-                };
-                scans.push(ScannedChild {
-                    directory_name: name,
-                    id,
-                    name: display_name,
-                    payload: loaded.entity,
-                });
+                ));
+                None
+            }
+            (false, false) => {
+                self.issues.push(LoadIssue::new(
+                    LoadIssueKind::UnrecognizedDirectory,
+                    Some(&directory_path),
+                    None,
+                    format!(
+                        "neither {FOLDER_FILE_NAME} nor {DOCUMENT_FILE_NAME} in this directory"
+                    ),
+                ));
+                None
+            }
+            (true, false) => self.folder(
+                relative_path,
+                directory_path,
+                &folder_file,
+                folder_presence,
+                parent,
+            ),
+            (false, true) => self.document(
+                relative_path,
+                directory_path,
+                &document_file,
+                document_presence,
+                parent,
+            ),
+        }
+    }
+
+    /// Reports a failed load and returns the identity, or `None` when the entity cannot be
+    /// listed (no readable ID). Matches how failed Documents were always handled.
+    fn report_failure(
+        &mut self,
+        label: &str,
+        directory_path: &str,
+        id: Option<Uuid>,
+        error: Option<&ApplicationError>,
+    ) {
+        if let Some(error) = error {
+            self.issues.push(LoadIssue::new(
+                LoadIssueKind::EntityLoadFailed,
+                Some(directory_path),
+                id.map(|id| id.to_string()),
+                format!("{label} failed to load: {error}"),
+            ));
+        }
+    }
+
+    /// True when the ID is new. A repeated ID is reported and the entity is excluded.
+    fn claim_id(&mut self, label: &str, directory_path: &str, id: Uuid) -> bool {
+        match self.seen.get(&id) {
+            Some(first) => {
+                self.issues.push(LoadIssue::new(
+                    LoadIssueKind::DuplicateEntityId,
+                    Some(directory_path),
+                    Some(id.to_string()),
+                    format!("{label} id is already used by {first:?}; this one is ignored"),
+                ));
+                false
+            }
+            None => {
+                self.seen.insert(id, directory_path.to_owned());
+                true
             }
         }
     }
-    scans
+
+    fn document(
+        &mut self,
+        relative_path: String,
+        directory_path: String,
+        file_path: &str,
+        presence: MetadataPresence,
+        parent: Option<FolderId>,
+    ) -> Option<FoundEntry> {
+        let (loaded, id, name) = match presence {
+            MetadataPresence::Unusable(error) => (Err(error), None, None),
+            _ => {
+                let mut discarded = Vec::new();
+                let result = load_document_file(self.session, file_path, &mut discarded);
+                match &result.entity {
+                    Ok(document) => (
+                        Ok(()),
+                        Some(*document.document_id()),
+                        Some(document.name().as_str().to_owned()),
+                    ),
+                    Err(error) => (
+                        Err(error.clone()),
+                        result.recovered_id,
+                        result.recovered_name,
+                    ),
+                }
+            }
+        };
+        self.report_failure(
+            "document",
+            &directory_path,
+            id.as_ref().map(|id| *id.as_uuid()),
+            loaded.as_ref().err(),
+        );
+        let id = id?;
+        if !self.claim_id("document", &directory_path, *id.as_uuid()) {
+            return None;
+        }
+        Some(FoundEntry {
+            directory_path,
+            entry_id: id.into(),
+            kind: FoundKind::Document(ScannedDocument {
+                document_id: id,
+                relative_path,
+                name,
+                parent,
+                loaded: loaded.is_ok(),
+            }),
+        })
+    }
+
+    fn folder(
+        &mut self,
+        relative_path: String,
+        directory_path: String,
+        file_path: &str,
+        presence: MetadataPresence,
+        parent: Option<FolderId>,
+    ) -> Option<FoundEntry> {
+        let mut order_issues = Vec::new();
+        let (folder, id, name) = match presence {
+            MetadataPresence::Unusable(error) => (Err(error), None, None),
+            _ => {
+                let result = load_folder_file(self.session, file_path, &mut order_issues);
+                match result.entity {
+                    Ok(folder) => {
+                        let identity = (
+                            Some(*folder.folder_id()),
+                            Some(folder.name().as_str().to_owned()),
+                        );
+                        (Ok(folder), identity.0, identity.1)
+                    }
+                    Err(error) => (Err(error), result.recovered_id, result.recovered_name),
+                }
+            }
+        };
+        self.report_failure(
+            "folder",
+            &directory_path,
+            id.as_ref().map(|id| *id.as_uuid()),
+            folder.as_ref().err(),
+        );
+        let id = id?;
+        if !self.claim_id("folder", &directory_path, *id.as_uuid()) {
+            return None;
+        }
+        let (loaded, subtree) = match folder {
+            Ok(folder) => {
+                self.issues.append(&mut order_issues);
+                let subtree =
+                    self.container(&relative_path, Some(id), folder.child_order(), file_path);
+                (true, subtree)
+            }
+            Err(_) => (false, EntryTree::default()),
+        };
+        Some(FoundEntry {
+            directory_path,
+            entry_id: id.into(),
+            kind: FoundKind::Folder(Box::new((
+                ScannedFolder {
+                    folder_id: id,
+                    relative_path,
+                    name,
+                    parent,
+                    child_order: subtree.child_order.clone(),
+                    loaded,
+                },
+                subtree,
+            ))),
+        })
+    }
+
+    /// Puts the entries in the listed order, reports listed entries that do not exist, and
+    /// appends unlisted ones in directory order (they arrive in byte order).
+    fn reconcile(
+        &mut self,
+        found: Vec<FoundEntry>,
+        listed_order: &[EntryId],
+        order_owner_path: &str,
+    ) -> EntryTree {
+        let index_by_id: HashMap<EntryId, usize> = found
+            .iter()
+            .enumerate()
+            .map(|(index, entry)| (entry.entry_id, index))
+            .collect();
+        let mut slots: Vec<Option<FoundEntry>> = found.into_iter().map(Some).collect();
+        let mut ordered = Vec::with_capacity(slots.len());
+        for id in listed_order {
+            match index_by_id.get(id).and_then(|index| slots[*index].take()) {
+                Some(entry) => ordered.push(entry),
+                None => self.issues.push(LoadIssue::new(
+                    LoadIssueKind::MissingEntity,
+                    Some(order_owner_path),
+                    Some(id.to_string()),
+                    "listed entry does not exist on disk; ignored",
+                )),
+            }
+        }
+        for entry in slots.into_iter().flatten() {
+            self.issues.push(LoadIssue::new(
+                LoadIssueKind::UnlistedEntity,
+                Some(&entry.directory_path),
+                Some(entry.entry_id.to_string()),
+                format!("{} is not in the order list; appended", entry.label()),
+            ));
+            ordered.push(entry);
+        }
+
+        let mut tree = EntryTree::default();
+        for entry in ordered {
+            tree.child_order.push(entry.entry_id.to_string());
+            match entry.kind {
+                FoundKind::Folder(boxed) => {
+                    let (folder, subtree) = *boxed;
+                    tree.folders.push(folder);
+                    tree.folders.extend(subtree.folders);
+                    tree.documents.extend(subtree.documents);
+                }
+                FoundKind::Document(document) => tree.documents.push(document),
+            }
+        }
+        tree
+    }
+}
+
+/// `documents/<relative_path>` as a Project-root-relative path (`documents` for the root).
+fn join_documents_path(relative_path: &str) -> String {
+    if relative_path.is_empty() {
+        DOCUMENTS_DIRECTORY_NAME.to_owned()
+    } else {
+        child_path(DOCUMENTS_DIRECTORY_NAME, relative_path)
+    }
 }
 
 pub(super) fn scan_sheet_directories(
@@ -351,7 +726,7 @@ pub(super) fn scan_sheet_directories(
     issues: &mut Vec<LoadIssue>,
 ) -> Vec<ScannedChild<SheetId, Sheet>> {
     let mut scans = Vec::new();
-    for name in child_directories(session, container_path, issues) {
+    for name in child_directories(session, container_path, SymlinkPolicy::Follow, issues) {
         let directory_path = child_path(container_path, &name);
         let file_path = child_path(&directory_path, SHEET_FILE_NAME);
         match classify_metadata_file(session, &file_path) {

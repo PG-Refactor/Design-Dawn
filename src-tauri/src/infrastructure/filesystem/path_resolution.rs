@@ -2,7 +2,7 @@
 //! after symlinks are followed (docs/security.md §5).
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use crate::domain::constants::PATH_SEPARATOR;
 use crate::infrastructure::error::{PersistenceError, PersistenceErrorKind};
@@ -76,4 +76,67 @@ pub fn resolve_for_write(root: &Path, relative: &str) -> Result<PathBuf, Persist
     } else {
         resolve_for_create(root, relative)
     }
+}
+
+/// A directory name taken from the session must still be exactly one ordinary path segment,
+/// so it can never climb out of its parent or name the parent itself.
+fn is_single_normal_segment(name: &str) -> bool {
+    let mut components = Path::new(name).components();
+    matches!(
+        (components.next(), components.next()),
+        (Some(Component::Normal(segment)), None) if segment == name
+    )
+}
+
+/// A directory that must be reached without crossing any symlink: its canonical path has to
+/// equal the plain join of the (canonical) root and the stored path. Used for the parent
+/// directories of a move, so a directory swapped for a link after loading is not followed.
+/// `root` must be canonical.
+pub fn resolve_real_directory(root: &Path, relative: &str) -> Result<PathBuf, PersistenceError> {
+    let resolved = resolve_existing(root, relative)?;
+    if resolved != join_relative(root, relative) || !resolved.is_dir() {
+        return Err(PersistenceError::new(
+            PersistenceErrorKind::PathOutsideRoot,
+            format!("{relative:?} is not a real directory (a link is in the way)"),
+        ));
+    }
+    Ok(resolved)
+}
+
+/// For recursive deletion of an entity directory. Returns its canonical path only if
+/// - the entry itself is a real directory (a symlink is refused, never followed),
+/// - the parent resolves inside `root` (so a symlinked ancestor cannot redirect the delete),
+/// - the entry's real location is exactly `canonical(parent)/<directory_name>`, strictly
+///   inside the parent and inside `root`, which also rules out `root` and the parent itself.
+///
+/// `root` must be canonical.
+pub fn resolve_removable_directory(
+    root: &Path,
+    parent_relative: &str,
+    directory_name: &str,
+) -> Result<PathBuf, PersistenceError> {
+    let refuse =
+        |detail: String| PersistenceError::new(PersistenceErrorKind::PathOutsideRoot, detail);
+    if !is_single_normal_segment(directory_name) {
+        return Err(refuse(format!("not a directory name: {directory_name:?}")));
+    }
+    let parent = resolve_existing(root, parent_relative)?;
+    let entry = parent.join(directory_name);
+    let metadata = fs::symlink_metadata(&entry).map_err(|error| {
+        PersistenceError::from_io(format!("inspect {directory_name:?}"), &error)
+    })?;
+    if !metadata.is_dir() {
+        return Err(refuse(format!(
+            "{directory_name:?} is not a real directory (symlinks are never deleted through)"
+        )));
+    }
+    let canonical = fs::canonicalize(&entry).map_err(|error| {
+        PersistenceError::from_io(format!("resolve {directory_name:?}"), &error)
+    })?;
+    if canonical != entry || canonical == root || !canonical.starts_with(root) {
+        return Err(refuse(format!(
+            "{directory_name:?} resolves outside its parent"
+        )));
+    }
+    Ok(canonical)
 }

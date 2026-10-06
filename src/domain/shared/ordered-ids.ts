@@ -1,6 +1,7 @@
 import { type DomainResult, err, ok } from "./domain-result";
+import { type EntryId, parseEntryId } from "./entity-id";
 
-// Shared by Project.documentOrder and Document.sheetOrder. Operations address
+// Shared by Project.childOrder, Folder.childOrder and Document.sheetOrder. Operations address
 // entries by ID, never by numeric index, so callers cannot produce out-of-range errors.
 
 export function findDuplicate<Id extends string>(
@@ -69,4 +70,23 @@ export function moveInOrder<Id extends string>(
     id,
     ...remaining.slice(insertIndex),
   ]);
+}
+
+// Parses a `childOrder`. Every element is parsed first so an invalid ID wins over a
+// duplicate, like the Rust domain.
+export function parseChildOrder(
+  rawIds: readonly string[],
+  ownerLabel: string,
+): DomainResult<readonly EntryId[]> {
+  const ids: EntryId[] = [];
+  for (const rawId of rawIds) {
+    const id = parseEntryId(rawId);
+    if (!id.ok) return id;
+    ids.push(id.value);
+  }
+  const duplicate = findDuplicate(ids);
+  if (duplicate !== null) {
+    return err("duplicateId", `duplicate id in ${ownerLabel}: ${duplicate}`);
+  }
+  return ok(ids);
 }

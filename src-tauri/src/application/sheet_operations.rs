@@ -5,7 +5,7 @@ use crate::domain::constants::{
     BLOCKS_DIRECTORY_NAME, CURRENT_SHEET_SCHEMA_VERSION, PATH_SEPARATOR, SHEETS_DIRECTORY_NAME,
 };
 use crate::domain::display_name::DisplayName;
-use crate::domain::entity_id::DocumentId;
+use crate::domain::entity_id::{DocumentId, SheetId};
 use crate::domain::error::{DomainError, DomainErrorKind};
 use crate::domain::sheet::{Sheet, SheetInput};
 use crate::infrastructure::file_format::constants::{SHEET_FILE_NAME, SHEET_NAME_BASE};
@@ -105,4 +105,42 @@ pub fn save_sheet(
     Ok(SaveResult {
         written: outcome == WriteOutcome::Written,
     })
+}
+
+/// Deletes a Sheet directory. Destructive and not undoable; the caller has already confirmed
+/// with the user and saved the Document without this Sheet (file-format.md §9), but nothing
+/// here relies on that. `document.json` is deliberately left alone: a stale order entry is
+/// reported as `missingEntity` by the loader. A Sheet that failed to load can be deleted too.
+pub fn delete_sheet(
+    sessions: &mut ProjectSessions,
+    project_id: &str,
+    document_id: &str,
+    sheet_id: &str,
+) -> ApplicationResult<()> {
+    let session = sessions.session_mut(project_id)?;
+    let document_id = DocumentId::parse(document_id)?;
+    let sheet_id = SheetId::parse(sheet_id)?;
+    let sheet_directory = session
+        .document(&document_id)?
+        .sheets
+        .get(&sheet_id)
+        .ok_or_else(|| ApplicationError::entity_not_found(format!("unknown sheetId: {sheet_id}")))?
+        .directory_name
+        .clone();
+    let base = session.document_base(&document_id)?;
+    let sheets_container = format!("{base}{PATH_SEPARATOR}{SHEETS_DIRECTORY_NAME}");
+    let removal =
+        session.remove_directory_tree(&sheets_container, &sheet_directory, SHEET_FILE_NAME);
+    let forget = match &removal {
+        Ok(()) => true,
+        Err(failure) => !failure.metadata_survives,
+    };
+    if forget {
+        session.document_mut(&document_id)?.sheets.remove(&sheet_id);
+        session.forget_ledger_under(&format!(
+            "{sheets_container}{PATH_SEPARATOR}{sheet_directory}"
+        ));
+        session.forget_block_numbers(&document_id, Some(&sheet_directory));
+    }
+    removal.map_err(|failure| failure.error.into())
 }

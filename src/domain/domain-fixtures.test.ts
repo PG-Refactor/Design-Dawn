@@ -4,6 +4,7 @@ import { parseBlockType } from "./block/block-type";
 import { parseContentPath } from "./block/content-path";
 import { parseDocument, type RawDocument } from "./document/document";
 import type { SchemaEntityKind } from "./domain-constants";
+import { parseFolder, type RawFolder } from "./folder/folder";
 import { parseProject, type RawProject } from "./project/project";
 import { parseDisplayName } from "./shared/display-name";
 import type { DomainResult } from "./shared/domain-result";
@@ -58,6 +59,8 @@ const SUBJECT_RUNNERS: Readonly<Record<string, SubjectRunner>> = {
     switch (entity) {
       case "project":
         return parseProject(value as RawProject);
+      case "folder":
+        return parseFolder(value as RawFolder);
       case "document":
         return parseDocument(value as RawDocument);
       case "sheet":

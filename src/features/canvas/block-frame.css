@@ -1,0 +1,61 @@
+/* Zoom-independent sizes: the world layer is scaled, so lines and the handle are divided
+   by the zoom that the canvas publishes as --canvas-zoom. */
+.block-frame {
+  position: absolute;
+  box-sizing: border-box;
+  outline: calc(1px / var(--canvas-zoom, 1)) solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.block-frame--selected {
+  outline: calc(2px / var(--canvas-zoom, 1)) solid var(--color-accent);
+  background: var(--color-selection);
+}
+
+.block-frame--interacting {
+  box-shadow: var(--shadow-raised);
+}
+
+.block-frame__body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  cursor: grab;
+}
+
+.block-frame--interacting .block-frame__body {
+  cursor: grabbing;
+}
+
+.block-frame__resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 12px;
+  height: 12px;
+  transform: scale(calc(1 / var(--canvas-zoom, 1)));
+  transform-origin: bottom right;
+  padding: 0;
+  border: none;
+  background: var(--color-accent);
+  cursor: nwse-resize;
+}
+
+.block-placeholder {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0 var(--space-2);
+  margin: 0;
+  padding: var(--space-2);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.block-placeholder dt {
+  color: var(--color-text-muted);
+}
+
+.block-placeholder dd {
+  margin: 0;
+}

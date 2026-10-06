@@ -10,7 +10,11 @@ pub const SIZE_MIN: i64 = 1;
 pub const SIZE_MAX: i64 = 2_147_483_647;
 
 pub const MIN_SCHEMA_VERSION: i64 = 1;
-pub const CURRENT_PROJECT_SCHEMA_VERSION: u32 = 1;
+/// 2 replaced `documentOrder` with `childOrder` (docs/file-format.md §3.5); 1 is still read.
+pub const CURRENT_PROJECT_SCHEMA_VERSION: u32 = 2;
+/// The last `project.json` version that stored `documentOrder`.
+pub const LEGACY_PROJECT_SCHEMA_VERSION: u32 = 1;
+pub const CURRENT_FOLDER_SCHEMA_VERSION: u32 = 1;
 pub const CURRENT_DOCUMENT_SCHEMA_VERSION: u32 = 1;
 pub const CURRENT_SHEET_SCHEMA_VERSION: u32 = 1;
 

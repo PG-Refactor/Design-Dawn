@@ -1,0 +1,68 @@
+{
+  "fixtureVersion": 1,
+  "subject": "themePreference",
+  "description": "Theme preference accepts exactly system, light and dark (case-sensitive). See docs/architecture.md §6.2.2 and §13.",
+  "cases": [
+    {
+      "name": "system",
+      "input": "system",
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "light",
+      "input": "light",
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "dark",
+      "input": "dark",
+      "expected": {
+        "result": "accept"
+      }
+    },
+    {
+      "name": "capitalized",
+      "input": "Dark",
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidThemePreference"
+      }
+    },
+    {
+      "name": "unknown theme",
+      "input": "sepia",
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidThemePreference"
+      }
+    },
+    {
+      "name": "empty",
+      "input": "",
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidThemePreference"
+      }
+    },
+    {
+      "name": "trailing space",
+      "input": "dark ",
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidThemePreference"
+      }
+    },
+    {
+      "name": "resolved-only word",
+      "input": "auto",
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidThemePreference"
+      }
+    }
+  ]
+}

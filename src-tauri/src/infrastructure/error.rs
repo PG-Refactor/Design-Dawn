@@ -26,6 +26,20 @@ impl PersistenceErrorKind {
             Self::IoError => "ioError",
         }
     }
+
+    /// Fixed text for the Frontend. `detail` can embed absolute paths, so it never leaves
+    /// Rust; the exhaustive match forces a decision for every new kind.
+    pub fn public_description(&self) -> &'static str {
+        match self {
+            Self::InvalidJson => "a file does not contain valid JSON",
+            Self::InvalidFileStructure => "a file does not have the expected structure",
+            Self::InvalidEncoding => "a file is not valid UTF-8 text",
+            Self::PathOutsideRoot => "the path is outside the project",
+            Self::FileNotFound => "the requested content does not exist",
+            Self::AlreadyExists => "the content already exists",
+            Self::IoError => "the file could not be read or written",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
