@@ -105,7 +105,7 @@ fn settings_file_has_exactly_the_documented_bytes() {
     fixture.state.set_theme_preference("dark").unwrap();
     assert_eq!(
         fs::read(&fixture.settings_path).unwrap(),
-        b"{\n  \"schemaVersion\": 1,\n  \"themePreference\": \"dark\"\n}\n"
+        b"{\n  \"schemaVersion\": 2,\n  \"themePreference\": \"dark\",\n  \"autoSave\": true\n}\n"
     );
 }
 
@@ -163,12 +163,16 @@ fn broken_settings_files_give_defaults_with_a_load_issue_and_a_save_replaces_the
         "invalidThemePreference",
     );
     assert_broken_settings(
-        b"{\"schemaVersion\":2,\"themePreference\":\"dark\"}",
+        b"{\"schemaVersion\":3,\"themePreference\":\"dark\",\"autoSave\":true}",
         "unsupportedSchemaVersion",
     );
     assert_broken_settings(
         b"{\"schemaVersion\":0,\"themePreference\":\"dark\"}",
         "invalidSchemaVersion",
+    );
+    assert_broken_settings(
+        b"{\"schemaVersion\":2,\"themePreference\":\"dark\",\"autoSave\":\"yes\"}",
+        "invalidFileStructure",
     );
     assert_broken_settings(&[0xFF, 0xFE, 0x41], "invalidEncoding");
 }
@@ -180,6 +184,85 @@ fn a_settings_path_that_is_a_directory_is_an_io_issue() {
     let settings = serde_json::to_value(fixture.state.get_app_settings()).unwrap();
     assert_eq!(issue_kind(&settings), "ioError");
     assert_eq!(settings["themePreference"], THEME_SYSTEM);
+}
+
+// ---- auto-save ----
+
+#[test]
+fn auto_save_defaults_to_on() {
+    let fixture = fixture();
+    assert!(fixture.state.get_app_settings().auto_save);
+}
+
+#[test]
+fn a_version_1_settings_file_loads_with_auto_save_on() {
+    let fixture = fixture();
+    fs::create_dir_all(fixture.settings_path.parent().unwrap()).unwrap();
+    fs::write(
+        &fixture.settings_path,
+        b"{\"schemaVersion\":1,\"themePreference\":\"dark\"}",
+    )
+    .unwrap();
+    let settings = fixture.state.get_app_settings();
+    assert_eq!(settings.theme_preference.as_str(), "dark");
+    assert!(settings.auto_save);
+    assert_eq!(settings.load_issue, None);
+}
+
+#[test]
+fn auto_save_round_trips_through_a_version_2_file() {
+    let fixture = fixture();
+    let set = fixture.state.set_auto_save(false).unwrap();
+    assert!(!set.auto_save);
+    assert_eq!(set.load_issue, None);
+    assert!(!fixture.state.get_app_settings().auto_save);
+    assert_eq!(
+        read_json(&fixture.settings_path),
+        json!({ "schemaVersion": 2, "themePreference": "system", "autoSave": false })
+    );
+    assert!(fixture.state.set_auto_save(true).unwrap().auto_save);
+    assert!(fixture.state.get_app_settings().auto_save);
+}
+
+#[test]
+fn auto_save_and_theme_do_not_overwrite_each_other() {
+    let fixture = fixture();
+    fixture.state.set_theme_preference("dark").unwrap();
+    let after_auto_save = fixture.state.set_auto_save(false).unwrap();
+    assert_eq!(after_auto_save.theme_preference.as_str(), "dark");
+    let after_theme = fixture.state.set_theme_preference("light").unwrap();
+    assert_eq!(after_theme.theme_preference.as_str(), "light");
+    assert!(!after_theme.auto_save);
+    let got = fixture.state.get_app_settings();
+    assert_eq!(got.theme_preference.as_str(), "light");
+    assert!(!got.auto_save);
+}
+
+#[test]
+fn setting_auto_save_upgrades_a_version_1_file_and_keeps_its_theme() {
+    let fixture = fixture();
+    fs::create_dir_all(fixture.settings_path.parent().unwrap()).unwrap();
+    fs::write(
+        &fixture.settings_path,
+        b"{\"schemaVersion\":1,\"themePreference\":\"dark\"}",
+    )
+    .unwrap();
+    fixture.state.set_auto_save(false).unwrap();
+    assert_eq!(
+        read_json(&fixture.settings_path),
+        json!({ "schemaVersion": 2, "themePreference": "dark", "autoSave": false })
+    );
+}
+
+#[test]
+fn setting_auto_save_over_a_broken_file_replaces_it_with_defaults_for_the_theme() {
+    let fixture = fixture();
+    fs::create_dir_all(fixture.settings_path.parent().unwrap()).unwrap();
+    fs::write(&fixture.settings_path, b"{ not json").unwrap();
+    let saved = fixture.state.set_auto_save(false).unwrap();
+    assert_eq!(saved.theme_preference.as_str(), THEME_SYSTEM);
+    assert!(!saved.auto_save);
+    assert_eq!(fixture.state.get_app_settings().load_issue, None);
 }
 
 // ---- sheet viewports ----

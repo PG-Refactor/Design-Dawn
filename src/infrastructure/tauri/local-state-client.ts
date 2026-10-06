@@ -32,6 +32,12 @@ export function setThemePreference(
   );
 }
 
+export function setAutoSave(
+  enabled: boolean,
+): Promise<CommandResult<AppSettings>> {
+  return call(COMMANDS.setAutoSave, { enabled }, toAppSettingsResult);
+}
+
 export function getSheetViewport(
   projectId: ProjectId,
   documentId: DocumentId,

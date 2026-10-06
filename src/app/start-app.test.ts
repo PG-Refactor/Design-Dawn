@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createAutoSaveController } from "../application/settings/auto-save-controller";
 import {
   createFakeAppSettingsGateway,
   createFakeOsThemeSource,
@@ -93,5 +94,22 @@ describe("startApp", () => {
     });
     expect(log).toEqual(["apply:light", "render"]);
     expect(errors).toEqual([failure]);
+  });
+
+  it("loads the auto-save setting before rendering", async () => {
+    const { gateway, themeController, themeTarget, log } = setup("light");
+    gateway.storage.autoSave = false;
+    const autoSaveController = createAutoSaveController({
+      gateway,
+      defaultEnabled: true,
+    });
+    await startApp({
+      themeController,
+      autoSaveController,
+      themeTarget,
+      render: () => log.push(`render:${autoSaveController.isEnabled()}`),
+      reportError: () => {},
+    });
+    expect(log).toContain("render:false");
   });
 });

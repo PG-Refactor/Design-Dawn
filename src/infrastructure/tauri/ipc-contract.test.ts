@@ -41,6 +41,7 @@ import {
   getAppSettings,
   getSheetViewport,
   saveSheetViewport,
+  setAutoSave,
   setThemePreference,
 } from "./local-state-client";
 import {
@@ -180,6 +181,7 @@ const WRAPPERS: Readonly<Record<string, Wrapper>> = {
     setThemePreference(
       unwrapTheme(parseThemePreference(args.themePreference as string)),
     ),
+  set_auto_save: (args) => setAutoSave(args.enabled as boolean),
   get_sheet_viewport: (args) =>
     getSheetViewport(id.project(args), id.document(args), id.sheet(args)),
   save_sheet_viewport: (args) =>

@@ -7,6 +7,7 @@ import type { ThemeState } from "../../application/theme/theme-controller";
 import type { Store } from "../../shared/store/store";
 import type { CanvasActions } from "../canvas/canvas-actions";
 import type { ViewportPersistence } from "../canvas/viewport-persistence";
+import type { AutoSaveSettingsController } from "../settings/auto-save-settings";
 import type { ThemeSettingsController } from "../theme/theme-settings";
 import type { DraftRegistry } from "./draft-registry";
 import type { UiStateStore } from "./ui-state/ui-state";
@@ -32,6 +33,7 @@ export interface WorkspaceServices {
   readonly themeController: ThemeSettingsController & {
     readonly store: Store<ThemeState>;
   };
+  readonly autoSaveController: AutoSaveSettingsController;
 }
 
 const WorkspaceServicesContext = createContext<WorkspaceServices | null>(null);

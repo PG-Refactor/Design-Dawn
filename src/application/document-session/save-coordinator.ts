@@ -13,6 +13,7 @@ import type {
 } from "../../domain/shared/entity-id";
 import type { Sheet } from "../../domain/sheet/sheet";
 import type { DocumentData } from "../commands/document-data";
+import type { AutoSavePolicy } from "../ports/auto-save-policy";
 import {
   type OperationError,
   type OperationResult,
@@ -34,6 +35,8 @@ export interface SaveCoordinatorOptions {
   readonly gateway: PersistenceGateway;
   readonly scheduler: Scheduler;
   readonly autoSaveDelayMs: number;
+  // When disabled, changes only stay dirty: they are saved by an explicit save or a flush.
+  readonly autoSavePolicy: AutoSavePolicy;
   // Read at save time so the LATEST state is saved, not the state at scheduling time.
   readonly getData: () => DocumentData;
   readonly runExclusive: <T>(task: () => Promise<T>) => Promise<T>;
@@ -42,8 +45,10 @@ export interface SaveCoordinatorOptions {
 
 export interface SaveCoordinator {
   getState(): SaveState;
-  // Marks dirty, restarts the debounce timer, and notifies.
+  // Marks dirty, restarts the debounce timer (only while auto-save is enabled), and notifies.
   markDirty(change: DirtyChange): void;
+  // For when auto-save is switched back on: starts the debounce timer if anything is dirty.
+  resumeAutoSave(): void;
   // Forgets dirty texts of blocks that are gone (their file is deleted or the sheet was
   // removed), so no write to a missing file is attempted. Does not notify: the caller
   // publishes with the change that removed the blocks.
@@ -72,10 +77,19 @@ export function createSaveCoordinator(
 
   function startTimer(): void {
     stopTimer();
+    if (!options.autoSavePolicy.isEnabled()) return;
     cancelTimer = options.scheduler.schedule(options.autoSaveDelayMs, () => {
       cancelTimer = null;
+      // Checked again because the setting may have been switched off while waiting.
+      if (!options.autoSavePolicy.isEnabled()) return;
       void options.runExclusive(saveDirty);
     });
+  }
+
+  function hasDirtyState(): boolean {
+    return (
+      dirtyContentBlockIds.size > 0 || dirtySheetIds.size > 0 || documentDirty
+    );
   }
 
   // Content goes first: a sheet never references a text file that is older than the
@@ -152,13 +166,7 @@ export function createSaveCoordinator(
     // A timer callback that was already queued when the session was discarded must not
     // write into a document that is being deleted.
     if (disposed) return operationOk(undefined);
-    if (
-      dirtyContentBlockIds.size === 0 &&
-      dirtySheetIds.size === 0 &&
-      !documentDirty
-    ) {
-      return operationOk(undefined);
-    }
+    if (!hasDirtyState()) return operationOk(undefined);
     saving = true;
     options.onChange();
     const data = options.getData();
@@ -195,6 +203,10 @@ export function createSaveCoordinator(
       documentDirty = documentDirty || change.documentChanged;
       startTimer();
       options.onChange();
+    },
+    resumeAutoSave() {
+      if (disposed || saving || !hasDirtyState()) return;
+      startTimer();
     },
     retainContentBlocks(liveBlockIds) {
       if ([...dirtyContentBlockIds].every((id) => liveBlockIds.has(id))) return;

@@ -14,6 +14,7 @@ import type { OsThemeSource } from "../ports/os-theme-source";
 
 export interface FakeAppSettingsStorage {
   themePreference: ThemePreference;
+  autoSave: boolean;
   loadIssue: OperationError | null;
 }
 
@@ -23,7 +24,9 @@ export interface FakeAppSettingsGateway extends AppSettingsGateway {
   readonly setCalls: ThemePreference[];
   failGet: OperationError | null;
   failSet: OperationError | null;
-  // Suspends the next `setThemePreference` until the returned function is called.
+  // Values passed to `setAutoSave`, in call order.
+  readonly autoSaveCalls: boolean[];
+  // Suspends the next set (theme or auto-save) until the returned function is called.
   holdNextSet(): () => void;
 }
 
@@ -35,17 +38,32 @@ export const FAKE_SETTINGS_ERROR: OperationError = {
 export function createFakeAppSettingsGateway(
   storage: FakeAppSettingsStorage = {
     themePreference: "system",
+    autoSave: true,
     loadIssue: null,
   },
 ): FakeAppSettingsGateway {
   let releaseNext: Promise<void> | null = null;
   const snapshot = (): AppSettingsSnapshot => ({
     themePreference: storage.themePreference,
+    autoSave: storage.autoSave,
     loadIssue: storage.loadIssue,
   });
+  // Shared by both setters: waits for a held request, then reports a configured failure.
+  const settleSet = async () => {
+    const hold = releaseNext;
+    releaseNext = null;
+    if (hold !== null) await hold;
+    return gateway.failSet === null
+      ? null
+      : operationErr<AppSettingsSnapshot>(
+          gateway.failSet.kind,
+          gateway.failSet.detail,
+        );
+  };
   const gateway: FakeAppSettingsGateway = {
     storage,
     setCalls: [],
+    autoSaveCalls: [],
     failGet: null,
     failSet: null,
     async getAppSettings() {
@@ -56,13 +74,17 @@ export function createFakeAppSettingsGateway(
     },
     async setThemePreference(preference) {
       gateway.setCalls.push(preference);
-      const hold = releaseNext;
-      releaseNext = null;
-      if (hold !== null) await hold;
-      if (gateway.failSet !== null) {
-        return operationErr(gateway.failSet.kind, gateway.failSet.detail);
-      }
+      const failure = await settleSet();
+      if (failure !== null) return failure;
       storage.themePreference = preference;
+      storage.loadIssue = null;
+      return operationOk(snapshot());
+    },
+    async setAutoSave(enabled) {
+      gateway.autoSaveCalls.push(enabled);
+      const failure = await settleSet();
+      if (failure !== null) return failure;
+      storage.autoSave = enabled;
       storage.loadIssue = null;
       return operationOk(snapshot());
     },

@@ -8,6 +8,7 @@ import type {
   EntityState,
   LoadIssue,
 } from "../../../application/ports/persistence-types";
+import type { AutoSaveState } from "../../../application/settings/auto-save-controller";
 import type {
   ApplicationState,
   DocumentSessionState,
@@ -28,6 +29,7 @@ export type NotificationKind =
   | "saveError"
   | "operationError"
   | "themeSaveError"
+  | "autoSaveSaveError"
   | "loadFailed"
   | "loadIssue"
   | "themeLoadIssue"
@@ -43,6 +45,7 @@ export const NOTIFICATION_PRIORITY: Record<NotificationKind, number> = {
   saveError: 0,
   operationError: 0,
   themeSaveError: 0,
+  autoSaveSaveError: 0,
   loadFailed: 1,
   loadIssue: 2,
   themeLoadIssue: 2,
@@ -55,6 +58,7 @@ const NOTIFICATION_SEVERITY: Record<NotificationKind, NotificationSeverity> = {
   saveError: "error",
   operationError: "error",
   themeSaveError: "error",
+  autoSaveSaveError: "error",
   loadFailed: "error",
   loadIssue: "warning",
   themeLoadIssue: "warning",
@@ -114,6 +118,9 @@ export interface NotificationsInput {
   // UI state: image blocks the `<img>` could not load (see `UiState.imageLoadFailures`).
   readonly imageLoadFailures?: UiState["imageLoadFailures"];
   readonly theme: Pick<ThemeState, "loadIssue" | "saveError">;
+  // Only its save error is shown: a settings file that could not be read is already
+  // reported once through `theme.loadIssue`.
+  readonly autoSave?: Pick<AutoSaveState, "saveError">;
 }
 
 const NO_IMAGE_LOAD_FAILURES: NonNullable<
@@ -420,6 +427,18 @@ function collectAppItems(
         source,
         message: `${MESSAGES.notifications.themeSaveError} ${describeErrorKind(saveError.kind)}`,
         details: errorDetails(saveError),
+      }),
+    );
+  }
+  const autoSaveError = input.autoSave?.saveError ?? null;
+  if (autoSaveError !== null) {
+    items.push(
+      makeItem({
+        id: "autoSaveSaveError",
+        kind: "autoSaveSaveError",
+        source,
+        message: `${MESSAGES.notifications.autoSaveSaveError} ${describeErrorKind(autoSaveError.kind)}`,
+        details: errorDetails(autoSaveError),
       }),
     );
   }

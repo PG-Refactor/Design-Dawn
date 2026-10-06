@@ -29,6 +29,7 @@ import {
   type DocumentSessionConfig,
 } from "../document-session/document-session";
 import type { IdGenerator } from "../id-generator";
+import type { AutoSavePolicy } from "../ports/auto-save-policy";
 import {
   failWith,
   fromDomainResult,
@@ -79,6 +80,8 @@ export type WorkspaceConfig = DocumentSessionConfig;
 export interface WorkspaceOptions {
   readonly gateway: PersistenceGateway;
   readonly scheduler: Scheduler;
+  // Defaults to always enabled. Switching it on resumes auto-save of every open document.
+  readonly autoSavePolicy?: AutoSavePolicy;
   readonly idGenerator: IdGenerator;
   readonly store: Store<ApplicationState>;
   readonly config: WorkspaceConfig;
@@ -145,11 +148,18 @@ function reorderEntries(
 }
 
 export function createWorkspace(options: WorkspaceOptions): Workspace {
-  const { gateway, scheduler, idGenerator, store, config } = options;
+  const { gateway, scheduler, idGenerator, store, config, autoSavePolicy } =
+    options;
   const events = options.events ?? createWorkspaceEvents();
   const sessions = new Map<DocumentId, DocumentSession>();
   const connectSession = connectSessionToStore(store);
   let lifecycleTail: Promise<void> = Promise.resolve();
+
+  // Lives as long as the app: the workspace has no teardown and the policy never outlives it.
+  autoSavePolicy?.subscribe((enabled) => {
+    if (!enabled) return;
+    for (const session of sessions.values()) session.resumeAutoSave();
+  });
 
   function runLifecycle<T>(
     task: () => Promise<OperationResult<T>>,
@@ -347,6 +357,7 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
         sheets: valid.value.sheets,
         gateway,
         scheduler,
+        autoSavePolicy,
         config,
         onStateChange: connectSession,
       });

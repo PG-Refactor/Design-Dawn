@@ -1,5 +1,6 @@
 import type { ApplicationState } from "../../application/state/application-state";
 import { APP_CONFIG } from "../../config/app-config";
+import { AutoSaveSetting } from "../settings/auto-save-settings";
 import { ThemeSettings } from "../theme/theme-settings";
 import { Notifications } from "./notifications";
 import type { UiState } from "./ui-state/ui-state";
@@ -13,7 +14,8 @@ const selectProjectName = (application: ApplicationState) =>
   application.project?.project.name ?? null;
 
 export function TopBar() {
-  const { actions, themeController } = useWorkspaceServices();
+  const { actions, themeController, autoSaveController } =
+    useWorkspaceServices();
   const projectName = useWorkspaceModel(selectProjectName);
   const busy = useUiState(selectBusy);
   return (
@@ -51,6 +53,7 @@ export function TopBar() {
         )}
       </div>
       <Notifications />
+      <AutoSaveSetting controller={autoSaveController} />
       <ThemeSettings controller={themeController} />
     </header>
   );

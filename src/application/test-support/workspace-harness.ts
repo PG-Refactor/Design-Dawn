@@ -1,14 +1,23 @@
 // A workspace wired to the fakes, with a seeded fake disk and every emitted event
 // collected. Documents A and B load fine; FAILED_DOCUMENT_ID's own metadata is broken.
 
+import { DEFAULT_AUTO_SAVE_ENABLED } from "../../config/session-config";
 import type { OperationResult } from "../ports/operation-error";
 import type { LoadIssue } from "../ports/persistence-types";
+import {
+  type AutoSaveController,
+  createAutoSaveController,
+} from "../settings/auto-save-controller";
 import {
   type ApplicationStore,
   createApplicationStore,
 } from "../state/application-state";
 import { createWorkspace, type Workspace } from "../workspace/workspace";
 import type { WorkspaceEvent } from "../workspace/workspace-events";
+import {
+  createFakeAppSettingsGateway,
+  type FakeAppSettingsGateway,
+} from "./fake-theme";
 import {
   createFakeGateway,
   createFakeScheduler,
@@ -42,6 +51,9 @@ export interface WorkspaceHarness {
   readonly scheduler: FakeScheduler;
   readonly store: ApplicationStore;
   readonly events: WorkspaceEvent[];
+  // The auto-save policy of the workspace; on until a test switches it off.
+  readonly autoSaveController: AutoSaveController;
+  readonly settingsGateway: FakeAppSettingsGateway;
 }
 
 export function createWorkspaceHarness(): WorkspaceHarness {
@@ -65,15 +77,29 @@ export function createWorkspaceHarness(): WorkspaceHarness {
   const scheduler = createFakeScheduler();
   const store = createApplicationStore();
   const events: WorkspaceEvent[] = [];
+  const settingsGateway = createFakeAppSettingsGateway();
+  const autoSaveController = createAutoSaveController({
+    gateway: settingsGateway,
+    defaultEnabled: DEFAULT_AUTO_SAVE_ENABLED,
+  });
   const workspace = createWorkspace({
     gateway,
     scheduler,
+    autoSavePolicy: autoSaveController,
     idGenerator: createSequentialIdGenerator(),
     store,
     config: { undoHistoryLimit: 50, autoSaveDelayMs: TEST_AUTO_SAVE_DELAY_MS },
   });
   workspace.subscribe((event) => events.push(event));
-  return { workspace, gateway, scheduler, store, events };
+  return {
+    workspace,
+    gateway,
+    scheduler,
+    store,
+    events,
+    autoSaveController,
+    settingsGateway,
+  };
 }
 
 export async function openedWorkspace(): Promise<WorkspaceHarness> {

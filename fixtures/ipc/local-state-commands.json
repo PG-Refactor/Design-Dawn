@@ -6,7 +6,7 @@
   "scenarios": [
     {
       "name": "theme-preference",
-      "description": "Defaults, a round trip, and rejection of an invalid preference.",
+      "description": "Defaults, round trips of both settings (neither overwrites the other), and rejection of invalid input.",
       "cases": [
         {
           "name": "get_app_settings: defaults when nothing was saved",
@@ -17,6 +17,7 @@
           "expected": {
             "ok": {
               "themePreference": "system",
+              "autoSave": true,
               "loadIssue": null
             }
           }
@@ -32,6 +33,7 @@
           "expected": {
             "ok": {
               "themePreference": "dark",
+              "autoSave": true,
               "loadIssue": null
             }
           }
@@ -45,6 +47,69 @@
           "expected": {
             "ok": {
               "themePreference": "dark",
+              "autoSave": true,
+              "loadIssue": null
+            }
+          }
+        },
+        {
+          "name": "set_auto_save: off keeps the saved theme",
+          "request": {
+            "command": "set_auto_save",
+            "args": {
+              "enabled": false
+            }
+          },
+          "expected": {
+            "ok": {
+              "themePreference": "dark",
+              "autoSave": false,
+              "loadIssue": null
+            }
+          }
+        },
+        {
+          "name": "get_app_settings: returns the saved auto-save setting",
+          "request": {
+            "command": "get_app_settings",
+            "args": {}
+          },
+          "expected": {
+            "ok": {
+              "themePreference": "dark",
+              "autoSave": false,
+              "loadIssue": null
+            }
+          }
+        },
+        {
+          "name": "set_theme_preference: keeps auto-save off",
+          "request": {
+            "command": "set_theme_preference",
+            "args": {
+              "themePreference": "light"
+            }
+          },
+          "expected": {
+            "ok": {
+              "themePreference": "light",
+              "autoSave": false,
+              "loadIssue": null
+            }
+          }
+        },
+        {
+          "name": "set_auto_save: on",
+          "request": {
+            "command": "set_auto_save",
+            "args": {
+              "enabled": true
+            }
+          },
+          "expected": {
+            "ok": {
+              "themePreference": "light",
+              "autoSave": true,
               "loadIssue": null
             }
           }
@@ -70,6 +135,30 @@
           "request": {
             "command": "set_theme_preference",
             "args": {}
+          },
+          "expected": {
+            "tauriError": true
+          }
+        },
+        {
+          "name": "set_auto_save: missing argument",
+          "targets": ["rust"],
+          "request": {
+            "command": "set_auto_save",
+            "args": {}
+          },
+          "expected": {
+            "tauriError": true
+          }
+        },
+        {
+          "name": "set_auto_save: not a boolean",
+          "targets": ["rust"],
+          "request": {
+            "command": "set_auto_save",
+            "args": {
+              "enabled": "yes"
+            }
           },
           "expected": {
             "tauriError": true

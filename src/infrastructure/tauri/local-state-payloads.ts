@@ -26,6 +26,7 @@ import type {
 import {
   type Decoded,
   type Decoder,
+  decodeBoolean,
   decodeNumber,
   decodeString,
   nullable,
@@ -46,6 +47,7 @@ const decodeLoadIssue = objectOf<LocalStateLoadIssue>({
 
 interface RawAppSettings {
   readonly themePreference: string;
+  readonly autoSave: boolean;
   readonly loadIssue: LocalStateLoadIssue | null;
 }
 interface RawSheetViewportState {
@@ -55,6 +57,7 @@ interface RawSheetViewportState {
 
 const rawAppSettings = objectOf<RawAppSettings>({
   themePreference: decodeString,
+  autoSave: decodeBoolean,
   loadIssue: nullable(decodeLoadIssue),
 });
 const rawSheetViewportState = objectOf<RawSheetViewportState>({
@@ -99,6 +102,7 @@ export function toAppSettingsResult(
   if (!themePreference.ok) return themePreference;
   return commandOk({
     themePreference: themePreference.value,
+    autoSave: raw.value.autoSave,
     loadIssue: raw.value.loadIssue,
   });
 }

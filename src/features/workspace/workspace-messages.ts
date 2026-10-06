@@ -14,6 +14,7 @@ export const MESSAGES = {
     openProject: "Projectを開く",
     createProject: "新規Project",
     closeProject: "Projectを閉じる",
+    autoSave: "自動保存",
   },
   tree: {
     createDocument: "Documentを作成",
@@ -67,6 +68,7 @@ export const MESSAGES = {
     documentLoadedWithWarnings: "Documentを警告付きで読み込みました",
     statusLabel: "読み込み状況",
     themeSaveError: "テーマ設定を保存できませんでした",
+    autoSaveSaveError: "自動保存の設定を保存できませんでした",
     themeLoadIssue:
       "テーマ設定を読み込めませんでした（既定の設定で起動しています）",
     loadFailedDocument: "Documentの読み込みに失敗しました（開けません）",

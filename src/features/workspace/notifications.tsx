@@ -100,12 +100,14 @@ function NotificationEntry({ item }: { readonly item: NotificationItem }) {
 // Summary control plus the non-modal panel it toggles. Nothing here blocks the rest of
 // the UI: the panel is an ordinary region, not a dialog.
 export function Notifications() {
-  const { applicationStore, themeController, actions } = useWorkspaceServices();
+  const { applicationStore, themeController, autoSaveController, actions } =
+    useWorkspaceServices();
   const application = useStoreSelector(applicationStore, identity);
   const operationErrors = useUiState(selectOperationErrors);
   const imageLoadFailures = useUiState(selectImageLoadFailures);
   const open = useUiState(selectNotificationsOpen);
   const theme = useStoreSelector(themeController.store, identity);
+  const autoSave = useStoreSelector(autoSaveController.store, identity);
   const panelId = useId();
   const model = useMemo(
     () =>
@@ -114,8 +116,9 @@ export function Notifications() {
         operationErrors,
         imageLoadFailures,
         theme,
+        autoSave,
       }),
-    [application, operationErrors, imageLoadFailures, theme],
+    [application, operationErrors, imageLoadFailures, theme, autoSave],
   );
   const { counts } = model;
   return (

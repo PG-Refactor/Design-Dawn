@@ -13,10 +13,11 @@ if (rootElement === null) {
 }
 
 const services = createAppServices();
-const { themeController } = services;
+const { themeController, autoSaveController } = services;
 
 void startApp({
   themeController,
+  autoSaveController,
   themeTarget: document.documentElement,
   render: () =>
     createRoot(rootElement).render(

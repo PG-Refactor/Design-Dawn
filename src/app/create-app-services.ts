@@ -7,6 +7,10 @@ import type { AssetUrlResolver } from "../application/ports/asset-url-resolver";
 import type { DropEventSource } from "../application/ports/drop-event-source";
 import type { CloseRequestSource } from "../application/ports/window-close";
 import {
+  type AutoSaveController,
+  createAutoSaveController,
+} from "../application/settings/auto-save-controller";
+import {
   type ApplicationStore,
   createApplicationStore,
 } from "../application/state/application-state";
@@ -20,6 +24,7 @@ import {
 } from "../application/workspace/workspace";
 import {
   AUTO_SAVE_DELAY_MS,
+  DEFAULT_AUTO_SAVE_ENABLED,
   UNDO_HISTORY_LIMIT,
 } from "../config/session-config";
 import {
@@ -71,6 +76,8 @@ export interface AppServices {
   readonly viewportPersistence: ViewportPersistence;
   // App-level theme state; independent of the workspace, sessions and undo history.
   readonly themeController: ThemeController;
+  // The auto-save on/off app setting; also the policy the document sessions follow.
+  readonly autoSaveController: AutoSaveController;
   // Detaches the workspace -> UI state connector.
   readonly disconnectUiState: () => void;
 }
@@ -80,8 +87,14 @@ export function createAppServices(): AppServices {
   const uiStateStore = createUiStateStore();
   const idGenerator = createDefaultIdGenerator();
   const gateway = createTauriPersistenceGateway();
+  const settingsGateway = createTauriAppSettingsGateway();
+  const autoSaveController = createAutoSaveController({
+    gateway: settingsGateway,
+    defaultEnabled: DEFAULT_AUTO_SAVE_ENABLED,
+  });
   const workspace = createWorkspace({
     gateway,
+    autoSavePolicy: autoSaveController,
     scheduler: createTimeoutScheduler(),
     idGenerator,
     store: applicationStore,
@@ -114,7 +127,7 @@ export function createAppServices(): AppServices {
   });
   const disconnectUiState = connectWorkspaceToUiState(workspace, uiStateStore);
   const themeController = createThemeController({
-    gateway: createTauriAppSettingsGateway(),
+    gateway: settingsGateway,
     osThemeSource: createMatchMediaOsThemeSource(
       // Absent outside a webview (for example in node tests).
       typeof globalThis.matchMedia === "function"
@@ -134,6 +147,7 @@ export function createAppServices(): AppServices {
     closeRequestSource: createTauriCloseRequestSource(),
     viewportPersistence,
     themeController,
+    autoSaveController,
     disconnectUiState,
   };
 }

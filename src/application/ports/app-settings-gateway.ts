@@ -6,6 +6,7 @@ import type { OperationError, OperationResult } from "./operation-error";
 
 export interface AppSettingsSnapshot {
   readonly themePreference: ThemePreference;
+  readonly autoSave: boolean;
   // Why the stored file could not be used; the preference next to it is then the default.
   readonly loadIssue: OperationError | null;
 }
@@ -15,4 +16,5 @@ export interface AppSettingsGateway {
   setThemePreference(
     preference: ThemePreference,
   ): Promise<OperationResult<AppSettingsSnapshot>>;
+  setAutoSave(enabled: boolean): Promise<OperationResult<AppSettingsSnapshot>>;
 }

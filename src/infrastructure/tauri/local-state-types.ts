@@ -10,6 +10,7 @@ export interface LocalStateLoadIssue {
 
 export interface AppSettings {
   readonly themePreference: ThemePreference;
+  readonly autoSave: boolean;
   readonly loadIssue: LocalStateLoadIssue | null;
 }
 

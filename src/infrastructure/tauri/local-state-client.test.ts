@@ -12,6 +12,7 @@ import {
   getAppSettings,
   getSheetViewport,
   saveSheetViewport,
+  setAutoSave,
   setThemePreference,
 } from "./local-state-client";
 
@@ -35,11 +36,12 @@ describe("getAppSettings", () => {
   it("decodes the settings", async () => {
     invokeMock.mockResolvedValueOnce({
       themePreference: "dark",
+      autoSave: false,
       loadIssue: null,
     });
     expect(await getAppSettings()).toStrictEqual({
       ok: true,
-      value: { themePreference: "dark", loadIssue: null },
+      value: { themePreference: "dark", autoSave: false, loadIssue: null },
     });
     expect(invokeMock.mock.calls).toStrictEqual([
       [COMMANDS.getAppSettings, {}],
@@ -49,21 +51,27 @@ describe("getAppSettings", () => {
   it("passes a load issue through next to the default", async () => {
     invokeMock.mockResolvedValueOnce({
       themePreference: "system",
+      autoSave: true,
       loadIssue: ISSUE,
     });
     expect(await getAppSettings()).toStrictEqual({
       ok: true,
-      value: { themePreference: "system", loadIssue: ISSUE },
+      value: { themePreference: "system", autoSave: true, loadIssue: ISSUE },
     });
   });
 
   it("rejects malformed payloads as invalidCommandResponse", async () => {
     const malformed: unknown[] = [
       null,
-      { themePreference: "system" },
-      { themePreference: "sepia", loadIssue: null },
-      { themePreference: "system", loadIssue: { kind: "nope", detail: "d" } },
-      { themePreference: 1, loadIssue: null },
+      { themePreference: "system", loadIssue: null },
+      { themePreference: "system", autoSave: "yes", loadIssue: null },
+      { themePreference: "sepia", autoSave: true, loadIssue: null },
+      {
+        themePreference: "system",
+        autoSave: true,
+        loadIssue: { kind: "nope", detail: "d" },
+      },
+      { themePreference: 1, autoSave: true, loadIssue: null },
     ];
     for (const payload of malformed) {
       invokeMock.mockResolvedValueOnce(payload);
@@ -78,6 +86,7 @@ describe("setThemePreference", () => {
   it("sends the preference and decodes the settings", async () => {
     invokeMock.mockResolvedValueOnce({
       themePreference: "light",
+      autoSave: true,
       loadIssue: null,
     });
     const result = await setThemePreference("light");
@@ -147,5 +156,28 @@ describe("saveSheetViewport", () => {
         { projectId, documentId, sheetId, viewport },
       ],
     ]);
+  });
+});
+
+describe("setAutoSave", () => {
+  it("sends the flag and decodes the settings", async () => {
+    invokeMock.mockResolvedValueOnce({
+      themePreference: "dark",
+      autoSave: false,
+      loadIssue: null,
+    });
+    const result = await setAutoSave(false);
+    expect(result.ok && result.value.autoSave).toBe(false);
+    expect(invokeMock.mock.calls).toStrictEqual([
+      [COMMANDS.setAutoSave, { enabled: false }],
+    ]);
+  });
+
+  it("returns Rust errors as they are", async () => {
+    invokeMock.mockRejectedValueOnce({ kind: "ioError", detail: "d" });
+    expect(await setAutoSave(true)).toStrictEqual({
+      ok: false,
+      error: { kind: "ioError", detail: "d" },
+    });
   });
 });

@@ -53,6 +53,10 @@ import {
 import { normalizeLineEndings } from "../commands/text-content";
 import type { OperationWarning } from "../operation-warning";
 import {
+  ALWAYS_ENABLED_AUTO_SAVE_POLICY,
+  type AutoSavePolicy,
+} from "../ports/auto-save-policy";
+import {
   failWith,
   fromDomainResult,
   type OperationResult,
@@ -78,6 +82,8 @@ export interface DocumentSessionOptions {
   readonly sheets: ReadonlyMap<SheetId, Sheet>;
   readonly gateway: PersistenceGateway;
   readonly scheduler: Scheduler;
+  // Defaults to always enabled.
+  readonly autoSavePolicy?: AutoSavePolicy;
   readonly config: DocumentSessionConfig;
   readonly onStateChange: (state: DocumentSessionState) => void;
 }
@@ -121,6 +127,8 @@ export interface DocumentSession {
   loadSheetContents(sheetId: SheetId): Promise<OperationResult<void>>;
   // Saves pending changes now (also what Ctrl/Cmd+S calls).
   flush(): Promise<OperationResult<void>>;
+  // Called when auto-save is switched back on: pending changes get their debounce timer.
+  resumeAutoSave(): void;
   // For when a sheet is deleted: no history entry may reference it any more.
   clearHistory(): void;
   // Runs `task` on the serial queue, so it cannot interleave with commands or
@@ -187,6 +195,7 @@ export function createDocumentSession(
     gateway,
     scheduler: options.scheduler,
     autoSaveDelayMs: config.autoSaveDelayMs,
+    autoSavePolicy: options.autoSavePolicy ?? ALWAYS_ENABLED_AUTO_SAVE_POLICY,
     getData: () => data,
     runExclusive,
     onChange: publish,
@@ -540,6 +549,7 @@ export function createDocumentSession(
         closed ? closedError<void>() : loadContents(sheetId),
       ),
     flush: () => queued(() => coordinator.saveDirty()),
+    resumeAutoSave: () => coordinator.resumeAutoSave(),
     clearHistory() {
       undoStack = [];
       redoStack = [];

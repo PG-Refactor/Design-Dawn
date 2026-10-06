@@ -36,7 +36,7 @@ use crate::infrastructure::file_format::dto::{parse_dto, DocumentDto, ProjectDto
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 26] = [
+pub const COMMAND_NAMES: [&str; 27] = [
     "select_project_folder",
     "create_project",
     "open_project",
@@ -56,6 +56,7 @@ pub const COMMAND_NAMES: [&str; 26] = [
     "delete_document",
     "get_app_settings",
     "set_theme_preference",
+    "set_auto_save",
     "get_sheet_viewport",
     "save_sheet_viewport",
     "import_dropped_images",
@@ -384,6 +385,14 @@ pub fn set_theme_preference<R: Runtime>(
     with_local_state(&app, |local_state| {
         local_state.set_theme_preference(&theme_preference)
     })
+}
+
+#[tauri::command]
+pub fn set_auto_save<R: Runtime>(
+    app: AppHandle<R>,
+    enabled: bool,
+) -> Result<AppSettings, ApplicationError> {
+    with_local_state(&app, |local_state| local_state.set_auto_save(enabled))
 }
 
 #[tauri::command]

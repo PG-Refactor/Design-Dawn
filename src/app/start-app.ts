@@ -3,11 +3,14 @@
 // never shown in the wrong theme. Dependencies are parameters to keep this testable.
 
 import type { ResolvedTheme } from "../application/local-state/theme";
+import type { AutoSaveController } from "../application/settings/auto-save-controller";
 import type { ThemeController } from "../application/theme/theme-controller";
 import { applyTheme, type ThemeTarget } from "../features/theme/apply-theme";
 
 export interface StartAppDependencies {
   readonly themeController: Pick<ThemeController, "store" | "initialize">;
+  // Loaded alongside the theme; behaves as "on" until then.
+  readonly autoSaveController?: Pick<AutoSaveController, "initialize">;
   readonly themeTarget: ThemeTarget;
   readonly render: () => void;
   readonly reportError: (error: unknown) => void;
@@ -16,7 +19,13 @@ export interface StartAppDependencies {
 export async function startApp(
   dependencies: StartAppDependencies,
 ): Promise<void> {
-  const { themeController, themeTarget, render, reportError } = dependencies;
+  const {
+    themeController,
+    autoSaveController,
+    themeTarget,
+    render,
+    reportError,
+  } = dependencies;
   const { store } = themeController;
 
   let appliedTheme: ResolvedTheme = store.getState().resolvedTheme;
@@ -29,7 +38,10 @@ export async function startApp(
   });
 
   try {
-    await themeController.initialize();
+    await Promise.all([
+      themeController.initialize(),
+      autoSaveController?.initialize(),
+    ]);
   } catch (error) {
     // The app must still start with the default theme.
     reportError(error);

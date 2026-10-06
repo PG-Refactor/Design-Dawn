@@ -9,6 +9,9 @@ pub const THEME_SYSTEM: &str = "system";
 pub const THEME_IDS: [&str; 2] = ["light", "dark"];
 pub const DEFAULT_THEME_PREFERENCE: &str = THEME_SYSTEM;
 
+/// Mirrors `DEFAULT_AUTO_SAVE_ENABLED` in `src/config/app-config.ts` (or wherever TS keeps it).
+pub const DEFAULT_AUTO_SAVE: bool = true;
+
 pub const VIEWPORT_PAN_LIMIT: f64 = 100_000_000_000.0;
 pub const VIEWPORT_ZOOM_MIN: f64 = 0.1;
 pub const VIEWPORT_ZOOM_MAX: f64 = 8.0;

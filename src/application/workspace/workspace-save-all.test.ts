@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renameSheetCommand } from "../commands/naming-commands";
-import { displayName } from "../test-support/fakes";
+import { displayName, settle } from "../test-support/fakes";
 import { TEST_AUTO_SAVE_DELAY_MS } from "../test-support/session-harness";
 import {
   createWorkspaceHarness,
@@ -90,5 +90,31 @@ describe("saveAll", () => {
     await Promise.resolve();
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(gateway.methods("saveSheet")).toHaveLength(writes);
+  });
+});
+
+describe("auto-save policy", () => {
+  it("switching auto-save on resumes the timer of every open dirty document", async () => {
+    const { workspace, gateway, scheduler, autoSaveController } =
+      await openedWorkspace();
+    await workspace.openDocument(DOCUMENT_A);
+    await workspace.openDocument(DOCUMENT_B);
+    await autoSaveController.setEnabled(false);
+    await workspace
+      .getDocumentSession(DOCUMENT_A)
+      ?.execute(renameSheetCommand(SHEET_A1, displayName("Dirty A")));
+    await workspace
+      .getDocumentSession(DOCUMENT_B)
+      ?.execute(renameSheetCommand(SHEET_B1, displayName("Dirty B")));
+    gateway.clearCalls();
+    scheduler.advance(TEST_AUTO_SAVE_DELAY_MS);
+    await settle();
+    expect(gateway.methods("saveSheet")).toEqual([]);
+
+    await autoSaveController.setEnabled(true);
+    scheduler.advance(TEST_AUTO_SAVE_DELAY_MS);
+    await settle();
+
+    expect(gateway.methods("saveSheet")).toHaveLength(2);
   });
 });

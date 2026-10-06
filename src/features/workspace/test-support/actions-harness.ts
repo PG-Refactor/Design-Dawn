@@ -148,6 +148,7 @@ export function createActionsHarness(): ActionsHarness {
       viewportPersistence,
       assetUrlResolver: createFakeAssetUrlResolver(),
       themeController,
+      autoSaveController: base.autoSaveController,
     },
   };
 }

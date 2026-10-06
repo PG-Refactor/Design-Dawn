@@ -21,6 +21,7 @@ const APP_COMMANDS: &[&str] = &[
     "delete_document",
     "get_app_settings",
     "set_theme_preference",
+    "set_auto_save",
     "get_sheet_viewport",
     "save_sheet_viewport",
     "import_dropped_images",

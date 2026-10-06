@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { moveBlocksCommand } from "../commands/block-commands";
+import { createBlocksCommand } from "../commands/file-backed-commands";
 import { renameDocumentCommand } from "../commands/naming-commands";
+import { createFakeAutoSavePolicy } from "../test-support/fake-auto-save-policy";
 import {
   blockIdOf,
   displayName,
   position,
   SHEET_ID,
   settle,
+  size,
 } from "../test-support/fakes";
 import {
   openSession,
@@ -187,5 +190,90 @@ describe("dispose", () => {
     expect(scheduler.pendingCount()).toBe(0);
     const afterClose = await session.execute(moveFirst(2));
     expect(!afterClose.ok && afterClose.error.kind).toBe("notWritable");
+  });
+});
+
+describe("auto-save switched off", () => {
+  function openWithPolicy(enabled: boolean) {
+    const policy = createFakeAutoSavePolicy(enabled);
+    const harness = openSession(undefined, {}, policy);
+    return { ...harness, policy };
+  }
+
+  it("keeps changes dirty without starting a timer, and flush still saves", async () => {
+    const { session, gateway, scheduler } = openWithPolicy(false);
+    await session.execute(moveFirst(1));
+    expect(scheduler.pendingCount()).toBe(0);
+    scheduler.advance(TEST_AUTO_SAVE_DELAY_MS * 10);
+    await settle();
+    expect(gateway.methods()).toEqual([]);
+    expect(session.getState().save.dirtySheetIds.has(SHEET_ID)).toBe(true);
+    expect((await session.flush()).ok).toBe(true);
+    expect(gateway.methods()).toEqual(["saveSheet"]);
+    expect(session.getState().save.dirtySheetIds.size).toBe(0);
+  });
+
+  it("does not save a timer that was already running when it was switched off", async () => {
+    const { session, gateway, scheduler, policy } = openWithPolicy(true);
+    await session.execute(moveFirst(1));
+    policy.set(false);
+    scheduler.advance(TEST_AUTO_SAVE_DELAY_MS);
+    await settle();
+    expect(gateway.methods()).toEqual([]);
+    expect(session.getState().save.dirtySheetIds.has(SHEET_ID)).toBe(true);
+  });
+
+  it("saves the dirty session after the delay once auto-save resumes", async () => {
+    const { session, gateway, scheduler, policy } = openWithPolicy(false);
+    await session.execute(moveFirst(1));
+    policy.set(true);
+    session.resumeAutoSave();
+    scheduler.advance(TEST_AUTO_SAVE_DELAY_MS - 1);
+    await settle();
+    expect(gateway.methods()).toEqual([]);
+    scheduler.advance(1);
+    await settle();
+    expect(gateway.methods()).toEqual(["saveSheet"]);
+  });
+
+  it("starts no timer on resume when nothing is dirty", () => {
+    const { session, scheduler } = openWithPolicy(true);
+    session.resumeAutoSave();
+    expect(scheduler.pendingCount()).toBe(0);
+  });
+
+  it("still writes a file-backed command immediately", async () => {
+    const { session, gateway } = openWithPolicy(false);
+    const result = await session.execute(
+      createBlocksCommand(SHEET_ID, [
+        {
+          blockId: blockIdOf(10),
+          blockType: "markdown",
+          position: position(1, 1),
+          size: size(100, 80),
+          text: "alpha",
+        },
+      ]),
+    );
+    expect(result.ok).toBe(true);
+    expect(gateway.methods()).toEqual(["createBlockContent", "saveSheet"]);
+  });
+
+  it("flushes pending changes before a file-backed command", async () => {
+    const { session, gateway } = openWithPolicy(false);
+    await session.execute(moveFirst(1));
+    await session.execute(
+      createBlocksCommand(SHEET_ID, [
+        {
+          blockId: blockIdOf(10),
+          blockType: "markdown",
+          position: position(1, 1),
+          size: size(100, 80),
+          text: "alpha",
+        },
+      ]),
+    );
+    expect(gateway.methods()[0]).toBe("saveSheet");
+    expect(session.getState().save.dirtySheetIds.size).toBe(0);
   });
 });

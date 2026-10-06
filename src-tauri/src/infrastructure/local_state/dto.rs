@@ -13,6 +13,9 @@ use crate::infrastructure::error::{PersistenceError, PersistenceErrorKind};
 pub struct SettingsFileDto {
     pub schema_version: Number,
     pub theme_preference: String,
+    /// Absent in schema version 1.
+    #[serde(default)]
+    pub auto_save: Option<bool>,
 }
 
 /// The `viewport` argument of `save_sheet_viewport`.

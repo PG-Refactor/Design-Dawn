@@ -9,7 +9,7 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 use serde::Serialize;
 use serde_json::{Number, Value};
 
-use super::constants::MAX_SHEET_VIEWPORT_ENTRIES;
+use super::constants::{DEFAULT_AUTO_SAVE, MAX_SHEET_VIEWPORT_ENTRIES};
 use super::theme::ThemePreference;
 use super::viewport::{SheetViewportKey, Viewport};
 use crate::application::error::{ApplicationError, ApplicationResult};
@@ -35,12 +35,24 @@ pub struct LocalStateDirectories {
     pub local_data_dir: PathBuf,
 }
 
-/// Wire form: `{ themePreference, loadIssue }`; `loadIssue` is `null` or `{ kind, detail }`.
+/// Wire form: `{ themePreference, autoSave, loadIssue }`; `loadIssue` is `null` or
+/// `{ kind, detail }`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
     pub theme_preference: ThemePreference,
+    pub auto_save: bool,
     pub load_issue: Option<ApplicationError>,
+}
+
+impl AppSettings {
+    fn defaults(load_issue: Option<ApplicationError>) -> Self {
+        Self {
+            theme_preference: ThemePreference::default(),
+            auto_save: DEFAULT_AUTO_SAVE,
+            load_issue,
+        }
+    }
 }
 
 /// Wire form: `{ viewport: { panX, panY, zoom } | null, loadIssue }`.
@@ -138,13 +150,42 @@ impl LocalState {
     }
 
     /// `Err` is a load issue (the file is unusable), never a reason to fail the command.
-    fn read_theme_preference(&self) -> ApplicationResult<ThemePreference> {
+    fn read_settings(&self) -> ApplicationResult<AppSettings> {
         let path = self.directories.config_dir.join(SETTINGS_FILE_NAME);
         let Some(dto) = read_json_file::<SettingsFileDto>(&path)? else {
-            return Ok(ThemePreference::default());
+            return Ok(AppSettings::defaults(None));
         };
         check_schema_version(&dto.schema_version, CURRENT_SETTINGS_SCHEMA_VERSION)?;
-        ThemePreference::parse(&dto.theme_preference)
+        Ok(AppSettings {
+            theme_preference: ThemePreference::parse(&dto.theme_preference)?,
+            // Schema version 1 files predate the setting, so it is absent there.
+            auto_save: dto.auto_save.unwrap_or(DEFAULT_AUTO_SAVE),
+            load_issue: None,
+        })
+    }
+
+    /// Read-modify-write so changing one setting keeps the other. An unreadable existing
+    /// file is replaced on purpose (the other setting falls back to its default): this is
+    /// not Project data, and the problem was already reported by the last read.
+    fn update_settings(
+        &self,
+        update: impl FnOnce(&mut AppSettings),
+    ) -> ApplicationResult<AppSettings> {
+        let _guard = acquire(&self.settings_lock);
+        let mut settings = self
+            .read_settings()
+            .unwrap_or_else(|_| AppSettings::defaults(None));
+        update(&mut settings);
+        write_json_file(
+            &self.directories.config_dir,
+            SETTINGS_FILE_NAME,
+            &SettingsFileDto {
+                schema_version: Number::from(CURRENT_SETTINGS_SCHEMA_VERSION),
+                theme_preference: settings.theme_preference.as_str().to_owned(),
+                auto_save: Some(settings.auto_save),
+            },
+        )?;
+        Ok(settings)
     }
 
     fn read_viewport_entries(&self) -> ApplicationResult<ViewportEntries> {
@@ -161,35 +202,18 @@ impl LocalState {
 
     pub fn get_app_settings(&self) -> AppSettings {
         let _guard = acquire(&self.settings_lock);
-        match self.read_theme_preference() {
-            Ok(theme_preference) => AppSettings {
-                theme_preference,
-                load_issue: None,
-            },
-            Err(issue) => AppSettings {
-                theme_preference: ThemePreference::default(),
-                load_issue: Some(issue),
-            },
-        }
+        self.read_settings()
+            .unwrap_or_else(|issue| AppSettings::defaults(Some(issue)))
     }
 
     pub fn set_theme_preference(&self, theme_preference: &str) -> ApplicationResult<AppSettings> {
         // Validated before anything is touched, so a rejected value leaves the file as it was.
         let theme_preference = ThemePreference::parse(theme_preference)?;
-        let _guard = acquire(&self.settings_lock);
-        // An unreadable existing file is replaced on purpose: this is not Project data.
-        write_json_file(
-            &self.directories.config_dir,
-            SETTINGS_FILE_NAME,
-            &SettingsFileDto {
-                schema_version: Number::from(CURRENT_SETTINGS_SCHEMA_VERSION),
-                theme_preference: theme_preference.as_str().to_owned(),
-            },
-        )?;
-        Ok(AppSettings {
-            theme_preference,
-            load_issue: None,
-        })
+        self.update_settings(|settings| settings.theme_preference = theme_preference)
+    }
+
+    pub fn set_auto_save(&self, enabled: bool) -> ApplicationResult<AppSettings> {
+        self.update_settings(|settings| settings.auto_save = enabled)
     }
 
     pub fn get_sheet_viewport(

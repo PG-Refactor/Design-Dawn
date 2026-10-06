@@ -7,6 +7,7 @@ import {
   type DocumentSession,
   type DocumentSessionConfig,
 } from "../document-session/document-session";
+import type { AutoSavePolicy } from "../ports/auto-save-policy";
 import type { DocumentSessionState } from "../state/application-state";
 import {
   createFakeGateway,
@@ -39,6 +40,7 @@ export function defaultBlocks(): readonly Block[] {
 export function openSession(
   blocks: readonly Block[] = defaultBlocks(),
   config: Partial<DocumentSessionConfig> = {},
+  autoSavePolicy?: AutoSavePolicy,
 ): SessionHarness {
   const data = makeDocumentData(blocks);
   const gateway = createFakeGateway(filesForBlocks(blocks));
@@ -54,6 +56,7 @@ export function openSession(
     sheets: data.sheets,
     gateway,
     scheduler,
+    autoSavePolicy,
     config: {
       undoHistoryLimit: 50,
       autoSaveDelayMs: TEST_AUTO_SAVE_DELAY_MS,

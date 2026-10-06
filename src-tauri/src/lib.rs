@@ -61,6 +61,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::delete_document,
             commands::get_app_settings,
             commands::set_theme_preference,
+            commands::set_auto_save,
             commands::get_sheet_viewport,
             commands::save_sheet_viewport,
             commands::import_dropped_images,
