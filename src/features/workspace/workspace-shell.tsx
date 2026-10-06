@@ -5,6 +5,7 @@ import { LoadStatus } from "./notifications";
 import { ProjectTree } from "./project-tree";
 import { TopBar } from "./top-bar";
 import { useSaveShortcut } from "./use-save-shortcut";
+import { useWindowCloseSave } from "./use-window-close-save";
 import { WorkspaceDialogs } from "./workspace-dialogs";
 import { MESSAGES } from "./workspace-messages";
 import "./buttons.css";
@@ -15,6 +16,7 @@ import "./workspace-shell.css";
 export function WorkspaceShell() {
   useFileDrop();
   useSaveShortcut();
+  useWindowCloseSave();
   return (
     <div className="workspace-shell">
       <TopBar />

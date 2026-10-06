@@ -10,7 +10,7 @@ use application::dropped_files::DroppedFilesState;
 use application::folder_selection::FolderSelectionState;
 use application::local_state::operations::{LocalState, LocalStateDirectories};
 use application::session::ProjectSessions;
-use commands::{DialogFolderPicker, DropSubscriber, SharedFolderPicker};
+use commands::{CloseRequestSubscriber, DialogFolderPicker, DropSubscriber, SharedFolderPicker};
 use tauri::{Builder, Manager, Runtime};
 
 use commands::{respond_to_asset_request, ASSET_URL_SCHEME};
@@ -27,6 +27,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         .manage(Mutex::new(FolderSelectionState::default()))
         .manage(Mutex::new(DroppedFilesState::default()))
         .manage(DropSubscriber::default())
+        .manage(CloseRequestSubscriber::default())
         // Read-only image access for `<img>`; the handler runs on the blocking pool because
         // an asset can be up to `ASSET_MAX_BYTES`.
         .register_asynchronous_uri_scheme_protocol(
@@ -65,6 +66,8 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::import_dropped_images,
             commands::copy_asset_to_document,
             commands::subscribe_drop_notifications,
+            commands::subscribe_close_requests,
+            commands::confirm_window_close,
         ])
 }
 

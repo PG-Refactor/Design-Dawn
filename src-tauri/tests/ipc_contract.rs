@@ -617,6 +617,85 @@ fn subscribing_with_a_malformed_channel_is_a_tauri_error() {
     assert!(matches!(outcome, Err(Value::String(_))), "{outcome:?}");
 }
 
+const CHANNEL_ARGUMENT: &str = "__CHANNEL__:9";
+
+fn subscribe_close_requests(webview: &tauri::WebviewWindow<tauri::test::MockRuntime>) -> String {
+    let outcome = invoke(
+        webview,
+        "subscribe_close_requests",
+        &serde_json::json!({ "channel": CHANNEL_ARGUMENT }),
+    );
+    match outcome {
+        Ok(Value::String(token)) => token,
+        other => panic!("expected a token, got {other:?}"),
+    }
+}
+
+#[test]
+fn subscribing_to_close_requests_returns_a_canonical_token_each_time() {
+    let temp = TempDir::new();
+    let app = build_app(Vec::new(), local_state_directories(temp.path()));
+    let webview = WebviewWindowBuilder::new(&app, MAIN_WINDOW_LABEL, Default::default())
+        .build()
+        .expect("create main window");
+
+    let first = subscribe_close_requests(&webview);
+    let second = subscribe_close_requests(&webview);
+
+    for token in [&first, &second] {
+        let parsed = uuid::Uuid::parse_str(token).expect("a UUID");
+        assert_eq!(parsed.get_version_num(), 7);
+        assert_eq!(token, &parsed.hyphenated().to_string());
+    }
+    assert_ne!(first, second);
+}
+
+#[test]
+fn confirming_with_a_wrong_token_or_without_a_subscription_keeps_the_window() {
+    let temp = TempDir::new();
+    let app = build_app(Vec::new(), local_state_directories(temp.path()));
+    let webview = WebviewWindowBuilder::new(&app, MAIN_WINDOW_LABEL, Default::default())
+        .build()
+        .expect("create main window");
+    let confirm = |token: &str| {
+        invoke(
+            &webview,
+            "confirm_window_close",
+            &serde_json::json!({ "subscriptionToken": token }),
+        )
+    };
+
+    assert_eq!(confirm("no-subscription-yet"), Ok(Value::Null));
+    assert!(app.get_webview_window(MAIN_WINDOW_LABEL).is_some());
+
+    let stale = subscribe_close_requests(&webview);
+    let _current = subscribe_close_requests(&webview);
+    assert_eq!(confirm(&stale), Ok(Value::Null));
+    assert_eq!(confirm("random"), Ok(Value::Null));
+    assert!(app.get_webview_window(MAIN_WINDOW_LABEL).is_some());
+}
+
+#[test]
+fn confirming_with_the_current_token_succeeds_through_the_destroy_path() {
+    let temp = TempDir::new();
+    let app = build_app(Vec::new(), local_state_directories(temp.path()));
+    let webview = WebviewWindowBuilder::new(&app, MAIN_WINDOW_LABEL, Default::default())
+        .build()
+        .expect("create main window");
+    let token = subscribe_close_requests(&webview);
+
+    let outcome = invoke(
+        &webview,
+        "confirm_window_close",
+        &serde_json::json!({ "subscriptionToken": token }),
+    );
+
+    assert_eq!(outcome, Ok(Value::Null));
+    // Not observable here: the manager drops the window only from the runtime's event loop (the mock's
+    // `run_iteration` is a no-op) and the mock's window map is private, so only the accepted path (token matched, `destroy` returned Ok) is asserted.
+    // That a wrong token does not reach `destroy` is covered by the pure `accepts` tests.
+}
+
 /// Tauri's built-in drag-drop events carry absolute paths. They reach a script only through a
 /// listener registered with `plugin:event|listen`, so that command must stay refused.
 #[test]

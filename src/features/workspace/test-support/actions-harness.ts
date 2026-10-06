@@ -16,6 +16,10 @@ import {
   createApplicationStore,
 } from "../../../application/state/application-state";
 import {
+  createFakeCloseRequestSource,
+  type FakeCloseRequestSource,
+} from "../../../application/test-support/fake-close";
+import {
   createFakeAssetUrlResolver,
   createFakeDropEventSource,
   type FakeDropEventSource,
@@ -79,6 +83,7 @@ export interface ActionsHarness extends WorkspaceHarness {
   readonly draftRegistry: DraftRegistry;
   readonly clipboard: ClipboardPort;
   readonly dropEventSource: FakeDropEventSource;
+  readonly closeRequestSource: FakeCloseRequestSource;
   readonly viewportGateway: FakeViewportGateway;
   // Its own clock, so viewport saves are advanced independently of auto-save.
   readonly viewportScheduler: FakeScheduler;
@@ -107,6 +112,7 @@ export function createActionsHarness(): ActionsHarness {
     clipboard,
   });
   const dropEventSource = createFakeDropEventSource();
+  const closeRequestSource = createFakeCloseRequestSource();
   const viewportGateway = createFakeViewportGateway();
   const viewportScheduler = createFakeScheduler();
   const viewportPersistence = createViewportPersistence({
@@ -127,6 +133,7 @@ export function createActionsHarness(): ActionsHarness {
     draftRegistry,
     clipboard,
     dropEventSource,
+    closeRequestSource,
     viewportGateway,
     viewportScheduler,
     viewportPersistence,
@@ -137,6 +144,8 @@ export function createActionsHarness(): ActionsHarness {
       canvasActions,
       draftRegistry,
       dropEventSource,
+      closeRequestSource,
+      viewportPersistence,
       assetUrlResolver: createFakeAssetUrlResolver(),
       themeController,
     },

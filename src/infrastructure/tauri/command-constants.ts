@@ -27,6 +27,8 @@ export const COMMANDS = {
   importDroppedImages: "import_dropped_images",
   copyAssetToDocument: "copy_asset_to_document",
   subscribeDropNotifications: "subscribe_drop_notifications",
+  subscribeCloseRequests: "subscribe_close_requests",
+  confirmWindowClose: "confirm_window_close",
 } as const;
 
 export type CommandName = (typeof COMMANDS)[keyof typeof COMMANDS];

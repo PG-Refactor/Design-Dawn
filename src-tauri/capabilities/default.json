@@ -27,6 +27,8 @@
     "allow-save-sheet-viewport",
     "allow-import-dropped-images",
     "allow-copy-asset-to-document",
-    "allow-subscribe-drop-notifications"
+    "allow-subscribe-drop-notifications",
+    "allow-subscribe-close-requests",
+    "allow-confirm-window-close"
   ]
 }

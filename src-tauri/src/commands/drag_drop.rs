@@ -12,7 +12,7 @@ use std::sync::{Mutex, PoisonError};
 
 use serde::Serialize;
 use tauri::ipc::Channel;
-use tauri::{DragDropEvent, Manager, Runtime, Window, WindowEvent};
+use tauri::{DragDropEvent, Manager, Runtime, Window};
 
 use crate::application::dropped_files::{
     register_drop, DragState, DroppedFilesState, FilesDropped,
@@ -59,10 +59,7 @@ impl DropSubscriber {
     }
 }
 
-pub fn handle_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
-    let WindowEvent::DragDrop(drag_drop) = event else {
-        return;
-    };
+pub(super) fn handle_drag_drop_event<R: Runtime>(window: &Window<R>, drag_drop: &DragDropEvent) {
     let subscriber = window.state::<DropSubscriber>();
     match drag_drop {
         DragDropEvent::Enter { .. } | DragDropEvent::Over { .. } => {

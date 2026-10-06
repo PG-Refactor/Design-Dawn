@@ -52,4 +52,11 @@ describe("createAppServices", () => {
     expect(typeof assetUrlResolver.urlFor).toBe("function");
     disconnectUiState();
   });
+
+  it("provides the close request source", () => {
+    const { closeRequestSource, disconnectUiState } = createAppServices();
+    expect(typeof closeRequestSource.subscribe).toBe("function");
+    expect(typeof closeRequestSource.confirmClose).toBe("function");
+    disconnectUiState();
+  });
 });

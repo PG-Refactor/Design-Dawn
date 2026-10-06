@@ -6,6 +6,7 @@
 mod asset_protocol;
 mod drag_drop;
 mod folder_picker;
+mod window_close;
 
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -35,7 +36,7 @@ use crate::infrastructure::file_format::dto::{parse_dto, DocumentDto, ProjectDto
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 24] = [
+pub const COMMAND_NAMES: [&str; 26] = [
     "select_project_folder",
     "create_project",
     "open_project",
@@ -60,11 +61,32 @@ pub const COMMAND_NAMES: [&str; 24] = [
     "import_dropped_images",
     "copy_asset_to_document",
     "subscribe_drop_notifications",
+    "subscribe_close_requests",
+    "confirm_window_close",
 ];
 
 pub use asset_protocol::{respond_to_asset_request, ASSET_URL_SCHEME};
-pub use drag_drop::{handle_window_event, DropNotification, DropSubscriber};
+pub use drag_drop::{DropNotification, DropSubscriber};
 pub use folder_picker::DialogFolderPicker;
+pub use window_close::{
+    confirm_close, handle_close_requested, CloseNotification, CloseNotificationSink,
+    CloseRequestHub, CloseRequestSubscriber,
+};
+
+/// The one window event handler (registered in `run`). Each event kind has its own thin
+/// handler; the drag & drop branch is unchanged.
+pub fn handle_window_event<R: Runtime>(window: &tauri::Window<R>, event: &tauri::WindowEvent) {
+    match event {
+        tauri::WindowEvent::DragDrop(drag_drop) => {
+            drag_drop::handle_drag_drop_event(window, drag_drop);
+        }
+        tauri::WindowEvent::CloseRequested { api, .. } => {
+            let hub = window.state::<CloseRequestSubscriber>();
+            handle_close_requested(&hub, || api.prevent_close());
+        }
+        _ => {}
+    }
+}
 
 /// The folder dialog as managed state. Production registers the real dialog-backed picker;
 /// integration tests register a fake, so the command itself runs unchanged in both.
@@ -448,4 +470,23 @@ pub fn subscribe_drop_notifications(
     channel: Channel<DropNotification>,
 ) {
     subscriber.replace(channel);
+}
+
+/// Registers the channel for close requests and returns the token the notifications carry
+/// (docs/architecture.md §10.1).
+#[tauri::command]
+pub fn subscribe_close_requests(
+    subscriber: State<'_, CloseRequestSubscriber>,
+    channel: Channel<CloseNotification>,
+) -> String {
+    subscriber.subscribe(channel)
+}
+
+#[tauri::command]
+pub fn confirm_window_close<R: Runtime>(
+    subscriber: State<'_, CloseRequestSubscriber>,
+    window: tauri::Window<R>,
+    subscription_token: String,
+) -> Result<(), ApplicationError> {
+    log_failure(confirm_close(&subscriber, &window, &subscription_token))
 }

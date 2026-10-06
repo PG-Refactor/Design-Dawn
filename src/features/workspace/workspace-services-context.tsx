@@ -1,10 +1,12 @@
 import { createContext, type ReactNode, useContext } from "react";
 import type { AssetUrlResolver } from "../../application/ports/asset-url-resolver";
 import type { DropEventSource } from "../../application/ports/drop-event-source";
+import type { CloseRequestSource } from "../../application/ports/window-close";
 import type { ApplicationStore } from "../../application/state/application-state";
 import type { ThemeState } from "../../application/theme/theme-controller";
 import type { Store } from "../../shared/store/store";
 import type { CanvasActions } from "../canvas/canvas-actions";
+import type { ViewportPersistence } from "../canvas/viewport-persistence";
 import type { ThemeSettingsController } from "../theme/theme-settings";
 import type { DraftRegistry } from "./draft-registry";
 import type { UiStateStore } from "./ui-state/ui-state";
@@ -21,6 +23,10 @@ export interface WorkspaceServices {
   readonly draftRegistry: DraftRegistry;
   // Files dropped on the window (Rust reports ids and counts only).
   readonly dropEventSource: DropEventSource;
+  // Window close requests (Rust stops the close and asks the Frontend to save first).
+  readonly closeRequestSource: CloseRequestSource;
+  // Only `flush` is used: written before the window closes.
+  readonly viewportPersistence: Pick<ViewportPersistence, "flush">;
   // The `src` of an image block's `<img>`.
   readonly assetUrlResolver: AssetUrlResolver;
   readonly themeController: ThemeSettingsController & {

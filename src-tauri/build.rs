@@ -26,6 +26,8 @@ const APP_COMMANDS: &[&str] = &[
     "import_dropped_images",
     "copy_asset_to_document",
     "subscribe_drop_notifications",
+    "subscribe_close_requests",
+    "confirm_window_close",
 ];
 
 fn main() {
