@@ -19,6 +19,9 @@ function recordingCommitter(
   return {
     documentId,
     hasPendingDraft: () => pending,
+    discardDraft: () => {
+      calls.push(`discard:${name}`);
+    },
     async commitDraft() {
       calls.push(name);
       return failure === null
@@ -87,5 +90,16 @@ describe("draft registry", () => {
     expect(registry.hasPendingFor([])).toBe(false);
     unregister();
     expect(registry.hasPendingFor([DOCUMENT_TWO])).toBe(false);
+  });
+
+  it("discardFor and discardAll drop drafts without committing them", async () => {
+    const registry = createDraftRegistry();
+    const calls: string[] = [];
+    registry.register(recordingCommitter(calls, "a", null, DOCUMENT_ONE));
+    registry.register(recordingCommitter(calls, "b", null, DOCUMENT_TWO));
+    registry.discardFor([DOCUMENT_TWO]);
+    expect(calls).toEqual(["discard:b"]);
+    registry.discardAll();
+    expect(calls).toEqual(["discard:b", "discard:a", "discard:b"]);
   });
 });

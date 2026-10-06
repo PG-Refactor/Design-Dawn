@@ -1,10 +1,29 @@
 import { ConfirmDialog } from "./confirm-dialog";
 import { MoveDialog } from "./move-dialog";
 import { NameDialog } from "./name-dialog";
-import type { UiState } from "./ui-state/ui-state";
+import type { UiState, UnsavedCloseTarget } from "./ui-state/ui-state";
 import { useUiState } from "./workspace-hooks";
-import { deleteConfirmationTitle, MESSAGES } from "./workspace-messages";
+import {
+  closeDocumentConfirmationTitle,
+  deleteConfirmationTitle,
+  MESSAGES,
+} from "./workspace-messages";
 import { useWorkspaceServices } from "./workspace-services-context";
+
+function unsavedCloseTitle(target: UnsavedCloseTarget): string {
+  const texts = MESSAGES.dialogs.confirmUnsavedClose;
+  switch (target.kind) {
+    case "window":
+      return texts.windowTitle;
+    case "project":
+      return texts.projectTitle;
+    case "openProject":
+    case "createProject":
+      return texts.switchProjectTitle;
+    case "document":
+      return closeDocumentConfirmationTitle(target.name);
+  }
+}
 
 const selectDialog = (ui: UiState) => ui.dialog;
 const selectBusy = (ui: UiState) => ui.busy;
@@ -80,6 +99,23 @@ export function WorkspaceDialogs() {
           busy={busy}
           onCancel={actions.cancelDialog}
           onConfirm={() => void actions.confirmMoveSave()}
+        />
+      );
+    case "confirmUnsavedClose":
+      return (
+        <ConfirmDialog
+          title={unsavedCloseTitle(dialog.target)}
+          paragraphs={[texts.confirmUnsavedClose.body]}
+          cancelLabel={texts.cancel}
+          confirmLabel={texts.confirmUnsavedClose.save}
+          confirmVariant="primary"
+          alternative={{
+            label: texts.confirmUnsavedClose.discard,
+            onSelect: () => void actions.answerUnsavedClose("discard"),
+          }}
+          busy={busy}
+          onCancel={actions.cancelDialog}
+          onConfirm={() => void actions.answerUnsavedClose("save")}
         />
       );
     case "confirmDeleteFolder":

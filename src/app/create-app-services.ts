@@ -120,6 +120,7 @@ export function createAppServices(): AppServices {
     applicationStore,
     uiStateStore,
     draftRegistry,
+    autoSavePolicy: autoSaveController,
   });
   const canvasActions = createCanvasActions({
     workspace,

@@ -3,16 +3,21 @@ import type {
   CloseRequest,
   CloseRequestSource,
 } from "../../application/ports/window-close";
+import type { UnsavedCloseChoice } from "./workspace-actions";
 
 export interface WindowCloseDependencies {
   // Read at request time, so the controller always uses the latest services.
   readonly saveAll: () => Promise<OperationResult<void>>;
   readonly flushViewport: () => Promise<void>;
   readonly closeRequestSource: CloseRequestSource;
+  // Auto-save off with unsaved changes: the user is asked before anything happens.
+  readonly needsConfirmation: () => boolean;
+  readonly askUnsavedClose: () => Promise<UnsavedCloseChoice>;
 }
 
 // Saves, then asks Rust to close (docs/architecture.md §10.1). Order is strict: saveAll,
-// viewport flush, confirm. The "in progress" flag lives in this closure rather than in a
+// viewport flush, confirm. "Close without saving" (auto-save off, chosen by the user) skips
+// only the saveAll. The "in progress" flag lives in this closure rather than in a
 // store: a page reload drops the closure and the flag with it, so a stale flag can never
 // keep a fresh page from closing.
 export function createWindowCloseHandler(
@@ -24,14 +29,29 @@ export function createWindowCloseHandler(
     // A repeated request must not start a second save, nor force the window closed.
     if (processing) return;
     processing = true;
-    const { saveAll, flushViewport, closeRequestSource } = getDependencies();
+    const {
+      saveAll,
+      flushViewport,
+      closeRequestSource,
+      needsConfirmation,
+      askUnsavedClose,
+    } = getDependencies();
     try {
-      const saved = await saveAll();
-      // The failure is already shown as a save / operation error; the window stays open so
-      // the user can retry.
-      if (!saved.ok) {
+      // The flag stays set while the question is open, so a repeated request is ignored.
+      const choice = needsConfirmation() ? await askUnsavedClose() : "save";
+      if (choice === "cancel") {
+        // Reset, so a later close request asks again.
         processing = false;
         return;
+      }
+      if (choice === "save") {
+        const saved = await saveAll();
+        // The failure is already shown as a save / operation error; the window stays open
+        // so the user can retry.
+        if (!saved.ok) {
+          processing = false;
+          return;
+        }
       }
       try {
         await flushViewport();

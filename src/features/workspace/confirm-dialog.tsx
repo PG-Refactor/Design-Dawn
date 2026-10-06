@@ -1,6 +1,13 @@
 import { useId, useRef } from "react";
 import { Modal } from "./modal";
 
+// A third choice between cancel and confirm (e.g. "close without saving"); always
+// destructive-looking, because it is the answer that gives something up.
+export interface ConfirmDialogAlternative {
+  readonly label: string;
+  readonly onSelect: () => void;
+}
+
 export interface ConfirmDialogProps {
   readonly title: string;
   readonly paragraphs: readonly string[];
@@ -8,6 +15,7 @@ export interface ConfirmDialogProps {
   readonly confirmLabel: string;
   // Destructive by default; a plain confirmation (save and move) uses the primary look.
   readonly confirmVariant?: "danger" | "primary";
+  readonly alternative?: ConfirmDialogAlternative;
   readonly onCancel: () => void;
   readonly onConfirm: () => void;
   readonly busy: boolean;
@@ -21,6 +29,7 @@ export function ConfirmDialog({
   cancelLabel,
   confirmLabel,
   confirmVariant = "danger",
+  alternative,
   onCancel,
   onConfirm,
   busy,
@@ -54,6 +63,16 @@ export function ConfirmDialog({
         >
           {cancelLabel}
         </button>
+        {alternative === undefined ? null : (
+          <button
+            type="button"
+            className="button button--danger"
+            disabled={busy}
+            onClick={alternative.onSelect}
+          >
+            {alternative.label}
+          </button>
+        )}
         <button
           type="button"
           className={`button button--${confirmVariant}`}

@@ -142,6 +142,7 @@ describe("moving with unsaved changes", () => {
     harness.draftRegistry.register({
       documentId: DOCUMENT_D,
       hasPendingDraft: () => pending,
+      discardDraft: () => undefined,
       async commitDraft() {
         committed.push("D");
         pending = false;
@@ -152,6 +153,7 @@ describe("moving with unsaved changes", () => {
     harness.draftRegistry.register({
       documentId: DOCUMENT_A,
       hasPendingDraft: () => true,
+      discardDraft: () => undefined,
       async commitDraft() {
         committed.push("A");
         return operationOk(undefined);
@@ -174,6 +176,7 @@ describe("moving with unsaved changes", () => {
     harness.draftRegistry.register({
       documentId: DOCUMENT_D,
       hasPendingDraft: () => true,
+      discardDraft: () => undefined,
       commitDraft: async () => operationErr("notWritable", "draft failed"),
     });
     harness.gateway.clearCalls();

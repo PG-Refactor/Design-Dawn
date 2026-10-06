@@ -12,6 +12,7 @@ import {
   renameDocumentCommand,
   renameSheetCommand,
 } from "../../application/commands/naming-commands";
+import type { AutoSavePolicy } from "../../application/ports/auto-save-policy";
 import {
   fromDomainResult,
   type OperationError,
@@ -28,6 +29,7 @@ import {
   hasChildren,
 } from "../../application/workspace/project-entries";
 import type {
+  CloseOptions,
   DestructiveConfirmation,
   Workspace,
 } from "../../application/workspace/workspace";
@@ -59,16 +61,33 @@ import {
   setActiveSheet,
   setFolderCollapsed,
   type UiStateStore,
+  type UnsavedCloseTarget,
 } from "./ui-state/ui-state";
 import { type MoveDirection, oneStepMove } from "./view-models/reorder";
 import { firstLoadedSheetId } from "./view-models/tabs-model";
 import { MESSAGES } from "./workspace-messages";
 
+// The answer to the "unsaved changes" question of a window close request.
+export type UnsavedCloseChoice = "save" | "discard" | "cancel";
+
 export interface WorkspaceActions {
+  // With auto-save off and unsaved changes, the project / document close, and opening
+  // another Project, ask first (`confirmUnsavedClose`) and do nothing yet.
   openProjectViaDialog(): Promise<OperationResult<void>>;
   requestCreateProject(): void;
   createProjectViaDialog(name: string): Promise<OperationResult<void>>;
   closeProject(): Promise<OperationResult<void>>;
+  // Whether closing the app window must ask first: auto-save is off and something of the
+  // open Project (or a Markdown draft) is not saved.
+  windowCloseNeedsConfirmation(): boolean;
+  // Shows the question for a window close and resolves to the user's answer.
+  askUnsavedWindowClose(): Promise<UnsavedCloseChoice>;
+  // The answer to the open `confirmUnsavedClose` dialog. "save" runs the normal
+  // save-then-close path (a failure keeps everything open, the error stays visible);
+  // "discard" closes without saving and drops the drafts.
+  answerUnsavedClose(
+    choice: Exclude<UnsavedCloseChoice, "cancel">,
+  ): Promise<OperationResult<void>>;
 
   // Opens the document if needed, makes it active and activates its first sheet when
   // none is active. A document that failed to load is left alone.
@@ -180,9 +199,11 @@ export interface WorkspaceActionsDependencies {
   readonly applicationStore: ApplicationStore;
   readonly uiStateStore: UiStateStore;
   readonly draftRegistry: DraftRegistry;
+  readonly autoSavePolicy: AutoSavePolicy;
 }
 
 const USER_CONFIRMATION: DestructiveConfirmation = { confirmedByUser: true };
+const DISCARD_CHANGES: CloseOptions = { discardChanges: true };
 
 // The element after the removed one, else the one before it; null when none is left.
 function neighbourOf<Id>(order: readonly Id[], removed: Id): Id | null {
@@ -194,8 +215,23 @@ function neighbourOf<Id>(order: readonly Id[], removed: Id): Id | null {
 export function createWorkspaceActions(
   dependencies: WorkspaceActionsDependencies,
 ): WorkspaceActions {
-  const { workspace, applicationStore, uiStateStore, draftRegistry } =
-    dependencies;
+  const {
+    workspace,
+    applicationStore,
+    uiStateStore,
+    draftRegistry,
+    autoSavePolicy,
+  } = dependencies;
+  // Not UI state: a callback cannot live in the store. Set only while the window-close
+  // question is open.
+  let pendingWindowDecision: ((choice: UnsavedCloseChoice) => void) | null =
+    null;
+
+  function settleWindowDecision(choice: UnsavedCloseChoice): void {
+    const settle = pendingWindowDecision;
+    pendingWindowDecision = null;
+    settle?.(choice);
+  }
 
   function record(
     operation: OperationLabel,
@@ -381,6 +417,70 @@ export function createWorkspaceActions(
     });
   }
 
+  // The Project itself or any Folder is unsaved, or anything in an open document.
+  function hasUnsavedProjectChanges(): boolean {
+    const state = applicationStore.getState();
+    const { project } = state;
+    if (project !== null) {
+      const unsaved = (save: {
+        readonly dirty: boolean;
+        readonly lastError: OperationError | null;
+      }) => save.dirty || save.lastError !== null;
+      if (unsaved(project.save)) return true;
+      if (project.folders.some((folder) => unsaved(folder.save))) return true;
+    }
+    return hasUnsavedChangesIn([...state.documents.keys()]);
+  }
+
+  // Auto-save on keeps today's behaviour (save, then close): only with it off can closing
+  // lose something, so only then is the user asked.
+  function opensUnsavedCloseDialog(
+    hasUnsaved: boolean,
+    target: UnsavedCloseTarget,
+  ): boolean {
+    if (autoSavePolicy.isEnabled() || !hasUnsaved) return false;
+    uiStateStore.setState((state) =>
+      openDialog(state, { kind: "confirmUnsavedClose", target }),
+    );
+    return true;
+  }
+
+  async function closeProjectNow(
+    discardChanges: boolean,
+  ): Promise<OperationResult<void>> {
+    if (discardChanges) {
+      draftRegistry.discardAll();
+    } else {
+      const drafts = await draftRegistry.commitAll();
+      if (!drafts.ok) return drafts;
+    }
+    const result = await workspace.closeProject(
+      discardChanges ? DISCARD_CHANGES : undefined,
+    );
+    if (!result.ok) record("closeProject", null, result.error);
+    return result;
+  }
+
+  async function closeDocumentNow(
+    documentId: DocumentId,
+    discardChanges: boolean,
+  ): Promise<OperationResult<void>> {
+    const name = documentNameOf(documentId);
+    const result = await finishRemoval(documentId, async () => {
+      if (discardChanges) {
+        // Before the close: the editor unmounts right after it and must find nothing to
+        // commit.
+        draftRegistry.discardFor([documentId]);
+        return workspace.closeDocument(documentId, DISCARD_CHANGES);
+      }
+      const drafts = await draftRegistry.commitFor([documentId]);
+      if (!drafts.ok) return drafts;
+      return workspace.closeDocument(documentId);
+    });
+    if (!result.ok) record("closeDocument", name, result.error);
+    return result;
+  }
+
   async function performMove(
     entryId: EntryId,
     name: string | null,
@@ -418,11 +518,12 @@ export function createWorkspaceActions(
     return result;
   }
 
-  async function openOrCreateProject(
+  async function selectAndOpenProject(
     operation: "openProject" | "createProject",
     name: string | null,
+    discardChanges: boolean,
   ): Promise<OperationResult<void>> {
-    return runBusy(async () => {
+    {
       const selected = await workspace.selectProjectFolder();
       if (!selected.ok) {
         record("selectFolder", null, selected.error);
@@ -432,14 +533,30 @@ export function createWorkspaceActions(
         return operationOk(undefined);
       }
       const { selectionId } = selected.value;
+      // Only now that a folder was chosen is anything given up or committed: cancelling
+      // the folder dialog must leave the open Project exactly as it was.
+      if (discardChanges) {
+        draftRegistry.discardAll();
+      } else {
+        const drafts = await draftRegistry.commitAll();
+        if (!drafts.ok) return drafts;
+      }
+      const options = discardChanges ? DISCARD_CHANGES : undefined;
       const result =
         name === null
-          ? await workspace.openProject(selectionId)
-          : await workspace.createProject(selectionId, name);
+          ? await workspace.openProject(selectionId, options)
+          : await workspace.createProject(selectionId, name, options);
       uiStateStore.setState(closeDialog);
       if (!result.ok) record(operation, null, result.error);
       return result;
-    });
+    }
+  }
+
+  function openOrCreateProject(
+    operation: "openProject" | "createProject",
+    name: string | null,
+  ): Promise<OperationResult<void>> {
+    return runBusy(() => selectAndOpenProject(operation, name, false));
   }
 
   async function deleteDocumentConfirmed(
@@ -485,6 +602,13 @@ export function createWorkspaceActions(
     openProjectViaDialog: () => {
       if (uiStateStore.getState().busy)
         return Promise.resolve(operationOk(undefined));
+      if (
+        opensUnsavedCloseDialog(hasUnsavedProjectChanges(), {
+          kind: "openProject",
+        })
+      ) {
+        return Promise.resolve(operationOk(undefined));
+      }
       return openOrCreateProject("openProject", null);
     },
     requestCreateProject() {
@@ -495,14 +619,68 @@ export function createWorkspaceActions(
     createProjectViaDialog: (name) => {
       if (uiStateStore.getState().busy)
         return Promise.resolve(operationOk(undefined));
+      if (
+        opensUnsavedCloseDialog(hasUnsavedProjectChanges(), {
+          kind: "createProject",
+          name,
+        })
+      ) {
+        return Promise.resolve(operationOk(undefined));
+      }
       return openOrCreateProject("createProject", name);
     },
-    closeProject: () =>
-      runBusy(async () => {
-        const result = await workspace.closeProject();
-        if (!result.ok) record("closeProject", null, result.error);
+    closeProject() {
+      if (
+        opensUnsavedCloseDialog(hasUnsavedProjectChanges(), { kind: "project" })
+      ) {
+        return Promise.resolve(operationOk(undefined));
+      }
+      return runBusy(() => closeProjectNow(false));
+    },
+    windowCloseNeedsConfirmation: () =>
+      !autoSavePolicy.isEnabled() && hasUnsavedProjectChanges(),
+    askUnsavedWindowClose() {
+      // A question that is still open can only be replaced by this one: answer it as
+      // cancelled so nothing waits forever.
+      settleWindowDecision("cancel");
+      return new Promise<UnsavedCloseChoice>((resolve) => {
+        pendingWindowDecision = resolve;
+        uiStateStore.setState((state) =>
+          openDialog(state, {
+            kind: "confirmUnsavedClose",
+            target: { kind: "window" },
+          }),
+        );
+      });
+    },
+    answerUnsavedClose(choice) {
+      const { dialog, busy } = uiStateStore.getState();
+      if (busy || dialog.kind !== "confirmUnsavedClose") {
+        return Promise.resolve(operationOk(undefined));
+      }
+      const { target } = dialog;
+      if (target.kind === "window") {
+        uiStateStore.setState(closeDialog);
+        settleWindowDecision(choice);
+        return Promise.resolve(operationOk(undefined));
+      }
+      const discardChanges = choice === "discard";
+      // The dialog stays open (buttons disabled) while the work runs, like the delete
+      // confirmations, and closes afterwards.
+      return runBusy(async () => {
+        const result = await (target.kind === "document"
+          ? closeDocumentNow(target.documentId, discardChanges)
+          : target.kind === "project"
+            ? closeProjectNow(discardChanges)
+            : selectAndOpenProject(
+                target.kind,
+                target.kind === "createProject" ? target.name : null,
+                discardChanges,
+              ));
+        uiStateStore.setState(closeDialog);
         return result;
-      }),
+      });
+    },
 
     async openDocument(documentId) {
       const opened = await ensureOpen(documentId);
@@ -510,13 +688,18 @@ export function createWorkspaceActions(
       if (opened.value) activateDocument(documentId);
       return operationOk(undefined);
     },
-    async closeDocument(documentId) {
-      const name = documentNameOf(documentId);
-      const result = await finishRemoval(documentId, () =>
-        workspace.closeDocument(documentId),
-      );
-      if (!result.ok) record("closeDocument", name, result.error);
-      return result;
+    closeDocument(documentId) {
+      const name = documentNameOf(documentId) ?? MESSAGES.tree.unnamedEntity;
+      if (
+        opensUnsavedCloseDialog(hasUnsavedChangesIn([documentId]), {
+          kind: "document",
+          documentId,
+          name,
+        })
+      ) {
+        return Promise.resolve(operationOk(undefined));
+      }
+      return closeDocumentNow(documentId, false);
     },
     async selectSheet(documentId, sheetId) {
       const opened = await ensureOpen(documentId);
@@ -741,6 +924,13 @@ export function createWorkspaceActions(
       });
     },
     cancelDialog() {
+      const { dialog } = uiStateStore.getState();
+      if (
+        dialog.kind === "confirmUnsavedClose" &&
+        dialog.target.kind === "window"
+      ) {
+        settleWindowDecision("cancel");
+      }
       uiStateStore.setState(closeDialog);
     },
 

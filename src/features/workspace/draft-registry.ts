@@ -18,6 +18,9 @@ export interface DraftCommitter {
   // Applies the draft as one command without ending the edit. Ok when there is nothing
   // new to apply; a failure leaves the draft in place.
   commitDraft(): Promise<OperationResult<void>>;
+  // The user chose "close without saving": from now on the draft counts as nothing
+  // pending and no later commit (unmount safety net included) may apply it.
+  discardDraft(): void;
 }
 
 export interface DraftRegistry {
@@ -31,6 +34,10 @@ export interface DraftRegistry {
   commitFor(documentIds: readonly DocumentId[]): Promise<OperationResult<void>>;
   // Whether any of these documents has a draft that is not committed yet.
   hasPendingFor(documentIds: readonly DocumentId[]): boolean;
+  // Drops the drafts of these documents without committing them.
+  discardFor(documentIds: readonly DocumentId[]): void;
+  // Drops every draft without committing.
+  discardAll(): void;
 }
 
 export function createDraftRegistry(): DraftRegistry {
@@ -58,6 +65,16 @@ export function createDraftRegistry(): DraftRegistry {
     commitAll: () => commitMatching(() => true),
     commitFor: (documentIds) =>
       commitMatching((committer) => documentIds.includes(committer.documentId)),
+    discardFor(documentIds) {
+      for (const committer of [...committers]) {
+        if (documentIds.includes(committer.documentId)) {
+          committer.discardDraft();
+        }
+      }
+    },
+    discardAll() {
+      for (const committer of [...committers]) committer.discardDraft();
+    },
     hasPendingFor: (documentIds) =>
       [...committers].some(
         (committer) =>

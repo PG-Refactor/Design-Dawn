@@ -102,6 +102,7 @@ export function createActionsHarness(): ActionsHarness {
     applicationStore: base.store,
     uiStateStore,
     draftRegistry,
+    autoSavePolicy: base.autoSaveController,
   });
   const clipboard = createInMemoryClipboard();
   const canvasActions = createCanvasActions({

@@ -401,6 +401,7 @@ describe("saveAll", () => {
     harness.draftRegistry.register({
       documentId: DOCUMENT_A,
       hasPendingDraft: () => true,
+      discardDraft: () => undefined,
       async commitDraft() {
         order.push("draft");
         return { ok: true, value: undefined };
@@ -419,6 +420,7 @@ describe("saveAll", () => {
     harness.draftRegistry.register({
       documentId: DOCUMENT_A,
       hasPendingDraft: () => true,
+      discardDraft: () => undefined,
       async commitDraft() {
         return operationErr("notWritable", "draft failed");
       },

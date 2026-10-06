@@ -63,6 +63,10 @@ export function MarkdownEditor({
   const draftRef = useRef(initialText);
   const committedTextRef = useRef(initialText);
   const inFlightRef = useRef<Promise<OperationResult<void>> | null>(null);
+  // Set when the user closed the document without saving: the unmount that follows must
+  // not turn the draft into a command (it would fail on the closed session and report an
+  // error for text the user gave up on).
+  const discardedRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const html = useMemo(() => renderMarkdown(draft), [draft]);
@@ -78,6 +82,7 @@ export function MarkdownEditor({
   // the draft and the edit mode as they are; the action has recorded the error.
   const commitDraft = useCallback(async (): Promise<OperationResult<void>> => {
     while (inFlightRef.current !== null) await inFlightRef.current;
+    if (discardedRef.current) return operationOk(undefined);
     const text = draftRef.current;
     // No command for unchanged text, so no empty history entry.
     if (text === committedTextRef.current) return operationOk(undefined);
@@ -113,7 +118,12 @@ export function MarkdownEditor({
       draftRegistry.register({
         documentId,
         commitDraft,
-        hasPendingDraft: () => draftRef.current !== committedTextRef.current,
+        hasPendingDraft: () =>
+          !discardedRef.current &&
+          draftRef.current !== committedTextRef.current,
+        discardDraft: () => {
+          discardedRef.current = true;
+        },
       }),
     [draftRegistry, documentId, commitDraft],
   );
@@ -135,7 +145,12 @@ export function MarkdownEditor({
   // edit mode: the canvas clears that when it leaves the sheet.
   useEffect(
     () => () => {
-      if (draftRef.current !== committedTextRef.current) void commit();
+      if (
+        !discardedRef.current &&
+        draftRef.current !== committedTextRef.current
+      ) {
+        void commit();
+      }
     },
     [commit],
   );

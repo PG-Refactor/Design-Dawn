@@ -123,6 +123,14 @@ export const MESSAGES = {
       body: "未保存の変更があります。保存して移動しますか？",
       confirm: "保存して移動",
     },
+    confirmUnsavedClose: {
+      body: "未保存の変更があります。保存しますか？",
+      save: "保存",
+      discard: "保存せずに閉じる",
+      windowTitle: "アプリを終了",
+      projectTitle: "Projectを閉じる",
+      switchProjectTitle: "別のProjectを開く",
+    },
     moveEntry: {
       description: "移動先を選んでください。",
       choose: "ここに移動",
@@ -143,6 +151,10 @@ export const MESSAGES = {
       "この名前は使用できません（長すぎる、または使用できない文字が含まれています）。",
   },
 } as const;
+
+export function closeDocumentConfirmationTitle(name: string): string {
+  return `${quoted(name)}を${MESSAGES.tabs.close}`;
+}
 
 export function deleteConfirmationTitle(name: string): string {
   return `「${name}」を削除しますか？`;

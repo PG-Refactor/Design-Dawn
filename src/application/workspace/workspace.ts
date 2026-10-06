@@ -96,19 +96,33 @@ export interface WorkspaceOptions {
   readonly events?: WorkspaceEvents;
 }
 
+// `discardChanges` closes WITHOUT saving: only after the user explicitly chose to give up
+// the unsaved changes (docs/architecture.md §10.1, auto-save off).
+export interface CloseOptions {
+  readonly discardChanges?: boolean;
+}
+
 export interface Workspace {
   subscribe(listener: WorkspaceEventListener): () => void;
 
   selectProjectFolder(): Promise<OperationResult<FolderSelection>>;
-  openProject(selectionId: string): Promise<OperationResult<void>>;
+  // Closing the previous Project (when one is open) honours `options`.
+  openProject(
+    selectionId: string,
+    options?: CloseOptions,
+  ): Promise<OperationResult<void>>;
   createProject(
     selectionId: string,
     name: string,
+    options?: CloseOptions,
   ): Promise<OperationResult<void>>;
-  closeProject(): Promise<OperationResult<void>>;
+  closeProject(options?: CloseOptions): Promise<OperationResult<void>>;
 
   openDocument(documentId: DocumentId): Promise<OperationResult<void>>;
-  closeDocument(documentId: DocumentId): Promise<OperationResult<void>>;
+  closeDocument(
+    documentId: DocumentId,
+    options?: CloseOptions,
+  ): Promise<OperationResult<void>>;
   // The session of an open document (execute / undo / redo / flush), or null.
   getDocumentSession(documentId: DocumentId): DocumentSession | null;
 
@@ -285,13 +299,20 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
 
   async function closeOpenDocument(
     documentId: DocumentId,
+    discardChanges = false,
   ): Promise<OperationResult<void>> {
     const session = sessions.get(documentId);
     if (session === undefined) return operationOk(undefined);
-    // Saves inside the session queue, after any in-flight save or command; on failure
-    // the session stays open and editable.
-    const closed = await session.close();
-    if (!closed.ok) return closed;
+    if (discardChanges) {
+      // The user chose to give the changes up: nothing is written, timers stop, history
+      // is dropped.
+      await session.discard();
+    } else {
+      // Saves inside the session queue, after any in-flight save or command; on failure
+      // the session stays open and editable.
+      const closed = await session.close();
+      if (!closed.ok) return closed;
+    }
     detachDocument(documentId);
     const project = requireProject();
     if (!project.ok) return project;
@@ -344,7 +365,18 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
 
   // Saves everything first (project, then every document) and only then closes, so a
   // failure leaves every document open in normal operation.
-  async function closeEverything(): Promise<OperationResult<void>> {
+  // With `discardChanges` nothing is saved: the dirty Project / Folder state disappears with
+  // the state reset that follows, and every session is closed without saving.
+  async function closeEverything(
+    discardChanges: boolean,
+  ): Promise<OperationResult<void>> {
+    if (discardChanges) {
+      for (const documentId of [...sessions.keys()]) {
+        const closed = await closeOpenDocument(documentId, true);
+        if (!closed.ok) return closed;
+      }
+      return operationOk(undefined);
+    }
     const project = store.getState().project;
     if (project?.save.dirty === true) {
       const saved = await saveCurrentProject();
@@ -374,11 +406,12 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
 
   function openOrCreateProject(
     acquire: () => ReturnType<PersistenceGateway["openProject"]>,
+    discardChanges: boolean,
   ): Promise<OperationResult<void>> {
     return runLifecycle(async () => {
       // Rust replaces its project session when the new project opens, so the old
       // project's documents must be saved and closed before that happens.
-      const closed = await closeEverything();
+      const closed = await closeEverything(discardChanges);
       if (!closed.ok) return closed;
       const snapshot = await acquire();
       if (!snapshot.ok) return snapshot;
@@ -717,29 +750,35 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
   return {
     subscribe: (listener) => events.subscribe(listener),
     selectProjectFolder: () => gateway.selectProjectFolder(),
-    openProject: (selectionId) =>
-      openOrCreateProject(() => gateway.openProject(selectionId)),
-    createProject(selectionId, name) {
+    openProject: (selectionId, options) =>
+      openOrCreateProject(
+        () => gateway.openProject(selectionId),
+        options?.discardChanges === true,
+      ),
+    createProject(selectionId, name, options) {
       const displayName = fromDomainResult(parseDisplayName(name));
       // Validated before anything is closed.
       if (!displayName.ok) return Promise.resolve(failWith(displayName.error));
-      return openOrCreateProject(() =>
-        gateway.createProject(selectionId, displayName.value),
+      return openOrCreateProject(
+        () => gateway.createProject(selectionId, displayName.value),
+        options?.discardChanges === true,
       );
     },
-    closeProject: () =>
+    closeProject: (options) =>
       runLifecycle(async () => {
         const project = store.getState().project;
         if (project === null) return operationOk(undefined);
-        const closed = await closeEverything();
+        const closed = await closeEverything(options?.discardChanges === true);
         if (!closed.ok) return closed;
         store.setState(createInitialApplicationState());
         events.emit({ type: "projectClosed", projectId: project.projectId });
         return operationOk(undefined);
       }),
     openDocument: openDocumentStep,
-    closeDocument: (documentId) =>
-      runLifecycle(() => closeOpenDocument(documentId)),
+    closeDocument: (documentId, options) =>
+      runLifecycle(() =>
+        closeOpenDocument(documentId, options?.discardChanges === true),
+      ),
     getDocumentSession: (documentId) => sessions.get(documentId) ?? null,
     createDocument: (name, parentFolderId = null) =>
       createDocumentStep(name, parentFolderId),

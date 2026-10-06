@@ -63,6 +63,20 @@ export type Interaction =
       readonly mode: RangeSelectionMode;
     };
 
+// What a "close with unsaved changes" confirmation is about (auto-save off). The window
+// answer is delivered to the pending close request, the others run an action when answered.
+export type UnsavedCloseTarget =
+  | { readonly kind: "window" }
+  | { readonly kind: "project" }
+  // Opening / creating another Project closes the current one first.
+  | { readonly kind: "openProject" }
+  | { readonly kind: "createProject"; readonly name: string }
+  | {
+      readonly kind: "document";
+      readonly documentId: DocumentId;
+      readonly name: string;
+    };
+
 // The modal that is open (at most one). Confirmation states carry the entity name as it
 // was when the user asked, so the text stays stable while the operation runs.
 export type DialogState =
@@ -90,6 +104,10 @@ export type DialogState =
       readonly entryId: EntryId;
       readonly name: string;
       readonly targetParentFolderId: FolderId | null;
+    }
+  | {
+      readonly kind: "confirmUnsavedClose";
+      readonly target: UnsavedCloseTarget;
     }
   | {
       readonly kind: "confirmDeleteFolder";

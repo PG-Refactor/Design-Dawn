@@ -16,6 +16,9 @@ export function useWindowCloseSave(): void {
       saveAll: () => latest.current.actions.saveAll(),
       flushViewport: () => latest.current.viewportPersistence.flush(),
       closeRequestSource: latest.current.closeRequestSource,
+      needsConfirmation: () =>
+        latest.current.actions.windowCloseNeedsConfirmation(),
+      askUnsavedClose: () => latest.current.actions.askUnsavedWindowClose(),
     }));
     return latest.current.closeRequestSource.subscribe((request) => {
       void handleRequest(request);
