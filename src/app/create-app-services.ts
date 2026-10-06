@@ -30,6 +30,10 @@ import {
   type ViewportPersistence,
 } from "../features/canvas/viewport-persistence";
 import {
+  createDraftRegistry,
+  type DraftRegistry,
+} from "../features/workspace/draft-registry";
+import {
   createUiStateStore,
   type UiStateStore,
 } from "../features/workspace/ui-state/ui-state";
@@ -54,6 +58,8 @@ export interface AppServices {
   readonly actions: WorkspaceActions;
   // What the canvas calls to change documents (one gesture = one application command).
   readonly canvasActions: CanvasActions;
+  // Uncommitted editor drafts; `actions.saveAll` commits them before saving.
+  readonly draftRegistry: DraftRegistry;
   // Files dropped on the window, and the URLs of image assets, for the image blocks.
   readonly dropEventSource: DropEventSource;
   readonly assetUrlResolver: AssetUrlResolver;
@@ -80,10 +86,12 @@ export function createAppServices(): AppServices {
       autoSaveDelayMs: AUTO_SAVE_DELAY_MS,
     },
   });
+  const draftRegistry = createDraftRegistry();
   const actions = createWorkspaceActions({
     workspace,
     applicationStore,
     uiStateStore,
+    draftRegistry,
   });
   const canvasActions = createCanvasActions({
     workspace,
@@ -116,6 +124,7 @@ export function createAppServices(): AppServices {
     workspace,
     actions,
     canvasActions,
+    draftRegistry,
     dropEventSource: createTauriDropEventSource(),
     assetUrlResolver: createTauriAssetUrlResolver(),
     viewportPersistence,

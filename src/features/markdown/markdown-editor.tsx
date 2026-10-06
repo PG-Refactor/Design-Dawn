@@ -6,6 +6,10 @@ import {
   useRef,
   useState,
 } from "react";
+import {
+  type OperationResult,
+  operationOk,
+} from "../../application/ports/operation-error";
 import type {
   BlockId,
   DocumentId,
@@ -51,13 +55,14 @@ export function MarkdownEditor({
   blockId,
   initialText,
 }: MarkdownEditorProps) {
-  const { canvasActions, uiStateStore } = useWorkspaceServices();
+  const services = useWorkspaceServices();
+  const { canvasActions, uiStateStore } = services;
   const [draft, setDraft] = useState(initialText);
   // Latest values for async callbacks and the unmount cleanup, which must not see stale
   // closures.
   const draftRef = useRef(initialText);
   const committedTextRef = useRef(initialText);
-  const committingRef = useRef(false);
+  const inFlightRef = useRef<Promise<OperationResult<void>> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const html = useMemo(() => renderMarkdown(draft), [draft]);
@@ -66,27 +71,47 @@ export function MarkdownEditor({
     textareaRef.current?.focus({ preventScroll: true });
   }, []);
 
-  // Resolves to true when the text was applied (also when it was unchanged). A failed
-  // commit leaves the draft and the edit mode as they are; the action has recorded the
-  // error.
-  const commit = useCallback(async (): Promise<boolean> => {
-    if (committingRef.current) return false;
+  // Applies the draft as ONE command without ending the edit or touching the textarea.
+  // Shared by every commit path (focus out, 完了, unmount, save-all), so two of them never
+  // run a command for the same text: a caller that finds a commit in flight waits for it
+  // and then re-checks, which finds the text already committed. A failed commit leaves
+  // the draft and the edit mode as they are; the action has recorded the error.
+  const commitDraft = useCallback(async (): Promise<OperationResult<void>> => {
+    while (inFlightRef.current !== null) await inFlightRef.current;
     const text = draftRef.current;
-    committingRef.current = true;
-    try {
-      const result = await canvasActions.commitContentEdit({
-        documentId,
-        sheetId,
-        blockId,
-        text,
-      });
-      if (!result.ok) return false;
-      committedTextRef.current = text;
-      return true;
-    } finally {
-      committingRef.current = false;
-    }
+    // No command for unchanged text, so no empty history entry.
+    if (text === committedTextRef.current) return operationOk(undefined);
+    const task = (async (): Promise<OperationResult<void>> => {
+      try {
+        const result = await canvasActions.commitContentEdit({
+          documentId,
+          sheetId,
+          blockId,
+          text,
+        });
+        if (result.ok) committedTextRef.current = text;
+        return result;
+      } finally {
+        inFlightRef.current = null;
+      }
+    })();
+    inFlightRef.current = task;
+    return task;
   }, [canvasActions, documentId, sheetId, blockId]);
+
+  // Resolves to true when the text was applied (also when it was unchanged).
+  const commit = useCallback(
+    async (): Promise<boolean> => (await commitDraft()).ok,
+    [commitDraft],
+  );
+
+  // Lets "save all" commit this draft. commitDraft reads the draft through refs, so the
+  // registered committer always sees the latest text even though it is registered once.
+  const { draftRegistry } = services;
+  useEffect(
+    () => draftRegistry.register({ commitDraft }),
+    [draftRegistry, commitDraft],
+  );
 
   const finish = useCallback(
     async (returnFocus: boolean): Promise<void> => {

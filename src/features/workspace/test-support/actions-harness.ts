@@ -63,6 +63,7 @@ import {
   createViewportPersistence,
   type ViewportPersistence,
 } from "../../canvas/viewport-persistence";
+import { createDraftRegistry, type DraftRegistry } from "../draft-registry";
 import { createUiStateStore, type UiStateStore } from "../ui-state/ui-state";
 import { connectWorkspaceToUiState } from "../ui-state/workspace-ui-connector";
 import {
@@ -75,6 +76,7 @@ export interface ActionsHarness extends WorkspaceHarness {
   readonly uiStateStore: UiStateStore;
   readonly actions: WorkspaceActions;
   readonly canvasActions: CanvasActions;
+  readonly draftRegistry: DraftRegistry;
   readonly clipboard: ClipboardPort;
   readonly dropEventSource: FakeDropEventSource;
   readonly viewportGateway: FakeViewportGateway;
@@ -88,10 +90,12 @@ export function createActionsHarness(): ActionsHarness {
   const base = createWorkspaceHarness();
   const uiStateStore = createUiStateStore();
   connectWorkspaceToUiState(base.workspace, uiStateStore);
+  const draftRegistry = createDraftRegistry();
   const actions = createWorkspaceActions({
     workspace: base.workspace,
     applicationStore: base.store,
     uiStateStore,
+    draftRegistry,
   });
   const clipboard = createInMemoryClipboard();
   const canvasActions = createCanvasActions({
@@ -120,6 +124,7 @@ export function createActionsHarness(): ActionsHarness {
     uiStateStore,
     actions,
     canvasActions,
+    draftRegistry,
     clipboard,
     dropEventSource,
     viewportGateway,
@@ -130,6 +135,7 @@ export function createActionsHarness(): ActionsHarness {
       uiStateStore,
       actions,
       canvasActions,
+      draftRegistry,
       dropEventSource,
       assetUrlResolver: createFakeAssetUrlResolver(),
       themeController,

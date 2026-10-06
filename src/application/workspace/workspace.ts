@@ -113,6 +113,9 @@ export interface Workspace {
   ): Promise<OperationResult<void>>;
   // Explicit retry of a project save that failed.
   saveProject(): Promise<OperationResult<void>>;
+  // Saves everything that is unsaved (the project, then every open document) without
+  // closing anything. Tries all of it; returns the first error.
+  saveAll(): Promise<OperationResult<void>>;
 
   createSheet(
     documentId: DocumentId,
@@ -242,6 +245,22 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     // After the detach: the Document is already closed in the UI, so a failure here only
     // means Rust may keep serving its assets until the Project is replaced.
     return gateway.closeDocument(project.value.projectId, documentId);
+  }
+
+  // Explicit save of everything unsaved. Unlike closeEverything it does not stop at the
+  // first failure: nothing is closed afterwards, so saving what can be saved is strictly
+  // better, and every failure stays visible in its own save state.
+  async function saveEverything(): Promise<OperationResult<void>> {
+    let firstFailure: OperationResult<void> | null = null;
+    if (store.getState().project?.save.dirty === true) {
+      const saved = await saveCurrentProject();
+      if (!saved.ok) firstFailure = saved;
+    }
+    for (const session of [...sessions.values()]) {
+      const flushed = await session.flush();
+      if (!flushed.ok && firstFailure === null) firstFailure = flushed;
+    }
+    return firstFailure ?? operationOk(undefined);
   }
 
   // Saves everything first (project, then every document) and only then closes, so a
@@ -632,6 +651,7 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     renameProject: renameProjectStep,
     moveDocument: moveDocumentStep,
     saveProject: () => runLifecycle(saveCurrentProject),
+    saveAll: () => runLifecycle(saveEverything),
     createSheet: createSheetStep,
     deleteSheet: (documentId, sheetId) => deleteSheetStep(documentId, sheetId),
   };

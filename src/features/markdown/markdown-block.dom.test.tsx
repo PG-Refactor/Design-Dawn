@@ -439,6 +439,83 @@ describe("committing", () => {
   });
 });
 
+describe("save all while editing", () => {
+  function caretOf(box: HTMLElement) {
+    const textarea = box as HTMLTextAreaElement;
+    return [textarea.selectionStart, textarea.selectionEnd];
+  }
+
+  it("commits the draft as one entry and writes it, leaving the editor, focus and caret alone", async () => {
+    const { shell, canvas } = await renderOpenedCanvas();
+    const box = await enterEditByDoubleClick();
+    await typeInto(shell, box, EDITED);
+    const caret = caretOf(box);
+
+    const result = await act(() => shell.services.actions.saveAll());
+
+    expect(result.ok).toBe(true);
+    const path = canvas.blocksOfSheetA1()[0]?.contentPath ?? "";
+    expect(shell.gateway.files.get(path)).toBe(EDITED);
+    expect(canvas.session.getState().history.undoLabel).toBe(
+      "editBlockContent",
+    );
+    expect(await canvas.undoDepth()).toBe(1);
+    expect(sourceBox()).toBe(box);
+    expect((box as HTMLTextAreaElement).value).toBe(EDITED);
+    expect(shell.uiStateStore.getState().editingBlock).not.toBeNull();
+    expect(document.activeElement).toBe(box);
+    expect(caretOf(box)).toEqual(caret);
+  });
+
+  it("adds no history entry when saved again without new typing", async () => {
+    const { shell, canvas } = await renderOpenedCanvas();
+    const box = await enterEditByDoubleClick();
+    await typeInto(shell, box, EDITED);
+    await act(async () => {
+      await shell.services.actions.saveAll();
+    });
+    await act(async () => {
+      await shell.services.actions.saveAll();
+    });
+    expect(await canvas.undoDepth()).toBe(1);
+  });
+
+  it("no longer reaches an editor that was unmounted by a sheet switch", async () => {
+    const { shell, canvas } = await renderOpenedCanvas();
+    const box = await enterEditByDoubleClick();
+    await typeInto(shell, box, EDITED);
+    await act(async () => {
+      shell.uiStateStore.setState((state) =>
+        setActiveSheet(state, DOCUMENT_A, SHEET_A2),
+      );
+      await settle();
+    });
+    expect(await canvas.undoDepth()).toBe(1);
+    const commit = vi.spyOn(shell.services.canvasActions, "commitContentEdit");
+
+    await act(async () => {
+      await shell.services.actions.saveAll();
+    });
+
+    expect(commit).not.toHaveBeenCalled();
+    expect(await canvas.undoDepth()).toBe(1);
+  });
+
+  it("returns the error and keeps the editor open with the draft when the commit fails", async () => {
+    const { shell, canvas } = await renderOpenedCanvas();
+    const box = await enterEditByDoubleClick();
+    await typeInto(shell, box, EDITED);
+    await canvas.session.close();
+
+    const result = await act(() => shell.services.actions.saveAll());
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result?.error.kind).toBe("notWritable");
+    expect((sourceBox() as HTMLTextAreaElement).value).toBe(EDITED);
+    expect(shell.uiStateStore.getState().editingBlock).not.toBeNull();
+  });
+});
+
 describe("leaving the sheet or the document while editing", () => {
   it("commits the draft when the sheet is switched without a focus change", async () => {
     const { shell, canvas } = await renderOpenedCanvas();

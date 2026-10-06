@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { operationErr } from "../../application/ports/operation-error";
 import { settle } from "../../application/test-support/fakes";
 import {
   DOCUMENT_A,
@@ -384,5 +385,40 @@ describe("retry and notifications", () => {
     harness.actions.setNotificationsOpen(false);
     expect(ui(harness).notificationsOpen).toBe(false);
     await settle();
+  });
+});
+
+describe("saveAll", () => {
+  it("commits drafts, then saves the workspace", async () => {
+    const harness = await openedActionsHarness();
+    await harness.actions.openDocument(DOCUMENT_A);
+    await makeDocumentADirty(harness);
+    harness.gateway.clearCalls();
+    const order: string[] = [];
+    harness.draftRegistry.register({
+      async commitDraft() {
+        order.push("draft");
+        return { ok: true, value: undefined };
+      },
+    });
+    expect((await harness.actions.saveAll()).ok).toBe(true);
+    expect(order).toEqual(["draft"]);
+    expect(harness.gateway.methods("saveSheet")).toHaveLength(1);
+  });
+
+  it("still saves the workspace when a draft fails, and returns the draft error", async () => {
+    const harness = await openedActionsHarness();
+    await harness.actions.openDocument(DOCUMENT_A);
+    await makeDocumentADirty(harness);
+    harness.gateway.clearCalls();
+    harness.draftRegistry.register({
+      async commitDraft() {
+        return operationErr("notWritable", "draft failed");
+      },
+    });
+    const result = await harness.actions.saveAll();
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error.kind).toBe("notWritable");
+    expect(harness.gateway.methods("saveSheet")).toHaveLength(1);
   });
 });

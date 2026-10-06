@@ -6,6 +6,7 @@ import type { ThemeState } from "../../application/theme/theme-controller";
 import type { Store } from "../../shared/store/store";
 import type { CanvasActions } from "../canvas/canvas-actions";
 import type { ThemeSettingsController } from "../theme/theme-settings";
+import type { DraftRegistry } from "./draft-registry";
 import type { UiStateStore } from "./ui-state/ui-state";
 import type { WorkspaceActions } from "./workspace-actions";
 
@@ -16,6 +17,8 @@ export interface WorkspaceServices {
   readonly uiStateStore: UiStateStore;
   readonly actions: WorkspaceActions;
   readonly canvasActions: CanvasActions;
+  // Markdown editors register their uncommitted drafts here (see `saveAll`).
+  readonly draftRegistry: DraftRegistry;
   // Files dropped on the window (Rust reports ids and counts only).
   readonly dropEventSource: DropEventSource;
   // The `src` of an image block's `<img>`.

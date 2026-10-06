@@ -30,6 +30,7 @@ import {
   parseDisplayName,
 } from "../../domain/shared/display-name";
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
+import type { DraftRegistry } from "./draft-registry";
 import {
   addOperationError,
   closeDialog,
@@ -109,6 +110,11 @@ export interface WorkspaceActions {
 
   retryDocumentSave(documentId: DocumentId): Promise<OperationResult<void>>;
   retryProjectSave(): Promise<OperationResult<void>>;
+  // Explicit "save everything": open drafts become commands first, then the project and
+  // every document are written. The workspace save runs even when a draft failed to
+  // commit. Returns the first error (a draft's first); failures are already visible
+  // through the operation errors / save states, so nothing is recorded here.
+  saveAll(): Promise<OperationResult<void>>;
 
   dismissOperationError(id: number): void;
   setNotificationsOpen(open: boolean): void;
@@ -118,6 +124,7 @@ export interface WorkspaceActionsDependencies {
   readonly workspace: Workspace;
   readonly applicationStore: ApplicationStore;
   readonly uiStateStore: UiStateStore;
+  readonly draftRegistry: DraftRegistry;
 }
 
 const USER_CONFIRMATION: DestructiveConfirmation = { confirmedByUser: true };
@@ -132,7 +139,8 @@ function neighbourOf<Id>(order: readonly Id[], removed: Id): Id | null {
 export function createWorkspaceActions(
   dependencies: WorkspaceActionsDependencies,
 ): WorkspaceActions {
-  const { workspace, applicationStore, uiStateStore } = dependencies;
+  const { workspace, applicationStore, uiStateStore, draftRegistry } =
+    dependencies;
 
   function record(
     operation: OperationLabel,
@@ -578,6 +586,11 @@ export function createWorkspaceActions(
       return session === null ? operationOk(undefined) : session.flush();
     },
     retryProjectSave: () => workspace.saveProject(),
+    async saveAll() {
+      const drafts = await draftRegistry.commitAll();
+      const saved = await workspace.saveAll();
+      return drafts.ok ? saved : drafts;
+    },
 
     dismissOperationError(id) {
       uiStateStore.setState((state) => dismissOperationError(state, id));
