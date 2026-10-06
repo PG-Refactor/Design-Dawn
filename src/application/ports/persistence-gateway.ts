@@ -1,10 +1,13 @@
 import type { BlockType } from "../../domain/block/block-type";
 import type { ContentPath } from "../../domain/block/content-path";
 import type { Document } from "../../domain/document/document";
+import type { Folder } from "../../domain/folder/folder";
 import type { Project } from "../../domain/project/project";
 import type { DisplayName } from "../../domain/shared/display-name";
 import type {
   DocumentId,
+  EntryId,
+  FolderId,
   ProjectId,
   SheetId,
 } from "../../domain/shared/entity-id";
@@ -14,6 +17,7 @@ import type { OperationResult } from "./operation-error";
 import type {
   DocumentSnapshot,
   FolderSelection,
+  FolderSnapshot,
   ProjectSnapshot,
   SheetSnapshot,
 } from "./persistence-types";
@@ -33,11 +37,39 @@ export interface PersistenceGateway {
     projectId: ProjectId,
     project: Project,
   ): Promise<OperationResult<void>>;
+  // `parentFolderId` null (the default) creates it directly under the Project.
   createDocument(
     projectId: ProjectId,
     documentId: DocumentId,
     name: DisplayName,
+    parentFolderId?: FolderId | null,
   ): Promise<OperationResult<DocumentSnapshot>>;
+  // Creates the directory and `folder.json` (never overwriting). The caller saves the
+  // parent's order afterwards (docs/architecture.md §6.2.4).
+  createFolder(
+    projectId: ProjectId,
+    parentFolderId: FolderId | null,
+    folderId: FolderId,
+    name: DisplayName,
+  ): Promise<OperationResult<FolderSnapshot>>;
+  saveFolder(
+    projectId: ProjectId,
+    folder: Folder,
+  ): Promise<OperationResult<void>>;
+  // Moves a closed Folder / Document into another Folder (null = Project root). Rejected
+  // with `invalidMove` for itself / a descendant / an open entry. Neither parent's order is
+  // touched: the caller saves the target parent, then the source parent.
+  moveEntry(
+    projectId: ProjectId,
+    entryId: EntryId,
+    targetParentFolderId: FolderId | null,
+  ): Promise<OperationResult<void>>;
+  // Only an empty folder (`folderNotEmpty` otherwise). Destructive: the caller saved the
+  // parent's order without it first.
+  deleteFolder(
+    projectId: ProjectId,
+    folderId: FolderId,
+  ): Promise<OperationResult<void>>;
   loadDocument(
     projectId: ProjectId,
     documentId: DocumentId,

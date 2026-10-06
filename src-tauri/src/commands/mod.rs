@@ -22,6 +22,7 @@ use crate::application::block_content_operations as block_content;
 use crate::application::document_operations as documents;
 use crate::application::dropped_files::DroppedFilesState;
 use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
+use crate::application::folder_operations as folders;
 use crate::application::folder_selection::{
     resolve_selection, select_project_folder as select_folder, FolderPicker, FolderSelection,
     FolderSelectionState,
@@ -30,17 +31,25 @@ use crate::application::local_state::operations::{AppSettings, LocalState, Sheet
 use crate::application::project_operations as projects;
 use crate::application::session::ProjectSessions;
 use crate::application::sheet_operations as sheets;
-use crate::application::snapshot::{DocumentSnapshot, ProjectSnapshot, SaveResult, SheetSnapshot};
+use crate::application::snapshot::{
+    DocumentSnapshot, FolderSnapshot, ProjectSnapshot, SaveResult, SheetSnapshot,
+};
 use crate::infrastructure::error::PersistenceErrorKind;
-use crate::infrastructure::file_format::dto::{parse_dto, DocumentDto, ProjectDto, SheetDto};
+use crate::infrastructure::file_format::dto::{
+    parse_dto, DocumentDto, FolderDto, ProjectDto, SheetDto,
+};
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 27] = [
+pub const COMMAND_NAMES: [&str; 31] = [
     "select_project_folder",
     "create_project",
     "open_project",
     "save_project",
+    "create_folder",
+    "save_folder",
+    "move_entry",
+    "delete_folder",
     "create_document",
     "load_document",
     "close_document",
@@ -183,9 +192,75 @@ pub fn create_document(
     project_id: String,
     document_id: String,
     name: String,
+    parent_folder_id: Option<String>,
 ) -> Result<DocumentSnapshot, ApplicationError> {
     with_sessions(&state, |sessions| {
-        documents::create_document(sessions, &project_id, &document_id, &name)
+        documents::create_document(
+            sessions,
+            &project_id,
+            &document_id,
+            &name,
+            parent_folder_id.as_deref(),
+        )
+    })
+}
+
+#[tauri::command]
+pub fn create_folder(
+    state: SessionState<'_>,
+    project_id: String,
+    parent_folder_id: Option<String>,
+    folder_id: String,
+    name: String,
+) -> Result<FolderSnapshot, ApplicationError> {
+    with_sessions(&state, |sessions| {
+        folders::create_folder(
+            sessions,
+            &project_id,
+            parent_folder_id.as_deref(),
+            &folder_id,
+            &name,
+        )
+    })
+}
+
+#[tauri::command]
+pub fn save_folder(
+    state: SessionState<'_>,
+    project_id: String,
+    folder: Value,
+) -> Result<SaveResult, ApplicationError> {
+    with_sessions(&state, |sessions| {
+        let folder: FolderDto = parse_dto(folder)?;
+        folders::save_folder(sessions, &project_id, &folder)
+    })
+}
+
+#[tauri::command]
+pub fn move_entry(
+    state: SessionState<'_>,
+    project_id: String,
+    entry_id: String,
+    target_parent_folder_id: Option<String>,
+) -> Result<(), ApplicationError> {
+    with_sessions(&state, |sessions| {
+        folders::move_entry(
+            sessions,
+            &project_id,
+            &entry_id,
+            target_parent_folder_id.as_deref(),
+        )
+    })
+}
+
+#[tauri::command]
+pub fn delete_folder(
+    state: SessionState<'_>,
+    project_id: String,
+    folder_id: String,
+) -> Result<(), ApplicationError> {
+    with_sessions(&state, |sessions| {
+        folders::delete_folder(sessions, &project_id, &folder_id)
     })
 }
 

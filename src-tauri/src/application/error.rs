@@ -45,6 +45,11 @@ pub enum ErrorKind {
     AssetTooLarge,
     /// A theme preference that is not `system` or a defined theme id.
     InvalidThemePreference,
+    /// `delete_folder` on a folder that holds anything besides `folder.json` and temp files.
+    FolderNotEmpty,
+    /// `move_entry` that is not allowed: into itself or a descendant, or an entry that is
+    /// open (or holds an open Document).
+    InvalidMove,
     /// A viewport with a non-finite or out-of-range `panX` / `panY` / `zoom`.
     InvalidViewport,
 }
@@ -63,6 +68,8 @@ impl ErrorKind {
             Self::InvalidImageContent => "invalidImageContent",
             Self::AssetTooLarge => "assetTooLarge",
             Self::InvalidThemePreference => "invalidThemePreference",
+            Self::FolderNotEmpty => "folderNotEmpty",
+            Self::InvalidMove => "invalidMove",
             Self::InvalidViewport => "invalidViewport",
         }
     }
@@ -84,6 +91,8 @@ impl ErrorKind {
             Self::InvalidImageContent => "the file is not a valid image",
             Self::AssetTooLarge => "the image file is too large",
             Self::InvalidThemePreference => "the theme preference is not valid",
+            Self::FolderNotEmpty => "the folder is not empty",
+            Self::InvalidMove => "the item cannot be moved there",
             Self::InvalidViewport => "the viewport is not valid",
         }
     }
@@ -164,7 +173,7 @@ impl Serialize for ApplicationError {
 mod tests {
     use super::*;
 
-    const ALL_KINDS: [ErrorKind; 12 + 10 + 7 - 2] = [
+    const ALL_KINDS: [ErrorKind; 29] = [
         ErrorKind::Domain(DomainErrorKind::InvalidEntityId),
         ErrorKind::Domain(DomainErrorKind::InvalidDisplayName),
         ErrorKind::Domain(DomainErrorKind::InvalidPosition),
@@ -191,6 +200,8 @@ mod tests {
         ErrorKind::InvalidImageContent,
         ErrorKind::AssetTooLarge,
         ErrorKind::InvalidThemePreference,
+        ErrorKind::FolderNotEmpty,
+        ErrorKind::InvalidMove,
         ErrorKind::InvalidViewport,
     ];
 

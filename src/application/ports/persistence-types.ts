@@ -56,6 +56,10 @@ export interface FolderEntry {
   readonly state: EntityState;
 }
 
+// What `create_folder` returns: the same shape as one entry of `ProjectSnapshot.folders`
+// (a new folder is "loaded", named, and has an empty `childOrder`).
+export type FolderSnapshot = FolderEntry;
+
 export interface DocumentEntry {
   readonly documentId: DocumentId;
   readonly parentFolderId: FolderId | null;

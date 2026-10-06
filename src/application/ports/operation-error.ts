@@ -38,6 +38,10 @@ export const ASSET_ERROR_KINDS = [
   "invalidDropSelection",
 ] as const;
 
+// Folder commands (docs/architecture.md §6.2.4): deleting a folder that still holds
+// something, and a move that is not allowed (into itself or a descendant, or an open entry).
+export const FOLDER_ERROR_KINDS = ["folderNotEmpty", "invalidMove"] as const;
+
 // Domain errors that only Rust can produce (TypeScript treats contentPath as opaque).
 export const RUST_ONLY_DOMAIN_ERROR_KINDS = [
   "invalidContentExtension",
@@ -59,6 +63,7 @@ export type OperationErrorKind =
   | (typeof SESSION_ERROR_KINDS)[number]
   | (typeof FOLDER_SELECTION_ERROR_KINDS)[number]
   | (typeof ASSET_ERROR_KINDS)[number]
+  | (typeof FOLDER_ERROR_KINDS)[number]
   | (typeof LOCAL_STATE_ERROR_KINDS)[number]
   | (typeof CLIENT_ERROR_KINDS)[number];
 

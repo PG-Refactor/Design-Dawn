@@ -867,6 +867,644 @@
       ]
     },
     {
+      "name": "folder-commands",
+      "description": "Folder commands against the folders sample project: create / save / move / delete Folders, Documents created inside Folders, the move and delete rules, and that a moved subtree stays readable. Cases run in order; each depends on the state the previous ones left.",
+      "project": "folders",
+      "folderPicker": ["projectCopy"],
+      "cases": [
+        {
+          "name": "select folder: selected",
+          "request": {
+            "command": "select_project_folder",
+            "args": {}
+          },
+          "expected": {
+            "ok": {
+              "status": "selected",
+              "selectionId": "$selectionId",
+              "displayPath": ""
+            }
+          },
+          "ignoreValuePaths": ["displayPath"]
+        },
+        {
+          "name": "open_project: folder tree snapshot",
+          "request": {
+            "command": "open_project",
+            "args": {
+              "selectionId": "$selectionId"
+            }
+          },
+          "expected": {
+            "ok": {
+              "project": {
+                "schemaVersion": 2,
+                "projectId": "01928f3a-1000-7000-8000-000000000001",
+                "name": "Folders Project",
+                "childOrder": [
+                  "01928f3a-2000-7000-8000-000000000001",
+                  "01928f3a-3000-7000-8000-000000000003",
+                  "01928f3a-2000-7000-8000-000000000003"
+                ]
+              },
+              "folders": [
+                {
+                  "folderId": "01928f3a-2000-7000-8000-000000000001",
+                  "name": "Architecture",
+                  "parentFolderId": null,
+                  "childOrder": [
+                    "01928f3a-2000-7000-8000-000000000002",
+                    "01928f3a-3000-7000-8000-000000000002"
+                  ],
+                  "state": "loaded"
+                },
+                {
+                  "folderId": "01928f3a-2000-7000-8000-000000000002",
+                  "name": "Backend",
+                  "parentFolderId": "01928f3a-2000-7000-8000-000000000001",
+                  "childOrder": ["01928f3a-3000-7000-8000-000000000001"],
+                  "state": "loaded"
+                },
+                {
+                  "folderId": "01928f3a-2000-7000-8000-000000000003",
+                  "name": "Archive",
+                  "parentFolderId": null,
+                  "childOrder": [],
+                  "state": "loaded"
+                }
+              ],
+              "documents": [
+                {
+                  "documentId": "01928f3a-3000-7000-8000-000000000001",
+                  "parentFolderId": "01928f3a-2000-7000-8000-000000000002",
+                  "name": "API Design",
+                  "state": "loaded"
+                },
+                {
+                  "documentId": "01928f3a-3000-7000-8000-000000000002",
+                  "parentFolderId": "01928f3a-2000-7000-8000-000000000001",
+                  "name": "Overview",
+                  "state": "loaded"
+                },
+                {
+                  "documentId": "01928f3a-3000-7000-8000-000000000003",
+                  "parentFolderId": null,
+                  "name": "Glossary",
+                  "state": "loaded"
+                }
+              ],
+              "issues": []
+            }
+          }
+        },
+        {
+          "name": "create_folder: at the Project root",
+          "request": {
+            "command": "create_folder",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "parentFolderId": null,
+              "folderId": "01928f3a-9000-7000-8000-000000000001",
+              "name": "Notes"
+            }
+          },
+          "expected": {
+            "ok": {
+              "folderId": "01928f3a-9000-7000-8000-000000000001",
+              "name": "Notes",
+              "parentFolderId": null,
+              "childOrder": [],
+              "state": "loaded"
+            }
+          }
+        },
+        {
+          "name": "create_folder: inside a folder",
+          "request": {
+            "command": "create_folder",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "parentFolderId": "01928f3a-2000-7000-8000-000000000003",
+              "folderId": "01928f3a-9000-7000-8000-000000000002",
+              "name": "Old Notes"
+            }
+          },
+          "expected": {
+            "ok": {
+              "folderId": "01928f3a-9000-7000-8000-000000000002",
+              "name": "Old Notes",
+              "parentFolderId": "01928f3a-2000-7000-8000-000000000003",
+              "childOrder": [],
+              "state": "loaded"
+            }
+          }
+        },
+        {
+          "name": "create_folder: unknown parent",
+          "request": {
+            "command": "create_folder",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "parentFolderId": "01928f3a-ffff-7fff-bfff-ffffffffffff",
+              "folderId": "01928f3a-9000-7000-8000-000000000003",
+              "name": "X"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "entityNotFound"
+            }
+          }
+        },
+        {
+          "name": "create_folder: id already used by a folder",
+          "request": {
+            "command": "create_folder",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "parentFolderId": null,
+              "folderId": "01928f3a-2000-7000-8000-000000000003",
+              "name": "X"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "duplicateId"
+            }
+          }
+        },
+        {
+          "name": "create_folder: id already used by a document",
+          "request": {
+            "command": "create_folder",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "parentFolderId": null,
+              "folderId": "01928f3a-3000-7000-8000-000000000003",
+              "name": "X"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "duplicateId"
+            }
+          }
+        },
+        {
+          "name": "create_folder: whitespace-only name",
+          "targets": ["rust"],
+          "request": {
+            "command": "create_folder",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "parentFolderId": null,
+              "folderId": "01928f3a-9000-7000-8000-000000000003",
+              "name": "   "
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidDisplayName"
+            }
+          }
+        },
+        {
+          "name": "create_folder: missing name",
+          "targets": ["rust"],
+          "request": {
+            "command": "create_folder",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "parentFolderId": null,
+              "folderId": "01928f3a-9000-7000-8000-000000000003"
+            }
+          },
+          "expected": {
+            "tauriError": true
+          }
+        },
+        {
+          "name": "create_folder: project not open",
+          "request": {
+            "command": "create_folder",
+            "args": {
+              "projectId": "01928f3a-ffff-7fff-bfff-ffffffffffff",
+              "parentFolderId": null,
+              "folderId": "01928f3a-9000-7000-8000-000000000003",
+              "name": "X"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "projectNotOpen"
+            }
+          }
+        },
+        {
+          "name": "save_folder: renames and saves the order",
+          "request": {
+            "command": "save_folder",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "folder": {
+                "schemaVersion": 1,
+                "folderId": "01928f3a-2000-7000-8000-000000000003",
+                "name": "Archive 2",
+                "childOrder": [
+                  "01928f3a-9000-7000-8000-000000000002",
+                  "01928f3a-ffff-7fff-bfff-ffffffffffff"
+                ]
+              }
+            }
+          },
+          "expected": {
+            "ok": {
+              "written": true
+            }
+          }
+        },
+        {
+          "name": "save_folder: unchanged is not written again",
+          "request": {
+            "command": "save_folder",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "folder": {
+                "schemaVersion": 1,
+                "folderId": "01928f3a-2000-7000-8000-000000000003",
+                "name": "Archive 2",
+                "childOrder": [
+                  "01928f3a-9000-7000-8000-000000000002",
+                  "01928f3a-ffff-7fff-bfff-ffffffffffff"
+                ]
+              }
+            }
+          },
+          "expected": {
+            "ok": {
+              "written": false
+            }
+          }
+        },
+        {
+          "name": "save_folder: unknown folderId",
+          "request": {
+            "command": "save_folder",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "folder": {
+                "schemaVersion": 1,
+                "folderId": "01928f3a-ffff-7fff-bfff-ffffffffffff",
+                "name": "X",
+                "childOrder": []
+              }
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "entityNotFound"
+            }
+          }
+        },
+        {
+          "name": "save_folder: unknown key in payload",
+          "targets": ["rust"],
+          "request": {
+            "command": "save_folder",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "folder": {
+                "schemaVersion": 1,
+                "folderId": "01928f3a-2000-7000-8000-000000000003",
+                "name": "X",
+                "childOrder": [],
+                "extra": 1
+              }
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidFileStructure"
+            }
+          }
+        },
+        {
+          "name": "create_document: inside a folder",
+          "request": {
+            "command": "create_document",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "documentId": "01928f3a-9000-7000-8000-00000000000a",
+              "name": "Deep",
+              "parentFolderId": "01928f3a-2000-7000-8000-000000000003"
+            }
+          },
+          "expected": {
+            "ok": {
+              "document": {
+                "schemaVersion": 1,
+                "documentId": "01928f3a-9000-7000-8000-00000000000a",
+                "name": "Deep",
+                "sheetOrder": []
+              },
+              "sheets": [],
+              "issues": []
+            }
+          }
+        },
+        {
+          "name": "create_document: parentFolderId absent means the root",
+          "targets": ["rust"],
+          "request": {
+            "command": "create_document",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "documentId": "01928f3a-9000-7000-8000-00000000000b",
+              "name": "Top"
+            }
+          },
+          "expected": {
+            "ok": {
+              "document": {
+                "schemaVersion": 1,
+                "documentId": "01928f3a-9000-7000-8000-00000000000b",
+                "name": "Top",
+                "sheetOrder": []
+              },
+              "sheets": [],
+              "issues": []
+            }
+          }
+        },
+        {
+          "name": "create_document: explicit null parent is the root",
+          "request": {
+            "command": "create_document",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "documentId": "01928f3a-9000-7000-8000-00000000000c",
+              "name": "Top 2",
+              "parentFolderId": null
+            }
+          },
+          "expected": {
+            "ok": {
+              "document": {
+                "schemaVersion": 1,
+                "documentId": "01928f3a-9000-7000-8000-00000000000c",
+                "name": "Top 2",
+                "sheetOrder": []
+              },
+              "sheets": [],
+              "issues": []
+            }
+          }
+        },
+        {
+          "name": "create_document: unknown parent",
+          "request": {
+            "command": "create_document",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "documentId": "01928f3a-9000-7000-8000-00000000000d",
+              "name": "X",
+              "parentFolderId": "01928f3a-ffff-7fff-bfff-ffffffffffff"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "entityNotFound"
+            }
+          }
+        },
+        {
+          "name": "move_entry: a created document is open and cannot move",
+          "request": {
+            "command": "move_entry",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "entryId": "01928f3a-9000-7000-8000-00000000000a",
+              "targetParentFolderId": "01928f3a-2000-7000-8000-000000000002"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidMove"
+            }
+          }
+        },
+        {
+          "name": "move_entry: a folder cannot move into its descendant",
+          "request": {
+            "command": "move_entry",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "entryId": "01928f3a-2000-7000-8000-000000000001",
+              "targetParentFolderId": "01928f3a-2000-7000-8000-000000000002"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidMove"
+            }
+          }
+        },
+        {
+          "name": "move_entry: a folder cannot move into itself",
+          "request": {
+            "command": "move_entry",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "entryId": "01928f3a-2000-7000-8000-000000000001",
+              "targetParentFolderId": "01928f3a-2000-7000-8000-000000000001"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidMove"
+            }
+          }
+        },
+        {
+          "name": "move_entry: unknown entry",
+          "request": {
+            "command": "move_entry",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "entryId": "01928f3a-ffff-7fff-bfff-ffffffffffff",
+              "targetParentFolderId": null
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "entityNotFound"
+            }
+          }
+        },
+        {
+          "name": "move_entry: unknown target",
+          "request": {
+            "command": "move_entry",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "entryId": "01928f3a-3000-7000-8000-000000000003",
+              "targetParentFolderId": "01928f3a-ffff-7fff-bfff-ffffffffffff"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "entityNotFound"
+            }
+          }
+        },
+        {
+          "name": "move_entry: a closed document moves into a folder",
+          "request": {
+            "command": "move_entry",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "entryId": "01928f3a-3000-7000-8000-000000000003",
+              "targetParentFolderId": "01928f3a-2000-7000-8000-000000000003"
+            }
+          },
+          "expected": {
+            "ok": null
+          }
+        },
+        {
+          "name": "move_entry: moving to the current parent is a no-op",
+          "request": {
+            "command": "move_entry",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "entryId": "01928f3a-3000-7000-8000-000000000003",
+              "targetParentFolderId": "01928f3a-2000-7000-8000-000000000003"
+            }
+          },
+          "expected": {
+            "ok": null
+          }
+        },
+        {
+          "name": "move_entry: a folder with its documents moves to the root",
+          "request": {
+            "command": "move_entry",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "entryId": "01928f3a-2000-7000-8000-000000000002",
+              "targetParentFolderId": null
+            }
+          },
+          "expected": {
+            "ok": null
+          }
+        },
+        {
+          "name": "read_block_content: a document inside the moved folder is still found",
+          "request": {
+            "command": "read_block_content",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "documentId": "01928f3a-3000-7000-8000-000000000001",
+              "contentPath": "sheets/main/blocks/markdown-1.md"
+            }
+          },
+          "expected": {
+            "ok": "## API\n"
+          }
+        },
+        {
+          "name": "delete_folder: a folder holding a document is not empty",
+          "request": {
+            "command": "delete_folder",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "folderId": "01928f3a-2000-7000-8000-000000000001"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "folderNotEmpty"
+            }
+          }
+        },
+        {
+          "name": "delete_folder: a folder holding a folder is not empty",
+          "request": {
+            "command": "delete_folder",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "folderId": "01928f3a-2000-7000-8000-000000000003"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "folderNotEmpty"
+            }
+          }
+        },
+        {
+          "name": "delete_folder: an empty folder is deleted",
+          "request": {
+            "command": "delete_folder",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "folderId": "01928f3a-9000-7000-8000-000000000001"
+            }
+          },
+          "expected": {
+            "ok": null
+          }
+        },
+        {
+          "name": "delete_folder: it is gone afterwards",
+          "request": {
+            "command": "delete_folder",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "folderId": "01928f3a-9000-7000-8000-000000000001"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "entityNotFound"
+            }
+          }
+        },
+        {
+          "name": "delete_folder: malformed folderId",
+          "targets": ["rust"],
+          "request": {
+            "command": "delete_folder",
+            "args": {
+              "projectId": "01928f3a-1000-7000-8000-000000000001",
+              "folderId": "nope"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidEntityId"
+            }
+          }
+        },
+        {
+          "name": "delete_folder: project not open",
+          "request": {
+            "command": "delete_folder",
+            "args": {
+              "projectId": "01928f3a-ffff-7fff-bfff-ffffffffffff",
+              "folderId": "01928f3a-9000-7000-8000-000000000001"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "projectNotOpen"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "dialog-cancelled",
       "description": "Cancelling the dialog is an ok result, not an error.",
       "folderPicker": ["cancelled"],

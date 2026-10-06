@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use super::error::{ApplicationError, ApplicationResult};
+use super::folder_operations::resolve_parent_directory;
 use super::load_issue::LoadIssue;
 use super::loader::{
     assets_path, check_duplicate_block_ids, check_sheet_content, join_path, load_document_file,
@@ -16,7 +17,6 @@ use crate::domain::display_name::DisplayName;
 use crate::domain::document::{Document, DocumentInput};
 use crate::domain::entity_id::DocumentId;
 use crate::domain::sheet::Sheet;
-use crate::infrastructure::file_format::constants::DOCUMENTS_DIRECTORY_NAME;
 use crate::infrastructure::file_format::constants::{DOCUMENT_FILE_NAME, DOCUMENT_NAME_BASE};
 use crate::infrastructure::file_format::dto::{to_json_bytes, DocumentDto, SheetDto};
 use crate::infrastructure::file_format::naming::unique_directory_name;
@@ -27,6 +27,7 @@ pub fn create_document(
     project_id: &str,
     document_id: &str,
     name: &str,
+    parent_folder_id: Option<&str>,
 ) -> ApplicationResult<DocumentSnapshot> {
     let session = sessions.session_mut(project_id)?;
     let document = Document::new(&DocumentInput {
@@ -35,30 +36,30 @@ pub fn create_document(
         name: DisplayName::new(name)?.as_str().to_owned(),
         sheet_order: Vec::new(),
     })?;
-    if session.documents().contains_key(document.document_id()) {
+    if session.entry_id_in_use(document.document_id().as_uuid()) {
         return Err(crate::domain::error::DomainError::new(
             crate::domain::error::DomainErrorKind::DuplicateId,
             format!("documentId already exists: {}", document.document_id()),
         )
         .into());
     }
-    session.ensure_directory("", DOCUMENTS_DIRECTORY_NAME)?;
-    let existing = session.entry_names("", DOCUMENTS_DIRECTORY_NAME)?;
+    let parent = resolve_parent_directory(session, parent_folder_id)?;
+    let existing = session.entry_names("", &parent.base)?;
     let directory_name = unique_directory_name(name, DOCUMENT_NAME_BASE, &existing);
-    let base = super::session::document_base_path(&directory_name);
+    let relative_path = parent.child_relative_path(&directory_name);
+    let base = super::session::document_base_path(&relative_path);
 
     // document.json goes in first: a directory without it is reported as unrecognized,
     // while a document.json without its sub-directories still loads.
     let dto = DocumentDto::from_domain(&document);
-    session.create_directory("", &base)?;
+    session.create_directory(&parent.base, &directory_name)?;
     session.create_file(&base, DOCUMENT_FILE_NAME, &to_json_bytes(&dto)?)?;
     session.create_directory(&base, SHEETS_DIRECTORY_NAME)?;
     session.create_directory(&base, ASSETS_DIRECTORY_NAME)?;
     session.insert_document(
         *document.document_id(),
         DocumentRecord {
-            // Created directly under `documents/` until Folders can be a parent (F2).
-            relative_path: directory_name,
+            relative_path,
             writable: true,
             // Creating a Document opens it in the Frontend, which never loads it afterwards.
             opened: true,

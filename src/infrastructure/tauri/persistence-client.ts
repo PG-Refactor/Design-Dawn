@@ -5,10 +5,13 @@
 import type { BlockType } from "../../domain/block/block-type";
 import type { ContentPath } from "../../domain/block/content-path";
 import type { Document } from "../../domain/document/document";
+import type { Folder } from "../../domain/folder/folder";
 import type { Project } from "../../domain/project/project";
 import type { DisplayName } from "../../domain/shared/display-name";
 import type {
   DocumentId,
+  EntryId,
+  FolderId,
   ProjectId,
   SheetId,
 } from "../../domain/shared/entity-id";
@@ -20,6 +23,7 @@ import {
   toContentPathResult,
   toDocumentSnapshotResult,
   toFolderSelectionResult,
+  toFolderSnapshotResult,
   toProjectSnapshotResult,
   toSaveResult,
   toSheetSnapshotResult,
@@ -29,6 +33,7 @@ import {
 import type {
   DocumentSnapshot,
   FolderSelection,
+  FolderSnapshot,
   ProjectSnapshot,
   SaveResult,
   SheetSnapshot,
@@ -64,16 +69,60 @@ export function saveProject(
   return call(COMMANDS.saveProject, { projectId, project }, toSaveResult);
 }
 
+// `parentFolderId` null = directly under the Project.
 export function createDocument(
   projectId: ProjectId,
   documentId: DocumentId,
   name: DisplayName,
+  parentFolderId: FolderId | null = null,
 ): Promise<CommandResult<DocumentSnapshot>> {
   return call(
     COMMANDS.createDocument,
-    { projectId, documentId, name },
+    { projectId, documentId, name, parentFolderId },
     toDocumentSnapshotResult,
   );
+}
+
+// Creates the directory and `folder.json`; the caller saves the parent's order afterwards.
+export function createFolder(
+  projectId: ProjectId,
+  parentFolderId: FolderId | null,
+  folderId: FolderId,
+  name: DisplayName,
+): Promise<CommandResult<FolderSnapshot>> {
+  return call(
+    COMMANDS.createFolder,
+    { projectId, parentFolderId, folderId, name },
+    toFolderSnapshotResult,
+  );
+}
+
+export function saveFolder(
+  projectId: ProjectId,
+  folder: Folder,
+): Promise<CommandResult<SaveResult>> {
+  return call(COMMANDS.saveFolder, { projectId, folder }, toSaveResult);
+}
+
+// Only a closed entry moves; the caller saves both parents' order afterwards.
+export function moveEntry(
+  projectId: ProjectId,
+  entryId: EntryId,
+  targetParentFolderId: FolderId | null,
+): Promise<CommandResult<null>> {
+  return call(
+    COMMANDS.moveEntry,
+    { projectId, entryId, targetParentFolderId },
+    toVoidResult,
+  );
+}
+
+// Only an empty folder; anything else is `folderNotEmpty`.
+export function deleteFolder(
+  projectId: ProjectId,
+  folderId: FolderId,
+): Promise<CommandResult<null>> {
+  return call(COMMANDS.deleteFolder, { projectId, folderId }, toVoidResult);
 }
 
 export function loadDocument(

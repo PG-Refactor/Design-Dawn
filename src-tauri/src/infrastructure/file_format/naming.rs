@@ -69,6 +69,20 @@ pub fn unique_directory_name(
         .expect("an unbounded counter always yields a free name")
 }
 
+/// Directory name for an existing Folder / Document directory that moves into another
+/// parent: the name is kept as is (it is never re-derived from the display name, so a
+/// hand-made name survives); only a case-insensitive collision adds `-2`, `-3`, ...
+pub fn moved_directory_name(current_name: &str, existing_names: &[String]) -> String {
+    let taken = lowercase_set(existing_names);
+    std::iter::once(current_name.to_owned())
+        .chain(
+            (COLLISION_FIRST_SUFFIX..)
+                .map(|number| format!("{current_name}{SLUG_SEPARATOR}{number}")),
+        )
+        .find(|candidate| !taken.contains(&candidate.to_lowercase()))
+        .expect("an unbounded counter always yields a free name")
+}
+
 /// The extension of a text block type's content files. Only block types whose content
 /// lives in a sheet's `blocks/` directory have such files.
 fn text_content_extension(block_type: BlockType) -> Result<&'static str, DomainError> {
@@ -226,6 +240,15 @@ mod tests {
         assert_eq!(
             unique_directory_name("Overview", "sheet", &existing),
             "overview-3"
+        );
+    }
+
+    #[test]
+    fn a_moved_directory_keeps_its_name_unless_it_collides() {
+        assert_eq!(moved_directory_name("My Docs", &[]), "My Docs");
+        assert_eq!(
+            moved_directory_name("api", &names(&["API", "api-2"])),
+            "api-3"
         );
     }
 

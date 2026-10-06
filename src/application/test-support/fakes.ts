@@ -6,6 +6,7 @@ import {
   parseContentPath,
 } from "../../domain/block/content-path";
 import { type Document, parseDocument } from "../../domain/document/document";
+import { type Folder, parseFolder } from "../../domain/folder/folder";
 import { type Project, parseProject } from "../../domain/project/project";
 import { parseDisplayName } from "../../domain/shared/display-name";
 import {
@@ -159,12 +160,31 @@ export interface FakeDiskDocument {
   readonly issues: readonly LoadIssue[];
 }
 
+// A Folder directory: its `folder.json` as last saved, and where it lives.
+export interface FakeDiskFolder {
+  folder: Folder;
+  parentFolderId: FolderId | null;
+  readonly state: EntityState;
+}
+
 export interface FakeDisk {
   projectName: string;
-  // childOrder as last saved by `saveProject`. Folders are not faked on disk; tests that
-  // need a folder tree hand the workspace a snapshot through `overrideProjectSnapshot`.
+  // childOrder as last saved by `saveProject`.
   childOrder: EntryId[];
   readonly documents: Map<DocumentId, FakeDiskDocument>;
+  // Folders at a basic level (create / save / move / delete with Rust's rules). A Document
+  // missing from `documentParents` lives directly under the Project.
+  readonly folders: Map<FolderId, FakeDiskFolder>;
+  readonly documentParents: Map<DocumentId, FolderId>;
+}
+
+export interface SeedFolderOptions {
+  readonly folderId: FolderId;
+  readonly name?: string;
+  readonly parentFolderId?: FolderId | null;
+  readonly childOrder?: readonly EntryId[];
+  // "loadFailed": the folder's own metadata cannot be loaded (it is never written).
+  readonly state?: EntityState;
 }
 
 export interface SeedDocumentOptions {
@@ -212,6 +232,11 @@ export interface FakeGateway extends PersistenceGateway {
   readonly disk: FakeDisk;
   // Adds a document that already exists on disk (and to the saved order).
   seedDocument(options: SeedDocumentOptions): void;
+  // Adds a folder that already exists on disk (the saved orders are not changed).
+  seedFolder(options: SeedFolderOptions): void;
+  // Documents the gateway considers open (created or loaded and not yet closed). Folder
+  // moves of an open Document are rejected, like Rust.
+  readonly openDocuments: Set<DocumentId>;
   // The result of the next `selectProjectFolder` call (default: a selection).
   selectNext(selection: FolderSelection): void;
   // Makes `openProject(selectionId)` return exactly this snapshot instead of one built
@@ -264,7 +289,63 @@ export function createFakeGateway(
     projectName: "Project",
     childOrder: [],
     documents: new Map(),
+    folders: new Map(),
+    documentParents: new Map(),
   };
+  const openDocuments = new Set<DocumentId>();
+
+  function entryIdInUse(entryId: string): boolean {
+    return (
+      [...disk.folders.keys()].some((id) => id === entryId) ||
+      [...disk.documents.keys()].some((id) => id === entryId)
+    );
+  }
+
+  function parentOfEntry(entryId: EntryId): FolderId | null | undefined {
+    const folder = disk.folders.get(entryId as FolderId);
+    if (folder !== undefined) return folder.parentFolderId;
+    const documentId = entryId as DocumentId;
+    if (disk.documents.has(documentId)) {
+      return disk.documentParents.get(documentId) ?? null;
+    }
+    return undefined;
+  }
+
+  // Whether `candidate` is `ancestor` or lies below it.
+  function isAtOrBelow(candidate: FolderId, ancestor: FolderId): boolean {
+    let current: FolderId | null = candidate;
+    while (current !== null) {
+      if (current === ancestor) return true;
+      current = disk.folders.get(current)?.parentFolderId ?? null;
+    }
+    return false;
+  }
+
+  function folderHoldsOpenDocument(folderId: FolderId): boolean {
+    return [...openDocuments].some((documentId) => {
+      const parent = disk.documentParents.get(documentId);
+      return parent !== undefined && isAtOrBelow(parent, folderId);
+    });
+  }
+
+  function hasChildren(folderId: FolderId): boolean {
+    return (
+      [...disk.folders.values()].some(
+        (entry) => entry.parentFolderId === folderId,
+      ) ||
+      [...disk.documentParents.values()].some((parent) => parent === folderId)
+    );
+  }
+
+  function newFolder(
+    folderId: FolderId,
+    name: string,
+    childOrder: readonly EntryId[],
+  ): Folder {
+    return unwrap(
+      parseFolder({ schemaVersion: 1, folderId, name, childOrder }),
+    );
+  }
 
   function projectOf(name: string, order: readonly EntryId[]): Project {
     return unwrap(
@@ -278,24 +359,46 @@ export function createFakeGateway(
   }
 
   function projectSnapshot(): ProjectSnapshot {
-    return {
-      project: projectOf(disk.projectName, disk.childOrder),
-      folders: [],
-      documents: disk.childOrder.flatMap((entryId) => {
-        const found = [...disk.documents.entries()].find(
-          ([documentId]) => documentId === entryId,
-        );
-        if (found === undefined) return [];
-        const [documentId, stored] = found;
+    const rootDocuments = disk.childOrder.flatMap((entryId) => {
+      const found = [...disk.documents.entries()].find(
+        ([documentId]) => documentId === entryId,
+      );
+      if (found === undefined) return [];
+      const [documentId, stored] = found;
+      return [
+        {
+          documentId,
+          parentFolderId: null,
+          name: stored.state === "loaded" ? stored.document.name : null,
+          state: stored.state,
+        },
+      ];
+    });
+    // Orders are reported as saved (not normalized); documents inside folders are all listed.
+    const nestedDocuments = [...disk.documentParents.entries()].flatMap(
+      ([documentId, parentFolderId]) => {
+        const stored = disk.documents.get(documentId);
+        if (stored === undefined) return [];
         return [
           {
             documentId,
-            parentFolderId: null,
+            parentFolderId,
             name: stored.state === "loaded" ? stored.document.name : null,
             state: stored.state,
           },
         ];
-      }),
+      },
+    );
+    return {
+      project: projectOf(disk.projectName, disk.childOrder),
+      folders: [...disk.folders.entries()].map(([folderId, entry]) => ({
+        folderId,
+        name: entry.state === "loaded" ? entry.folder.name : null,
+        parentFolderId: entry.parentFolderId,
+        childOrder: entry.state === "loaded" ? entry.folder.childOrder : [],
+        state: entry.state,
+      })),
+      documents: [...rootDocuments, ...nestedDocuments],
       issues: [],
     };
   }
@@ -407,6 +510,19 @@ export function createFakeGateway(
         disk.childOrder.push(options.documentId);
       }
     },
+    seedFolder(options) {
+      const state = options.state ?? "loaded";
+      disk.folders.set(options.folderId, {
+        folder: newFolder(
+          options.folderId,
+          options.name ?? "Folder",
+          options.childOrder ?? [],
+        ),
+        parentFolderId: options.parentFolderId ?? null,
+        state,
+      });
+    },
+    openDocuments,
     selectNext(selection) {
       nextSelection = selection;
     },
@@ -439,11 +555,22 @@ export function createFakeGateway(
         disk.childOrder = [...project.childOrder];
         return operationOk(undefined);
       }),
-    createDocument: (_project, documentId, name) =>
+    createDocument: (_project, documentId, name, parentFolderId = null) =>
       enter("createDocument", documentId, () => {
         if (disk.documents.has(documentId)) {
           return operationErr("alreadyExists", documentId);
         }
+        if (parentFolderId !== null) {
+          const parent = disk.folders.get(parentFolderId);
+          if (parent === undefined) {
+            return operationErr("entityNotFound", parentFolderId);
+          }
+          if (parent.state !== "loaded") {
+            return operationErr("notWritable", parentFolderId);
+          }
+          disk.documentParents.set(documentId, parentFolderId);
+        }
+        openDocuments.add(documentId);
         const stored: FakeDiskDocument = {
           document: newDocument(documentId, name),
           state: "loaded",
@@ -454,18 +581,120 @@ export function createFakeGateway(
         disk.documents.set(documentId, stored);
         return operationOk(documentSnapshot(stored));
       }),
+    createFolder: (_project, parentFolderId, folderId, name) =>
+      enter("createFolder", folderId, () => {
+        if (entryIdInUse(folderId)) {
+          return operationErr("duplicateId", folderId);
+        }
+        if (parentFolderId !== null) {
+          const parent = disk.folders.get(parentFolderId);
+          if (parent === undefined) {
+            return operationErr("entityNotFound", parentFolderId);
+          }
+          if (parent.state !== "loaded") {
+            return operationErr("notWritable", parentFolderId);
+          }
+        }
+        // Like Rust: the directory exists now, the parent's order is the caller's job.
+        disk.folders.set(folderId, {
+          folder: newFolder(folderId, name, []),
+          parentFolderId,
+          state: "loaded",
+        });
+        return operationOk({
+          folderId,
+          name,
+          parentFolderId,
+          childOrder: [],
+          state: "loaded" as const,
+        });
+      }),
+    saveFolder: (_project, folder) =>
+      enter("saveFolder", folder.folderId, () => {
+        const stored = disk.folders.get(folder.folderId);
+        if (stored === undefined) {
+          return operationErr("entityNotFound", folder.folderId);
+        }
+        if (stored.state !== "loaded") {
+          return operationErr("notWritable", folder.folderId);
+        }
+        stored.folder = folder;
+        return operationOk(undefined);
+      }),
+    moveEntry: (_project, entryId, targetParentFolderId) =>
+      enter(
+        "moveEntry",
+        `${entryId}->${targetParentFolderId ?? "root"}`,
+        () => {
+          const currentParent = parentOfEntry(entryId);
+          if (currentParent === undefined) {
+            return operationErr("entityNotFound", entryId);
+          }
+          const isFolder = disk.folders.has(entryId as FolderId);
+          if (targetParentFolderId !== null) {
+            const target = disk.folders.get(targetParentFolderId);
+            if (target === undefined) {
+              return operationErr("entityNotFound", targetParentFolderId);
+            }
+            if (target.state !== "loaded") {
+              return operationErr("notWritable", targetParentFolderId);
+            }
+            if (
+              isFolder &&
+              isAtOrBelow(targetParentFolderId, entryId as FolderId)
+            ) {
+              return operationErr("invalidMove", entryId);
+            }
+          }
+          if (currentParent === targetParentFolderId)
+            return operationOk(undefined);
+          const isOpen = isFolder
+            ? folderHoldsOpenDocument(entryId as FolderId)
+            : openDocuments.has(entryId as DocumentId);
+          if (isOpen) return operationErr("invalidMove", entryId);
+          if (isFolder) {
+            const stored = disk.folders.get(entryId as FolderId);
+            if (stored !== undefined)
+              stored.parentFolderId = targetParentFolderId;
+          } else if (targetParentFolderId === null) {
+            disk.documentParents.delete(entryId as DocumentId);
+          } else {
+            disk.documentParents.set(
+              entryId as DocumentId,
+              targetParentFolderId,
+            );
+          }
+          return operationOk(undefined);
+        },
+      ),
+    deleteFolder: (_project, folderId) =>
+      enter("deleteFolder", folderId, () => {
+        if (!disk.folders.has(folderId)) {
+          return operationErr("entityNotFound", folderId);
+        }
+        if (hasChildren(folderId)) {
+          return operationErr("folderNotEmpty", folderId);
+        }
+        disk.folders.delete(folderId);
+        return operationOk(undefined);
+      }),
     loadDocument: (_project, documentId) =>
       enter("loadDocument", documentId, () => {
         const stored = disk.documents.get(documentId);
         if (stored === undefined) {
           return operationErr("entityNotFound", documentId);
         }
-        return stored.state === "loaded"
-          ? operationOk(documentSnapshot(stored))
-          : operationErr("invalidFileStructure", documentId);
+        if (stored.state !== "loaded") {
+          return operationErr("invalidFileStructure", documentId);
+        }
+        openDocuments.add(documentId);
+        return operationOk(documentSnapshot(stored));
       }),
     closeDocument: (_project, documentId) =>
-      enter("closeDocument", documentId, () => operationOk(undefined)),
+      enter("closeDocument", documentId, () => {
+        openDocuments.delete(documentId);
+        return operationOk(undefined);
+      }),
     createSheet: (_project, documentId, sheetId, name) =>
       enter("createSheet", sheetId, () => {
         const stored = disk.documents.get(documentId);
@@ -489,11 +718,14 @@ export function createFakeGateway(
           : operationErr("entityNotFound", sheetId);
       }),
     deleteDocument: (_project, documentId) =>
-      enter("deleteDocument", documentId, () =>
-        disk.documents.delete(documentId)
-          ? operationOk(undefined)
-          : operationErr("entityNotFound", documentId),
-      ),
+      enter("deleteDocument", documentId, () => {
+        if (!disk.documents.delete(documentId)) {
+          return operationErr("entityNotFound", documentId);
+        }
+        disk.documentParents.delete(documentId);
+        openDocuments.delete(documentId);
+        return operationOk(undefined);
+      }),
     files,
     assets,
     seedAsset(

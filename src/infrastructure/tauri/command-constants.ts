@@ -7,6 +7,10 @@ export const COMMANDS = {
   createProject: "create_project",
   openProject: "open_project",
   saveProject: "save_project",
+  createFolder: "create_folder",
+  saveFolder: "save_folder",
+  moveEntry: "move_entry",
+  deleteFolder: "delete_folder",
   createDocument: "create_document",
   loadDocument: "load_document",
   closeDocument: "close_document",
@@ -39,6 +43,7 @@ export type CommandName = (typeof COMMANDS)[keyof typeof COMMANDS];
 export {
   ASSET_ERROR_KINDS,
   CLIENT_ERROR_KINDS,
+  FOLDER_ERROR_KINDS,
   FOLDER_SELECTION_ERROR_KINDS,
   PERSISTENCE_ERROR_KINDS,
   RUST_ONLY_DOMAIN_ERROR_KINDS,

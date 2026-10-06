@@ -8,20 +8,22 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
-use super::error::{ApplicationError, ApplicationResult};
+use super::error::{ApplicationError, ApplicationResult, ErrorKind};
 use crate::domain::block_type::BlockType;
 use crate::domain::constants::PATH_SEPARATOR;
 use crate::domain::entity_id::{DocumentId, FolderId, ProjectId, SheetId};
 use crate::infrastructure::error::{PersistenceError, PersistenceErrorKind};
-use crate::infrastructure::file_format::constants::DOCUMENTS_DIRECTORY_NAME;
+use crate::infrastructure::file_format::constants::{DOCUMENTS_DIRECTORY_NAME, FOLDER_FILE_NAME};
 use crate::infrastructure::file_format::dto::parse_json_text;
+use crate::infrastructure::file_format::naming::moved_directory_name;
 use crate::infrastructure::filesystem::atomic_write::{
-    create_new_file, write_atomic, WriteOutcome,
+    create_new_file, is_temp_file_name, write_atomic, WriteOutcome,
 };
-use crate::infrastructure::filesystem::directory::list_directory;
+use crate::infrastructure::filesystem::directory::{list_directory, EntryKind};
 use crate::infrastructure::filesystem::hashing::sha256_hex;
 use crate::infrastructure::filesystem::path_resolution::{
-    resolve_existing, resolve_for_create, resolve_for_write, resolve_removable_directory,
+    resolve_existing, resolve_for_create, resolve_for_write, resolve_real_directory,
+    resolve_removable_directory,
 };
 use crate::infrastructure::filesystem::text_content::decode_text;
 
@@ -53,6 +55,28 @@ impl HashLedger {
 
     pub fn is_empty(&self) -> bool {
         self.hashes.is_empty()
+    }
+
+    /// Re-keys the entry for `old_directory` itself and everything below it, after the
+    /// directory was renamed or moved, so the recorded hashes keep describing the same files.
+    pub fn rename_under(&mut self, old_directory: &str, new_directory: &str) {
+        let prefix = format!("{old_directory}{PATH_SEPARATOR}");
+        let moved: Vec<(String, String)> = self
+            .hashes
+            .keys()
+            .filter(|path| path.as_str() == old_directory || path.starts_with(&prefix))
+            .map(|path| {
+                (
+                    path.clone(),
+                    format!("{new_directory}{}", &path[old_directory.len()..]),
+                )
+            })
+            .collect();
+        for (old_path, new_path) in moved {
+            if let Some(hash) = self.hashes.remove(&old_path) {
+                self.hashes.insert(new_path, hash);
+            }
+        }
     }
 
     /// Drops the entry for `directory_relative` itself and everything below it.
@@ -375,6 +399,141 @@ impl ProjectSession {
 
     pub fn forget_ledger_under(&mut self, directory_relative: &str) {
         self.ledger.forget_under(directory_relative);
+    }
+
+    pub fn insert_folder(&mut self, folder_id: FolderId, record: FolderRecord) {
+        self.folders.insert(folder_id, record);
+    }
+
+    /// Project-root-relative directory of a Folder.
+    pub fn folder_base(&self, folder_id: &FolderId) -> ApplicationResult<String> {
+        Ok(document_base_path(&self.folder(folder_id)?.relative_path))
+    }
+
+    /// Whether any Folder or Document of this Project already uses the ID (IDs are unique
+    /// across both kinds).
+    pub fn entry_id_in_use(&self, entry_id: &uuid::Uuid) -> bool {
+        self.documents.keys().any(|id| id.as_uuid() == entry_id)
+            || self.folders.keys().any(|id| id.as_uuid() == entry_id)
+    }
+
+    /// True if a Document under `folder_relative_path` (any depth) is currently opened.
+    pub fn has_opened_document_under(&self, folder_relative_path: &str) -> bool {
+        let prefix = format!("{folder_relative_path}{PATH_SEPARATOR}");
+        self.documents
+            .values()
+            .any(|record| record.opened && record.relative_path.starts_with(&prefix))
+    }
+
+    /// Moves the directory `source_parent_relative/source_name` into
+    /// `target_parent_relative` (both Project-root-relative) and returns the name it now has
+    /// there: the same name, or a collision-free variant. Nothing is overwritten and no link
+    /// is followed: the source must be a real directory and both parents must be reached
+    /// without crossing a symlink. The directory is renamed in place on the same filesystem
+    /// (`documents/`), so it is atomic. Session records are updated by the caller.
+    pub fn move_directory(
+        &mut self,
+        source_parent_relative: &str,
+        source_name: &str,
+        target_parent_relative: &str,
+    ) -> Result<String, PersistenceError> {
+        let source = resolve_removable_directory(&self.root, source_parent_relative, source_name)?;
+        resolve_real_directory(&self.root, source_parent_relative)?;
+        let target_parent = resolve_real_directory(&self.root, target_parent_relative)?;
+        if target_parent.starts_with(&source) {
+            return Err(PersistenceError::new(
+                PersistenceErrorKind::PathOutsideRoot,
+                format!("{target_parent_relative:?} is inside the directory being moved"),
+            ));
+        }
+        let existing: Vec<String> = list_directory(&target_parent)?
+            .into_iter()
+            .map(|entry| entry.name)
+            .collect();
+        let new_name = moved_directory_name(source_name, &existing);
+        let destination = target_parent.join(&new_name);
+        // `rename` onto an empty directory would replace it on some platforms, so the
+        // destination is checked right before (the listing above may be stale).
+        if fs::symlink_metadata(&destination).is_ok() {
+            return Err(PersistenceError::new(
+                PersistenceErrorKind::AlreadyExists,
+                format!("{new_name:?} already exists in the target"),
+            ));
+        }
+        fs::rename(&source, &destination).map_err(|error| {
+            PersistenceError::from_io(format!("move directory {source_name:?}"), &error)
+        })?;
+        Ok(new_name)
+    }
+
+    /// After a directory moved: every Folder and Document record at or below `old_path`
+    /// (relative to `documents/`) now lives under `new_path`, and the hash ledger follows.
+    pub fn rename_tree(&mut self, old_path: &str, new_path: &str) {
+        let prefix = format!("{old_path}{PATH_SEPARATOR}");
+        let rebase = |path: &str| -> Option<String> {
+            if path == old_path {
+                Some(new_path.to_owned())
+            } else {
+                path.strip_prefix(&prefix)
+                    .map(|rest| format!("{new_path}{PATH_SEPARATOR}{rest}"))
+            }
+        };
+        for record in self.documents.values_mut() {
+            if let Some(path) = rebase(&record.relative_path) {
+                record.relative_path = path;
+            }
+        }
+        for record in self.folders.values_mut() {
+            if let Some(path) = rebase(&record.relative_path) {
+                record.relative_path = path;
+            }
+        }
+        self.ledger
+            .rename_under(&document_base_path(old_path), &document_base_path(new_path));
+    }
+
+    /// Removes a Folder directory that holds nothing but `folder.json` and leftover temp
+    /// files, then forgets the Folder. Anything else (a Document, a sub-folder, a stray
+    /// file, a link) is `folderNotEmpty` and nothing is touched. The directory must be a real
+    /// directory (never a link). The Folder is forgotten once `folder.json` is gone, since
+    /// it can no longer be loaded.
+    pub fn remove_empty_folder(&mut self, folder_id: &FolderId) -> ApplicationResult<()> {
+        let relative_path = self.folder(folder_id)?.relative_path.clone();
+        let (parent, directory_name) = split_entry_path(&relative_path);
+        let directory = resolve_removable_directory(&self.root, &parent, directory_name)?;
+        let mut removable = Vec::new();
+        for entry in list_directory(&directory)? {
+            let is_plain_file = entry.kind == EntryKind::File && !entry.is_symlink;
+            let is_removable = entry.is_utf8_name
+                && is_plain_file
+                && (entry.name == FOLDER_FILE_NAME || is_temp_file_name(&entry.name));
+            if !is_removable {
+                return Err(ApplicationError::new(
+                    ErrorKind::FolderNotEmpty,
+                    format!("folder {folder_id} holds {:?}", entry.name),
+                ));
+            }
+            removable.push(entry.name);
+        }
+        // `folder.json` last, so an interrupted removal leaves a folder that still loads.
+        removable.sort_by_key(|name| name == FOLDER_FILE_NAME);
+        let result = (|| -> Result<(), PersistenceError> {
+            for name in &removable {
+                fs::remove_file(directory.join(name)).map_err(|error| {
+                    PersistenceError::from_io(format!("remove {name:?}"), &error)
+                })?;
+            }
+            fs::remove_dir(&directory).map_err(|error| {
+                PersistenceError::from_io(format!("remove directory {directory_name:?}"), &error)
+            })
+        })();
+        let metadata_survives = fs::symlink_metadata(directory.join(FOLDER_FILE_NAME)).is_ok();
+        if result.is_ok() || !metadata_survives {
+            self.folders.remove(folder_id);
+            self.ledger
+                .forget_under(&document_base_path(&relative_path));
+        }
+        result.map_err(ApplicationError::from)
     }
 
     pub fn remove_document_record(&mut self, document_id: &DocumentId) {

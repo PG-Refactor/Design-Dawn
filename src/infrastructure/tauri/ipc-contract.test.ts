@@ -19,10 +19,13 @@ import {
 } from "../../application/local-state/viewport";
 import { parseBlockType } from "../../domain/block/block-type";
 import { parseContentPath } from "../../domain/block/content-path";
+import { parseFolder, type RawFolder } from "../../domain/folder/folder";
 import { parseDisplayName } from "../../domain/shared/display-name";
 import { DOMAIN_ERROR_KINDS } from "../../domain/shared/domain-error";
 import {
   parseDocumentId,
+  parseEntryId,
+  parseFolderId,
   parseProjectId,
   parseSheetId,
 } from "../../domain/shared/entity-id";
@@ -31,6 +34,7 @@ import { parseSheet, type RawSheet } from "../../domain/sheet/sheet";
 import { copyAssetToDocument, importDroppedImages } from "./asset-client";
 import {
   ASSET_ERROR_KINDS,
+  FOLDER_ERROR_KINDS,
   FOLDER_SELECTION_ERROR_KINDS,
   PERSISTENCE_ERROR_KINDS,
   RUST_ONLY_DOMAIN_ERROR_KINDS,
@@ -47,12 +51,17 @@ import {
 import {
   closeDocument,
   createBlockContent,
+  createDocument,
+  createFolder,
   createProject,
+  deleteFolder,
   deleteSheet,
   loadDocument,
+  moveEntry,
   openProject,
   readBlockContent,
   restoreBlockContent,
+  saveFolder,
   saveSheet,
   selectProjectFolder,
 } from "./persistence-client";
@@ -110,6 +119,11 @@ const id = {
   sheet: (args: Args) => unwrap(parseSheetId(args.sheetId as string)),
   contentPath: (args: Args) =>
     unwrap(parseContentPath(args.contentPath as string)),
+  folder: (args: Args) => unwrap(parseFolderId(args.folderId as string)),
+  parentFolder: (args: Args) =>
+    args.parentFolderId === null || args.parentFolderId === undefined
+      ? null
+      : unwrap(parseFolderId(args.parentFolderId as string)),
   blockType: (args: Args) => unwrap(parseBlockType(args.blockType as string)),
 };
 
@@ -135,6 +149,31 @@ const WRAPPERS: Readonly<Record<string, Wrapper>> = {
       args.selectionId as string,
       unwrap(parseDisplayName(args.name as string)),
     ),
+  create_document: (args) =>
+    createDocument(
+      id.project(args),
+      id.document(args),
+      unwrap(parseDisplayName(args.name as string)),
+      id.parentFolder(args),
+    ),
+  create_folder: (args) =>
+    createFolder(
+      id.project(args),
+      id.parentFolder(args),
+      id.folder(args),
+      unwrap(parseDisplayName(args.name as string)),
+    ),
+  save_folder: (args) =>
+    saveFolder(id.project(args), unwrap(parseFolder(args.folder as RawFolder))),
+  move_entry: (args) =>
+    moveEntry(
+      id.project(args),
+      unwrap(parseEntryId(args.entryId as string)),
+      args.targetParentFolderId === null
+        ? null
+        : unwrap(parseFolderId(args.targetParentFolderId as string)),
+    ),
+  delete_folder: (args) => deleteFolder(id.project(args), id.folder(args)),
   load_document: (args) => loadDocument(id.project(args), id.document(args)),
   close_document: (args) => closeDocument(id.project(args), id.document(args)),
   save_sheet: (args) =>
@@ -340,6 +379,7 @@ describe("error kinds shared with Rust", () => {
         ...SESSION_ERROR_KINDS,
         ...FOLDER_SELECTION_ERROR_KINDS,
         ...ASSET_ERROR_KINDS,
+        ...FOLDER_ERROR_KINDS,
         ...LOCAL_STATE_ERROR_KINDS,
       ]),
     ].sort();

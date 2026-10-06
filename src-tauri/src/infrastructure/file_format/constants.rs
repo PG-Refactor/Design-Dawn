@@ -28,6 +28,7 @@ pub const JSON_TRAILING_NEWLINE: &str = "\n";
 // Naming (file-format.md §9.3).
 pub const SLUG_MAX_LENGTH: usize = 64;
 pub const SLUG_SEPARATOR: char = '-';
+pub const FOLDER_NAME_BASE: &str = "folder";
 pub const DOCUMENT_NAME_BASE: &str = "document";
 pub const SHEET_NAME_BASE: &str = "sheet";
 pub const ASSET_FALLBACK_STEM: &str = "image";

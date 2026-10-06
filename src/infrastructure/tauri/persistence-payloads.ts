@@ -47,6 +47,7 @@ import type {
   DocumentSnapshot,
   FolderEntry,
   FolderSelection,
+  FolderSnapshot,
   LoadIssue,
   ProjectSnapshot,
   SaveResult,
@@ -128,17 +129,16 @@ interface RawDocumentSnapshot {
   readonly issues: readonly LoadIssue[];
 }
 
+const rawFolderEntry = objectOf<RawFolderEntry>({
+  folderId: decodeString,
+  name: nullable(decodeString),
+  parentFolderId: nullable(decodeString),
+  childOrder: arrayOf(decodeString),
+  state: decodeEntityState,
+});
 const rawProjectSnapshot = objectOf<RawProjectSnapshot>({
   project: rawProject,
-  folders: arrayOf(
-    objectOf<RawFolderEntry>({
-      folderId: decodeString,
-      name: nullable(decodeString),
-      parentFolderId: nullable(decodeString),
-      childOrder: arrayOf(decodeString),
-      state: decodeEntityState,
-    }),
-  ),
+  folders: arrayOf(rawFolderEntry),
   documents: arrayOf(
     objectOf<RawDocumentEntry>({
       documentId: decodeString,
@@ -278,6 +278,13 @@ export function toProjectSnapshotResult(
 ): CommandResult<ProjectSnapshot> {
   const raw = decodePayload(rawProjectSnapshot, payload);
   return raw.ok ? toProjectSnapshot(raw.value) : raw;
+}
+
+export function toFolderSnapshotResult(
+  payload: unknown,
+): CommandResult<FolderSnapshot> {
+  const raw = decodePayload(rawFolderEntry, payload);
+  return raw.ok ? toFolderEntry(raw.value) : raw;
 }
 
 export function toFolderSelectionResult(

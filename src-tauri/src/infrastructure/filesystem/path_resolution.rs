@@ -88,6 +88,21 @@ fn is_single_normal_segment(name: &str) -> bool {
     )
 }
 
+/// A directory that must be reached without crossing any symlink: its canonical path has to
+/// equal the plain join of the (canonical) root and the stored path. Used for the parent
+/// directories of a move, so a directory swapped for a link after loading is not followed.
+/// `root` must be canonical.
+pub fn resolve_real_directory(root: &Path, relative: &str) -> Result<PathBuf, PersistenceError> {
+    let resolved = resolve_existing(root, relative)?;
+    if resolved != join_relative(root, relative) || !resolved.is_dir() {
+        return Err(PersistenceError::new(
+            PersistenceErrorKind::PathOutsideRoot,
+            format!("{relative:?} is not a real directory (a link is in the way)"),
+        ));
+    }
+    Ok(resolved)
+}
+
 /// For recursive deletion of an entity directory. Returns its canonical path only if
 /// - the entry itself is a real directory (a symlink is refused, never followed),
 /// - the parent resolves inside `root` (so a symlinked ancestor cannot redirect the delete),

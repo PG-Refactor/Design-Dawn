@@ -53,6 +53,7 @@ impl Fixture {
             PROJECT_ID,
             SECOND_DOCUMENT_ID,
             "Second",
+            None,
         )
         .unwrap();
         let incoming = opened.temp.path().join("incoming");

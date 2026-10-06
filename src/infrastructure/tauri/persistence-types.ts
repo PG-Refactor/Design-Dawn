@@ -4,6 +4,7 @@ export type {
   DocumentSnapshot,
   FolderEntry,
   FolderSelection,
+  FolderSnapshot,
   LoadIssue,
   ProjectSnapshot,
   SaveResult,

@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { displayName, folderIdOf } from "../../application/test-support/fakes";
 import { parseContentPath } from "../../domain/block/content-path";
+import { parseFolder } from "../../domain/folder/folder";
 import {
   DOCUMENT_ID,
   makeSheetWith,
@@ -208,5 +210,94 @@ describe("createTauriPersistenceGateway", () => {
         DOCUMENT_ID,
       ),
     ).toBe(copied);
+  });
+
+  it("maps the folder operations onto the client and drops void / written results", async () => {
+    const gateway = createTauriPersistenceGateway();
+    const folderId = folderIdOf(1);
+    const parentId = folderIdOf(2);
+    const name = displayName("Folder");
+    const created = {
+      ok: true,
+      value: {
+        folderId,
+        name: "Folder",
+        parentFolderId: null,
+        childOrder: [],
+        state: "loaded",
+      },
+    } as const;
+    vi.mocked(client.createFolder).mockResolvedValue(created);
+    expect(await gateway.createFolder(PROJECT_ID, null, folderId, name)).toBe(
+      created,
+    );
+    expect(client.createFolder).toHaveBeenCalledWith(
+      PROJECT_ID,
+      null,
+      folderId,
+      name,
+    );
+
+    vi.mocked(client.moveEntry).mockResolvedValue({ ok: true, value: null });
+    expect(await gateway.moveEntry(PROJECT_ID, DOCUMENT_ID, parentId)).toEqual({
+      ok: true,
+      value: undefined,
+    });
+    expect(client.moveEntry).toHaveBeenCalledWith(
+      PROJECT_ID,
+      DOCUMENT_ID,
+      parentId,
+    );
+    vi.mocked(client.moveEntry).mockResolvedValue({
+      ok: false,
+      error: { kind: "invalidMove", detail: "d" },
+    });
+    expect(await gateway.moveEntry(PROJECT_ID, DOCUMENT_ID, null)).toEqual({
+      ok: false,
+      error: { kind: "invalidMove", detail: "d" },
+    });
+
+    vi.mocked(client.deleteFolder).mockResolvedValue({ ok: true, value: null });
+    expect(await gateway.deleteFolder(PROJECT_ID, folderId)).toEqual({
+      ok: true,
+      value: undefined,
+    });
+    expect(client.deleteFolder).toHaveBeenCalledWith(PROJECT_ID, folderId);
+
+    const folder = unwrap(
+      parseFolder({
+        schemaVersion: 1,
+        folderId,
+        name: "Folder",
+        childOrder: [],
+      }),
+    );
+    vi.mocked(client.saveFolder).mockResolvedValue({
+      ok: true,
+      value: { written: true },
+    });
+    expect(await gateway.saveFolder(PROJECT_ID, folder)).toEqual({
+      ok: true,
+      value: undefined,
+    });
+    expect(client.saveFolder).toHaveBeenCalledWith(PROJECT_ID, folder);
+  });
+
+  it("passes the parent folder through when creating a document", async () => {
+    vi.mocked(client.createDocument).mockResolvedValue(failure);
+    const gateway = createTauriPersistenceGateway();
+    const parentId = folderIdOf(2);
+    await gateway.createDocument(
+      PROJECT_ID,
+      DOCUMENT_ID,
+      displayName("Doc"),
+      parentId,
+    );
+    expect(client.createDocument).toHaveBeenCalledWith(
+      PROJECT_ID,
+      DOCUMENT_ID,
+      displayName("Doc"),
+      parentId,
+    );
   });
 });

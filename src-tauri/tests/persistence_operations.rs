@@ -70,6 +70,7 @@ fn create_project_writes_the_layout_and_opens_the_session() {
         &snapshot.project.project_id,
         &new_id(1),
         "First",
+        None,
     )
     .unwrap();
     let reopened = open_project(&mut ProjectSessions::default(), &root).unwrap();
@@ -152,7 +153,7 @@ fn documents_get_slug_directories_with_fallbacks_and_collision_suffixes() {
     for (index, (name, expected_directory)) in names.iter().enumerate() {
         let document_id = new_id(index as u32 + 10);
         let snapshot =
-            create_document(&mut opened.sessions, PROJECT_ID, &document_id, name).unwrap();
+            create_document(&mut opened.sessions, PROJECT_ID, &document_id, name, None).unwrap();
         assert_eq!(snapshot.document.name, *name);
         assert_eq!(snapshot.document.document_id, document_id);
         let directory = opened.root.join("documents").join(expected_directory);
@@ -172,11 +173,13 @@ fn creating_a_document_with_a_known_id_or_a_bad_name_is_rejected() {
     let mut opened = open_copy();
     let before = tree_snapshot(&opened.root);
     let error =
-        create_document(&mut opened.sessions, PROJECT_ID, DOCUMENT_ID, "Again").unwrap_err();
+        create_document(&mut opened.sessions, PROJECT_ID, DOCUMENT_ID, "Again", None).unwrap_err();
     assert_eq!(error.kind, domain(DomainErrorKind::DuplicateId));
-    let error = create_document(&mut opened.sessions, PROJECT_ID, "nope", "Name").unwrap_err();
+    let error =
+        create_document(&mut opened.sessions, PROJECT_ID, "nope", "Name", None).unwrap_err();
     assert_eq!(error.kind, domain(DomainErrorKind::InvalidEntityId));
-    let error = create_document(&mut opened.sessions, PROJECT_ID, &new_id(2), "").unwrap_err();
+    let error =
+        create_document(&mut opened.sessions, PROJECT_ID, &new_id(2), "", None).unwrap_err();
     assert_eq!(error.kind, domain(DomainErrorKind::InvalidDisplayName));
     assert_eq!(tree_snapshot(&opened.root), before);
 }

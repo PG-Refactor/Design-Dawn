@@ -185,6 +185,10 @@ const ERROR_KIND_MESSAGES: Record<OperationErrorKind, string> = {
   assetTooLarge: "画像ファイルが大きすぎます（上限 20 MiB）。",
   invalidDropSelection:
     "ドロップしたファイルが無効です。もう一度ドロップしてください。",
+  folderNotEmpty:
+    "フォルダが空ではありません。中のDocumentやフォルダを移動または削除してください。",
+  invalidMove:
+    "ここへは移動できません（移動先が自分自身の中、または開いているDocumentが含まれています）。",
   invalidThemePreference: "テーマ設定の値が正しくありません。",
   invalidViewport: "表示位置の値が正しくありません。",
   invalidCommandResponse: "内部処理の応答が正しくありません。",

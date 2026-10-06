@@ -30,6 +30,10 @@ pub struct FolderEntry {
     pub state: EntityState,
 }
 
+/// What `create_folder` returns: the same shape as one entry of `ProjectSnapshot.folders`
+/// (a new folder is `loaded`, named, and has an empty `child_order`).
+pub type FolderSnapshot = FolderEntry;
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentEntry {

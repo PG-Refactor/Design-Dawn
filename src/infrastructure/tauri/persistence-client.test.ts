@@ -2,10 +2,13 @@ import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { parseContentPath } from "../../domain/block/content-path";
 import { parseDocument } from "../../domain/document/document";
+import { parseFolder } from "../../domain/folder/folder";
 import { parseProject } from "../../domain/project/project";
 import { parseDisplayName } from "../../domain/shared/display-name";
 import {
   parseDocumentId,
+  parseEntryId,
+  parseFolderId,
   parseProjectId,
   parseSheetId,
 } from "../../domain/shared/entity-id";
@@ -16,15 +19,20 @@ import type { CommandResult } from "./command-error";
 import {
   closeDocument,
   createBlockContent,
+  createDocument,
+  createFolder,
   createProject,
   createSheet,
   deleteBlockContent,
   deleteDocument,
+  deleteFolder,
   deleteSheet,
   loadDocument,
+  moveEntry,
   openProject,
   readBlockContent,
   restoreBlockContent,
+  saveFolder,
   saveProject,
   saveSheet,
   selectProjectFolder,
@@ -594,5 +602,138 @@ describe("folder selection", () => {
       selectionId: SELECTION_ID,
       name,
     });
+  });
+});
+
+describe("folder commands", () => {
+  const folderId = unwrap(parseFolderId(FOLDER_ID));
+  const childFolderId = unwrap(parseFolderId(CHILD_FOLDER_ID));
+  const rawCreatedFolder = {
+    folderId: FOLDER_ID,
+    name: "Architecture",
+    parentFolderId: null,
+    childOrder: [],
+    state: "loaded",
+  };
+
+  it("sends the parent (null = Project root) and converts the created folder", async () => {
+    invokeMock.mockResolvedValue(rawCreatedFolder);
+    const result = await createFolder(projectId, null, folderId, name);
+    expect(invokeMock).toHaveBeenLastCalledWith(COMMANDS.createFolder, {
+      projectId: PROJECT_ID,
+      parentFolderId: null,
+      folderId: FOLDER_ID,
+      name: "Name",
+    });
+    expect(result).toEqual({ ok: true, value: rawCreatedFolder });
+
+    invokeMock.mockResolvedValue({
+      ...rawCreatedFolder,
+      folderId: CHILD_FOLDER_ID,
+      parentFolderId: FOLDER_ID,
+    });
+    const nested = await createFolder(projectId, folderId, childFolderId, name);
+    expect(invokeMock).toHaveBeenLastCalledWith(COMMANDS.createFolder, {
+      projectId: PROJECT_ID,
+      parentFolderId: FOLDER_ID,
+      folderId: CHILD_FOLDER_ID,
+      name: "Name",
+    });
+    expect(nested.ok && nested.value.parentFolderId).toBe(folderId);
+  });
+
+  it("rejects a created-folder payload that is malformed", async () => {
+    for (const broken of [
+      { ...rawCreatedFolder, folderId: "not-an-id" },
+      { ...rawCreatedFolder, parentFolderId: "not-an-id" },
+      { ...rawCreatedFolder, state: "gone" },
+      { ...rawCreatedFolder, childOrder: undefined },
+    ]) {
+      invokeMock.mockResolvedValueOnce(broken);
+      expect((await createFolder(projectId, null, folderId, name)).ok).toBe(
+        false,
+      );
+    }
+  });
+
+  it("sends the folder entity as it is for a save", async () => {
+    const folder = unwrap(
+      parseFolder({
+        schemaVersion: 1,
+        folderId: FOLDER_ID,
+        name: "Architecture",
+        childOrder: [CHILD_FOLDER_ID, DOCUMENT_ID],
+      }),
+    );
+    invokeMock.mockResolvedValue({ written: false });
+    const result = await saveFolder(projectId, folder);
+    expect(invokeMock).toHaveBeenLastCalledWith(COMMANDS.saveFolder, {
+      projectId: PROJECT_ID,
+      folder: {
+        schemaVersion: 1,
+        folderId: FOLDER_ID,
+        name: "Architecture",
+        childOrder: [CHILD_FOLDER_ID, DOCUMENT_ID],
+      },
+    });
+    expect(result).toEqual({ ok: true, value: { written: false } });
+  });
+
+  it("sends only ids to move an entry and to delete a folder", async () => {
+    invokeMock.mockResolvedValue(null);
+    const entryId = unwrap(parseEntryId(DOCUMENT_ID));
+    expect(await moveEntry(projectId, entryId, folderId)).toEqual({
+      ok: true,
+      value: null,
+    });
+    expect(invokeMock).toHaveBeenLastCalledWith(COMMANDS.moveEntry, {
+      projectId: PROJECT_ID,
+      entryId: DOCUMENT_ID,
+      targetParentFolderId: FOLDER_ID,
+    });
+    await moveEntry(projectId, entryId, null);
+    expect(invokeMock).toHaveBeenLastCalledWith(COMMANDS.moveEntry, {
+      projectId: PROJECT_ID,
+      entryId: DOCUMENT_ID,
+      targetParentFolderId: null,
+    });
+    expect(await deleteFolder(projectId, folderId)).toEqual({
+      ok: true,
+      value: null,
+    });
+    expect(invokeMock).toHaveBeenLastCalledWith(COMMANDS.deleteFolder, {
+      projectId: PROJECT_ID,
+      folderId: FOLDER_ID,
+    });
+  });
+
+  it("creates a document under a folder, or at the root by default", async () => {
+    invokeMock.mockResolvedValue(rawDocumentSnapshot);
+    await createDocument(projectId, documentId, name, folderId);
+    expect(invokeMock).toHaveBeenLastCalledWith(COMMANDS.createDocument, {
+      projectId: PROJECT_ID,
+      documentId: DOCUMENT_ID,
+      name: "Name",
+      parentFolderId: FOLDER_ID,
+    });
+    await createDocument(projectId, documentId, name);
+    expect(invokeMock).toHaveBeenLastCalledWith(COMMANDS.createDocument, {
+      projectId: PROJECT_ID,
+      documentId: DOCUMENT_ID,
+      name: "Name",
+      parentFolderId: null,
+    });
+  });
+
+  it("passes the new error kinds through and rejects a non-void response", async () => {
+    for (const kind of ["folderNotEmpty", "invalidMove"]) {
+      invokeMock.mockRejectedValueOnce({ kind, detail: "d" });
+      expectFailure(await deleteFolder(projectId, folderId), kind);
+    }
+    invokeMock.mockResolvedValueOnce(42);
+    expectFailure(
+      await moveEntry(projectId, unwrap(parseEntryId(DOCUMENT_ID)), null),
+      "invalidCommandResponse",
+    );
   });
 });
