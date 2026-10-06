@@ -4,6 +4,7 @@ import { DocumentTabs } from "./document-tabs";
 import { LoadStatus } from "./notifications";
 import { ProjectTree } from "./project-tree";
 import { TopBar } from "./top-bar";
+import { useSaveShortcut } from "./use-save-shortcut";
 import { WorkspaceDialogs } from "./workspace-dialogs";
 import { MESSAGES } from "./workspace-messages";
 import "./buttons.css";
@@ -13,6 +14,7 @@ import "./workspace-shell.css";
 // Sheet Tabs / sheet area on the right. Dialogs render into a portal of their own.
 export function WorkspaceShell() {
   useFileDrop();
+  useSaveShortcut();
   return (
     <div className="workspace-shell">
       <TopBar />
