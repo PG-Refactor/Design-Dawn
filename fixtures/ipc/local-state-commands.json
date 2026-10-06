@@ -18,6 +18,7 @@
             "ok": {
               "themePreference": "system",
               "autoSave": true,
+              "projectTreeWidth": 320,
               "loadIssue": null
             }
           }
@@ -34,6 +35,7 @@
             "ok": {
               "themePreference": "dark",
               "autoSave": true,
+              "projectTreeWidth": 320,
               "loadIssue": null
             }
           }
@@ -48,6 +50,7 @@
             "ok": {
               "themePreference": "dark",
               "autoSave": true,
+              "projectTreeWidth": 320,
               "loadIssue": null
             }
           }
@@ -64,6 +67,7 @@
             "ok": {
               "themePreference": "dark",
               "autoSave": false,
+              "projectTreeWidth": 320,
               "loadIssue": null
             }
           }
@@ -78,6 +82,7 @@
             "ok": {
               "themePreference": "dark",
               "autoSave": false,
+              "projectTreeWidth": 320,
               "loadIssue": null
             }
           }
@@ -94,6 +99,7 @@
             "ok": {
               "themePreference": "light",
               "autoSave": false,
+              "projectTreeWidth": 320,
               "loadIssue": null
             }
           }
@@ -110,6 +116,39 @@
             "ok": {
               "themePreference": "light",
               "autoSave": true,
+              "projectTreeWidth": 320,
+              "loadIssue": null
+            }
+          }
+        },
+        {
+          "name": "set_project_tree_width: keeps theme and auto-save",
+          "request": {
+            "command": "set_project_tree_width",
+            "args": {
+              "width": 400
+            }
+          },
+          "expected": {
+            "ok": {
+              "themePreference": "light",
+              "autoSave": true,
+              "projectTreeWidth": 400,
+              "loadIssue": null
+            }
+          }
+        },
+        {
+          "name": "get_app_settings: returns the saved width",
+          "request": {
+            "command": "get_app_settings",
+            "args": {}
+          },
+          "expected": {
+            "ok": {
+              "themePreference": "light",
+              "autoSave": true,
+              "projectTreeWidth": 400,
               "loadIssue": null
             }
           }
@@ -162,6 +201,105 @@
           },
           "expected": {
             "tauriError": true
+          }
+        },
+        {
+          "name": "set_project_tree_width: below the minimum",
+          "targets": ["rust"],
+          "request": {
+            "command": "set_project_tree_width",
+            "args": {
+              "width": 159
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidProjectTreeWidth"
+            }
+          }
+        },
+        {
+          "name": "set_project_tree_width: above the maximum",
+          "targets": ["rust"],
+          "request": {
+            "command": "set_project_tree_width",
+            "args": {
+              "width": 641
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidProjectTreeWidth"
+            }
+          }
+        },
+        {
+          "name": "set_project_tree_width: not an integer",
+          "targets": ["rust"],
+          "request": {
+            "command": "set_project_tree_width",
+            "args": {
+              "width": 400.5
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidProjectTreeWidth"
+            }
+          }
+        },
+        {
+          "name": "set_project_tree_width: negative",
+          "targets": ["rust"],
+          "request": {
+            "command": "set_project_tree_width",
+            "args": {
+              "width": -1
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidProjectTreeWidth"
+            }
+          }
+        },
+        {
+          "name": "set_project_tree_width: missing argument",
+          "targets": ["rust"],
+          "request": {
+            "command": "set_project_tree_width",
+            "args": {}
+          },
+          "expected": {
+            "tauriError": true
+          }
+        },
+        {
+          "name": "set_project_tree_width: not a number",
+          "targets": ["rust"],
+          "request": {
+            "command": "set_project_tree_width",
+            "args": {
+              "width": "wide"
+            }
+          },
+          "expected": {
+            "tauriError": true
+          }
+        },
+        {
+          "name": "get_app_settings: a rejected width keeps the saved one",
+          "request": {
+            "command": "get_app_settings",
+            "args": {}
+          },
+          "expected": {
+            "ok": {
+              "themePreference": "light",
+              "autoSave": true,
+              "projectTreeWidth": 400,
+              "loadIssue": null
+            }
           }
         }
       ]

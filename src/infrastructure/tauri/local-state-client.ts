@@ -38,6 +38,12 @@ export function setAutoSave(
   return call(COMMANDS.setAutoSave, { enabled }, toAppSettingsResult);
 }
 
+export function setProjectTreeWidth(
+  width: number,
+): Promise<CommandResult<AppSettings>> {
+  return call(COMMANDS.setProjectTreeWidth, { width }, toAppSettingsResult);
+}
+
 export function getSheetViewport(
   projectId: ProjectId,
   documentId: DocumentId,

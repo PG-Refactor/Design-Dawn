@@ -11,6 +11,8 @@ export interface LocalStateLoadIssue {
 export interface AppSettings {
   readonly themePreference: ThemePreference;
   readonly autoSave: boolean;
+  // CSS pixels.
+  readonly projectTreeWidth: number;
   readonly loadIssue: LocalStateLoadIssue | null;
 }
 

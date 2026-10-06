@@ -11,6 +11,10 @@ import {
   createAutoSaveController,
 } from "../application/settings/auto-save-controller";
 import {
+  createLayoutSettingsController,
+  type LayoutSettingsController,
+} from "../application/settings/layout-settings-controller";
+import {
   type ApplicationStore,
   createApplicationStore,
 } from "../application/state/application-state";
@@ -22,6 +26,7 @@ import {
   createWorkspace,
   type Workspace,
 } from "../application/workspace/workspace";
+import { LAYOUT_CONFIG } from "../config/layout-config";
 import {
   AUTO_SAVE_DELAY_MS,
   DEFAULT_AUTO_SAVE_ENABLED,
@@ -78,6 +83,8 @@ export interface AppServices {
   readonly themeController: ThemeController;
   // The auto-save on/off app setting; also the policy the document sessions follow.
   readonly autoSaveController: AutoSaveController;
+  // The Project Tree width app setting (the splitter between the tree and the documents).
+  readonly layoutSettingsController: LayoutSettingsController;
   // Detaches the workspace -> UI state connector.
   readonly disconnectUiState: () => void;
 }
@@ -91,6 +98,10 @@ export function createAppServices(): AppServices {
   const autoSaveController = createAutoSaveController({
     gateway: settingsGateway,
     defaultEnabled: DEFAULT_AUTO_SAVE_ENABLED,
+  });
+  const layoutSettingsController = createLayoutSettingsController({
+    gateway: settingsGateway,
+    defaultProjectTreeWidth: LAYOUT_CONFIG.projectTree.defaultWidthPx,
   });
   const workspace = createWorkspace({
     gateway,
@@ -148,6 +159,7 @@ export function createAppServices(): AppServices {
     viewportPersistence,
     themeController,
     autoSaveController,
+    layoutSettingsController,
     disconnectUiState,
   };
 }

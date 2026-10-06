@@ -150,6 +150,7 @@ export function createActionsHarness(): ActionsHarness {
       assetUrlResolver: createFakeAssetUrlResolver(),
       themeController,
       autoSaveController: base.autoSaveController,
+      layoutSettingsController: base.layoutSettingsController,
     },
   };
 }

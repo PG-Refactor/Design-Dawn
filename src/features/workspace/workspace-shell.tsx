@@ -1,13 +1,10 @@
 import { useFileDrop } from "../canvas/use-file-drop";
-import { DocumentPanel } from "./document-panel";
-import { DocumentTabs } from "./document-tabs";
 import { LoadStatus } from "./notifications";
-import { ProjectTree } from "./project-tree";
 import { TopBar } from "./top-bar";
 import { useSaveShortcut } from "./use-save-shortcut";
 import { useWindowCloseSave } from "./use-window-close-save";
+import { WorkspaceBody } from "./workspace-body";
 import { WorkspaceDialogs } from "./workspace-dialogs";
-import { MESSAGES } from "./workspace-messages";
 import "./buttons.css";
 import "./workspace-shell.css";
 
@@ -21,18 +18,7 @@ export function WorkspaceShell() {
     <div className="workspace-shell">
       <TopBar />
       <LoadStatus />
-      <div className="workspace-shell__body">
-        <aside
-          className="workspace-shell__sidebar"
-          aria-label={MESSAGES.appRegionTreeLabel}
-        >
-          <ProjectTree />
-        </aside>
-        <main className="workspace-shell__main">
-          <DocumentTabs />
-          <DocumentPanel />
-        </main>
-      </div>
+      <WorkspaceBody />
       <WorkspaceDialogs />
     </div>
   );

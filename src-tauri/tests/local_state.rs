@@ -9,13 +9,14 @@ use std::path::PathBuf;
 
 use design_dawn_lib::application::error::ErrorKind;
 use design_dawn_lib::application::local_state::constants::{
-    MAX_SHEET_VIEWPORT_ENTRIES, THEME_IDS, THEME_SYSTEM,
+    DEFAULT_PROJECT_TREE_WIDTH, MAX_SHEET_VIEWPORT_ENTRIES, PROJECT_TREE_WIDTH_MAX,
+    PROJECT_TREE_WIDTH_MIN, THEME_IDS, THEME_SYSTEM,
 };
 use design_dawn_lib::application::local_state::operations::{LocalState, LocalStateDirectories};
 use design_dawn_lib::infrastructure::local_state::constants::{
     SETTINGS_FILE_NAME, SHEET_VIEWPORTS_FILE_NAME,
 };
-use serde_json::{json, Value};
+use serde_json::{json, Number, Value};
 use support::*;
 
 const SECOND_PROJECT_ID: &str = "01928f3a-5b6c-7d8e-9f01-23456789abce";
@@ -105,7 +106,7 @@ fn settings_file_has_exactly_the_documented_bytes() {
     fixture.state.set_theme_preference("dark").unwrap();
     assert_eq!(
         fs::read(&fixture.settings_path).unwrap(),
-        b"{\n  \"schemaVersion\": 2,\n  \"themePreference\": \"dark\",\n  \"autoSave\": true\n}\n"
+        b"{\n  \"schemaVersion\": 3,\n  \"themePreference\": \"dark\",\n  \"autoSave\": true,\n  \"projectTreeWidth\": 320\n}\n"
     );
 }
 
@@ -163,7 +164,7 @@ fn broken_settings_files_give_defaults_with_a_load_issue_and_a_save_replaces_the
         "invalidThemePreference",
     );
     assert_broken_settings(
-        b"{\"schemaVersion\":3,\"themePreference\":\"dark\",\"autoSave\":true}",
+        b"{\"schemaVersion\":4,\"themePreference\":\"dark\",\"autoSave\":true}",
         "unsupportedSchemaVersion",
     );
     assert_broken_settings(
@@ -172,6 +173,19 @@ fn broken_settings_files_give_defaults_with_a_load_issue_and_a_save_replaces_the
     );
     assert_broken_settings(
         b"{\"schemaVersion\":2,\"themePreference\":\"dark\",\"autoSave\":\"yes\"}",
+        "invalidFileStructure",
+    );
+    for width in ["159", "641", "-1", "320.0", "400.5", "1e2"] {
+        assert_broken_settings(
+            format!(
+                "{{\"schemaVersion\":3,\"themePreference\":\"dark\",\"autoSave\":true,\"projectTreeWidth\":{width}}}"
+            )
+            .as_bytes(),
+            "invalidProjectTreeWidth",
+        );
+    }
+    assert_broken_settings(
+        b"{\"schemaVersion\":3,\"themePreference\":\"dark\",\"autoSave\":true,\"projectTreeWidth\":\"wide\"}",
         "invalidFileStructure",
     );
     assert_broken_settings(&[0xFF, 0xFE, 0x41], "invalidEncoding");
@@ -210,7 +224,7 @@ fn a_version_1_settings_file_loads_with_auto_save_on() {
 }
 
 #[test]
-fn auto_save_round_trips_through_a_version_2_file() {
+fn auto_save_round_trips_through_a_version_3_file() {
     let fixture = fixture();
     let set = fixture.state.set_auto_save(false).unwrap();
     assert!(!set.auto_save);
@@ -218,10 +232,80 @@ fn auto_save_round_trips_through_a_version_2_file() {
     assert!(!fixture.state.get_app_settings().auto_save);
     assert_eq!(
         read_json(&fixture.settings_path),
-        json!({ "schemaVersion": 2, "themePreference": "system", "autoSave": false })
+        json!({ "schemaVersion": 3, "themePreference": "system", "autoSave": false, "projectTreeWidth": 320 })
     );
     assert!(fixture.state.set_auto_save(true).unwrap().auto_save);
     assert!(fixture.state.get_app_settings().auto_save);
+}
+
+#[test]
+fn version_1_and_2_settings_files_load_with_the_default_width() {
+    for content in [
+        &b"{\"schemaVersion\":1,\"themePreference\":\"dark\"}"[..],
+        &b"{\"schemaVersion\":2,\"themePreference\":\"dark\",\"autoSave\":false}"[..],
+    ] {
+        let fixture = fixture();
+        fs::create_dir_all(fixture.settings_path.parent().unwrap()).unwrap();
+        fs::write(&fixture.settings_path, content).unwrap();
+        let settings = fixture.state.get_app_settings();
+        assert_eq!(settings.project_tree_width, DEFAULT_PROJECT_TREE_WIDTH);
+        assert_eq!(settings.theme_preference.as_str(), "dark");
+        assert_eq!(settings.load_issue, None);
+    }
+}
+
+#[test]
+fn project_tree_width_round_trips_at_the_limits_and_is_serialized_in_the_wire_form() {
+    for width in [PROJECT_TREE_WIDTH_MIN, 400, PROJECT_TREE_WIDTH_MAX] {
+        let fixture = fixture();
+        let set = fixture
+            .state
+            .set_project_tree_width(&Number::from(width))
+            .unwrap();
+        assert_eq!(set.project_tree_width, width);
+        assert_eq!(fixture.state.get_app_settings().project_tree_width, width);
+        assert_eq!(read_json(&fixture.settings_path)["projectTreeWidth"], width);
+        let wire = serde_json::to_value(fixture.state.get_app_settings()).unwrap();
+        assert_eq!(wire["projectTreeWidth"], width);
+    }
+}
+
+#[test]
+fn setting_the_width_keeps_theme_and_auto_save_and_they_keep_the_width() {
+    let fixture = fixture();
+    fixture.state.set_theme_preference("dark").unwrap();
+    fixture.state.set_auto_save(false).unwrap();
+    let saved = fixture
+        .state
+        .set_project_tree_width(&Number::from(480))
+        .unwrap();
+    assert_eq!(saved.theme_preference.as_str(), "dark");
+    assert!(!saved.auto_save);
+    let after = fixture.state.set_auto_save(true).unwrap();
+    assert_eq!(after.project_tree_width, 480);
+    let after = fixture.state.set_theme_preference("light").unwrap();
+    assert_eq!(after.project_tree_width, 480);
+}
+
+#[test]
+fn an_invalid_width_is_rejected_and_the_file_is_unchanged() {
+    let fixture = fixture();
+    fixture
+        .state
+        .set_project_tree_width(&Number::from(400))
+        .unwrap();
+    let before = fs::read(&fixture.settings_path).unwrap();
+    let invalid: [Number; 4] = [
+        Number::from(PROJECT_TREE_WIDTH_MIN - 1),
+        Number::from(PROJECT_TREE_WIDTH_MAX + 1),
+        Number::from(-1),
+        Number::from_f64(400.5).unwrap(),
+    ];
+    for width in invalid {
+        let error = fixture.state.set_project_tree_width(&width).unwrap_err();
+        assert_eq!(error.kind, ErrorKind::InvalidProjectTreeWidth, "{width}");
+    }
+    assert_eq!(fs::read(&fixture.settings_path).unwrap(), before);
 }
 
 #[test]
@@ -250,7 +334,7 @@ fn setting_auto_save_upgrades_a_version_1_file_and_keeps_its_theme() {
     fixture.state.set_auto_save(false).unwrap();
     assert_eq!(
         read_json(&fixture.settings_path),
-        json!({ "schemaVersion": 2, "themePreference": "dark", "autoSave": false })
+        json!({ "schemaVersion": 3, "themePreference": "dark", "autoSave": false, "projectTreeWidth": 320 })
     );
 }
 

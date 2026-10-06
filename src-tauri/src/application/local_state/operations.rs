@@ -9,7 +9,8 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 use serde::Serialize;
 use serde_json::{Number, Value};
 
-use super::constants::{DEFAULT_AUTO_SAVE, MAX_SHEET_VIEWPORT_ENTRIES};
+use super::constants::{DEFAULT_AUTO_SAVE, DEFAULT_PROJECT_TREE_WIDTH, MAX_SHEET_VIEWPORT_ENTRIES};
+use super::layout::parse_project_tree_width;
 use super::theme::ThemePreference;
 use super::viewport::{SheetViewportKey, Viewport};
 use crate::application::error::{ApplicationError, ApplicationResult};
@@ -35,13 +36,15 @@ pub struct LocalStateDirectories {
     pub local_data_dir: PathBuf,
 }
 
-/// Wire form: `{ themePreference, autoSave, loadIssue }`; `loadIssue` is `null` or
+/// Wire form: `{ themePreference, autoSave, projectTreeWidth, loadIssue }`; `loadIssue` is `null` or
 /// `{ kind, detail }`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
     pub theme_preference: ThemePreference,
     pub auto_save: bool,
+    /// CSS pixels.
+    pub project_tree_width: u32,
     pub load_issue: Option<ApplicationError>,
 }
 
@@ -50,6 +53,7 @@ impl AppSettings {
         Self {
             theme_preference: ThemePreference::default(),
             auto_save: DEFAULT_AUTO_SAVE,
+            project_tree_width: DEFAULT_PROJECT_TREE_WIDTH,
             load_issue,
         }
     }
@@ -160,6 +164,11 @@ impl LocalState {
             theme_preference: ThemePreference::parse(&dto.theme_preference)?,
             // Schema version 1 files predate the setting, so it is absent there.
             auto_save: dto.auto_save.unwrap_or(DEFAULT_AUTO_SAVE),
+            // Absent before schema version 3.
+            project_tree_width: match &dto.project_tree_width {
+                Some(number) => parse_project_tree_width(number)?,
+                None => DEFAULT_PROJECT_TREE_WIDTH,
+            },
             load_issue: None,
         })
     }
@@ -183,6 +192,7 @@ impl LocalState {
                 schema_version: Number::from(CURRENT_SETTINGS_SCHEMA_VERSION),
                 theme_preference: settings.theme_preference.as_str().to_owned(),
                 auto_save: Some(settings.auto_save),
+                project_tree_width: Some(Number::from(settings.project_tree_width)),
             },
         )?;
         Ok(settings)
@@ -214,6 +224,13 @@ impl LocalState {
 
     pub fn set_auto_save(&self, enabled: bool) -> ApplicationResult<AppSettings> {
         self.update_settings(|settings| settings.auto_save = enabled)
+    }
+
+    /// `width` is a `Number` so a non-integer or out-of-range value is reported as
+    /// `invalidProjectTreeWidth` instead of failing argument decoding.
+    pub fn set_project_tree_width(&self, width: &Number) -> ApplicationResult<AppSettings> {
+        let width = parse_project_tree_width(width)?;
+        self.update_settings(|settings| settings.project_tree_width = width)
     }
 
     pub fn get_sheet_viewport(

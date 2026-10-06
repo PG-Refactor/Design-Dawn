@@ -52,6 +52,8 @@ pub enum ErrorKind {
     InvalidMove,
     /// A viewport with a non-finite or out-of-range `panX` / `panY` / `zoom`.
     InvalidViewport,
+    /// A Project Tree width that is not an integer within the allowed range.
+    InvalidProjectTreeWidth,
 }
 
 impl ErrorKind {
@@ -71,6 +73,7 @@ impl ErrorKind {
             Self::FolderNotEmpty => "folderNotEmpty",
             Self::InvalidMove => "invalidMove",
             Self::InvalidViewport => "invalidViewport",
+            Self::InvalidProjectTreeWidth => "invalidProjectTreeWidth",
         }
     }
 
@@ -94,6 +97,7 @@ impl ErrorKind {
             Self::FolderNotEmpty => "the folder is not empty",
             Self::InvalidMove => "the item cannot be moved there",
             Self::InvalidViewport => "the viewport is not valid",
+            Self::InvalidProjectTreeWidth => "the project tree width is not valid",
         }
     }
 }
@@ -173,7 +177,7 @@ impl Serialize for ApplicationError {
 mod tests {
     use super::*;
 
-    const ALL_KINDS: [ErrorKind; 29] = [
+    const ALL_KINDS: [ErrorKind; 30] = [
         ErrorKind::Domain(DomainErrorKind::InvalidEntityId),
         ErrorKind::Domain(DomainErrorKind::InvalidDisplayName),
         ErrorKind::Domain(DomainErrorKind::InvalidPosition),
@@ -203,6 +207,7 @@ mod tests {
         ErrorKind::FolderNotEmpty,
         ErrorKind::InvalidMove,
         ErrorKind::InvalidViewport,
+        ErrorKind::InvalidProjectTreeWidth,
     ];
 
     /// A Windows drive path (`C:\`) or any separator would mean a path leaked.

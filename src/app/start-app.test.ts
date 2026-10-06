@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createAutoSaveController } from "../application/settings/auto-save-controller";
+import { createLayoutSettingsController } from "../application/settings/layout-settings-controller";
 import {
   createFakeAppSettingsGateway,
   createFakeOsThemeSource,
@@ -111,5 +112,25 @@ describe("startApp", () => {
       reportError: () => {},
     });
     expect(log).toContain("render:false");
+  });
+
+  it("loads the Project Tree width before rendering", async () => {
+    const { gateway, themeController, themeTarget, log } = setup("light");
+    gateway.storage.projectTreeWidth = 480;
+    const layoutSettingsController = createLayoutSettingsController({
+      gateway,
+      defaultProjectTreeWidth: 320,
+    });
+    await startApp({
+      themeController,
+      layoutSettingsController,
+      themeTarget,
+      render: () =>
+        log.push(
+          `render:${layoutSettingsController.store.getState().projectTreeWidth}`,
+        ),
+      reportError: () => {},
+    });
+    expect(log).toContain("render:480");
   });
 });

@@ -27,6 +27,7 @@ export const COMMANDS = {
   getAppSettings: "get_app_settings",
   setThemePreference: "set_theme_preference",
   setAutoSave: "set_auto_save",
+  setProjectTreeWidth: "set_project_tree_width",
   getSheetViewport: "get_sheet_viewport",
   saveSheetViewport: "save_sheet_viewport",
   importDroppedImages: "import_dropped_images",

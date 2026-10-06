@@ -46,6 +46,7 @@ import {
   getSheetViewport,
   saveSheetViewport,
   setAutoSave,
+  setProjectTreeWidth,
   setThemePreference,
 } from "./local-state-client";
 import {
@@ -221,6 +222,7 @@ const WRAPPERS: Readonly<Record<string, Wrapper>> = {
       unwrapTheme(parseThemePreference(args.themePreference as string)),
     ),
   set_auto_save: (args) => setAutoSave(args.enabled as boolean),
+  set_project_tree_width: (args) => setProjectTreeWidth(args.width as number),
   get_sheet_viewport: (args) =>
     getSheetViewport(id.project(args), id.document(args), id.sheet(args)),
   save_sheet_viewport: (args) =>

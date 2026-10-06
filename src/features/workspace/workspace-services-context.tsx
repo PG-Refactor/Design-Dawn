@@ -2,6 +2,7 @@ import { createContext, type ReactNode, useContext } from "react";
 import type { AssetUrlResolver } from "../../application/ports/asset-url-resolver";
 import type { DropEventSource } from "../../application/ports/drop-event-source";
 import type { CloseRequestSource } from "../../application/ports/window-close";
+import type { LayoutSettingsController } from "../../application/settings/layout-settings-controller";
 import type { ApplicationStore } from "../../application/state/application-state";
 import type { ThemeState } from "../../application/theme/theme-controller";
 import type { Store } from "../../shared/store/store";
@@ -34,6 +35,10 @@ export interface WorkspaceServices {
     readonly store: Store<ThemeState>;
   };
   readonly autoSaveController: AutoSaveSettingsController;
+  readonly layoutSettingsController: Pick<
+    LayoutSettingsController,
+    "store" | "setProjectTreeWidth"
+  >;
 }
 
 const WorkspaceServicesContext = createContext<WorkspaceServices | null>(null);

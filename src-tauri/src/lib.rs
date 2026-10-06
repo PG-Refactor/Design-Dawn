@@ -66,6 +66,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::get_app_settings,
             commands::set_theme_preference,
             commands::set_auto_save,
+            commands::set_project_tree_width,
             commands::get_sheet_viewport,
             commands::save_sheet_viewport,
             commands::import_dropped_images,

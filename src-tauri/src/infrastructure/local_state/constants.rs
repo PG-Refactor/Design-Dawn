@@ -3,7 +3,7 @@
 pub const SETTINGS_FILE_NAME: &str = "settings.json";
 pub const SHEET_VIEWPORTS_FILE_NAME: &str = "sheet-viewports.json";
 
-pub const CURRENT_SETTINGS_SCHEMA_VERSION: u32 = 2;
+pub const CURRENT_SETTINGS_SCHEMA_VERSION: u32 = 3;
 pub const CURRENT_SHEET_VIEWPORTS_SCHEMA_VERSION: u32 = 1;
 
 /// Integers up to 2^53 are exactly representable as `f64` (and as a JavaScript number).

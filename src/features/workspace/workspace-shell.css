@@ -9,14 +9,19 @@
 .workspace-shell__body {
   display: grid;
   flex: 1 1 auto;
-  grid-template-columns: minmax(12rem, 20rem) minmax(0, 1fr);
+  /* The tree is capped so the document area keeps its minimum width in a narrow window. */
+  grid-template-columns:
+    min(
+      var(--project-tree-width),
+      calc(100% - var(--document-area-min-width) - var(--splitter-width))
+    )
+    var(--splitter-width) minmax(0, 1fr);
   min-height: 0;
 }
 
 .workspace-shell__sidebar {
   padding: var(--space-2);
   overflow: auto;
-  border-right: 1px solid var(--color-border);
   background: var(--color-surface);
 }
 
@@ -47,7 +52,6 @@
   }
 
   .workspace-shell__sidebar {
-    border-right: none;
     border-bottom: 1px solid var(--color-border);
   }
 }

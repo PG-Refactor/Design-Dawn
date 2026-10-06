@@ -36,6 +36,7 @@ describe("createAppServices", () => {
     invokeMock.mockResolvedValue({
       themePreference: "dark",
       autoSave: true,
+      projectTreeWidth: 320,
       loadIssue: null,
     });
     const { themeController } = createAppServices();

@@ -4,6 +4,7 @@
 
 import type { ResolvedTheme } from "../application/local-state/theme";
 import type { AutoSaveController } from "../application/settings/auto-save-controller";
+import type { LayoutSettingsController } from "../application/settings/layout-settings-controller";
 import type { ThemeController } from "../application/theme/theme-controller";
 import { applyTheme, type ThemeTarget } from "../features/theme/apply-theme";
 
@@ -11,6 +12,11 @@ export interface StartAppDependencies {
   readonly themeController: Pick<ThemeController, "store" | "initialize">;
   // Loaded alongside the theme; behaves as "on" until then.
   readonly autoSaveController?: Pick<AutoSaveController, "initialize">;
+  // Loaded alongside the theme so the panel has its stored width on the first paint.
+  readonly layoutSettingsController?: Pick<
+    LayoutSettingsController,
+    "initialize"
+  >;
   readonly themeTarget: ThemeTarget;
   readonly render: () => void;
   readonly reportError: (error: unknown) => void;
@@ -22,6 +28,7 @@ export async function startApp(
   const {
     themeController,
     autoSaveController,
+    layoutSettingsController,
     themeTarget,
     render,
     reportError,
@@ -41,6 +48,7 @@ export async function startApp(
     await Promise.all([
       themeController.initialize(),
       autoSaveController?.initialize(),
+      layoutSettingsController?.initialize(),
     ]);
   } catch (error) {
     // The app must still start with the default theme.

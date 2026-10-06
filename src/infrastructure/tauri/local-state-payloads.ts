@@ -3,6 +3,7 @@
 // A payload that fails either step is `invalidCommandResponse`.
 
 import type { LocalStateResult } from "../../application/local-state/local-state-result";
+import { parseProjectTreeWidth } from "../../application/local-state/project-tree-width";
 import {
   parseThemePreference,
   type ThemePreference,
@@ -48,6 +49,7 @@ const decodeLoadIssue = objectOf<LocalStateLoadIssue>({
 interface RawAppSettings {
   readonly themePreference: string;
   readonly autoSave: boolean;
+  readonly projectTreeWidth: number;
   readonly loadIssue: LocalStateLoadIssue | null;
 }
 interface RawSheetViewportState {
@@ -58,6 +60,7 @@ interface RawSheetViewportState {
 const rawAppSettings = objectOf<RawAppSettings>({
   themePreference: decodeString,
   autoSave: decodeBoolean,
+  projectTreeWidth: decodeNumber,
   loadIssue: nullable(decodeLoadIssue),
 });
 const rawSheetViewportState = objectOf<RawSheetViewportState>({
@@ -100,9 +103,14 @@ export function toAppSettingsResult(
     parseThemePreference(raw.value.themePreference),
   );
   if (!themePreference.ok) return themePreference;
+  const projectTreeWidth: CommandResult<number> = asResponseValue(
+    parseProjectTreeWidth(raw.value.projectTreeWidth),
+  );
+  if (!projectTreeWidth.ok) return projectTreeWidth;
   return commandOk({
     themePreference: themePreference.value,
     autoSave: raw.value.autoSave,
+    projectTreeWidth: projectTreeWidth.value,
     loadIssue: raw.value.loadIssue,
   });
 }

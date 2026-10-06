@@ -9,6 +9,7 @@ import type {
   LoadIssue,
 } from "../../../application/ports/persistence-types";
 import type { AutoSaveState } from "../../../application/settings/auto-save-controller";
+import type { LayoutSettingsState } from "../../../application/settings/layout-settings-controller";
 import type {
   ApplicationState,
   DocumentSessionState,
@@ -34,6 +35,7 @@ export type NotificationKind =
   | "operationError"
   | "themeSaveError"
   | "autoSaveSaveError"
+  | "projectTreeWidthSaveError"
   | "loadFailed"
   | "loadIssue"
   | "themeLoadIssue"
@@ -50,6 +52,7 @@ export const NOTIFICATION_PRIORITY: Record<NotificationKind, number> = {
   operationError: 0,
   themeSaveError: 0,
   autoSaveSaveError: 0,
+  projectTreeWidthSaveError: 0,
   loadFailed: 1,
   loadIssue: 2,
   themeLoadIssue: 2,
@@ -63,6 +66,7 @@ const NOTIFICATION_SEVERITY: Record<NotificationKind, NotificationSeverity> = {
   operationError: "error",
   themeSaveError: "error",
   autoSaveSaveError: "error",
+  projectTreeWidthSaveError: "error",
   loadFailed: "error",
   loadIssue: "warning",
   themeLoadIssue: "warning",
@@ -131,6 +135,7 @@ export interface NotificationsInput {
   // Only its save error is shown: a settings file that could not be read is already
   // reported once through `theme.loadIssue`.
   readonly autoSave?: Pick<AutoSaveState, "saveError">;
+  readonly layoutSettings?: Pick<LayoutSettingsState, "saveError">;
 }
 
 const NO_IMAGE_LOAD_FAILURES: NonNullable<
@@ -466,6 +471,18 @@ function collectAppItems(
         source,
         message: `${MESSAGES.notifications.autoSaveSaveError} ${describeErrorKind(autoSaveError.kind)}`,
         details: errorDetails(autoSaveError),
+      }),
+    );
+  }
+  const layoutError = input.layoutSettings?.saveError ?? null;
+  if (layoutError !== null) {
+    items.push(
+      makeItem({
+        id: "projectTreeWidthSaveError",
+        kind: "projectTreeWidthSaveError",
+        source,
+        message: `${MESSAGES.notifications.projectTreeWidthSaveError} ${describeErrorKind(layoutError.kind)}`,
+        details: errorDetails(layoutError),
       }),
     );
   }

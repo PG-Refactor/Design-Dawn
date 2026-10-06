@@ -4,6 +4,7 @@
 export const LOCAL_STATE_ERROR_KINDS = [
   "invalidThemePreference",
   "invalidViewport",
+  "invalidProjectTreeWidth",
 ] as const;
 
 export type LocalStateErrorKind = (typeof LOCAL_STATE_ERROR_KINDS)[number];

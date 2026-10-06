@@ -41,7 +41,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 31] = [
+pub const COMMAND_NAMES: [&str; 32] = [
     "select_project_folder",
     "create_project",
     "open_project",
@@ -66,6 +66,7 @@ pub const COMMAND_NAMES: [&str; 31] = [
     "get_app_settings",
     "set_theme_preference",
     "set_auto_save",
+    "set_project_tree_width",
     "get_sheet_viewport",
     "save_sheet_viewport",
     "import_dropped_images",
@@ -468,6 +469,16 @@ pub fn set_auto_save<R: Runtime>(
     enabled: bool,
 ) -> Result<AppSettings, ApplicationError> {
     with_local_state(&app, |local_state| local_state.set_auto_save(enabled))
+}
+
+#[tauri::command]
+pub fn set_project_tree_width<R: Runtime>(
+    app: AppHandle<R>,
+    width: serde_json::Number,
+) -> Result<AppSettings, ApplicationError> {
+    with_local_state(&app, |local_state| {
+        local_state.set_project_tree_width(&width)
+    })
 }
 
 #[tauri::command]

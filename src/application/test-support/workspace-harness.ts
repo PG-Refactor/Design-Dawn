@@ -1,6 +1,7 @@
 // A workspace wired to the fakes, with a seeded fake disk and every emitted event
 // collected. Documents A and B load fine; FAILED_DOCUMENT_ID's own metadata is broken.
 
+import { LAYOUT_CONFIG } from "../../config/layout-config";
 import { DEFAULT_AUTO_SAVE_ENABLED } from "../../config/session-config";
 import { parseProject } from "../../domain/project/project";
 import { PROJECT_ID } from "../../domain/shared/test-fixtures";
@@ -11,6 +12,10 @@ import {
   type AutoSaveController,
   createAutoSaveController,
 } from "../settings/auto-save-controller";
+import {
+  createLayoutSettingsController,
+  type LayoutSettingsController,
+} from "../settings/layout-settings-controller";
 import {
   type ApplicationStore,
   createApplicationStore,
@@ -57,6 +62,8 @@ export interface WorkspaceHarness {
   readonly events: WorkspaceEvent[];
   // The auto-save policy of the workspace; on until a test switches it off.
   readonly autoSaveController: AutoSaveController;
+  // The Project Tree width setting, over the same fake settings file.
+  readonly layoutSettingsController: LayoutSettingsController;
   readonly settingsGateway: FakeAppSettingsGateway;
 }
 
@@ -86,6 +93,10 @@ export function createWorkspaceHarness(): WorkspaceHarness {
     gateway: settingsGateway,
     defaultEnabled: DEFAULT_AUTO_SAVE_ENABLED,
   });
+  const layoutSettingsController = createLayoutSettingsController({
+    gateway: settingsGateway,
+    defaultProjectTreeWidth: LAYOUT_CONFIG.projectTree.defaultWidthPx,
+  });
   const workspace = createWorkspace({
     gateway,
     scheduler,
@@ -102,6 +113,7 @@ export function createWorkspaceHarness(): WorkspaceHarness {
     store,
     events,
     autoSaveController,
+    layoutSettingsController,
     settingsGateway,
   };
 }

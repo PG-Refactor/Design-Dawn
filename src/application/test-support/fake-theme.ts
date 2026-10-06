@@ -1,5 +1,6 @@
 // Fakes for the theme ports: an in-memory settings "file" and a controllable OS theme.
 
+import { LAYOUT_CONFIG } from "../../config/layout-config";
 import type { ResolvedTheme, ThemePreference } from "../local-state/theme";
 import type {
   AppSettingsGateway,
@@ -15,6 +16,7 @@ import type { OsThemeSource } from "../ports/os-theme-source";
 export interface FakeAppSettingsStorage {
   themePreference: ThemePreference;
   autoSave: boolean;
+  projectTreeWidth: number;
   loadIssue: OperationError | null;
 }
 
@@ -26,7 +28,9 @@ export interface FakeAppSettingsGateway extends AppSettingsGateway {
   failSet: OperationError | null;
   // Values passed to `setAutoSave`, in call order.
   readonly autoSaveCalls: boolean[];
-  // Suspends the next set (theme or auto-save) until the returned function is called.
+  // Values passed to `setProjectTreeWidth`, in call order.
+  readonly projectTreeWidthCalls: number[];
+  // Suspends the next set (theme, auto-save or width) until the returned function is called.
   holdNextSet(): () => void;
 }
 
@@ -39,6 +43,7 @@ export function createFakeAppSettingsGateway(
   storage: FakeAppSettingsStorage = {
     themePreference: "system",
     autoSave: true,
+    projectTreeWidth: LAYOUT_CONFIG.projectTree.defaultWidthPx,
     loadIssue: null,
   },
 ): FakeAppSettingsGateway {
@@ -46,9 +51,10 @@ export function createFakeAppSettingsGateway(
   const snapshot = (): AppSettingsSnapshot => ({
     themePreference: storage.themePreference,
     autoSave: storage.autoSave,
+    projectTreeWidth: storage.projectTreeWidth,
     loadIssue: storage.loadIssue,
   });
-  // Shared by both setters: waits for a held request, then reports a configured failure.
+  // Shared by all setters: waits for a held request, then reports a configured failure.
   const settleSet = async () => {
     const hold = releaseNext;
     releaseNext = null;
@@ -64,6 +70,7 @@ export function createFakeAppSettingsGateway(
     storage,
     setCalls: [],
     autoSaveCalls: [],
+    projectTreeWidthCalls: [],
     failGet: null,
     failSet: null,
     async getAppSettings() {
@@ -85,6 +92,14 @@ export function createFakeAppSettingsGateway(
       const failure = await settleSet();
       if (failure !== null) return failure;
       storage.autoSave = enabled;
+      storage.loadIssue = null;
+      return operationOk(snapshot());
+    },
+    async setProjectTreeWidth(width) {
+      gateway.projectTreeWidthCalls.push(width);
+      const failure = await settleSet();
+      if (failure !== null) return failure;
+      storage.projectTreeWidth = width;
       storage.loadIssue = null;
       return operationOk(snapshot());
     },

@@ -13,6 +13,7 @@ import {
   getSheetViewport,
   saveSheetViewport,
   setAutoSave,
+  setProjectTreeWidth,
   setThemePreference,
 } from "./local-state-client";
 
@@ -37,11 +38,17 @@ describe("getAppSettings", () => {
     invokeMock.mockResolvedValueOnce({
       themePreference: "dark",
       autoSave: false,
+      projectTreeWidth: 400,
       loadIssue: null,
     });
     expect(await getAppSettings()).toStrictEqual({
       ok: true,
-      value: { themePreference: "dark", autoSave: false, loadIssue: null },
+      value: {
+        themePreference: "dark",
+        autoSave: false,
+        projectTreeWidth: 400,
+        loadIssue: null,
+      },
     });
     expect(invokeMock.mock.calls).toStrictEqual([
       [COMMANDS.getAppSettings, {}],
@@ -52,26 +59,39 @@ describe("getAppSettings", () => {
     invokeMock.mockResolvedValueOnce({
       themePreference: "system",
       autoSave: true,
+      projectTreeWidth: 320,
       loadIssue: ISSUE,
     });
     expect(await getAppSettings()).toStrictEqual({
       ok: true,
-      value: { themePreference: "system", autoSave: true, loadIssue: ISSUE },
+      value: {
+        themePreference: "system",
+        autoSave: true,
+        projectTreeWidth: 320,
+        loadIssue: ISSUE,
+      },
     });
   });
 
   it("rejects malformed payloads as invalidCommandResponse", async () => {
+    const valid = {
+      themePreference: "system",
+      autoSave: true,
+      projectTreeWidth: 320,
+      loadIssue: null,
+    };
     const malformed: unknown[] = [
       null,
       { themePreference: "system", loadIssue: null },
-      { themePreference: "system", autoSave: "yes", loadIssue: null },
-      { themePreference: "sepia", autoSave: true, loadIssue: null },
-      {
-        themePreference: "system",
-        autoSave: true,
-        loadIssue: { kind: "nope", detail: "d" },
-      },
-      { themePreference: 1, autoSave: true, loadIssue: null },
+      { ...valid, autoSave: "yes" },
+      { ...valid, themePreference: "sepia" },
+      { ...valid, loadIssue: { kind: "nope", detail: "d" } },
+      { ...valid, themePreference: 1 },
+      { ...valid, projectTreeWidth: undefined },
+      { ...valid, projectTreeWidth: "320" },
+      { ...valid, projectTreeWidth: 159 },
+      { ...valid, projectTreeWidth: 641 },
+      { ...valid, projectTreeWidth: 320.5 },
     ];
     for (const payload of malformed) {
       invokeMock.mockResolvedValueOnce(payload);
@@ -87,6 +107,7 @@ describe("setThemePreference", () => {
     invokeMock.mockResolvedValueOnce({
       themePreference: "light",
       autoSave: true,
+      projectTreeWidth: 320,
       loadIssue: null,
     });
     const result = await setThemePreference("light");
@@ -164,6 +185,7 @@ describe("setAutoSave", () => {
     invokeMock.mockResolvedValueOnce({
       themePreference: "dark",
       autoSave: false,
+      projectTreeWidth: 320,
       loadIssue: null,
     });
     const result = await setAutoSave(false);
@@ -178,6 +200,33 @@ describe("setAutoSave", () => {
     expect(await setAutoSave(true)).toStrictEqual({
       ok: false,
       error: { kind: "ioError", detail: "d" },
+    });
+  });
+});
+
+describe("setProjectTreeWidth", () => {
+  it("sends the width and decodes the settings", async () => {
+    invokeMock.mockResolvedValueOnce({
+      themePreference: "dark",
+      autoSave: true,
+      projectTreeWidth: 480,
+      loadIssue: null,
+    });
+    const result = await setProjectTreeWidth(480);
+    expect(result.ok && result.value.projectTreeWidth).toBe(480);
+    expect(invokeMock.mock.calls).toStrictEqual([
+      [COMMANDS.setProjectTreeWidth, { width: 480 }],
+    ]);
+  });
+
+  it("returns Rust errors as they are", async () => {
+    invokeMock.mockRejectedValueOnce({
+      kind: "invalidProjectTreeWidth",
+      detail: "d",
+    });
+    expect(await setProjectTreeWidth(10)).toStrictEqual({
+      ok: false,
+      error: { kind: "invalidProjectTreeWidth", detail: "d" },
     });
   });
 });

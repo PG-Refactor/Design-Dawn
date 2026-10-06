@@ -9,6 +9,9 @@ import type { OperationLabel } from "./ui-state/ui-state";
 
 export const MESSAGES = {
   appRegionTreeLabel: "Project Tree",
+  splitter: {
+    label: "Project Treeの幅",
+  },
   topBar: {
     noProject: "Projectが開かれていません",
     openProject: "Projectを開く",
@@ -76,6 +79,7 @@ export const MESSAGES = {
     statusLabel: "読み込み状況",
     themeSaveError: "テーマ設定を保存できませんでした",
     autoSaveSaveError: "自動保存の設定を保存できませんでした",
+    projectTreeWidthSaveError: "Project Treeの幅を保存できませんでした",
     themeLoadIssue:
       "テーマ設定を読み込めませんでした（既定の設定で起動しています）",
     loadFailedDocument: "Documentの読み込みに失敗しました（開けません）",
@@ -222,6 +226,7 @@ const ERROR_KIND_MESSAGES: Record<OperationErrorKind, string> = {
   invalidMove: "ここへは移動できません（移動先が自分自身の中です）。",
   invalidThemePreference: "テーマ設定の値が正しくありません。",
   invalidViewport: "表示位置の値が正しくありません。",
+  invalidProjectTreeWidth: "Project Treeの幅の値が正しくありません。",
   invalidCommandResponse: "内部処理の応答が正しくありません。",
   unexpectedCommandError: "予期しないエラーが発生しました。",
 };

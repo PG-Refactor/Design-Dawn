@@ -16,6 +16,10 @@ pub struct SettingsFileDto {
     /// Absent in schema version 1.
     #[serde(default)]
     pub auto_save: Option<bool>,
+    /// Absent in schema versions 1 and 2. A `Number` so that an out-of-range or
+    /// non-integer value reaches the validator and gets its own error kind.
+    #[serde(default)]
+    pub project_tree_width: Option<Number>,
 }
 
 /// The `viewport` argument of `save_sheet_viewport`.
