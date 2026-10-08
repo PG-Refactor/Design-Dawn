@@ -54,4 +54,10 @@ export interface GitGateway {
     projectId: ProjectId,
     paths: readonly string[],
   ): Promise<OperationResult<GitStatus>>;
+  // Takes staged files back out of the index (a staged rename as a whole) and returns the
+  // status read afterwards. Working tree files are never changed.
+  unstage(
+    projectId: ProjectId,
+    paths: readonly string[],
+  ): Promise<OperationResult<GitStatus>>;
 }

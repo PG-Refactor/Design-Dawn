@@ -52,7 +52,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 39] = [
+pub const COMMAND_NAMES: [&str; 40] = [
     "select_project_folder",
     "create_project",
     "open_project",
@@ -92,6 +92,7 @@ pub const COMMAND_NAMES: [&str; 39] = [
     "open_project_in_new_window",
     "git_status",
     "git_stage",
+    "git_unstage",
 ];
 
 pub use app_channel::{AppNotification, AppNotificationSink, AppRequestHub, AppRequestSubscriber};
@@ -803,6 +804,23 @@ pub async fn git_stage<R: Runtime>(
     run_blocking(move || {
         let sessions = app.state::<Mutex<ProjectSessions>>();
         git_operations::git_stage(&sessions, &project_id, &paths)
+    })
+    .await
+}
+
+/// Unstages files of the calling window's Project and returns the status read after it
+/// (docs/git-development.md §11.6). Not an Undo step and never saves.
+#[tauri::command]
+pub async fn git_unstage<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    paths: Vec<String>,
+) -> Result<GitStatusResult, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_operations::git_unstage(&sessions, &project_id, &paths)
     })
     .await
 }

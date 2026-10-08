@@ -10,9 +10,9 @@ use serde::Serialize;
 use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
 use crate::application::session::ProjectSessions;
 use crate::infrastructure::git::constants::{
-    ARG_ADD, ARG_NO_OPTIONAL_LOCKS, ARG_NUL_SEPARATED, ARG_PATHSPEC_FILE_NUL,
-    ARG_PATHSPEC_FROM_STDIN, ARG_STATUS, ARG_STATUS_PORCELAIN_V2, ARG_UNTRACKED_ALL,
-    GIT_COMMAND_TIMEOUT,
+    ARG_ADD, ARG_CACHED, ARG_NO_OPTIONAL_LOCKS, ARG_NUL_SEPARATED, ARG_PATHSPEC_FILE_NUL,
+    ARG_PATHSPEC_FROM_STDIN, ARG_QUIET, ARG_RESTORE, ARG_REV_PARSE, ARG_RM, ARG_STAGED, ARG_STATUS,
+    ARG_STATUS_PORCELAIN_V2, ARG_UNTRACKED_ALL, ARG_VERIFY, GIT_COMMAND_TIMEOUT, REVISION_HEAD,
 };
 use crate::infrastructure::git::paths::{
     pathspec_stdin, validate_project_relative_path, ValidatedGitPath,
@@ -171,24 +171,10 @@ pub fn stage_paths(
 ) -> ApplicationResult<GitStatusResult> {
     let state = repository_state(runner, project_root)?;
     let (GitRepositoryState::Ready, Some(runner)) = (state, runner) else {
-        return Err(ApplicationError::new(
-            ErrorKind::GitNotReady,
-            format!("the repository is not ready for git operations ({state:?})"),
-        ));
+        return Err(not_ready_error(state));
     };
 
-    let mut validated: Vec<ValidatedGitPath> = Vec::new();
-    for path in paths {
-        let valid = validate_project_relative_path(path).map_err(|reason| {
-            ApplicationError::new(
-                ErrorKind::InvalidGitPath,
-                format!("a path to stage was rejected: {reason:?}"),
-            )
-        })?;
-        if !validated.contains(&valid) {
-            validated.push(valid);
-        }
-    }
+    let validated = validate_requested_paths(paths, "stage")?;
     // An empty request is a no-op, not an error: the caller just gets the current status.
     let Ok(stdin) = pathspec_stdin(&validated) else {
         return read_git_status(Some(runner), project_root);
@@ -228,6 +214,175 @@ pub fn stage_paths(
         ));
     }
     read_git_status(Some(runner), project_root)
+}
+
+fn validate_requested_paths(
+    paths: &[String],
+    operation: &str,
+) -> ApplicationResult<Vec<ValidatedGitPath>> {
+    let mut validated: Vec<ValidatedGitPath> = Vec::new();
+    for path in paths {
+        let valid = validate_project_relative_path(path).map_err(|reason| {
+            ApplicationError::new(
+                ErrorKind::InvalidGitPath,
+                format!("a path to {operation} was rejected: {reason:?}"),
+            )
+        })?;
+        if !validated.contains(&valid) {
+            validated.push(valid);
+        }
+    }
+    Ok(validated)
+}
+
+fn not_ready_error(state: GitRepositoryState) -> ApplicationError {
+    ApplicationError::new(
+        ErrorKind::GitNotReady,
+        format!("the repository is not ready for git operations ({state:?})"),
+    )
+}
+
+/// Unstages the given Project-relative paths with the `git` found on PATH.
+pub fn git_unstage(
+    sessions: &Mutex<ProjectSessions>,
+    project_id: &str,
+    paths: &[String],
+) -> ApplicationResult<GitStatusResult> {
+    let project_root = project_root_of(sessions, project_id)?;
+    unstage_paths(GitRunner::discover().ok().as_ref(), &project_root, paths)
+}
+
+/// Takes staged entries back out of the index (docs/git-development.md §11.6): `git restore
+/// --staged`, or `git rm --cached` while the repository has no commit. Only paths whose
+/// index side the repository's own status lists as changed (and not unmerged) are accepted,
+/// so nothing outside the request is touched. A staged rename is unstaged as a whole: its
+/// original path joins the pathspec, otherwise the old name's deletion would stay staged.
+/// Working tree files are never changed. Returns the status read afterwards.
+pub fn unstage_paths(
+    runner: Option<&GitRunner>,
+    project_root: &Path,
+    paths: &[String],
+) -> ApplicationResult<GitStatusResult> {
+    let state = repository_state(runner, project_root)?;
+    let (GitRepositoryState::Ready, Some(runner)) = (state, runner) else {
+        return Err(not_ready_error(state));
+    };
+
+    let requested = validate_requested_paths(paths, "unstage")?;
+    if requested.is_empty() {
+        return read_git_status(Some(runner), project_root);
+    }
+
+    let current = read_file_statuses(runner, project_root)?;
+    let mut targets: Vec<ValidatedGitPath> = Vec::new();
+    for path in &requested {
+        let entry = current
+            .iter()
+            .find(|file| file.path == path.as_str() && is_unstageable(file.index_status));
+        let Some(entry) = entry else {
+            return Err(ApplicationError::new(
+                ErrorKind::InvalidGitPath,
+                "a path to unstage has no staged change in the repository",
+            ));
+        };
+        let mut affected = vec![path.clone()];
+        if entry.index_status == GitFileChange::Renamed {
+            // The path comes from git; it is checked like any other before it reaches stdin.
+            let original = entry
+                .original_path
+                .as_deref()
+                .and_then(|original| validate_project_relative_path(original).ok());
+            let Some(original) = original else {
+                return Err(ApplicationError::new(
+                    ErrorKind::GitCommandFailed,
+                    "a staged rename has no usable original path",
+                ));
+            };
+            affected.push(original);
+        }
+        for affected_path in affected {
+            if !targets.contains(&affected_path) {
+                targets.push(affected_path);
+            }
+        }
+    }
+    let Ok(stdin) = pathspec_stdin(&targets) else {
+        return read_git_status(Some(runner), project_root);
+    };
+
+    let arguments: Vec<&str> = if repository_has_head(runner, project_root)? {
+        vec![
+            ARG_RESTORE,
+            ARG_STAGED,
+            ARG_PATHSPEC_FROM_STDIN,
+            ARG_PATHSPEC_FILE_NUL,
+        ]
+    } else {
+        // Without a commit there is nothing to restore from; only the index entry goes.
+        vec![
+            ARG_RM,
+            ARG_CACHED,
+            ARG_QUIET,
+            ARG_PATHSPEC_FROM_STDIN,
+            ARG_PATHSPEC_FILE_NUL,
+        ]
+    };
+    // On failure git may already have changed the index for some paths; the caller is
+    // expected to read the status again.
+    let output = runner
+        .run(&arguments, project_root, Some(&stdin), GIT_COMMAND_TIMEOUT)
+        .map_err(|error| run_error("unstage", error))?;
+    if !output.success() {
+        return Err(ApplicationError::new(
+            ErrorKind::GitCommandFailed,
+            format!(
+                "git {} exited with {:?}: {}",
+                arguments[0],
+                output.exit_code(),
+                redact_credentials(output.stderr_text().trim_end())
+            ),
+        ));
+    }
+    read_git_status(Some(runner), project_root)
+}
+
+/// False in a repository without any commit. Any other failure of the probe is an error:
+/// guessing wrong would pick the wrong command.
+fn repository_has_head(runner: &GitRunner, project_root: &Path) -> ApplicationResult<bool> {
+    let output = runner
+        .run(
+            &[ARG_REV_PARSE, ARG_VERIFY, ARG_QUIET, REVISION_HEAD],
+            project_root,
+            None,
+            GIT_COMMAND_TIMEOUT,
+        )
+        .map_err(|error| run_error("HEAD lookup", error))?;
+    match output.exit_code() {
+        Some(0) => Ok(true),
+        // `--verify --quiet` exits 1 without a message when the revision does not exist.
+        Some(1) => Ok(false),
+        code => Err(ApplicationError::new(
+            ErrorKind::GitCommandFailed,
+            format!(
+                "git rev-parse exited with {code:?}: {}",
+                redact_credentials(output.stderr_text().trim_end())
+            ),
+        )),
+    }
+}
+
+/// Index side changes that can be taken back out. Unmerged entries are excluded: resolving
+/// a conflict is not part of Phase 6.
+fn is_unstageable(change: GitFileChange) -> bool {
+    matches!(
+        change,
+        GitFileChange::Modified
+            | GitFileChange::Added
+            | GitFileChange::Deleted
+            | GitFileChange::Renamed
+            | GitFileChange::Copied
+            | GitFileChange::TypeChanged
+    )
 }
 
 /// Working tree changes `git add` can take: not directories, ignored or unchanged files.

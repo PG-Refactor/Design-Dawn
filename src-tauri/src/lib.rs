@@ -102,6 +102,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::open_project_in_new_window,
             commands::git_status,
             commands::git_stage,
+            commands::git_unstage,
         ])
 }
 

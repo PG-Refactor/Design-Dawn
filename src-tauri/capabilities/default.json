@@ -42,6 +42,7 @@
     "allow-ack-open-request",
     "allow-open-project-in-new-window",
     "allow-git-status",
-    "allow-git-stage"
+    "allow-git-stage",
+    "allow-git-unstage"
   ]
 }

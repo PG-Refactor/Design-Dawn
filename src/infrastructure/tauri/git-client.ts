@@ -20,3 +20,10 @@ export function gitStage(
 ): Promise<CommandResult<GitStatus>> {
   return call(COMMANDS.gitStage, { projectId, paths }, toGitStatus);
 }
+
+export function gitUnstage(
+  projectId: ProjectId,
+  paths: readonly string[],
+): Promise<CommandResult<GitStatus>> {
+  return call(COMMANDS.gitUnstage, { projectId, paths }, toGitStatus);
+}

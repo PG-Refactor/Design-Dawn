@@ -41,6 +41,7 @@ const APP_COMMANDS: &[&str] = &[
     "open_project_in_new_window",
     "git_status",
     "git_stage",
+    "git_unstage",
 ];
 
 fn main() {
