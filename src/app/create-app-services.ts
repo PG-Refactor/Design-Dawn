@@ -2,6 +2,10 @@
 // layer. No React here; `main.tsx` hands the returned services to the UI.
 
 import { createInMemoryClipboard } from "../application/clipboard/clipboard";
+import {
+  createGitController,
+  type GitController,
+} from "../application/git/git-controller";
 import { createDefaultIdGenerator } from "../application/id-generator";
 import type { AppRequestSource } from "../application/ports/app-request-source";
 import type { AssetUrlResolver } from "../application/ports/asset-url-resolver";
@@ -45,6 +49,7 @@ import {
   createDraftRegistry,
   type DraftRegistry,
 } from "../features/workspace/draft-registry";
+import { addOperationError } from "../features/workspace/ui-state/shell-ui-state";
 import {
   createUiStateStore,
   type UiStateStore,
@@ -60,6 +65,7 @@ import { createTauriAppSettingsGateway } from "../infrastructure/tauri/tauri-app
 import { createTauriAssetUrlResolver } from "../infrastructure/tauri/tauri-asset-url-resolver";
 import { createTauriCloseRequestSource } from "../infrastructure/tauri/tauri-close-request-source";
 import { createTauriDropEventSource } from "../infrastructure/tauri/tauri-drop-event-source";
+import { createTauriGitGateway } from "../infrastructure/tauri/tauri-git-gateway";
 import { createTauriPersistenceGateway } from "../infrastructure/tauri/tauri-persistence-gateway";
 import { createTauriViewportGateway } from "../infrastructure/tauri/tauri-viewport-gateway";
 import { createTimeoutScheduler } from "../infrastructure/timer/timeout-scheduler";
@@ -89,6 +95,9 @@ export interface AppServices {
   readonly autoSaveController: AutoSaveController;
   // The Project Tree width app setting (the splitter between the tree and the documents).
   readonly layoutSettingsController: LayoutSettingsController;
+  // The open Project's Git state (runtime only; refreshed when a Project is installed).
+  // No UI shows it yet.
+  readonly gitController: GitController;
   // Detaches the workspace -> UI state connector.
   readonly disconnectUiState: () => void;
 }
@@ -141,6 +150,14 @@ export function createAppServices(): AppServices {
     applicationStore,
     uiStateStore,
   });
+  const gitController = createGitController({
+    gateway: createTauriGitGateway(),
+    applicationStore,
+    reportFailure: (error) =>
+      uiStateStore.setState((state) =>
+        addOperationError(state, "refreshGitStatus", null, error),
+      ),
+  });
   const disconnectUiState = connectWorkspaceToUiState(workspace, uiStateStore);
   const themeController = createThemeController({
     gateway: settingsGateway,
@@ -166,6 +183,7 @@ export function createAppServices(): AppServices {
     themeController,
     autoSaveController,
     layoutSettingsController,
+    gitController,
     disconnectUiState,
   };
 }

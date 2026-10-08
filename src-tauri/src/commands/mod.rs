@@ -30,6 +30,7 @@ use crate::application::folder_selection::{
     resolve_selection, select_project_folder as select_folder, FolderPicker, FolderSelection,
     FolderSelectionState,
 };
+use crate::application::git_operations::{self, GitStatusResult};
 use crate::application::local_state::operations::{AppSettings, LocalState, SheetViewportResult};
 use crate::application::open_request::{self, OpenRequest, OpenedRequest, PendingOpenRequests};
 use crate::application::project_operations as projects;
@@ -51,7 +52,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 37] = [
+pub const COMMAND_NAMES: [&str; 38] = [
     "select_project_folder",
     "create_project",
     "open_project",
@@ -89,6 +90,7 @@ pub const COMMAND_NAMES: [&str; 37] = [
     "subscribe_app_requests",
     "ack_open_request",
     "open_project_in_new_window",
+    "git_status",
 ];
 
 pub use app_channel::{AppNotification, AppNotificationSink, AppRequestHub, AppRequestSubscriber};
@@ -766,6 +768,23 @@ pub async fn copy_asset_to_document<R: Runtime>(
             &content_path,
             &target_document_id,
         )
+    })
+    .await
+}
+
+/// Repository state and changed files of the calling window's Project
+/// (docs/git-development.md §11). `async` + the blocking pool: git can take seconds, and the
+/// sessions lock is held only to copy the Project root out.
+#[tauri::command]
+pub async fn git_status<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+) -> Result<GitStatusResult, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_operations::git_status(&sessions, &project_id)
     })
     .await
 }

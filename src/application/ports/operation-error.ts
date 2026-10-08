@@ -48,6 +48,15 @@ export const ASSET_ERROR_KINDS = [
 // something, and a move that is not allowed (into itself or a descendant, or an open entry).
 export const FOLDER_ERROR_KINDS = ["folderNotEmpty", "invalidMove"] as const;
 
+// Git (docs/git-development.md §11.8): a git process that failed or timed out, and a
+// Project-relative path git must not receive. "No repository" / "git missing" are states of
+// the Git status, not error kinds.
+export const GIT_ERROR_KINDS = [
+  "gitCommandFailed",
+  "gitTimeout",
+  "invalidGitPath",
+] as const;
+
 // Domain errors that only Rust can produce (TypeScript treats contentPath as opaque).
 export const RUST_ONLY_DOMAIN_ERROR_KINDS = [
   "invalidContentExtension",
@@ -70,6 +79,7 @@ export type OperationErrorKind =
   | (typeof FOLDER_SELECTION_ERROR_KINDS)[number]
   | (typeof ASSET_ERROR_KINDS)[number]
   | (typeof FOLDER_ERROR_KINDS)[number]
+  | (typeof GIT_ERROR_KINDS)[number]
   | (typeof LOCAL_STATE_ERROR_KINDS)[number]
   | (typeof CLIENT_ERROR_KINDS)[number];
 

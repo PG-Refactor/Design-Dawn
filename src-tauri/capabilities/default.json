@@ -40,6 +40,7 @@
     "allow-close-project",
     "allow-subscribe-app-requests",
     "allow-ack-open-request",
-    "allow-open-project-in-new-window"
+    "allow-open-project-in-new-window",
+    "allow-git-status"
   ]
 }

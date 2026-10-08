@@ -39,6 +39,7 @@ const APP_COMMANDS: &[&str] = &[
     "subscribe_app_requests",
     "ack_open_request",
     "open_project_in_new_window",
+    "git_status",
 ];
 
 fn main() {

@@ -100,6 +100,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::subscribe_app_requests,
             commands::ack_open_request,
             commands::open_project_in_new_window,
+            commands::git_status,
         ])
 }
 

@@ -36,6 +36,7 @@ import {
   ASSET_ERROR_KINDS,
   FOLDER_ERROR_KINDS,
   FOLDER_SELECTION_ERROR_KINDS,
+  GIT_ERROR_KINDS,
   PERSISTENCE_ERROR_KINDS,
   RUST_ONLY_DOMAIN_ERROR_KINDS,
   SESSION_ERROR_KINDS,
@@ -382,6 +383,7 @@ describe("error kinds shared with Rust", () => {
         ...FOLDER_SELECTION_ERROR_KINDS,
         ...ASSET_ERROR_KINDS,
         ...FOLDER_ERROR_KINDS,
+        ...GIT_ERROR_KINDS,
         ...LOCAL_STATE_ERROR_KINDS,
       ]),
     ].sort();

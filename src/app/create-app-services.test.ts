@@ -55,6 +55,21 @@ describe("createAppServices", () => {
     disconnectUiState();
   });
 
+  it("provides a Git controller that has no status without a Project", () => {
+    const { gitController, disconnectUiState } = createAppServices();
+    expect(gitController.store.getState()).toEqual({
+      projectId: null,
+      status: null,
+      refreshing: false,
+    });
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      COMMANDS.gitStatus,
+      expect.anything(),
+    );
+    gitController.dispose();
+    disconnectUiState();
+  });
+
   it("provides the close request source", () => {
     const { closeRequestSource, disconnectUiState } = createAppServices();
     expect(typeof closeRequestSource.subscribe).toBe("function");

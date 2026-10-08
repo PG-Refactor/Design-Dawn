@@ -165,6 +165,7 @@ export const OPERATION_LABELS = [
   "redo",
   "loadViewport",
   "saveViewport",
+  "refreshGitStatus",
 ] as const;
 
 export type OperationLabel = (typeof OPERATION_LABELS)[number];

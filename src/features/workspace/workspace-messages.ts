@@ -211,6 +211,7 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   redo: "やり直せませんでした",
   loadViewport: "表示位置を読み込めませんでした（既定の表示位置を使います）",
   saveViewport: "表示位置を保存できませんでした",
+  refreshGitStatus: "Gitの状態を取得できませんでした",
 };
 
 // A full record, so a new error kind cannot be added without a user-facing sentence.
@@ -247,6 +248,9 @@ const ERROR_KIND_MESSAGES: Record<OperationErrorKind, string> = {
   folderNotEmpty:
     "フォルダが空ではありません。中のDocumentやフォルダを移動または削除してください。",
   invalidMove: "ここへは移動できません（移動先が自分自身の中です）。",
+  gitCommandFailed: "Gitの操作に失敗しました。",
+  gitTimeout: "Gitの操作が時間内に終わりませんでした。",
+  invalidGitPath: "Gitに渡せないパスです。",
   invalidThemePreference: "テーマ設定の値が正しくありません。",
   invalidViewport: "表示位置の値が正しくありません。",
   invalidProjectTreeWidth: "Project Treeの幅の値が正しくありません。",

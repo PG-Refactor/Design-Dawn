@@ -56,6 +56,14 @@ pub enum ErrorKind {
     InvalidProjectTreeWidth,
     /// The Project is already open in another window (docs/architecture.md §11.0.1).
     ProjectOpenInOtherWindow,
+    /// A git process failed in a way that is not a repository state (non-zero exit of a
+    /// ready repository, unreadable output, the process could not be started).
+    GitCommandFailed,
+    /// A git process exceeded its time limit and was killed.
+    GitTimeout,
+    /// A Project-relative path for git that is empty, absolute, contains `..`, a drive
+    /// letter, a UNC prefix, a backslash or NUL.
+    InvalidGitPath,
 }
 
 impl ErrorKind {
@@ -77,6 +85,9 @@ impl ErrorKind {
             Self::InvalidViewport => "invalidViewport",
             Self::InvalidProjectTreeWidth => "invalidProjectTreeWidth",
             Self::ProjectOpenInOtherWindow => "projectOpenInOtherWindow",
+            Self::GitCommandFailed => "gitCommandFailed",
+            Self::GitTimeout => "gitTimeout",
+            Self::InvalidGitPath => "invalidGitPath",
         }
     }
 
@@ -102,6 +113,9 @@ impl ErrorKind {
             Self::InvalidViewport => "the viewport is not valid",
             Self::InvalidProjectTreeWidth => "the project tree width is not valid",
             Self::ProjectOpenInOtherWindow => "the project is open in another window",
+            Self::GitCommandFailed => "the git command failed",
+            Self::GitTimeout => "the git command did not finish in time",
+            Self::InvalidGitPath => "the path is not valid for git",
         }
     }
 }
@@ -181,7 +195,7 @@ impl Serialize for ApplicationError {
 mod tests {
     use super::*;
 
-    const ALL_KINDS: [ErrorKind; 30] = [
+    const ALL_KINDS: [ErrorKind; 34] = [
         ErrorKind::Domain(DomainErrorKind::InvalidEntityId),
         ErrorKind::Domain(DomainErrorKind::InvalidDisplayName),
         ErrorKind::Domain(DomainErrorKind::InvalidPosition),
@@ -212,6 +226,10 @@ mod tests {
         ErrorKind::InvalidMove,
         ErrorKind::InvalidViewport,
         ErrorKind::InvalidProjectTreeWidth,
+        ErrorKind::ProjectOpenInOtherWindow,
+        ErrorKind::GitCommandFailed,
+        ErrorKind::GitTimeout,
+        ErrorKind::InvalidGitPath,
     ];
 
     /// A Windows drive path (`C:\`) or any separator would mean a path leaked.

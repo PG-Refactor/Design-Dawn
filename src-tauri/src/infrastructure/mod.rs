@@ -4,4 +4,5 @@
 pub mod error;
 pub mod file_format;
 pub mod filesystem;
+pub mod git;
 pub mod local_state;

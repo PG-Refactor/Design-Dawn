@@ -40,6 +40,7 @@ export const COMMANDS = {
   subscribeAppRequests: "subscribe_app_requests",
   ackOpenRequest: "ack_open_request",
   openProjectInNewWindow: "open_project_in_new_window",
+  gitStatus: "git_status",
 } as const;
 
 export type CommandName = (typeof COMMANDS)[keyof typeof COMMANDS];
@@ -51,6 +52,7 @@ export {
   CLIENT_ERROR_KINDS,
   FOLDER_ERROR_KINDS,
   FOLDER_SELECTION_ERROR_KINDS,
+  GIT_ERROR_KINDS,
   PERSISTENCE_ERROR_KINDS,
   RUST_ONLY_DOMAIN_ERROR_KINDS,
   SESSION_ERROR_KINDS,
