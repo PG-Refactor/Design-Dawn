@@ -41,16 +41,16 @@ export function TopBar() {
         >
           {MESSAGES.topBar.createProject}
         </button>
-        {projectName !== null ? null : (
-          <button
-            type="button"
-            className="button"
-            disabled={busy}
-            onClick={() => void actions.openProjectInNewWindowViaDialog()}
-          >
-            {MESSAGES.topBar.openProjectInNewWindow}
-          </button>
-        )}
+        {/* Shown with or without a project: with one open it is the way to work on
+            another project side by side, without closing this one. */}
+        <button
+          type="button"
+          className="button"
+          disabled={busy}
+          onClick={() => void actions.openProjectInNewWindowViaDialog()}
+        >
+          {MESSAGES.topBar.openProjectInNewWindow}
+        </button>
         {projectName === null ? null : (
           <button
             type="button"

@@ -56,6 +56,25 @@ describe("open in a new window", () => {
     expect(screen.queryByRole("tree")).toBeNull();
   });
 
+  it("stays in the top bar while a Project is open, and leaves that Project alone", async () => {
+    const shell = await renderShell();
+    await shell.openProjectInUi();
+    shell.gateway.clearCalls();
+
+    await shell.user.click(
+      screen.getByRole("button", {
+        name: MESSAGES.topBar.openProjectInNewWindow,
+      }),
+    );
+    await settle();
+
+    expect(shell.gateway.methods()).toEqual([
+      "selectProjectFolder",
+      "openProjectInNewWindow",
+    ]);
+    expect(screen.getByRole("tree")).toBeTruthy();
+  });
+
   it("is in the Project menu of the tree, and leaves the open Project alone", async () => {
     const shell = await renderShell();
     await shell.openProjectInUi();
