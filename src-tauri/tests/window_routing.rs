@@ -50,7 +50,10 @@ impl FakeSink {
             .lock()
             .unwrap()
             .iter()
-            .map(|AppNotification::OpenDocument { document_id, .. }| document_id.clone())
+            .filter_map(|notification| match notification {
+                AppNotification::OpenDocument { document_id, .. } => Some(document_id.clone()),
+                AppNotification::SettingsChanged { .. } => None,
+            })
             .collect()
     }
 }
@@ -425,7 +428,10 @@ fn an_acknowledged_request_is_not_routed_again_when_its_window_goes_away() {
     world.bind(MAIN, FOLDERS_PROJECT_ID);
     let host = FakeHost::default();
     route(&world, &host, entry_point(&root)).unwrap();
-    let AppNotification::OpenDocument { request_id, .. } = sink.received.lock().unwrap()[0].clone();
+    let AppNotification::OpenDocument { request_id, .. } = sink.received.lock().unwrap()[0].clone()
+    else {
+        panic!("an openDocument was expected");
+    };
 
     assert!(world.hub.acknowledge(MAIN, &request_id));
 

@@ -91,3 +91,42 @@ describe("createTauriAppRequestSource", () => {
     expect(result.ok).toBe(false);
   });
 });
+
+describe("settingsChanged", () => {
+  it("hands decoded settings to the settings listeners only", () => {
+    const source = createTauriAppRequestSource();
+    const openListener = vi.fn();
+    const settingsListener = vi.fn();
+    source.subscribe(openListener);
+    source.subscribeSettings(settingsListener);
+    send({ kind: "settingsChanged", themePreference: "dark", autoSave: false });
+    expect(settingsListener).toHaveBeenCalledWith({
+      themePreference: "dark",
+      autoSave: false,
+    });
+    expect(openListener).not.toHaveBeenCalled();
+  });
+
+  it("ignores malformed settings", () => {
+    const source = createTauriAppRequestSource();
+    const settingsListener = vi.fn();
+    source.subscribeSettings(settingsListener);
+    send({ kind: "settingsChanged", themePreference: "sepia", autoSave: true });
+    send({ kind: "settingsChanged", themePreference: "dark" });
+    send({ kind: "settingsChanged", themePreference: "dark", autoSave: "yes" });
+    send({ kind: "somethingElse", themePreference: "dark", autoSave: true });
+    expect(settingsListener).not.toHaveBeenCalled();
+  });
+
+  it("shares the one channel with the open requests and stops after unsubscribing", async () => {
+    const source = createTauriAppRequestSource();
+    const settingsListener = vi.fn();
+    source.subscribe(vi.fn());
+    const unsubscribe = source.subscribeSettings(settingsListener);
+    await settle();
+    expect(tauriCore.FakeChannel.instances).toHaveLength(1);
+    unsubscribe();
+    send({ kind: "settingsChanged", themePreference: "light", autoSave: true });
+    expect(settingsListener).not.toHaveBeenCalled();
+  });
+});

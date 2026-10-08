@@ -19,6 +19,7 @@ use uuid::Uuid;
 use super::app_channel::{
     AppNotification, AppNotificationSink, AppRequestHub, AppRequestSubscriber,
 };
+use super::window_size::recorded_size_for_new_window;
 use crate::application::error::{ApplicationError, ApplicationResult};
 use crate::application::open_request::{
     resolve_open_target, select_open_request, OpenRequest, PendingOpenRequests,
@@ -309,9 +310,17 @@ impl<R: Runtime> WindowHost for TauriWindowHost<R> {
             .cloned()
             .ok_or_else(|| "no window is configured".to_owned())?;
         config.label = label.to_owned();
+        // `main` starts hidden until its size is applied (`tauri.conf.json`); a new window
+        // is shown by the builder as usual.
+        config.visible = true;
         let mut builder = WebviewWindowBuilder::from_config(&self.app, &config)
             .map_err(|error| error.to_string())?;
-        if let Some((width, height)) = placement.size {
+        // The neighbour's size when there is one; otherwise the size recorded when a
+        // window was last closed, else the config size.
+        if let Some((width, height)) = placement
+            .size
+            .or_else(|| recorded_size_for_new_window(&self.app))
+        {
             builder = builder.inner_size(width, height);
         }
         if let Some((x, y)) = placement.position {

@@ -164,6 +164,8 @@ pub fn run() {
                 }
                 Err(error) => eprintln!("failed to read the working directory: {error}"),
             }
+            // Last: the window stays hidden until the recorded size is applied.
+            commands::apply_startup_window_size(app.handle());
             Ok(())
         })
         .run(tauri::generate_context!())

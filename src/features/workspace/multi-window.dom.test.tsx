@@ -96,6 +96,52 @@ describe("open in a new window", () => {
   });
 });
 
+describe("settingsChanged notifications from Rust", () => {
+  it("applies the theme and auto-save of another window to this window's controllers", async () => {
+    const shell = await renderShell();
+    await act(settle);
+
+    await act(async () => {
+      shell.appRequestSource.emitSettings({
+        themePreference: "dark",
+        autoSave: false,
+      });
+    });
+
+    expect(shell.services.themeController.store.getState().preference).toBe(
+      "dark",
+    );
+    expect(shell.services.autoSaveController.store.getState().enabled).toBe(
+      false,
+    );
+  });
+
+  it("does not change the Project Tree width of this window", async () => {
+    const shell = await renderShell();
+    await act(settle);
+    const before =
+      shell.services.layoutSettingsController.store.getState().projectTreeWidth;
+
+    await act(async () => {
+      shell.appRequestSource.emitSettings({
+        themePreference: "light",
+        autoSave: true,
+      });
+    });
+
+    expect(
+      shell.services.layoutSettingsController.store.getState().projectTreeWidth,
+    ).toBe(before);
+  });
+
+  it("subscribes once and unsubscribes when the shell goes away", async () => {
+    const shell = await renderShell();
+    expect(shell.appRequestSource.settingsListenerCount()).toBe(1);
+    cleanup();
+    expect(shell.appRequestSource.settingsListenerCount()).toBe(0);
+  });
+});
+
 describe("openDocument requests from Rust", () => {
   it("opens the document, activates its tab and acknowledges", async () => {
     const shell = await renderShell();

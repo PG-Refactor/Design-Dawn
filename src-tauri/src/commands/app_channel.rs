@@ -1,11 +1,13 @@
 //! The app channel (docs/architecture.md §11.0.1): Rust to one window, for requests that
 //! arrive while the window is running. Separate from the drop and close-request channels.
-//! Today it only carries `openDocument` (a `.dawn` opened again for a Project this window
-//! has); `settingsChanged` joins it later.
+//! It carries `openDocument` (a `.dawn` opened again for a Project this window has) and
+//! `settingsChanged` (the theme or auto-save setting was changed in another window).
 //!
 //! Delivery is at-least-once: an `openDocument` stays "unacknowledged" until the window
 //! confirms it with `ack_open_request`. What happens to a request whose window disappears
-//! first is decided by the caller of `discard_window` (it is routed again). The logic is
+//! first is decided by the caller of `discard_window` (it is routed again). `settingsChanged`
+//! is fire and forget: a window reads the settings at start-up, so a missed one needs no
+//! tracking. The logic is
 //! independent of Tauri types (`AppNotificationSink`), like `CloseRequestHub`, so it is
 //! tested with a fake sink.
 
@@ -15,10 +17,12 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 use serde::Serialize;
 use tauri::ipc::Channel;
 
+use crate::application::local_state::theme::ThemePreference;
 use crate::application::open_routing::{SentOpenRequest, UnacknowledgedRequests};
 
 /// What the Frontend receives: `{ "kind": "openDocument", "requestId": string,
-/// "documentId": string }`. Deliberately carries no path.
+/// "documentId": string }` or `{ "kind": "settingsChanged", "themePreference": string,
+/// "autoSave": boolean }`. Deliberately carries no path.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum AppNotification {
@@ -26,6 +30,11 @@ pub enum AppNotification {
     OpenDocument {
         request_id: String,
         document_id: String,
+    },
+    #[serde(rename_all = "camelCase")]
+    SettingsChanged {
+        theme_preference: ThemePreference,
+        auto_save: bool,
     },
 }
 
@@ -109,6 +118,37 @@ impl<S: AppNotificationSink> AppRequestHub<S> {
         }
     }
 
+    /// Sends the settings to every subscribed window except `except_label` (the one that
+    /// changed them and updated itself). Returns the labels it was sent to, in no
+    /// particular order. A failed send is only logged: that window reads the settings again
+    /// when it starts, and nothing is queued for it.
+    pub fn broadcast_settings_changed(
+        &self,
+        except_label: &str,
+        theme_preference: ThemePreference,
+        auto_save: bool,
+    ) -> Vec<String> {
+        // Cloned so the lock is not held while the messages are sent.
+        let targets: Vec<(String, S)> = self
+            .subscriptions()
+            .iter()
+            .filter(|(label, _)| label.as_str() != except_label)
+            .map(|(label, sink)| (label.clone(), sink.clone()))
+            .collect();
+        let mut sent_to = Vec::new();
+        for (label, sink) in targets {
+            let notification = AppNotification::SettingsChanged {
+                theme_preference,
+                auto_save,
+            };
+            match sink.send_notification(notification) {
+                Ok(()) => sent_to.push(label),
+                Err(error) => eprintln!("failed to send settings to window {label}: {error}"),
+            }
+        }
+        sent_to
+    }
+
     /// Records the request as unacknowledged first, then tries to send it: a missing
     /// subscription or a failed send keeps it recorded. Returns whether it was sent.
     pub fn send_open_document(&self, window_label: &str, sent: SentOpenRequest) -> bool {
@@ -175,6 +215,87 @@ mod tests {
                 "documentId": "01928f3a-0000-7000-8000-0000000000aa"
             })
         );
+    }
+
+    fn theme(value: &str) -> ThemePreference {
+        ThemePreference::parse(value).unwrap()
+    }
+
+    #[test]
+    fn the_settings_notification_serializes_with_a_kind() {
+        let value = serde_json::to_value(AppNotification::SettingsChanged {
+            theme_preference: theme("dark"),
+            auto_save: false,
+        })
+        .unwrap();
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "kind": "settingsChanged",
+                "themePreference": "dark",
+                "autoSave": false
+            })
+        );
+    }
+
+    #[test]
+    fn settings_go_to_the_other_subscribed_windows_only() {
+        let hub = AppRequestHub::<FakeSink>::default();
+        let caller = FakeSink::default();
+        let other = FakeSink::default();
+        let third = FakeSink::default();
+        hub.subscribe("main", caller.clone());
+        hub.subscribe("window-1", other.clone());
+        hub.subscribe("window-2", third.clone());
+        let mut sent_to = hub.broadcast_settings_changed("main", theme("dark"), false);
+        sent_to.sort();
+        assert_eq!(sent_to, vec!["window-1", "window-2"]);
+        assert!(received(&caller).is_empty());
+        let expected = vec![AppNotification::SettingsChanged {
+            theme_preference: theme("dark"),
+            auto_save: false,
+        }];
+        assert_eq!(received(&other), expected);
+        assert_eq!(received(&third), expected);
+    }
+
+    #[test]
+    fn a_window_without_a_subscription_gets_no_settings_and_nothing_is_queued() {
+        let hub = AppRequestHub::<FakeSink>::default();
+        hub.subscribe("main", FakeSink::default());
+        assert!(hub
+            .broadcast_settings_changed("main", theme("light"), true)
+            .is_empty());
+        let late = FakeSink::default();
+        hub.subscribe("window-1", late.clone());
+        assert!(received(&late).is_empty());
+        assert!(hub.discard_window("window-1").is_empty());
+    }
+
+    #[test]
+    fn a_failed_settings_send_skips_that_window_only() {
+        let hub = AppRequestHub::<FakeSink>::default();
+        let healthy = FakeSink::default();
+        hub.subscribe(
+            "window-1",
+            FakeSink {
+                fail: true,
+                ..FakeSink::default()
+            },
+        );
+        hub.subscribe("window-2", healthy.clone());
+        let sent_to = hub.broadcast_settings_changed("main", theme("system"), true);
+        assert_eq!(sent_to, vec!["window-2"]);
+        assert_eq!(received(&healthy).len(), 1);
+    }
+
+    #[test]
+    fn settings_do_not_touch_the_unacknowledged_open_requests() {
+        let hub = AppRequestHub::<FakeSink>::default();
+        hub.subscribe("window-1", FakeSink::default());
+        hub.send_open_document("window-1", sent("r1"));
+        hub.broadcast_settings_changed("main", theme("dark"), true);
+        assert_eq!(hub.discard_window("window-1"), vec![sent("r1")]);
     }
 
     #[test]

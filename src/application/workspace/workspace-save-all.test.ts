@@ -117,4 +117,49 @@ describe("auto-save policy", () => {
 
     expect(gateway.methods("saveSheet")).toHaveLength(2);
   });
+
+  it("switched on by another window (applyExternal) resumes a dirty session after the delay, without writing the settings", async () => {
+    const {
+      workspace,
+      gateway,
+      scheduler,
+      autoSaveController,
+      settingsGateway,
+    } = await openedWorkspace();
+    await workspace.openDocument(DOCUMENT_A);
+    autoSaveController.applyExternal(false);
+    await workspace
+      .getDocumentSession(DOCUMENT_A)
+      ?.execute(renameSheetCommand(SHEET_A1, displayName("Dirty A")));
+    gateway.clearCalls();
+    scheduler.advance(TEST_AUTO_SAVE_DELAY_MS);
+    await settle();
+    expect(gateway.methods("saveSheet")).toEqual([]);
+
+    autoSaveController.applyExternal(true);
+    scheduler.advance(TEST_AUTO_SAVE_DELAY_MS - 1);
+    await settle();
+    expect(gateway.methods("saveSheet")).toEqual([]);
+    scheduler.advance(1);
+    await settle();
+
+    expect(gateway.methods("saveSheet")).toHaveLength(1);
+    expect(settingsGateway.autoSaveCalls).toEqual([]);
+  });
+
+  it("switched off by another window stops the timer of a dirty session", async () => {
+    const { workspace, gateway, scheduler, autoSaveController } =
+      await openedWorkspace();
+    await workspace.openDocument(DOCUMENT_A);
+    await workspace
+      .getDocumentSession(DOCUMENT_A)
+      ?.execute(renameSheetCommand(SHEET_A1, displayName("Dirty A")));
+    gateway.clearCalls();
+
+    autoSaveController.applyExternal(false);
+    scheduler.advance(TEST_AUTO_SAVE_DELAY_MS);
+    await settle();
+
+    expect(gateway.methods("saveSheet")).toEqual([]);
+  });
 });

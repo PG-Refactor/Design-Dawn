@@ -12,6 +12,7 @@ use tauri::ipc::Channel;
 use tauri::{Runtime, Window};
 use uuid::Uuid;
 
+use super::window_size::record_window_size;
 use crate::application::error::ApplicationError;
 use crate::infrastructure::error::PersistenceErrorKind;
 
@@ -138,6 +139,8 @@ pub fn confirm_close<R: Runtime, S: CloseNotificationSink>(
     if !hub.accepts(window.label(), subscription_token) {
         return Ok(());
     }
+    // Before `destroy`: afterwards the window no longer has a size. Never blocks the close.
+    record_window_size(window);
     window.destroy().map_err(|error| {
         ApplicationError::persistence(
             PersistenceErrorKind::IoError,

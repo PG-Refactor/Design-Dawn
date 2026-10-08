@@ -712,6 +712,29 @@ fn confirming_with_the_current_token_succeeds_through_the_destroy_path() {
     // That a wrong token does not reach `destroy` is covered by the pure `accepts` tests.
 }
 
+#[test]
+fn a_rejected_close_confirmation_records_no_window_size() {
+    let temp = TempDir::new();
+    let app = build_app(Vec::new(), local_state_directories(temp.path()));
+    let webview = WebviewWindowBuilder::new(&app, MAIN_WINDOW_LABEL, Default::default())
+        .build()
+        .expect("create main window");
+    subscribe_close_requests(&webview);
+
+    invoke(
+        &webview,
+        "confirm_window_close",
+        &serde_json::json!({ "subscriptionToken": "not-the-token" }),
+    )
+    .unwrap();
+
+    // The accepted path is not observable: the mock window reports no real size, so only
+    // `size_to_record` (unit tests) and `set_window_size` (local_state.rs) cover recording.
+    let local_state =
+        app.state::<design_dawn_lib::application::local_state::operations::LocalState>();
+    assert_eq!(local_state.get_app_settings().window_size, None);
+}
+
 /// Tauri's built-in drag-drop events carry absolute paths. They reach a script only through a
 /// listener registered with `plugin:event|listen`, so that command must stay refused.
 #[test]

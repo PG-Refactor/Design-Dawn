@@ -43,6 +43,9 @@ export interface ThemeController {
   setPreference(
     preference: ThemePreference,
   ): Promise<OperationResult<ThemePreference>>;
+  // Applies a preference another window already saved: no gateway call (the file is
+  // already up to date), and nothing is queued.
+  applyExternal(preference: ThemePreference): void;
   dispose(): void;
 }
 
@@ -152,6 +155,11 @@ export function createThemeController(
         }));
         return { ok: true as const, value: saved };
       });
+    },
+    applyExternal(preference) {
+      store.setState((state) =>
+        withPreference(state, preference, state.osTheme),
+      );
     },
     dispose() {
       unsubscribeOsTheme?.();

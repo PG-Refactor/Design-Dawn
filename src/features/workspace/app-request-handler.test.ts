@@ -1,7 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { operationOk } from "../../application/ports/operation-error";
 import { documentIdOf, settle } from "../../application/test-support/fakes";
-import { createAppRequestHandler } from "./app-request-handler";
+import {
+  createAppRequestHandler,
+  createSettingsChangeHandler,
+} from "./app-request-handler";
 
 const DOCUMENT = documentIdOf(1);
 
@@ -132,5 +135,19 @@ describe("app request handler", () => {
     handler.resume();
     await settle();
     expect(events).toEqual([]);
+  });
+});
+
+describe("settings change handler", () => {
+  it("hands the theme and auto-save values to their controllers", () => {
+    const applyThemePreference = vi.fn();
+    const applyAutoSave = vi.fn();
+    const handle = createSettingsChangeHandler({
+      applyThemePreference,
+      applyAutoSave,
+    });
+    handle({ themePreference: "dark", autoSave: false });
+    expect(applyThemePreference).toHaveBeenCalledWith("dark");
+    expect(applyAutoSave).toHaveBeenCalledWith(false);
   });
 });

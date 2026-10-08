@@ -9,6 +9,7 @@ mod drag_drop;
 mod folder_picker;
 mod open_dispatch;
 mod window_close;
+mod window_size;
 
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -103,6 +104,7 @@ pub use window_close::{
     confirm_close, handle_close_requested, CloseNotification, CloseNotificationSink,
     CloseRequestHub, CloseRequestSubscriber,
 };
+pub use window_size::apply_startup_window_size;
 
 /// The one window event handler (registered in `run`). Each event kind has its own thin
 /// handler; the drag & drop branch is unchanged.
@@ -632,22 +634,41 @@ pub fn get_app_settings<R: Runtime>(app: AppHandle<R>) -> Result<AppSettings, Ap
     with_local_state(&app, |local_state| Ok(local_state.get_app_settings()))
 }
 
+/// Tells every other window with an app channel about the new theme and auto-save values.
+/// The caller already updated itself from the command result. Not sent for the Project Tree
+/// width: that is a per-window state (docs/architecture.md §11.0.1).
+fn broadcast_settings<R: Runtime>(window: &Window<R>, settings: &AppSettings) {
+    if let Some(hub) = window.try_state::<AppRequestSubscriber>() {
+        hub.broadcast_settings_changed(
+            window.label(),
+            settings.theme_preference,
+            settings.auto_save,
+        );
+    }
+}
+
 #[tauri::command]
 pub fn set_theme_preference<R: Runtime>(
-    app: AppHandle<R>,
+    window: Window<R>,
     theme_preference: String,
 ) -> Result<AppSettings, ApplicationError> {
-    with_local_state(&app, |local_state| {
+    let settings = with_local_state(window.app_handle(), |local_state| {
         local_state.set_theme_preference(&theme_preference)
-    })
+    })?;
+    broadcast_settings(&window, &settings);
+    Ok(settings)
 }
 
 #[tauri::command]
 pub fn set_auto_save<R: Runtime>(
-    app: AppHandle<R>,
+    window: Window<R>,
     enabled: bool,
 ) -> Result<AppSettings, ApplicationError> {
-    with_local_state(&app, |local_state| local_state.set_auto_save(enabled))
+    let settings = with_local_state(window.app_handle(), |local_state| {
+        local_state.set_auto_save(enabled)
+    })?;
+    broadcast_settings(&window, &settings);
+    Ok(settings)
 }
 
 #[tauri::command]

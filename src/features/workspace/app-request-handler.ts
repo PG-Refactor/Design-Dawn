@@ -1,4 +1,8 @@
-import type { OpenDocumentRequest } from "../../application/ports/app-request-source";
+import type { ThemePreference } from "../../application/local-state/theme";
+import type {
+  OpenDocumentRequest,
+  SettingsChange,
+} from "../../application/ports/app-request-source";
 import type { OperationResult } from "../../application/ports/operation-error";
 import type { DocumentId } from "../../domain/shared/entity-id";
 
@@ -75,5 +79,22 @@ export function createAppRequestHandler(
     dispose() {
       disposed = true;
     },
+  };
+}
+
+export interface SettingsChangeTargets {
+  readonly applyThemePreference: (preference: ThemePreference) => void;
+  readonly applyAutoSave: (enabled: boolean) => void;
+}
+
+// Hands a `settingsChanged` from Rust to the controllers that own the settings. Not queued
+// and not acknowledged (unlike `openDocument`): applying is idempotent, and a window that
+// misses one reads the settings when it starts. The Project Tree width is not part of it.
+export function createSettingsChangeHandler(
+  targets: SettingsChangeTargets,
+): (change: SettingsChange) => void {
+  return (change) => {
+    targets.applyThemePreference(change.themePreference);
+    targets.applyAutoSave(change.autoSave);
   };
 }
