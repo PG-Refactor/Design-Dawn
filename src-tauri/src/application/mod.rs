@@ -17,3 +17,5 @@ pub mod project_operations;
 pub mod session;
 pub mod sheet_operations;
 pub mod snapshot;
+pub mod window_binding;
+pub mod window_registry;

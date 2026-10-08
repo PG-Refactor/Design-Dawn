@@ -7,11 +7,12 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use design_dawn_lib::application::error::ErrorKind;
+use design_dawn_lib::application::error::{ApplicationError, ErrorKind};
 use design_dawn_lib::application::open_request::{
     take_open_request, OpenRequest, PendingOpenRequests,
 };
 use design_dawn_lib::application::session::ProjectSessions;
+use design_dawn_lib::application::window_registry::WindowRegistry;
 use design_dawn_lib::infrastructure::error::PersistenceErrorKind;
 use design_dawn_lib::infrastructure::file_format::constants::ENTRY_POINT_MAX_BYTES;
 use serde_json::{json, Value};
@@ -35,9 +36,10 @@ fn pending_for(label: &str, path: PathBuf) -> Mutex<PendingOpenRequests> {
 fn take(path: &Path) -> Result<Option<Value>, ErrorKind> {
     let pending = pending_for(MAIN_WINDOW_LABEL, path.to_path_buf());
     let mut sessions = ProjectSessions::default();
-    take_open_request(&pending, &mut sessions, MAIN_WINDOW_LABEL)
+    let mut registry = WindowRegistry::default();
+    take_open_request(&pending, &mut sessions, &mut registry, MAIN_WINDOW_LABEL)
         .map(|opened| opened.map(|value| serde_json::to_value(value).unwrap()))
-        .map_err(|error| error.kind)
+        .map_err(|error| ApplicationError::from(error).kind)
 }
 
 fn write_entry_point(root: &Path, document_path: &str) {
@@ -67,7 +69,8 @@ fn opens_the_project_and_names_the_document() {
 fn nothing_pending_for_the_window_returns_none() {
     let pending = pending_for(OTHER_WINDOW_LABEL, PathBuf::from("/x/a.dawn"));
     let mut sessions = ProjectSessions::default();
-    let outcome = take_open_request(&pending, &mut sessions, MAIN_WINDOW_LABEL);
+    let mut registry = WindowRegistry::default();
+    let outcome = take_open_request(&pending, &mut sessions, &mut registry, MAIN_WINDOW_LABEL);
     assert_eq!(outcome, Ok(None));
 }
 
@@ -211,4 +214,26 @@ fn the_command_error_for_a_missing_file_has_a_kind_and_no_path() {
         .contains(temp.path().to_string_lossy().as_ref()));
     // The request is consumed even though opening it failed.
     assert_eq!(second, Ok(Value::Null));
+}
+
+#[test]
+fn a_project_bound_to_another_window_is_not_opened_again() {
+    let (_temp, root) = folders_project_copy();
+    let mut sessions = ProjectSessions::default();
+    let mut registry = WindowRegistry::default();
+    let first = pending_for(MAIN_WINDOW_LABEL, root.join(ENTRY_POINT_FILE));
+    take_open_request(&first, &mut sessions, &mut registry, MAIN_WINDOW_LABEL)
+        .unwrap()
+        .unwrap();
+
+    let second = pending_for(OTHER_WINDOW_LABEL, root.join(ENTRY_POINT_FILE));
+    let error =
+        take_open_request(&second, &mut sessions, &mut registry, OTHER_WINDOW_LABEL).unwrap_err();
+
+    assert_eq!(
+        ApplicationError::from(error).kind,
+        ErrorKind::ProjectOpenInOtherWindow
+    );
+    assert_eq!(registry.project_of(OTHER_WINDOW_LABEL), None);
+    assert!(registry.project_of(MAIN_WINDOW_LABEL).is_some());
 }

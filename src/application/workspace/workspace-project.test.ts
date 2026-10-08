@@ -192,6 +192,37 @@ describe("closeProject", () => {
     expect(events).toHaveLength(2);
   });
 
+  it("releases the project in Rust after the documents were saved and closed", async () => {
+    const { workspace, gateway } = await openedDocumentA();
+    gateway.calls.length = 0;
+    expect((await workspace.closeProject()).ok).toBe(true);
+    expect(gateway.methods("closeDocument", "closeProject")).toEqual([
+      "closeDocument",
+      "closeProject",
+    ]);
+  });
+
+  it("does not call closeProject when there is no project, or when saving failed", async () => {
+    const harness = createWorkspaceHarness();
+    expect((await harness.workspace.closeProject()).ok).toBe(true);
+    expect(harness.gateway.methods("closeProject")).toEqual([]);
+
+    const { workspace, gateway } = await openedDocumentA();
+    await workspace
+      .getDocumentSession(DOCUMENT_A)
+      ?.execute(renameDocumentCommand(displayName("Renamed")));
+    gateway.failAlways("saveDocument", "ioError");
+    await workspace.closeProject();
+    expect(gateway.methods("closeProject")).toEqual([]);
+  });
+
+  it("keeps the project open when Rust cannot release it", async () => {
+    const { workspace, store, gateway } = await openedDocumentA();
+    gateway.failOn("closeProject", "ioError");
+    expect(errorKind(await workspace.closeProject())).toBe("ioError");
+    expect(store.getState().project).not.toBeNull();
+  });
+
   it("fails and keeps everything when a document cannot be saved", async () => {
     const { workspace, store, gateway } = await openedDocumentA();
     await workspace

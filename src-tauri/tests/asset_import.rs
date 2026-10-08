@@ -18,7 +18,9 @@ use design_dawn_lib::application::document_operations::{
 use design_dawn_lib::application::dropped_files::{register_drop, DroppedFilesState};
 use design_dawn_lib::application::error::ErrorKind;
 use design_dawn_lib::application::session::ProjectSessions;
+use design_dawn_lib::application::window_registry::WindowRegistry;
 use design_dawn_lib::commands::respond_to_asset_request;
+use design_dawn_lib::domain::entity_id::ProjectId;
 use design_dawn_lib::domain::error::DomainErrorKind;
 use design_dawn_lib::infrastructure::error::PersistenceErrorKind;
 use design_dawn_lib::infrastructure::file_format::constants::ASSET_MAX_BYTES;
@@ -33,13 +35,27 @@ const MIME_HEADER: &str = "content-type";
 const CSP_HEADER: &str = "content-security-policy";
 const NOSNIFF_HEADER: &str = "x-content-type-options";
 const CACHE_HEADER: &str = "cache-control";
+const WINDOW_LABEL: &str = "main";
 const UNIX_HOST_FORM: &str = "dawn-asset://localhost";
 const WINDOWS_HOST_FORM: &str = "http://dawn-asset.localhost";
+
+fn bound_registry() -> WindowRegistry {
+    let mut registry = WindowRegistry::default();
+    registry
+        .bind(WINDOW_LABEL, ProjectId::parse(PROJECT_ID).unwrap())
+        .unwrap();
+    registry
+}
+
+fn bound_registry_mutex() -> Mutex<WindowRegistry> {
+    Mutex::new(bound_registry())
+}
 
 struct Fixture {
     opened: OpenedProject,
     sessions: Mutex<ProjectSessions>,
     drops: Mutex<DroppedFilesState>,
+    registry: Mutex<WindowRegistry>,
     incoming: PathBuf,
 }
 
@@ -63,6 +79,7 @@ impl Fixture {
             opened,
             sessions,
             drops: Mutex::new(DroppedFilesState::default()),
+            registry: Mutex::new(bound_registry()),
             incoming,
         }
     }
@@ -74,7 +91,9 @@ impl Fixture {
     }
 
     fn drop_files(&self, paths: Vec<PathBuf>) -> String {
-        register_drop(&self.drops, paths).unwrap().drop_id
+        register_drop(&self.drops, WINDOW_LABEL, paths)
+            .unwrap()
+            .drop_id
     }
 
     fn import(&self, paths: Vec<PathBuf>) -> DropImportResult {
@@ -82,6 +101,7 @@ impl Fixture {
         import_dropped_images(
             &self.sessions,
             &self.drops,
+            WINDOW_LABEL,
             &drop_id,
             PROJECT_ID,
             DOCUMENT_ID,
@@ -111,7 +131,7 @@ impl Fixture {
         path: &str,
     ) -> tauri::http::Response<std::borrow::Cow<'static, [u8]>> {
         let uri: Uri = format!("{host}{path}").parse().unwrap();
-        respond_to_asset_request(&self.sessions, &uri)
+        respond_to_asset_request(&self.sessions, &self.registry, WINDOW_LABEL, &uri)
     }
 
     fn close(&self, document_id: &str) {
@@ -336,6 +356,7 @@ fn an_unknown_or_replaced_drop_id_is_invalid_drop_selection() {
         let error = import_dropped_images(
             &fixture.sessions,
             &fixture.drops,
+            WINDOW_LABEL,
             drop_id,
             PROJECT_ID,
             DOCUMENT_ID,
@@ -353,6 +374,7 @@ fn import_fails_as_a_whole_for_unknown_or_unwritable_targets() {
         import_dropped_images(
             &fixture.sessions,
             &fixture.drops,
+            WINDOW_LABEL,
             &drop_id,
             project,
             document,
@@ -384,10 +406,19 @@ fn a_document_that_failed_to_load_is_not_opened_and_not_writable() {
     let drops = Mutex::new(DroppedFilesState::default());
     let source = temp.path().join("a.png");
     fs::write(&source, png_bytes(1, 1)).unwrap();
-    let drop_id = register_drop(&drops, vec![source]).unwrap().drop_id;
+    let drop_id = register_drop(&drops, WINDOW_LABEL, vec![source])
+        .unwrap()
+        .drop_id;
 
-    let error =
-        import_dropped_images(&sessions, &drops, &drop_id, PROJECT_ID, DOCUMENT_ID).unwrap_err();
+    let error = import_dropped_images(
+        &sessions,
+        &drops,
+        WINDOW_LABEL,
+        &drop_id,
+        PROJECT_ID,
+        DOCUMENT_ID,
+    )
+    .unwrap_err();
     assert_eq!(error.kind, ErrorKind::EntityNotFound);
     assert!(!document_dir(&root).join("assets").join("a.png").exists());
 }
@@ -399,10 +430,19 @@ fn import_into_a_document_that_was_never_loaded_fails_as_a_whole() {
     let drops = Mutex::new(DroppedFilesState::default());
     let source = opened.temp.path().join("a.png");
     fs::write(&source, png_bytes(1, 1)).unwrap();
-    let drop_id = register_drop(&drops, vec![source]).unwrap().drop_id;
+    let drop_id = register_drop(&drops, WINDOW_LABEL, vec![source])
+        .unwrap()
+        .drop_id;
 
-    let error =
-        import_dropped_images(&sessions, &drops, &drop_id, PROJECT_ID, DOCUMENT_ID).unwrap_err();
+    let error = import_dropped_images(
+        &sessions,
+        &drops,
+        WINDOW_LABEL,
+        &drop_id,
+        PROJECT_ID,
+        DOCUMENT_ID,
+    )
+    .unwrap_err();
     assert_eq!(error.kind, ErrorKind::EntityNotFound);
     assert!(!document_dir(&opened.root).join("assets/a.png").exists());
 }
@@ -415,6 +455,7 @@ fn import_into_a_closed_document_fails_as_a_whole() {
     let error = import_dropped_images(
         &fixture.sessions,
         &fixture.drops,
+        WINDOW_LABEL,
         &drop_id,
         PROJECT_ID,
         DOCUMENT_ID,
@@ -654,7 +695,11 @@ fn only_opened_documents_are_served() {
         .unwrap();
     let never_loaded = Mutex::new(never_loaded);
     let uri: Uri = format!("{UNIX_HOST_FORM}{path}").parse().unwrap();
-    assert_eq!(respond_to_asset_request(&never_loaded, &uri).status(), 404);
+    assert_eq!(
+        respond_to_asset_request(&never_loaded, &bound_registry_mutex(), WINDOW_LABEL, &uri)
+            .status(),
+        404
+    );
     // Loaded, then closed.
     fixture.close(DOCUMENT_ID);
     assert_eq!(fixture.get(UNIX_HOST_FORM, &path).status(), 404);

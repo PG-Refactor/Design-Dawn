@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 
 use serde_json::Value;
 use tauri::ipc::Channel;
-use tauri::{AppHandle, Manager, Runtime, State};
+use tauri::{AppHandle, Manager, Runtime, State, Window};
 
 use crate::application::asset_import::{
     copy_asset_to_document as copy_asset, import_dropped_images as import_dropped, CopiedAsset,
@@ -35,6 +35,12 @@ use crate::application::sheet_operations as sheets;
 use crate::application::snapshot::{
     DocumentSnapshot, FolderSnapshot, ProjectSnapshot, SaveResult, SheetSnapshot,
 };
+use crate::application::window_binding::{
+    close_window_project, create_project_in_window, open_project_in_window, release_window_project,
+    WindowOpenError,
+};
+use crate::application::window_registry::WindowRegistry;
+use crate::domain::entity_id::ProjectId;
 use crate::infrastructure::error::PersistenceErrorKind;
 use crate::infrastructure::file_format::dto::{
     parse_dto, DocumentDto, FolderDto, ProjectDto, SheetDto,
@@ -42,7 +48,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 33] = [
+pub const COMMAND_NAMES: [&str; 34] = [
     "select_project_folder",
     "create_project",
     "open_project",
@@ -76,6 +82,7 @@ pub const COMMAND_NAMES: [&str; 33] = [
     "subscribe_close_requests",
     "confirm_window_close",
     "take_open_request",
+    "close_project",
 ];
 
 pub use asset_protocol::{respond_to_asset_request, ASSET_URL_SCHEME};
@@ -88,17 +95,92 @@ pub use window_close::{
 
 /// The one window event handler (registered in `run`). Each event kind has its own thin
 /// handler; the drag & drop branch is unchanged.
-pub fn handle_window_event<R: Runtime>(window: &tauri::Window<R>, event: &tauri::WindowEvent) {
+pub fn handle_window_event<R: Runtime>(window: &Window<R>, event: &tauri::WindowEvent) {
     match event {
         tauri::WindowEvent::DragDrop(drag_drop) => {
             drag_drop::handle_drag_drop_event(window, drag_drop);
         }
         tauri::WindowEvent::CloseRequested { api, .. } => {
             let hub = window.state::<CloseRequestSubscriber>();
-            handle_close_requested(&hub, || api.prevent_close());
+            handle_close_requested(&hub, window.label(), || api.prevent_close());
         }
+        tauri::WindowEvent::Focused(true) => {
+            lock_registry(&window.state::<Mutex<WindowRegistry>>()).touch_focus(window.label());
+        }
+        tauri::WindowEvent::Destroyed => release_window_state(window),
         _ => {}
     }
+}
+
+fn lock_registry(registry: &Mutex<WindowRegistry>) -> std::sync::MutexGuard<'_, WindowRegistry> {
+    // Plain maps of labels and IDs, kept consistent by single operations.
+    registry.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Everything the Rust side keeps for a window that no longer exists: its Project binding
+/// and session, and every per-window state. `try_state`: during app shutdown the managed
+/// state may already be gone, and there is nothing left to release then.
+fn release_window_state<R: Runtime>(window: &Window<R>) {
+    let label = window.label();
+    if let (Some(sessions), Some(registry)) = (
+        window.try_state::<Mutex<ProjectSessions>>(),
+        window.try_state::<Mutex<WindowRegistry>>(),
+    ) {
+        // Sessions first, then the registry (the order every command uses).
+        let mut sessions = sessions.lock().unwrap_or_else(PoisonError::into_inner);
+        release_window_project(&mut sessions, &mut lock_registry(&registry), label);
+    }
+    if let Some(drops) = window.try_state::<Mutex<DroppedFilesState>>() {
+        drops
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .discard_window(label);
+    }
+    if let Some(selections) = window.try_state::<Mutex<FolderSelectionState>>() {
+        selections
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .discard_window(label);
+    }
+    if let Some(pending) = window.try_state::<Mutex<PendingOpenRequests>>() {
+        pending
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .discard(label);
+    }
+    if let Some(subscriber) = window.try_state::<DropSubscriber>() {
+        subscriber.discard_window(label);
+    }
+    if let Some(hub) = window.try_state::<CloseRequestSubscriber>() {
+        hub.discard_window(label);
+    }
+}
+
+/// Brings another window forward (unminimize + focus). Failures are only logged: the caller
+/// reports `projectOpenInOtherWindow` either way.
+fn bring_window_to_front<R: Runtime>(window: &Window<R>, target_label: &str) {
+    let Some(target) = window.app_handle().get_webview_window(target_label) else {
+        eprintln!("window {target_label} to bring forward does not exist");
+        return;
+    };
+    if let Err(error) = target.unminimize() {
+        eprintln!("failed to restore window {target_label}: {error}");
+    }
+    if let Err(error) = target.set_focus() {
+        eprintln!("failed to focus window {target_label}: {error}");
+    }
+}
+
+/// Turns the outcome of opening a Project into the command result. The other window is
+/// brought forward here, after the state locks were released.
+fn settle_open<R: Runtime, T>(
+    window: &Window<R>,
+    outcome: Result<T, WindowOpenError>,
+) -> Result<T, ApplicationError> {
+    if let Err(WindowOpenError::OpenInOtherWindow { window_label }) = &outcome {
+        bring_window_to_front(window, window_label);
+    }
+    log_failure(outcome.map_err(ApplicationError::from))
 }
 
 /// The folder dialog as managed state. Production registers the real dialog-backed picker;
@@ -128,6 +210,29 @@ fn with_sessions<T>(
     log_failure(operation(&mut sessions))
 }
 
+/// The one check that keeps a window to its own Project: the caller must have `project_id`
+/// open. An unbound or foreign Project is `projectNotOpen`, like an unknown one. The
+/// registry lock is released before the sessions lock is taken.
+fn ensure_window_project<R: Runtime>(
+    window: &Window<R>,
+    project_id: &str,
+) -> ApplicationResult<()> {
+    let project_id = ProjectId::parse(project_id)?;
+    let registry = window.state::<Mutex<WindowRegistry>>();
+    let outcome = lock_registry(&registry).ensure_bound(window.label(), &project_id);
+    log_failure(outcome)
+}
+
+fn with_project_sessions<R: Runtime, T>(
+    window: &Window<R>,
+    state: &SessionState<'_>,
+    project_id: &str,
+    operation: impl FnOnce(&mut ProjectSessions) -> ApplicationResult<T>,
+) -> Result<T, ApplicationError> {
+    ensure_window_project(window, project_id)?;
+    with_sessions(state, operation)
+}
+
 /// Async so it never runs on the main thread, and the blocking dialog runs on a thread of
 /// the blocking pool so no async worker is held for as long as the user keeps it open.
 /// Neither state lock is held while the dialog is open (the selection lock is taken only
@@ -135,13 +240,15 @@ fn with_sessions<T>(
 #[tauri::command]
 pub async fn select_project_folder<R: Runtime>(
     app: AppHandle<R>,
+    window: Window<R>,
 ) -> Result<FolderSelection, ApplicationError> {
+    let window_label = window.label().to_owned();
     tauri::async_runtime::spawn_blocking(move || {
         let picker = app.try_state::<SharedFolderPicker>().ok_or_else(|| {
             ApplicationError::new(ErrorKind::DialogFailed, "no folder picker is registered")
         })?;
         let selections = app.state::<Mutex<FolderSelectionState>>();
-        select_folder(picker.inner().as_ref(), &selections)
+        select_folder(picker.inner().as_ref(), &selections, &window_label)
     })
     .await
     .map_err(|error| {
@@ -153,51 +260,83 @@ pub async fn select_project_folder<R: Runtime>(
 }
 
 #[tauri::command]
-pub fn create_project(
+pub fn create_project<R: Runtime>(
+    window: Window<R>,
     state: SessionState<'_>,
+    registry: State<'_, Mutex<WindowRegistry>>,
     selections: FolderSelectionStateHandle<'_>,
     selection_id: String,
     name: String,
 ) -> Result<ProjectSnapshot, ApplicationError> {
-    let project_root = resolve_selection(&selections, &selection_id)?;
-    with_sessions(&state, |sessions| {
-        projects::create_project(sessions, &project_root, &name)
-    })
+    let project_root = resolve_selection(&selections, window.label(), &selection_id)?;
+    let outcome = {
+        let mut sessions = state.lock().unwrap_or_else(PoisonError::into_inner);
+        create_project_in_window(
+            &mut sessions,
+            &mut lock_registry(&registry),
+            window.label(),
+            &project_root,
+            &name,
+        )
+    };
+    settle_open(&window, outcome)
 }
 
 #[tauri::command]
-pub fn open_project(
+pub fn open_project<R: Runtime>(
+    window: Window<R>,
     state: SessionState<'_>,
+    registry: State<'_, Mutex<WindowRegistry>>,
     selections: FolderSelectionStateHandle<'_>,
     selection_id: String,
 ) -> Result<ProjectSnapshot, ApplicationError> {
-    let project_root = resolve_selection(&selections, &selection_id)?;
-    with_sessions(&state, |sessions| {
-        projects::open_project(sessions, &project_root)
-    })
+    let project_root = resolve_selection(&selections, window.label(), &selection_id)?;
+    let outcome = {
+        let mut sessions = state.lock().unwrap_or_else(PoisonError::into_inner);
+        open_project_in_window(
+            &mut sessions,
+            &mut lock_registry(&registry),
+            window.label(),
+            &project_root,
+        )
+    };
+    settle_open(&window, outcome)
+}
+
+/// The window closed its Project: unbinds it and drops its session.
+#[tauri::command]
+pub fn close_project<R: Runtime>(
+    window: Window<R>,
+    state: SessionState<'_>,
+    registry: State<'_, Mutex<WindowRegistry>>,
+) {
+    let mut sessions = state.lock().unwrap_or_else(PoisonError::into_inner);
+    close_window_project(&mut sessions, &mut lock_registry(&registry), window.label());
 }
 
 #[tauri::command]
-pub fn save_project(
+pub fn save_project<R: Runtime>(
+    window: Window<R>,
     state: SessionState<'_>,
     project_id: String,
     project: Value,
 ) -> Result<SaveResult, ApplicationError> {
-    with_sessions(&state, |sessions| {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
         let project: ProjectDto = parse_dto(project)?;
         projects::save_project(sessions, &project_id, &project)
     })
 }
 
 #[tauri::command]
-pub fn create_document(
+pub fn create_document<R: Runtime>(
+    window: Window<R>,
     state: SessionState<'_>,
     project_id: String,
     document_id: String,
     name: String,
     parent_folder_id: Option<String>,
 ) -> Result<DocumentSnapshot, ApplicationError> {
-    with_sessions(&state, |sessions| {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
         documents::create_document(
             sessions,
             &project_id,
@@ -209,14 +348,15 @@ pub fn create_document(
 }
 
 #[tauri::command]
-pub fn create_folder(
+pub fn create_folder<R: Runtime>(
+    window: Window<R>,
     state: SessionState<'_>,
     project_id: String,
     parent_folder_id: Option<String>,
     folder_id: String,
     name: String,
 ) -> Result<FolderSnapshot, ApplicationError> {
-    with_sessions(&state, |sessions| {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
         folders::create_folder(
             sessions,
             &project_id,
@@ -228,25 +368,27 @@ pub fn create_folder(
 }
 
 #[tauri::command]
-pub fn save_folder(
+pub fn save_folder<R: Runtime>(
+    window: Window<R>,
     state: SessionState<'_>,
     project_id: String,
     folder: Value,
 ) -> Result<SaveResult, ApplicationError> {
-    with_sessions(&state, |sessions| {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
         let folder: FolderDto = parse_dto(folder)?;
         folders::save_folder(sessions, &project_id, &folder)
     })
 }
 
 #[tauri::command]
-pub fn move_entry(
+pub fn move_entry<R: Runtime>(
+    window: Window<R>,
     state: SessionState<'_>,
     project_id: String,
     entry_id: String,
     target_parent_folder_id: Option<String>,
 ) -> Result<(), ApplicationError> {
-    with_sessions(&state, |sessions| {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
         folders::move_entry(
             sessions,
             &project_id,
@@ -257,78 +399,85 @@ pub fn move_entry(
 }
 
 #[tauri::command]
-pub fn delete_folder(
+pub fn delete_folder<R: Runtime>(
+    window: Window<R>,
     state: SessionState<'_>,
     project_id: String,
     folder_id: String,
 ) -> Result<(), ApplicationError> {
-    with_sessions(&state, |sessions| {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
         folders::delete_folder(sessions, &project_id, &folder_id)
     })
 }
 
 #[tauri::command]
-pub fn load_document(
+pub fn load_document<R: Runtime>(
+    window: Window<R>,
     state: SessionState<'_>,
     project_id: String,
     document_id: String,
 ) -> Result<DocumentSnapshot, ApplicationError> {
-    with_sessions(&state, |sessions| {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
         documents::load_document(sessions, &project_id, &document_id)
     })
 }
 
 #[tauri::command]
-pub fn close_document(
+pub fn close_document<R: Runtime>(
+    window: Window<R>,
     state: SessionState<'_>,
     project_id: String,
     document_id: String,
 ) -> Result<(), ApplicationError> {
-    with_sessions(&state, |sessions| {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
         documents::close_document(sessions, &project_id, &document_id)
     })
 }
 
 #[tauri::command]
-pub fn save_document(
+pub fn save_document<R: Runtime>(
+    window: Window<R>,
     state: SessionState<'_>,
     project_id: String,
     document: Value,
 ) -> Result<SaveResult, ApplicationError> {
-    with_sessions(&state, |sessions| {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
         let document: DocumentDto = parse_dto(document)?;
         documents::save_document(sessions, &project_id, &document)
     })
 }
 
 #[tauri::command]
-pub fn create_sheet(
+pub fn create_sheet<R: Runtime>(
+    window: Window<R>,
     state: SessionState<'_>,
     project_id: String,
     document_id: String,
     sheet_id: String,
     name: String,
 ) -> Result<SheetSnapshot, ApplicationError> {
-    with_sessions(&state, |sessions| {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
         sheets::create_sheet(sessions, &project_id, &document_id, &sheet_id, &name)
     })
 }
 
 #[tauri::command]
-pub fn save_sheet(
+pub fn save_sheet<R: Runtime>(
+    window: Window<R>,
     state: SessionState<'_>,
     project_id: String,
     document_id: String,
     sheet: Value,
 ) -> Result<SaveResult, ApplicationError> {
-    with_sessions(&state, |sessions| {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
         let sheet: SheetDto = parse_dto(sheet)?;
         sheets::save_sheet(sessions, &project_id, &document_id, &sheet)
     })
 }
 
 #[tauri::command]
-pub fn create_block_content(
+pub fn create_block_content<R: Runtime>(
+    window: Window<R>,
     state: SessionState<'_>,
     project_id: String,
     document_id: String,
@@ -336,7 +485,7 @@ pub fn create_block_content(
     block_type: String,
     text: String,
 ) -> Result<String, ApplicationError> {
-    with_sessions(&state, |sessions| {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
         block_content::create_block_content(
             sessions,
             &project_id,
@@ -349,26 +498,28 @@ pub fn create_block_content(
 }
 
 #[tauri::command]
-pub fn read_block_content(
+pub fn read_block_content<R: Runtime>(
+    window: Window<R>,
     state: SessionState<'_>,
     project_id: String,
     document_id: String,
     content_path: String,
 ) -> Result<String, ApplicationError> {
-    with_sessions(&state, |sessions| {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
         block_content::read_block_content(sessions, &project_id, &document_id, &content_path)
     })
 }
 
 #[tauri::command]
-pub fn write_block_content(
+pub fn write_block_content<R: Runtime>(
+    window: Window<R>,
     state: SessionState<'_>,
     project_id: String,
     document_id: String,
     content_path: String,
     text: String,
 ) -> Result<SaveResult, ApplicationError> {
-    with_sessions(&state, |sessions| {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
         block_content::write_block_content(
             sessions,
             &project_id,
@@ -380,19 +531,21 @@ pub fn write_block_content(
 }
 
 #[tauri::command]
-pub fn delete_block_content(
+pub fn delete_block_content<R: Runtime>(
+    window: Window<R>,
     state: SessionState<'_>,
     project_id: String,
     document_id: String,
     content_path: String,
 ) -> Result<(), ApplicationError> {
-    with_sessions(&state, |sessions| {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
         block_content::delete_block_content(sessions, &project_id, &document_id, &content_path)
     })
 }
 
 #[tauri::command]
-pub fn restore_block_content(
+pub fn restore_block_content<R: Runtime>(
+    window: Window<R>,
     state: SessionState<'_>,
     project_id: String,
     document_id: String,
@@ -400,7 +553,7 @@ pub fn restore_block_content(
     content_path: String,
     text: String,
 ) -> Result<(), ApplicationError> {
-    with_sessions(&state, |sessions| {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
         block_content::restore_block_content(
             sessions,
             &project_id,
@@ -413,24 +566,26 @@ pub fn restore_block_content(
 }
 
 #[tauri::command]
-pub fn delete_sheet(
+pub fn delete_sheet<R: Runtime>(
+    window: Window<R>,
     state: SessionState<'_>,
     project_id: String,
     document_id: String,
     sheet_id: String,
 ) -> Result<(), ApplicationError> {
-    with_sessions(&state, |sessions| {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
         sheets::delete_sheet(sessions, &project_id, &document_id, &sheet_id)
     })
 }
 
 #[tauri::command]
-pub fn delete_document(
+pub fn delete_document<R: Runtime>(
+    window: Window<R>,
     state: SessionState<'_>,
     project_id: String,
     document_id: String,
 ) -> Result<(), ApplicationError> {
-    with_sessions(&state, |sessions| {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
         documents::delete_document(sessions, &project_id, &document_id)
     })
 }
@@ -527,14 +682,24 @@ async fn run_blocking<T: Send + 'static>(
 #[tauri::command]
 pub async fn import_dropped_images<R: Runtime>(
     app: AppHandle<R>,
+    window: Window<R>,
     drop_id: String,
     project_id: String,
     document_id: String,
 ) -> Result<DropImportResult, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    let window_label = window.label().to_owned();
     run_blocking(move || {
         let sessions = app.state::<Mutex<ProjectSessions>>();
         let drops = app.state::<Mutex<DroppedFilesState>>();
-        import_dropped(&sessions, &drops, &drop_id, &project_id, &document_id)
+        import_dropped(
+            &sessions,
+            &drops,
+            &window_label,
+            &drop_id,
+            &project_id,
+            &document_id,
+        )
     })
     .await
 }
@@ -542,11 +707,13 @@ pub async fn import_dropped_images<R: Runtime>(
 #[tauri::command]
 pub async fn copy_asset_to_document<R: Runtime>(
     app: AppHandle<R>,
+    window: Window<R>,
     project_id: String,
     source_document_id: String,
     content_path: String,
     target_document_id: String,
 ) -> Result<CopiedAsset, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
     run_blocking(move || {
         let sessions = app.state::<Mutex<ProjectSessions>>();
         copy_asset(
@@ -560,23 +727,26 @@ pub async fn copy_asset_to_document<R: Runtime>(
     .await
 }
 
-/// Replaces the channel that receives drag and drop notifications (latest subscription wins).
+/// Replaces the calling window's channel for drag and drop notifications (its latest
+/// subscription wins).
 #[tauri::command]
-pub fn subscribe_drop_notifications(
+pub fn subscribe_drop_notifications<R: Runtime>(
+    window: Window<R>,
     subscriber: State<'_, DropSubscriber>,
     channel: Channel<DropNotification>,
 ) {
-    subscriber.replace(channel);
+    subscriber.replace(window.label(), channel);
 }
 
 /// Registers the channel for close requests and returns the token the notifications carry
 /// (docs/architecture.md §10.1).
 #[tauri::command]
-pub fn subscribe_close_requests(
+pub fn subscribe_close_requests<R: Runtime>(
+    window: Window<R>,
     subscriber: State<'_, CloseRequestSubscriber>,
     channel: Channel<CloseNotification>,
 ) -> String {
-    subscriber.subscribe(channel)
+    subscriber.subscribe(window.label(), channel)
 }
 
 #[tauri::command]
@@ -592,11 +762,19 @@ pub fn confirm_window_close<R: Runtime>(
 /// caller is identified by its window label, so a window can only take its own request.
 #[tauri::command]
 pub fn take_open_request<R: Runtime>(
-    window: tauri::Window<R>,
+    window: Window<R>,
     pending: State<'_, Mutex<PendingOpenRequests>>,
     state: SessionState<'_>,
+    registry: State<'_, Mutex<WindowRegistry>>,
 ) -> Result<Option<OpenedRequest>, ApplicationError> {
-    with_sessions(&state, |sessions| {
-        open_request::take_open_request(&pending, sessions, window.label())
-    })
+    let outcome = {
+        let mut sessions = state.lock().unwrap_or_else(PoisonError::into_inner);
+        open_request::take_open_request(
+            &pending,
+            &mut sessions,
+            &mut lock_registry(&registry),
+            window.label(),
+        )
+    };
+    settle_open(&window, outcome)
 }

@@ -11,6 +11,7 @@ use application::folder_selection::FolderSelectionState;
 use application::local_state::operations::{LocalState, LocalStateDirectories};
 use application::open_request::{select_open_request, PendingOpenRequests};
 use application::session::ProjectSessions;
+use application::window_registry::WindowRegistry;
 use commands::{CloseRequestSubscriber, DialogFolderPicker, DropSubscriber, SharedFolderPicker};
 use config::MAIN_WINDOW_LABEL;
 use tauri::{Builder, Manager, Runtime};
@@ -29,6 +30,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         .manage(Mutex::new(FolderSelectionState::default()))
         .manage(Mutex::new(DroppedFilesState::default()))
         .manage(Mutex::new(PendingOpenRequests::default()))
+        .manage(Mutex::new(WindowRegistry::default()))
         .manage(DropSubscriber::default())
         .manage(CloseRequestSubscriber::default())
         // Read-only image access for `<img>`; the handler runs on the blocking pool because
@@ -38,9 +40,17 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             |context, request, responder| {
                 let app = context.app_handle().clone();
                 let uri = request.uri().clone();
+                // The requesting webview decides which Project may be read (security.md).
+                let webview_label = context.webview_label().to_owned();
                 tauri::async_runtime::spawn_blocking(move || {
                     let sessions = app.state::<Mutex<ProjectSessions>>();
-                    responder.respond(respond_to_asset_request(&sessions, &uri));
+                    let registry = app.state::<Mutex<WindowRegistry>>();
+                    responder.respond(respond_to_asset_request(
+                        &sessions,
+                        &registry,
+                        &webview_label,
+                        &uri,
+                    ));
                 });
             },
         )
@@ -78,6 +88,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::subscribe_close_requests,
             commands::confirm_window_close,
             commands::take_open_request,
+            commands::close_project,
         ])
 }
 
@@ -116,6 +127,10 @@ pub fn run() {
                 local_data_dir: app.path().app_local_data_dir()?,
             };
             app.manage(LocalState::new(directories));
+            app.state::<Mutex<WindowRegistry>>()
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .register(MAIN_WINDOW_LABEL);
             // A `.dawn` passed on the command line (double click / "open with"); the main
             // window's Frontend takes it at start-up. An unreadable cwd only disables
             // relative paths, it must not stop the app from starting.

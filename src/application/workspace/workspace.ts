@@ -787,6 +787,10 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
         if (project === null) return operationOk(undefined);
         const closed = await closeEverything(options?.discardChanges === true);
         if (!closed.ok) return closed;
+        // After the documents were saved and closed; a replacing open needs no call
+        // because Rust unbinds the previous Project itself when the new one is bound.
+        const released = await gateway.closeProject();
+        if (!released.ok) return released;
         store.setState(createInitialApplicationState());
         events.emit({ type: "projectClosed", projectId: project.projectId });
         return operationOk(undefined);

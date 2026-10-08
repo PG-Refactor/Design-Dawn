@@ -72,6 +72,12 @@ export function takeOpenRequest(): Promise<
   return call(COMMANDS.takeOpenRequest, {}, toOpenRequestResult);
 }
 
+// The window closed its Project; Rust unbinds it and drops its session. Harmless when the
+// window has no Project.
+export function closeProject(): Promise<CommandResult<null>> {
+  return call(COMMANDS.closeProject, {}, toVoidResult);
+}
+
 export function saveProject(
   projectId: ProjectId,
   project: Project,

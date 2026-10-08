@@ -16,6 +16,7 @@ use std::sync::{Arc, Mutex};
 
 use design_dawn_lib::application::folder_selection::{FolderPicker, FolderPickerError};
 use design_dawn_lib::application::local_state::operations::{LocalState, LocalStateDirectories};
+use design_dawn_lib::application::window_registry::WindowRegistry;
 use design_dawn_lib::commands::SharedFolderPicker;
 use serde_json::Value;
 use support::*;
@@ -31,6 +32,8 @@ const CURRENT_TARGET: &str = "rust";
 /// The only window the default capability applies to (capabilities/default.json).
 const MAIN_WINDOW_LABEL: &str = "main";
 const OTHER_WINDOW_LABEL: &str = "not-granted";
+/// A second window the capability covers (`window-*`), like the ones Step F will create.
+const SECOND_WINDOW_LABEL: &str = "window-1";
 /// The origin of the app's own frontend; ACL treats it as a local URL.
 const LOCAL_ORIGIN: &str = "tauri://localhost";
 const EMPTY_DIRECTORY_NAME: &str = "empty";
@@ -39,6 +42,7 @@ const CONFIG_DIRECTORY_NAME: &str = "config";
 const LOCAL_DATA_DIRECTORY_NAME: &str = "local-data";
 
 /// What the fake dialog does when the fixture says `folderPicker: [...]`.
+#[derive(Clone)]
 enum PickerOutcome {
     Folder(PathBuf),
     Cancelled,
@@ -428,12 +432,19 @@ struct OpenedProject {
 }
 
 fn open_fixture_project(temp: &TempDir) -> OpenedProject {
+    open_fixture_project_with_pickers(temp, Vec::new())
+}
+
+/// `later_outcomes` follow the one folder choice the main window makes to open the project.
+fn open_fixture_project_with_pickers(
+    temp: &TempDir,
+    later_outcomes: Vec<PickerOutcome>,
+) -> OpenedProject {
     let project_root = temp.path().join(PROJECT_DIRECTORY_NAME);
     copy_dir_all(Path::new(FIXTURE_PROJECT), &project_root);
-    let app = build_app(
-        vec![PickerOutcome::Folder(project_root.clone())],
-        local_state_directories(temp.path()),
-    );
+    let mut outcomes = vec![PickerOutcome::Folder(project_root.clone())];
+    outcomes.extend(later_outcomes);
+    let app = build_app(outcomes, local_state_directories(temp.path()));
     let webview = WebviewWindowBuilder::new(&app, MAIN_WINDOW_LABEL, Default::default())
         .build()
         .expect("create main window");
@@ -487,16 +498,16 @@ fn a_native_drop_is_announced_without_paths_and_imported_through_the_command() {
 
     let messages = Arc::new(Mutex::new(Vec::<String>::new()));
     let sink = Arc::clone(&messages);
-    opened
-        .app
-        .state::<DropSubscriber>()
-        .replace(Channel::<DropNotification>::new(move |body| {
+    opened.app.state::<DropSubscriber>().replace(
+        MAIN_WINDOW_LABEL,
+        Channel::<DropNotification>::new(move |body| {
             match body {
                 InvokeResponseBody::Json(json) => sink.lock().unwrap().push(json),
                 InvokeResponseBody::Raw(_) => panic!("notifications are JSON"),
             }
             Ok(())
-        }));
+        }),
+    );
 
     let source = temp.path().join("dropped picture.png");
     fs::write(&source, png_bytes(1920, 1080)).unwrap();
@@ -790,7 +801,8 @@ fn close_document_through_ipc_stops_the_asset_from_being_served() {
     .unwrap();
     let serve = || {
         let sessions = opened.app.state::<Mutex<ProjectSessions>>();
-        respond_to_asset_request(&sessions, &uri).status()
+        let registry = opened.app.state::<Mutex<WindowRegistry>>();
+        respond_to_asset_request(&sessions, &registry, MAIN_WINDOW_LABEL, &uri).status()
     };
     assert_eq!(serve(), 200);
 
@@ -802,4 +814,387 @@ fn close_document_through_ipc_stops_the_asset_from_being_served() {
     .unwrap();
 
     assert_eq!(serve(), 404);
+}
+
+// ---- Step D: per-window Project binding (docs/architecture.md §11.0.1) ----
+
+fn second_window(opened: &OpenedProject) -> tauri::WebviewWindow<tauri::test::MockRuntime> {
+    WebviewWindowBuilder::new(&opened.app, SECOND_WINDOW_LABEL, Default::default())
+        .build()
+        .expect("create second window")
+}
+
+fn pick_folder_in(webview: &tauri::WebviewWindow<tauri::test::MockRuntime>) -> Value {
+    invoke(webview, "select_project_folder", &serde_json::json!({})).unwrap()["selectionId"].clone()
+}
+
+fn read_overview_markdown(
+    webview: &tauri::WebviewWindow<tauri::test::MockRuntime>,
+    project_id: &str,
+) -> Result<Value, Value> {
+    invoke(
+        webview,
+        "read_block_content",
+        &serde_json::json!({
+            "projectId": project_id,
+            "documentId": DOCUMENT_ID,
+            "contentPath": OVERVIEW_MARKDOWN_PATH,
+        }),
+    )
+}
+
+fn error_kind(outcome: Result<Value, Value>) -> String {
+    outcome.unwrap_err()["kind"]
+        .as_str()
+        .expect("a {kind, detail} error")
+        .to_owned()
+}
+
+#[test]
+fn a_window_outside_main_but_matching_the_pattern_may_call_commands() {
+    let temp = TempDir::new();
+    let opened = open_fixture_project(&temp);
+    let second = second_window(&opened);
+    assert!(invoke(&second, "get_app_settings", &serde_json::json!({})).is_ok());
+}
+
+#[test]
+fn opening_a_project_bound_to_another_window_is_refused_and_keeps_its_session() {
+    let temp = TempDir::new();
+    let opened = open_fixture_project_with_pickers(
+        &temp,
+        vec![PickerOutcome::Folder(
+            temp.path().join(PROJECT_DIRECTORY_NAME),
+        )],
+    );
+    let second = second_window(&opened);
+    let selection_id = pick_folder_in(&second);
+
+    let outcome = invoke(
+        &second,
+        "open_project",
+        &serde_json::json!({ "selectionId": selection_id }),
+    );
+
+    assert_eq!(error_kind(outcome), "projectOpenInOtherWindow");
+    assert!(read_overview_markdown(&opened.webview, &opened.project_id).is_ok());
+    let registry = opened.app.state::<Mutex<WindowRegistry>>();
+    let registry = registry.lock().unwrap();
+    assert_eq!(registry.project_of(SECOND_WINDOW_LABEL), None);
+    assert!(registry.project_of(MAIN_WINDOW_LABEL).is_some());
+}
+
+#[test]
+fn a_window_cannot_use_the_commands_on_another_windows_project() {
+    let temp = TempDir::new();
+    let opened = open_fixture_project(&temp);
+    let second = second_window(&opened);
+    let project_id = &opened.project_id;
+
+    assert_eq!(
+        error_kind(read_overview_markdown(&second, project_id)),
+        "projectNotOpen"
+    );
+    for (command, args) in [
+        (
+            "load_document",
+            serde_json::json!({ "projectId": project_id, "documentId": DOCUMENT_ID }),
+        ),
+        (
+            "close_document",
+            serde_json::json!({ "projectId": project_id, "documentId": DOCUMENT_ID }),
+        ),
+        (
+            "delete_document",
+            serde_json::json!({ "projectId": project_id, "documentId": DOCUMENT_ID }),
+        ),
+        (
+            "write_block_content",
+            serde_json::json!({
+                "projectId": project_id,
+                "documentId": DOCUMENT_ID,
+                "contentPath": OVERVIEW_MARKDOWN_PATH,
+                "text": "overwritten",
+            }),
+        ),
+        (
+            "import_dropped_images",
+            serde_json::json!({
+                "dropId": "x",
+                "projectId": project_id,
+                "documentId": DOCUMENT_ID,
+            }),
+        ),
+        (
+            "copy_asset_to_document",
+            serde_json::json!({
+                "projectId": project_id,
+                "sourceDocumentId": DOCUMENT_ID,
+                "contentPath": "assets/pixel.png",
+                "targetDocumentId": DOCUMENT_ID,
+            }),
+        ),
+    ] {
+        assert_eq!(
+            error_kind(invoke(&second, command, &args)),
+            "projectNotOpen",
+            "{command}"
+        );
+    }
+    // Nothing happened to the owner's data.
+    let text = read_overview_markdown(&opened.webview, project_id).unwrap();
+    assert_ne!(text, Value::String("overwritten".to_owned()));
+}
+
+#[test]
+fn closing_the_project_unbinds_it_so_another_window_can_open_it() {
+    let temp = TempDir::new();
+    let opened = open_fixture_project_with_pickers(
+        &temp,
+        vec![PickerOutcome::Folder(
+            temp.path().join(PROJECT_DIRECTORY_NAME),
+        )],
+    );
+    let second = second_window(&opened);
+
+    assert_eq!(
+        invoke(&opened.webview, "close_project", &serde_json::json!({})),
+        Ok(Value::Null)
+    );
+    // Closing again, or from a window with no Project, is harmless.
+    assert_eq!(
+        invoke(&opened.webview, "close_project", &serde_json::json!({})),
+        Ok(Value::Null)
+    );
+    assert_eq!(
+        error_kind(read_overview_markdown(&opened.webview, &opened.project_id)),
+        "projectNotOpen"
+    );
+
+    let selection_id = pick_folder_in(&second);
+    let snapshot = invoke(
+        &second,
+        "open_project",
+        &serde_json::json!({ "selectionId": selection_id }),
+    )
+    .unwrap();
+    assert_eq!(snapshot["project"]["projectId"], opened.project_id);
+}
+
+#[test]
+fn what_one_window_selected_or_dropped_or_subscribed_is_unusable_from_another() {
+    use design_dawn_lib::commands::{handle_window_event, DropNotification, DropSubscriber};
+    use tauri::ipc::{Channel, InvokeResponseBody};
+    use tauri::{DragDropEvent, PhysicalPosition, WindowEvent};
+
+    let temp = TempDir::new();
+    let empty_root = temp.path().join(EMPTY_DIRECTORY_NAME);
+    let opened = open_fixture_project_with_pickers(
+        &temp,
+        vec![
+            PickerOutcome::Folder(temp.path().join(PROJECT_DIRECTORY_NAME)),
+            PickerOutcome::Folder(empty_root),
+        ],
+    );
+    let second = second_window(&opened);
+
+    // A folder selection made by main cannot be consumed by the second window.
+    let main_selection = pick_folder_in(&opened.webview);
+    assert_eq!(
+        error_kind(invoke(
+            &second,
+            "open_project",
+            &serde_json::json!({ "selectionId": main_selection }),
+        )),
+        "invalidFolderSelection"
+    );
+
+    // The second window gets its own Project (a fresh one) to pass the Project check.
+    let second_selection = pick_folder_in(&second);
+    let created = invoke(
+        &second,
+        "create_project",
+        &serde_json::json!({ "selectionId": second_selection, "name": "Second" }),
+    )
+    .unwrap();
+    let second_project_id = created["project"]["projectId"].as_str().unwrap().to_owned();
+    let new_document_id = "01928f3a-6c7d-7e8f-a012-3456789abc99";
+    invoke(
+        &second,
+        "create_document",
+        &serde_json::json!({
+            "projectId": second_project_id,
+            "documentId": new_document_id,
+            "name": "Doc",
+            "parentFolderId": null,
+        }),
+    )
+    .unwrap();
+
+    // A drop on main yields a dropId that only main can import.
+    let announcements = Arc::new(Mutex::new(Vec::<String>::new()));
+    let sink = Arc::clone(&announcements);
+    opened.app.state::<DropSubscriber>().replace(
+        MAIN_WINDOW_LABEL,
+        Channel::<DropNotification>::new(move |body| {
+            if let InvokeResponseBody::Json(json) = body {
+                sink.lock().unwrap().push(json);
+            }
+            Ok(())
+        }),
+    );
+    let source = temp.path().join("only-main.png");
+    fs::write(&source, png_bytes(4, 4)).unwrap();
+    let main_window =
+        AsRef::<tauri::Webview<tauri::test::MockRuntime>>::as_ref(&opened.webview).window();
+    handle_window_event(
+        &main_window,
+        &WindowEvent::DragDrop(DragDropEvent::Drop {
+            paths: vec![source],
+            position: PhysicalPosition::new(0.0, 0.0),
+        }),
+    );
+    let announced: Value =
+        serde_json::from_str(announcements.lock().unwrap().last().expect("announced")).unwrap();
+    assert_eq!(
+        error_kind(invoke(
+            &second,
+            "import_dropped_images",
+            &serde_json::json!({
+                "dropId": announced["dropId"],
+                "projectId": second_project_id,
+                "documentId": new_document_id,
+            }),
+        )),
+        "invalidDropSelection"
+    );
+    assert!(invoke(
+        &opened.webview,
+        "import_dropped_images",
+        &serde_json::json!({
+            "dropId": announced["dropId"],
+            "projectId": opened.project_id,
+            "documentId": DOCUMENT_ID,
+        }),
+    )
+    .is_ok());
+}
+
+#[test]
+fn the_close_token_of_one_window_does_not_belong_to_another() {
+    let temp = TempDir::new();
+    let opened = open_fixture_project(&temp);
+    let second = second_window(&opened);
+    let main_token = subscribe_close_requests(&opened.webview);
+    let second_token = subscribe_close_requests(&second);
+    assert_ne!(main_token, second_token);
+
+    // Per-window acceptance is unit-tested on the hub (destroying is not observable in the
+    // mock runtime); here the commands only have to keep answering quietly.
+    use design_dawn_lib::commands::CloseRequestSubscriber;
+    let hub = opened.app.state::<CloseRequestSubscriber>();
+    assert!(hub.accepts(MAIN_WINDOW_LABEL, &main_token));
+    assert!(!hub.accepts(SECOND_WINDOW_LABEL, &main_token));
+    assert!(hub.accepts(SECOND_WINDOW_LABEL, &second_token));
+    assert_eq!(
+        invoke(
+            &second,
+            "confirm_window_close",
+            &serde_json::json!({ "subscriptionToken": "not-its-own" }),
+        ),
+        Ok(Value::Null)
+    );
+}
+
+#[test]
+fn dawn_asset_serves_only_the_project_bound_to_the_requesting_window() {
+    use design_dawn_lib::application::session::ProjectSessions;
+    use design_dawn_lib::commands::respond_to_asset_request;
+
+    let temp = TempDir::new();
+    let opened = open_fixture_project(&temp);
+    let _second = second_window(&opened);
+    let uri: tauri::http::Uri = format!(
+        "dawn-asset://localhost/{}/{DOCUMENT_ID}/assets/pixel.png",
+        opened.project_id
+    )
+    .parse()
+    .unwrap();
+    let sessions = opened.app.state::<Mutex<ProjectSessions>>();
+    let registry = opened.app.state::<Mutex<WindowRegistry>>();
+    let status = |label: &str| respond_to_asset_request(&sessions, &registry, label, &uri).status();
+
+    assert_eq!(status(MAIN_WINDOW_LABEL), 200);
+    assert_eq!(status(SECOND_WINDOW_LABEL), 404);
+    assert_eq!(status("unknown-webview"), 404);
+}
+
+#[test]
+fn destroying_a_window_releases_its_project_session_and_per_window_state() {
+    use design_dawn_lib::application::session::ProjectSessions;
+    use design_dawn_lib::commands::handle_window_event;
+    use tauri::WindowEvent;
+
+    let temp = TempDir::new();
+    let opened = open_fixture_project_with_pickers(
+        &temp,
+        vec![PickerOutcome::Folder(
+            temp.path().join(PROJECT_DIRECTORY_NAME),
+        )],
+    );
+    let second = second_window(&opened);
+    let main_token = subscribe_close_requests(&opened.webview);
+    let main_window =
+        AsRef::<tauri::Webview<tauri::test::MockRuntime>>::as_ref(&opened.webview).window();
+
+    handle_window_event(&main_window, &WindowEvent::Destroyed);
+
+    let project = design_dawn_lib::domain::entity_id::ProjectId::parse(&opened.project_id).unwrap();
+    let sessions = opened.app.state::<Mutex<ProjectSessions>>();
+    assert!(sessions.lock().unwrap().get(&project).is_err());
+    let registry = opened.app.state::<Mutex<WindowRegistry>>();
+    assert_eq!(
+        registry.lock().unwrap().find_window_by_project(&project),
+        None
+    );
+    let hub = opened
+        .app
+        .state::<design_dawn_lib::commands::CloseRequestSubscriber>();
+    assert!(!hub.accepts(MAIN_WINDOW_LABEL, &main_token));
+
+    // The Project is free for another window again.
+    let selection_id = pick_folder_in(&second);
+    assert!(invoke(
+        &second,
+        "open_project",
+        &serde_json::json!({ "selectionId": selection_id }),
+    )
+    .is_ok());
+}
+
+#[test]
+fn focus_events_order_the_windows_for_the_registry() {
+    use design_dawn_lib::commands::handle_window_event;
+    use tauri::WindowEvent;
+
+    let temp = TempDir::new();
+    let opened = open_fixture_project(&temp);
+    let second = second_window(&opened);
+    let window_of = |webview: &tauri::WebviewWindow<tauri::test::MockRuntime>| {
+        AsRef::<tauri::Webview<tauri::test::MockRuntime>>::as_ref(webview).window()
+    };
+    let registry = opened.app.state::<Mutex<WindowRegistry>>();
+
+    handle_window_event(&window_of(&opened.webview), &WindowEvent::Focused(true));
+    handle_window_event(&window_of(&second), &WindowEvent::Focused(true));
+    assert_eq!(
+        registry.lock().unwrap().most_recently_focused(),
+        Some(SECOND_WINDOW_LABEL)
+    );
+    handle_window_event(&window_of(&second), &WindowEvent::Focused(false));
+    handle_window_event(&window_of(&opened.webview), &WindowEvent::Focused(true));
+    assert_eq!(
+        registry.lock().unwrap().most_recently_focused(),
+        Some(MAIN_WINDOW_LABEL)
+    );
 }

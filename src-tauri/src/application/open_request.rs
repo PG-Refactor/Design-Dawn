@@ -11,9 +11,11 @@ use std::sync::{Mutex, PoisonError};
 use serde::Serialize;
 
 use super::error::{ApplicationError, ApplicationResult};
-use super::project_operations::{open_entry_point, EntryPointResolution};
+use super::project_operations::{prepare_entry_point, EntryPointResolution};
 use super::session::ProjectSessions;
 use super::snapshot::ProjectSnapshot;
+use super::window_binding::{admit_prepared_entry_point, WindowOpenError};
+use super::window_registry::WindowRegistry;
 use crate::infrastructure::error::{PersistenceError, PersistenceErrorKind};
 use crate::infrastructure::file_format::constants::{ENTRY_POINT_EXTENSION, ENTRY_POINT_MAX_BYTES};
 
@@ -64,6 +66,11 @@ impl PendingOpenRequests {
     pub fn take(&mut self, window_label: &str) -> Option<OpenRequest> {
         self.by_window.remove(window_label)
     }
+
+    /// For a destroyed window: its request has nobody left to take it.
+    pub fn discard(&mut self, window_label: &str) {
+        self.by_window.remove(window_label);
+    }
 }
 
 /// Serialized to the Frontend: deliberately no path of any kind.
@@ -96,13 +103,15 @@ fn check_entry_point_file(path: &Path) -> ApplicationResult<()> {
     Ok(())
 }
 
-/// Consumes the window's pending request (once, even when opening it fails) and opens it.
+/// Consumes the window's pending request (once, even when opening it fails) and opens it as
+/// that window's Project; `projectOpenInOtherWindow` when another window has it.
 /// `Ok(None)` when nothing is pending.
 pub fn take_open_request(
     pending: &Mutex<PendingOpenRequests>,
     sessions: &mut ProjectSessions,
+    registry: &mut WindowRegistry,
     window_label: &str,
-) -> ApplicationResult<Option<OpenedRequest>> {
+) -> Result<Option<OpenedRequest>, WindowOpenError> {
     let request = pending
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
@@ -111,10 +120,11 @@ pub fn take_open_request(
         return Ok(None);
     };
     check_entry_point_file(&path)?;
-    let opened = open_entry_point(sessions, &path)?;
+    let prepared = prepare_entry_point(&path)?;
+    let opened = admit_prepared_entry_point(sessions, registry, window_label, prepared)?;
     Ok(Some(OpenedRequest {
-        snapshot: opened.snapshot.snapshot,
-        document_id: opened.snapshot.document_id,
+        snapshot: opened.snapshot,
+        document_id: opened.document_id,
         resolution: opened.resolution,
     }))
 }

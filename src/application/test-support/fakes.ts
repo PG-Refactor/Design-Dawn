@@ -543,6 +543,7 @@ export function createFakeGateway(
           resolution: "path" as const,
         });
       }),
+    closeProject: () => enter("closeProject", "", () => operationOk(undefined)),
     selectProjectFolder: () =>
       enter("selectProjectFolder", "", () => operationOk(nextSelection)),
     openProject: (selectionId) =>

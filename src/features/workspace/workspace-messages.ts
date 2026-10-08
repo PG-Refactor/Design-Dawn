@@ -227,6 +227,7 @@ const ERROR_KIND_MESSAGES: Record<OperationErrorKind, string> = {
   ioError: "ファイルの読み書きに失敗しました。",
   notWritable: "このDocumentは既に閉じられているため操作できません。",
   projectNotOpen: "Projectが開かれていません。",
+  projectOpenInOtherWindow: "このProjectは別のウィンドウで開いています",
   dialogFailed: "フォルダ選択ダイアログを開けませんでした。",
   invalidFolderSelection:
     "選択したフォルダが無効です。もう一度選択してください。",

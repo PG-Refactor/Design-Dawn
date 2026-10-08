@@ -18,6 +18,7 @@ import { COMMANDS } from "./command-constants";
 import type { CommandResult } from "./command-error";
 import {
   closeDocument,
+  closeProject,
   createBlockContent,
   createDocument,
   createFolder,
@@ -296,6 +297,15 @@ describe("successful conversion", () => {
     });
   });
 
+  it("closes the window's project without arguments", async () => {
+    invokeMock.mockResolvedValue(null);
+    expect(await closeProject()).toEqual({ ok: true, value: null });
+    expect(invokeMock).toHaveBeenLastCalledWith(COMMANDS.closeProject, {});
+    invokeMock.mockResolvedValue({ unexpected: true });
+    const result = await closeProject();
+    expect(!result.ok && result.error.kind).toBe("invalidCommandResponse");
+  });
+
   it("sends only the ids to close a document", async () => {
     invokeMock.mockResolvedValue(null);
     expect(await closeDocument(projectId, documentId)).toEqual({
@@ -551,6 +561,7 @@ describe("error mapping", () => {
       "alreadyExists",
       "notWritable",
       "projectNotOpen",
+      "projectOpenInOtherWindow",
       "dialogFailed",
       "invalidFolderSelection",
       "ioError",

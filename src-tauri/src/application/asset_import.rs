@@ -243,11 +243,12 @@ pub fn import_asset(
 pub fn import_dropped_images(
     sessions: &Mutex<ProjectSessions>,
     drops: &Mutex<DroppedFilesState>,
+    window_label: &str,
     drop_id: &str,
     project_id: &str,
     document_id: &str,
 ) -> ApplicationResult<DropImportResult> {
-    let paths = resolve_drop(drops, drop_id)?;
+    let paths = resolve_drop(drops, window_label, drop_id)?;
     let document_id = DocumentId::parse(document_id)?;
     require_open_and_writable(
         lock_sessions(sessions).session_mut(project_id)?,

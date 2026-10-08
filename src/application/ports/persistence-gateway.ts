@@ -33,6 +33,9 @@ export interface PersistenceGateway {
   // The Project / Document a launch argument asked for, already opened in Rust (a Project
   // is open afterwards). Consumed once: null when nothing was requested or it was taken.
   takeOpenRequest(): Promise<OperationResult<OpenRequestResult | null>>;
+  // The window no longer has a Project: Rust unbinds it (another window may open it now)
+  // and drops its session. Called after the Project's documents were saved and closed.
+  closeProject(): Promise<OperationResult<void>>;
   createProject(
     selectionId: string,
     name: DisplayName,

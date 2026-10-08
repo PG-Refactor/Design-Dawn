@@ -36,6 +36,7 @@ export const COMMANDS = {
   subscribeCloseRequests: "subscribe_close_requests",
   confirmWindowClose: "confirm_window_close",
   takeOpenRequest: "take_open_request",
+  closeProject: "close_project",
 } as const;
 
 export type CommandName = (typeof COMMANDS)[keyof typeof COMMANDS];
