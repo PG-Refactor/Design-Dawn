@@ -10,6 +10,7 @@ import {
 
 export interface FakeGitGateway extends GitGateway {
   readonly calls: ProjectId[];
+  readonly stageCalls: { projectId: ProjectId; paths: readonly string[] }[];
   // Returned by the next calls until changed.
   status: GitStatus;
   failure: OperationError | null;
@@ -26,6 +27,7 @@ export function createFakeGitGateway(): FakeGitGateway {
   let hold: Promise<void> | null = null;
   const gateway: FakeGitGateway = {
     calls: [],
+    stageCalls: [],
     status: CLEAN_GIT_STATUS,
     failure: null,
     holdNextCall() {
@@ -45,6 +47,12 @@ export function createFakeGitGateway(): FakeGitGateway {
       hold = null;
       if (pending !== null) await pending;
       return answer;
+    },
+    async stage(projectId, paths) {
+      gateway.stageCalls.push({ projectId, paths });
+      return gateway.failure
+        ? operationErr<GitStatus>(gateway.failure.kind, gateway.failure.detail)
+        : operationOk(gateway.status);
     },
   };
   return gateway;

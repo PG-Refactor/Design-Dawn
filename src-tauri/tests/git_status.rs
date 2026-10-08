@@ -13,9 +13,10 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 
+use design_dawn_lib::application::error::{ApplicationResult, ErrorKind};
 use design_dawn_lib::application::folder_selection::{FolderPicker, FolderPickerError};
 use design_dawn_lib::application::git_operations::{
-    read_git_status, GitFileChange, GitFileStatus, GitRepositoryState, GitStatusResult,
+    read_git_status, stage_paths, GitFileChange, GitFileStatus, GitRepositoryState, GitStatusResult,
 };
 use design_dawn_lib::application::local_state::operations::{LocalState, LocalStateDirectories};
 use design_dawn_lib::commands::SharedFolderPicker;
@@ -677,15 +678,12 @@ fn the_probed_git_version_is_supported_and_matches_the_minimum_rule() {
 #[cfg(unix)]
 #[test]
 fn a_git_that_is_too_old_or_unparsable_is_git_unavailable() {
-    use std::os::unix::fs::PermissionsExt;
-
     let fixture = fixture_or_skip!();
     let project = fixture.repository();
     for (index, answer) in ["git version 2.24.9", "not a version"].iter().enumerate() {
         let directory = fixture.directory(&format!("fake-git-{index}"));
         let script = directory.join("git");
-        fs::write(&script, format!("#!/bin/sh\necho '{answer}'\n")).unwrap();
-        fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
+        write_fake_git(&script, &format!("echo '{answer}'"));
 
         let result = read_git_status(Some(&GitRunner::new(script)), &project).unwrap();
 
@@ -696,4 +694,428 @@ fn a_git_that_is_too_old_or_unparsable_is_git_unavailable() {
         );
         assert!(result.files.is_empty());
     }
+}
+
+// ---- Stage (`git_stage`, docs/git-development.md §11.6, §11.7) ----
+
+fn stage(fixture: &Fixture, project: &Path, names: &[&str]) -> ApplicationResult<GitStatusResult> {
+    let paths: Vec<String> = names.iter().map(|name| (*name).to_owned()).collect();
+    stage_paths(Some(&fixture.runner()), project, &paths)
+}
+
+fn assert_rejected(fixture: &Fixture, project: &Path, names: &[&str], kind: ErrorKind) {
+    let before = staged_names(fixture, project);
+    let error = stage(fixture, project, names).expect_err(&format!("{names:?} was accepted"));
+    assert_eq!(error.kind, kind, "{names:?}");
+    assert_eq!(staged_names(fixture, project), before, "{names:?}");
+}
+
+#[test]
+fn stage_takes_a_modified_tracked_file() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    write(&project, "tracked.md", "changed\n");
+
+    let result = stage(&fixture, &project, &["tracked.md"]).unwrap();
+
+    let file = find(&result, "tracked.md");
+    assert_eq!(file.index_status, GitFileChange::Modified);
+    assert_eq!(file.worktree_status, GitFileChange::Unmodified);
+}
+
+#[test]
+fn stage_takes_an_untracked_file() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    write(&project, "new.md", "new\n");
+
+    let result = stage(&fixture, &project, &["new.md"]).unwrap();
+
+    assert_eq!(find(&result, "new.md").index_status, GitFileChange::Added);
+}
+
+#[test]
+fn stage_takes_the_deletion_of_a_tracked_file() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    fs::remove_file(project.join("tracked.md")).unwrap();
+
+    let result = stage(&fixture, &project, &["tracked.md"]).unwrap();
+
+    let file = find(&result, "tracked.md");
+    assert_eq!(file.index_status, GitFileChange::Deleted);
+    assert_eq!(file.worktree_status, GitFileChange::Unmodified);
+}
+
+#[test]
+fn stage_takes_several_files_in_one_call_and_leaves_the_rest() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    write(&project, "tracked.md", "changed\n");
+    write(&project, "new.md", "new\n");
+    write(&project, "bystander.md", "stays\n");
+    fs::remove_file(project.join("other.md")).unwrap();
+
+    // The duplicate is harmless.
+    let result = stage(
+        &fixture,
+        &project,
+        &["tracked.md", "new.md", "other.md", "new.md"],
+    )
+    .unwrap();
+
+    assert_eq!(
+        staged_names(&fixture, &project),
+        ["new.md", "other.md", "tracked.md"]
+    );
+    let bystander = find(&result, "bystander.md");
+    assert_eq!(bystander.index_status, GitFileChange::Untracked);
+}
+
+#[test]
+fn stage_takes_odd_but_valid_names_literally() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    let mut names = vec![
+        "設計 書.md",
+        "with space.md",
+        "-leading-dash.md",
+        "..foo",
+        "a..b.md",
+        "deep/er/nested.md",
+    ];
+    if cfg!(unix) {
+        names.extend(["a;b&c|d$e`f.md", "quote\"s.md"]);
+    }
+    for name in &names {
+        write(&project, name, "content\n");
+    }
+    write(&project, "bystander.md", "stays\n");
+
+    let result = stage(&fixture, &project, &names).unwrap();
+
+    let mut expected: Vec<String> = names.iter().map(|name| (*name).to_owned()).collect();
+    expected.sort();
+    assert_eq!(staged_names(&fixture, &project), expected);
+    for name in &names {
+        assert_eq!(find(&result, name).index_status, GitFileChange::Added);
+    }
+    assert_eq!(
+        find(&result, "bystander.md").index_status,
+        GitFileChange::Untracked
+    );
+}
+
+#[test]
+fn stage_rejects_invalid_paths_and_runs_nothing() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    write(&project, "tracked.md", "changed\n");
+    write(&project, "documents/a.md", "x");
+    for path in [
+        "",
+        ".",
+        "..",
+        "../foo",
+        "..\\foo",
+        "/foo",
+        "\\foo",
+        "C:\\foo",
+        "C:/foo",
+        "D:/foo",
+        "\\\\server\\share",
+        "\\\\?\\C:\\x",
+        "foo/../bar",
+        "documents/",
+    ] {
+        // One valid, changed file next to it must not be staged either.
+        assert_rejected(
+            &fixture,
+            &project,
+            &["tracked.md", path],
+            ErrorKind::InvalidGitPath,
+        );
+    }
+}
+
+#[test]
+fn stage_rejects_paths_the_status_does_not_list_as_changed() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    write(&project, "tracked.md", "changed\n");
+    write(&project, "folder/inside.md", "x");
+    for path in [
+        "folder",     // a directory
+        "missing.md", // exists nowhere
+        "other.md",   // tracked and unchanged
+        "--all",      // option-like, not a file
+        "--help",
+        ":(exclude)foo",
+        ":(glob)*",
+        "*",
+        "*.md", // would match every file without literal pathspecs
+    ] {
+        assert_rejected(
+            &fixture,
+            &project,
+            &["tracked.md", path],
+            ErrorKind::InvalidGitPath,
+        );
+    }
+}
+
+#[test]
+fn stage_of_real_files_named_like_pathspec_magic_stages_only_those_files() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    let names = ["--all", ":(glob)*", "--help"];
+    // Not permitted by Windows file systems, but git and the unix file systems accept them.
+    if !cfg!(unix) {
+        return;
+    }
+    for name in names {
+        write(&project, name, "content\n");
+    }
+    write(&project, "bystander.md", "stays\n");
+    write(&project, "tracked.md", "changed\n");
+
+    stage(&fixture, &project, &names).unwrap();
+
+    let mut expected: Vec<String> = names.iter().map(|name| (*name).to_owned()).collect();
+    expected.sort();
+    assert_eq!(staged_names(&fixture, &project), expected);
+}
+
+#[test]
+fn stage_of_an_empty_list_is_a_no_op_that_returns_the_status() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    write(&project, "tracked.md", "changed\n");
+
+    let result = stage(&fixture, &project, &[]).unwrap();
+
+    assert_eq!(result, fixture.status(&project));
+    assert!(staged_names(&fixture, &project).is_empty());
+}
+
+#[test]
+fn stage_in_a_repository_that_is_not_ready_is_refused() {
+    let fixture = fixture_or_skip!();
+    let repository = fixture.repository();
+    write(&repository, "nested-project/inside.md", "x");
+    let plain = fixture.directory("plain");
+    write(&plain, "file.md", "x");
+    let cases = [
+        (
+            repository.join("nested-project"),
+            "unsupportedRepositoryLayout",
+        ),
+        (plain, "notRepository"),
+    ];
+    for (root, label) in cases {
+        let error = stage(&fixture, &root, &["inside.md"]).expect_err(label);
+        // An enclosing repository on an unusual machine could make `plain` a layout case;
+        // either way nothing is staged and the kind is the same.
+        assert_eq!(error.kind, ErrorKind::GitNotReady, "{label}");
+    }
+    assert!(staged_names(&fixture, &repository).is_empty());
+    assert!(!repository.join("nested-project/.git").exists());
+}
+
+#[test]
+fn stage_without_git_is_refused() {
+    let project = TempDir::new();
+
+    let error = stage_paths(None, project.path(), &["a.md".to_owned()]).unwrap_err();
+
+    assert_eq!(error.kind, ErrorKind::GitNotReady);
+}
+
+#[cfg(unix)]
+#[test]
+fn stage_with_an_unusable_git_version_is_refused() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    write(&project, "new.md", "x");
+    let directory = fixture.directory("fake-git");
+    let script = directory.join("git");
+    write_fake_git(&script, "echo 'git version 2.24.9'");
+
+    let error = stage_paths(
+        Some(&GitRunner::new(script)),
+        &project,
+        &["new.md".to_owned()],
+    )
+    .unwrap_err();
+
+    assert_eq!(error.kind, ErrorKind::GitNotReady);
+    assert!(staged_names(&fixture, &project).is_empty());
+}
+
+#[test]
+fn stage_ignores_git_dir_and_git_index_file_of_the_process() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    let other = fixture.directory("other-repository");
+    fixture.git(&other, &["init", "-q"]);
+    write(&project, "new.md", "x");
+    write(&other, "decoy.md", "x");
+    let other_git_dir = other.join(".git");
+    let other_index = other_git_dir.join("index");
+
+    // Only this test sets them and every git start in this binary removes them, so parallel
+    // tests are unaffected.
+    std::env::set_var("GIT_DIR", &other_git_dir);
+    std::env::set_var("GIT_INDEX_FILE", &other_index);
+    let result = stage(&fixture, &project, &["new.md"]);
+    std::env::remove_var("GIT_DIR");
+    std::env::remove_var("GIT_INDEX_FILE");
+
+    let result = result.unwrap();
+    assert_eq!(find(&result, "new.md").index_status, GitFileChange::Added);
+    assert!(staged_names(&fixture, &project).contains(&"new.md".to_owned()));
+    assert!(staged_names(&fixture, &other).is_empty());
+}
+
+fn open_repository_project(
+    fixture: &Fixture,
+    initialise: bool,
+) -> (
+    App<tauri::test::MockRuntime>,
+    tauri::WebviewWindow<tauri::test::MockRuntime>,
+    Value,
+) {
+    let project = fixture.directory(PROJECT_DIRECTORY);
+    copy_dir_all(Path::new(FIXTURE_PROJECT), &project);
+    if initialise {
+        fixture.git(&project, &["init", "-q"]);
+    }
+    let app = build_app(project, fixture.temp.path());
+    let webview = WebviewWindowBuilder::new(&app, MAIN_WINDOW_LABEL, Default::default())
+        .build()
+        .expect("main window");
+    let selection = invoke(&webview, "select_project_folder", &serde_json::json!({})).unwrap();
+    let snapshot = invoke(
+        &webview,
+        "open_project",
+        &serde_json::json!({ "selectionId": selection["selectionId"] }),
+    )
+    .unwrap();
+    let project_id = snapshot["project"]["projectId"].clone();
+    (app, webview, project_id)
+}
+
+#[test]
+fn git_stage_over_ipc_returns_the_updated_status_without_absolute_paths() {
+    let fixture = fixture_or_skip!();
+    let (_app, webview, project_id) = open_repository_project(&fixture, true);
+
+    let response = invoke(
+        &webview,
+        "git_stage",
+        &serde_json::json!({ "projectId": project_id, "paths": ["project.json"] }),
+    )
+    .unwrap();
+
+    assert_eq!(response["repository"]["state"], "ready");
+    let staged = response["files"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|file| file["path"] == "project.json")
+        .expect("project.json is listed");
+    assert_eq!(
+        staged,
+        &serde_json::json!({
+            "path": "project.json",
+            "indexStatus": "added",
+            "worktreeStatus": "unmodified",
+            "originalPath": null
+        })
+    );
+    assert!(!response
+        .to_string()
+        .contains(fixture.temp.path().to_str().unwrap()));
+}
+
+#[test]
+fn git_stage_over_ipc_reports_invalid_paths_and_a_missing_repository() {
+    let fixture = fixture_or_skip!();
+    let (_app, webview, project_id) = open_repository_project(&fixture, true);
+
+    let invalid = invoke(
+        &webview,
+        "git_stage",
+        &serde_json::json!({ "projectId": project_id, "paths": ["../escape"] }),
+    );
+
+    match invalid {
+        Err(error) => {
+            assert_eq!(error["kind"], "invalidGitPath");
+            assert!(!error
+                .to_string()
+                .contains(fixture.temp.path().to_str().unwrap()));
+        }
+        Ok(value) => panic!("expected invalidGitPath, got {value}"),
+    }
+}
+
+#[test]
+fn git_stage_over_ipc_is_refused_for_a_window_that_does_not_have_the_project() {
+    let fixture = fixture_or_skip!();
+    let (app, _main, project_id) = open_repository_project(&fixture, true);
+    let other = WebviewWindowBuilder::new(&app, SECOND_WINDOW_LABEL, Default::default())
+        .build()
+        .expect("second window");
+
+    let refused = invoke(
+        &other,
+        "git_stage",
+        &serde_json::json!({ "projectId": project_id, "paths": ["project.json"] }),
+    );
+
+    match refused {
+        Err(error) => assert_eq!(error["kind"], "projectNotOpen"),
+        Ok(value) => panic!("expected projectNotOpen, got {value}"),
+    }
+}
+
+/// Set while probing a freshly written fake git, which then exits at once.
+#[cfg(unix)]
+const FAKE_GIT_PROBE_VARIABLE: &str = "DAWN_FAKE_GIT_PROBE";
+/// `ETXTBSY` on Linux.
+#[cfg(unix)]
+const TEXT_FILE_BUSY: i32 = 26;
+#[cfg(unix)]
+const PROBE_ATTEMPTS: u32 = 200;
+#[cfg(unix)]
+const PROBE_INTERVAL: std::time::Duration = std::time::Duration::from_millis(10);
+
+/// Writes an executable fake git and waits until it can run. Another test thread may fork
+/// while the script's write handle is open; until that child execs, running the script
+/// fails with "text file busy" (which the version probe would report as a spawn failure
+/// instead of an unusable git). The handle is already closed, so once one run succeeds
+/// every later run does too.
+#[cfg(unix)]
+fn write_fake_git(script: &Path, body: &str) {
+    use std::os::unix::fs::PermissionsExt;
+    fs::write(
+        script,
+        format!("#!/bin/sh\n[ -n \"${FAKE_GIT_PROBE_VARIABLE}\" ] && exit 0\n{body}\n"),
+    )
+    .unwrap();
+    fs::set_permissions(script, fs::Permissions::from_mode(0o755)).unwrap();
+    for _ in 0..PROBE_ATTEMPTS {
+        match std::process::Command::new(script)
+            .env(FAKE_GIT_PROBE_VARIABLE, "1")
+            .status()
+        {
+            Err(error) if error.raw_os_error() == Some(TEXT_FILE_BUSY) => {
+                std::thread::sleep(PROBE_INTERVAL);
+            }
+            Ok(_) => return,
+            Err(error) => panic!("fake git could not run: {error}"),
+        }
+    }
+    panic!("fake git stayed busy");
 }

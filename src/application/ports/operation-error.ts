@@ -55,6 +55,7 @@ export const GIT_ERROR_KINDS = [
   "gitCommandFailed",
   "gitTimeout",
   "invalidGitPath",
+  "gitNotReady",
 ] as const;
 
 // Domain errors that only Rust can produce (TypeScript treats contentPath as opaque).

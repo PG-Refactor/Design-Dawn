@@ -10,8 +10,12 @@ use serde::Serialize;
 use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
 use crate::application::session::ProjectSessions;
 use crate::infrastructure::git::constants::{
-    ARG_NO_OPTIONAL_LOCKS, ARG_NUL_SEPARATED, ARG_STATUS, ARG_STATUS_PORCELAIN_V2,
-    ARG_UNTRACKED_ALL, GIT_COMMAND_TIMEOUT,
+    ARG_ADD, ARG_NO_OPTIONAL_LOCKS, ARG_NUL_SEPARATED, ARG_PATHSPEC_FILE_NUL,
+    ARG_PATHSPEC_FROM_STDIN, ARG_STATUS, ARG_STATUS_PORCELAIN_V2, ARG_UNTRACKED_ALL,
+    GIT_COMMAND_TIMEOUT,
+};
+use crate::infrastructure::git::paths::{
+    pathspec_stdin, validate_project_relative_path, ValidatedGitPath,
 };
 use crate::infrastructure::git::redaction::redact_credentials;
 use crate::infrastructure::git::repository::{detect_repository, RepositoryState};
@@ -102,48 +106,10 @@ pub fn read_git_status(
     runner: Option<&GitRunner>,
     project_root: &Path,
 ) -> ApplicationResult<GitStatusResult> {
-    let Some(runner) = runner else {
-        return Ok(GitStatusResult::without_files(
-            GitRepositoryState::GitUnavailable,
-        ));
+    let state = repository_state(runner, project_root)?;
+    let (GitRepositoryState::Ready, Some(runner)) = (state, runner) else {
+        return Ok(GitStatusResult::without_files(state));
     };
-    // A git older than the minimum (or one that does not answer `--version`) lacks options
-    // the Stage / Commit operations rely on, so it counts as not installed.
-    match is_supported_git(runner) {
-        Ok(true) => {}
-        Ok(false) | Err(GitRunError::Unavailable) => {
-            return Ok(GitStatusResult::without_files(
-                GitRepositoryState::GitUnavailable,
-            ))
-        }
-        Err(error) => return Err(run_error("git version check", error)),
-    }
-    let state = match detect_repository(runner, project_root) {
-        Ok(state) => state,
-        Err(GitRunError::Unavailable) => {
-            return Ok(GitStatusResult::without_files(
-                GitRepositoryState::GitUnavailable,
-            ))
-        }
-        Err(error) => return Err(run_error("repository detection", error)),
-    };
-    match state {
-        RepositoryState::Ready => {}
-        RepositoryState::NotRepository => {
-            return Ok(GitStatusResult::without_files(
-                GitRepositoryState::NotRepository,
-            ))
-        }
-        RepositoryState::UnsupportedRepositoryLayout => {
-            return Ok(GitStatusResult::without_files(
-                GitRepositoryState::UnsupportedRepositoryLayout,
-            ))
-        }
-        RepositoryState::Error => {
-            return Ok(GitStatusResult::without_files(GitRepositoryState::Error))
-        }
-    }
-
     let files = read_file_statuses(runner, project_root)?;
     Ok(GitStatusResult {
         repository: GitRepositoryInfo {
@@ -151,6 +117,129 @@ pub fn read_git_status(
         },
         files,
     })
+}
+
+/// Version check and repository detection shared by every Git operation. Only `Ready`
+/// means the operation may go on (and then `runner` is `Some`).
+fn repository_state(
+    runner: Option<&GitRunner>,
+    project_root: &Path,
+) -> ApplicationResult<GitRepositoryState> {
+    let Some(runner) = runner else {
+        return Ok(GitRepositoryState::GitUnavailable);
+    };
+    // A git older than the minimum (or one that does not answer `--version`) lacks options
+    // the Stage / Commit operations rely on, so it counts as not installed.
+    match is_supported_git(runner) {
+        Ok(true) => {}
+        Ok(false) | Err(GitRunError::Unavailable) => return Ok(GitRepositoryState::GitUnavailable),
+        Err(error) => return Err(run_error("git version check", error)),
+    }
+    let state = match detect_repository(runner, project_root) {
+        Ok(state) => state,
+        Err(GitRunError::Unavailable) => return Ok(GitRepositoryState::GitUnavailable),
+        Err(error) => return Err(run_error("repository detection", error)),
+    };
+    Ok(match state {
+        RepositoryState::Ready => GitRepositoryState::Ready,
+        RepositoryState::NotRepository => GitRepositoryState::NotRepository,
+        RepositoryState::UnsupportedRepositoryLayout => {
+            GitRepositoryState::UnsupportedRepositoryLayout
+        }
+        RepositoryState::Error => GitRepositoryState::Error,
+    })
+}
+
+/// Stages the given Project-relative paths with the `git` found on PATH.
+pub fn git_stage(
+    sessions: &Mutex<ProjectSessions>,
+    project_id: &str,
+    paths: &[String],
+) -> ApplicationResult<GitStatusResult> {
+    let project_root = project_root_of(sessions, project_id)?;
+    stage_paths(GitRunner::discover().ok().as_ref(), &project_root, paths)
+}
+
+/// `git add` for changed files that the repository's own status lists (docs/git-development.md
+/// §11.6, §11.7). Nothing is run unless every path is valid and listed as changed in the
+/// working tree, so a directory, an unknown name or an unchanged file cannot widen the
+/// operation. Returns the status read after the operation. Never saves anything.
+pub fn stage_paths(
+    runner: Option<&GitRunner>,
+    project_root: &Path,
+    paths: &[String],
+) -> ApplicationResult<GitStatusResult> {
+    let state = repository_state(runner, project_root)?;
+    let (GitRepositoryState::Ready, Some(runner)) = (state, runner) else {
+        return Err(ApplicationError::new(
+            ErrorKind::GitNotReady,
+            format!("the repository is not ready for git operations ({state:?})"),
+        ));
+    };
+
+    let mut validated: Vec<ValidatedGitPath> = Vec::new();
+    for path in paths {
+        let valid = validate_project_relative_path(path).map_err(|reason| {
+            ApplicationError::new(
+                ErrorKind::InvalidGitPath,
+                format!("a path to stage was rejected: {reason:?}"),
+            )
+        })?;
+        if !validated.contains(&valid) {
+            validated.push(valid);
+        }
+    }
+    // An empty request is a no-op, not an error: the caller just gets the current status.
+    let Ok(stdin) = pathspec_stdin(&validated) else {
+        return read_git_status(Some(runner), project_root);
+    };
+
+    let current = read_file_statuses(runner, project_root)?;
+    for path in &validated {
+        let stageable = current
+            .iter()
+            .any(|file| file.path == path.as_str() && is_stageable(file.worktree_status));
+        if !stageable {
+            return Err(ApplicationError::new(
+                ErrorKind::InvalidGitPath,
+                "a path to stage is not a changed file of the repository",
+            ));
+        }
+    }
+
+    // On failure git may already have changed the index for some paths; the caller is
+    // expected to read the status again.
+    let output = runner
+        .run(
+            &[ARG_ADD, ARG_PATHSPEC_FROM_STDIN, ARG_PATHSPEC_FILE_NUL],
+            project_root,
+            Some(&stdin),
+            GIT_COMMAND_TIMEOUT,
+        )
+        .map_err(|error| run_error("add", error))?;
+    if !output.success() {
+        return Err(ApplicationError::new(
+            ErrorKind::GitCommandFailed,
+            format!(
+                "git add exited with {:?}: {}",
+                output.exit_code(),
+                redact_credentials(output.stderr_text().trim_end())
+            ),
+        ));
+    }
+    read_git_status(Some(runner), project_root)
+}
+
+/// Working tree changes `git add` can take: not directories, ignored or unchanged files.
+fn is_stageable(change: GitFileChange) -> bool {
+    matches!(
+        change,
+        GitFileChange::Modified
+            | GitFileChange::Deleted
+            | GitFileChange::TypeChanged
+            | GitFileChange::Untracked
+            | GitFileChange::Unmerged
+    )
 }
 
 fn read_file_statuses(

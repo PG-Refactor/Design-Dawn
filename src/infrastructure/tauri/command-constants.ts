@@ -41,6 +41,7 @@ export const COMMANDS = {
   ackOpenRequest: "ack_open_request",
   openProjectInNewWindow: "open_project_in_new_window",
   gitStatus: "git_status",
+  gitStage: "git_stage",
 } as const;
 
 export type CommandName = (typeof COMMANDS)[keyof typeof COMMANDS];

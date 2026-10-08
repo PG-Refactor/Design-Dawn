@@ -84,6 +84,7 @@ pub const MINIMUM_GIT_VERSION: (u32, u32) = (2, 25);
 
 pub const ARG_REV_PARSE: &str = "rev-parse";
 pub const ARG_SHOW_TOPLEVEL: &str = "--show-toplevel";
+pub const ARG_ADD: &str = "add";
 pub const ARG_STATUS: &str = "status";
 pub const ARG_STATUS_PORCELAIN_V2: &str = "--porcelain=v2";
 pub const ARG_NUL_SEPARATED: &str = "-z";

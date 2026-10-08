@@ -48,4 +48,10 @@ export interface GitStatus {
 
 export interface GitGateway {
   gitStatus(projectId: ProjectId): Promise<OperationResult<GitStatus>>;
+  // Stages changed files (Project root relative, `/` separated) and returns the status
+  // read afterwards. After a failure the index may be partly changed: read the status again.
+  stage(
+    projectId: ProjectId,
+    paths: readonly string[],
+  ): Promise<OperationResult<GitStatus>>;
 }

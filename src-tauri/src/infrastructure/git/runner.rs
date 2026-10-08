@@ -299,8 +299,13 @@ mod tests {
                 .join(format!("design-dawn-git-runner-{}", uuid::Uuid::now_v7()));
             fs::create_dir_all(&directory).unwrap();
             let executable = directory.join("git");
-            fs::write(&executable, format!("#!/bin/sh\n{script}\n")).unwrap();
+            fs::write(
+                &executable,
+                format!("#!/bin/sh\n[ -n \"${FAKE_GIT_PROBE_VARIABLE}\" ] && exit 0\n{script}\n"),
+            )
+            .unwrap();
             fs::set_permissions(&executable, fs::Permissions::from_mode(0o755)).unwrap();
+            wait_until_executable(&executable);
             Self {
                 directory,
                 executable,
@@ -310,6 +315,33 @@ mod tests {
         fn runner(&self) -> GitRunner {
             GitRunner::new(self.executable.clone())
         }
+    }
+
+    /// Set while probing a freshly written fake git, which then exits at once.
+    const FAKE_GIT_PROBE_VARIABLE: &str = "DAWN_FAKE_GIT_PROBE";
+    /// `ETXTBSY` on Linux.
+    const TEXT_FILE_BUSY: i32 = 26;
+    const PROBE_ATTEMPTS: u32 = 200;
+    const PROBE_INTERVAL: Duration = Duration::from_millis(10);
+
+    /// Another test thread may fork while the script's write handle is open; until that
+    /// child execs it holds the handle and executing the script fails with "text file
+    /// busy". The handle is already closed, so no new holder can appear: once one run
+    /// succeeds, every later run does too.
+    fn wait_until_executable(executable: &Path) {
+        for _ in 0..PROBE_ATTEMPTS {
+            match Command::new(executable)
+                .env(FAKE_GIT_PROBE_VARIABLE, "1")
+                .status()
+            {
+                Err(error) if error.raw_os_error() == Some(TEXT_FILE_BUSY) => {
+                    std::thread::sleep(PROBE_INTERVAL);
+                }
+                Ok(_) => return,
+                Err(error) => panic!("fake git could not run: {error}"),
+            }
+        }
+        panic!("fake git stayed busy");
     }
 
     impl Drop for FakeGit {

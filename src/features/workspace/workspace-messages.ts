@@ -251,6 +251,7 @@ const ERROR_KIND_MESSAGES: Record<OperationErrorKind, string> = {
   gitCommandFailed: "Gitの操作に失敗しました。",
   gitTimeout: "Gitの操作が時間内に終わりませんでした。",
   invalidGitPath: "Gitに渡せないパスです。",
+  gitNotReady: "Git操作を実行できない状態です",
   invalidThemePreference: "テーマ設定の値が正しくありません。",
   invalidViewport: "表示位置の値が正しくありません。",
   invalidProjectTreeWidth: "Project Treeの幅の値が正しくありません。",

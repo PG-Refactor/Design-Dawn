@@ -40,6 +40,7 @@ const APP_COMMANDS: &[&str] = &[
     "ack_open_request",
     "open_project_in_new_window",
     "git_status",
+    "git_stage",
 ];
 
 fn main() {

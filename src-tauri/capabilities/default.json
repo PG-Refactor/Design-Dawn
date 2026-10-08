@@ -41,6 +41,7 @@
     "allow-subscribe-app-requests",
     "allow-ack-open-request",
     "allow-open-project-in-new-window",
-    "allow-git-status"
+    "allow-git-status",
+    "allow-git-stage"
   ]
 }

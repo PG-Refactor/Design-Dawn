@@ -64,6 +64,9 @@ pub enum ErrorKind {
     /// A Project-relative path for git that is empty, absolute, contains `..`, a drive
     /// letter, a UNC prefix, a backslash or NUL.
     InvalidGitPath,
+    /// A git operation was requested while the repository is not `ready` (no git, not a
+    /// repository, unsupported layout, broken repository).
+    GitNotReady,
 }
 
 impl ErrorKind {
@@ -88,6 +91,7 @@ impl ErrorKind {
             Self::GitCommandFailed => "gitCommandFailed",
             Self::GitTimeout => "gitTimeout",
             Self::InvalidGitPath => "invalidGitPath",
+            Self::GitNotReady => "gitNotReady",
         }
     }
 
@@ -116,6 +120,7 @@ impl ErrorKind {
             Self::GitCommandFailed => "the git command failed",
             Self::GitTimeout => "the git command did not finish in time",
             Self::InvalidGitPath => "the path is not valid for git",
+            Self::GitNotReady => "the repository is not ready for git operations",
         }
     }
 }
@@ -195,7 +200,7 @@ impl Serialize for ApplicationError {
 mod tests {
     use super::*;
 
-    const ALL_KINDS: [ErrorKind; 34] = [
+    const ALL_KINDS: [ErrorKind; 35] = [
         ErrorKind::Domain(DomainErrorKind::InvalidEntityId),
         ErrorKind::Domain(DomainErrorKind::InvalidDisplayName),
         ErrorKind::Domain(DomainErrorKind::InvalidPosition),
@@ -230,6 +235,7 @@ mod tests {
         ErrorKind::GitCommandFailed,
         ErrorKind::GitTimeout,
         ErrorKind::InvalidGitPath,
+        ErrorKind::GitNotReady,
     ];
 
     /// A Windows drive path (`C:\`) or any separator would mean a path leaked.

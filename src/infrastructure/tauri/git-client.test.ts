@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PROJECT_ID } from "../../domain/shared/test-fixtures";
 import { COMMANDS } from "./command-constants";
-import { gitStatus } from "./git-client";
+import { gitStage, gitStatus } from "./git-client";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 const invokeMock = vi.mocked(invoke);
@@ -118,6 +118,7 @@ describe("gitStatus", () => {
     "gitCommandFailed",
     "gitTimeout",
     "invalidGitPath",
+    "gitNotReady",
     "projectNotOpen",
   ])("keeps the %s error kind", async (kind) => {
     invokeMock.mockRejectedValueOnce({ kind, detail: "d" });
@@ -126,4 +127,42 @@ describe("gitStatus", () => {
 
     expect(result).toStrictEqual({ ok: false, error: { kind, detail: "d" } });
   });
+});
+
+describe("gitStage", () => {
+  it("sends the project id and the paths and decodes the status", async () => {
+    invokeMock.mockResolvedValueOnce(VALID_PAYLOAD);
+
+    const result = await gitStage(PROJECT_ID, ["notes.md", "設計 書.md"]);
+
+    expect(invokeMock.mock.calls).toStrictEqual([
+      [
+        COMMANDS.gitStage,
+        { projectId: PROJECT_ID, paths: ["notes.md", "設計 書.md"] },
+      ],
+    ]);
+    expect(result).toStrictEqual({
+      ok: true,
+      value: { repositoryState: "ready", files: VALID_PAYLOAD.files },
+    });
+  });
+
+  it("rejects a malformed payload as invalidCommandResponse", async () => {
+    invokeMock.mockResolvedValueOnce({ repository: { state: "ready" } });
+
+    const result = await gitStage(PROJECT_ID, ["a.md"]);
+
+    expect(!result.ok && result.error.kind).toBe("invalidCommandResponse");
+  });
+
+  it.each(["gitNotReady", "invalidGitPath", "gitCommandFailed", "gitTimeout"])(
+    "keeps the %s error kind",
+    async (kind) => {
+      invokeMock.mockRejectedValueOnce({ kind, detail: "d" });
+
+      const result = await gitStage(PROJECT_ID, ["a.md"]);
+
+      expect(result).toStrictEqual({ ok: false, error: { kind, detail: "d" } });
+    },
+  );
 });
