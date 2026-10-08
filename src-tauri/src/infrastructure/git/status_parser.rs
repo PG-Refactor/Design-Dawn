@@ -223,9 +223,9 @@ fn build_entry(
 ) -> Option<StatusEntry> {
     // Git only prints repository-relative paths; anything else is dropped rather than
     // passed on, so a hostile repository cannot make the UI address files outside it.
-    let path = validate_project_relative_path(path).ok()?.to_owned();
+    let path = validate_project_relative_path(path).ok()?.into_string();
     let original_path = match original_path {
-        Some(original) => Some(validate_project_relative_path(original).ok()?.to_owned()),
+        Some(original) => Some(validate_project_relative_path(original).ok()?.into_string()),
         None => None,
     };
     Some(StatusEntry {

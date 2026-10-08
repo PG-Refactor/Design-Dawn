@@ -350,7 +350,7 @@ mod tests {
         let lines = String::from_utf8(output.stdout).unwrap();
         assert_eq!(
             lines,
-            "[--no-pager]\n[-c]\n[color.ui=false]\n[-c]\n[core.quotepath=false]\n[status]\n[a b; $(touch injected)]\n"
+            "[--no-pager]\n[--literal-pathspecs]\n[-c]\n[color.ui=false]\n[-c]\n[core.quotepath=false]\n[status]\n[a b; $(touch injected)]\n"
         );
         assert!(!fake.directory.join("injected").exists());
     }

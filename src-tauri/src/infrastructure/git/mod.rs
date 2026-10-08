@@ -10,3 +10,4 @@ pub mod redaction;
 pub mod repository;
 pub mod runner;
 pub mod status_parser;
+pub mod version;

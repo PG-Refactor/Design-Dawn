@@ -2,6 +2,8 @@
 //! (docs/git-development.md §11.7). Nothing is normalised: a path is accepted exactly as
 //! given or rejected.
 
+use super::constants::PATHSPEC_SEPARATOR;
+
 const SEPARATOR: char = '/';
 const CURRENT_DIRECTORY: &str = ".";
 const PARENT_DIRECTORY: &str = "..";
@@ -19,8 +21,43 @@ pub enum InvalidGitPath {
     InvalidSegment,
 }
 
-/// Accepts a `/`-separated path of plain segments below the Project root.
-pub fn validate_project_relative_path(path: &str) -> Result<&str, InvalidGitPath> {
+/// A path that passed [`validate_project_relative_path`]. Only the validator creates one, so
+/// a function that takes this type cannot be handed an unchecked string (it is what reaches
+/// git's stdin).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ValidatedGitPath(String);
+
+impl ValidatedGitPath {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    pub fn into_string(self) -> String {
+        self.0
+    }
+}
+
+/// Nothing to pass to git; the caller decides whether that is a no-op or an error.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EmptyPathList;
+
+/// The stdin for `--pathspec-from-file=- --pathspec-file-nul`: every path followed by NUL.
+/// With NUL separation git does no unquoting, so any byte of a validated path is literal.
+pub fn pathspec_stdin(paths: &[ValidatedGitPath]) -> Result<Vec<u8>, EmptyPathList> {
+    if paths.is_empty() {
+        return Err(EmptyPathList);
+    }
+    let mut bytes = Vec::new();
+    for path in paths {
+        bytes.extend_from_slice(path.as_str().as_bytes());
+        bytes.push(PATHSPEC_SEPARATOR);
+    }
+    Ok(bytes)
+}
+
+/// Accepts a `/`-separated path of plain segments below the Project root. A trailing `/`
+/// (a directory-like path) is rejected: only files are addressed.
+pub fn validate_project_relative_path(path: &str) -> Result<ValidatedGitPath, InvalidGitPath> {
     if path.is_empty() {
         return Err(InvalidGitPath::Empty);
     }
@@ -42,7 +79,7 @@ pub fn validate_project_relative_path(path: &str) -> Result<&str, InvalidGitPath
             return Err(InvalidGitPath::InvalidSegment);
         }
     }
-    Ok(path)
+    Ok(ValidatedGitPath(path.to_owned()))
 }
 
 /// `C:`, `C:foo` and `C:/foo`: a letter followed by `:` at the start.
@@ -71,7 +108,8 @@ mod tests {
             "...",
             "1:/x",
         ] {
-            assert_eq!(validate_project_relative_path(path), Ok(path), "{path}");
+            let validated = validate_project_relative_path(path).expect(path);
+            assert_eq!(validated.as_str(), path);
         }
     }
 
@@ -98,6 +136,14 @@ mod tests {
             ("a/./b", InvalidGitPath::InvalidSegment),
             ("a//b", InvalidGitPath::InvalidSegment),
             ("a/", InvalidGitPath::InvalidSegment),
+            ("documents/", InvalidGitPath::InvalidSegment),
+            ("D:/foo", InvalidGitPath::DriveLetter),
+            ("C:\\foo", InvalidGitPath::Backslash),
+            ("\\foo", InvalidGitPath::Backslash),
+            ("\\\\?\\C:\\x", InvalidGitPath::Backslash),
+            ("foo/bar\\baz", InvalidGitPath::Backslash),
+            ("../foo", InvalidGitPath::InvalidSegment),
+            ("foo/../bar", InvalidGitPath::InvalidSegment),
         ];
         for (path, expected) in cases {
             assert_eq!(
@@ -106,5 +152,23 @@ mod tests {
                 "{path:?}"
             );
         }
+    }
+
+    #[test]
+    fn pathspec_stdin_is_each_path_followed_by_nul() {
+        let paths = ["a b.md", "日本語/x.md", ":(exclude)x"]
+            .map(|path| validate_project_relative_path(path).unwrap());
+
+        let bytes = pathspec_stdin(&paths).unwrap();
+
+        assert_eq!(
+            bytes,
+            "a b.md\0日本語/x.md\0:(exclude)x\0".as_bytes().to_vec()
+        );
+    }
+
+    #[test]
+    fn pathspec_stdin_rejects_an_empty_list() {
+        assert_eq!(pathspec_stdin(&[]), Err(EmptyPathList));
     }
 }

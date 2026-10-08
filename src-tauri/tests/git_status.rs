@@ -19,10 +19,15 @@ use design_dawn_lib::application::git_operations::{
 };
 use design_dawn_lib::application::local_state::operations::{LocalState, LocalStateDirectories};
 use design_dawn_lib::commands::SharedFolderPicker;
+use design_dawn_lib::infrastructure::git::constants::GIT_COMMAND_TIMEOUT;
 use design_dawn_lib::infrastructure::git::executable::{
     find_git_executable, find_git_executable_in, Platform,
 };
+use design_dawn_lib::infrastructure::git::paths::{
+    pathspec_stdin, validate_project_relative_path, ValidatedGitPath,
+};
 use design_dawn_lib::infrastructure::git::runner::GitRunner;
+use design_dawn_lib::infrastructure::git::version::{git_version, is_supported_git};
 use serde_json::Value;
 use support::*;
 use tauri::ipc::{CallbackFn, InvokeBody};
@@ -573,5 +578,122 @@ fn git_status_over_ipc_is_refused_for_a_window_that_does_not_have_the_project() 
             Err(error) => assert_eq!(error["kind"], "projectNotOpen"),
             Ok(value) => panic!("expected projectNotOpen, got {value}"),
         }
+    }
+}
+
+// Runner-level checks of how paths reach git (docs/git-development.md §11.6, §11.7). `git
+// add` is used only to prove the mechanism; there is no public Stage API yet.
+
+const PATHSPEC_ADD_ARGUMENTS: [&str; 4] = [
+    "add",
+    "--pathspec-from-file=-",
+    "--pathspec-file-nul",
+    "--force",
+];
+
+fn add_through_runner(fixture: &Fixture, project: &Path, names: &[&str]) {
+    let paths: Vec<ValidatedGitPath> = names
+        .iter()
+        .map(|name| validate_project_relative_path(name).expect(name))
+        .collect();
+    let stdin = pathspec_stdin(&paths).unwrap();
+    let output = fixture
+        .runner()
+        .run(
+            &PATHSPEC_ADD_ARGUMENTS,
+            project,
+            Some(&stdin),
+            GIT_COMMAND_TIMEOUT,
+        )
+        .unwrap();
+    assert!(output.success(), "git add failed: {}", output.stderr_text());
+}
+
+fn staged_names(fixture: &Fixture, project: &Path) -> Vec<String> {
+    let output = fixture
+        .runner()
+        .run(
+            &["diff", "--cached", "--name-only", "-z"],
+            project,
+            None,
+            GIT_COMMAND_TIMEOUT,
+        )
+        .unwrap();
+    let mut names: Vec<String> = String::from_utf8(output.stdout)
+        .unwrap()
+        .split('\0')
+        .filter(|name| !name.is_empty())
+        .map(str::to_owned)
+        .collect();
+    names.sort();
+    names
+}
+
+#[test]
+fn pathspec_magic_in_names_is_literal_and_only_the_named_files_are_staged() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    let mut names = vec![
+        ":(exclude)foo",
+        ":(glob)x",
+        "*",
+        "?",
+        "--help",
+        "-x.md",
+        "with space.md",
+        "設計 書.md",
+        "sub dir/file.md",
+    ];
+    // Characters Windows forbids in file names.
+    if cfg!(unix) {
+        names.extend(["a;b&c|d$e`f.md", "quote\"s.md", "[abc].md"]);
+    }
+    for name in &names {
+        write(&project, name, "content\n");
+    }
+    write(&project, "bystander.md", "must stay untracked\n");
+    write(&project, "abc.md", "must stay untracked\n");
+
+    add_through_runner(&fixture, &project, &names);
+
+    let mut expected: Vec<String> = names.iter().map(|name| (*name).to_owned()).collect();
+    expected.sort();
+    assert_eq!(staged_names(&fixture, &project), expected);
+}
+
+#[test]
+fn the_probed_git_version_is_supported_and_matches_the_minimum_rule() {
+    let fixture = fixture_or_skip!();
+
+    let version = git_version(&fixture.runner()).unwrap();
+
+    assert!(version.is_some(), "git --version was not parsable");
+    assert_eq!(
+        is_supported_git(&fixture.runner()).unwrap(),
+        version.unwrap().is_supported()
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn a_git_that_is_too_old_or_unparsable_is_git_unavailable() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    for (index, answer) in ["git version 2.24.9", "not a version"].iter().enumerate() {
+        let directory = fixture.directory(&format!("fake-git-{index}"));
+        let script = directory.join("git");
+        fs::write(&script, format!("#!/bin/sh\necho '{answer}'\n")).unwrap();
+        fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
+
+        let result = read_git_status(Some(&GitRunner::new(script)), &project).unwrap();
+
+        assert_eq!(
+            result.repository.state,
+            GitRepositoryState::GitUnavailable,
+            "{answer}"
+        );
+        assert!(result.files.is_empty());
     }
 }

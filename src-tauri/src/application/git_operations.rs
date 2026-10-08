@@ -17,6 +17,7 @@ use crate::infrastructure::git::redaction::redact_credentials;
 use crate::infrastructure::git::repository::{detect_repository, RepositoryState};
 use crate::infrastructure::git::runner::{GitRunError, GitRunner};
 use crate::infrastructure::git::status_parser::{parse_status, FileChange, StatusEntry};
+use crate::infrastructure::git::version::is_supported_git;
 
 /// State of the Project's Repository. Anything but `ready` is a normal answer, not an
 /// error: the app is fully usable without Git.
@@ -106,6 +107,17 @@ pub fn read_git_status(
             GitRepositoryState::GitUnavailable,
         ));
     };
+    // A git older than the minimum (or one that does not answer `--version`) lacks options
+    // the Stage / Commit operations rely on, so it counts as not installed.
+    match is_supported_git(runner) {
+        Ok(true) => {}
+        Ok(false) | Err(GitRunError::Unavailable) => {
+            return Ok(GitStatusResult::without_files(
+                GitRepositoryState::GitUnavailable,
+            ))
+        }
+        Err(error) => return Err(run_error("git version check", error)),
+    }
     let state = match detect_repository(runner, project_root) {
         Ok(state) => state,
         Err(GitRunError::Unavailable) => {

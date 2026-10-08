@@ -54,9 +54,12 @@ pub const REDIRECTING_ENVIRONMENT: [&str; 7] = [
     "GIT_PREFIX",
 ];
 
-/// Arguments placed before every command: no pager, no colour, paths printed as is.
-pub const GLOBAL_ARGUMENTS: [&str; 5] = [
+/// Arguments placed before every command: no pager, literal pathspecs (a path that is
+/// named `:(exclude)x`, `*` or `--help` is data, never pathspec magic), no colour, paths
+/// printed as is.
+pub const GLOBAL_ARGUMENTS: [&str; 6] = [
     "--no-pager",
+    "--literal-pathspecs",
     "-c",
     "color.ui=false",
     "-c",
@@ -66,6 +69,18 @@ pub const GLOBAL_ARGUMENTS: [&str; 5] = [
 /// Top-level option: a read-only command must not take the optional index lock (it would
 /// make a concurrent git operation of the user fail).
 pub const ARG_NO_OPTIONAL_LOCKS: &str = "--no-optional-locks";
+
+/// Paths are given on stdin (NUL separated), never on the command line: no length limit and
+/// no argument that could be read as an option.
+pub const ARG_PATHSPEC_FROM_STDIN: &str = "--pathspec-from-file=-";
+pub const ARG_PATHSPEC_FILE_NUL: &str = "--pathspec-file-nul";
+pub const PATHSPEC_SEPARATOR: u8 = 0;
+
+pub const ARG_VERSION: &str = "--version";
+/// First words of `git --version` (`git version 2.45.2.windows.1`).
+pub const GIT_VERSION_OUTPUT_PREFIX: &str = "git version ";
+/// `--pathspec-from-file` exists for add / restore / rm since git 2.25.
+pub const MINIMUM_GIT_VERSION: (u32, u32) = (2, 25);
 
 pub const ARG_REV_PARSE: &str = "rev-parse";
 pub const ARG_SHOW_TOPLEVEL: &str = "--show-toplevel";
