@@ -11,6 +11,7 @@ use application::folder_selection::FolderSelectionState;
 use application::local_state::operations::{LocalState, LocalStateDirectories};
 use application::session::ProjectSessions;
 use commands::{CloseRequestSubscriber, DialogFolderPicker, DropSubscriber, SharedFolderPicker};
+use config::MAIN_WINDOW_LABEL;
 use tauri::{Builder, Manager, Runtime};
 
 use commands::{respond_to_asset_request, ASSET_URL_SCHEME};
@@ -79,7 +80,24 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    configure(tauri::Builder::default())
+    let builder = tauri::Builder::default();
+    // The plugin must be registered before every other plugin (its docs): a second launch
+    // has to exit before anything else initialises. Not in `configure`: tests use the mock
+    // runtime and must not claim a per-user D-Bus name / named mutex.
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+        // Forwarding `.dawn` open requests (argv) comes in a later step; for now a second
+        // launch only brings the running window forward.
+        if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+            if let Err(error) = window.unminimize() {
+                eprintln!("failed to restore the main window: {error}");
+            }
+            if let Err(error) = window.set_focus() {
+                eprintln!("failed to focus the main window: {error}");
+            }
+        }
+    }));
+    configure(builder)
         // Registered here, not in `configure`: only the real window produces native drops.
         .on_window_event(commands::handle_window_event)
         // Used from Rust only (`DialogExt`); no dialog permission is granted to the Frontend.
