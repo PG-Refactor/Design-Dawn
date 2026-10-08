@@ -10,6 +10,10 @@ use crate::domain::entity_id::ProjectId;
 #[derive(Debug, Clone, Default)]
 struct WindowEntry {
     project: Option<ProjectId>,
+    /// A Project a freshly created window is about to open (its open request is still
+    /// pending). Lets a second request for the same Project find this window instead of
+    /// creating another one while the first is still starting.
+    reserved_project: Option<ProjectId>,
     /// 0 = never focused. A larger number means focused more recently.
     focus_order: u64,
 }
@@ -38,16 +42,21 @@ impl WindowRegistry {
         self.windows.get(label).and_then(|entry| entry.project)
     }
 
-    /// Binds `project` to the window. `Err(label)` when another window already has it (the
+    /// Binds `project` to the window. `Err(label)` when another window has it open or reserved (the
     /// caller brings that window forward). On success returns the Project the window had
     /// before when it was a different one, so the caller can drop its session.
     pub fn bind(&mut self, label: &str, project: ProjectId) -> Result<Option<ProjectId>, String> {
-        if let Some(owner) = self.find_window_by_project(&project) {
+        // A reservation counts like a binding: the reserving window opens the Project itself
+        // when its frontend takes the request, so nobody else may take it meanwhile.
+        if let Some(owner) = self.find_window_claiming_project(&project) {
             if owner != label {
                 return Err(owner.to_owned());
             }
         }
         let entry = self.windows.entry(label.to_owned()).or_default();
+        if entry.reserved_project == Some(project) {
+            entry.reserved_project = None;
+        }
         let previous = entry.project.replace(project);
         Ok(previous.filter(|previous| *previous != project))
     }
@@ -64,6 +73,31 @@ impl WindowRegistry {
             .iter()
             .find(|(_, entry)| entry.project.as_ref() == Some(project))
             .map(|(label, _)| label.as_str())
+    }
+
+    /// The window that has the Project open or is about to (reserved). Used for routing open
+    /// requests only; `bind` still looks at open Projects alone.
+    pub fn find_window_claiming_project(&self, project: &ProjectId) -> Option<&str> {
+        self.find_window_by_project(project).or_else(|| {
+            self.windows
+                .iter()
+                .find(|(_, entry)| entry.reserved_project.as_ref() == Some(project))
+                .map(|(label, _)| label.as_str())
+        })
+    }
+
+    pub fn reserve_project(&mut self, label: &str, project: ProjectId) {
+        self.windows
+            .entry(label.to_owned())
+            .or_default()
+            .reserved_project = Some(project);
+    }
+
+    /// The window took its open request (successfully or not): the claim is over.
+    pub fn clear_reservation(&mut self, label: &str) {
+        if let Some(entry) = self.windows.get_mut(label) {
+            entry.reserved_project = None;
+        }
     }
 
     pub fn touch_focus(&mut self, label: &str) {
@@ -177,6 +211,39 @@ mod tests {
         assert_eq!(registry.most_recently_focused(), Some("main"));
         registry.unregister("main");
         assert_eq!(registry.most_recently_focused(), Some("window-1"));
+    }
+
+    #[test]
+    fn a_reserved_project_is_claimed_but_not_bound() {
+        let mut registry = WindowRegistry::default();
+        registry.reserve_project("window-1", project(1));
+        assert_eq!(registry.find_window_by_project(&project(1)), None);
+        assert_eq!(
+            registry.find_window_claiming_project(&project(1)),
+            Some("window-1")
+        );
+        // Another window cannot take it; the reserving window can.
+        assert_eq!(
+            registry.bind("main", project(1)),
+            Err("window-1".to_owned())
+        );
+        assert_eq!(registry.bind("window-1", project(1)), Ok(None));
+        assert_eq!(
+            registry.find_window_by_project(&project(1)),
+            Some("window-1")
+        );
+    }
+
+    #[test]
+    fn binding_or_clearing_ends_a_reservation() {
+        let mut registry = WindowRegistry::default();
+        registry.reserve_project("window-1", project(1));
+        registry.bind("window-1", project(1)).unwrap();
+        registry.unbind("window-1");
+        assert_eq!(registry.find_window_claiming_project(&project(1)), None);
+        registry.reserve_project("window-2", project(2));
+        registry.clear_reservation("window-2");
+        assert_eq!(registry.find_window_claiming_project(&project(2)), None);
     }
 
     #[test]

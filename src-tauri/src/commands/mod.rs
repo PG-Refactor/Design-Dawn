@@ -3,9 +3,11 @@
 //! not a command: images enter through `import_dropped_images` (the dropped paths never
 //! reach the Frontend) or `copy_asset_to_document`.
 
+mod app_channel;
 mod asset_protocol;
 mod drag_drop;
 mod folder_picker;
+mod open_dispatch;
 mod window_close;
 
 use std::sync::{Arc, Mutex, PoisonError};
@@ -28,7 +30,7 @@ use crate::application::folder_selection::{
     FolderSelectionState,
 };
 use crate::application::local_state::operations::{AppSettings, LocalState, SheetViewportResult};
-use crate::application::open_request::{self, OpenedRequest, PendingOpenRequests};
+use crate::application::open_request::{self, OpenRequest, OpenedRequest, PendingOpenRequests};
 use crate::application::project_operations as projects;
 use crate::application::session::ProjectSessions;
 use crate::application::sheet_operations as sheets;
@@ -48,7 +50,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 34] = [
+pub const COMMAND_NAMES: [&str; 37] = [
     "select_project_folder",
     "create_project",
     "open_project",
@@ -83,11 +85,20 @@ pub const COMMAND_NAMES: [&str; 34] = [
     "confirm_window_close",
     "take_open_request",
     "close_project",
+    "subscribe_app_requests",
+    "ack_open_request",
+    "open_project_in_new_window",
 ];
 
+pub use app_channel::{AppNotification, AppNotificationSink, AppRequestHub, AppRequestSubscriber};
 pub use asset_protocol::{respond_to_asset_request, ASSET_URL_SCHEME};
 pub use drag_drop::{DropNotification, DropSubscriber};
 pub use folder_picker::DialogFolderPicker;
+pub use open_dispatch::{
+    dispatch_in_background, handle_second_launch, placement_following, reroute_unacknowledged,
+    route_external_request, route_open_request, with_routing_state, PlacementSource, RouteOutcome,
+    RoutingState, TauriWindowHost, WindowGeometry, WindowHost, WindowPlacement,
+};
 pub use window_close::{
     confirm_close, handle_close_requested, CloseNotification, CloseNotificationSink,
     CloseRequestHub, CloseRequestSubscriber,
@@ -153,6 +164,17 @@ fn release_window_state<R: Runtime>(window: &Window<R>) {
     }
     if let Some(hub) = window.try_state::<CloseRequestSubscriber>() {
         hub.discard_window(label);
+    }
+    // Last, after the window's Project was released: what it never acknowledged goes to
+    // another window or a new one. This runs on the main thread inside the event handler,
+    // where a window must not be created, so the routing runs on the blocking pool.
+    if let Some(hub) = window.try_state::<AppRequestSubscriber>() {
+        let lost = hub.discard_window(label);
+        if !lost.is_empty() {
+            dispatch_in_background(window.app_handle(), move |state, host| {
+                reroute_unacknowledged(state, host, lost);
+            });
+        }
     }
 }
 
@@ -777,4 +799,81 @@ pub fn take_open_request<R: Runtime>(
         )
     };
     settle_open(&window, outcome)
+}
+
+/// Replaces the calling window's app channel (its latest subscription wins) and sends it
+/// the requests it has not acknowledged yet.
+#[tauri::command]
+pub fn subscribe_app_requests<R: Runtime>(
+    window: Window<R>,
+    hub: State<'_, AppRequestSubscriber>,
+    channel: Channel<AppNotification>,
+) {
+    hub.subscribe(window.label(), channel);
+}
+
+/// The window handled (or deliberately set aside) an `openDocument`. A request id of
+/// another window, or an unknown one, changes nothing.
+#[tauri::command]
+pub fn ack_open_request<R: Runtime>(
+    window: Window<R>,
+    hub: State<'_, AppRequestSubscriber>,
+    request_id: String,
+) {
+    hub.acknowledge(window.label(), &request_id);
+}
+
+/// `{ "status": "focusedExisting", "inThisWindow": bool }` when a window already has the
+/// Project (it was brought forward), `{ "status": "openedInNewWindow" }` when a window was
+/// created for it. No label or path.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(tag = "status", rename_all = "camelCase")]
+pub enum OpenInNewWindowResult {
+    #[serde(rename_all = "camelCase")]
+    FocusedExisting {
+        in_this_window: bool,
+    },
+    OpenedInNewWindow,
+}
+
+/// Opens the Project of the folder the caller selected in a window of its own, or brings
+/// forward the window that has it. `async` and on the blocking pool: creating a window from
+/// a synchronous command deadlocks on Windows (see `open_dispatch`).
+#[tauri::command]
+pub async fn open_project_in_new_window<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    selection_id: String,
+) -> Result<OpenInNewWindowResult, ApplicationError> {
+    let origin = window.label().to_owned();
+    let folder = {
+        let selections = app.state::<Mutex<FolderSelectionState>>();
+        log_failure(resolve_selection(&selections, &origin, &selection_id))?
+    };
+    let outcome = tauri::async_runtime::spawn_blocking(move || {
+        let host = TauriWindowHost::new(app.clone());
+        with_routing_state(&app, |state| {
+            route_open_request(
+                state,
+                &host,
+                OpenRequest::ProjectFolder(folder),
+                &PlacementSource::Origin(origin.clone()),
+            )
+            .map(|outcome| (outcome, origin))
+        })
+    })
+    .await
+    .map_err(|error| {
+        ApplicationError::persistence(
+            PersistenceErrorKind::IoError,
+            format!("open in new window task failed: {error}"),
+        )
+    })?;
+    let (outcome, origin) = log_failure(outcome)?;
+    Ok(match outcome {
+        RouteOutcome::FocusedExisting { window_label } => OpenInNewWindowResult::FocusedExisting {
+            in_this_window: window_label == origin,
+        },
+        RouteOutcome::OpenedInNewWindow { .. } => OpenInNewWindowResult::OpenedInNewWindow,
+    })
 }

@@ -46,13 +46,16 @@ import {
   operationOk,
 } from "../ports/operation-error";
 import type { PersistenceGateway } from "../ports/persistence-gateway";
-import type {
-  DocumentSnapshot,
-  EntityState,
-  FolderSelection,
-  LoadIssue,
-  ProjectSnapshot,
-  SheetSnapshot,
+import {
+  type DocumentSnapshot,
+  type EntityState,
+  type FolderSelection,
+  type LoadIssue,
+  OPEN_IN_NEW_WINDOW_STATUS,
+  type OpenInNewWindowResult,
+  type OpenRequestResult,
+  type ProjectSnapshot,
+  type SheetSnapshot,
 } from "../ports/persistence-types";
 import type { Scheduler } from "../ports/scheduler";
 
@@ -248,6 +251,10 @@ export interface FakeGateway extends PersistenceGateway {
   // Makes the next `takeOpenRequest` return the project plus this document (a `.dawn`
   // launch argument); like Rust, it is handed out once.
   queueOpenRequest(documentId: DocumentId): void;
+  // Like `queueOpenRequest`, for a Project folder: the project opens, no Document is named.
+  queueProjectFolderRequest(): void;
+  // The result of the next `openProjectInNewWindow` call (default: a new window).
+  setOpenInNewWindowResult(result: OpenInNewWindowResult): void;
   // Method names in call order, optionally narrowed to some methods.
   methods(...only: readonly string[]): string[];
   // Content files that currently exist: contentPath -> text.
@@ -291,7 +298,10 @@ export function createFakeGateway(
   const drops = new Map<string, readonly FakeDroppedFile[]>();
   let nextSelection: FolderSelection = DEFAULT_SELECTION;
   const snapshotOverrides = new Map<string, ProjectSnapshot>();
-  let pendingOpenRequest: DocumentId | null = null;
+  let pendingOpenRequest: DocumentId | "projectFolder" | null = null;
+  let openInNewWindowResult: OpenInNewWindowResult = {
+    status: OPEN_IN_NEW_WINDOW_STATUS.openedInNewWindow,
+  };
   const disk: FakeDisk = {
     projectName: "Project",
     childOrder: [],
@@ -532,17 +542,38 @@ export function createFakeGateway(
     queueOpenRequest(documentId) {
       pendingOpenRequest = documentId;
     },
+    queueProjectFolderRequest() {
+      pendingOpenRequest = "projectFolder";
+    },
+    setOpenInNewWindowResult(result) {
+      openInNewWindowResult = result;
+    },
+    openProjectInNewWindow: (selectionId) =>
+      enter("openProjectInNewWindow", selectionId, () =>
+        operationOk(openInNewWindowResult),
+      ),
     takeOpenRequest: () =>
-      enter("takeOpenRequest", "", () => {
-        const documentId = pendingOpenRequest;
-        pendingOpenRequest = null;
-        if (documentId === null) return operationOk(null);
-        return operationOk({
-          snapshot: projectSnapshot(),
-          documentId,
-          resolution: "path" as const,
-        });
-      }),
+      enter(
+        "takeOpenRequest",
+        "",
+        (): OperationResult<OpenRequestResult | null> => {
+          const pending = pendingOpenRequest;
+          pendingOpenRequest = null;
+          if (pending === null) return operationOk(null);
+          if (pending === "projectFolder") {
+            return operationOk({
+              snapshot: projectSnapshot(),
+              documentId: null,
+              resolution: null,
+            });
+          }
+          return operationOk({
+            snapshot: projectSnapshot(),
+            documentId: pending,
+            resolution: "path" as const,
+          });
+        },
+      ),
     closeProject: () => enter("closeProject", "", () => operationOk(undefined)),
     selectProjectFolder: () =>
       enter("selectProjectFolder", "", () => operationOk(nextSelection)),

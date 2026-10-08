@@ -1,4 +1,5 @@
 import { createContext, type ReactNode, useContext } from "react";
+import type { AppRequestSource } from "../../application/ports/app-request-source";
 import type { AssetUrlResolver } from "../../application/ports/asset-url-resolver";
 import type { DropEventSource } from "../../application/ports/drop-event-source";
 import type { CloseRequestSource } from "../../application/ports/window-close";
@@ -27,6 +28,8 @@ export interface WorkspaceServices {
   readonly dropEventSource: DropEventSource;
   // Window close requests (Rust stops the close and asks the Frontend to save first).
   readonly closeRequestSource: CloseRequestSource;
+  // Requests Rust sends to this window while it runs (open a Document of its Project).
+  readonly appRequestSource: AppRequestSource;
   // Only `flush` is used: written before the window closes.
   readonly viewportPersistence: Pick<ViewportPersistence, "flush">;
   // The `src` of an image block's `<img>`.

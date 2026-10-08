@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import { documentIdOf } from "../../../application/test-support/fakes";
 import {
   addOperationError,
+  clearNotice,
   closeDialog,
   dismissOperationError,
   openDialog,
   setBusy,
   setNotificationsOpen,
+  showNotice,
 } from "./shell-ui-state";
 import { createInitialUiState } from "./ui-state";
 import { resetUiState } from "./ui-state-cleanup";
@@ -69,5 +71,27 @@ describe("shell ui state", () => {
     );
     expect(state.operationErrors).toHaveLength(1);
     expect(resetUiState()).toEqual(createInitialUiState());
+  });
+});
+
+describe("light notices", () => {
+  it("shows a notice with its own id and replaces the previous one", () => {
+    const first = showNotice(createInitialUiState(), "documentAlreadyOpen");
+    const second = showNotice(first, "projectOpenInOtherWindow");
+    expect(first.notice).toEqual({ id: 1, kind: "documentAlreadyOpen" });
+    expect(second.notice).toEqual({
+      id: 2,
+      kind: "projectOpenInOtherWindow",
+    });
+  });
+
+  it("clears only the notice that is still shown", () => {
+    const state = showNotice(
+      showNotice(createInitialUiState(), "documentAlreadyOpen"),
+      "projectOpenInThisWindow",
+    );
+    // The timer of the replaced notice does nothing.
+    expect(clearNotice(state, 1)).toBe(state);
+    expect(clearNotice(state, 2).notice).toBeNull();
   });
 });

@@ -9,7 +9,7 @@ use std::sync::Mutex;
 
 use design_dawn_lib::application::error::{ApplicationError, ErrorKind};
 use design_dawn_lib::application::open_request::{
-    take_open_request, OpenRequest, PendingOpenRequests,
+    resolve_open_target, take_open_request, OpenRequest, PendingOpenRequests,
 };
 use design_dawn_lib::application::session::ProjectSessions;
 use design_dawn_lib::application::window_registry::WindowRegistry;
@@ -236,4 +236,128 @@ fn a_project_bound_to_another_window_is_not_opened_again() {
     );
     assert_eq!(registry.project_of(OTHER_WINDOW_LABEL), None);
     assert!(registry.project_of(MAIN_WINDOW_LABEL).is_some());
+}
+
+fn take_folder(path: &Path) -> Result<Option<Value>, ErrorKind> {
+    let mut pending = PendingOpenRequests::default();
+    pending.put(
+        MAIN_WINDOW_LABEL,
+        OpenRequest::ProjectFolder(path.to_path_buf()),
+    );
+    let pending = Mutex::new(pending);
+    let mut sessions = ProjectSessions::default();
+    let mut registry = WindowRegistry::default();
+    take_open_request(&pending, &mut sessions, &mut registry, MAIN_WINDOW_LABEL)
+        .map(|opened| opened.map(|value| serde_json::to_value(value).unwrap()))
+        .map_err(|error| ApplicationError::from(error).kind)
+}
+
+#[test]
+fn a_project_folder_request_opens_the_project_without_a_document() {
+    let (_temp, root) = folders_project_copy();
+    let value = take_folder(&root).unwrap().unwrap();
+    assert_eq!(value["documentId"], Value::Null);
+    assert_eq!(value["resolution"], Value::Null);
+    assert_eq!(
+        value["snapshot"]["project"]["projectId"],
+        FOLDERS_PROJECT_ID
+    );
+}
+
+#[test]
+fn a_project_folder_request_binds_the_project_and_ends_the_reservation() {
+    let (_temp, root) = folders_project_copy();
+    let mut pending = PendingOpenRequests::default();
+    pending.put(OTHER_WINDOW_LABEL, OpenRequest::ProjectFolder(root));
+    let pending = Mutex::new(pending);
+    let mut sessions = ProjectSessions::default();
+    let mut registry = WindowRegistry::default();
+    let project = design_dawn_lib::domain::entity_id::ProjectId::parse(FOLDERS_PROJECT_ID).unwrap();
+    registry.reserve_project(OTHER_WINDOW_LABEL, project);
+
+    take_open_request(&pending, &mut sessions, &mut registry, OTHER_WINDOW_LABEL)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(registry.project_of(OTHER_WINDOW_LABEL), Some(project));
+}
+
+#[test]
+fn a_failed_take_still_ends_the_reservation() {
+    let (_temp, root) = folders_project_copy();
+    let mut pending = PendingOpenRequests::default();
+    pending.put(
+        OTHER_WINDOW_LABEL,
+        OpenRequest::EntryPoint(root.join("missing.dawn")),
+    );
+    let pending = Mutex::new(pending);
+    let mut sessions = ProjectSessions::default();
+    let mut registry = WindowRegistry::default();
+    let project = design_dawn_lib::domain::entity_id::ProjectId::parse(FOLDERS_PROJECT_ID).unwrap();
+    registry.reserve_project(OTHER_WINDOW_LABEL, project);
+
+    assert!(take_open_request(&pending, &mut sessions, &mut registry, OTHER_WINDOW_LABEL).is_err());
+
+    assert_eq!(registry.find_window_claiming_project(&project), None);
+}
+
+#[test]
+fn a_folder_that_is_not_a_project_is_file_not_found() {
+    let temp = TempDir::new();
+    assert_eq!(
+        take_folder(temp.path()).unwrap_err(),
+        ErrorKind::Persistence(PersistenceErrorKind::FileNotFound)
+    );
+}
+
+#[test]
+fn the_target_of_a_dawn_names_its_project_and_document() {
+    let (_temp, root) = folders_project_copy();
+    let target =
+        resolve_open_target(&OpenRequest::EntryPoint(root.join(ENTRY_POINT_FILE))).unwrap();
+    assert_eq!(target.project_id.to_string(), FOLDERS_PROJECT_ID);
+    assert_eq!(
+        target.document_id.unwrap().to_string(),
+        API_DESIGN_DOCUMENT_ID
+    );
+}
+
+#[test]
+fn the_target_of_a_project_folder_has_no_document() {
+    let (_temp, root) = folders_project_copy();
+    let target = resolve_open_target(&OpenRequest::ProjectFolder(root)).unwrap();
+    assert_eq!(target.project_id.to_string(), FOLDERS_PROJECT_ID);
+    assert_eq!(target.document_id, None);
+}
+
+#[test]
+fn the_target_of_a_dawn_applies_the_same_file_checks_as_taking_it() {
+    let (_temp, root) = folders_project_copy();
+    fs::create_dir(root.join("folder.dawn")).unwrap();
+    for path in [root.join("project.json"), root.join("folder.dawn")] {
+        assert_eq!(
+            resolve_open_target(&OpenRequest::EntryPoint(path))
+                .unwrap_err()
+                .kind,
+            ErrorKind::Persistence(PersistenceErrorKind::InvalidFileStructure)
+        );
+    }
+    assert_eq!(
+        resolve_open_target(&OpenRequest::EntryPoint(root.join("missing.dawn")))
+            .unwrap_err()
+            .kind,
+        ErrorKind::Persistence(PersistenceErrorKind::FileNotFound)
+    );
+}
+
+#[test]
+fn the_target_of_a_dawn_without_a_project_above_it_is_file_not_found() {
+    let temp = TempDir::new();
+    write_entry_point(temp.path(), "documents/x");
+    assert_eq!(
+        resolve_open_target(&OpenRequest::EntryPoint(temp.path().join(ENTRY_POINT_FILE)))
+            .unwrap_err()
+            .kind,
+        ErrorKind::Persistence(PersistenceErrorKind::FileNotFound)
+    );
 }

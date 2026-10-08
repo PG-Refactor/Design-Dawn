@@ -103,13 +103,30 @@ export interface DocumentSnapshot {
 export const ENTRY_POINT_RESOLUTIONS = ["path", "idScan"] as const;
 export type EntryPointResolution = (typeof ENTRY_POINT_RESOLUTIONS)[number];
 
-// A request from outside the app (a `.dawn` passed at launch) that Rust already opened.
-// Carries no path: Rust keeps it (docs/architecture.md §11.0.1).
+// A request from outside the app (a `.dawn` passed at launch, or a Project folder chosen for
+// "open in a new window") that Rust already opened. Carries no path: Rust keeps it
+// (docs/architecture.md §11.0.1). A Project folder names no Document: `documentId` and
+// `resolution` are null and only the Project is open.
 export interface OpenRequestResult {
   readonly snapshot: ProjectSnapshot;
-  readonly documentId: DocumentId;
-  readonly resolution: EntryPointResolution;
+  readonly documentId: DocumentId | null;
+  readonly resolution: EntryPointResolution | null;
 }
+
+// `status` values of the "open in a new window" result.
+export const OPEN_IN_NEW_WINDOW_STATUS = {
+  openedInNewWindow: "openedInNewWindow",
+  focusedExisting: "focusedExisting",
+} as const;
+
+// A window was created for the Project, or a window already had it and was brought forward
+// (`inThisWindow`: it is the window that asked). No window label or path.
+export type OpenInNewWindowResult =
+  | { readonly status: typeof OPEN_IN_NEW_WINDOW_STATUS.openedInNewWindow }
+  | {
+      readonly status: typeof OPEN_IN_NEW_WINDOW_STATUS.focusedExisting;
+      readonly inThisWindow: boolean;
+    };
 
 export interface SaveResult {
   // False when the file already held the same bytes and was left untouched.

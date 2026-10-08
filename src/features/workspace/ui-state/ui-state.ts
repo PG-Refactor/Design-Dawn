@@ -169,6 +169,22 @@ export const OPERATION_LABELS = [
 
 export type OperationLabel = (typeof OPERATION_LABELS)[number];
 
+// Light, self-clearing information (not a failure): the user asked for something that was
+// already true. Shown briefly and never listed in the notifications panel.
+export const NOTICE_KINDS = [
+  "documentAlreadyOpen",
+  "projectOpenInOtherWindow",
+  "projectOpenInThisWindow",
+] as const;
+
+export type NoticeKind = (typeof NOTICE_KINDS)[number];
+
+export interface UiNotice {
+  // A new notice replaces the shown one and restarts its timer, so each has its own id.
+  readonly id: number;
+  readonly kind: NoticeKind;
+}
+
 // A failed operation, kept until the user dismisses it. Never swallowed: it is shown in
 // the notifications.
 export interface OperationErrorEntry {
@@ -220,6 +236,8 @@ export interface UiState {
   readonly operationErrors: readonly OperationErrorEntry[];
   readonly nextOperationErrorId: number;
   readonly notificationsOpen: boolean;
+  readonly notice: UiNotice | null;
+  readonly nextNoticeId: number;
   // A workspace operation is running; repeated clicks are disabled meanwhile.
   readonly busy: boolean;
 }
@@ -246,6 +264,8 @@ export function createInitialUiState(): UiState {
     operationErrors: [],
     nextOperationErrorId: 1,
     notificationsOpen: false,
+    notice: null,
+    nextNoticeId: 1,
     busy: false,
   };
 }

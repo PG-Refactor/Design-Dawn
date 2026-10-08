@@ -37,6 +37,9 @@
     "allow-subscribe-close-requests",
     "allow-confirm-window-close",
     "allow-take-open-request",
-    "allow-close-project"
+    "allow-close-project",
+    "allow-subscribe-app-requests",
+    "allow-ack-open-request",
+    "allow-open-project-in-new-window"
   ]
 }

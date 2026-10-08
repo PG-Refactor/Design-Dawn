@@ -4,15 +4,21 @@ pub mod config;
 pub mod domain;
 pub mod infrastructure;
 
+use std::ffi::OsString;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use application::dropped_files::DroppedFilesState;
 use application::folder_selection::FolderSelectionState;
 use application::local_state::operations::{LocalState, LocalStateDirectories};
-use application::open_request::{select_open_request, PendingOpenRequests};
+use application::open_request::{resolve_open_target, select_open_request, PendingOpenRequests};
+use application::open_routing::WindowLabelAllocator;
 use application::session::ProjectSessions;
 use application::window_registry::WindowRegistry;
-use commands::{CloseRequestSubscriber, DialogFolderPicker, DropSubscriber, SharedFolderPicker};
+use commands::{
+    AppRequestSubscriber, CloseRequestSubscriber, DialogFolderPicker, DropSubscriber,
+    SharedFolderPicker,
+};
 use config::MAIN_WINDOW_LABEL;
 use tauri::{Builder, Manager, Runtime};
 
@@ -31,6 +37,8 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         .manage(Mutex::new(DroppedFilesState::default()))
         .manage(Mutex::new(PendingOpenRequests::default()))
         .manage(Mutex::new(WindowRegistry::default()))
+        .manage(Mutex::new(WindowLabelAllocator::default()))
+        .manage(AppRequestSubscriber::default())
         .manage(DropSubscriber::default())
         .manage(CloseRequestSubscriber::default())
         // Read-only image access for `<img>`; the handler runs on the blocking pool because
@@ -89,6 +97,9 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::confirm_window_close,
             commands::take_open_request,
             commands::close_project,
+            commands::subscribe_app_requests,
+            commands::ack_open_request,
+            commands::open_project_in_new_window,
         ])
 }
 
@@ -99,17 +110,14 @@ pub fn run() {
     // has to exit before anything else initialises. Not in `configure`: tests use the mock
     // runtime and must not claim a per-user D-Bus name / named mutex.
     #[cfg(desktop)]
-    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
-        // Forwarding `.dawn` open requests (argv) comes in a later step; for now a second
-        // launch only brings the running window forward.
-        if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
-            if let Err(error) = window.unminimize() {
-                eprintln!("failed to restore the main window: {error}");
-            }
-            if let Err(error) = window.set_focus() {
-                eprintln!("failed to focus the main window: {error}");
-            }
-        }
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
+        // The callback is not on a thread that may create windows; the routing (which can
+        // create one) runs on the blocking pool.
+        let arguments: Vec<OsString> = argv.into_iter().map(OsString::from).collect();
+        let working_directory = PathBuf::from(cwd);
+        commands::dispatch_in_background(app, move |state, host| {
+            commands::handle_second_launch(state, host, arguments, &working_directory);
+        });
     }));
     configure(builder)
         // Registered here, not in `configure`: only the real window produces native drops.
@@ -139,6 +147,15 @@ pub fn run() {
                     if let Some(request) =
                         select_open_request(std::env::args_os(), &working_directory)
                     {
+                        // Until the window takes it, a second launch of the same Project
+                        // must find `main` instead of creating a window. A request that
+                        // cannot be read reserves nothing; `main` shows the error.
+                        if let Ok(target) = resolve_open_target(&request) {
+                            app.state::<Mutex<WindowRegistry>>()
+                                .lock()
+                                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                                .reserve_project(MAIN_WINDOW_LABEL, target.project_id);
+                        }
                         app.state::<Mutex<PendingOpenRequests>>()
                             .lock()
                             .unwrap_or_else(std::sync::PoisonError::into_inner)

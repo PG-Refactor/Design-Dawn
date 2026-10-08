@@ -17,9 +17,18 @@ export const MESSAGES = {
     openProject: "Projectを開く",
     createProject: "新規Project",
     closeProject: "Projectを閉じる",
+    openProjectInNewWindow: "新しいウィンドウでProjectを開く",
     autoSave: "自動保存",
   },
+  notices: {
+    // A light, self-clearing region; not part of the notifications panel.
+    regionLabel: "お知らせ",
+    documentAlreadyOpen: "既に開いています",
+    projectOpenInOtherWindow: "このProjectは別のウィンドウで開いています",
+    projectOpenInThisWindow: "このウィンドウで開いています",
+  },
   tree: {
+    openProjectInNewWindow: "新しいウィンドウでProjectを開く",
     createFolder: "フォルダを作成",
     createDocument: "Documentを作成",
     createSheet: "Sheetを作成",

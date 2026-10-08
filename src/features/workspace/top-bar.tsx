@@ -41,6 +41,16 @@ export function TopBar() {
         >
           {MESSAGES.topBar.createProject}
         </button>
+        {projectName !== null ? null : (
+          <button
+            type="button"
+            className="button"
+            disabled={busy}
+            onClick={() => void actions.openProjectInNewWindowViaDialog()}
+          >
+            {MESSAGES.topBar.openProjectInNewWindow}
+          </button>
+        )}
         {projectName === null ? null : (
           <button
             type="button"

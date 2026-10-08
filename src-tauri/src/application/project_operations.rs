@@ -19,7 +19,7 @@ use crate::domain::constants::{
 };
 use crate::domain::content_path::validate_relative_path;
 use crate::domain::display_name::DisplayName;
-use crate::domain::entity_id::EntryId;
+use crate::domain::entity_id::{DocumentId, EntryId, ProjectId};
 use crate::domain::project::{Project, ProjectInput};
 use crate::domain::schema_version::{SchemaEntityKind, SchemaVersion};
 use crate::infrastructure::error::{PersistenceError, PersistenceErrorKind};
@@ -305,6 +305,52 @@ pub fn open_entry_point(
             document_id: prepared.document_id,
         },
         resolution: prepared.resolution,
+    })
+}
+
+/// Which Project (and, for a `.dawn`, which Document) an open request is about. Read without
+/// building a session or scanning the Project: it only decides which window handles it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PeekedTarget {
+    pub project_id: ProjectId,
+    pub document_id: Option<DocumentId>,
+}
+
+fn read_project_id(project_root: &Path) -> ApplicationResult<ProjectId> {
+    let root = canonicalize_root(project_root)?;
+    let file = root.join(PROJECT_FILE_NAME);
+    let bytes = fs::read(&file)
+        .map_err(|error| PersistenceError::from_io(format!("read {}", file.display()), &error))?;
+    let dto = parse_project_file(parse_json_text(&decode_text(&bytes)?)?)?;
+    Ok(ProjectId::parse(&dto.project_id)?)
+}
+
+/// The Project in `project_root` (a folder that holds `project.json`).
+pub fn peek_project_folder(project_root: &Path) -> ApplicationResult<PeekedTarget> {
+    Ok(PeekedTarget {
+        project_id: read_project_id(project_root)?,
+        document_id: None,
+    })
+}
+
+/// The Project above a `.dawn` and the Document it names, with the same lookups and checks
+/// as `prepare_entry_point` for those two facts.
+pub fn peek_entry_point(entry_point_path: &Path) -> ApplicationResult<PeekedTarget> {
+    let entry_file = fs::canonicalize(entry_point_path).map_err(|error| {
+        PersistenceError::from_io(format!("resolve {}", entry_point_path.display()), &error)
+    })?;
+    let bytes = fs::read(&entry_file).map_err(|error| {
+        PersistenceError::from_io(format!("read {}", entry_file.display()), &error)
+    })?;
+    let entry: EntryPointDto = parse_dto(parse_json_text(&decode_text(&bytes)?)?)?;
+    let document_id = entry.validated_document_id()?;
+    let entry_directory = entry_file
+        .parent()
+        .ok_or_else(|| ApplicationError::entity_not_found("entry point has no directory"))?;
+    let root = find_project_root(entry_directory)?;
+    Ok(PeekedTarget {
+        project_id: read_project_id(&root)?,
+        document_id: Some(document_id),
     })
 }
 

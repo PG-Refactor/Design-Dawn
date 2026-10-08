@@ -15,6 +15,17 @@ export interface WindowCloseDependencies {
   readonly askUnsavedClose: () => Promise<UnsavedCloseChoice>;
 }
 
+// Callable with the close request; also tells whether a close is in progress and when it
+// stopped (cancelled or failed), so other window-level work (app requests) can wait for it
+// without keeping a second copy of the flag.
+export interface WindowCloseHandler {
+  (request: CloseRequest): Promise<void>;
+  isClosing(): boolean;
+  // Called whenever a close that was in progress ended without closing the window. Returns
+  // the unsubscribe function.
+  onReleased(listener: () => void): () => void;
+}
+
 // Saves, then asks Rust to close (docs/architecture.md §10.1). Order is strict: saveAll,
 // viewport flush, confirm. "Close without saving" (auto-save off, chosen by the user) skips
 // only the saveAll. The "in progress" flag lives in this closure rather than in a
@@ -22,10 +33,16 @@ export interface WindowCloseDependencies {
 // keep a fresh page from closing.
 export function createWindowCloseHandler(
   getDependencies: () => WindowCloseDependencies,
-): (request: CloseRequest) => Promise<void> {
+): WindowCloseHandler {
   let processing = false;
+  const releasedListeners = new Set<() => void>();
 
-  return async (request) => {
+  function release(): void {
+    processing = false;
+    for (const listener of [...releasedListeners]) listener();
+  }
+
+  async function handle(request: CloseRequest): Promise<void> {
     // A repeated request must not start a second save, nor force the window closed.
     if (processing) return;
     processing = true;
@@ -41,7 +58,7 @@ export function createWindowCloseHandler(
       const choice = needsConfirmation() ? await askUnsavedClose() : "save";
       if (choice === "cancel") {
         // Reset, so a later close request asks again.
-        processing = false;
+        release();
         return;
       }
       if (choice === "save") {
@@ -49,7 +66,7 @@ export function createWindowCloseHandler(
         // The failure is already shown as a save / operation error; the window stays open
         // so the user can retry.
         if (!saved.ok) {
-          processing = false;
+          release();
           return;
         }
       }
@@ -62,11 +79,21 @@ export function createWindowCloseHandler(
       const confirmed = await closeRequestSource.confirmClose(
         request.subscriptionToken,
       );
-      if (!confirmed.ok) processing = false;
+      if (!confirmed.ok) release();
     } catch (error) {
       // An unexpected throw must not leave the flag set, or the window could never close.
-      processing = false;
+      release();
       throw error;
     }
-  };
+  }
+
+  return Object.assign(handle, {
+    isClosing: () => processing,
+    onReleased(listener: () => void) {
+      releasedListeners.add(listener);
+      return () => {
+        releasedListeners.delete(listener);
+      };
+    },
+  });
 }

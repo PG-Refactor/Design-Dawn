@@ -683,14 +683,18 @@ describe("row menu accessibility", () => {
     expect(button.getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("closes when focus leaves and offers the project row only the create actions", async () => {
+  it("closes when focus leaves and offers the project row the create actions and open in a new window", async () => {
     const harness = await openedShell();
     const menu = await openRowMenu(harness.user, "Project");
     expect(
       within(menu)
         .getAllByRole("menuitem")
         .map((item) => item.textContent),
-    ).toEqual([MESSAGES.tree.createFolder, MESSAGES.tree.createDocument]);
+    ).toEqual([
+      MESSAGES.tree.createFolder,
+      MESSAGES.tree.createDocument,
+      MESSAGES.tree.openProjectInNewWindow,
+    ]);
 
     await harness.user.click(document.body);
     expect(screen.queryByRole("menu")).toBeNull();

@@ -11,20 +11,24 @@ use std::sync::{Mutex, PoisonError};
 use serde::Serialize;
 
 use super::error::{ApplicationError, ApplicationResult};
-use super::project_operations::{prepare_entry_point, EntryPointResolution};
+use super::project_operations::{
+    peek_entry_point, peek_project_folder, prepare_entry_point, EntryPointResolution, PeekedTarget,
+};
 use super::session::ProjectSessions;
 use super::snapshot::ProjectSnapshot;
-use super::window_binding::{admit_prepared_entry_point, WindowOpenError};
+use super::window_binding::{admit_prepared_entry_point, open_project_in_window, WindowOpenError};
 use super::window_registry::WindowRegistry;
 use crate::infrastructure::error::{PersistenceError, PersistenceErrorKind};
 use crate::infrastructure::file_format::constants::{ENTRY_POINT_EXTENSION, ENTRY_POINT_MAX_BYTES};
 
 const FLAG_PREFIX: char = '-';
 
-/// What a window is asked to open. Only `.dawn` for now; a Project folder joins later.
+/// What a window is asked to open: a `.dawn` (Project + Document), or a whole Project
+/// folder (the "open in a new window" action).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OpenRequest {
     EntryPoint(PathBuf),
+    ProjectFolder(PathBuf),
 }
 
 fn has_entry_point_extension(path: &Path) -> bool {
@@ -78,8 +82,9 @@ impl PendingOpenRequests {
 #[serde(rename_all = "camelCase")]
 pub struct OpenedRequest {
     pub snapshot: ProjectSnapshot,
-    pub document_id: String,
-    pub resolution: EntryPointResolution,
+    /// `None` for a Project folder: only the Project is opened.
+    pub document_id: Option<String>,
+    pub resolution: Option<EntryPointResolution>,
 }
 
 fn invalid_entry_point(detail: &str) -> ApplicationError {
@@ -103,6 +108,19 @@ fn check_entry_point_file(path: &Path) -> ApplicationResult<()> {
     Ok(())
 }
 
+/// Which Project (and Document) the request is about, for routing only: nothing is opened
+/// and no session is built. The same file checks as `take_open_request` apply, so a request
+/// that would be refused there is refused here too.
+pub fn resolve_open_target(request: &OpenRequest) -> ApplicationResult<PeekedTarget> {
+    match request {
+        OpenRequest::EntryPoint(path) => {
+            check_entry_point_file(path)?;
+            peek_entry_point(path)
+        }
+        OpenRequest::ProjectFolder(path) => peek_project_folder(path),
+    }
+}
+
 /// Consumes the window's pending request (once, even when opening it fails) and opens it as
 /// that window's Project; `projectOpenInOtherWindow` when another window has it.
 /// `Ok(None)` when nothing is pending.
@@ -116,17 +134,30 @@ pub fn take_open_request(
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
         .take(window_label);
-    let Some(OpenRequest::EntryPoint(path)) = request else {
-        return Ok(None);
-    };
-    check_entry_point_file(&path)?;
-    let prepared = prepare_entry_point(&path)?;
-    let opened = admit_prepared_entry_point(sessions, registry, window_label, prepared)?;
-    Ok(Some(OpenedRequest {
-        snapshot: opened.snapshot,
-        document_id: opened.document_id,
-        resolution: opened.resolution,
-    }))
+    // The window has its request now; whether opening succeeds or not, it no longer
+    // "is about to open" the Project (a failed open must not keep claiming it).
+    registry.clear_reservation(window_label);
+    match request {
+        None => Ok(None),
+        Some(OpenRequest::EntryPoint(path)) => {
+            check_entry_point_file(&path)?;
+            let prepared = prepare_entry_point(&path)?;
+            let opened = admit_prepared_entry_point(sessions, registry, window_label, prepared)?;
+            Ok(Some(OpenedRequest {
+                snapshot: opened.snapshot,
+                document_id: Some(opened.document_id),
+                resolution: Some(opened.resolution),
+            }))
+        }
+        Some(OpenRequest::ProjectFolder(path)) => {
+            let snapshot = open_project_in_window(sessions, registry, window_label, &path)?;
+            Ok(Some(OpenedRequest {
+                snapshot,
+                document_id: None,
+                resolution: None,
+            }))
+        }
+    }
 }
 
 #[cfg(test)]

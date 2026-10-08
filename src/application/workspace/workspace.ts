@@ -36,7 +36,10 @@ import {
   operationOk,
 } from "../ports/operation-error";
 import type { PersistenceGateway } from "../ports/persistence-gateway";
-import type { FolderSelection } from "../ports/persistence-types";
+import type {
+  FolderSelection,
+  OpenInNewWindowResult,
+} from "../ports/persistence-types";
 import type { Scheduler } from "../ports/scheduler";
 import {
   type ApplicationState,
@@ -116,10 +119,16 @@ export interface Workspace {
     name: string,
     options?: CloseOptions,
   ): Promise<OperationResult<void>>;
-  // Installs the Project that a launch argument (`.dawn`) asked for, which Rust has
-  // already opened, and resolves to the Document to open (null when nothing was
-  // requested). It does not open the Document itself: the UI layer also activates it.
+  // Installs the Project that a launch argument (`.dawn`) or an "open in a new window"
+  // asked for, which Rust has already opened, and resolves to the Document to open (null
+  // when nothing was requested, or for a Project folder, which names no Document). It does
+  // not open the Document itself: the UI layer also activates it.
   openLaunchRequest(): Promise<OperationResult<DocumentId | null>>;
+  // Opens the selected folder's Project in a window of its own (or brings forward the
+  // window that has it). Nothing changes in this window.
+  openProjectInNewWindow(
+    selectionId: string,
+  ): Promise<OperationResult<OpenInNewWindowResult>>;
   closeProject(options?: CloseOptions): Promise<OperationResult<void>>;
 
   openDocument(documentId: DocumentId): Promise<OperationResult<void>>;
@@ -781,6 +790,8 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
       );
       return installed.ok ? operationOk(request.documentId) : installed;
     },
+    openProjectInNewWindow: (selectionId) =>
+      gateway.openProjectInNewWindow(selectionId),
     closeProject: (options) =>
       runLifecycle(async () => {
         const project = store.getState().project;

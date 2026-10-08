@@ -24,6 +24,7 @@ import {
   toDocumentSnapshotResult,
   toFolderSelectionResult,
   toFolderSnapshotResult,
+  toOpenInNewWindowResult,
   toOpenRequestResult,
   toProjectSnapshotResult,
   toSaveResult,
@@ -35,6 +36,7 @@ import type {
   DocumentSnapshot,
   FolderSelection,
   FolderSnapshot,
+  OpenInNewWindowResult,
   OpenRequestResult,
   ProjectSnapshot,
   SaveResult,
@@ -70,6 +72,18 @@ export function takeOpenRequest(): Promise<
   CommandResult<OpenRequestResult | null>
 > {
   return call(COMMANDS.takeOpenRequest, {}, toOpenRequestResult);
+}
+
+// Opens the Project of the folder chosen with `selectProjectFolder` in a window of its own,
+// or brings forward the window that already has it. `selectionId` is the only handle.
+export function openProjectInNewWindow(
+  selectionId: string,
+): Promise<CommandResult<OpenInNewWindowResult>> {
+  return call(
+    COMMANDS.openProjectInNewWindow,
+    { selectionId },
+    toOpenInNewWindowResult,
+  );
 }
 
 // The window closed its Project; Rust unbinds it and drops its session. Harmless when the
