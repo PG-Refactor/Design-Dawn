@@ -3,6 +3,7 @@
 //! without anyone noticing.
 
 use design_dawn_lib::commands::COMMAND_NAMES;
+use design_dawn_lib::config::{MAIN_WINDOW_LABEL, WINDOW_LABEL_PREFIX};
 
 const CAPABILITY_FILE: &str = include_str!("../capabilities/default.json");
 const BUILD_SCRIPT: &str = include_str!("../build.rs");
@@ -61,4 +62,24 @@ fn the_app_manifest_declares_exactly_the_exposed_commands() {
 #[test]
 fn import_asset_is_not_exposed_as_a_command() {
     assert!(!COMMAND_NAMES.contains(&"import_asset"));
+}
+
+/// Windows after the first are `window-<n>`; the capability must cover exactly `main` and
+/// that pattern (a window outside it is refused: `tests/ipc_contract.rs`).
+#[test]
+fn capability_applies_to_main_and_the_window_label_pattern_only() {
+    let capability: serde_json::Value = serde_json::from_str(CAPABILITY_FILE).unwrap();
+    let windows: Vec<&str> = capability["windows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|value| value.as_str().unwrap())
+        .collect();
+    assert_eq!(
+        windows,
+        [
+            MAIN_WINDOW_LABEL.to_owned(),
+            format!("{WINDOW_LABEL_PREFIX}*")
+        ]
+    );
 }

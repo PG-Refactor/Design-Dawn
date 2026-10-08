@@ -3,7 +3,12 @@
 // each returns the same state object when nothing changes.
 
 import type { OperationError } from "../../../application/ports/operation-error";
-import type { DialogState, OperationLabel, UiState } from "./ui-state";
+import type {
+  DialogState,
+  NoticeKind,
+  OperationLabel,
+  UiState,
+} from "./ui-state";
 
 export function openDialog(state: UiState, dialog: DialogState): UiState {
   return { ...state, dialog };
@@ -44,6 +49,19 @@ export function setNotificationsOpen(state: UiState, open: boolean): UiState {
   return state.notificationsOpen === open
     ? state
     : { ...state, notificationsOpen: open };
+}
+
+export function showNotice(state: UiState, kind: NoticeKind): UiState {
+  return {
+    ...state,
+    notice: { id: state.nextNoticeId, kind },
+    nextNoticeId: state.nextNoticeId + 1,
+  };
+}
+
+// Only the notice that is still shown: a timer of an earlier, replaced notice does nothing.
+export function clearNotice(state: UiState, id: number): UiState {
+  return state.notice?.id === id ? { ...state, notice: null } : state;
 }
 
 export function setBusy(state: UiState, busy: boolean): UiState {

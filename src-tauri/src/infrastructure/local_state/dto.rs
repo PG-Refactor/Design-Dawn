@@ -20,6 +20,18 @@ pub struct SettingsFileDto {
     /// non-integer value reaches the validator and gets its own error kind.
     #[serde(default)]
     pub project_tree_width: Option<Number>,
+    /// Absent in schema versions 1 to 3 and until a window has been closed. Left out of the
+    /// file when there is none (a `null` is accepted when reading).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub window_size: Option<WindowSizeDto>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WindowSizeDto {
+    pub width: Number,
+    pub height: Number,
+    pub maximized: bool,
 }
 
 /// The `viewport` argument of `save_sheet_viewport`.

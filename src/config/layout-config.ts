@@ -17,4 +17,6 @@ export const LAYOUT_CONFIG = {
   documentAreaMinWidthPx: 320,
   // Grab area of the splitter between the Project Tree and the document area.
   splitterWidthPx: 8,
+  // How long a light, non-modal notice ("already open") stays before it fades away.
+  noticeDurationMs: 4000,
 } as const;

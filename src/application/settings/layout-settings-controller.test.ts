@@ -104,3 +104,46 @@ describe("setProjectTreeWidth", () => {
     expect(controller.store.getState().projectTreeWidth).toBe(500);
   });
 });
+
+describe("a width is local to its window", () => {
+  function twoWindows() {
+    const gateway = createFakeAppSettingsGateway();
+    const create = () =>
+      createLayoutSettingsController({
+        gateway,
+        defaultProjectTreeWidth: defaultWidthPx,
+      });
+    return { gateway, first: create(), second: create(), create };
+  }
+
+  it("keeps the other window's width when one window changes it", async () => {
+    const { gateway, first, second } = twoWindows();
+    await first.initialize();
+    await second.initialize();
+    await first.setProjectTreeWidth(minWidthPx + 40);
+    expect(first.store.getState().projectTreeWidth).toBe(minWidthPx + 40);
+    expect(second.store.getState().projectTreeWidth).toBe(defaultWidthPx);
+    // Only the file is shared, so the next new window starts with the last change.
+    expect(gateway.storage.projectTreeWidth).toBe(minWidthPx + 40);
+  });
+
+  it("starts a new window with the last changed width", async () => {
+    const { first, second, create } = twoWindows();
+    await first.initialize();
+    await second.initialize();
+    await first.setProjectTreeWidth(minWidthPx + 40);
+    await second.setProjectTreeWidth(maxWidthPx - 40);
+    const third = create();
+    await third.initialize();
+    expect(third.store.getState().projectTreeWidth).toBe(maxWidthPx - 40);
+    expect(first.store.getState().projectTreeWidth).toBe(minWidthPx + 40);
+  });
+
+  it("reads the stored width only when it is initialized", async () => {
+    const { gateway, first } = twoWindows();
+    await first.initialize();
+    gateway.storage.projectTreeWidth = maxWidthPx;
+    await first.initialize();
+    expect(first.store.getState().projectTreeWidth).toBe(defaultWidthPx);
+  });
+});

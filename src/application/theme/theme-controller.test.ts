@@ -191,3 +191,27 @@ describe("persistence across restarts", () => {
     expect(second.store.getState().resolvedTheme).toBe("dark");
   });
 });
+
+describe("applyExternal", () => {
+  it("applies a preference another window saved without calling the gateway", async () => {
+    const { gateway, controller } = setup("dark");
+    await controller.initialize();
+    controller.applyExternal("light");
+    expect(controller.store.getState()).toMatchObject({
+      preference: "light",
+      resolvedTheme: "light",
+      osTheme: "dark",
+      saveError: null,
+    });
+    expect(gateway.setCalls).toEqual([]);
+    expect(gateway.storage.themePreference).toBe("system");
+  });
+
+  it("resolves system against the current OS theme", async () => {
+    const { controller } = setup("dark");
+    await controller.initialize();
+    controller.applyExternal("light");
+    controller.applyExternal("system");
+    expect(controller.store.getState().resolvedTheme).toBe("dark");
+  });
+});

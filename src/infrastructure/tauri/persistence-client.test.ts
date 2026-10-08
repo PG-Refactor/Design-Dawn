@@ -18,6 +18,7 @@ import { COMMANDS } from "./command-constants";
 import type { CommandResult } from "./command-error";
 import {
   closeDocument,
+  closeProject,
   createBlockContent,
   createDocument,
   createFolder,
@@ -30,12 +31,14 @@ import {
   loadDocument,
   moveEntry,
   openProject,
+  openProjectInNewWindow,
   readBlockContent,
   restoreBlockContent,
   saveFolder,
   saveProject,
   saveSheet,
   selectProjectFolder,
+  takeOpenRequest,
   writeBlockContent,
 } from "./persistence-client";
 
@@ -116,6 +119,106 @@ function expectFailure<T>(result: CommandResult<T>, kind: string) {
 
 beforeEach(() => {
   invokeMock.mockReset();
+});
+
+describe("take_open_request payloads", () => {
+  it("converts the snapshot, the document id and the resolution", async () => {
+    invokeMock.mockResolvedValue({
+      snapshot: rawProjectSnapshot,
+      documentId: DOCUMENT_ID,
+      resolution: "idScan",
+    });
+    const result = await takeOpenRequest();
+    expect(invokeMock).toHaveBeenCalledWith(COMMANDS.takeOpenRequest, {});
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.value === null) return;
+    expect(result.value.documentId).toBe(DOCUMENT_ID);
+    expect(result.value.resolution).toBe("idScan");
+    expect(result.value.snapshot.project.projectId).toBe(PROJECT_ID);
+  });
+
+  it("accepts a Project folder request, which names no document", async () => {
+    invokeMock.mockResolvedValue({
+      snapshot: rawProjectSnapshot,
+      documentId: null,
+      resolution: null,
+    });
+    const result = await takeOpenRequest();
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.value === null) return;
+    expect(result.value.documentId).toBeNull();
+    expect(result.value.resolution).toBeNull();
+    expect(result.value.snapshot.project.projectId).toBe(PROJECT_ID);
+  });
+
+  it("turns null into an ok result without a request", async () => {
+    invokeMock.mockResolvedValue(null);
+    expect(await takeOpenRequest()).toEqual({ ok: true, value: null });
+  });
+
+  it("rejects an unknown resolution and an invalid document id", async () => {
+    invokeMock.mockResolvedValue({
+      snapshot: rawProjectSnapshot,
+      documentId: DOCUMENT_ID,
+      resolution: "guess",
+    });
+    expect((await takeOpenRequest()).ok).toBe(false);
+    invokeMock.mockResolvedValue({
+      snapshot: rawProjectSnapshot,
+      documentId: "not-an-id",
+      resolution: "path",
+    });
+    expect((await takeOpenRequest()).ok).toBe(false);
+  });
+
+  it("maps a rejection to its error kind", async () => {
+    invokeMock.mockRejectedValue({ kind: "fileNotFound", detail: "x" });
+    const result = await takeOpenRequest();
+    expect(result).toMatchObject({
+      ok: false,
+      error: { kind: "fileNotFound" },
+    });
+  });
+});
+
+describe("open_project_in_new_window payloads", () => {
+  it("sends the selection id and reads an opened result", async () => {
+    invokeMock.mockResolvedValue({ status: "openedInNewWindow" });
+    const result = await openProjectInNewWindow(SELECTION_ID);
+    expect(invokeMock).toHaveBeenCalledWith(COMMANDS.openProjectInNewWindow, {
+      selectionId: SELECTION_ID,
+    });
+    expect(result).toEqual({
+      ok: true,
+      value: { status: "openedInNewWindow" },
+    });
+  });
+
+  it("reads a focused result with the window it is in", async () => {
+    invokeMock.mockResolvedValue({
+      status: "focusedExisting",
+      inThisWindow: true,
+    });
+    expect(await openProjectInNewWindow(SELECTION_ID)).toEqual({
+      ok: true,
+      value: { status: "focusedExisting", inThisWindow: true },
+    });
+  });
+
+  it("rejects an unknown status and a focused result without its flag", async () => {
+    invokeMock.mockResolvedValue({ status: "somethingElse" });
+    expect((await openProjectInNewWindow(SELECTION_ID)).ok).toBe(false);
+    invokeMock.mockResolvedValue({ status: "focusedExisting" });
+    expect((await openProjectInNewWindow(SELECTION_ID)).ok).toBe(false);
+  });
+
+  it("maps a rejection to its error kind", async () => {
+    invokeMock.mockRejectedValue({ kind: "fileNotFound", detail: "x" });
+    expect(await openProjectInNewWindow(SELECTION_ID)).toMatchObject({
+      ok: false,
+      error: { kind: "fileNotFound" },
+    });
+  });
 });
 
 describe("successful conversion", () => {
@@ -247,6 +350,15 @@ describe("successful conversion", () => {
       projectId: PROJECT_ID,
       documentId: DOCUMENT_ID,
     });
+  });
+
+  it("closes the window's project without arguments", async () => {
+    invokeMock.mockResolvedValue(null);
+    expect(await closeProject()).toEqual({ ok: true, value: null });
+    expect(invokeMock).toHaveBeenLastCalledWith(COMMANDS.closeProject, {});
+    invokeMock.mockResolvedValue({ unexpected: true });
+    const result = await closeProject();
+    expect(!result.ok && result.error.kind).toBe("invalidCommandResponse");
   });
 
   it("sends only the ids to close a document", async () => {
@@ -504,6 +616,7 @@ describe("error mapping", () => {
       "alreadyExists",
       "notWritable",
       "projectNotOpen",
+      "projectOpenInOtherWindow",
       "dialogFailed",
       "invalidFolderSelection",
       "ioError",

@@ -13,6 +13,7 @@ use super::constants::{DEFAULT_AUTO_SAVE, DEFAULT_PROJECT_TREE_WIDTH, MAX_SHEET_
 use super::layout::parse_project_tree_width;
 use super::theme::ThemePreference;
 use super::viewport::{SheetViewportKey, Viewport};
+use super::window_size::{parse_window_size, WindowSize};
 use crate::application::error::{ApplicationError, ApplicationResult};
 use crate::domain::constants::MIN_SCHEMA_VERSION;
 use crate::domain::error::{DomainError, DomainErrorKind};
@@ -23,6 +24,7 @@ use crate::infrastructure::local_state::constants::{
 };
 use crate::infrastructure::local_state::dto::{
     number_from_f64, SettingsFileDto, SheetViewportEntryDto, SheetViewportsFileDto, ViewportDto,
+    WindowSizeDto,
 };
 use crate::infrastructure::local_state::files::{read_json_file, write_json_file};
 
@@ -36,7 +38,7 @@ pub struct LocalStateDirectories {
     pub local_data_dir: PathBuf,
 }
 
-/// Wire form: `{ themePreference, autoSave, projectTreeWidth, loadIssue }`; `loadIssue` is `null` or
+/// Wire form: `{ themePreference, autoSave, projectTreeWidth, loadIssue }` (the window size stays in Rust); `loadIssue` is `null` or
 /// `{ kind, detail }`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -45,6 +47,9 @@ pub struct AppSettings {
     pub auto_save: bool,
     /// CSS pixels.
     pub project_tree_width: u32,
+    /// Only Rust uses it (start-up and new windows), so it is not part of the wire form.
+    #[serde(skip)]
+    pub window_size: Option<WindowSize>,
     pub load_issue: Option<ApplicationError>,
 }
 
@@ -54,6 +59,7 @@ impl AppSettings {
             theme_preference: ThemePreference::default(),
             auto_save: DEFAULT_AUTO_SAVE,
             project_tree_width: DEFAULT_PROJECT_TREE_WIDTH,
+            window_size: None,
             load_issue,
         }
     }
@@ -169,6 +175,15 @@ impl LocalState {
                 Some(number) => parse_project_tree_width(number)?,
                 None => DEFAULT_PROJECT_TREE_WIDTH,
             },
+            // Absent before schema version 4: no size recorded, the window config applies.
+            window_size: match &dto.window_size {
+                Some(size) => Some(parse_window_size(
+                    &size.width,
+                    &size.height,
+                    size.maximized,
+                )?),
+                None => None,
+            },
             load_issue: None,
         })
     }
@@ -193,6 +208,11 @@ impl LocalState {
                 theme_preference: settings.theme_preference.as_str().to_owned(),
                 auto_save: Some(settings.auto_save),
                 project_tree_width: Some(Number::from(settings.project_tree_width)),
+                window_size: settings.window_size.map(|size| WindowSizeDto {
+                    width: Number::from(size.width),
+                    height: Number::from(size.height),
+                    maximized: size.maximized,
+                }),
             },
         )?;
         Ok(settings)
@@ -231,6 +251,11 @@ impl LocalState {
     pub fn set_project_tree_width(&self, width: &Number) -> ApplicationResult<AppSettings> {
         let width = parse_project_tree_width(width)?;
         self.update_settings(|settings| settings.project_tree_width = width)
+    }
+
+    /// Recorded when a window closes. Keeps the other settings (read-modify-write).
+    pub fn set_window_size(&self, size: WindowSize) -> ApplicationResult<AppSettings> {
+        self.update_settings(|settings| settings.window_size = Some(size))
     }
 
     pub fn get_sheet_viewport(

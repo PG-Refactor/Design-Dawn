@@ -3,6 +3,7 @@ import type { PersistenceGateway } from "../../application/ports/persistence-gat
 import { copyAssetToDocument, importDroppedImages } from "./asset-client";
 import {
   closeDocument,
+  closeProject,
   createBlockContent,
   createDocument,
   createFolder,
@@ -15,6 +16,7 @@ import {
   loadDocument,
   moveEntry,
   openProject,
+  openProjectInNewWindow,
   readBlockContent,
   restoreBlockContent,
   saveDocument,
@@ -22,6 +24,7 @@ import {
   saveProject,
   saveSheet,
   selectProjectFolder,
+  takeOpenRequest,
   writeBlockContent,
 } from "./persistence-client";
 
@@ -34,6 +37,9 @@ export function createTauriPersistenceGateway(): PersistenceGateway {
   return {
     selectProjectFolder,
     openProject,
+    openProjectInNewWindow,
+    takeOpenRequest,
+    closeProject: async () => mapOperationResult(await closeProject(), discard),
     createProject,
     saveProject: async (projectId, project) =>
       mapOperationResult(await saveProject(projectId, project), discard),

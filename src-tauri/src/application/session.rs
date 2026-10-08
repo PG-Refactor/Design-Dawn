@@ -601,6 +601,11 @@ impl ProjectSessions {
         self.sessions.insert(*session.project_id(), session);
     }
 
+    /// Drops the session of a Project that no window has open any more.
+    pub fn remove(&mut self, project_id: &ProjectId) -> Option<ProjectSession> {
+        self.sessions.remove(project_id)
+    }
+
     /// Parses the ID text first, so malformed IDs are `invalidEntityId` rather than "not open".
     pub fn session_mut(&mut self, project_id: &str) -> ApplicationResult<&mut ProjectSession> {
         let project_id = ProjectId::parse(project_id)?;

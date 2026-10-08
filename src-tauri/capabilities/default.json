@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Only the application's own commands; no core plugin permissions so the webview cannot listen to Tauri's built-in events (drag-drop paths) or resolve OS paths",
-  "windows": ["main"],
+  "windows": ["main", "window-*"],
   "permissions": [
     "allow-select-project-folder",
     "allow-create-project",
@@ -35,6 +35,11 @@
     "allow-copy-asset-to-document",
     "allow-subscribe-drop-notifications",
     "allow-subscribe-close-requests",
-    "allow-confirm-window-close"
+    "allow-confirm-window-close",
+    "allow-take-open-request",
+    "allow-close-project",
+    "allow-subscribe-app-requests",
+    "allow-ack-open-request",
+    "allow-open-project-in-new-window"
   ]
 }

@@ -107,3 +107,21 @@ describe("setEnabled", () => {
     expect(received).toEqual([]);
   });
 });
+
+describe("applyExternal", () => {
+  it("applies a value another window saved, notifies on change and never calls the gateway", async () => {
+    const { gateway, controller, changes } = setup();
+    controller.applyExternal(false);
+    expect(controller.isEnabled()).toBe(false);
+    expect(controller.store.getState().enabled).toBe(false);
+    controller.applyExternal(true);
+    expect(changes).toEqual([false, true]);
+    expect(gateway.autoSaveCalls).toEqual([]);
+  });
+
+  it("does not notify when the value is unchanged", () => {
+    const { controller, changes } = setup();
+    controller.applyExternal(true);
+    expect(changes).toEqual([]);
+  });
+});

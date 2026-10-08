@@ -25,3 +25,10 @@ pub const VIEWPORT_ZOOM_MAX: f64 = 8.0;
 
 /// Oldest saved viewports are dropped beyond this, so the file cannot grow without bound.
 pub const MAX_SHEET_VIEWPORT_ENTRIES: usize = 1000;
+
+/// Window size limits in logical pixels for the recorded size (`settings.json` `windowSize`).
+/// Wide enough for any real display; they only keep a hand-edited file sane.
+pub const WINDOW_WIDTH_MIN: u32 = 400;
+pub const WINDOW_WIDTH_MAX: u32 = 16_384;
+pub const WINDOW_HEIGHT_MIN: u32 = 300;
+pub const WINDOW_HEIGHT_MAX: u32 = 16_384;

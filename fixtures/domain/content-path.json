@@ -333,6 +333,339 @@
       "expected": { "result": "reject", "errorKind": "unsupportedBlockType" },
       "targets": ["rust"],
       "note": "The block type is validated before the path."
+    },
+    {
+      "name": "windows: reserved device asset NUL.png",
+      "input": { "blockType": "image", "path": "assets/NUL.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: reserved device asset lowercase aux.png",
+      "input": { "blockType": "image", "path": "assets/aux.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: reserved device asset with double extension",
+      "input": { "blockType": "image", "path": "assets/con.tar.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: reserved device asset lpt9",
+      "input": { "blockType": "image", "path": "assets/LPT9.webp" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: reserved device as sheet directory",
+      "input": {
+        "blockType": "markdown",
+        "path": "sheets/aux/blocks/markdown-1.md"
+      },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: reserved device as sheet directory (mixed case)",
+      "input": {
+        "blockType": "mermaid",
+        "path": "sheets/Prn/blocks/mermaid-1.mmd"
+      },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: reserved device as blocks directory name",
+      "input": {
+        "blockType": "markdown",
+        "path": "sheets/overview/CON/markdown-1.md"
+      },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: reserved device as markdown file",
+      "input": {
+        "blockType": "markdown",
+        "path": "sheets/overview/blocks/com3.md"
+      },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: reserved device as top-level directory",
+      "input": { "blockType": "image", "path": "COM9/a.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: reserved device name checked before location",
+      "input": { "blockType": "image", "path": "sheets/nul/blocks/a.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: trailing dot in file name",
+      "input": { "blockType": "image", "path": "assets/photo.png." },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: trailing space in file name",
+      "input": { "blockType": "image", "path": "assets/photo.png " },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: trailing dot in sheet directory",
+      "input": {
+        "blockType": "markdown",
+        "path": "sheets/overview./blocks/markdown-1.md"
+      },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: trailing space in sheet directory",
+      "input": {
+        "blockType": "markdown",
+        "path": "sheets/overview /blocks/markdown-1.md"
+      },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: trailing dot in assets directory",
+      "input": { "blockType": "image", "path": "assets./a.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: trailing dot in reserved-looking name",
+      "input": { "blockType": "image", "path": "assets/nul..png." },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: forbidden character less-than",
+      "input": { "blockType": "image", "path": "assets/a<b.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: forbidden character greater-than",
+      "input": { "blockType": "image", "path": "assets/a>b.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: forbidden character double quote",
+      "input": { "blockType": "image", "path": "assets/a\"b.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: forbidden character pipe",
+      "input": { "blockType": "image", "path": "assets/a|b.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: forbidden character question mark",
+      "input": { "blockType": "image", "path": "assets/a?b.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: forbidden character asterisk",
+      "input": { "blockType": "image", "path": "assets/a*b.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: forbidden character in sheet directory",
+      "input": {
+        "blockType": "markdown",
+        "path": "sheets/ov:erview/blocks/markdown-1.md"
+      },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: control character U+001F",
+      "input": { "blockType": "image", "path": "assets/a\u001fb.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: delete character U+007F",
+      "input": { "blockType": "image", "path": "assets/ab.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: tab character",
+      "input": { "blockType": "image", "path": "assets/a\tb.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: backslash in nested path",
+      "input": {
+        "blockType": "markdown",
+        "path": "sheets\\overview\\blocks\\markdown-1.md"
+      },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: backslash only in file name",
+      "input": { "blockType": "image", "path": "assets/a\\b.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: drive letter prefix with slash",
+      "input": { "blockType": "image", "path": "C:/assets/a.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: lowercase drive letter prefix",
+      "input": { "blockType": "image", "path": "c:/assets/a.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: drive letter as only segment prefix",
+      "input": {
+        "blockType": "markdown",
+        "path": "C:sheets/overview/blocks/markdown-1.md"
+      },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: extended-length path prefix",
+      "input": { "blockType": "image", "path": "//?/C:/assets/a.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: UNC with backslashes",
+      "input": {
+        "blockType": "image",
+        "path": "\\\\server\\share\\assets\\a.png"
+      },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: UNC-like double slash before assets",
+      "input": { "blockType": "image", "path": "//assets/a.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: UNC-like server prefix",
+      "input": { "blockType": "image", "path": "//server/assets/a.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: parent segment before assets",
+      "input": { "blockType": "image", "path": "../assets/a.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: parent segment after assets",
+      "input": { "blockType": "image", "path": "assets/../a.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: parent segment in blocks path",
+      "input": {
+        "blockType": "markdown",
+        "path": "sheets/overview/blocks/../markdown-1.md"
+      },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: double parent traversal out of document",
+      "input": {
+        "blockType": "markdown",
+        "path": "sheets/../../x/blocks/markdown-1.md"
+      },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: current directory segment in blocks path",
+      "input": {
+        "blockType": "markdown",
+        "path": "sheets/./blocks/markdown-1.md"
+      },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: alternate data stream on a reserved name",
+      "input": { "blockType": "image", "path": "assets/nul:stream.png" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: device-style namespace path",
+      "input": { "blockType": "image", "path": "assets/CON" },
+      "expected": { "result": "reject", "errorKind": "invalidContentPath" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: name that merely contains a reserved word",
+      "input": { "blockType": "image", "path": "assets/console.png" },
+      "expected": { "result": "accept" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: COM10 is not a reserved device name",
+      "input": { "blockType": "image", "path": "assets/COM10.png" },
+      "expected": { "result": "accept" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: COM0 is not a reserved device name",
+      "input": { "blockType": "image", "path": "assets/com0.png" },
+      "expected": { "result": "accept" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: reserved word as suffix",
+      "input": { "blockType": "image", "path": "assets/con-2.png" },
+      "expected": { "result": "accept" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: reserved word as stem part after hyphen",
+      "input": { "blockType": "image", "path": "assets/my-nul.png" },
+      "expected": { "result": "accept" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: reserved name only after a leading dot is not a device",
+      "input": { "blockType": "image", "path": "assets/x.con.png" },
+      "expected": { "result": "accept" },
+      "targets": ["rust"]
+    },
+    {
+      "name": "windows: dot inside stem is allowed",
+      "input": { "blockType": "image", "path": "assets/v1.2.png" },
+      "expected": { "result": "accept" },
+      "targets": ["rust"]
     }
   ]
 }

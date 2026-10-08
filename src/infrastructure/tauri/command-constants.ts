@@ -35,6 +35,11 @@ export const COMMANDS = {
   subscribeDropNotifications: "subscribe_drop_notifications",
   subscribeCloseRequests: "subscribe_close_requests",
   confirmWindowClose: "confirm_window_close",
+  takeOpenRequest: "take_open_request",
+  closeProject: "close_project",
+  subscribeAppRequests: "subscribe_app_requests",
+  ackOpenRequest: "ack_open_request",
+  openProjectInNewWindow: "open_project_in_new_window",
 } as const;
 
 export type CommandName = (typeof COMMANDS)[keyof typeof COMMANDS];
@@ -55,8 +60,10 @@ export {
 // layer (its port names them); re-exported so the contract tests keep one import point.
 export {
   ENTITY_STATES,
+  ENTRY_POINT_RESOLUTIONS,
   type EntityState,
   FOLDER_SELECTION_STATUS,
   LOAD_ISSUE_KINDS,
   type LoadIssueKind,
+  OPEN_IN_NEW_WINDOW_STATUS,
 } from "../../application/ports/persistence-types";

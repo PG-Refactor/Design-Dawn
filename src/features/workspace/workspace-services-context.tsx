@@ -1,10 +1,15 @@
 import { createContext, type ReactNode, useContext } from "react";
+import type { AppRequestSource } from "../../application/ports/app-request-source";
 import type { AssetUrlResolver } from "../../application/ports/asset-url-resolver";
 import type { DropEventSource } from "../../application/ports/drop-event-source";
 import type { CloseRequestSource } from "../../application/ports/window-close";
+import type { AutoSaveController } from "../../application/settings/auto-save-controller";
 import type { LayoutSettingsController } from "../../application/settings/layout-settings-controller";
 import type { ApplicationStore } from "../../application/state/application-state";
-import type { ThemeState } from "../../application/theme/theme-controller";
+import type {
+  ThemeController,
+  ThemeState,
+} from "../../application/theme/theme-controller";
 import type { Store } from "../../shared/store/store";
 import type { CanvasActions } from "../canvas/canvas-actions";
 import type { ViewportPersistence } from "../canvas/viewport-persistence";
@@ -27,14 +32,19 @@ export interface WorkspaceServices {
   readonly dropEventSource: DropEventSource;
   // Window close requests (Rust stops the close and asks the Frontend to save first).
   readonly closeRequestSource: CloseRequestSource;
+  // Requests Rust sends to this window while it runs (open a Document of its Project).
+  readonly appRequestSource: AppRequestSource;
   // Only `flush` is used: written before the window closes.
   readonly viewportPersistence: Pick<ViewportPersistence, "flush">;
   // The `src` of an image block's `<img>`.
   readonly assetUrlResolver: AssetUrlResolver;
-  readonly themeController: ThemeSettingsController & {
-    readonly store: Store<ThemeState>;
-  };
-  readonly autoSaveController: AutoSaveSettingsController;
+  // `applyExternal`: settings another window changed (see `createSettingsChangeHandler`).
+  readonly themeController: ThemeSettingsController &
+    Pick<ThemeController, "applyExternal"> & {
+      readonly store: Store<ThemeState>;
+    };
+  readonly autoSaveController: AutoSaveSettingsController &
+    Pick<AutoSaveController, "applyExternal">;
   readonly layoutSettingsController: Pick<
     LayoutSettingsController,
     "store" | "setProjectTreeWidth"

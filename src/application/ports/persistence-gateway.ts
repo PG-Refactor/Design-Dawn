@@ -18,6 +18,8 @@ import type {
   DocumentSnapshot,
   FolderSelection,
   FolderSnapshot,
+  OpenInNewWindowResult,
+  OpenRequestResult,
   ProjectSnapshot,
   SheetSnapshot,
 } from "./persistence-types";
@@ -29,6 +31,17 @@ export interface PersistenceGateway {
   // handles a path: `selectionId` is the only handle (docs/architecture.md §6.2.2).
   selectProjectFolder(): Promise<OperationResult<FolderSelection>>;
   openProject(selectionId: string): Promise<OperationResult<ProjectSnapshot>>;
+  // Opens the selected folder's Project in a new window, or brings forward the window that
+  // has it. This window's own Project is not touched.
+  openProjectInNewWindow(
+    selectionId: string,
+  ): Promise<OperationResult<OpenInNewWindowResult>>;
+  // The Project / Document a launch argument asked for, already opened in Rust (a Project
+  // is open afterwards). Consumed once: null when nothing was requested or it was taken.
+  takeOpenRequest(): Promise<OperationResult<OpenRequestResult | null>>;
+  // The window no longer has a Project: Rust unbinds it (another window may open it now)
+  // and drops its session. Called after the Project's documents were saved and closed.
+  closeProject(): Promise<OperationResult<void>>;
   createProject(
     selectionId: string,
     name: DisplayName,

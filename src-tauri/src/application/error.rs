@@ -54,6 +54,8 @@ pub enum ErrorKind {
     InvalidViewport,
     /// A Project Tree width that is not an integer within the allowed range.
     InvalidProjectTreeWidth,
+    /// The Project is already open in another window (docs/architecture.md §11.0.1).
+    ProjectOpenInOtherWindow,
 }
 
 impl ErrorKind {
@@ -74,6 +76,7 @@ impl ErrorKind {
             Self::InvalidMove => "invalidMove",
             Self::InvalidViewport => "invalidViewport",
             Self::InvalidProjectTreeWidth => "invalidProjectTreeWidth",
+            Self::ProjectOpenInOtherWindow => "projectOpenInOtherWindow",
         }
     }
 
@@ -98,6 +101,7 @@ impl ErrorKind {
             Self::InvalidMove => "the item cannot be moved there",
             Self::InvalidViewport => "the viewport is not valid",
             Self::InvalidProjectTreeWidth => "the project tree width is not valid",
+            Self::ProjectOpenInOtherWindow => "the project is open in another window",
         }
     }
 }

@@ -9,7 +9,7 @@
 //! are handled identically.
 
 use std::borrow::Cow;
-use std::sync::Mutex;
+use std::sync::{Mutex, PoisonError};
 
 use tauri::http::header::{
     CACHE_CONTROL, CONTENT_SECURITY_POLICY, CONTENT_TYPE, X_CONTENT_TYPE_OPTIONS,
@@ -17,9 +17,11 @@ use tauri::http::header::{
 use tauri::http::{Response, StatusCode, Uri};
 
 use crate::application::asset_import::read_asset_for_url;
-use crate::application::error::{ApplicationError, ErrorKind};
+use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
 use crate::application::session::ProjectSessions;
+use crate::application::window_registry::WindowRegistry;
 use crate::domain::constants::PATH_SEPARATOR;
+use crate::domain::entity_id::ProjectId;
 use crate::infrastructure::error::PersistenceErrorKind;
 use crate::infrastructure::file_format::image_validation::ImageFormat;
 
@@ -118,11 +120,33 @@ fn error_response(status: StatusCode, identifier: &str) -> AssetResponse {
         .expect("static response parts are valid")
 }
 
-/// Builds the whole HTTP response for one asset request.
-pub fn respond_to_asset_request(sessions: &Mutex<ProjectSessions>, uri: &Uri) -> AssetResponse {
+/// Only the Project bound to the requesting webview's window is served; another window's
+/// Project answers like an unknown one (404).
+fn ensure_served_to_window(
+    registry: &Mutex<WindowRegistry>,
+    webview_label: &str,
+    project_id: &str,
+) -> ApplicationResult<()> {
+    let project_id = ProjectId::parse(project_id)?;
+    registry
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .ensure_bound(webview_label, &project_id)
+}
+
+/// Builds the whole HTTP response for one asset request from the webview `webview_label`.
+pub fn respond_to_asset_request(
+    sessions: &Mutex<ProjectSessions>,
+    registry: &Mutex<WindowRegistry>,
+    webview_label: &str,
+    uri: &Uri,
+) -> AssetResponse {
     let Ok((project_id, document_id, content_path)) = parse_asset_path(uri.path()) else {
         return error_response(StatusCode::BAD_REQUEST, "malformedAssetUrl");
     };
+    if let Err(error) = ensure_served_to_window(registry, webview_label, &project_id) {
+        return error_response(status_for(&error), error.kind.as_str());
+    }
     match read_asset_for_url(sessions, &project_id, &document_id, &content_path) {
         Ok(asset) => {
             let mut builder = Response::builder()

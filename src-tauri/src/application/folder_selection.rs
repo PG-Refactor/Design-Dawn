@@ -2,6 +2,7 @@
 //! behind `FolderPicker` so this layer stays free of Tauri and testable without a dialog.
 //! Rust keeps the picked path; the Frontend only ever sees an opaque `selectionId`.
 
+use std::collections::HashMap;
 use std::fmt;
 use std::path::PathBuf;
 use std::sync::{Mutex, PoisonError};
@@ -67,32 +68,42 @@ struct SelectedFolder {
     path: PathBuf,
 }
 
-/// The latest selection only. A new selection replaces it (stale ids stop resolving);
-/// a cancelled dialog and failed or successful open / create leave it untouched.
+/// The latest selection of each window. A new selection replaces that window's one (stale ids
+/// stop resolving); a cancelled dialog and failed or successful open / create leave it
+/// untouched. A `selectionId` only resolves for the window whose dialog produced it.
 #[derive(Debug, Default)]
 pub struct FolderSelectionState {
-    latest: Option<SelectedFolder>,
+    latest_by_window: HashMap<String, SelectedFolder>,
 }
 
 impl FolderSelectionState {
-    fn replace(&mut self, path: PathBuf) -> String {
+    fn replace(&mut self, window_label: &str, path: PathBuf) -> String {
         let selection_id = Uuid::now_v7().hyphenated().to_string();
-        self.latest = Some(SelectedFolder {
-            selection_id: selection_id.clone(),
-            path,
-        });
+        self.latest_by_window.insert(
+            window_label.to_owned(),
+            SelectedFolder {
+                selection_id: selection_id.clone(),
+                path,
+            },
+        );
         selection_id
     }
 
-    /// Unknown and replaced ids are indistinguishable on purpose: both are `invalidFolderSelection`.
-    pub fn resolve(&self, selection_id: &str) -> ApplicationResult<PathBuf> {
-        match &self.latest {
+    /// Unknown, replaced and other windows' ids are indistinguishable on purpose: all are
+    /// `invalidFolderSelection`.
+    pub fn resolve(&self, window_label: &str, selection_id: &str) -> ApplicationResult<PathBuf> {
+        match self.latest_by_window.get(window_label) {
             Some(selected) if selected.selection_id == selection_id => Ok(selected.path.clone()),
             _ => Err(ApplicationError::new(
                 ErrorKind::InvalidFolderSelection,
                 format!("unknown or expired selectionId: {selection_id}"),
             )),
         }
+    }
+
+    /// For a destroyed window.
+    pub fn discard_window(&mut self, window_label: &str) {
+        self.latest_by_window.remove(window_label);
     }
 }
 
@@ -102,6 +113,7 @@ impl FolderSelectionState {
 pub fn select_project_folder(
     picker: &dyn FolderPicker,
     state: &Mutex<FolderSelectionState>,
+    window_label: &str,
 ) -> ApplicationResult<FolderSelection> {
     let Some(path) = picker.pick_folder()? else {
         return Ok(FolderSelection::Cancelled);
@@ -111,7 +123,7 @@ pub fn select_project_folder(
     let selection_id = state
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
-        .replace(path);
+        .replace(window_label, path);
     Ok(FolderSelection::Selected {
         selection_id,
         display_path,
@@ -121,10 +133,11 @@ pub fn select_project_folder(
 /// Looks the path up and releases the lock before the caller touches the filesystem.
 pub fn resolve_selection(
     state: &Mutex<FolderSelectionState>,
+    window_label: &str,
     selection_id: &str,
 ) -> ApplicationResult<PathBuf> {
     state
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
-        .resolve(selection_id)
+        .resolve(window_label, selection_id)
 }

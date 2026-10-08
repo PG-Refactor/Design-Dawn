@@ -20,7 +20,10 @@ import {
   operationErr,
   operationOk,
 } from "../../application/ports/operation-error";
-import { FOLDER_SELECTION_STATUS } from "../../application/ports/persistence-types";
+import {
+  FOLDER_SELECTION_STATUS,
+  OPEN_IN_NEW_WINDOW_STATUS,
+} from "../../application/ports/persistence-types";
 import {
   type ApplicationStore,
   moveOpenDocument,
@@ -54,6 +57,7 @@ import {
   openDialog,
   setBusy,
   setNotificationsOpen,
+  showNotice,
 } from "./ui-state/shell-ui-state";
 import {
   beginRenaming,
@@ -77,6 +81,19 @@ export interface WorkspaceActions {
   // With auto-save off and unsaved changes, the project / document close, and opening
   // another Project, ask first (`confirmUnsavedClose`) and do nothing yet.
   openProjectViaDialog(): Promise<OperationResult<void>>;
+  // At start-up: opens the Project and Document a launch argument (`.dawn`) asked for.
+  // Does nothing when there was none; runs only once per app, however often it is called.
+  openLaunchRequest(): Promise<OperationResult<void>>;
+  // Asks for a folder and opens its Project in a window of its own (or brings forward the
+  // window that already has it, with a light notice). This window is not changed, so no
+  // unsaved-changes question is asked. Cancelling the folder dialog does nothing.
+  openProjectInNewWindowViaDialog(): Promise<OperationResult<void>>;
+  // Rust asked this window to show a Document of its Project (a `.dawn` opened again from
+  // outside): opens and activates it, or activates its tab with a light notice when it is
+  // already open.
+  openDocumentFromRequest(
+    documentId: DocumentId,
+  ): Promise<OperationResult<void>>;
   requestCreateProject(): void;
   createProjectViaDialog(name: string): Promise<OperationResult<void>>;
   closeProject(): Promise<OperationResult<void>>;
@@ -607,7 +624,75 @@ export function createWorkspaceActions(
     return result;
   }
 
+  let launchRequest: Promise<OperationResult<void>> | null = null;
+
+  async function openLaunchRequestOnce(): Promise<OperationResult<void>> {
+    const taken = await workspace.openLaunchRequest();
+    if (!taken.ok) {
+      record("openLaunchRequest", null, taken.error);
+      return taken;
+    }
+    if (taken.value === null) return operationOk(undefined);
+    const opened = await ensureOpen(taken.value);
+    if (!opened.ok) return opened;
+    if (opened.value) activateDocument(taken.value);
+    return operationOk(undefined);
+  }
+
+  async function openProjectInNewWindowNow(): Promise<OperationResult<void>> {
+    const selected = await workspace.selectProjectFolder();
+    if (!selected.ok) {
+      record("selectFolder", null, selected.error);
+      return selected;
+    }
+    if (selected.value.status === FOLDER_SELECTION_STATUS.cancelled) {
+      return operationOk(undefined);
+    }
+    const result = await workspace.openProjectInNewWindow(
+      selected.value.selectionId,
+    );
+    if (!result.ok) {
+      record("openProject", null, result.error);
+      return result;
+    }
+    if (result.value.status === OPEN_IN_NEW_WINDOW_STATUS.focusedExisting) {
+      const kind = result.value.inThisWindow
+        ? "projectOpenInThisWindow"
+        : "projectOpenInOtherWindow";
+      uiStateStore.setState((state) => showNotice(state, kind));
+    }
+    return operationOk(undefined);
+  }
+
+  async function openDocumentFromRequestNow(
+    documentId: DocumentId,
+  ): Promise<OperationResult<void>> {
+    if (applicationStore.getState().documents.has(documentId)) {
+      activateDocument(documentId);
+      uiStateStore.setState((state) =>
+        showNotice(state, "documentAlreadyOpen"),
+      );
+      return operationOk(undefined);
+    }
+    const opened = await ensureOpen(documentId);
+    if (!opened.ok) return opened;
+    if (opened.value) activateDocument(documentId);
+    return operationOk(undefined);
+  }
+
   return {
+    openProjectInNewWindowViaDialog: () => {
+      if (uiStateStore.getState().busy) {
+        return Promise.resolve(operationOk(undefined));
+      }
+      return runBusy(openProjectInNewWindowNow);
+    },
+    openDocumentFromRequest: openDocumentFromRequestNow,
+    // React StrictMode runs effects twice; sharing the first call keeps it to one take.
+    openLaunchRequest: () => {
+      launchRequest ??= openLaunchRequestOnce();
+      return launchRequest;
+    },
     openProjectViaDialog: () => {
       if (uiStateStore.getState().busy)
         return Promise.resolve(operationOk(undefined));

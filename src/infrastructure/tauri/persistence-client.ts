@@ -24,6 +24,8 @@ import {
   toDocumentSnapshotResult,
   toFolderSelectionResult,
   toFolderSnapshotResult,
+  toOpenInNewWindowResult,
+  toOpenRequestResult,
   toProjectSnapshotResult,
   toSaveResult,
   toSheetSnapshotResult,
@@ -34,6 +36,8 @@ import type {
   DocumentSnapshot,
   FolderSelection,
   FolderSnapshot,
+  OpenInNewWindowResult,
+  OpenRequestResult,
   ProjectSnapshot,
   SaveResult,
   SheetSnapshot,
@@ -60,6 +64,32 @@ export function openProject(
   selectionId: string,
 ): Promise<CommandResult<ProjectSnapshot>> {
   return call(COMMANDS.openProject, { selectionId }, toProjectSnapshotResult);
+}
+
+// The request a launch argument left for this window (consumed once; null when none). It
+// takes no argument: Rust knows the window, and the path never reaches the Frontend.
+export function takeOpenRequest(): Promise<
+  CommandResult<OpenRequestResult | null>
+> {
+  return call(COMMANDS.takeOpenRequest, {}, toOpenRequestResult);
+}
+
+// Opens the Project of the folder chosen with `selectProjectFolder` in a window of its own,
+// or brings forward the window that already has it. `selectionId` is the only handle.
+export function openProjectInNewWindow(
+  selectionId: string,
+): Promise<CommandResult<OpenInNewWindowResult>> {
+  return call(
+    COMMANDS.openProjectInNewWindow,
+    { selectionId },
+    toOpenInNewWindowResult,
+  );
+}
+
+// The window closed its Project; Rust unbinds it and drops its session. Harmless when the
+// window has no Project.
+export function closeProject(): Promise<CommandResult<null>> {
+  return call(COMMANDS.closeProject, {}, toVoidResult);
 }
 
 export function saveProject(

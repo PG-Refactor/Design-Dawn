@@ -28,6 +28,9 @@ export interface AutoSaveController extends AutoSavePolicy {
   initialize(): Promise<void>;
   // The state changes only after the save succeeded.
   setEnabled(enabled: boolean): Promise<OperationResult<boolean>>;
+  // Applies a value another window already saved: no gateway call. Listeners fire only on
+  // a change, so switching auto-save on makes the sessions save what is pending.
+  applyExternal(enabled: boolean): void;
 }
 
 export interface AutoSaveControllerDependencies {
@@ -109,6 +112,7 @@ export function createAutoSaveController(
       initialization ??= enqueue(load);
       return initialization;
     },
+    applyExternal: applyEnabled,
     setEnabled(enabled) {
       return enqueue(async () => {
         const result = await settle(() => gateway.setAutoSave(enabled));

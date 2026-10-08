@@ -176,3 +176,57 @@ describe("window close handler", () => {
     expect(calls).toEqual(["ask", "flush", `confirm:${TOKEN}`]);
   });
 });
+
+describe("close status", () => {
+  it("is closing while a request is processed and tells listeners when it stops", async () => {
+    const { handler, answer } = setup({
+      needsConfirmation: true,
+      choice: "hold",
+    });
+    let released = 0;
+    handler.onReleased(() => {
+      released += 1;
+    });
+    expect(handler.isClosing()).toBe(false);
+
+    const pending = handler({ subscriptionToken: TOKEN });
+    await settle();
+    expect(handler.isClosing()).toBe(true);
+    expect(released).toBe(0);
+
+    answer("cancel");
+    await pending;
+    expect(handler.isClosing()).toBe(false);
+    expect(released).toBe(1);
+  });
+
+  it("is released when saving fails, and not when the close is confirmed", async () => {
+    const failing = setup({ saveResult: operationErr("ioError", "x") });
+    let released = 0;
+    failing.handler.onReleased(() => {
+      released += 1;
+    });
+    await failing.handler({ subscriptionToken: TOKEN });
+    expect(released).toBe(1);
+
+    const succeeding = setup();
+    succeeding.handler.onReleased(() => {
+      released += 1;
+    });
+    await succeeding.handler({ subscriptionToken: TOKEN });
+    // The window is about to be destroyed: it stays "closing" and nothing resumes.
+    expect(succeeding.handler.isClosing()).toBe(true);
+    expect(released).toBe(1);
+  });
+
+  it("stops notifying an unsubscribed listener", async () => {
+    const { handler } = setup({ saveResult: operationErr("ioError", "x") });
+    let released = 0;
+    const stop = handler.onReleased(() => {
+      released += 1;
+    });
+    stop();
+    await handler({ subscriptionToken: TOKEN });
+    expect(released).toBe(0);
+  });
+});

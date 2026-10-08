@@ -8,6 +8,7 @@
 //! drag-drop events (they carry paths), but no frontend code can register a listener for
 //! them because the capability grants no `core:event` permission.
 
+use std::collections::HashMap;
 use std::sync::{Mutex, PoisonError};
 
 use serde::Serialize;
@@ -28,26 +29,40 @@ pub enum DropNotification {
     FilesDropped(FilesDropped),
 }
 
-/// The current subscriber. There is a single main window, so the latest subscription wins
-/// (a reloaded frontend replaces the channel of its previous page).
+/// The subscribers, one per window: a drop is announced to the window it happened in. The
+/// latest subscription of a window wins (a reloaded frontend replaces the channel of its
+/// previous page).
 #[derive(Default)]
 pub struct DropSubscriber {
-    channel: Mutex<Option<Channel<DropNotification>>>,
+    channels: Mutex<HashMap<String, Channel<DropNotification>>>,
 }
 
 impl DropSubscriber {
-    pub fn replace(&self, channel: Channel<DropNotification>) {
-        // A single replaceable value, so a poisoned lock cannot hold a broken invariant.
-        *self.channel.lock().unwrap_or_else(PoisonError::into_inner) = Some(channel);
-    }
-
-    fn notify(&self, notification: DropNotification) {
-        // Cloned so the lock is not held while the message is sent.
-        let channel = self
-            .channel
+    pub fn replace(&self, window_label: &str, channel: Channel<DropNotification>) {
+        // Each entry is a single replaceable value, so a poisoned lock cannot hold a broken
+        // invariant.
+        self.channels
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .clone();
+            .insert(window_label.to_owned(), channel);
+    }
+
+    /// For a destroyed window.
+    pub fn discard_window(&self, window_label: &str) {
+        self.channels
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .remove(window_label);
+    }
+
+    fn notify(&self, window_label: &str, notification: DropNotification) {
+        // Cloned so the lock is not held while the message is sent.
+        let channel = self
+            .channels
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .get(window_label)
+            .cloned();
         let Some(channel) = channel else {
             return;
         };
@@ -61,18 +76,28 @@ impl DropSubscriber {
 
 pub(super) fn handle_drag_drop_event<R: Runtime>(window: &Window<R>, drag_drop: &DragDropEvent) {
     let subscriber = window.state::<DropSubscriber>();
+    let label = window.label();
     match drag_drop {
         DragDropEvent::Enter { .. } | DragDropEvent::Over { .. } => {
-            subscriber.notify(DropNotification::DragState(DragState { active: true }));
+            subscriber.notify(
+                label,
+                DropNotification::DragState(DragState { active: true }),
+            );
         }
         DragDropEvent::Leave => {
-            subscriber.notify(DropNotification::DragState(DragState { active: false }));
+            subscriber.notify(
+                label,
+                DropNotification::DragState(DragState { active: false }),
+            );
         }
         DragDropEvent::Drop { paths, .. } => {
-            subscriber.notify(DropNotification::DragState(DragState { active: false }));
+            subscriber.notify(
+                label,
+                DropNotification::DragState(DragState { active: false }),
+            );
             let state = window.state::<Mutex<DroppedFilesState>>();
-            if let Some(dropped) = register_drop(&state, paths.clone()) {
-                subscriber.notify(DropNotification::FilesDropped(dropped));
+            if let Some(dropped) = register_drop(&state, label, paths.clone()) {
+                subscriber.notify(label, DropNotification::FilesDropped(dropped));
             }
         }
         // `DragDropEvent` is non-exhaustive.

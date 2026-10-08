@@ -21,6 +21,11 @@ sha2 = "0.10"
 imagesize = "0.15"
 uuid = { version = "1", features = ["v7"] }
 
+# Desktop only: the plugin has no mobile implementation. A second launch is handed to the
+# running instance instead of opening a second process on the same Project files.
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-single-instance = "2"
+
 [dev-dependencies]
 # `tauri::test` (mock runtime) for the command-boundary integration tests only. Cargo's
 # resolver 2 keeps dev-dependency features out of normal and release builds.

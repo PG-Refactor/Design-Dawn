@@ -13,6 +13,7 @@ use design_dawn_lib::application::local_state::constants::{
     PROJECT_TREE_WIDTH_MIN, THEME_IDS, THEME_SYSTEM,
 };
 use design_dawn_lib::application::local_state::operations::{LocalState, LocalStateDirectories};
+use design_dawn_lib::application::local_state::window_size::WindowSize;
 use design_dawn_lib::infrastructure::local_state::constants::{
     SETTINGS_FILE_NAME, SHEET_VIEWPORTS_FILE_NAME,
 };
@@ -106,7 +107,7 @@ fn settings_file_has_exactly_the_documented_bytes() {
     fixture.state.set_theme_preference("dark").unwrap();
     assert_eq!(
         fs::read(&fixture.settings_path).unwrap(),
-        b"{\n  \"schemaVersion\": 3,\n  \"themePreference\": \"dark\",\n  \"autoSave\": true,\n  \"projectTreeWidth\": 320\n}\n"
+        b"{\n  \"schemaVersion\": 4,\n  \"themePreference\": \"dark\",\n  \"autoSave\": true,\n  \"projectTreeWidth\": 320\n}\n"
     );
 }
 
@@ -164,7 +165,7 @@ fn broken_settings_files_give_defaults_with_a_load_issue_and_a_save_replaces_the
         "invalidThemePreference",
     );
     assert_broken_settings(
-        b"{\"schemaVersion\":4,\"themePreference\":\"dark\",\"autoSave\":true}",
+        b"{\"schemaVersion\":5,\"themePreference\":\"dark\",\"autoSave\":true}",
         "unsupportedSchemaVersion",
     );
     assert_broken_settings(
@@ -224,7 +225,7 @@ fn a_version_1_settings_file_loads_with_auto_save_on() {
 }
 
 #[test]
-fn auto_save_round_trips_through_a_version_3_file() {
+fn auto_save_round_trips_through_a_version_4_file() {
     let fixture = fixture();
     let set = fixture.state.set_auto_save(false).unwrap();
     assert!(!set.auto_save);
@@ -232,7 +233,7 @@ fn auto_save_round_trips_through_a_version_3_file() {
     assert!(!fixture.state.get_app_settings().auto_save);
     assert_eq!(
         read_json(&fixture.settings_path),
-        json!({ "schemaVersion": 3, "themePreference": "system", "autoSave": false, "projectTreeWidth": 320 })
+        json!({ "schemaVersion": 4, "themePreference": "system", "autoSave": false, "projectTreeWidth": 320 })
     );
     assert!(fixture.state.set_auto_save(true).unwrap().auto_save);
     assert!(fixture.state.get_app_settings().auto_save);
@@ -334,7 +335,7 @@ fn setting_auto_save_upgrades_a_version_1_file_and_keeps_its_theme() {
     fixture.state.set_auto_save(false).unwrap();
     assert_eq!(
         read_json(&fixture.settings_path),
-        json!({ "schemaVersion": 3, "themePreference": "dark", "autoSave": false, "projectTreeWidth": 320 })
+        json!({ "schemaVersion": 4, "themePreference": "dark", "autoSave": false, "projectTreeWidth": 320 })
     );
 }
 
@@ -347,6 +348,146 @@ fn setting_auto_save_over_a_broken_file_replaces_it_with_defaults_for_the_theme(
     assert_eq!(saved.theme_preference.as_str(), THEME_SYSTEM);
     assert!(!saved.auto_save);
     assert_eq!(fixture.state.get_app_settings().load_issue, None);
+}
+
+// ---- window size ----
+
+fn recorded(width: u32, height: u32, maximized: bool) -> WindowSize {
+    WindowSize {
+        width,
+        height,
+        maximized,
+    }
+}
+
+#[test]
+fn no_window_size_is_recorded_by_default_and_the_wire_form_does_not_carry_it() {
+    let fixture = fixture();
+    assert_eq!(fixture.state.get_app_settings().window_size, None);
+    let wire = serde_json::to_value(fixture.state.get_app_settings()).unwrap();
+    assert!(wire.get("windowSize").is_none());
+}
+
+#[test]
+fn version_1_to_3_settings_files_load_without_a_window_size() {
+    for content in [
+        &b"{\"schemaVersion\":1,\"themePreference\":\"dark\"}"[..],
+        &b"{\"schemaVersion\":2,\"themePreference\":\"dark\",\"autoSave\":false}"[..],
+        &b"{\"schemaVersion\":3,\"themePreference\":\"dark\",\"autoSave\":false,\"projectTreeWidth\":400}"[..],
+    ] {
+        let fixture = fixture();
+        fs::create_dir_all(fixture.settings_path.parent().unwrap()).unwrap();
+        fs::write(&fixture.settings_path, content).unwrap();
+        let settings = fixture.state.get_app_settings();
+        assert_eq!(settings.window_size, None);
+        assert_eq!(settings.load_issue, None);
+        assert_eq!(settings.theme_preference.as_str(), "dark");
+    }
+}
+
+#[test]
+fn the_window_size_round_trips_and_is_written_in_the_documented_form() {
+    let fixture = fixture();
+    fixture
+        .state
+        .set_window_size(recorded(1440, 900, true))
+        .unwrap();
+    assert_eq!(
+        fixture.state.get_app_settings().window_size,
+        Some(recorded(1440, 900, true))
+    );
+    assert_eq!(
+        read_json(&fixture.settings_path),
+        json!({
+            "schemaVersion": 4,
+            "themePreference": "system",
+            "autoSave": true,
+            "projectTreeWidth": 320,
+            "windowSize": { "width": 1440, "height": 900, "maximized": true }
+        })
+    );
+}
+
+#[test]
+fn recording_the_window_size_keeps_the_other_settings_and_they_keep_the_size() {
+    let fixture = fixture();
+    fixture.state.set_theme_preference("dark").unwrap();
+    fixture.state.set_auto_save(false).unwrap();
+    fixture
+        .state
+        .set_project_tree_width(&Number::from(480))
+        .unwrap();
+    let saved = fixture
+        .state
+        .set_window_size(recorded(1000, 700, false))
+        .unwrap();
+    assert_eq!(saved.theme_preference.as_str(), "dark");
+    assert!(!saved.auto_save);
+    assert_eq!(saved.project_tree_width, 480);
+    let after = fixture.state.set_auto_save(true).unwrap();
+    assert_eq!(after.window_size, Some(recorded(1000, 700, false)));
+    let after = fixture.state.set_theme_preference("light").unwrap();
+    assert_eq!(after.window_size, Some(recorded(1000, 700, false)));
+    let after = fixture
+        .state
+        .set_project_tree_width(&Number::from(300))
+        .unwrap();
+    assert_eq!(after.window_size, Some(recorded(1000, 700, false)));
+}
+
+#[test]
+fn a_null_window_size_is_read_as_not_recorded() {
+    let fixture = fixture();
+    fs::create_dir_all(fixture.settings_path.parent().unwrap()).unwrap();
+    fs::write(
+        &fixture.settings_path,
+        b"{\"schemaVersion\":4,\"themePreference\":\"dark\",\"windowSize\":null}",
+    )
+    .unwrap();
+    let settings = fixture.state.get_app_settings();
+    assert_eq!(settings.window_size, None);
+    assert_eq!(settings.load_issue, None);
+}
+
+#[test]
+fn an_invalid_window_size_is_a_broken_file_with_defaults_and_a_load_issue() {
+    for window_size in [
+        r#"{"width":399,"height":800,"maximized":false}"#,
+        r#"{"width":1280,"height":299,"maximized":false}"#,
+        r#"{"width":16385,"height":800,"maximized":false}"#,
+        r#"{"width":1280.5,"height":800,"maximized":false}"#,
+        r#"{"width":-1,"height":800,"maximized":false}"#,
+    ] {
+        assert_broken_settings(
+            format!(
+                "{{\"schemaVersion\":4,\"themePreference\":\"dark\",\"windowSize\":{window_size}}}"
+            )
+            .as_bytes(),
+            "invalidFileStructure",
+        );
+    }
+    for window_size in [
+        r#"{"width":1280,"height":800}"#,
+        r#"{"width":1280,"height":800,"maximized":"yes"}"#,
+        r#"{"width":1280,"height":800,"maximized":false,"x":1}"#,
+        r#""big""#,
+    ] {
+        assert_broken_settings(
+            format!(
+                "{{\"schemaVersion\":4,\"themePreference\":\"dark\",\"windowSize\":{window_size}}}"
+            )
+            .as_bytes(),
+            "invalidFileStructure",
+        );
+    }
+}
+
+#[test]
+fn a_broken_file_gives_no_window_size() {
+    let fixture = fixture();
+    fs::create_dir_all(fixture.settings_path.parent().unwrap()).unwrap();
+    fs::write(&fixture.settings_path, b"{ not json").unwrap();
+    assert_eq!(fixture.state.get_app_settings().window_size, None);
 }
 
 // ---- sheet viewports ----

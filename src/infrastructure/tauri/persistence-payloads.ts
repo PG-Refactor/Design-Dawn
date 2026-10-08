@@ -26,9 +26,11 @@ import {
 } from "../../domain/sheet/sheet";
 import {
   ENTITY_STATES,
+  ENTRY_POINT_RESOLUTIONS,
   type EntityState,
   FOLDER_SELECTION_STATUS,
   LOAD_ISSUE_KINDS,
+  OPEN_IN_NEW_WINDOW_STATUS,
 } from "./command-constants";
 import { type CommandResult, commandErr, commandOk } from "./command-error";
 import {
@@ -49,6 +51,8 @@ import type {
   FolderSelection,
   FolderSnapshot,
   LoadIssue,
+  OpenInNewWindowResult,
+  OpenRequestResult,
   ProjectSnapshot,
   SaveResult,
   SheetSnapshot,
@@ -278,6 +282,70 @@ export function toProjectSnapshotResult(
 ): CommandResult<ProjectSnapshot> {
   const raw = decodePayload(rawProjectSnapshot, payload);
   return raw.ok ? toProjectSnapshot(raw.value) : raw;
+}
+
+interface RawOpenRequestResult {
+  readonly snapshot: RawProjectSnapshot;
+  readonly documentId: string | null;
+  readonly resolution: OpenRequestResult["resolution"];
+}
+const rawOpenRequestResult = objectOf<RawOpenRequestResult>({
+  snapshot: rawProjectSnapshot,
+  documentId: nullable(decodeString),
+  resolution: nullable(oneOf(ENTRY_POINT_RESOLUTIONS)),
+});
+
+// `null` means "no request pending for this window", which is a normal outcome.
+export function toOpenRequestResult(
+  payload: unknown,
+): CommandResult<OpenRequestResult | null> {
+  if (payload === null) return commandOk(null);
+  const raw = decodePayload(rawOpenRequestResult, payload);
+  if (!raw.ok) return raw;
+  const snapshot = toProjectSnapshot(raw.value.snapshot);
+  if (!snapshot.ok) return snapshot;
+  // A Project folder request has no Document.
+  if (raw.value.documentId === null) {
+    return commandOk({
+      snapshot: snapshot.value,
+      documentId: null,
+      resolution: raw.value.resolution,
+    });
+  }
+  const documentId = fromDomain(parseDocumentId(raw.value.documentId));
+  if (!documentId.ok) return documentId;
+  return commandOk({
+    snapshot: snapshot.value,
+    documentId: documentId.value,
+    resolution: raw.value.resolution,
+  });
+}
+
+interface RawOpenInNewWindowResult {
+  readonly status: OpenInNewWindowResult["status"];
+}
+const rawOpenInNewWindowStatus = objectOf<RawOpenInNewWindowResult>({
+  status: oneOf(Object.values(OPEN_IN_NEW_WINDOW_STATUS)),
+});
+const rawFocusedExisting = objectOf<{ readonly inThisWindow: boolean }>({
+  inThisWindow: decodeBoolean,
+});
+
+export function toOpenInNewWindowResult(
+  payload: unknown,
+): CommandResult<OpenInNewWindowResult> {
+  const status = decodePayload(rawOpenInNewWindowStatus, payload);
+  if (!status.ok) return status;
+  if (status.value.status === OPEN_IN_NEW_WINDOW_STATUS.openedInNewWindow) {
+    return commandOk({ status: OPEN_IN_NEW_WINDOW_STATUS.openedInNewWindow });
+  }
+  const focused = decodePayload(rawFocusedExisting, payload);
+  return focused.ok
+    ? commandOk({
+        status: OPEN_IN_NEW_WINDOW_STATUS.focusedExisting,
+        inThisWindow: focused.value.inThisWindow,
+      })
+    : focused;
 }
 
 export function toFolderSnapshotResult(

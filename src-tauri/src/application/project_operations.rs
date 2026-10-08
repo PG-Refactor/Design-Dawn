@@ -19,7 +19,7 @@ use crate::domain::constants::{
 };
 use crate::domain::content_path::validate_relative_path;
 use crate::domain::display_name::DisplayName;
-use crate::domain::entity_id::{EntryId, ProjectId};
+use crate::domain::entity_id::{DocumentId, EntryId, ProjectId};
 use crate::domain::project::{Project, ProjectInput};
 use crate::domain::schema_version::{SchemaEntityKind, SchemaVersion};
 use crate::infrastructure::error::{PersistenceError, PersistenceErrorKind};
@@ -37,7 +37,8 @@ use crate::infrastructure::filesystem::path_resolution::{
 use crate::infrastructure::filesystem::text_content::decode_text;
 
 /// How `open_entry_point` located the Document (docs/file-format.md §7).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum EntryPointResolution {
     /// `.dawn` `path` pointed at a directory holding the matching `document.json`.
     Path,
@@ -140,10 +141,25 @@ fn parse_project_file(value: Value) -> ApplicationResult<ProjectDto> {
     }
 }
 
+/// A Project that was read but is not yet in `ProjectSessions`. Splitting "read" from
+/// "register" lets a window check that no other window has the Project before anything is
+/// replaced (docs/architecture.md §11.0.1).
+#[derive(Debug)]
+pub struct LoadedProject {
+    pub session: ProjectSession,
+    pub snapshot: ProjectSnapshot,
+}
+
 pub fn open_project(
     sessions: &mut ProjectSessions,
     project_root: &Path,
 ) -> ApplicationResult<ProjectSnapshot> {
+    let loaded = load_project(project_root)?;
+    sessions.insert(loaded.session);
+    Ok(loaded.snapshot)
+}
+
+pub fn load_project(project_root: &Path) -> ApplicationResult<LoadedProject> {
     let root = canonicalize_root(project_root)?;
     let mut ledger = HashLedger::default();
     let value = read_json_value(&root, &mut ledger, "", PROJECT_FILE_NAME)?;
@@ -208,12 +224,14 @@ pub fn open_project(
     let mut project_dto = ProjectDto::from_domain(&project);
     project_dto.child_order = tree.child_order;
     session.replace_tree(document_records, folder_records);
-    sessions.insert(session);
-    Ok(ProjectSnapshot {
-        project: project_dto,
-        folders,
-        documents,
-        issues,
+    Ok(LoadedProject {
+        session,
+        snapshot: ProjectSnapshot {
+            project: project_dto,
+            folders,
+            documents,
+            issues,
+        },
     })
 }
 
@@ -267,10 +285,77 @@ fn relative_key(root: &Path, file: &Path) -> Option<String> {
     Some(segments?.join(&PATH_SEPARATOR.to_string()))
 }
 
+/// An entry point whose Project was read but not yet registered, see `LoadedProject`.
+#[derive(Debug)]
+pub struct PreparedEntryPoint {
+    pub loaded: LoadedProject,
+    pub document_id: String,
+    pub resolution: EntryPointResolution,
+}
+
 pub fn open_entry_point(
     sessions: &mut ProjectSessions,
     entry_point_path: &Path,
 ) -> ApplicationResult<OpenedEntryPoint> {
+    let prepared = prepare_entry_point(entry_point_path)?;
+    sessions.insert(prepared.loaded.session);
+    Ok(OpenedEntryPoint {
+        snapshot: EntryPointSnapshot {
+            snapshot: prepared.loaded.snapshot,
+            document_id: prepared.document_id,
+        },
+        resolution: prepared.resolution,
+    })
+}
+
+/// Which Project (and, for a `.dawn`, which Document) an open request is about. Read without
+/// building a session or scanning the Project: it only decides which window handles it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PeekedTarget {
+    pub project_id: ProjectId,
+    pub document_id: Option<DocumentId>,
+}
+
+fn read_project_id(project_root: &Path) -> ApplicationResult<ProjectId> {
+    let root = canonicalize_root(project_root)?;
+    let file = root.join(PROJECT_FILE_NAME);
+    let bytes = fs::read(&file)
+        .map_err(|error| PersistenceError::from_io(format!("read {}", file.display()), &error))?;
+    let dto = parse_project_file(parse_json_text(&decode_text(&bytes)?)?)?;
+    Ok(ProjectId::parse(&dto.project_id)?)
+}
+
+/// The Project in `project_root` (a folder that holds `project.json`).
+pub fn peek_project_folder(project_root: &Path) -> ApplicationResult<PeekedTarget> {
+    Ok(PeekedTarget {
+        project_id: read_project_id(project_root)?,
+        document_id: None,
+    })
+}
+
+/// The Project above a `.dawn` and the Document it names, with the same lookups and checks
+/// as `prepare_entry_point` for those two facts.
+pub fn peek_entry_point(entry_point_path: &Path) -> ApplicationResult<PeekedTarget> {
+    let entry_file = fs::canonicalize(entry_point_path).map_err(|error| {
+        PersistenceError::from_io(format!("resolve {}", entry_point_path.display()), &error)
+    })?;
+    let bytes = fs::read(&entry_file).map_err(|error| {
+        PersistenceError::from_io(format!("read {}", entry_file.display()), &error)
+    })?;
+    let entry: EntryPointDto = parse_dto(parse_json_text(&decode_text(&bytes)?)?)?;
+    let document_id = entry.validated_document_id()?;
+    let entry_directory = entry_file
+        .parent()
+        .ok_or_else(|| ApplicationError::entity_not_found("entry point has no directory"))?;
+    let root = find_project_root(entry_directory)?;
+    Ok(PeekedTarget {
+        project_id: read_project_id(&root)?,
+        document_id: Some(document_id),
+    })
+}
+
+/// Reads the `.dawn` and its Project and finds the Document, without registering anything.
+pub fn prepare_entry_point(entry_point_path: &Path) -> ApplicationResult<PreparedEntryPoint> {
     let entry_file = fs::canonicalize(entry_point_path).map_err(|error| {
         PersistenceError::from_io(format!("resolve {}", entry_point_path.display()), &error)
     })?;
@@ -285,24 +370,26 @@ pub fn open_entry_point(
         .ok_or_else(|| ApplicationError::entity_not_found("entry point has no directory"))?;
 
     let root = find_project_root(&entry_directory)?;
-    let snapshot = open_project(sessions, &root)?;
-    let project_id = ProjectId::parse(&snapshot.project.project_id)?;
-    let session = sessions.get_mut(&project_id)?;
-    if let Some(key) = relative_key(session.root(), &entry_file) {
-        session.record_hash(&key, &bytes);
+    let mut loaded = load_project(&root)?;
+    if let Some(key) = relative_key(loaded.session.root(), &entry_file) {
+        loaded.session.record_hash(&key, &bytes);
     }
 
-    let record = session.document(&document_id)?;
+    let record = loaded.session.document(&document_id)?;
     let path_hit = validate_relative_path(&entry.path).is_ok()
         && fs::canonicalize(join_relative(&entry_directory, &entry.path))
             .ok()
-            .zip(resolve_existing(session.root(), &document_base_path(&record.relative_path)).ok())
+            .zip(
+                resolve_existing(
+                    loaded.session.root(),
+                    &document_base_path(&record.relative_path),
+                )
+                .ok(),
+            )
             .is_some_and(|(pointed_at, document_directory)| pointed_at == document_directory);
-    Ok(OpenedEntryPoint {
-        snapshot: EntryPointSnapshot {
-            snapshot,
-            document_id: document_id.to_string(),
-        },
+    Ok(PreparedEntryPoint {
+        loaded,
+        document_id: document_id.to_string(),
         resolution: if path_hit {
             EntryPointResolution::Path
         } else {

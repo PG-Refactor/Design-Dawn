@@ -17,9 +17,18 @@ export const MESSAGES = {
     openProject: "Projectを開く",
     createProject: "新規Project",
     closeProject: "Projectを閉じる",
+    openProjectInNewWindow: "新しいウィンドウでProjectを開く",
     autoSave: "自動保存",
   },
+  notices: {
+    // A light, self-clearing region; not part of the notifications panel.
+    regionLabel: "お知らせ",
+    documentAlreadyOpen: "既に開いています",
+    projectOpenInOtherWindow: "このProjectは別のウィンドウで開いています",
+    projectOpenInThisWindow: "このウィンドウで開いています",
+  },
   tree: {
+    openProjectInNewWindow: "新しいウィンドウでProjectを開く",
     createFolder: "フォルダを作成",
     createDocument: "Documentを作成",
     createSheet: "Sheetを作成",
@@ -163,6 +172,7 @@ export function deleteConfirmationTitle(name: string): string {
 const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   selectFolder: "フォルダを選択できませんでした",
   openProject: "Projectを開けませんでした",
+  openLaunchRequest: ".dawn を開けませんでした",
   createProject: "Projectを作成できませんでした",
   closeProject: "Projectを閉じられませんでした",
   openDocument: "Documentを開けませんでした",
@@ -226,6 +236,7 @@ const ERROR_KIND_MESSAGES: Record<OperationErrorKind, string> = {
   ioError: "ファイルの読み書きに失敗しました。",
   notWritable: "このDocumentは既に閉じられているため操作できません。",
   projectNotOpen: "Projectが開かれていません。",
+  projectOpenInOtherWindow: "このProjectは別のウィンドウで開いています",
   dialogFailed: "フォルダ選択ダイアログを開けませんでした。",
   invalidFolderSelection:
     "選択したフォルダが無効です。もう一度選択してください。",

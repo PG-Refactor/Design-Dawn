@@ -3,6 +3,7 @@
 
 import { createInMemoryClipboard } from "../application/clipboard/clipboard";
 import { createDefaultIdGenerator } from "../application/id-generator";
+import type { AppRequestSource } from "../application/ports/app-request-source";
 import type { AssetUrlResolver } from "../application/ports/asset-url-resolver";
 import type { DropEventSource } from "../application/ports/drop-event-source";
 import type { CloseRequestSource } from "../application/ports/window-close";
@@ -54,6 +55,7 @@ import {
   type WorkspaceActions,
 } from "../features/workspace/workspace-actions";
 import { createMatchMediaOsThemeSource } from "../infrastructure/browser/match-media-os-theme-source";
+import { createTauriAppRequestSource } from "../infrastructure/tauri/tauri-app-request-source";
 import { createTauriAppSettingsGateway } from "../infrastructure/tauri/tauri-app-settings-gateway";
 import { createTauriAssetUrlResolver } from "../infrastructure/tauri/tauri-asset-url-resolver";
 import { createTauriCloseRequestSource } from "../infrastructure/tauri/tauri-close-request-source";
@@ -77,6 +79,8 @@ export interface AppServices {
   readonly assetUrlResolver: AssetUrlResolver;
   // "The user asked to close the window"; the UI saves, then confirms.
   readonly closeRequestSource: CloseRequestSource;
+  // Requests Rust sends to this window while it runs (open a Document of its Project).
+  readonly appRequestSource: AppRequestSource;
   // Restores / saves the per-sheet viewport; watches the UI state on its own.
   readonly viewportPersistence: ViewportPersistence;
   // App-level theme state; independent of the workspace, sessions and undo history.
@@ -157,6 +161,7 @@ export function createAppServices(): AppServices {
     dropEventSource: createTauriDropEventSource(),
     assetUrlResolver: createTauriAssetUrlResolver(),
     closeRequestSource: createTauriCloseRequestSource(),
+    appRequestSource: createTauriAppRequestSource(),
     viewportPersistence,
     themeController,
     autoSaveController,

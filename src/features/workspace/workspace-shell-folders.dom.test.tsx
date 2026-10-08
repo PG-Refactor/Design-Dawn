@@ -148,6 +148,7 @@ describe("row menus", () => {
     expect(menuItemNames(menu)).toEqual([
       TREE.createFolder,
       TREE.createDocument,
+      TREE.openProjectInNewWindow,
     ]);
   });
 

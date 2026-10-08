@@ -20,7 +20,13 @@ export const PERSISTENCE_ERROR_KINDS = [
 ] as const;
 
 // `entityNotFound` is already part of the domain kinds in TypeScript.
-export const SESSION_ERROR_KINDS = ["notWritable", "projectNotOpen"] as const;
+// `projectOpenInOtherWindow`: the Project is open in another window, which Rust brought
+// to the front instead of opening it here (docs/architecture.md §11.0.1).
+export const SESSION_ERROR_KINDS = [
+  "notWritable",
+  "projectNotOpen",
+  "projectOpenInOtherWindow",
+] as const;
 
 // Folder selection (docs/architecture.md §6.2.2): the dialog failed, or a selectionId is
 // unknown / replaced by a newer selection. Cancelling is a result, not an error.

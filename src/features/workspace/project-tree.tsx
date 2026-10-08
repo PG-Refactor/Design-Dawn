@@ -164,6 +164,11 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
             label: MESSAGES.tree.createDocument,
             onSelect: () => actions.requestCreateDocument(null),
           },
+          {
+            id: "openProjectInNewWindow",
+            label: MESSAGES.tree.openProjectInNewWindow,
+            onSelect: () => void actions.openProjectInNewWindowViaDialog(),
+          },
         ]}
       >
         {model.entries.length === 0 ? (

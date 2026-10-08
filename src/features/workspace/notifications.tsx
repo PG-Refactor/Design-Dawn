@@ -1,5 +1,7 @@
-import { useId, useMemo } from "react";
+import { useEffect, useId, useMemo } from "react";
+import { LAYOUT_CONFIG } from "../../config/layout-config";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
+import { clearNotice } from "./ui-state/shell-ui-state";
 import type { UiState } from "./ui-state/ui-state";
 import {
   type NotificationItem,
@@ -214,6 +216,37 @@ export function LoadStatus() {
           <span aria-hidden="true">{SEVERITY_ICON.warning}</span> {message}
         </p>
       ))}
+    </div>
+  );
+}
+
+const selectNotice = (ui: UiState) => ui.notice;
+
+// A light, polite notice ("already open") that clears itself. The region always exists so
+// a notice added later is announced; it is not a failure, so it is not in the panel.
+export function TransientNotice() {
+  const { uiStateStore } = useWorkspaceServices();
+  const notice = useUiState(selectNotice);
+  const noticeId = notice?.id ?? null;
+  useEffect(() => {
+    if (noticeId === null) return;
+    const timer = setTimeout(
+      () => uiStateStore.setState((state) => clearNotice(state, noticeId)),
+      LAYOUT_CONFIG.noticeDurationMs,
+    );
+    return () => clearTimeout(timer);
+  }, [noticeId, uiStateStore]);
+  return (
+    <div
+      role="status"
+      aria-label={MESSAGES.notices.regionLabel}
+      className="transient-notice"
+    >
+      {notice === null ? null : (
+        <p className="transient-notice__message">
+          {MESSAGES.notices[notice.kind]}
+        </p>
+      )}
     </div>
   );
 }
