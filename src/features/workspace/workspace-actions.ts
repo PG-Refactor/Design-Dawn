@@ -77,6 +77,9 @@ export interface WorkspaceActions {
   // With auto-save off and unsaved changes, the project / document close, and opening
   // another Project, ask first (`confirmUnsavedClose`) and do nothing yet.
   openProjectViaDialog(): Promise<OperationResult<void>>;
+  // At start-up: opens the Project and Document a launch argument (`.dawn`) asked for.
+  // Does nothing when there was none; runs only once per app, however often it is called.
+  openLaunchRequest(): Promise<OperationResult<void>>;
   requestCreateProject(): void;
   createProjectViaDialog(name: string): Promise<OperationResult<void>>;
   closeProject(): Promise<OperationResult<void>>;
@@ -607,7 +610,27 @@ export function createWorkspaceActions(
     return result;
   }
 
+  let launchRequest: Promise<OperationResult<void>> | null = null;
+
+  async function openLaunchRequestOnce(): Promise<OperationResult<void>> {
+    const taken = await workspace.openLaunchRequest();
+    if (!taken.ok) {
+      record("openLaunchRequest", null, taken.error);
+      return taken;
+    }
+    if (taken.value === null) return operationOk(undefined);
+    const opened = await ensureOpen(taken.value);
+    if (!opened.ok) return opened;
+    if (opened.value) activateDocument(taken.value);
+    return operationOk(undefined);
+  }
+
   return {
+    // React StrictMode runs effects twice; sharing the first call keeps it to one take.
+    openLaunchRequest: () => {
+      launchRequest ??= openLaunchRequestOnce();
+      return launchRequest;
+    },
     openProjectViaDialog: () => {
       if (uiStateStore.getState().busy)
         return Promise.resolve(operationOk(undefined));

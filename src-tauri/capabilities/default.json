@@ -35,6 +35,7 @@
     "allow-copy-asset-to-document",
     "allow-subscribe-drop-notifications",
     "allow-subscribe-close-requests",
-    "allow-confirm-window-close"
+    "allow-confirm-window-close",
+    "allow-take-open-request"
   ]
 }

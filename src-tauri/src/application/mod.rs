@@ -12,6 +12,7 @@ pub mod folder_selection;
 pub mod load_issue;
 pub mod loader;
 pub mod local_state;
+pub mod open_request;
 pub mod project_operations;
 pub mod session;
 pub mod sheet_operations;

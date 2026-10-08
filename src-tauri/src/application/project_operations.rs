@@ -37,7 +37,8 @@ use crate::infrastructure::filesystem::path_resolution::{
 use crate::infrastructure::filesystem::text_content::decode_text;
 
 /// How `open_entry_point` located the Document (docs/file-format.md §7).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum EntryPointResolution {
     /// `.dawn` `path` pointed at a directory holding the matching `document.json`.
     Path,

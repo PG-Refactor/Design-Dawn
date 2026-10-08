@@ -9,6 +9,7 @@ use std::sync::{Arc, Mutex};
 use application::dropped_files::DroppedFilesState;
 use application::folder_selection::FolderSelectionState;
 use application::local_state::operations::{LocalState, LocalStateDirectories};
+use application::open_request::{select_open_request, PendingOpenRequests};
 use application::session::ProjectSessions;
 use commands::{CloseRequestSubscriber, DialogFolderPicker, DropSubscriber, SharedFolderPicker};
 use config::MAIN_WINDOW_LABEL;
@@ -27,6 +28,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         .manage(Mutex::new(ProjectSessions::default()))
         .manage(Mutex::new(FolderSelectionState::default()))
         .manage(Mutex::new(DroppedFilesState::default()))
+        .manage(Mutex::new(PendingOpenRequests::default()))
         .manage(DropSubscriber::default())
         .manage(CloseRequestSubscriber::default())
         // Read-only image access for `<img>`; the handler runs on the blocking pool because
@@ -75,6 +77,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::subscribe_drop_notifications,
             commands::subscribe_close_requests,
             commands::confirm_window_close,
+            commands::take_open_request,
         ])
 }
 
@@ -113,6 +116,22 @@ pub fn run() {
                 local_data_dir: app.path().app_local_data_dir()?,
             };
             app.manage(LocalState::new(directories));
+            // A `.dawn` passed on the command line (double click / "open with"); the main
+            // window's Frontend takes it at start-up. An unreadable cwd only disables
+            // relative paths, it must not stop the app from starting.
+            match std::env::current_dir() {
+                Ok(working_directory) => {
+                    if let Some(request) =
+                        select_open_request(std::env::args_os(), &working_directory)
+                    {
+                        app.state::<Mutex<PendingOpenRequests>>()
+                            .lock()
+                            .unwrap_or_else(std::sync::PoisonError::into_inner)
+                            .put(MAIN_WINDOW_LABEL, request);
+                    }
+                }
+                Err(error) => eprintln!("failed to read the working directory: {error}"),
+            }
             Ok(())
         })
         .run(tauri::generate_context!())

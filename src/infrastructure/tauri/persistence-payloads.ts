@@ -26,6 +26,7 @@ import {
 } from "../../domain/sheet/sheet";
 import {
   ENTITY_STATES,
+  ENTRY_POINT_RESOLUTIONS,
   type EntityState,
   FOLDER_SELECTION_STATUS,
   LOAD_ISSUE_KINDS,
@@ -49,6 +50,7 @@ import type {
   FolderSelection,
   FolderSnapshot,
   LoadIssue,
+  OpenRequestResult,
   ProjectSnapshot,
   SaveResult,
   SheetSnapshot,
@@ -278,6 +280,35 @@ export function toProjectSnapshotResult(
 ): CommandResult<ProjectSnapshot> {
   const raw = decodePayload(rawProjectSnapshot, payload);
   return raw.ok ? toProjectSnapshot(raw.value) : raw;
+}
+
+interface RawOpenRequestResult {
+  readonly snapshot: RawProjectSnapshot;
+  readonly documentId: string;
+  readonly resolution: OpenRequestResult["resolution"];
+}
+const rawOpenRequestResult = objectOf<RawOpenRequestResult>({
+  snapshot: rawProjectSnapshot,
+  documentId: decodeString,
+  resolution: oneOf(ENTRY_POINT_RESOLUTIONS),
+});
+
+// `null` means "no request pending for this window", which is a normal outcome.
+export function toOpenRequestResult(
+  payload: unknown,
+): CommandResult<OpenRequestResult | null> {
+  if (payload === null) return commandOk(null);
+  const raw = decodePayload(rawOpenRequestResult, payload);
+  if (!raw.ok) return raw;
+  const snapshot = toProjectSnapshot(raw.value.snapshot);
+  if (!snapshot.ok) return snapshot;
+  const documentId = fromDomain(parseDocumentId(raw.value.documentId));
+  if (!documentId.ok) return documentId;
+  return commandOk({
+    snapshot: snapshot.value,
+    documentId: documentId.value,
+    resolution: raw.value.resolution,
+  });
 }
 
 export function toFolderSnapshotResult(

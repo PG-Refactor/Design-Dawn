@@ -245,6 +245,9 @@ export interface FakeGateway extends PersistenceGateway {
   // Makes `openProject(selectionId)` return exactly this snapshot instead of one built
   // from the disk (for a second project, or an invalid payload).
   overrideProjectSnapshot(selectionId: string, snapshot: ProjectSnapshot): void;
+  // Makes the next `takeOpenRequest` return the project plus this document (a `.dawn`
+  // launch argument); like Rust, it is handed out once.
+  queueOpenRequest(documentId: DocumentId): void;
   // Method names in call order, optionally narrowed to some methods.
   methods(...only: readonly string[]): string[];
   // Content files that currently exist: contentPath -> text.
@@ -288,6 +291,7 @@ export function createFakeGateway(
   const drops = new Map<string, readonly FakeDroppedFile[]>();
   let nextSelection: FolderSelection = DEFAULT_SELECTION;
   const snapshotOverrides = new Map<string, ProjectSnapshot>();
+  let pendingOpenRequest: DocumentId | null = null;
   const disk: FakeDisk = {
     projectName: "Project",
     childOrder: [],
@@ -525,6 +529,20 @@ export function createFakeGateway(
     overrideProjectSnapshot(selectionId, snapshot) {
       snapshotOverrides.set(selectionId, snapshot);
     },
+    queueOpenRequest(documentId) {
+      pendingOpenRequest = documentId;
+    },
+    takeOpenRequest: () =>
+      enter("takeOpenRequest", "", () => {
+        const documentId = pendingOpenRequest;
+        pendingOpenRequest = null;
+        if (documentId === null) return operationOk(null);
+        return operationOk({
+          snapshot: projectSnapshot(),
+          documentId,
+          resolution: "path" as const,
+        });
+      }),
     selectProjectFolder: () =>
       enter("selectProjectFolder", "", () => operationOk(nextSelection)),
     openProject: (selectionId) =>

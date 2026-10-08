@@ -100,6 +100,17 @@ export interface DocumentSnapshot {
   readonly issues: readonly LoadIssue[];
 }
 
+export const ENTRY_POINT_RESOLUTIONS = ["path", "idScan"] as const;
+export type EntryPointResolution = (typeof ENTRY_POINT_RESOLUTIONS)[number];
+
+// A request from outside the app (a `.dawn` passed at launch) that Rust already opened.
+// Carries no path: Rust keeps it (docs/architecture.md §11.0.1).
+export interface OpenRequestResult {
+  readonly snapshot: ProjectSnapshot;
+  readonly documentId: DocumentId;
+  readonly resolution: EntryPointResolution;
+}
+
 export interface SaveResult {
   // False when the file already held the same bytes and was left untouched.
   readonly written: boolean;

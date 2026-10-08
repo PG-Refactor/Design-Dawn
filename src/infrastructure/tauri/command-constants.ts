@@ -35,6 +35,7 @@ export const COMMANDS = {
   subscribeDropNotifications: "subscribe_drop_notifications",
   subscribeCloseRequests: "subscribe_close_requests",
   confirmWindowClose: "confirm_window_close",
+  takeOpenRequest: "take_open_request",
 } as const;
 
 export type CommandName = (typeof COMMANDS)[keyof typeof COMMANDS];
@@ -55,6 +56,7 @@ export {
 // layer (its port names them); re-exported so the contract tests keep one import point.
 export {
   ENTITY_STATES,
+  ENTRY_POINT_RESOLUTIONS,
   type EntityState,
   FOLDER_SELECTION_STATUS,
   LOAD_ISSUE_KINDS,

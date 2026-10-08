@@ -6,6 +6,7 @@ export type {
   FolderSelection,
   FolderSnapshot,
   LoadIssue,
+  OpenRequestResult,
   ProjectSnapshot,
   SaveResult,
   SheetSnapshot,

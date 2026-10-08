@@ -1,0 +1,201 @@
+//! Open requests from outside the app (docs/architecture.md §11.0.1). The path of a `.dawn`
+//! stays in Rust: the Frontend asks for "the request of my window" and only ever receives
+//! the opened Project's snapshot and a Document ID, never a path (same idea as `selectionId`).
+
+use std::collections::HashMap;
+use std::ffi::OsString;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::sync::{Mutex, PoisonError};
+
+use serde::Serialize;
+
+use super::error::{ApplicationError, ApplicationResult};
+use super::project_operations::{open_entry_point, EntryPointResolution};
+use super::session::ProjectSessions;
+use super::snapshot::ProjectSnapshot;
+use crate::infrastructure::error::{PersistenceError, PersistenceErrorKind};
+use crate::infrastructure::file_format::constants::{ENTRY_POINT_EXTENSION, ENTRY_POINT_MAX_BYTES};
+
+const FLAG_PREFIX: char = '-';
+
+/// What a window is asked to open. Only `.dawn` for now; a Project folder joins later.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum OpenRequest {
+    EntryPoint(PathBuf),
+}
+
+fn has_entry_point_extension(path: &Path) -> bool {
+    path.extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case(ENTRY_POINT_EXTENSION))
+}
+
+/// The first non-flag argument that names a `.dawn`. `arguments` starts with the program
+/// path (skipped). `working_directory` is the directory of the launching process: a second
+/// launch forwarded by the single-instance plugin carries its own, not ours.
+pub fn select_open_request(
+    arguments: impl IntoIterator<Item = OsString>,
+    working_directory: &Path,
+) -> Option<OpenRequest> {
+    arguments
+        .into_iter()
+        .skip(1)
+        .find(|argument| {
+            let is_flag = argument
+                .to_str()
+                .is_some_and(|text| text.starts_with(FLAG_PREFIX));
+            !is_flag && has_entry_point_extension(Path::new(argument))
+        })
+        // `join` keeps an absolute argument as is and resolves a relative one.
+        .map(|argument| OpenRequest::EntryPoint(working_directory.join(argument)))
+}
+
+/// Requests waiting for their window's Frontend, by window label. Each is handed out once.
+#[derive(Debug, Default)]
+pub struct PendingOpenRequests {
+    by_window: HashMap<String, OpenRequest>,
+}
+
+impl PendingOpenRequests {
+    pub fn put(&mut self, window_label: &str, request: OpenRequest) {
+        self.by_window.insert(window_label.to_owned(), request);
+    }
+
+    pub fn take(&mut self, window_label: &str) -> Option<OpenRequest> {
+        self.by_window.remove(window_label)
+    }
+}
+
+/// Serialized to the Frontend: deliberately no path of any kind.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenedRequest {
+    pub snapshot: ProjectSnapshot,
+    pub document_id: String,
+    pub resolution: EntryPointResolution,
+}
+
+fn invalid_entry_point(detail: &str) -> ApplicationError {
+    PersistenceError::new(PersistenceErrorKind::InvalidFileStructure, detail).into()
+}
+
+// The user chose this file, so a symlink to a regular file is fine (`metadata` follows it);
+// what is refused is anything that is not a plain file, or is too big to be a `.dawn`.
+fn check_entry_point_file(path: &Path) -> ApplicationResult<()> {
+    if !has_entry_point_extension(path) {
+        return Err(invalid_entry_point("not a .dawn file"));
+    }
+    let metadata = fs::metadata(path)
+        .map_err(|error| PersistenceError::from_io(format!("stat {}", path.display()), &error))?;
+    if !metadata.is_file() {
+        return Err(invalid_entry_point("entry point is not a regular file"));
+    }
+    if metadata.len() > ENTRY_POINT_MAX_BYTES {
+        return Err(invalid_entry_point("entry point file is too large"));
+    }
+    Ok(())
+}
+
+/// Consumes the window's pending request (once, even when opening it fails) and opens it.
+/// `Ok(None)` when nothing is pending.
+pub fn take_open_request(
+    pending: &Mutex<PendingOpenRequests>,
+    sessions: &mut ProjectSessions,
+    window_label: &str,
+) -> ApplicationResult<Option<OpenedRequest>> {
+    let request = pending
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .take(window_label);
+    let Some(OpenRequest::EntryPoint(path)) = request else {
+        return Ok(None);
+    };
+    check_entry_point_file(&path)?;
+    let opened = open_entry_point(sessions, &path)?;
+    Ok(Some(OpenedRequest {
+        snapshot: opened.snapshot.snapshot,
+        document_id: opened.snapshot.document_id,
+        resolution: opened.resolution,
+    }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn arguments(values: &[&str]) -> Vec<OsString> {
+        values.iter().map(OsString::from).collect()
+    }
+
+    fn select(values: &[&str]) -> Option<OpenRequest> {
+        select_open_request(arguments(values), Path::new("/work"))
+    }
+
+    fn entry_point(path: &str) -> Option<OpenRequest> {
+        Some(OpenRequest::EntryPoint(PathBuf::from(path)))
+    }
+
+    #[test]
+    fn no_arguments_or_only_the_program_select_nothing() {
+        assert_eq!(select(&[]), None);
+        assert_eq!(select(&["app"]), None);
+    }
+
+    #[test]
+    fn the_program_path_is_never_taken_as_the_request() {
+        assert_eq!(select(&["/tmp/odd.dawn"]), None);
+    }
+
+    #[test]
+    fn one_dawn_argument_is_selected() {
+        assert_eq!(select(&["app", "/p/a.dawn"]), entry_point("/p/a.dawn"));
+    }
+
+    #[test]
+    fn the_first_of_several_wins() {
+        assert_eq!(
+            select(&["app", "/p/a.dawn", "/p/b.dawn"]),
+            entry_point("/p/a.dawn")
+        );
+    }
+
+    #[test]
+    fn flags_and_other_extensions_are_ignored() {
+        assert_eq!(
+            select(&[
+                "app",
+                "--open=x.dawn",
+                "-x.dawn",
+                "notes.md",
+                "dawn",
+                "/p/a.dawn"
+            ]),
+            entry_point("/p/a.dawn")
+        );
+        assert_eq!(select(&["app", "a.dawn.txt", "project.json"]), None);
+    }
+
+    #[test]
+    fn the_extension_is_case_insensitive() {
+        assert_eq!(select(&["app", "/p/A.DAWN"]), entry_point("/p/A.DAWN"));
+        assert_eq!(select(&["app", "/p/a.Dawn"]), entry_point("/p/a.Dawn"));
+    }
+
+    #[test]
+    fn a_relative_path_is_resolved_against_the_given_directory() {
+        assert_eq!(
+            select(&["app", "sub/a.dawn"]),
+            entry_point("/work/sub/a.dawn")
+        );
+    }
+
+    #[test]
+    fn pending_requests_are_per_window_and_taken_once() {
+        let mut pending = PendingOpenRequests::default();
+        let request = OpenRequest::EntryPoint(PathBuf::from("/p/a.dawn"));
+        pending.put("main", request.clone());
+        assert_eq!(pending.take("window-2"), None);
+        assert_eq!(pending.take("main"), Some(request));
+        assert_eq!(pending.take("main"), None);
+    }
+}

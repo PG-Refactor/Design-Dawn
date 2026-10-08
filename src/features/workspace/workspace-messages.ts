@@ -163,6 +163,7 @@ export function deleteConfirmationTitle(name: string): string {
 const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   selectFolder: "フォルダを選択できませんでした",
   openProject: "Projectを開けませんでした",
+  openLaunchRequest: ".dawn を開けませんでした",
   createProject: "Projectを作成できませんでした",
   closeProject: "Projectを閉じられませんでした",
   openDocument: "Documentを開けませんでした",

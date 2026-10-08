@@ -22,6 +22,7 @@ import {
   saveProject,
   saveSheet,
   selectProjectFolder,
+  takeOpenRequest,
   writeBlockContent,
 } from "./persistence-client";
 
@@ -34,6 +35,7 @@ export function createTauriPersistenceGateway(): PersistenceGateway {
   return {
     selectProjectFolder,
     openProject,
+    takeOpenRequest,
     createProject,
     saveProject: async (projectId, project) =>
       mapOperationResult(await saveProject(projectId, project), discard),

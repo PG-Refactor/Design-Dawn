@@ -24,6 +24,7 @@ import {
   toDocumentSnapshotResult,
   toFolderSelectionResult,
   toFolderSnapshotResult,
+  toOpenRequestResult,
   toProjectSnapshotResult,
   toSaveResult,
   toSheetSnapshotResult,
@@ -34,6 +35,7 @@ import type {
   DocumentSnapshot,
   FolderSelection,
   FolderSnapshot,
+  OpenRequestResult,
   ProjectSnapshot,
   SaveResult,
   SheetSnapshot,
@@ -60,6 +62,14 @@ export function openProject(
   selectionId: string,
 ): Promise<CommandResult<ProjectSnapshot>> {
   return call(COMMANDS.openProject, { selectionId }, toProjectSnapshotResult);
+}
+
+// The request a launch argument left for this window (consumed once; null when none). It
+// takes no argument: Rust knows the window, and the path never reaches the Frontend.
+export function takeOpenRequest(): Promise<
+  CommandResult<OpenRequestResult | null>
+> {
+  return call(COMMANDS.takeOpenRequest, {}, toOpenRequestResult);
 }
 
 export function saveProject(

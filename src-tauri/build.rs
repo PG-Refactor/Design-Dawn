@@ -34,6 +34,7 @@ const APP_COMMANDS: &[&str] = &[
     "subscribe_drop_notifications",
     "subscribe_close_requests",
     "confirm_window_close",
+    "take_open_request",
 ];
 
 fn main() {

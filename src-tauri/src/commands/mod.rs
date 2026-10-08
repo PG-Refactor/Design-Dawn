@@ -28,6 +28,7 @@ use crate::application::folder_selection::{
     FolderSelectionState,
 };
 use crate::application::local_state::operations::{AppSettings, LocalState, SheetViewportResult};
+use crate::application::open_request::{self, OpenedRequest, PendingOpenRequests};
 use crate::application::project_operations as projects;
 use crate::application::session::ProjectSessions;
 use crate::application::sheet_operations as sheets;
@@ -41,7 +42,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 32] = [
+pub const COMMAND_NAMES: [&str; 33] = [
     "select_project_folder",
     "create_project",
     "open_project",
@@ -74,6 +75,7 @@ pub const COMMAND_NAMES: [&str; 32] = [
     "subscribe_drop_notifications",
     "subscribe_close_requests",
     "confirm_window_close",
+    "take_open_request",
 ];
 
 pub use asset_protocol::{respond_to_asset_request, ASSET_URL_SCHEME};
@@ -584,4 +586,17 @@ pub fn confirm_window_close<R: Runtime>(
     subscription_token: String,
 ) -> Result<(), ApplicationError> {
     log_failure(confirm_close(&subscriber, &window, &subscription_token))
+}
+
+/// The request a launch argument left for this window, consumed on the first call. The
+/// caller is identified by its window label, so a window can only take its own request.
+#[tauri::command]
+pub fn take_open_request<R: Runtime>(
+    window: tauri::Window<R>,
+    pending: State<'_, Mutex<PendingOpenRequests>>,
+    state: SessionState<'_>,
+) -> Result<Option<OpenedRequest>, ApplicationError> {
+    with_sessions(&state, |sessions| {
+        open_request::take_open_request(&pending, sessions, window.label())
+    })
 }

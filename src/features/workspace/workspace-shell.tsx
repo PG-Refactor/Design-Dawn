@@ -1,6 +1,7 @@
 import { useFileDrop } from "../canvas/use-file-drop";
 import { LoadStatus } from "./notifications";
 import { TopBar } from "./top-bar";
+import { useLaunchRequest } from "./use-launch-request";
 import { useSaveShortcut } from "./use-save-shortcut";
 import { useWindowCloseSave } from "./use-window-close-save";
 import { WorkspaceBody } from "./workspace-body";
@@ -12,6 +13,7 @@ import "./workspace-shell.css";
 // Sheet Tabs / sheet area on the right. Dialogs render into a portal of their own.
 export function WorkspaceShell() {
   useFileDrop();
+  useLaunchRequest();
   useSaveShortcut();
   useWindowCloseSave();
   return (

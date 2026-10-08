@@ -36,6 +36,7 @@ import {
   saveProject,
   saveSheet,
   selectProjectFolder,
+  takeOpenRequest,
   writeBlockContent,
 } from "./persistence-client";
 
@@ -116,6 +117,52 @@ function expectFailure<T>(result: CommandResult<T>, kind: string) {
 
 beforeEach(() => {
   invokeMock.mockReset();
+});
+
+describe("take_open_request payloads", () => {
+  it("converts the snapshot, the document id and the resolution", async () => {
+    invokeMock.mockResolvedValue({
+      snapshot: rawProjectSnapshot,
+      documentId: DOCUMENT_ID,
+      resolution: "idScan",
+    });
+    const result = await takeOpenRequest();
+    expect(invokeMock).toHaveBeenCalledWith(COMMANDS.takeOpenRequest, {});
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.value === null) return;
+    expect(result.value.documentId).toBe(DOCUMENT_ID);
+    expect(result.value.resolution).toBe("idScan");
+    expect(result.value.snapshot.project.projectId).toBe(PROJECT_ID);
+  });
+
+  it("turns null into an ok result without a request", async () => {
+    invokeMock.mockResolvedValue(null);
+    expect(await takeOpenRequest()).toEqual({ ok: true, value: null });
+  });
+
+  it("rejects an unknown resolution and an invalid document id", async () => {
+    invokeMock.mockResolvedValue({
+      snapshot: rawProjectSnapshot,
+      documentId: DOCUMENT_ID,
+      resolution: "guess",
+    });
+    expect((await takeOpenRequest()).ok).toBe(false);
+    invokeMock.mockResolvedValue({
+      snapshot: rawProjectSnapshot,
+      documentId: "not-an-id",
+      resolution: "path",
+    });
+    expect((await takeOpenRequest()).ok).toBe(false);
+  });
+
+  it("maps a rejection to its error kind", async () => {
+    invokeMock.mockRejectedValue({ kind: "fileNotFound", detail: "x" });
+    const result = await takeOpenRequest();
+    expect(result).toMatchObject({
+      ok: false,
+      error: { kind: "fileNotFound" },
+    });
+  });
 });
 
 describe("successful conversion", () => {

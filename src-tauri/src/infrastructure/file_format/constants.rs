@@ -16,6 +16,12 @@ pub const GITATTRIBUTES_CONTENT: &str =
 /// `.dawn` has no `SchemaEntityKind` in the domain, so its supported version lives here.
 pub const CURRENT_ENTRY_POINT_SCHEMA_VERSION: u32 = 1;
 
+/// Extension of the `.dawn` entry point file, without the dot (file-format.md §7).
+pub const ENTRY_POINT_EXTENSION: &str = "dawn";
+/// A `.dawn` is a few lines of JSON; anything larger is not one, and is refused before it is
+/// read so a launch argument cannot make the app load an arbitrary huge file.
+pub const ENTRY_POINT_MAX_BYTES: u64 = 64 * 1024;
+
 /// Atomic Save temp file: `.<file-name>.dawn-tmp` next to the target (file-format.md §9).
 pub const TEMP_FILE_PREFIX: &str = ".";
 pub const TEMP_FILE_SUFFIX: &str = ".dawn-tmp";

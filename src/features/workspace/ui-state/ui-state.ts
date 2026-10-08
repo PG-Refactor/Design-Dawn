@@ -130,6 +130,7 @@ export type DialogState =
 export const OPERATION_LABELS = [
   "selectFolder",
   "openProject",
+  "openLaunchRequest",
   "createProject",
   "closeProject",
   "openDocument",

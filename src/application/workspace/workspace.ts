@@ -116,6 +116,10 @@ export interface Workspace {
     name: string,
     options?: CloseOptions,
   ): Promise<OperationResult<void>>;
+  // Installs the Project that a launch argument (`.dawn`) asked for, which Rust has
+  // already opened, and resolves to the Document to open (null when nothing was
+  // requested). It does not open the Document itself: the UI layer also activates it.
+  openLaunchRequest(): Promise<OperationResult<DocumentId | null>>;
   closeProject(options?: CloseOptions): Promise<OperationResult<void>>;
 
   openDocument(documentId: DocumentId): Promise<OperationResult<void>>;
@@ -763,6 +767,19 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
         () => gateway.createProject(selectionId, displayName.value),
         options?.discardChanges === true,
       );
+    },
+    async openLaunchRequest() {
+      // Taken outside the lifecycle queue: with nothing pending there is nothing to
+      // serialise, and the open itself below goes through it like any other open.
+      const taken = await gateway.takeOpenRequest();
+      if (!taken.ok) return taken;
+      const request = taken.value;
+      if (request === null) return operationOk(null);
+      const installed = await openOrCreateProject(
+        () => Promise.resolve(operationOk(request.snapshot)),
+        false,
+      );
+      return installed.ok ? operationOk(request.documentId) : installed;
     },
     closeProject: (options) =>
       runLifecycle(async () => {
