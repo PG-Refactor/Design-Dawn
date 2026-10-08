@@ -1,7 +1,9 @@
 // Project-scoped Git state (docs/git-development.md §11.4, docs/architecture.md §11.0.2):
 // runtime only, never saved in the Project's files (Git is the source of truth). It follows
 // the open Project: the state is reset when the Project changes and refreshed once the new
-// one is installed. Refreshing only reads; Git never saves or changes the Project.
+// one is installed. Refreshing only reads; Git never saves or changes the Project. Stage /
+// Unstage change the index only: they never save the workspace and are not part of the
+// document Undo history (docs/git-development.md §11).
 
 import type { ProjectId } from "../../domain/shared/entity-id";
 import { createStore, type Store } from "../../shared/store/store";
@@ -21,13 +23,31 @@ export interface GitState {
   // stale status must not be shown as current).
   readonly status: GitStatus | null;
   readonly refreshing: boolean;
+  // True while a Stage / Unstage (and the refresh that follows its failure) runs, so a UI
+  // can disable its buttons.
+  readonly operating: boolean;
 }
+
+export const GIT_OPERATION_LABELS = [
+  "refreshGitStatus",
+  "stageGitFiles",
+  "unstageGitFiles",
+] as const;
+
+export type GitOperationLabel = (typeof GIT_OPERATION_LABELS)[number];
 
 export interface GitController {
   readonly store: Store<GitState>;
   // Reads the status of the open Project. Failures are also reported through
-  // `reportFailure`; a refresh without an open Project does nothing.
+  // `reportFailure`; a refresh without an open Project does nothing. A refresh requested
+  // while another one is still waiting in the queue shares it.
   refreshGitStatus(): Promise<OperationResult<void>>;
+  // Stage / Unstage changed files (Project root relative, `/` separated) of the open
+  // Project. On success the status is replaced by the one git returned (never computed
+  // here). On failure it is reported and the status is read again, because git may have
+  // changed the index partly.
+  stage(paths: readonly string[]): Promise<OperationResult<void>>;
+  unstage(paths: readonly string[]): Promise<OperationResult<void>>;
   // Stops following the Project.
   dispose(): void;
 }
@@ -35,15 +55,26 @@ export interface GitController {
 export interface GitControllerDependencies {
   readonly gateway: GitGateway;
   readonly applicationStore: ApplicationStore;
-  // Where a failed refresh is shown (the notifications); the application layer does not
-  // know about UI state.
-  readonly reportFailure: (error: OperationError) => void;
+  // Where a failure is shown (the notifications); the application layer does not know
+  // about UI state.
+  readonly reportFailure: (
+    operation: GitOperationLabel,
+    error: OperationError,
+  ) => void;
 }
 
 const NO_PROJECT_STATE: GitState = {
   projectId: null,
   status: null,
   refreshing: false,
+  operating: false,
+};
+
+type IndexOperation = "stage" | "unstage";
+
+const INDEX_OPERATION_LABELS: Record<IndexOperation, GitOperationLabel> = {
+  stage: "stageGitFiles",
+  unstage: "unstageGitFiles",
 };
 
 export function createGitController(
@@ -51,39 +82,115 @@ export function createGitController(
 ): GitController {
   const { gateway, applicationStore, reportFailure } = dependencies;
   const store = createStore<GitState>(NO_PROJECT_STATE);
-  // Only the newest request may write the state: a slow answer for a Project that was
-  // closed (or an older refresh) must not replace a newer one.
-  let latestRequest = 0;
+  // Changes whenever the Project changes: an answer (or a queued task) of an older Project
+  // must not write the state or touch git.
+  let epoch = 0;
+  // Git operations of this controller run one after another, so two index-changing calls
+  // never overlap and a status read never interleaves with them.
+  let queueTail: Promise<unknown> = Promise.resolve();
+  let waitingRefresh: Promise<OperationResult<void>> | null = null;
 
-  async function refreshProject(
-    projectId: ProjectId,
-  ): Promise<OperationResult<void>> {
-    const request = ++latestRequest;
-    store.setState((state) => ({ ...state, refreshing: true }));
-    let result: OperationResult<GitStatus>;
+  function enqueue<T>(task: () => Promise<T>): Promise<T> {
+    const next = queueTail.then(task);
+    // A task never rejects (failures are results); this keeps the chain alive regardless.
+    queueTail = next.catch(() => undefined);
+    return next;
+  }
+
+  async function call(
+    request: () => Promise<OperationResult<GitStatus>>,
+  ): Promise<OperationResult<GitStatus>> {
     try {
-      result = await gateway.gitStatus(projectId);
+      return await request();
     } catch (failure) {
-      result = operationErr(
+      return operationErr(
         "unexpectedCommandError",
         failure instanceof Error ? failure.message : String(failure),
       );
     }
-    if (request !== latestRequest)
-      return result.ok ? operationOk(undefined) : result;
+  }
+
+  async function readStatus(
+    projectId: ProjectId,
+    taskEpoch: number,
+  ): Promise<OperationResult<void>> {
+    store.setState((state) => ({ ...state, refreshing: true }));
+    const result = await call(() => gateway.gitStatus(projectId));
+    if (taskEpoch !== epoch) return result.ok ? operationOk(undefined) : result;
     if (result.ok) {
-      store.setState({ projectId, status: result.value, refreshing: false });
+      store.setState((state) => ({
+        ...state,
+        projectId,
+        status: result.value,
+        refreshing: false,
+      }));
       return operationOk(undefined);
     }
-    store.setState({ projectId, status: null, refreshing: false });
-    reportFailure(result.error);
+    store.setState((state) => ({
+      ...state,
+      projectId,
+      status: null,
+      refreshing: false,
+    }));
+    reportFailure("refreshGitStatus", result.error);
     return result;
+  }
+
+  function refreshProject(
+    projectId: ProjectId,
+  ): Promise<OperationResult<void>> {
+    if (waitingRefresh !== null) return waitingRefresh;
+    const taskEpoch = epoch;
+    const refresh = enqueue(async () => {
+      waitingRefresh = null;
+      if (taskEpoch !== epoch) return operationOk(undefined);
+      return readStatus(projectId, taskEpoch);
+    });
+    waitingRefresh = refresh;
+    return refresh;
+  }
+
+  function changeIndex(
+    operation: IndexOperation,
+    paths: readonly string[],
+  ): Promise<OperationResult<void>> {
+    const projectId = store.getState().projectId;
+    if (projectId === null) return Promise.resolve(operationOk(undefined));
+    const taskEpoch = epoch;
+    return enqueue(async () => {
+      if (taskEpoch !== epoch) return operationOk(undefined);
+      store.setState((state) => ({ ...state, operating: true }));
+      const result = await call(() =>
+        operation === "stage"
+          ? gateway.stage(projectId, paths)
+          : gateway.unstage(projectId, paths),
+      );
+      if (taskEpoch !== epoch)
+        return result.ok ? operationOk(undefined) : result;
+      if (result.ok) {
+        store.setState((state) => ({
+          ...state,
+          status: result.value,
+          operating: false,
+        }));
+        return operationOk(undefined);
+      }
+      reportFailure(INDEX_OPERATION_LABELS[operation], result.error);
+      // Inside this task (not queued again): nothing may run between the failure and the
+      // status read that shows what git actually did.
+      await readStatus(projectId, taskEpoch);
+      if (taskEpoch === epoch) {
+        store.setState((state) => ({ ...state, operating: false }));
+      }
+      return result;
+    });
   }
 
   function followProject(): void {
     const projectId = applicationStore.getState().project?.projectId ?? null;
     if (projectId === store.getState().projectId) return;
-    latestRequest += 1;
+    epoch += 1;
+    waitingRefresh = null;
     store.setState({ ...NO_PROJECT_STATE, projectId });
     if (projectId !== null) void refreshProject(projectId);
   }
@@ -100,6 +207,8 @@ export function createGitController(
         ? operationOk(undefined)
         : refreshProject(projectId);
     },
+    stage: (paths) => changeIndex("stage", paths),
+    unstage: (paths) => changeIndex("unstage", paths),
     dispose: unsubscribe,
   };
 }

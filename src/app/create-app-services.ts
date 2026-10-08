@@ -153,9 +153,9 @@ export function createAppServices(): AppServices {
   const gitController = createGitController({
     gateway: createTauriGitGateway(),
     applicationStore,
-    reportFailure: (error) =>
+    reportFailure: (operation, error) =>
       uiStateStore.setState((state) =>
-        addOperationError(state, "refreshGitStatus", null, error),
+        addOperationError(state, operation, null, error),
       ),
   });
   const disconnectUiState = connectWorkspaceToUiState(workspace, uiStateStore);

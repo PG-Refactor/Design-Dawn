@@ -61,6 +61,7 @@ describe("createAppServices", () => {
       projectId: null,
       status: null,
       refreshing: false,
+      operating: false,
     });
     expect(invokeMock).not.toHaveBeenCalledWith(
       COMMANDS.gitStatus,

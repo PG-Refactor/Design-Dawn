@@ -212,6 +212,8 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   loadViewport: "表示位置を読み込めませんでした（既定の表示位置を使います）",
   saveViewport: "表示位置を保存できませんでした",
   refreshGitStatus: "Gitの状態を取得できませんでした",
+  stageGitFiles: "ステージできませんでした",
+  unstageGitFiles: "ステージを解除できませんでした",
 };
 
 // A full record, so a new error kind cannot be added without a user-facing sentence.
