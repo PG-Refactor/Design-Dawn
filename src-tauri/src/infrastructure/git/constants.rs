@@ -7,6 +7,13 @@ use std::time::Duration;
 /// own value later.
 pub const GIT_COMMAND_TIMEOUT: Duration = Duration::from_secs(30);
 
+/// Time limit of `git commit`: hooks (pre-commit, commit-msg) and signing run inside it
+/// (docs/git-development.md §11.11).
+pub const GIT_COMMIT_TIMEOUT: Duration = Duration::from_secs(120);
+
+/// Largest commit message accepted, in UTF-8 bytes after line ending normalization.
+pub const COMMIT_MESSAGE_LIMIT_BYTES: usize = 64 * 1024;
+
 /// `status` output of a very large working tree stays well below this; reaching it means
 /// something is wrong, and a truncated record list must never be parsed.
 pub const GIT_STDOUT_LIMIT_BYTES: usize = 16 * 1024 * 1024;
@@ -127,3 +134,34 @@ pub const NOT_A_REPOSITORY_MESSAGE: &str = "not a git repository";
 
 /// Replacement for the user information of a URL in logged text.
 pub const REDACTED_USER_INFORMATION: &str = "***";
+
+pub const ARG_COMMIT: &str = "commit";
+/// Top-level option pair: git configuration for this one process.
+pub const ARG_CONFIG: &str = "-c";
+/// The message is recorded as the UTF-8 it was given in, whatever the user configured.
+pub const CONFIG_COMMIT_ENCODING_UTF8: &str = "i18n.commitEncoding=UTF-8";
+/// `-F -`: the message is read from stdin, never put on the command line.
+pub const ARG_MESSAGE_FILE: &str = "-F";
+pub const ARG_STDIN_FILE: &str = "-";
+/// Trims the message the way `git commit -F` does by default, independent of the user's
+/// `commit.cleanup` setting; `#` lines are kept.
+pub const ARG_CLEANUP_WHITESPACE: &str = "--cleanup=whitespace";
+
+pub const ARG_VAR: &str = "var";
+pub const VAR_AUTHOR_IDENT: &str = "GIT_AUTHOR_IDENT";
+pub const VAR_COMMITTER_IDENT: &str = "GIT_COMMITTER_IDENT";
+
+pub const ARG_GIT_PATH: &str = "--git-path";
+/// Files / directories inside the git directory that exist while a merge, cherry-pick,
+/// revert or rebase is unfinished. Their locations are asked from git (`--git-path`),
+/// never derived from a `.git` directory layout.
+pub const IN_PROGRESS_GIT_PATHS: [&str; 5] = [
+    "MERGE_HEAD",
+    "CHERRY_PICK_HEAD",
+    "REVERT_HEAD",
+    "rebase-merge",
+    "rebase-apply",
+];
+
+/// Object IDs are SHA-1 (40) or SHA-256 (64) lowercase hexadecimal.
+pub const OBJECT_ID_LENGTHS: [usize; 2] = [40, 64];

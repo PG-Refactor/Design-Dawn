@@ -56,6 +56,13 @@ export const GIT_ERROR_KINDS = [
   "gitTimeout",
   "invalidGitPath",
   "gitNotReady",
+  // Commit (docs/git-development.md §11.11).
+  "invalidCommitMessage",
+  "nothingToCommit",
+  "gitUnmergedChanges",
+  "gitOperationInProgress",
+  "gitIdentityMissing",
+  "gitCommitRejected",
 ] as const;
 
 // Domain errors that only Rust can produce (TypeScript treats contentPath as opaque).

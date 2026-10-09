@@ -125,7 +125,7 @@ pub fn read_git_status(
 
 /// Version check and repository detection shared by every Git operation. Only `Ready`
 /// means the operation may go on (and then `runner` is `Some`).
-fn repository_state(
+pub(crate) fn repository_state(
     runner: Option<&GitRunner>,
     project_root: &Path,
 ) -> ApplicationResult<GitRepositoryState> {
@@ -239,7 +239,7 @@ fn validate_requested_paths(
     Ok(validated)
 }
 
-fn not_ready_error(state: GitRepositoryState) -> ApplicationError {
+pub(crate) fn not_ready_error(state: GitRepositoryState) -> ApplicationError {
     ApplicationError::new(
         ErrorKind::GitNotReady,
         format!("the repository is not ready for git operations ({state:?})"),
@@ -600,7 +600,7 @@ fn repository_has_head(runner: &GitRunner, project_root: &Path) -> ApplicationRe
 
 /// Index side changes that can be taken back out. Unmerged entries are excluded: resolving
 /// a conflict is not part of Phase 6.
-fn is_unstageable(change: GitFileChange) -> bool {
+pub(crate) fn is_unstageable(change: GitFileChange) -> bool {
     matches!(
         change,
         GitFileChange::Modified
@@ -624,7 +624,7 @@ fn is_stageable(change: GitFileChange) -> bool {
     )
 }
 
-fn read_file_statuses(
+pub(crate) fn read_file_statuses(
     runner: &GitRunner,
     project_root: &Path,
 ) -> ApplicationResult<Vec<GitFileStatus>> {
@@ -675,7 +675,7 @@ fn read_file_statuses(
     Ok(parsed.entries.into_iter().map(file_status).collect())
 }
 
-fn run_error(operation: &str, error: GitRunError) -> ApplicationError {
+pub(crate) fn run_error(operation: &str, error: GitRunError) -> ApplicationError {
     let kind = match error {
         GitRunError::Timeout => ErrorKind::GitTimeout,
         GitRunError::Unavailable | GitRunError::Spawn(_) => ErrorKind::GitCommandFailed,

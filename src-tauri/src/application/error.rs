@@ -67,6 +67,18 @@ pub enum ErrorKind {
     /// A git operation was requested while the repository is not `ready` (no git, not a
     /// repository, unsupported layout, broken repository).
     GitNotReady,
+    /// A commit message that is empty, contains control characters or is too long.
+    InvalidCommitMessage,
+    /// Commit requested while nothing is staged.
+    NothingToCommit,
+    /// Commit requested while files are unmerged (a conflict is unresolved).
+    GitUnmergedChanges,
+    /// Commit requested during a merge / cherry-pick / revert / rebase.
+    GitOperationInProgress,
+    /// `user.name` / `user.email` are not configured.
+    GitIdentityMissing,
+    /// git refused the commit (a hook failed, signing failed, ...).
+    GitCommitRejected,
 }
 
 impl ErrorKind {
@@ -92,6 +104,12 @@ impl ErrorKind {
             Self::GitTimeout => "gitTimeout",
             Self::InvalidGitPath => "invalidGitPath",
             Self::GitNotReady => "gitNotReady",
+            Self::InvalidCommitMessage => "invalidCommitMessage",
+            Self::NothingToCommit => "nothingToCommit",
+            Self::GitUnmergedChanges => "gitUnmergedChanges",
+            Self::GitOperationInProgress => "gitOperationInProgress",
+            Self::GitIdentityMissing => "gitIdentityMissing",
+            Self::GitCommitRejected => "gitCommitRejected",
         }
     }
 
@@ -121,6 +139,12 @@ impl ErrorKind {
             Self::GitTimeout => "the git command did not finish in time",
             Self::InvalidGitPath => "the path is not valid for git",
             Self::GitNotReady => "the repository is not ready for git operations",
+            Self::InvalidCommitMessage => "the commit message is not valid",
+            Self::NothingToCommit => "there are no staged changes to commit",
+            Self::GitUnmergedChanges => "there are unresolved conflicts",
+            Self::GitOperationInProgress => "a merge or similar operation is in progress",
+            Self::GitIdentityMissing => "the git user name or email is not configured",
+            Self::GitCommitRejected => "git rejected the commit",
         }
     }
 }
@@ -200,7 +224,7 @@ impl Serialize for ApplicationError {
 mod tests {
     use super::*;
 
-    const ALL_KINDS: [ErrorKind; 35] = [
+    const ALL_KINDS: [ErrorKind; 41] = [
         ErrorKind::Domain(DomainErrorKind::InvalidEntityId),
         ErrorKind::Domain(DomainErrorKind::InvalidDisplayName),
         ErrorKind::Domain(DomainErrorKind::InvalidPosition),
@@ -236,6 +260,12 @@ mod tests {
         ErrorKind::GitTimeout,
         ErrorKind::InvalidGitPath,
         ErrorKind::GitNotReady,
+        ErrorKind::InvalidCommitMessage,
+        ErrorKind::NothingToCommit,
+        ErrorKind::GitUnmergedChanges,
+        ErrorKind::GitOperationInProgress,
+        ErrorKind::GitIdentityMissing,
+        ErrorKind::GitCommitRejected,
     ];
 
     /// A Windows drive path (`C:\`) or any separator would mean a path leaked.

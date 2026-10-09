@@ -9,6 +9,7 @@ pub mod entity_id_generator;
 pub mod error;
 pub mod folder_operations;
 pub mod folder_selection;
+pub mod git_commit;
 pub mod git_operations;
 pub mod load_issue;
 pub mod loader;
