@@ -28,7 +28,11 @@
 }
 
 .git-main-area {
+  display: flex;
   flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
 }
 
 .git-main-area__placeholder {
@@ -96,4 +100,82 @@
   flex: 0 1 auto;
   font-size: 0.8125rem;
   color: var(--color-text-muted);
+}
+
+.git-diff {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.git-diff__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.git-diff__path {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+
+.git-diff__sides {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.git-diff__message {
+  margin: var(--space-3) 0;
+  color: var(--color-text-muted);
+}
+
+/* Both axes scroll inside the view, so a long diff never stretches the page. */
+.git-diff__scroll {
+  max-height: calc(100vh - 8rem);
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.git-diff__text {
+  width: max-content;
+  min-width: 100%;
+  margin: 0;
+  padding: var(--space-2) 0;
+  color: var(--color-text);
+  font-family: monospace;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  tab-size: 4;
+}
+
+.git-diff__line {
+  display: block;
+  min-height: 1.4em;
+  padding: 0 var(--space-2);
+  width: max-content;
+  min-width: 100%;
+}
+
+.git-diff__line--add {
+  background: var(--color-diff-added-bg);
+  color: var(--color-diff-added-text);
+}
+
+.git-diff__line--del {
+  background: var(--color-diff-removed-bg);
+  color: var(--color-diff-removed-text);
+}
+
+.git-diff__line--hunk {
+  color: var(--color-diff-hunk-text);
+}
+
+.git-diff__line--meta {
+  color: var(--color-diff-meta-text);
 }

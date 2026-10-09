@@ -5,6 +5,16 @@ export const GIT_MESSAGES = {
   panelLabel: "Git",
   mainAreaLabel: "Gitの差分",
   mainAreaPlaceholder: "ファイルを選択すると差分を表示します",
+  diffLoading: "差分を読み込んでいます…",
+  diffEmpty: "差分はありません",
+  diffUntracked: "新しいファイルです（まだGitで管理されていません）",
+  diffBinary: "バイナリファイルのため、差分を表示できません",
+  diffNotUtf8: "UTF-8として読めないため、差分を表示できません",
+  diffTextLabel: "差分の内容",
+  diffFailed: "差分を取得できませんでした",
+  diffSideSwitchLabel: "差分の対象",
+  diffSides: { staged: "ステージ済み", unstaged: "未ステージ" },
+  closeDiff: "閉じる",
   refresh: "更新",
   refreshing: "更新中…",
   retry: "再試行",
@@ -46,6 +56,10 @@ export const GIT_MESSAGES = {
     error: "Gitの状態を取得できませんでした",
   },
 } as const;
+
+export function diffTooLargeText(limit: string): string {
+  return `差分が大きすぎるため表示できません（上限 ${limit}）`;
+}
 
 // A renamed file as "old → new".
 export function renamedPathText(originalPath: string, path: string): string {

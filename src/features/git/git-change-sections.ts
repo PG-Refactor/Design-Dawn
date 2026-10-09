@@ -149,3 +149,23 @@ export function focusKeyAfterChange(
   if (later !== undefined) return later.entries[0]?.key ?? null;
   return afterEntries.at(-1)?.key ?? null;
 }
+
+// The entry of a path on each side, as the change list shows them (a conflict has neither,
+// untracked is an unstaged one). The diff view uses it to offer only sides that have a change.
+export function changeSidesOf(
+  status: GitStatus,
+  path: string,
+): Record<GitSelectionSide, GitChangeEntry | null> {
+  const sides: Record<GitSelectionSide, GitChangeEntry | null> = {
+    staged: null,
+    unstaged: null,
+  };
+  for (const section of deriveGitChangeSections(status)) {
+    for (const entry of section.entries) {
+      if (entry.path === path && entry.selectionSide !== null) {
+        sides[entry.selectionSide] ??= entry;
+      }
+    }
+  }
+  return sides;
+}

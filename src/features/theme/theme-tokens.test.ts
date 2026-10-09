@@ -95,6 +95,14 @@ describe("theme token stylesheet", () => {
       ["--color-warning", "--color-surface"],
       ["--color-warning", "--color-surface-raised"],
       ["--color-danger", "--color-surface-raised"],
+      ["--color-diff-added-text", "--color-diff-added-bg"],
+      ["--color-diff-removed-text", "--color-diff-removed-bg"],
+      ["--color-diff-hunk-text", "--color-surface"],
+      ["--color-diff-hunk-text", "--color-background"],
+      ["--color-diff-meta-text", "--color-surface"],
+      ["--color-diff-meta-text", "--color-background"],
+      ["--color-text", "--color-diff-added-bg"],
+      ["--color-text", "--color-diff-removed-bg"],
     ] as const;
     for (const [foreground, background] of pairs) {
       const ratio = contrastRatio(

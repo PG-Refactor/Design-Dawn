@@ -8,7 +8,6 @@ import {
   useState,
 } from "react";
 import type { GitStatus } from "../../application/ports/git-gateway";
-import { setGitSelection } from "../workspace/ui-state/shell-ui-state";
 import { NAVIGATION_KEYS } from "../workspace/view-models/keyboard-navigation";
 import { useGitState, useUiState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
@@ -20,6 +19,11 @@ import {
   type GitChangeSectionId,
   type GitChangeSection as Section,
 } from "./git-change-sections";
+import { openDiff, refreshDiffAfterStatusChange } from "./git-diff-session";
+import {
+  GIT_CHANGE_HEADING_ATTRIBUTE,
+  GIT_CHANGE_LIST_ATTRIBUTE,
+} from "./git-dom";
 import { GIT_MESSAGES, renamedPathText } from "./git-messages";
 
 type IndexOperation = "stage" | "unstage";
@@ -165,7 +169,8 @@ function ChangeRow({
 // Stage / Unstage. It only derives from the Git status; the status is replaced by the
 // answer of the Git controller, never edited here.
 export function GitChangeList({ status }: { readonly status: GitStatus }) {
-  const { gitController, uiStateStore } = useWorkspaceServices();
+  const services = useWorkspaceServices();
+  const { gitController } = services;
   const operating = useGitState((git) => git.operating);
   const refreshing = useGitState((git) => git.refreshing);
   const gitSelection = useUiState((ui) => ui.gitSelection);
@@ -207,11 +212,11 @@ export function GitChangeList({ status }: { readonly status: GitStatus }) {
     else rowElements.current.set(key, element);
   }
 
-  // The single place a selected row is handed on; the diff step (7-4) opens the diff here.
+  // The single place a selected row is handed on: it selects the row and opens its diff
+  // (staged rows the staged one, the others the unstaged one; conflicts open none).
   function selectRow(entry: GitChangeEntry): void {
     if (entry.selectionSide === null) return;
-    const selection = { path: entry.path, side: entry.selectionSide };
-    uiStateStore.setState((state) => setGitSelection(state, selection));
+    openDiff(services, { path: entry.path, side: entry.selectionSide });
   }
 
   async function operate(
@@ -223,6 +228,8 @@ export function GitChangeList({ status }: { readonly status: GitStatus }) {
     await (operation === "stage"
       ? gitController.stage(paths)
       : gitController.unstage(paths));
+    // Success or failure, the controller now holds the status git returned (or re-read).
+    refreshDiffAfterStatusChange(services);
     setFocusRequest({ before, actedKey });
   }
 
@@ -269,8 +276,13 @@ export function GitChangeList({ status }: { readonly status: GitStatus }) {
   }
 
   return (
-    <div className="git-change-list">
-      <h2 ref={heading} tabIndex={-1} className="git-change-list__heading">
+    <div className="git-change-list" {...{ [GIT_CHANGE_LIST_ATTRIBUTE]: "" }}>
+      <h2
+        ref={heading}
+        tabIndex={-1}
+        className="git-change-list__heading"
+        {...{ [GIT_CHANGE_HEADING_ATTRIBUTE]: "" }}
+      >
         {GIT_MESSAGES.changeListLabel}
       </h2>
       {operating ? (
