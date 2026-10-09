@@ -1,4 +1,5 @@
 import { createContext, type ReactNode, useContext } from "react";
+import type { GitController } from "../../application/git/git-controller";
 import type { AppRequestSource } from "../../application/ports/app-request-source";
 import type { AssetUrlResolver } from "../../application/ports/asset-url-resolver";
 import type { DropEventSource } from "../../application/ports/drop-event-source";
@@ -49,6 +50,9 @@ export interface WorkspaceServices {
     LayoutSettingsController,
     "store" | "setProjectTreeWidth"
   >;
+  // The Git state of the open Project and the operations on it; the UI never calls the Git
+  // commands directly.
+  readonly gitController: GitController;
 }
 
 const WorkspaceServicesContext = createContext<WorkspaceServices | null>(null);

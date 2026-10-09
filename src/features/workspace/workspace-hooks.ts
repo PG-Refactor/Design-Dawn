@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import type { GitState } from "../../application/git/git-controller";
 import type { ApplicationState } from "../../application/state/application-state";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import type { UiState } from "./ui-state/ui-state";
@@ -23,4 +24,11 @@ export function useUiState<Selected>(
 ): Selected {
   const { uiStateStore } = useWorkspaceServices();
   return useStoreSelector(uiStateStore, select);
+}
+
+export function useGitState<Selected>(
+  select: (git: GitState) => Selected,
+): Selected {
+  const { gitController } = useWorkspaceServices();
+  return useStoreSelector(gitController.store, select);
 }

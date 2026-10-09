@@ -21,6 +21,7 @@ import type {
 } from "../ports/git-gateway";
 import {
   type OperationError,
+  type OperationErrorKind,
   type OperationResult,
   operationErr,
   operationOk,
@@ -56,6 +57,12 @@ export interface GitState {
   // Null until the first successful refresh of this Project, and after a failed one (a
   // stale status must not be shown as current).
   readonly status: GitStatus | null;
+  // The kind of the last failed status read of this Project (a refresh, the refresh after a
+  // failed Stage / Unstage / Commit, or a commit whose status was unavailable); null when
+  // the last status read succeeded or was replaced by a successful Stage / Unstage / Commit,
+  // and before the first read: "not loaded yet" is never an error. Lets a UI tell "failed"
+  // from "not read yet", both of which have a null `status`.
+  readonly statusError: OperationErrorKind | null;
   readonly refreshing: boolean;
   // True while a Stage / Unstage / Commit (and the refresh that follows its failure) runs, so a UI
   // can disable its buttons.
@@ -64,11 +71,11 @@ export interface GitState {
   // Project change. Stage / Unstage leave it as is even when the shown side changed: the
   // UI reloads it (docs/git-development.md §11.10).
   readonly diff: GitDiffState | null;
-  // The last commit made in this Project during this session (for a UI to confirm it);
-  // null before one and after a Project change. A failed commit leaves it as is.
   // Independent of `status`. Null before a load, after `clearHistory`, after a failed first
   // load and after a Project change. A failed load restores the last loaded state.
   readonly history: GitHistoryState | null;
+  // The last commit made in this Project during this session (for a UI to confirm it);
+  // null before one and after a Project change. A failed commit leaves it as is.
   readonly lastCommit: { readonly commitId: string | null } | null;
 }
 
@@ -137,6 +144,7 @@ export interface GitControllerDependencies {
 const NO_PROJECT_STATE: GitState = {
   projectId: null,
   status: null,
+  statusError: null,
   refreshing: false,
   operating: false,
   diff: null,
@@ -201,6 +209,7 @@ export function createGitController(
         ...state,
         projectId,
         status: result.value,
+        statusError: null,
         refreshing: false,
       }));
       return operationOk(undefined);
@@ -209,6 +218,7 @@ export function createGitController(
       ...state,
       projectId,
       status: null,
+      statusError: result.error.kind,
       refreshing: false,
     }));
     reportFailure("refreshGitStatus", result.error);
@@ -250,6 +260,7 @@ export function createGitController(
         store.setState((state) => ({
           ...state,
           status: result.value,
+          statusError: null,
           operating: false,
         }));
         return operationOk(undefined);
@@ -290,6 +301,7 @@ export function createGitController(
           store.setState((state) => ({
             ...state,
             status: status.status,
+            statusError: null,
             lastCommit,
             operating: false,
           }));
@@ -299,6 +311,7 @@ export function createGitController(
           store.setState((state) => ({
             ...state,
             status: null,
+            statusError: status.errorKind,
             lastCommit,
             operating: false,
           }));

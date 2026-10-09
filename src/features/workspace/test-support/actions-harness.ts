@@ -10,6 +10,10 @@ import {
   deleteBlocksCommand,
 } from "../../../application/commands/file-backed-commands";
 import { renameSheetCommand } from "../../../application/commands/naming-commands";
+import {
+  createGitController,
+  type GitController,
+} from "../../../application/git/git-controller";
 import type { LoadIssue } from "../../../application/ports/persistence-types";
 import {
   type ApplicationStore,
@@ -28,6 +32,10 @@ import {
   createFakeDropEventSource,
   type FakeDropEventSource,
 } from "../../../application/test-support/fake-drop";
+import {
+  createFakeGitGateway,
+  type FakeGitGateway,
+} from "../../../application/test-support/fake-git";
 import {
   createFakeAppSettingsGateway,
   createFakeOsThemeSource,
@@ -94,6 +102,8 @@ export interface ActionsHarness extends WorkspaceHarness {
   // Its own clock, so viewport saves are advanced independently of auto-save.
   readonly viewportScheduler: FakeScheduler;
   readonly viewportPersistence: ViewportPersistence;
+  readonly gitGateway: FakeGitGateway;
+  readonly gitController: GitController;
   readonly services: WorkspaceServices;
 }
 
@@ -133,8 +143,16 @@ export function createActionsHarness(): ActionsHarness {
     gateway: createFakeAppSettingsGateway(),
     osThemeSource: createFakeOsThemeSource("light"),
   });
+  const gitGateway = createFakeGitGateway();
+  const gitController = createGitController({
+    gateway: gitGateway,
+    applicationStore: base.store,
+    reportFailure: () => undefined,
+  });
   return {
     ...base,
+    gitGateway,
+    gitController,
     uiStateStore,
     actions,
     canvasActions,
@@ -160,6 +178,7 @@ export function createActionsHarness(): ActionsHarness {
       themeController,
       autoSaveController: base.autoSaveController,
       layoutSettingsController: base.layoutSettingsController,
+      gitController,
     },
   };
 }

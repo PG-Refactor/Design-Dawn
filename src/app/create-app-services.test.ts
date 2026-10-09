@@ -60,6 +60,7 @@ describe("createAppServices", () => {
     expect(gitController.store.getState()).toEqual({
       projectId: null,
       status: null,
+      statusError: null,
       refreshing: false,
       operating: false,
       diff: null,

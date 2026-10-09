@@ -50,6 +50,7 @@ describe("following the open Project", () => {
     expect(controller.store.getState()).toEqual({
       projectId: null,
       status: null,
+      statusError: null,
       refreshing: false,
       operating: false,
       diff: null,
@@ -74,6 +75,7 @@ describe("following the open Project", () => {
     expect(controller.store.getState()).toEqual({
       projectId: PROJECT_ID,
       status: MODIFIED_STATUS,
+      statusError: null,
       refreshing: false,
       operating: false,
       diff: null,
@@ -106,6 +108,7 @@ describe("following the open Project", () => {
     expect(controller.store.getState()).toEqual({
       projectId: null,
       status: null,
+      statusError: null,
       refreshing: false,
       operating: false,
       diff: null,
@@ -227,6 +230,119 @@ describe("refreshGitStatus", () => {
 
     expect(controller.store.getState().status).toBeNull();
     expect(controller.store.getState().projectId).toBeNull();
+  });
+});
+
+describe("statusError", () => {
+  it("is null before the first refresh and while it runs", async () => {
+    const { workspace, gitGateway, controller } = setup();
+    expect(controller.store.getState().statusError).toBeNull();
+    const release = gitGateway.holdNextCall();
+
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    expect(controller.store.getState().refreshing).toBe(true);
+    expect(controller.store.getState().statusError).toBeNull();
+    release();
+    await settle();
+
+    expect(controller.store.getState().statusError).toBeNull();
+  });
+
+  it("is set with the kind after a failed refresh and cleared by a later success", async () => {
+    const { workspace, gitGateway, controller } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.failure = { kind: "gitTimeout", detail: "slow" };
+
+    await controller.refreshGitStatus();
+    expect(controller.store.getState().statusError).toBe("gitTimeout");
+    expect(controller.store.getState().status).toBeNull();
+
+    gitGateway.failure = null;
+    await controller.refreshGitStatus();
+    expect(controller.store.getState().statusError).toBeNull();
+    expect(controller.store.getState().status).toEqual(CLEAN_GIT_STATUS);
+  });
+
+  it("is set when the first refresh of a Project fails", async () => {
+    const { workspace, gitGateway, controller } = setup();
+    gitGateway.failure = { kind: "gitNotReady", detail: "no git" };
+
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+
+    expect(controller.store.getState().statusError).toBe("gitNotReady");
+  });
+
+  it("is set when the refresh after a failed stage fails, and cleared by a successful stage", async () => {
+    const { workspace, gitGateway, controller } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.failure = { kind: "gitCommandFailed", detail: "boom" };
+
+    await controller.stage(["project.json"]);
+    expect(controller.store.getState().statusError).toBe("gitCommandFailed");
+
+    gitGateway.failure = null;
+    gitGateway.status = MODIFIED_STATUS;
+    await controller.stage(["project.json"]);
+    expect(controller.store.getState().statusError).toBeNull();
+    expect(controller.store.getState().status).toEqual(MODIFIED_STATUS);
+  });
+
+  it("is set when a commit's status is unavailable, and cleared by a refresh", async () => {
+    const { workspace, gitGateway, controller } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.commitResult = {
+      commitId: "0123456789abcdef0123456789abcdef01234567",
+      status: { outcome: "unavailable", errorKind: "gitTimeout" },
+    };
+
+    await controller.commit("message");
+    expect(controller.store.getState().statusError).toBe("gitTimeout");
+
+    await controller.refreshGitStatus();
+    expect(controller.store.getState().statusError).toBeNull();
+  });
+
+  it("is reset by a Project change and not carried over", async () => {
+    const { workspace, gitGateway, controller } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.failure = { kind: "gitTimeout", detail: "slow" };
+    await controller.refreshGitStatus();
+    expect(controller.store.getState().statusError).toBe("gitTimeout");
+    const release = gitGateway.holdNextCall();
+
+    await workspace.closeProject();
+    expect(controller.store.getState().statusError).toBeNull();
+    gitGateway.failure = null;
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+
+    expect(controller.store.getState().statusError).toBeNull();
+    release();
+  });
+
+  it("is not set by a stale failed refresh answering after a Project switch", async () => {
+    const { workspace, gitGateway, controller } = setup();
+    gitGateway.failure = { kind: "gitTimeout", detail: "slow" };
+    const release = gitGateway.holdNextCall();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+
+    await workspace.closeProject();
+    gitGateway.failure = null;
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    release();
+    await settle();
+
+    const state = controller.store.getState();
+    expect(state.statusError).toBeNull();
+    expect(state.status).toEqual(CLEAN_GIT_STATUS);
   });
 });
 
@@ -354,6 +470,7 @@ describe("stage / unstage", () => {
     expect(controller.store.getState()).toEqual({
       projectId: null,
       status: null,
+      statusError: null,
       refreshing: false,
       operating: false,
       diff: null,
@@ -823,6 +940,7 @@ describe("commit", () => {
     expect(controller.store.getState()).toEqual({
       projectId: null,
       status: null,
+      statusError: null,
       refreshing: false,
       operating: false,
       diff: null,
