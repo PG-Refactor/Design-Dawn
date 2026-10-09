@@ -7,6 +7,7 @@ import {
   dismissOperationError,
   openDialog,
   setBusy,
+  setGitSelection,
   setNotificationsOpen,
   showNotice,
 } from "./shell-ui-state";
@@ -93,5 +94,21 @@ describe("light notices", () => {
     // The timer of the replaced notice does nothing.
     expect(clearNotice(state, 1)).toBe(state);
     expect(clearNotice(state, 2).notice).toBeNull();
+  });
+
+  it("keeps the state object for an equal Git selection and resets it with the Project", () => {
+    const initial = createInitialUiState();
+    expect(initial.gitSelection).toBeNull();
+    const selected = setGitSelection(initial, { path: "a.md", side: "staged" });
+    expect(selected.gitSelection).toEqual({ path: "a.md", side: "staged" });
+    expect(setGitSelection(selected, { path: "a.md", side: "staged" })).toBe(
+      selected,
+    );
+    expect(
+      setGitSelection(selected, { path: "a.md", side: "unstaged" })
+        .gitSelection,
+    ).toEqual({ path: "a.md", side: "unstaged" });
+    expect(setGitSelection(initial, null)).toBe(initial);
+    expect(resetUiState().gitSelection).toBeNull();
   });
 });

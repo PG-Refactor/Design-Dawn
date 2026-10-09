@@ -11,6 +11,7 @@ import type {
 } from "../ports/git-gateway";
 import {
   type OperationError,
+  type OperationResult,
   operationErr,
   operationOk,
 } from "../ports/operation-error";
@@ -46,6 +47,12 @@ export interface FakeGitGateway extends GitGateway {
   failure: OperationError | null;
   // Suspends the next call until the returned function is called.
   holdNextCall(): () => void;
+  // Same for the next `stage` / `unstage` call (the call is recorded before it waits).
+  holdNextStage(): () => void;
+  holdNextUnstage(): () => void;
+  // Answer of the next `stage` / `unstage` call only (then back to `status` / `failure`).
+  nextStageResult: OperationResult<GitStatus> | null;
+  nextUnstageResult: OperationResult<GitStatus> | null;
 }
 
 export const FAKE_COMMIT_ID = "0123456789abcdef0123456789abcdef01234567";
@@ -59,6 +66,13 @@ export function createFakeGitGateway(): FakeGitGateway {
   let hold: Promise<void> | null = null;
   let diffHold: Promise<void> | null = null;
   let historyHold: Promise<void> | null = null;
+  let stageHold: Promise<void> | null = null;
+  let unstageHold: Promise<void> | null = null;
+  function indexAnswer(): OperationResult<GitStatus> {
+    return gateway.failure
+      ? operationErr<GitStatus>(gateway.failure.kind, gateway.failure.detail)
+      : operationOk(gateway.status);
+  }
   const gateway: FakeGitGateway = {
     calls: [],
     stageCalls: [],
@@ -71,6 +85,22 @@ export function createFakeGitGateway(): FakeGitGateway {
     commitResult: null,
     status: CLEAN_GIT_STATUS,
     failure: null,
+    nextStageResult: null,
+    nextUnstageResult: null,
+    holdNextStage() {
+      let release: () => void = () => undefined;
+      stageHold = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return release;
+    },
+    holdNextUnstage() {
+      let release: () => void = () => undefined;
+      unstageHold = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return release;
+    },
     holdNextCall() {
       let release: () => void = () => undefined;
       hold = new Promise<void>((resolve) => {
@@ -147,9 +177,13 @@ export function createFakeGitGateway(): FakeGitGateway {
     },
     async stage(projectId, paths) {
       gateway.stageCalls.push({ projectId, paths });
-      return gateway.failure
-        ? operationErr<GitStatus>(gateway.failure.kind, gateway.failure.detail)
-        : operationOk(gateway.status);
+      // Captured before waiting, like `gitStatus`.
+      const answer = gateway.nextStageResult ?? indexAnswer();
+      gateway.nextStageResult = null;
+      const pending = stageHold;
+      stageHold = null;
+      if (pending !== null) await pending;
+      return answer;
     },
     async commit(projectId, message) {
       gateway.commitCalls.push({ projectId, message });
@@ -167,9 +201,12 @@ export function createFakeGitGateway(): FakeGitGateway {
     },
     async unstage(projectId, paths) {
       gateway.unstageCalls.push({ projectId, paths });
-      return gateway.failure
-        ? operationErr<GitStatus>(gateway.failure.kind, gateway.failure.detail)
-        : operationOk(gateway.status);
+      const answer = gateway.nextUnstageResult ?? indexAnswer();
+      gateway.nextUnstageResult = null;
+      const pending = unstageHold;
+      unstageHold = null;
+      if (pending !== null) await pending;
+      return answer;
     },
   };
   return gateway;

@@ -5,6 +5,7 @@
 import type { OperationError } from "../../../application/ports/operation-error";
 import type {
   DialogState,
+  GitSelection,
   LeftPanelMode,
   NoticeKind,
   OperationLabel,
@@ -73,4 +74,21 @@ export function setLeftPanelMode(state: UiState, mode: LeftPanelMode): UiState {
   return state.leftPanelMode === mode
     ? state
     : { ...state, leftPanelMode: mode };
+}
+
+export function setGitSelection(
+  state: UiState,
+  selection: GitSelection | null,
+): UiState {
+  const current = state.gitSelection;
+  if (
+    current === selection ||
+    (current !== null &&
+      selection !== null &&
+      current.path === selection.path &&
+      current.side === selection.side)
+  ) {
+    return state;
+  }
+  return { ...state, gitSelection: selection };
 }

@@ -35,3 +35,65 @@
   margin: var(--space-3) 0;
   color: var(--color-text-muted);
 }
+
+.git-change-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.git-change-list__heading {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.git-change-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.git-change-section__title {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.git-change-section__rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.git-change-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  cursor: default;
+}
+
+.git-change-row--selected {
+  background: var(--color-selection);
+  /* A bar as well, so the selection does not rely on colour alone. */
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.git-change-row__kind {
+  flex: 0 0 auto;
+  min-width: 1ch;
+  font-family: monospace;
+}
+
+.git-change-row__path {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.git-change-row__note {
+  flex: 0 1 auto;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}

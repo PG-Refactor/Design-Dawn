@@ -256,6 +256,21 @@ export interface UiState {
   // Project Tree or Git panel in the sidebar. Kept across Project changes (only the Git
   // content follows the Project).
   readonly leftPanelMode: LeftPanelMode;
+  // The file row selected in the Git panel. A view choice only (the Git state itself lives
+  // in the Git controller); dropped when the Project changes.
+  readonly gitSelection: GitSelection | null;
+}
+
+// Which side of a file the Git panel selected: `staged` for rows of the staged section,
+// `unstaged` for rows of the changes and untracked sections.
+export const GIT_SELECTION_SIDES = ["staged", "unstaged"] as const;
+
+export type GitSelectionSide = (typeof GIT_SELECTION_SIDES)[number];
+
+export interface GitSelection {
+  // Project root relative, `/` separated.
+  readonly path: string;
+  readonly side: GitSelectionSide;
 }
 
 export type UiStateStore = Store<UiState>;
@@ -284,6 +299,7 @@ export function createInitialUiState(): UiState {
     nextNoticeId: 1,
     busy: false,
     leftPanelMode: DEFAULT_LEFT_PANEL_MODE,
+    gitSelection: null,
   };
 }
 
