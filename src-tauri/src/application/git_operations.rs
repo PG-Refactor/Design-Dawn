@@ -5,21 +5,25 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
 use crate::application::session::ProjectSessions;
 use crate::infrastructure::git::constants::{
-    ARG_ADD, ARG_CACHED, ARG_NO_OPTIONAL_LOCKS, ARG_NUL_SEPARATED, ARG_PATHSPEC_FILE_NUL,
-    ARG_PATHSPEC_FROM_STDIN, ARG_QUIET, ARG_RESTORE, ARG_REV_PARSE, ARG_RM, ARG_STAGED, ARG_STATUS,
-    ARG_STATUS_PORCELAIN_V2, ARG_UNTRACKED_ALL, ARG_VERIFY, GIT_COMMAND_TIMEOUT, REVISION_HEAD,
+    ARG_ADD, ARG_CACHED, ARG_DIFF, ARG_END_OF_OPTIONS, ARG_FIND_RENAMES, ARG_NO_COLOR,
+    ARG_NO_EXT_DIFF, ARG_NO_OPTIONAL_LOCKS, ARG_NO_TEXTCONV, ARG_NUL_SEPARATED, ARG_NUMSTAT,
+    ARG_PATHSPEC_FILE_NUL, ARG_PATHSPEC_FROM_STDIN, ARG_QUIET, ARG_RESTORE, ARG_REV_PARSE, ARG_RM,
+    ARG_STAGED, ARG_STATUS, ARG_STATUS_PORCELAIN_V2, ARG_UNTRACKED_ALL, ARG_VERIFY,
+    DIFF_COMMAND_TIMEOUT, DIFF_OUTPUT_LIMIT_BYTES, GIT_COMMAND_TIMEOUT, GIT_STDOUT_LIMIT_BYTES,
+    REVISION_HEAD,
 };
+use crate::infrastructure::git::numstat_parser::contains_binary_file;
 use crate::infrastructure::git::paths::{
     pathspec_stdin, validate_project_relative_path, ValidatedGitPath,
 };
 use crate::infrastructure::git::redaction::redact_credentials;
 use crate::infrastructure::git::repository::{detect_repository, RepositoryState};
-use crate::infrastructure::git::runner::{GitRunError, GitRunner};
+use crate::infrastructure::git::runner::{GitOutput, GitRunError, GitRunner};
 use crate::infrastructure::git::status_parser::{parse_status, FileChange, StatusEntry};
 use crate::infrastructure::git::version::is_supported_git;
 
@@ -344,6 +348,229 @@ pub fn unstage_paths(
         ));
     }
     read_git_status(Some(runner), project_root)
+}
+
+/// Which comparison a Diff shows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DiffSide {
+    /// Working tree against the index.
+    Unstaged,
+    /// Index against HEAD.
+    Staged,
+}
+
+/// What a Diff request produced. Every variant is a result, not a failure
+/// (docs/git-development.md §11.10).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(
+    tag = "outcome",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum GitDiffOutcome {
+    Text {
+        diff: String,
+    },
+    /// The status lists a change but git's diff is empty (a timestamp-only change).
+    Empty,
+    /// An untracked file has no diff in Phase 6; its content is not generated.
+    Untracked,
+    Binary,
+    TooLarge {
+        limit_bytes: usize,
+    },
+    NotUtf8,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitDiff {
+    pub path: String,
+    pub side: DiffSide,
+    #[serde(flatten)]
+    pub outcome: GitDiffOutcome,
+}
+
+/// Diff of one file using the `git` found on PATH.
+pub fn git_diff(
+    sessions: &Mutex<ProjectSessions>,
+    project_id: &str,
+    path: &str,
+    side: DiffSide,
+) -> ApplicationResult<GitDiff> {
+    let project_root = project_root_of(sessions, project_id)?;
+    diff_path(
+        GitRunner::discover().ok().as_ref(),
+        &project_root,
+        path,
+        side,
+    )
+}
+
+/// Diff of one changed file (docs/git-development.md §11.10). Only a path the repository's
+/// own status lists with a change on the requested side is accepted, like Stage / Unstage.
+/// Read-only: no index lock (`--no-optional-locks`), no external diff or textconv program,
+/// nothing is written or saved.
+pub fn diff_path(
+    runner: Option<&GitRunner>,
+    project_root: &Path,
+    path: &str,
+    side: DiffSide,
+) -> ApplicationResult<GitDiff> {
+    let state = repository_state(runner, project_root)?;
+    let (GitRepositoryState::Ready, Some(runner)) = (state, runner) else {
+        return Err(not_ready_error(state));
+    };
+
+    let validated = validate_project_relative_path(path).map_err(|reason| {
+        ApplicationError::new(
+            ErrorKind::InvalidGitPath,
+            format!("a path to diff was rejected: {reason:?}"),
+        )
+    })?;
+    let current = read_file_statuses(runner, project_root)?;
+    let entry = current.iter().find(|file| {
+        file.path == validated.as_str()
+            && match side {
+                DiffSide::Unstaged => is_diffable_in_worktree(file.worktree_status),
+                DiffSide::Staged => is_unstageable(file.index_status),
+            }
+    });
+    let Some(entry) = entry else {
+        return Err(ApplicationError::new(
+            ErrorKind::InvalidGitPath,
+            "a path to diff has no change on the requested side",
+        ));
+    };
+    let result = |outcome| GitDiff {
+        path: validated.as_str().to_owned(),
+        side,
+        outcome,
+    };
+
+    if side == DiffSide::Unstaged && entry.worktree_status == GitFileChange::Untracked {
+        return Ok(result(GitDiffOutcome::Untracked));
+    }
+
+    // A staged rename is shown as an old / new pair only when both names are in the
+    // pathspec; with the new name alone it would look like a plain addition.
+    let mut pathspecs = vec![validated.as_str().to_owned()];
+    if side == DiffSide::Staged && entry.index_status == GitFileChange::Renamed {
+        let original = entry
+            .original_path
+            .as_deref()
+            .and_then(|original| validate_project_relative_path(original).ok());
+        let Some(original) = original else {
+            return Err(ApplicationError::new(
+                ErrorKind::GitCommandFailed,
+                "a staged rename has no usable original path",
+            ));
+        };
+        pathspecs.push(original.into_string());
+    }
+
+    let numstat = run_diff(
+        runner,
+        project_root,
+        side,
+        &[ARG_NUMSTAT, ARG_NUL_SEPARATED],
+        &pathspecs,
+        GIT_STDOUT_LIMIT_BYTES,
+    )?;
+    if numstat.stdout_truncated {
+        return Err(ApplicationError::new(
+            ErrorKind::GitCommandFailed,
+            "git diff --numstat output exceeded the capture limit",
+        ));
+    }
+    let binary = contains_binary_file(&numstat.stdout).map_err(|error| {
+        ApplicationError::new(
+            ErrorKind::GitCommandFailed,
+            format!(
+                "git diff --numstat output could not be parsed: {}",
+                error.detail
+            ),
+        )
+    })?;
+    if binary {
+        return Ok(result(GitDiffOutcome::Binary));
+    }
+
+    // One byte more than the limit tells "exactly at the limit" from "over it".
+    let text = run_diff(
+        runner,
+        project_root,
+        side,
+        &[ARG_NO_COLOR],
+        &pathspecs,
+        DIFF_OUTPUT_LIMIT_BYTES + 1,
+    )?;
+    if text.stdout.len() > DIFF_OUTPUT_LIMIT_BYTES {
+        return Ok(result(GitDiffOutcome::TooLarge {
+            limit_bytes: DIFF_OUTPUT_LIMIT_BYTES,
+        }));
+    }
+    if text.stdout.is_empty() {
+        return Ok(result(GitDiffOutcome::Empty));
+    }
+    Ok(result(match String::from_utf8(text.stdout) {
+        Ok(diff) => GitDiffOutcome::Text { diff },
+        Err(_) => GitDiffOutcome::NotUtf8,
+    }))
+}
+
+/// One `git diff` with the options every Diff call shares. `extra` holds the options that
+/// differ (numstat or colour); `pathspecs` follow `--` so none can be read as an option.
+fn run_diff(
+    runner: &GitRunner,
+    project_root: &Path,
+    side: DiffSide,
+    extra: &[&str],
+    pathspecs: &[String],
+    stdout_limit: usize,
+) -> ApplicationResult<GitOutput> {
+    let mut arguments: Vec<&str> = vec![ARG_NO_OPTIONAL_LOCKS, ARG_DIFF];
+    if side == DiffSide::Staged {
+        arguments.push(ARG_CACHED);
+    }
+    arguments.extend_from_slice(extra);
+    arguments.extend_from_slice(&[ARG_NO_EXT_DIFF, ARG_NO_TEXTCONV, ARG_FIND_RENAMES]);
+    arguments.push(ARG_END_OF_OPTIONS);
+    arguments.extend(pathspecs.iter().map(String::as_str));
+
+    let output = runner
+        .run_with_stdout_limit(
+            &arguments,
+            project_root,
+            None,
+            DIFF_COMMAND_TIMEOUT,
+            stdout_limit,
+        )
+        .map_err(|error| run_error("diff", error))?;
+    if !output.success() {
+        return Err(ApplicationError::new(
+            ErrorKind::GitCommandFailed,
+            format!(
+                "git diff exited with {:?}: {}",
+                output.exit_code(),
+                redact_credentials(output.stderr_text().trim_end())
+            ),
+        ));
+    }
+    Ok(output)
+}
+
+/// Working tree changes that have something to show: a diff against the index, or the
+/// untracked marker. Unmerged files are excluded (combined diffs are not part of Phase 6).
+fn is_diffable_in_worktree(change: GitFileChange) -> bool {
+    matches!(
+        change,
+        GitFileChange::Modified
+            | GitFileChange::Deleted
+            | GitFileChange::TypeChanged
+            | GitFileChange::Untracked
+    )
 }
 
 /// False in a repository without any commit. Any other failure of the probe is an error:

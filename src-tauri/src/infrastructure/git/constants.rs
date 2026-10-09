@@ -11,6 +11,15 @@ pub const GIT_COMMAND_TIMEOUT: Duration = Duration::from_secs(30);
 /// something is wrong, and a truncated record list must never be parsed.
 pub const GIT_STDOUT_LIMIT_BYTES: usize = 16 * 1024 * 1024;
 
+/// A Diff larger than this is not shown (docs/git-development.md §11.6, §11.10): a partial
+/// diff would read as a complete one. The runner reads one byte more so "exactly at the
+/// limit" and "over it" can be told apart.
+pub const DIFF_OUTPUT_LIMIT_BYTES: usize = 1024 * 1024;
+
+/// Time limit of the two `diff` processes; a huge diff is drained, not stored, so it can
+/// take longer than a `status` but not unboundedly.
+pub const DIFF_COMMAND_TIMEOUT: Duration = Duration::from_secs(30);
+
 /// stderr is only classified and logged, never shown.
 pub const GIT_STDERR_LIMIT_BYTES: usize = 64 * 1024;
 
@@ -96,6 +105,20 @@ pub const ARG_STATUS: &str = "status";
 pub const ARG_STATUS_PORCELAIN_V2: &str = "--porcelain=v2";
 pub const ARG_NUL_SEPARATED: &str = "-z";
 pub const ARG_UNTRACKED_ALL: &str = "--untracked-files=all";
+
+pub const ARG_DIFF: &str = "diff";
+pub const ARG_NUMSTAT: &str = "--numstat";
+/// An external diff program or a textconv filter is a program named by repository
+/// configuration; neither may run (docs/git-development.md §11.6).
+pub const ARG_NO_EXT_DIFF: &str = "--no-ext-diff";
+pub const ARG_NO_TEXTCONV: &str = "--no-textconv";
+pub const ARG_NO_COLOR: &str = "--no-color";
+/// Shows a rename as one old / new pair instead of a deletion and an addition.
+pub const ARG_FIND_RENAMES: &str = "-M";
+/// Ends the options: what follows is a pathspec even when it starts with `-`.
+pub const ARG_END_OF_OPTIONS: &str = "--";
+/// `--numstat` prints `-` instead of a line count for a file git treats as binary.
+pub const NUMSTAT_BINARY_MARKER: &[u8] = b"-";
 
 /// `git` exits with 128 for "fatal" errors, including "not a git repository".
 pub const GIT_FATAL_EXIT_CODE: i32 = 128;

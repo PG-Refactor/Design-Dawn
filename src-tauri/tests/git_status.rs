@@ -16,12 +16,14 @@ use std::sync::{Arc, Mutex};
 use design_dawn_lib::application::error::{ApplicationResult, ErrorKind};
 use design_dawn_lib::application::folder_selection::{FolderPicker, FolderPickerError};
 use design_dawn_lib::application::git_operations::{
-    read_git_status, stage_paths, unstage_paths, GitFileChange, GitFileStatus, GitRepositoryState,
-    GitStatusResult,
+    diff_path, read_git_status, stage_paths, unstage_paths, DiffSide, GitDiff, GitDiffOutcome,
+    GitFileChange, GitFileStatus, GitRepositoryState, GitStatusResult,
 };
 use design_dawn_lib::application::local_state::operations::{LocalState, LocalStateDirectories};
 use design_dawn_lib::commands::SharedFolderPicker;
-use design_dawn_lib::infrastructure::git::constants::GIT_COMMAND_TIMEOUT;
+use design_dawn_lib::infrastructure::git::constants::{
+    DIFF_OUTPUT_LIMIT_BYTES, GIT_COMMAND_TIMEOUT,
+};
 use design_dawn_lib::infrastructure::git::executable::{
     find_git_executable, find_git_executable_in, Platform,
 };
@@ -1597,4 +1599,602 @@ fn write_fake_git(script: &Path, body: &str) {
         }
     }
     panic!("fake git stayed busy");
+}
+
+// ---- Diff (`diff_path`, docs/git-development.md §11.10) ----
+
+fn diff(
+    fixture: &Fixture,
+    project: &Path,
+    name: &str,
+    side: DiffSide,
+) -> ApplicationResult<GitDiff> {
+    diff_path(Some(&fixture.runner()), project, name, side)
+}
+
+fn diff_text(result: GitDiff) -> String {
+    match result.outcome {
+        GitDiffOutcome::Text { diff } => diff,
+        other => panic!("expected a text diff, got {other:?}"),
+    }
+}
+
+/// Every file below the root except `.git` with its bytes: equal before and after means the
+/// working tree was not touched.
+fn worktree_snapshot(directory: &Path) -> Vec<(PathBuf, Vec<u8>)> {
+    fn walk(directory: &Path, found: &mut Vec<(PathBuf, Vec<u8>)>) {
+        for entry in fs::read_dir(directory).unwrap() {
+            let path = entry.unwrap().path();
+            if path.file_name().is_some_and(|name| name == ".git") {
+                continue;
+            }
+            if path.is_dir() {
+                walk(&path, found);
+            } else {
+                found.push((path.clone(), fs::read(&path).unwrap()));
+            }
+        }
+    }
+    let mut found = Vec::new();
+    walk(directory, &mut found);
+    found.sort();
+    found
+}
+
+/// A diff call that must not change the index or the working tree, whatever its result.
+fn diff_leaving_everything_unchanged(
+    fixture: &Fixture,
+    project: &Path,
+    name: &str,
+    side: DiffSide,
+) -> ApplicationResult<GitDiff> {
+    let index_before = index_snapshot(fixture, project);
+    let worktree_before = worktree_snapshot(project);
+    let result = diff(fixture, project, name, side);
+    assert_eq!(index_snapshot(fixture, project), index_before, "{name}");
+    assert_eq!(worktree_snapshot(project), worktree_before, "{name}");
+    result
+}
+
+fn assert_diff_rejected(fixture: &Fixture, project: &Path, name: &str, side: DiffSide) {
+    let error = diff_leaving_everything_unchanged(fixture, project, name, side)
+        .expect_err(&format!("{name:?} was accepted"));
+    assert_eq!(error.kind, ErrorKind::InvalidGitPath, "{name:?}");
+}
+
+#[test]
+fn diff_of_an_unstaged_modification_is_a_text_diff() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    write(&project, "tracked.md", "base\nadded line\n");
+
+    let result =
+        diff_leaving_everything_unchanged(&fixture, &project, "tracked.md", DiffSide::Unstaged)
+            .unwrap();
+
+    assert_eq!(result.path, "tracked.md");
+    assert_eq!(result.side, DiffSide::Unstaged);
+    let text = diff_text(result);
+    assert!(text.contains("+added line"), "{text}");
+    assert!(!text.contains("\u{1b}["), "no colour codes");
+}
+
+#[test]
+fn diff_of_a_staged_modification_is_a_text_diff() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    write(&project, "tracked.md", "base\nstaged line\n");
+    fixture.git(&project, &["add", "tracked.md"]);
+
+    let result =
+        diff_leaving_everything_unchanged(&fixture, &project, "tracked.md", DiffSide::Staged)
+            .unwrap();
+
+    assert_eq!(result.side, DiffSide::Staged);
+    assert!(diff_text(result).contains("+staged line"));
+}
+
+#[test]
+fn a_file_staged_and_modified_again_has_a_separate_diff_per_side() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    write(&project, "tracked.md", "base\nstaged line\n");
+    fixture.git(&project, &["add", "tracked.md"]);
+    write(&project, "tracked.md", "base\nstaged line\nworktree line\n");
+
+    let staged = diff_text(diff(&fixture, &project, "tracked.md", DiffSide::Staged).unwrap());
+    let unstaged = diff_text(diff(&fixture, &project, "tracked.md", DiffSide::Unstaged).unwrap());
+
+    assert!(staged.contains("+staged line") && !staged.contains("worktree line"));
+    assert!(unstaged.contains("+worktree line") && !unstaged.contains("+staged line"));
+}
+
+#[test]
+fn diff_of_a_staged_new_file_shows_an_addition() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    write(&project, "new.md", "brand new\n");
+    fixture.git(&project, &["add", "new.md"]);
+
+    let text = diff_text(
+        diff_leaving_everything_unchanged(&fixture, &project, "new.md", DiffSide::Staged).unwrap(),
+    );
+
+    assert!(text.contains("new file mode"), "{text}");
+    assert!(text.contains("+brand new"));
+}
+
+#[test]
+fn diff_of_a_staged_deletion_shows_a_removal() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    fixture.git(&project, &["rm", "-q", "other.md"]);
+
+    let text = diff_text(
+        diff_leaving_everything_unchanged(&fixture, &project, "other.md", DiffSide::Staged)
+            .unwrap(),
+    );
+
+    assert!(text.contains("deleted file mode"), "{text}");
+    assert!(text.contains("-other"));
+}
+
+#[test]
+fn diff_of_an_unstaged_deletion_shows_a_removal() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    fs::remove_file(project.join("other.md")).unwrap();
+
+    let text = diff_text(
+        diff_leaving_everything_unchanged(&fixture, &project, "other.md", DiffSide::Unstaged)
+            .unwrap(),
+    );
+
+    assert!(text.contains("deleted file mode"), "{text}");
+}
+
+#[test]
+fn an_untracked_file_has_the_untracked_outcome_and_no_git_diff_is_run() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    write(&project, "fresh.md", "x\n");
+    // A git that fails for `diff` proves that no diff process is started.
+    let real = fixture.executable.display().to_string();
+    let directory = fixture.directory("fake-git");
+    let script = directory.join("git");
+    #[cfg(unix)]
+    {
+        write_fake_git(
+            &script,
+            &format!(
+                "for argument in \"$@\"; do [ \"$argument\" = diff ] && {{ echo no >&2; exit 1; }}; done\nexec '{real}' \"$@\""
+            ),
+        );
+        let runner = fixture
+            .environment
+            .iter()
+            .fold(GitRunner::new(script), |runner, (name, value)| {
+                runner.with_environment(name, value)
+            });
+
+        let result = diff_path(Some(&runner), &project, "fresh.md", DiffSide::Unstaged).unwrap();
+
+        assert_eq!(result.outcome, GitDiffOutcome::Untracked);
+    }
+    #[cfg(not(unix))]
+    let _ = (real, script);
+    let result = diff(&fixture, &project, "fresh.md", DiffSide::Unstaged).unwrap();
+    assert_eq!(result.outcome, GitDiffOutcome::Untracked);
+}
+
+#[test]
+fn the_staged_side_of_an_untracked_file_is_invalid() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    write(&project, "fresh.md", "x\n");
+
+    assert_diff_rejected(&fixture, &project, "fresh.md", DiffSide::Staged);
+}
+
+#[test]
+fn diff_works_for_odd_but_valid_names() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    let mut names = vec![
+        "設計 書.md",
+        "with space.md",
+        "-leading-dash.md",
+        "deep/er/nested.md",
+    ];
+    if cfg!(unix) {
+        names.extend(["a;b&c|d$e`f.md", "quote\"s.md"]);
+    }
+    for name in &names {
+        write(&project, name, "content\n");
+    }
+    fixture.git(&project, &["add", "-A"]);
+    fixture.git(&project, &["commit", "-q", "-m", "names"]);
+    for name in &names {
+        write(&project, name, "content\nchanged\n");
+    }
+
+    for name in &names {
+        let text = diff_text(
+            diff_leaving_everything_unchanged(&fixture, &project, name, DiffSide::Unstaged)
+                .unwrap(),
+        );
+        assert!(text.contains("+changed"), "{name}: {text}");
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn real_files_named_like_pathspec_magic_are_diffed_alone() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    let names = ["--help", ":(exclude)x", "--all", ":(glob)*"];
+    for name in names {
+        write(&project, name, "one\n");
+    }
+    fixture.git(&project, &["add", "-A"]);
+    fixture.git(&project, &["commit", "-q", "-m", "magic"]);
+    for name in names {
+        write(&project, name, &format!("one\nchanged {name}\n"));
+    }
+    write(&project, "tracked.md", "base\nbystander\n");
+
+    for name in names {
+        let text = diff_text(diff(&fixture, &project, name, DiffSide::Unstaged).unwrap());
+        assert!(text.contains(&format!("+changed {name}")), "{name}: {text}");
+        assert!(!text.contains("bystander"), "{name}");
+        assert_eq!(text.matches("diff --git").count(), 1, "{name}");
+    }
+}
+
+#[test]
+fn a_staged_rename_is_shown_as_a_rename_pair() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    fixture.git(&project, &["mv", "tracked.md", "renamed.md"]);
+
+    let text = diff_text(
+        diff_leaving_everything_unchanged(&fixture, &project, "renamed.md", DiffSide::Staged)
+            .unwrap(),
+    );
+
+    assert!(text.contains("rename from tracked.md"), "{text}");
+    assert!(text.contains("rename to renamed.md"), "{text}");
+}
+
+#[test]
+fn an_unchanged_file_and_unknown_names_are_invalid() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    write(&project, "documents/a.md", "x");
+    write(&project, "tracked.md", "changed\n");
+
+    for side in [DiffSide::Unstaged, DiffSide::Staged] {
+        assert_diff_rejected(&fixture, &project, "other.md", side);
+        assert_diff_rejected(&fixture, &project, "missing.md", side);
+        assert_diff_rejected(&fixture, &project, "documents", side);
+        for pattern in ["--all", "--help", ":(exclude)x", ":(glob)*", "*", "*.md"] {
+            assert_diff_rejected(&fixture, &project, pattern, side);
+        }
+    }
+    // Changed on the other side only.
+    assert_diff_rejected(&fixture, &project, "tracked.md", DiffSide::Staged);
+}
+
+#[test]
+fn the_empty_and_oversized_outcomes_follow_git_s_own_output() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    write(&project, "tracked.md", "changed\n");
+
+    // The status lists the change but git's diff is empty (a timestamp-only change cannot
+    // be produced deterministically, so git is replaced for the text call only).
+    let empty = diff_with_fake_text_output(&fixture, &project, "exit 0");
+    assert_eq!(empty.outcome, GitDiffOutcome::Empty);
+
+    let at_limit = diff_with_fake_text_output(
+        &fixture,
+        &project,
+        &format!("head -c {DIFF_OUTPUT_LIMIT_BYTES} /dev/zero"),
+    );
+    assert!(matches!(at_limit.outcome, GitDiffOutcome::Text { .. }));
+
+    let over_limit = diff_with_fake_text_output(
+        &fixture,
+        &project,
+        &format!("head -c {} /dev/zero", DIFF_OUTPUT_LIMIT_BYTES + 1),
+    );
+    assert_eq!(
+        over_limit.outcome,
+        GitDiffOutcome::TooLarge {
+            limit_bytes: DIFF_OUTPUT_LIMIT_BYTES
+        }
+    );
+}
+
+/// Real git for everything except the text `diff` call (the one without `--numstat`),
+/// which runs `text_script` instead.
+#[cfg(unix)]
+fn diff_with_fake_text_output(fixture: &Fixture, project: &Path, text_script: &str) -> GitDiff {
+    let real = fixture.executable.display().to_string();
+    let directory = fixture.directory(&format!("fake-git-{}", text_script.len()));
+    let script = directory.join("git");
+    write_fake_git(
+        &script,
+        &format!(
+            "is_diff=0\nfor argument in \"$@\"; do\n  [ \"$argument\" = --numstat ] && exec '{real}' \"$@\"\n  [ \"$argument\" = diff ] && is_diff=1\ndone\n[ $is_diff = 1 ] && {{ {text_script}; exit 0; }}\nexec '{real}' \"$@\""
+        ),
+    );
+    let runner = fixture
+        .environment
+        .iter()
+        .fold(GitRunner::new(script), |runner, (name, value)| {
+            runner.with_environment(name, value)
+        });
+    diff_path(Some(&runner), project, "tracked.md", DiffSide::Unstaged).unwrap()
+}
+
+#[cfg(not(unix))]
+fn diff_with_fake_text_output(_: &Fixture, _: &Path, _: &str) -> GitDiff {
+    GitDiff {
+        path: String::new(),
+        side: DiffSide::Unstaged,
+        outcome: GitDiffOutcome::Empty,
+    }
+}
+
+#[test]
+fn a_binary_file_has_the_binary_outcome_and_no_content() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    fs::write(project.join("image.bin"), [0_u8, 1, 2, 3, 0, 255]).unwrap();
+    fixture.git(&project, &["add", "image.bin"]);
+    fixture.git(&project, &["commit", "-q", "-m", "binary"]);
+    fs::write(project.join("image.bin"), [0_u8, 9, 9, 0, 0, 1, 2]).unwrap();
+
+    let unstaged =
+        diff_leaving_everything_unchanged(&fixture, &project, "image.bin", DiffSide::Unstaged)
+            .unwrap();
+    fixture.git(&project, &["add", "image.bin"]);
+    let staged =
+        diff_leaving_everything_unchanged(&fixture, &project, "image.bin", DiffSide::Staged)
+            .unwrap();
+
+    assert_eq!(unstaged.outcome, GitDiffOutcome::Binary);
+    assert_eq!(staged.outcome, GitDiffOutcome::Binary);
+}
+
+#[test]
+fn text_that_is_not_utf8_has_the_not_utf8_outcome() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    // Shift_JIS bytes for Japanese text, without any NUL byte, so git treats it as text.
+    let shift_jis = [0x93_u8, 0xFA, 0x96, 0x7B, 0x8C, 0xEA, b'\n'];
+    fs::write(project.join("tracked.md"), shift_jis).unwrap();
+
+    let result =
+        diff_leaving_everything_unchanged(&fixture, &project, "tracked.md", DiffSide::Unstaged)
+            .unwrap();
+
+    assert_eq!(result.outcome, GitDiffOutcome::NotUtf8);
+}
+
+#[test]
+fn a_diff_over_the_limit_is_too_large_without_content() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    let large: String = (0..300_000)
+        .map(|number| format!("line {number}\n"))
+        .collect();
+    assert!(large.len() > DIFF_OUTPUT_LIMIT_BYTES * 2);
+    write(&project, "tracked.md", &large);
+
+    let result =
+        diff_leaving_everything_unchanged(&fixture, &project, "tracked.md", DiffSide::Unstaged)
+            .unwrap();
+
+    assert_eq!(
+        result.outcome,
+        GitDiffOutcome::TooLarge {
+            limit_bytes: DIFF_OUTPUT_LIMIT_BYTES
+        }
+    );
+}
+
+#[test]
+fn diff_in_a_repository_that_is_not_ready_is_refused() {
+    let fixture = fixture_or_skip!();
+    let repository = fixture.repository();
+    write(&repository, "nested-project/inside.md", "x");
+    let plain = fixture.directory("plain");
+    write(&plain, "file.md", "x");
+
+    for root in [repository.join("nested-project"), plain] {
+        let error = diff(&fixture, &root, "inside.md", DiffSide::Unstaged).unwrap_err();
+        assert_eq!(error.kind, ErrorKind::GitNotReady);
+    }
+    let error = diff_path(None, repository.as_path(), "a.md", DiffSide::Staged).unwrap_err();
+    assert_eq!(error.kind, ErrorKind::GitNotReady);
+}
+
+#[cfg(unix)]
+#[test]
+fn diff_with_an_unusable_git_version_is_refused() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    write(&project, "tracked.md", "changed\n");
+    let directory = fixture.directory("old-git");
+    let script = directory.join("git");
+    write_fake_git(&script, "echo 'git version 2.24.9'");
+
+    let error = diff_path(
+        Some(&GitRunner::new(script)),
+        &project,
+        "tracked.md",
+        DiffSide::Unstaged,
+    )
+    .unwrap_err();
+
+    assert_eq!(error.kind, ErrorKind::GitNotReady);
+}
+
+#[test]
+fn diff_ignores_git_dir_and_git_index_file_of_the_process() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    write(&project, "tracked.md", "base\nin project\n");
+    let other = fixture.directory("other-repository");
+    fixture.git(&other, &["init", "-q"]);
+    write(&other, "decoy.md", "x");
+    let other_git_dir = other.join(".git");
+    let other_index = other_git_dir.join("index");
+
+    std::env::set_var("GIT_DIR", &other_git_dir);
+    std::env::set_var("GIT_INDEX_FILE", &other_index);
+    let result = diff(&fixture, &project, "tracked.md", DiffSide::Unstaged);
+    std::env::remove_var("GIT_DIR");
+    std::env::remove_var("GIT_INDEX_FILE");
+
+    assert!(diff_text(result.unwrap()).contains("+in project"));
+}
+
+#[test]
+fn diff_rejects_the_invalid_path_table() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    write(&project, "tracked.md", "changed\n");
+    write(&project, "documents/a.md", "x");
+    for path in [
+        "",
+        ".",
+        "..",
+        "../foo",
+        "..\\foo",
+        "/foo",
+        "\\foo",
+        "C:\\foo",
+        "C:/foo",
+        "D:/foo",
+        "\\\\server\\share",
+        "\\\\?\\C:\\x",
+        "foo/../bar",
+        "documents/",
+    ] {
+        for side in [DiffSide::Unstaged, DiffSide::Staged] {
+            assert_diff_rejected(&fixture, &project, path, side);
+        }
+    }
+}
+
+#[test]
+fn diff_of_an_unmerged_file_is_invalid_on_both_sides() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    fixture.git(&project, &["checkout", "-q", "-b", "side"]);
+    write(&project, "tracked.md", "side\n");
+    fixture.git(&project, &["commit", "-q", "-am", "side change"]);
+    fixture.git(&project, &["checkout", "-q", "-"]);
+    write(&project, "tracked.md", "main\n");
+    fixture.git(&project, &["commit", "-q", "-am", "main change"]);
+    assert!(!fixture.git_in(&project, &["merge", "side"]));
+
+    assert_diff_rejected(&fixture, &project, "tracked.md", DiffSide::Unstaged);
+    assert_diff_rejected(&fixture, &project, "tracked.md", DiffSide::Staged);
+}
+
+#[cfg(unix)]
+#[test]
+fn textconv_and_external_diff_programs_are_never_run() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    let markers = fixture.directory("markers");
+    let textconv_marker = markers.join("textconv-ran");
+    let external_marker = markers.join("external-ran");
+    write(&project, ".gitattributes", "*.md diff=marker\n");
+    fixture.git(
+        &project,
+        &[
+            "config",
+            "diff.marker.textconv",
+            &format!("touch '{}'; cat", textconv_marker.display()),
+        ],
+    );
+    fixture.git(
+        &project,
+        &[
+            "config",
+            "diff.external",
+            &format!("touch '{}'; true", external_marker.display()),
+        ],
+    );
+    write(&project, "tracked.md", "base\nchanged\n");
+    fixture.git(&project, &["add", "tracked.md"]);
+    write(&project, "other.md", "other\nchanged\n");
+
+    // Sanity: a plain `git diff` does run both, so the markers prove something.
+    fixture.git(&project, &["diff", "--", "other.md"]);
+    assert!(
+        external_marker.exists(),
+        "the configuration would run the external diff"
+    );
+    fixture.git(&project, &["diff", "--no-ext-diff", "--", "other.md"]);
+    assert!(
+        textconv_marker.exists(),
+        "the configuration would run textconv"
+    );
+    fs::remove_file(&external_marker).unwrap();
+    fs::remove_file(&textconv_marker).unwrap();
+
+    let staged = diff(&fixture, &project, "tracked.md", DiffSide::Staged).unwrap();
+    let unstaged = diff(&fixture, &project, "other.md", DiffSide::Unstaged).unwrap();
+
+    assert!(diff_text(staged).contains("+changed"));
+    assert!(diff_text(unstaged).contains("+changed"));
+    assert!(!textconv_marker.exists());
+    assert!(!external_marker.exists());
+}
+
+#[test]
+fn the_wire_form_has_an_outcome_tag_and_camel_case_fields() {
+    let cases = [
+        (
+            GitDiffOutcome::Text {
+                diff: "d".to_owned(),
+            },
+            serde_json::json!({"path": "a.md", "side": "unstaged", "outcome": "text", "diff": "d"}),
+        ),
+        (
+            GitDiffOutcome::Empty,
+            serde_json::json!({"path": "a.md", "side": "unstaged", "outcome": "empty"}),
+        ),
+        (
+            GitDiffOutcome::Untracked,
+            serde_json::json!({"path": "a.md", "side": "unstaged", "outcome": "untracked"}),
+        ),
+        (
+            GitDiffOutcome::Binary,
+            serde_json::json!({"path": "a.md", "side": "unstaged", "outcome": "binary"}),
+        ),
+        (
+            GitDiffOutcome::TooLarge { limit_bytes: 7 },
+            serde_json::json!({"path": "a.md", "side": "unstaged", "outcome": "tooLarge", "limitBytes": 7}),
+        ),
+        (
+            GitDiffOutcome::NotUtf8,
+            serde_json::json!({"path": "a.md", "side": "unstaged", "outcome": "notUtf8"}),
+        ),
+    ];
+    for (outcome, expected) in cases {
+        let diff = GitDiff {
+            path: "a.md".to_owned(),
+            side: DiffSide::Unstaged,
+            outcome,
+        };
+        assert_eq!(serde_json::to_value(diff).unwrap(), expected);
+    }
+    assert_eq!(serde_json::to_value(DiffSide::Staged).unwrap(), "staged");
 }

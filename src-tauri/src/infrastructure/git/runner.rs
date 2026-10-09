@@ -116,10 +116,33 @@ impl GitRunner {
         stdin: Option<&[u8]>,
         timeout: Duration,
     ) -> Result<GitOutput, GitRunError> {
+        self.run_with_stdout_limit(
+            arguments,
+            working_directory,
+            stdin,
+            timeout,
+            GIT_STDOUT_LIMIT_BYTES,
+        )
+    }
+
+    /// Like [`run`](Self::run) with a caller chosen stdout limit (a Diff keeps far less than
+    /// a `status`). Memory stays bounded by `stdout_limit`: bytes beyond it are read and
+    /// dropped, `stdout_truncated` is set, and the process is allowed to finish. It is not
+    /// killed early because a killed git has an unreliable exit status, and a process that
+    /// is still writing would otherwise block on a full pipe; the time limit bounds how
+    /// long draining can take.
+    pub fn run_with_stdout_limit<S: AsRef<OsStr>>(
+        &self,
+        arguments: &[S],
+        working_directory: &Path,
+        stdin: Option<&[u8]>,
+        timeout: Duration,
+        stdout_limit: usize,
+    ) -> Result<GitOutput, GitRunError> {
         let mut command = self.command(arguments, working_directory, stdin.is_some());
         let mut child = command.spawn().map_err(GitRunError::Spawn)?;
 
-        let stdout = capture(child.stdout.take(), GIT_STDOUT_LIMIT_BYTES);
+        let stdout = capture(child.stdout.take(), stdout_limit);
         let stderr = capture(child.stderr.take(), GIT_STDERR_LIMIT_BYTES);
         let writer = stdin.map(|bytes| write_stdin(child.stdin.take(), bytes.to_vec()));
 
@@ -480,6 +503,38 @@ mod tests {
         assert_eq!(output.stdout.len(), limit);
         assert!(output.stdout_truncated);
         assert!(!output.stderr_truncated);
+    }
+
+    #[test]
+    fn a_per_call_stdout_limit_truncates_at_that_limit_and_lets_the_process_finish() {
+        const SMALL_LIMIT: usize = 1024;
+        let fake = FakeGit::new(&format!(
+            "head -c {} /dev/zero; exit 0",
+            GIT_STDOUT_LIMIT_BYTES / 4
+        ));
+
+        let output = fake
+            .runner()
+            .run_with_stdout_limit::<&str>(&[], &fake.directory, None, TEST_TIMEOUT, SMALL_LIMIT)
+            .unwrap();
+
+        assert!(output.success());
+        assert_eq!(output.stdout.len(), SMALL_LIMIT);
+        assert!(output.stdout_truncated);
+    }
+
+    #[test]
+    fn output_of_exactly_the_per_call_limit_is_not_truncated() {
+        const SMALL_LIMIT: usize = 1024;
+        let fake = FakeGit::new(&format!("head -c {SMALL_LIMIT} /dev/zero"));
+
+        let output = fake
+            .runner()
+            .run_with_stdout_limit::<&str>(&[], &fake.directory, None, TEST_TIMEOUT, SMALL_LIMIT)
+            .unwrap();
+
+        assert_eq!(output.stdout.len(), SMALL_LIMIT);
+        assert!(!output.stdout_truncated);
     }
 
     #[test]
