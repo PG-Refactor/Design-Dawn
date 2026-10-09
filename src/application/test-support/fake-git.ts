@@ -6,6 +6,7 @@ import type {
   GitDiff,
   GitDiffSide,
   GitGateway,
+  GitHistoryPage,
   GitStatus,
 } from "../ports/git-gateway";
 import {
@@ -27,6 +28,16 @@ export interface FakeGitGateway extends GitGateway {
   diffs: Record<string, GitDiff>;
   // Suspends the next `diff` call until the returned function is called.
   holdNextDiff(): () => void;
+  readonly historyCalls: {
+    projectId: ProjectId;
+    limit: number;
+    cursor: string | null;
+  }[];
+  // Pages in order: a null cursor answers the first, the cursor a page returned answers the
+  // page after it; anything else answers an empty last page.
+  historyPages: readonly GitHistoryPage[];
+  // Suspends the next `history` call until the returned function is called.
+  holdNextHistory(): () => void;
   readonly commitCalls: { projectId: ProjectId; message: string }[];
   // Answer of `commit` (when `failure` is null): the status after it defaults to `status`.
   commitResult: GitCommitResult | null;
@@ -47,12 +58,15 @@ export const CLEAN_GIT_STATUS: GitStatus = {
 export function createFakeGitGateway(): FakeGitGateway {
   let hold: Promise<void> | null = null;
   let diffHold: Promise<void> | null = null;
+  let historyHold: Promise<void> | null = null;
   const gateway: FakeGitGateway = {
     calls: [],
     stageCalls: [],
     unstageCalls: [],
     diffCalls: [],
     diffs: {},
+    historyCalls: [],
+    historyPages: [],
     commitCalls: [],
     commitResult: null,
     status: CLEAN_GIT_STATUS,
@@ -70,6 +84,39 @@ export function createFakeGitGateway(): FakeGitGateway {
         release = resolve;
       });
       return release;
+    },
+    holdNextHistory() {
+      let release: () => void = () => undefined;
+      historyHold = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return release;
+    },
+    async history(projectId, limit, cursor) {
+      gateway.historyCalls.push({ projectId, limit, cursor });
+      const index =
+        cursor === null
+          ? 0
+          : gateway.historyPages.findIndex(
+              (page) => page.nextCursor === cursor,
+            ) + 1;
+      const answer = gateway.failure
+        ? operationErr<GitHistoryPage>(
+            gateway.failure.kind,
+            gateway.failure.detail,
+          )
+        : operationOk<GitHistoryPage>(
+            index > 0 || cursor === null
+              ? (gateway.historyPages[index] ?? {
+                  entries: [],
+                  nextCursor: null,
+                })
+              : { entries: [], nextCursor: null },
+          );
+      const pending = historyHold;
+      historyHold = null;
+      if (pending !== null) await pending;
+      return answer;
     },
     async diff(projectId, path, side) {
       gateway.diffCalls.push({ projectId, path, side });

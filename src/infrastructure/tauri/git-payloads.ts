@@ -16,6 +16,8 @@ import {
   type GitErrorKind,
   type GitFileChange,
   type GitFileStatus,
+  type GitHistoryEntry,
+  type GitHistoryPage,
   type GitRepositoryState,
   type GitStatus,
 } from "../../application/ports/git-gateway";
@@ -170,4 +172,43 @@ export function toGitCommitResult(
         "invalidCommandResponse",
         `status.status: ${nested.error.detail}`,
       );
+}
+
+// ISO 8601 date and time with an offset or Z (git prints `+00:00` style offsets). Only the
+// shape is checked; the UI formats the value.
+const ISO_DATE_TIME_PATTERN =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+
+const decodeIsoDateTime: Decoder<string> = (value, path) => {
+  const text = decodeString(value, path);
+  if (!text.ok) return text;
+  return ISO_DATE_TIME_PATTERN.test(text.value)
+    ? text
+    : { ok: false, detail: `${path}: expected an ISO 8601 date and time` };
+};
+
+const rawGitHistoryPage = objectOf<GitHistoryPage>({
+  entries: arrayOf(
+    objectOf<GitHistoryEntry>({
+      commitId: decodeObjectId,
+      parentIds: arrayOf(decodeObjectId),
+      authorName: decodeString,
+      authorEmail: decodeString,
+      authorDate: decodeIsoDateTime,
+      summary: decodeString,
+    }),
+  ),
+  nextCursor: nullable(decodeString),
+});
+
+export function toGitHistoryPage(
+  payload: unknown,
+): CommandResult<GitHistoryPage> {
+  const decoded = rawGitHistoryPage(payload, PAYLOAD_ROOT);
+  return decoded.ok
+    ? commandOk({
+        entries: decoded.value.entries,
+        nextCursor: decoded.value.nextCursor,
+      })
+    : commandErr("invalidCommandResponse", decoded.detail);
 }

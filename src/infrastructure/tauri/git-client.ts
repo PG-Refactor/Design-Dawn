@@ -5,12 +5,18 @@ import type {
   GitCommitResult,
   GitDiff,
   GitDiffSide,
+  GitHistoryPage,
   GitStatus,
 } from "../../application/ports/git-gateway";
 import type { ProjectId } from "../../domain/shared/entity-id";
 import { COMMANDS } from "./command-constants";
 import type { CommandResult } from "./command-error";
-import { toGitCommitResult, toGitDiff, toGitStatus } from "./git-payloads";
+import {
+  toGitCommitResult,
+  toGitDiff,
+  toGitHistoryPage,
+  toGitStatus,
+} from "./git-payloads";
 import { call } from "./invoke-command";
 
 export function gitStatus(
@@ -46,4 +52,16 @@ export function gitCommit(
   message: string,
 ): Promise<CommandResult<GitCommitResult>> {
   return call(COMMANDS.gitCommit, { projectId, message }, toGitCommitResult);
+}
+
+export function gitHistory(
+  projectId: ProjectId,
+  limit: number,
+  cursor: string | null,
+): Promise<CommandResult<GitHistoryPage>> {
+  return call(
+    COMMANDS.gitHistory,
+    { projectId, limit, cursor },
+    toGitHistoryPage,
+  );
 }

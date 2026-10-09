@@ -31,6 +31,7 @@ use crate::application::folder_selection::{
     FolderSelectionState,
 };
 use crate::application::git_commit;
+use crate::application::git_history;
 use crate::application::git_operations::{self, GitStatusResult};
 use crate::application::local_state::operations::{AppSettings, LocalState, SheetViewportResult};
 use crate::application::open_request::{self, OpenRequest, OpenedRequest, PendingOpenRequests};
@@ -53,7 +54,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 42] = [
+pub const COMMAND_NAMES: [&str; 43] = [
     "select_project_folder",
     "create_project",
     "open_project",
@@ -96,6 +97,7 @@ pub const COMMAND_NAMES: [&str; 42] = [
     "git_unstage",
     "git_diff",
     "git_commit",
+    "git_history",
 ];
 
 pub use app_channel::{AppNotification, AppNotificationSink, AppRequestHub, AppRequestSubscriber};
@@ -860,6 +862,30 @@ pub async fn git_commit<R: Runtime>(
     run_blocking(move || {
         let sessions = app.state::<Mutex<ProjectSessions>>();
         git_commit::git_commit(&sessions, &project_id, &message)
+    })
+    .await
+}
+
+/// One page of the commit history of the calling window's Project (docs/git-development.md
+/// §11.12). Read-only: never saves, not an Undo step. `limit` is taken as a signed 64 bit
+/// integer, so a negative number is not an argument error but an out-of-range page size
+/// that the core refuses as `invalidHistoryRequest`; a non-integer or beyond-i64 value is
+/// rejected by Tauri's argument deserialization. The cursor is opaque; the core checks it.
+/// The entries are repository data and are never logged here.
+#[tauri::command]
+pub async fn git_history<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    limit: i64,
+    cursor: Option<String>,
+) -> Result<git_history::GitHistory, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    // A negative limit becomes usize::MAX, which the core's range check refuses.
+    let limit = usize::try_from(limit).unwrap_or(usize::MAX);
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_history::git_history(&sessions, &project_id, limit, cursor.as_deref())
     })
     .await
 }

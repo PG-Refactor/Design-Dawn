@@ -3,8 +3,11 @@
 // the open Project: the state is reset when the Project changes and refreshed once the new
 // one is installed. Refreshing only reads; Git never saves or changes the Project. Stage /
 // Unstage change the index only: they never save the workspace and are not part of the
-// document Undo history (docs/git-development.md §11); Commit is the same. Loading a Diff only reads.
+// document Undo history (docs/git-development.md §11); Commit is the same. Loading a Diff
+// or the history only reads. A successful commit does not reload the history: the UI decides
+// when (docs/git-development.md §11.12).
 
+import { HISTORY_PAGE_SIZE } from "../../config/git-config";
 import type { ProjectId } from "../../domain/shared/entity-id";
 import { createStore, type Store } from "../../shared/store/store";
 import type {
@@ -12,6 +15,8 @@ import type {
   GitDiff,
   GitDiffSide,
   GitGateway,
+  GitHistoryEntry,
+  GitHistoryPage,
   GitStatus,
 } from "../ports/git-gateway";
 import {
@@ -36,6 +41,15 @@ export type GitDiffState =
       readonly result: GitDiff;
     };
 
+// The history the UI shows. Entries of earlier pages stay while the next page loads.
+export interface GitHistoryState {
+  readonly status: "loading" | "loaded";
+  // Newest first, all pages loaded so far.
+  readonly entries: readonly GitHistoryEntry[];
+  // Null when there is no further page (or while the first page loads).
+  readonly nextCursor: string | null;
+}
+
 export interface GitState {
   // The Project the status belongs to; null while no Project is open.
   readonly projectId: ProjectId | null;
@@ -52,6 +66,9 @@ export interface GitState {
   readonly diff: GitDiffState | null;
   // The last commit made in this Project during this session (for a UI to confirm it);
   // null before one and after a Project change. A failed commit leaves it as is.
+  // Independent of `status`. Null before a load, after `clearHistory`, after a failed first
+  // load and after a Project change. A failed load restores the last loaded state.
+  readonly history: GitHistoryState | null;
   readonly lastCommit: { readonly commitId: string | null } | null;
 }
 
@@ -61,6 +78,7 @@ export const GIT_OPERATION_LABELS = [
   "unstageGitFiles",
   "loadGitDiff",
   "commitGitChanges",
+  "loadGitHistory",
 ] as const;
 
 export type GitOperationLabel = (typeof GIT_OPERATION_LABELS)[number];
@@ -89,6 +107,16 @@ export interface GitController {
   // `refreshGitStatus` problem is reported instead. On failure it is reported as
   // `commitGitChanges` and the status is read again (hooks may have changed the index).
   commit(message: string): Promise<OperationResult<void>>;
+  // Loads the first page of the commit history of the open Project (page size
+  // `HISTORY_PAGE_SIZE`) on the same queue, replacing the entries. A newer `loadHistory` (or
+  // `clearHistory`) supersedes an older one even if the older answers later. A failure is
+  // reported as `loadGitHistory` and the last loaded state comes back (null if none).
+  loadHistory(): Promise<OperationResult<void>>;
+  // Loads the page after the loaded ones and appends it. Does nothing without a next
+  // cursor, while a history load is in flight, or without a Project.
+  loadMoreHistory(): Promise<OperationResult<void>>;
+  // Drops the shown history and ignores a load still in flight.
+  clearHistory(): void;
   // Drops the shown Diff and ignores a load still in flight.
   clearDiff(): void;
   // Stops following the Project.
@@ -112,6 +140,7 @@ const NO_PROJECT_STATE: GitState = {
   refreshing: false,
   operating: false,
   diff: null,
+  history: null,
   lastCommit: null,
 };
 
@@ -135,6 +164,9 @@ export function createGitController(
   let queueTail: Promise<unknown> = Promise.resolve();
   // Identifies the latest Diff request; older answers are dropped.
   let latestDiffRequest = 0;
+  // Same for the history; `settledHistory` is what a failed load goes back to.
+  let latestHistoryRequest = 0;
+  let settledHistory: GitHistoryState | null = null;
   let waitingRefresh: Promise<OperationResult<void>> | null = null;
 
   function enqueue<T>(task: () => Promise<T>): Promise<T> {
@@ -330,11 +362,87 @@ export function createGitController(
     });
   }
 
+  async function fetchHistoryPage(
+    projectId: ProjectId,
+    cursor: string | null,
+  ): Promise<OperationResult<GitHistoryPage>> {
+    try {
+      return await gateway.history(projectId, HISTORY_PAGE_SIZE, cursor);
+    } catch (failure) {
+      return operationErr(
+        "unexpectedCommandError",
+        failure instanceof Error ? failure.message : String(failure),
+      );
+    }
+  }
+
+  // `previous` is the loaded state a `loadMore` appends to; null for the first page.
+  function runHistoryLoad(
+    projectId: ProjectId,
+    previous: GitHistoryState | null,
+  ): Promise<OperationResult<void>> {
+    const taskEpoch = epoch;
+    const request = latestHistoryRequest;
+    const cursor = previous?.nextCursor ?? null;
+    return enqueue(async () => {
+      // Superseded while waiting in the queue: git need not be asked.
+      if (taskEpoch !== epoch || request !== latestHistoryRequest) {
+        return operationOk(undefined);
+      }
+      const result = await fetchHistoryPage(projectId, cursor);
+      if (taskEpoch !== epoch || request !== latestHistoryRequest) {
+        return result.ok ? operationOk(undefined) : result;
+      }
+      if (result.ok) {
+        settledHistory = {
+          status: "loaded",
+          entries: [...(previous?.entries ?? []), ...result.value.entries],
+          nextCursor: result.value.nextCursor,
+        };
+        store.setState((state) => ({ ...state, history: settledHistory }));
+        return operationOk(undefined);
+      }
+      store.setState((state) => ({ ...state, history: settledHistory }));
+      reportFailure("loadGitHistory", result.error);
+      return result;
+    });
+  }
+
+  function loadHistory(): Promise<OperationResult<void>> {
+    const projectId = store.getState().projectId;
+    if (projectId === null) return Promise.resolve(operationOk(undefined));
+    latestHistoryRequest += 1;
+    store.setState((state) => ({
+      ...state,
+      history: { status: "loading", entries: [], nextCursor: null },
+    }));
+    return runHistoryLoad(projectId, null);
+  }
+
+  function loadMoreHistory(): Promise<OperationResult<void>> {
+    const { projectId, history } = store.getState();
+    if (
+      projectId === null ||
+      history === null ||
+      history.status === "loading" ||
+      history.nextCursor === null
+    ) {
+      return Promise.resolve(operationOk(undefined));
+    }
+    store.setState((state) => ({
+      ...state,
+      history: { ...history, status: "loading" },
+    }));
+    return runHistoryLoad(projectId, history);
+  }
+
   function followProject(): void {
     const projectId = applicationStore.getState().project?.projectId ?? null;
     if (projectId === store.getState().projectId) return;
     epoch += 1;
     latestDiffRequest += 1;
+    latestHistoryRequest += 1;
+    settledHistory = null;
     waitingRefresh = null;
     store.setState({ ...NO_PROJECT_STATE, projectId });
     if (projectId !== null) void refreshProject(projectId);
@@ -356,6 +464,13 @@ export function createGitController(
     unstage: (paths) => changeIndex("unstage", paths),
     loadDiff,
     commit,
+    loadHistory,
+    loadMoreHistory,
+    clearHistory() {
+      latestHistoryRequest += 1;
+      settledHistory = null;
+      store.setState((state) => ({ ...state, history: null }));
+    },
     clearDiff() {
       latestDiffRequest += 1;
       store.setState((state) => ({ ...state, diff: null }));

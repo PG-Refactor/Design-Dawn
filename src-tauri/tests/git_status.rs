@@ -1820,6 +1820,205 @@ fn git_commit_over_ipc_reports_a_missing_repository() {
     }
 }
 
+// ---- History (`git_history`, docs/git-development.md §11.12) ----
+
+const HISTORY_COMMITS: usize = 3;
+const HISTORY_PAGE_LIMIT: u64 = 2;
+
+fn make_empty_commits(fixture: &Fixture, count: usize) {
+    let project = fixture.directory(PROJECT_DIRECTORY);
+    for index in 0..count {
+        fixture.git(
+            &project,
+            &[
+                "commit",
+                "-q",
+                "--allow-empty",
+                "-m",
+                &format!("commit {index}"),
+            ],
+        );
+    }
+}
+
+fn history_request(project_id: &Value, limit: Value, cursor: Value) -> Value {
+    serde_json::json!({ "projectId": project_id, "limit": limit, "cursor": cursor })
+}
+
+fn expect_error_kind(outcome: Result<Value, Value>, kind: &str) {
+    match outcome {
+        Err(error) => assert_eq!(error["kind"], kind),
+        Ok(value) => panic!("expected {kind}, got {value}"),
+    }
+}
+
+#[test]
+fn git_history_over_ipc_pages_through_the_cursor_without_absolute_paths() {
+    let fixture = fixture_or_skip!();
+    let (_app, webview, project_id) = open_repository_project(&fixture, true);
+    make_empty_commits(&fixture, HISTORY_COMMITS);
+
+    let first = invoke(
+        &webview,
+        "git_history",
+        &history_request(&project_id, HISTORY_PAGE_LIMIT.into(), Value::Null),
+    )
+    .unwrap();
+    let first_entries = first["entries"].as_array().unwrap();
+    assert_eq!(first_entries.len(), HISTORY_PAGE_LIMIT as usize);
+    let entry = &first_entries[0];
+    assert_eq!(entry["summary"], "commit 2");
+    assert_eq!(entry["authorName"], AUTHOR_NAME);
+    assert_eq!(entry["authorEmail"], AUTHOR_EMAIL);
+    assert!(matches!(entry["commitId"].as_str().unwrap().len(), 40 | 64));
+    assert_eq!(entry["parentIds"].as_array().unwrap().len(), 1);
+    assert!(entry["authorDate"].as_str().unwrap().contains('T'));
+    let cursor = first["nextCursor"].as_str().expect("another page exists");
+
+    let second = invoke(
+        &webview,
+        "git_history",
+        &history_request(&project_id, HISTORY_PAGE_LIMIT.into(), cursor.into()),
+    )
+    .unwrap();
+    let second_entries = second["entries"].as_array().unwrap();
+    assert_eq!(second_entries.len(), HISTORY_COMMITS - first_entries.len());
+    assert_eq!(second_entries[0]["summary"], "commit 0");
+    assert_eq!(second["nextCursor"], Value::Null);
+    for response in [&first, &second] {
+        assert!(!response
+            .to_string()
+            .contains(fixture.temp.path().to_str().unwrap()));
+    }
+}
+
+#[test]
+fn git_history_over_ipc_of_an_empty_repository_is_empty_without_a_cursor() {
+    let fixture = fixture_or_skip!();
+    let (_app, webview, project_id) = open_repository_project(&fixture, true);
+
+    let response = invoke(
+        &webview,
+        "git_history",
+        &history_request(&project_id, 10.into(), Value::Null),
+    )
+    .unwrap();
+
+    assert_eq!(
+        response,
+        serde_json::json!({ "entries": [], "nextCursor": null })
+    );
+}
+
+#[test]
+fn git_history_over_ipc_accepts_an_absent_cursor() {
+    let fixture = fixture_or_skip!();
+    let (_app, webview, project_id) = open_repository_project(&fixture, true);
+    make_empty_commits(&fixture, 1);
+
+    let response = invoke(
+        &webview,
+        "git_history",
+        &serde_json::json!({ "projectId": project_id, "limit": 10 }),
+    )
+    .unwrap();
+
+    assert_eq!(response["entries"].as_array().unwrap().len(), 1);
+}
+
+#[test]
+fn git_history_over_ipc_refuses_limits_outside_the_range_without_crashing() {
+    let fixture = fixture_or_skip!();
+    let (_app, webview, project_id) = open_repository_project(&fixture, true);
+    make_empty_commits(&fixture, 1);
+
+    // Negative and out-of-range numbers reach the core and are `invalidHistoryRequest`.
+    for limit in [-1_i64, 0, i64::MAX, 101] {
+        expect_error_kind(
+            invoke(
+                &webview,
+                "git_history",
+                &history_request(&project_id, limit.into(), Value::Null),
+            ),
+            "invalidHistoryRequest",
+        );
+    }
+    // Non-integers, numbers beyond i64 and non-numbers are refused by Tauri's argument
+    // deserialization (an error without an application kind), never a panic.
+    for limit in [
+        serde_json::json!(1.5),
+        serde_json::json!(u64::MAX),
+        serde_json::json!("10"),
+        Value::Null,
+    ] {
+        let outcome = invoke(
+            &webview,
+            "git_history",
+            &history_request(&project_id, limit, Value::Null),
+        );
+        assert!(outcome.is_err(), "limit was accepted");
+    }
+    // The window still answers afterwards.
+    let status = invoke(
+        &webview,
+        "git_status",
+        &serde_json::json!({ "projectId": project_id }),
+    )
+    .unwrap();
+    assert_eq!(status["repository"]["state"], "ready");
+}
+
+#[test]
+fn git_history_over_ipc_refuses_a_malformed_cursor() {
+    let fixture = fixture_or_skip!();
+    let (_app, webview, project_id) = open_repository_project(&fixture, true);
+    make_empty_commits(&fixture, 1);
+
+    for cursor in ["", "not-a-cursor", "abc:1", "--upload-pack=x:1"] {
+        expect_error_kind(
+            invoke(
+                &webview,
+                "git_history",
+                &history_request(&project_id, 10.into(), cursor.into()),
+            ),
+            "invalidHistoryRequest",
+        );
+    }
+}
+
+#[test]
+fn git_history_over_ipc_is_refused_for_a_window_that_does_not_have_the_project() {
+    let fixture = fixture_or_skip!();
+    let (app, _main, project_id) = open_repository_project(&fixture, true);
+    let other = WebviewWindowBuilder::new(&app, SECOND_WINDOW_LABEL, Default::default())
+        .build()
+        .expect("second window");
+
+    expect_error_kind(
+        invoke(
+            &other,
+            "git_history",
+            &history_request(&project_id, 10.into(), Value::Null),
+        ),
+        "projectNotOpen",
+    );
+}
+
+#[test]
+fn git_history_over_ipc_reports_a_missing_repository() {
+    let fixture = fixture_or_skip!();
+    let (_app, webview, project_id) = open_repository_project(&fixture, false);
+
+    expect_error_kind(
+        invoke(
+            &webview,
+            "git_history",
+            &history_request(&project_id, 10.into(), Value::Null),
+        ),
+        "gitNotReady",
+    );
+}
+
 /// Set while probing a freshly written fake git, which then exits at once.
 #[cfg(unix)]
 const FAKE_GIT_PROBE_VARIABLE: &str = "DAWN_FAKE_GIT_PROBE";

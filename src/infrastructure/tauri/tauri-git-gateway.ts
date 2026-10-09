@@ -2,6 +2,7 @@ import type { GitGateway } from "../../application/ports/git-gateway";
 import {
   gitCommit,
   gitDiff,
+  gitHistory,
   gitStage,
   gitStatus,
   gitUnstage,
@@ -15,5 +16,6 @@ export function createTauriGitGateway(): GitGateway {
     unstage: gitUnstage,
     diff: gitDiff,
     commit: gitCommit,
+    history: gitHistory,
   };
 }

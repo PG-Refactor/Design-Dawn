@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { HISTORY_PAGE_SIZE } from "../../config/git-config";
 import { PROJECT_ID } from "../../domain/shared/test-fixtures";
-import type { GitDiff, GitStatus } from "../ports/git-gateway";
+import type { GitDiff, GitHistoryPage, GitStatus } from "../ports/git-gateway";
 import type { OperationError } from "../ports/operation-error";
 import {
   CLEAN_GIT_STATUS,
@@ -52,6 +53,7 @@ describe("following the open Project", () => {
       refreshing: false,
       operating: false,
       diff: null,
+      history: null,
       lastCommit: null,
     });
     expect(await controller.refreshGitStatus()).toEqual({
@@ -75,6 +77,7 @@ describe("following the open Project", () => {
       refreshing: false,
       operating: false,
       diff: null,
+      history: null,
       lastCommit: null,
     });
   });
@@ -106,6 +109,7 @@ describe("following the open Project", () => {
       refreshing: false,
       operating: false,
       diff: null,
+      history: null,
       lastCommit: null,
     });
   });
@@ -353,6 +357,7 @@ describe("stage / unstage", () => {
       refreshing: false,
       operating: false,
       diff: null,
+      history: null,
       lastCommit: null,
     });
   });
@@ -821,6 +826,7 @@ describe("commit", () => {
       refreshing: false,
       operating: false,
       diff: null,
+      history: null,
       lastCommit: null,
     });
     expect(failureLabels).toEqual([]);
@@ -885,6 +891,333 @@ describe("commit", () => {
     await controller.commit(MESSAGE);
     gitGateway.failure = { kind: "nothingToCommit", detail: "x" };
     await controller.commit(MESSAGE);
+
+    expect(gateway.calls).toEqual([]);
+    expect(store.getState()).toBe(stateBefore);
+  });
+});
+
+describe("history", () => {
+  const ID_ONE = "1".repeat(40);
+  const ID_TWO = "2".repeat(40);
+  const ID_THREE = "3".repeat(40);
+  const CURSOR_ONE = `${ID_ONE}:2`;
+
+  function entry(commitId: string, summary: string) {
+    return {
+      commitId,
+      parentIds: [],
+      authorName: "A",
+      authorEmail: "a@example.invalid",
+      authorDate: "2026-01-02T03:04:05+00:00",
+      summary,
+    };
+  }
+
+  const FIRST_PAGE: GitHistoryPage = {
+    entries: [entry(ID_ONE, "one"), entry(ID_TWO, "two")],
+    nextCursor: CURSOR_ONE,
+  };
+  const LAST_PAGE: GitHistoryPage = {
+    entries: [entry(ID_THREE, "three")],
+    nextCursor: null,
+  };
+
+  async function openedSetup() {
+    const context = setup();
+    context.gitGateway.historyPages = [FIRST_PAGE, LAST_PAGE];
+    await context.workspace.openProject(SELECTION_ID);
+    await settle();
+    return context;
+  }
+
+  it("does nothing without a Project", async () => {
+    const { gitGateway, controller } = setup();
+
+    expect(await controller.loadHistory()).toEqual({
+      ok: true,
+      value: undefined,
+    });
+    expect(await controller.loadMoreHistory()).toEqual({
+      ok: true,
+      value: undefined,
+    });
+
+    expect(gitGateway.historyCalls).toEqual([]);
+    expect(controller.store.getState().history).toBeNull();
+  });
+
+  it("loads the first page with the configured page size", async () => {
+    const { gitGateway, controller } = await openedSetup();
+    const release = gitGateway.holdNextHistory();
+
+    const pending = controller.loadHistory();
+    expect(controller.store.getState().history).toEqual({
+      status: "loading",
+      entries: [],
+      nextCursor: null,
+    });
+    release();
+    await pending;
+
+    expect(controller.store.getState().history).toEqual({
+      status: "loaded",
+      entries: FIRST_PAGE.entries,
+      nextCursor: CURSOR_ONE,
+    });
+    expect(gitGateway.historyCalls).toEqual([
+      { projectId: PROJECT_ID, limit: HISTORY_PAGE_SIZE, cursor: null },
+    ]);
+  });
+
+  it("appends the next page and keeps earlier entries while it loads", async () => {
+    const { gitGateway, controller } = await openedSetup();
+    await controller.loadHistory();
+    const release = gitGateway.holdNextHistory();
+
+    const pending = controller.loadMoreHistory();
+    expect(controller.store.getState().history).toEqual({
+      status: "loading",
+      entries: FIRST_PAGE.entries,
+      nextCursor: CURSOR_ONE,
+    });
+    release();
+    await pending;
+
+    expect(controller.store.getState().history).toEqual({
+      status: "loaded",
+      entries: [...FIRST_PAGE.entries, ...LAST_PAGE.entries],
+      nextCursor: null,
+    });
+    expect(gitGateway.historyCalls[1]).toEqual({
+      projectId: PROJECT_ID,
+      limit: HISTORY_PAGE_SIZE,
+      cursor: CURSOR_ONE,
+    });
+  });
+
+  it("loadMoreHistory does nothing without a cursor, before a load or while loading", async () => {
+    const { gitGateway, controller } = await openedSetup();
+
+    await controller.loadMoreHistory();
+    expect(gitGateway.historyCalls).toEqual([]);
+
+    gitGateway.historyPages = [LAST_PAGE];
+    await controller.loadHistory();
+    await controller.loadMoreHistory();
+    expect(gitGateway.historyCalls).toHaveLength(1);
+
+    gitGateway.historyPages = [FIRST_PAGE, LAST_PAGE];
+    await controller.loadHistory();
+    const release = gitGateway.holdNextHistory();
+    const first = controller.loadMoreHistory();
+    const second = controller.loadMoreHistory();
+    release();
+    await Promise.all([first, second]);
+
+    expect(gitGateway.historyCalls).toHaveLength(3);
+    expect(controller.store.getState().history?.entries).toHaveLength(3);
+  });
+
+  it("a newer loadHistory supersedes an older one that answers later", async () => {
+    const { gitGateway, controller } = await openedSetup();
+    gitGateway.historyPages = [FIRST_PAGE];
+    const release = gitGateway.holdNextHistory();
+    const older = controller.loadHistory();
+    await settle();
+    gitGateway.historyPages = [LAST_PAGE];
+
+    const newer = controller.loadHistory();
+    release();
+    await Promise.all([older, newer]);
+
+    expect(controller.store.getState().history).toEqual({
+      status: "loaded",
+      entries: LAST_PAGE.entries,
+      nextCursor: null,
+    });
+  });
+
+  it("drops a loadMore answer when a newer loadHistory started", async () => {
+    const { gitGateway, controller } = await openedSetup();
+    await controller.loadHistory();
+    const release = gitGateway.holdNextHistory();
+    const more = controller.loadMoreHistory();
+    await settle();
+
+    const reload = controller.loadHistory();
+    release();
+    await Promise.all([more, reload]);
+
+    expect(controller.store.getState().history).toEqual({
+      status: "loaded",
+      entries: FIRST_PAGE.entries,
+      nextCursor: CURSOR_ONE,
+    });
+  });
+
+  it("drops an answer that arrives after the Project was closed", async () => {
+    const { workspace, gitGateway, controller, failureLabels } =
+      await openedSetup();
+    const release = gitGateway.holdNextHistory();
+    const pending = controller.loadHistory();
+    await settle();
+
+    await workspace.closeProject();
+    release();
+    await pending;
+
+    expect(controller.store.getState().history).toBeNull();
+    expect(controller.store.getState().projectId).toBeNull();
+    expect(failureLabels).toEqual([]);
+  });
+
+  it("resets the history when the Project changes", async () => {
+    const { workspace, controller } = await openedSetup();
+    await controller.loadHistory();
+
+    await workspace.closeProject();
+
+    expect(controller.store.getState().history).toBeNull();
+  });
+
+  it("reports a failed first load and clears the history", async () => {
+    const { gitGateway, controller, failures, failureLabels } =
+      await openedSetup();
+    gitGateway.failure = { kind: "invalidHistoryRequest", detail: "x" };
+
+    const result = await controller.loadHistory();
+
+    expect(!result.ok && result.error.kind).toBe("invalidHistoryRequest");
+    expect(failureLabels).toEqual(["loadGitHistory"]);
+    expect(failures[0]?.kind).toBe("invalidHistoryRequest");
+    expect(controller.store.getState().history).toBeNull();
+  });
+
+  it("restores the last loaded state after a failed load of more", async () => {
+    const { gitGateway, controller, failureLabels } = await openedSetup();
+    await controller.loadHistory();
+    gitGateway.failure = { kind: "gitTimeout", detail: "x" };
+
+    await controller.loadMoreHistory();
+
+    expect(failureLabels).toEqual(["loadGitHistory"]);
+    expect(controller.store.getState().history).toEqual({
+      status: "loaded",
+      entries: FIRST_PAGE.entries,
+      nextCursor: CURSOR_ONE,
+    });
+  });
+
+  it("restores the previous history after a failed reload", async () => {
+    const { gitGateway, controller } = await openedSetup();
+    await controller.loadHistory();
+    gitGateway.failure = { kind: "gitTimeout", detail: "x" };
+
+    await controller.loadHistory();
+
+    expect(controller.store.getState().history?.entries).toEqual(
+      FIRST_PAGE.entries,
+    );
+    expect(controller.store.getState().history?.status).toBe("loaded");
+  });
+
+  it("reports a rejecting gateway as an unexpected error", async () => {
+    const { gitGateway, controller, failureLabels } = await openedSetup();
+    gitGateway.history = async () => {
+      throw new Error("boom");
+    };
+
+    const result = await controller.loadHistory();
+
+    expect(!result.ok && result.error.kind).toBe("unexpectedCommandError");
+    expect(failureLabels).toEqual(["loadGitHistory"]);
+    expect(controller.store.getState().history).toBeNull();
+  });
+
+  it("clearHistory drops the history and ignores a load in flight", async () => {
+    const { gitGateway, controller } = await openedSetup();
+    await controller.loadHistory();
+    controller.clearHistory();
+    expect(controller.store.getState().history).toBeNull();
+
+    const release = gitGateway.holdNextHistory();
+    const pending = controller.loadHistory();
+    await settle();
+    controller.clearHistory();
+    release();
+    await pending;
+
+    expect(controller.store.getState().history).toBeNull();
+  });
+
+  it("leaves the status untouched and does not reload after a commit", async () => {
+    const { gitGateway, controller } = await openedSetup();
+    gitGateway.status = MODIFIED_STATUS;
+    await controller.refreshGitStatus();
+    const statusBefore = controller.store.getState().status;
+    const statusCallsBefore = gitGateway.calls.length;
+
+    await controller.loadHistory();
+    expect(controller.store.getState().status).toBe(statusBefore);
+    expect(gitGateway.calls).toHaveLength(statusCallsBefore);
+
+    await controller.commit("message");
+    expect(gitGateway.historyCalls).toHaveLength(1);
+    expect(controller.store.getState().history?.entries).toEqual(
+      FIRST_PAGE.entries,
+    );
+  });
+
+  it("runs after earlier operations, one at a time", async () => {
+    const { gitGateway, controller } = await openedSetup();
+    const events: string[] = [];
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const originalStage = gitGateway.stage;
+    const originalHistory = gitGateway.history;
+    const originalStatus = gitGateway.gitStatus;
+    gitGateway.stage = async (projectId, paths) => {
+      events.push("stage:start");
+      await held;
+      events.push("stage:end");
+      return originalStage(projectId, paths);
+    };
+    gitGateway.history = async (projectId, limit, cursor) => {
+      events.push("history");
+      return originalHistory(projectId, limit, cursor);
+    };
+    gitGateway.gitStatus = async (projectId) => {
+      events.push("status");
+      return originalStatus(projectId);
+    };
+
+    const all = Promise.all([
+      controller.stage(["project.json"]),
+      controller.loadHistory(),
+      controller.refreshGitStatus(),
+    ]);
+    await settle();
+    expect(events).toEqual(["stage:start"]);
+    release();
+    await all;
+
+    expect(events).toEqual(["stage:start", "stage:end", "history", "status"]);
+  });
+
+  it("neither saves the workspace nor touches the undo history", async () => {
+    const { workspace, gateway, gitGateway, store, controller } = setup();
+    gitGateway.historyPages = [FIRST_PAGE, LAST_PAGE];
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    const stateBefore = store.getState();
+    gateway.clearCalls();
+
+    await controller.loadHistory();
+    await controller.loadMoreHistory();
+    controller.clearHistory();
 
     expect(gateway.calls).toEqual([]);
     expect(store.getState()).toBe(stateBefore);

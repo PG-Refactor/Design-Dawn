@@ -97,6 +97,26 @@ export interface GitCommitResult {
   readonly status: GitCommitStatus;
 }
 
+// One commit of the history. Author data is untrusted repository text: show it as text only.
+export interface GitHistoryEntry {
+  // Full object IDs (40 or 64 lowercase hexadecimal characters).
+  readonly commitId: string;
+  readonly parentIds: readonly string[];
+  readonly authorName: string;
+  readonly authorEmail: string;
+  // ISO 8601 with the author's UTC offset (or Z).
+  readonly authorDate: string;
+  // The first line of the message.
+  readonly summary: string;
+}
+
+export interface GitHistoryPage {
+  // Newest first.
+  readonly entries: readonly GitHistoryEntry[];
+  // Opaque; pass it back to read the next page. Null when there is no further page.
+  readonly nextCursor: string | null;
+}
+
 export interface GitGateway {
   gitStatus(projectId: ProjectId): Promise<OperationResult<GitStatus>>;
   // Stages changed files (Project root relative, `/` separated) and returns the status
@@ -124,4 +144,11 @@ export interface GitGateway {
     projectId: ProjectId,
     message: string,
   ): Promise<OperationResult<GitCommitResult>>;
+  // One page of the commit history, newest first, starting from the first page when
+  // `cursor` is null. Read-only. Rust validates `limit` and the cursor.
+  history(
+    projectId: ProjectId,
+    limit: number,
+    cursor: string | null,
+  ): Promise<OperationResult<GitHistoryPage>>;
 }

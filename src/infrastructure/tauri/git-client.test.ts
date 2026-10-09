@@ -5,6 +5,7 @@ import { COMMANDS } from "./command-constants";
 import {
   gitCommit,
   gitDiff,
+  gitHistory,
   gitStage,
   gitStatus,
   gitUnstage,
@@ -394,5 +395,106 @@ describe("gitCommit", () => {
     const result = await gitCommit(PROJECT_ID, "m");
 
     expect(!result.ok && result.error.kind).toBe("nothingToCommit");
+  });
+});
+
+describe("gitHistory", () => {
+  const ID_A = "0123456789abcdef0123456789abcdef01234567";
+  const ID_B = `${ID_A}0123456789abcdef01234567`;
+  const ENTRY = {
+    commitId: ID_A,
+    parentIds: [ID_B],
+    authorName: "名前",
+    authorEmail: "a@example.invalid",
+    authorDate: "2026-01-02T03:04:05+09:00",
+    summary: "件名",
+  };
+  const PAGE = { entries: [ENTRY], nextCursor: `${ID_A}:1` };
+
+  it("sends the project id, limit and cursor and decodes a page", async () => {
+    invokeMock.mockResolvedValueOnce(PAGE);
+
+    const result = await gitHistory(PROJECT_ID, 50, null);
+
+    expect(invokeMock.mock.calls).toStrictEqual([
+      [COMMANDS.gitHistory, { projectId: PROJECT_ID, limit: 50, cursor: null }],
+    ]);
+    expect(result).toStrictEqual({ ok: true, value: PAGE });
+  });
+
+  it("passes the cursor on", async () => {
+    invokeMock.mockResolvedValueOnce(PAGE);
+
+    await gitHistory(PROJECT_ID, 10, "abc:1");
+
+    expect(invokeMock.mock.calls[0]?.[1]).toStrictEqual({
+      projectId: PROJECT_ID,
+      limit: 10,
+      cursor: "abc:1",
+    });
+  });
+
+  it("decodes an empty page, a null cursor, a root commit and Z dates", async () => {
+    invokeMock.mockResolvedValueOnce({ entries: [], nextCursor: null });
+    invokeMock.mockResolvedValueOnce({
+      entries: [
+        { ...ENTRY, parentIds: [], authorDate: "2026-01-02T03:04:05Z" },
+        { ...ENTRY, authorDate: "2026-01-02T03:04:05.123-05:00" },
+      ],
+      nextCursor: null,
+    });
+
+    const empty = await gitHistory(PROJECT_ID, 10, null);
+    const full = await gitHistory(PROJECT_ID, 10, null);
+
+    expect(empty).toStrictEqual({
+      ok: true,
+      value: { entries: [], nextCursor: null },
+    });
+    expect(full.ok && full.value.entries).toHaveLength(2);
+    expect(full.ok && full.value.entries[0]?.parentIds).toEqual([]);
+  });
+
+  it.each([
+    ["a non object payload", "ok"],
+    ["a missing entries list", { nextCursor: null }],
+    ["a missing next cursor", { entries: [] }],
+    ["a numeric next cursor", { entries: [], nextCursor: 1 }],
+    ["entries that are not a list", { entries: {}, nextCursor: null }],
+    ["a short commit id", page({ commitId: "abc" })],
+    ["an upper case commit id", page({ commitId: ID_A.toUpperCase() })],
+    ["a non hexadecimal commit id", page({ commitId: "g".repeat(40) })],
+    ["a numeric commit id", page({ commitId: 1 })],
+    ["a missing commit id", page({ commitId: undefined })],
+    ["parent ids that are not a list", page({ parentIds: ID_A })],
+    ["a malformed parent id", page({ parentIds: ["xyz"] })],
+    ["a date without time", page({ authorDate: "2026-01-02" })],
+    ["a date without an offset", page({ authorDate: "2026-01-02T03:04:05" })],
+    ["a git raw date", page({ authorDate: "2026-01-02 03:04:05 +0900" })],
+    ["a numeric date", page({ authorDate: 1767323045 })],
+    ["a numeric author name", page({ authorName: 1 })],
+    ["a missing author email", page({ authorEmail: undefined })],
+    ["a null summary", page({ summary: null })],
+  ])("rejects %s", async (_name, payload) => {
+    invokeMock.mockResolvedValueOnce(payload);
+
+    const result = await gitHistory(PROJECT_ID, 10, null);
+
+    expect(!result.ok && result.error.kind).toBe("invalidCommandResponse");
+  });
+
+  function page(override: Record<string, unknown>) {
+    return { entries: [{ ...ENTRY, ...override }], nextCursor: null };
+  }
+
+  it("passes a structured Rust error through", async () => {
+    invokeMock.mockRejectedValueOnce({
+      kind: "invalidHistoryRequest",
+      detail: "bad cursor",
+    });
+
+    const result = await gitHistory(PROJECT_ID, 10, "bad");
+
+    expect(!result.ok && result.error.kind).toBe("invalidHistoryRequest");
   });
 });

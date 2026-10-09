@@ -45,6 +45,7 @@
     "allow-git-stage",
     "allow-git-unstage",
     "allow-git-diff",
-    "allow-git-commit"
+    "allow-git-commit",
+    "allow-git-history"
   ]
 }

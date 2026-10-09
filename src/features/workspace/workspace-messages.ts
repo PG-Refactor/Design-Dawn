@@ -216,6 +216,7 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   unstageGitFiles: "ステージを解除できませんでした",
   loadGitDiff: "差分を取得できませんでした",
   commitGitChanges: "コミットできませんでした",
+  loadGitHistory: "履歴を取得できませんでした",
 };
 
 // A full record, so a new error kind cannot be added without a user-facing sentence.
