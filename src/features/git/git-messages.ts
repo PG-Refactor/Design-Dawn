@@ -28,6 +28,12 @@ export const GIT_MESSAGES = {
   unstage: "ステージ解除",
   stageAll: "すべてステージ",
   unstageAll: "すべて解除",
+  commitMessageLabel: "コミットメッセージ",
+  commit: "コミット",
+  committing: "コミット中…",
+  commitUnsavedNote: "未保存の変更はコミットに含まれません。",
+  // Shown before the note while something is unsaved, so the emphasis is not colour only.
+  commitUnsavedPrefix: "注意：",
   conflictNote: "競合の解決はこのバージョンでは扱いません",
   sectionTitles: {
     staged: "ステージ済み",

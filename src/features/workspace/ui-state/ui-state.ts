@@ -259,6 +259,9 @@ export interface UiState {
   // The file row selected in the Git panel. A view choice only (the Git state itself lives
   // in the Git controller); dropped when the Project changes.
   readonly gitSelection: GitSelection | null;
+  // The commit message typed in the Git panel. UI state so it survives switching between
+  // the Project and Git views; dropped with the Project and never saved.
+  readonly gitCommitMessage: string;
 }
 
 // Which side of a file the Git panel selected: `staged` for rows of the staged section,
@@ -300,6 +303,7 @@ export function createInitialUiState(): UiState {
     busy: false,
     leftPanelMode: DEFAULT_LEFT_PANEL_MODE,
     gitSelection: null,
+    gitCommitMessage: "",
   };
 }
 

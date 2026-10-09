@@ -92,3 +92,9 @@ export function setGitSelection(
   }
   return { ...state, gitSelection: selection };
 }
+
+export function setGitCommitMessage(state: UiState, message: string): UiState {
+  return state.gitCommitMessage === message
+    ? state
+    : { ...state, gitCommitMessage: message };
+}

@@ -3,6 +3,7 @@ import type { OperationErrorKind } from "../../application/ports/operation-error
 import { useGitState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import { GitChangeList } from "./git-change-list";
+import { GitCommitBox } from "./git-commit-box";
 import { GIT_MESSAGES } from "./git-messages";
 
 // What the panel knows, decided from the Git state only (docs/ui-design.md §13.2).
@@ -72,6 +73,7 @@ export function GitRepositoryState() {
           </p>
           {view.status.repositoryState === "ready" ? (
             <div className="git-panel__changes">
+              <GitCommitBox status={view.status} />
               <GitChangeList status={view.status} />
             </div>
           ) : null}

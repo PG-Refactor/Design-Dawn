@@ -29,6 +29,10 @@ import {
   moveOpenDocument,
 } from "../../application/state/application-state";
 import {
+  hasUnsavedDocumentChanges,
+  hasUnsavedProjectChanges as hasUnsavedProjectChangesIn,
+} from "../../application/state/unsaved-changes";
+import {
   childOrderOf,
   findFolder,
   findProjectEntry,
@@ -432,33 +436,17 @@ export function createWorkspaceActions(
   // its save, a failed save, a save in progress, or a Markdown draft not yet committed.
   function hasUnsavedChangesIn(documentIds: readonly DocumentId[]): boolean {
     if (draftRegistry.hasPendingFor(documentIds)) return true;
-    const documents = applicationStore.getState().documents;
-    return documentIds.some((documentId) => {
-      const save = documents.get(documentId)?.save;
-      return (
-        save !== undefined &&
-        (save.dirtySheetIds.size > 0 ||
-          save.dirtyContentBlockIds.size > 0 ||
-          save.documentDirty ||
-          save.saving ||
-          save.lastError !== null)
-      );
-    });
+    return hasUnsavedDocumentChanges(applicationStore.getState(), documentIds);
   }
 
-  // The Project itself or any Folder is unsaved, or anything in an open document.
+  // The Project itself or any Folder is unsaved, or anything in an open document
+  // (including Markdown drafts, which only the draft registry knows).
   function hasUnsavedProjectChanges(): boolean {
     const state = applicationStore.getState();
-    const { project } = state;
-    if (project !== null) {
-      const unsaved = (save: {
-        readonly dirty: boolean;
-        readonly lastError: OperationError | null;
-      }) => save.dirty || save.lastError !== null;
-      if (unsaved(project.save)) return true;
-      if (project.folders.some((folder) => unsaved(folder.save))) return true;
-    }
-    return hasUnsavedChangesIn([...state.documents.keys()]);
+    return (
+      hasUnsavedProjectChangesIn(state) ||
+      draftRegistry.hasPendingFor([...state.documents.keys()])
+    );
   }
 
   // Auto-save on keeps today's behaviour (save, then close): only with it off can closing

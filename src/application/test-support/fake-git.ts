@@ -50,6 +50,8 @@ export interface FakeGitGateway extends GitGateway {
   // Same for the next `stage` / `unstage` call (the call is recorded before it waits).
   holdNextStage(): () => void;
   holdNextUnstage(): () => void;
+  // Same for the next `commit` call (recorded before it waits).
+  holdNextCommit(): () => void;
   // Answer of the next `stage` / `unstage` call only (then back to `status` / `failure`).
   nextStageResult: OperationResult<GitStatus> | null;
   nextUnstageResult: OperationResult<GitStatus> | null;
@@ -68,6 +70,7 @@ export function createFakeGitGateway(): FakeGitGateway {
   let historyHold: Promise<void> | null = null;
   let stageHold: Promise<void> | null = null;
   let unstageHold: Promise<void> | null = null;
+  let commitHold: Promise<void> | null = null;
   function indexAnswer(): OperationResult<GitStatus> {
     return gateway.failure
       ? operationErr<GitStatus>(gateway.failure.kind, gateway.failure.detail)
@@ -97,6 +100,13 @@ export function createFakeGitGateway(): FakeGitGateway {
     holdNextUnstage() {
       let release: () => void = () => undefined;
       unstageHold = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return release;
+    },
+    holdNextCommit() {
+      let release: () => void = () => undefined;
+      commitHold = new Promise<void>((resolve) => {
         release = resolve;
       });
       return release;
@@ -187,7 +197,7 @@ export function createFakeGitGateway(): FakeGitGateway {
     },
     async commit(projectId, message) {
       gateway.commitCalls.push({ projectId, message });
-      return gateway.failure
+      const answer: OperationResult<GitCommitResult> = gateway.failure
         ? operationErr<GitCommitResult>(
             gateway.failure.kind,
             gateway.failure.detail,
@@ -198,6 +208,10 @@ export function createFakeGitGateway(): FakeGitGateway {
               status: { outcome: "updated", status: gateway.status },
             },
           );
+      const pending = commitHold;
+      commitHold = null;
+      if (pending !== null) await pending;
+      return answer;
     },
     async unstage(projectId, paths) {
       gateway.unstageCalls.push({ projectId, paths });

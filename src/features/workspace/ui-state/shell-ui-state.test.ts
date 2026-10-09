@@ -7,6 +7,7 @@ import {
   dismissOperationError,
   openDialog,
   setBusy,
+  setGitCommitMessage,
   setGitSelection,
   setNotificationsOpen,
   showNotice,
@@ -110,5 +111,16 @@ describe("light notices", () => {
     ).toEqual({ path: "a.md", side: "unstaged" });
     expect(setGitSelection(initial, null)).toBe(initial);
     expect(resetUiState().gitSelection).toBeNull();
+  });
+});
+
+describe("git commit message", () => {
+  it("defaults to empty, is replaced by the setter and reset with the UI state", () => {
+    const initial = createInitialUiState();
+    expect(initial.gitCommitMessage).toBe("");
+    const typed = setGitCommitMessage(initial, "draft");
+    expect(typed.gitCommitMessage).toBe("draft");
+    expect(setGitCommitMessage(typed, "draft")).toBe(typed);
+    expect(resetUiState().gitCommitMessage).toBe("");
   });
 });

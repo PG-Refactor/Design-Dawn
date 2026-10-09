@@ -81,6 +81,7 @@ import {
   type ViewportPersistence,
 } from "../../canvas/viewport-persistence";
 import { createDraftRegistry, type DraftRegistry } from "../draft-registry";
+import { addOperationError } from "../ui-state/shell-ui-state";
 import { createUiStateStore, type UiStateStore } from "../ui-state/ui-state";
 import { connectWorkspaceToUiState } from "../ui-state/workspace-ui-connector";
 import {
@@ -147,7 +148,11 @@ export function createActionsHarness(): ActionsHarness {
   const gitController = createGitController({
     gateway: gitGateway,
     applicationStore: base.store,
-    reportFailure: () => undefined,
+    // Like the application: a Git failure ends up in the notifications.
+    reportFailure: (operation, error) =>
+      uiStateStore.setState((state) =>
+        addOperationError(state, operation, null, error),
+      ),
   });
   return {
     ...base,
