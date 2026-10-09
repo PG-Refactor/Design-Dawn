@@ -79,6 +79,9 @@ pub enum ErrorKind {
     GitIdentityMissing,
     /// git refused the commit (a hook failed, signing failed, ...).
     GitCommitRejected,
+    /// A History request with a page size or cursor that is out of range, malformed, or
+    /// names a commit that no longer exists.
+    InvalidHistoryRequest,
 }
 
 impl ErrorKind {
@@ -110,6 +113,7 @@ impl ErrorKind {
             Self::GitOperationInProgress => "gitOperationInProgress",
             Self::GitIdentityMissing => "gitIdentityMissing",
             Self::GitCommitRejected => "gitCommitRejected",
+            Self::InvalidHistoryRequest => "invalidHistoryRequest",
         }
     }
 
@@ -145,6 +149,7 @@ impl ErrorKind {
             Self::GitOperationInProgress => "a merge or similar operation is in progress",
             Self::GitIdentityMissing => "the git user name or email is not configured",
             Self::GitCommitRejected => "git rejected the commit",
+            Self::InvalidHistoryRequest => "the history request is not valid",
         }
     }
 }
@@ -224,7 +229,7 @@ impl Serialize for ApplicationError {
 mod tests {
     use super::*;
 
-    const ALL_KINDS: [ErrorKind; 41] = [
+    const ALL_KINDS: [ErrorKind; 42] = [
         ErrorKind::Domain(DomainErrorKind::InvalidEntityId),
         ErrorKind::Domain(DomainErrorKind::InvalidDisplayName),
         ErrorKind::Domain(DomainErrorKind::InvalidPosition),
@@ -266,6 +271,7 @@ mod tests {
         ErrorKind::GitOperationInProgress,
         ErrorKind::GitIdentityMissing,
         ErrorKind::GitCommitRejected,
+        ErrorKind::InvalidHistoryRequest,
     ];
 
     /// A Windows drive path (`C:\`) or any separator would mean a path leaked.

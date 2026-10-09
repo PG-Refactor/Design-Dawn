@@ -5,6 +5,7 @@
 
 pub mod constants;
 pub mod executable;
+pub mod log_parser;
 pub mod numstat_parser;
 pub mod paths;
 pub mod redaction;

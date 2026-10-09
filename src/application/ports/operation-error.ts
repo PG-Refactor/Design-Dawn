@@ -63,6 +63,8 @@ export const GIT_ERROR_KINDS = [
   "gitOperationInProgress",
   "gitIdentityMissing",
   "gitCommitRejected",
+  // History (docs/git-development.md §11.12).
+  "invalidHistoryRequest",
 ] as const;
 
 // Domain errors that only Rust can produce (TypeScript treats contentPath as opaque).

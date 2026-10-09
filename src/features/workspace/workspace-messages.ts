@@ -262,6 +262,7 @@ const ERROR_KIND_MESSAGES: Record<OperationErrorKind, string> = {
   gitOperationInProgress: "マージなどの操作が途中です",
   gitIdentityMissing: "Gitのユーザー名・メールアドレスが設定されていません",
   gitCommitRejected: "コミットが拒否されました（フックなど）",
+  invalidHistoryRequest: "履歴を取得する条件が正しくありません",
   invalidThemePreference: "テーマ設定の値が正しくありません。",
   invalidViewport: "表示位置の値が正しくありません。",
   invalidProjectTreeWidth: "Project Treeの幅の値が正しくありません。",

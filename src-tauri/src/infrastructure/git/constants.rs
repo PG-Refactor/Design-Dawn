@@ -165,3 +165,24 @@ pub const IN_PROGRESS_GIT_PATHS: [&str; 5] = [
 
 /// Object IDs are SHA-1 (40) or SHA-256 (64) lowercase hexadecimal.
 pub const OBJECT_ID_LENGTHS: [usize; 2] = [40, 64];
+
+/// History (docs/git-development.md §11.12): page size bounds, the deepest `--skip` a cursor
+/// may carry (a cursor is client supplied, so it is bounded), and the stdout bound of one
+/// page (the page size limit keeps real output far below it).
+pub const HISTORY_LIMIT_MIN: usize = 1;
+pub const HISTORY_LIMIT_MAX: usize = 100;
+pub const HISTORY_OFFSET_MAX: usize = 100_000;
+pub const HISTORY_OUTPUT_LIMIT_BYTES: usize = 1024 * 1024;
+/// Separates the start commit and the offset in a cursor (`<commitId>:<offset>`).
+pub const HISTORY_CURSOR_SEPARATOR: char = ':';
+/// Hash, parents, author name, author email, author date (strict ISO 8601), subject; the
+/// fields are NUL separated (`%x00`) because commit data can never contain NUL.
+pub const HISTORY_FORMAT: &str = "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s";
+pub const HISTORY_FIELDS_PER_RECORD: usize = 6;
+pub const ARG_LOG: &str = "log";
+/// Signature verification would start gpg / ssh-keygen (an external program).
+pub const ARG_NO_SHOW_SIGNATURE: &str = "--no-show-signature";
+pub const ARG_MAX_COUNT: &str = "-n";
+pub const ARG_SKIP_PREFIX: &str = "--skip=";
+/// Peels a revision to a commit: it names nothing unless the object is a commit.
+pub const REVISION_COMMIT_SUFFIX: &str = "^{commit}";
