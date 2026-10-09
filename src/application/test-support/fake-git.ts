@@ -1,7 +1,12 @@
 // In-memory Git gateway for tests. Not imported by production code.
 
 import type { ProjectId } from "../../domain/shared/entity-id";
-import type { GitGateway, GitStatus } from "../ports/git-gateway";
+import type {
+  GitDiff,
+  GitDiffSide,
+  GitGateway,
+  GitStatus,
+} from "../ports/git-gateway";
 import {
   type OperationError,
   operationErr,
@@ -12,6 +17,15 @@ export interface FakeGitGateway extends GitGateway {
   readonly calls: ProjectId[];
   readonly stageCalls: { projectId: ProjectId; paths: readonly string[] }[];
   readonly unstageCalls: { projectId: ProjectId; paths: readonly string[] }[];
+  readonly diffCalls: {
+    projectId: ProjectId;
+    path: string;
+    side: GitDiffSide;
+  }[];
+  // Answers of `diff`; a missing path answers an empty diff.
+  diffs: Record<string, GitDiff>;
+  // Suspends the next `diff` call until the returned function is called.
+  holdNextDiff(): () => void;
   // Returned by the next calls until changed.
   status: GitStatus;
   failure: OperationError | null;
@@ -26,10 +40,13 @@ export const CLEAN_GIT_STATUS: GitStatus = {
 
 export function createFakeGitGateway(): FakeGitGateway {
   let hold: Promise<void> | null = null;
+  let diffHold: Promise<void> | null = null;
   const gateway: FakeGitGateway = {
     calls: [],
     stageCalls: [],
     unstageCalls: [],
+    diffCalls: [],
+    diffs: {},
     status: CLEAN_GIT_STATUS,
     failure: null,
     holdNextCall() {
@@ -38,6 +55,29 @@ export function createFakeGitGateway(): FakeGitGateway {
         release = resolve;
       });
       return release;
+    },
+    holdNextDiff() {
+      let release: () => void = () => undefined;
+      diffHold = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return release;
+    },
+    async diff(projectId, path, side) {
+      gateway.diffCalls.push({ projectId, path, side });
+      const answer = gateway.failure
+        ? operationErr<GitDiff>(gateway.failure.kind, gateway.failure.detail)
+        : operationOk<GitDiff>(
+            gateway.diffs[`${side}:${path}`] ?? {
+              path,
+              side,
+              outcome: "empty",
+            },
+          );
+      const pending = diffHold;
+      diffHold = null;
+      if (pending !== null) await pending;
+      return answer;
     },
     async gitStatus(projectId) {
       gateway.calls.push(projectId);

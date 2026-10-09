@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PROJECT_ID } from "../../domain/shared/test-fixtures";
 import { COMMANDS } from "./command-constants";
-import { gitStage, gitStatus, gitUnstage } from "./git-client";
+import { gitDiff, gitStage, gitStatus, gitUnstage } from "./git-client";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 const invokeMock = vi.mocked(invoke);
@@ -203,4 +203,74 @@ describe("gitUnstage", () => {
       expect(result).toStrictEqual({ ok: false, error: { kind, detail: "d" } });
     },
   );
+});
+
+describe("gitDiff", () => {
+  const BASE = { path: "documents/a.md", side: "staged" };
+
+  it("sends the project id, path and side", async () => {
+    invokeMock.mockResolvedValueOnce({ ...BASE, outcome: "empty" });
+
+    await gitDiff(PROJECT_ID, "documents/a.md", "staged");
+
+    expect(invokeMock.mock.calls).toStrictEqual([
+      [
+        COMMANDS.gitDiff,
+        { projectId: PROJECT_ID, path: "documents/a.md", side: "staged" },
+      ],
+    ]);
+  });
+
+  it.each([
+    ["text", { diff: "@@ -1 +1 @@" }],
+    ["empty", {}],
+    ["untracked", {}],
+    ["binary", {}],
+    ["tooLarge", { limitBytes: 1048576 }],
+    ["notUtf8", {}],
+  ])("decodes the %s outcome", async (outcome, extra) => {
+    invokeMock.mockResolvedValueOnce({ ...BASE, outcome, ...extra });
+
+    const result = await gitDiff(PROJECT_ID, BASE.path, "staged");
+
+    expect(result).toStrictEqual({
+      ok: true,
+      value: { ...BASE, outcome, ...extra },
+    });
+  });
+
+  it.each(["unstaged", "staged"])("decodes the %s side", async (side) => {
+    invokeMock.mockResolvedValueOnce({ path: "a", side, outcome: "binary" });
+
+    const result = await gitDiff(PROJECT_ID, "a", "unstaged");
+
+    expect(result).toStrictEqual({
+      ok: true,
+      value: { path: "a", side, outcome: "binary" },
+    });
+  });
+
+  it.each([
+    ["a non-object", "text"],
+    ["an unknown outcome", { ...BASE, outcome: "huge" }],
+    ["a missing outcome", BASE],
+    ["an unknown side", { ...BASE, side: "both", outcome: "empty" }],
+    ["a missing path", { side: "staged", outcome: "empty" }],
+    ["text without a diff", { ...BASE, outcome: "text" }],
+    ["text with a non-string diff", { ...BASE, outcome: "text", diff: 1 }],
+    ["tooLarge without a limit", { ...BASE, outcome: "tooLarge" }],
+    [
+      "tooLarge with a non-number limit",
+      { ...BASE, outcome: "tooLarge", limitBytes: "1" },
+    ],
+  ])("rejects %s as invalidCommandResponse", async (_label, payload) => {
+    invokeMock.mockResolvedValueOnce(payload);
+
+    const result = await gitDiff(PROJECT_ID, BASE.path, "staged");
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { kind: "invalidCommandResponse" },
+    });
+  });
 });

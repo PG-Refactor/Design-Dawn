@@ -168,6 +168,7 @@ export const OPERATION_LABELS = [
   "refreshGitStatus",
   "stageGitFiles",
   "unstageGitFiles",
+  "loadGitDiff",
 ] as const;
 
 export type OperationLabel = (typeof OPERATION_LABELS)[number];

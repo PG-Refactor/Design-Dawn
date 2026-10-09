@@ -43,6 +43,7 @@
     "allow-open-project-in-new-window",
     "allow-git-status",
     "allow-git-stage",
-    "allow-git-unstage"
+    "allow-git-unstage",
+    "allow-git-diff"
   ]
 }

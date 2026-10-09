@@ -3,8 +3,13 @@
 // instead of reaching the application layer.
 
 import {
+  GIT_DIFF_OUTCOMES,
+  GIT_DIFF_SIDES,
   GIT_FILE_CHANGES,
   GIT_REPOSITORY_STATES,
+  type GitDiff,
+  type GitDiffOutcome,
+  type GitDiffSide,
   type GitFileChange,
   type GitFileStatus,
   type GitRepositoryState,
@@ -13,6 +18,7 @@ import {
 import { type CommandResult, commandErr, commandOk } from "./command-error";
 import {
   arrayOf,
+  decodeNumber,
   decodeString,
   nullable,
   objectOf,
@@ -50,4 +56,46 @@ export function toGitStatus(payload: unknown): CommandResult<GitStatus> {
         files: decoded.value.files,
       })
     : commandErr("invalidCommandResponse", decoded.detail);
+}
+
+interface RawGitDiffHead {
+  readonly path: string;
+  readonly side: GitDiffSide;
+  readonly outcome: GitDiffOutcome;
+}
+
+const rawGitDiffHead = objectOf<RawGitDiffHead>({
+  path: decodeString,
+  side: oneOf<readonly GitDiffSide[]>(GIT_DIFF_SIDES),
+  outcome: oneOf<readonly GitDiffOutcome[]>(GIT_DIFF_OUTCOMES),
+});
+
+const rawTextDiff = objectOf<{ readonly diff: string }>({ diff: decodeString });
+const rawTooLargeDiff = objectOf<{ readonly limitBytes: number }>({
+  limitBytes: decodeNumber,
+});
+
+export function toGitDiff(payload: unknown): CommandResult<GitDiff> {
+  const head = rawGitDiffHead(payload, PAYLOAD_ROOT);
+  if (!head.ok) return commandErr("invalidCommandResponse", head.detail);
+  const { path, side, outcome } = head.value;
+  switch (outcome) {
+    case "text": {
+      const body = rawTextDiff(payload, PAYLOAD_ROOT);
+      return body.ok
+        ? commandOk({ path, side, outcome, diff: body.value.diff })
+        : commandErr("invalidCommandResponse", body.detail);
+    }
+    case "tooLarge": {
+      const body = rawTooLargeDiff(payload, PAYLOAD_ROOT);
+      return body.ok
+        ? commandOk({ path, side, outcome, limitBytes: body.value.limitBytes })
+        : commandErr("invalidCommandResponse", body.detail);
+    }
+    case "empty":
+    case "untracked":
+    case "binary":
+    case "notUtf8":
+      return commandOk({ path, side, outcome });
+  }
 }

@@ -43,6 +43,7 @@ export const COMMANDS = {
   gitStatus: "git_status",
   gitStage: "git_stage",
   gitUnstage: "git_unstage",
+  gitDiff: "git_diff",
 } as const;
 
 export type CommandName = (typeof COMMANDS)[keyof typeof COMMANDS];

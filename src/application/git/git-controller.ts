@@ -3,11 +3,16 @@
 // the open Project: the state is reset when the Project changes and refreshed once the new
 // one is installed. Refreshing only reads; Git never saves or changes the Project. Stage /
 // Unstage change the index only: they never save the workspace and are not part of the
-// document Undo history (docs/git-development.md §11).
+// document Undo history (docs/git-development.md §11). Loading a Diff only reads.
 
 import type { ProjectId } from "../../domain/shared/entity-id";
 import { createStore, type Store } from "../../shared/store/store";
-import type { GitGateway, GitStatus } from "../ports/git-gateway";
+import type {
+  GitDiff,
+  GitDiffSide,
+  GitGateway,
+  GitStatus,
+} from "../ports/git-gateway";
 import {
   type OperationError,
   type OperationResult,
@@ -15,6 +20,20 @@ import {
   operationOk,
 } from "../ports/operation-error";
 import type { ApplicationStore } from "../state/application-state";
+
+// The Diff the UI shows or waits for. Only the latest request is kept.
+export type GitDiffState =
+  | {
+      readonly path: string;
+      readonly side: GitDiffSide;
+      readonly status: "loading";
+    }
+  | {
+      readonly path: string;
+      readonly side: GitDiffSide;
+      readonly status: "loaded";
+      readonly result: GitDiff;
+    };
 
 export interface GitState {
   // The Project the status belongs to; null while no Project is open.
@@ -26,12 +45,17 @@ export interface GitState {
   // True while a Stage / Unstage (and the refresh that follows its failure) runs, so a UI
   // can disable its buttons.
   readonly operating: boolean;
+  // Null when no Diff was requested, after `clearDiff`, after a failed load and after a
+  // Project change. Stage / Unstage leave it as is even when the shown side changed: the
+  // UI reloads it (docs/git-development.md §11.10).
+  readonly diff: GitDiffState | null;
 }
 
 export const GIT_OPERATION_LABELS = [
   "refreshGitStatus",
   "stageGitFiles",
   "unstageGitFiles",
+  "loadGitDiff",
 ] as const;
 
 export type GitOperationLabel = (typeof GIT_OPERATION_LABELS)[number];
@@ -48,6 +72,13 @@ export interface GitController {
   // changed the index partly.
   stage(paths: readonly string[]): Promise<OperationResult<void>>;
   unstage(paths: readonly string[]): Promise<OperationResult<void>>;
+  // Loads the Diff of one file (Project root relative, `/` separated) on the same queue as
+  // the other Git operations. A newer request supersedes an older one even if the older
+  // answers later. A failure is reported and clears the diff; the non-text outcomes
+  // (untracked, binary, tooLarge, notUtf8, empty) are results, not failures.
+  loadDiff(path: string, side: GitDiffSide): Promise<OperationResult<void>>;
+  // Drops the shown Diff and ignores a load still in flight.
+  clearDiff(): void;
   // Stops following the Project.
   dispose(): void;
 }
@@ -68,6 +99,7 @@ const NO_PROJECT_STATE: GitState = {
   status: null,
   refreshing: false,
   operating: false,
+  diff: null,
 };
 
 type IndexOperation = "stage" | "unstage";
@@ -88,6 +120,8 @@ export function createGitController(
   // Git operations of this controller run one after another, so two index-changing calls
   // never overlap and a status read never interleaves with them.
   let queueTail: Promise<unknown> = Promise.resolve();
+  // Identifies the latest Diff request; older answers are dropped.
+  let latestDiffRequest = 0;
   let waitingRefresh: Promise<OperationResult<void>> | null = null;
 
   function enqueue<T>(task: () => Promise<T>): Promise<T> {
@@ -186,10 +220,54 @@ export function createGitController(
     });
   }
 
+  function loadDiff(
+    path: string,
+    side: GitDiffSide,
+  ): Promise<OperationResult<void>> {
+    const projectId = store.getState().projectId;
+    if (projectId === null) return Promise.resolve(operationOk(undefined));
+    const taskEpoch = epoch;
+    latestDiffRequest += 1;
+    const request = latestDiffRequest;
+    store.setState((state) => ({
+      ...state,
+      diff: { path, side, status: "loading" },
+    }));
+    return enqueue(async () => {
+      // Superseded while waiting in the queue: git need not be asked.
+      if (taskEpoch !== epoch || request !== latestDiffRequest) {
+        return operationOk(undefined);
+      }
+      let result: OperationResult<GitDiff>;
+      try {
+        result = await gateway.diff(projectId, path, side);
+      } catch (failure) {
+        result = operationErr(
+          "unexpectedCommandError",
+          failure instanceof Error ? failure.message : String(failure),
+        );
+      }
+      if (taskEpoch !== epoch || request !== latestDiffRequest) {
+        return result.ok ? operationOk(undefined) : result;
+      }
+      if (result.ok) {
+        store.setState((state) => ({
+          ...state,
+          diff: { path, side, status: "loaded", result: result.value },
+        }));
+        return operationOk(undefined);
+      }
+      store.setState((state) => ({ ...state, diff: null }));
+      reportFailure("loadGitDiff", result.error);
+      return result;
+    });
+  }
+
   function followProject(): void {
     const projectId = applicationStore.getState().project?.projectId ?? null;
     if (projectId === store.getState().projectId) return;
     epoch += 1;
+    latestDiffRequest += 1;
     waitingRefresh = null;
     store.setState({ ...NO_PROJECT_STATE, projectId });
     if (projectId !== null) void refreshProject(projectId);
@@ -209,6 +287,11 @@ export function createGitController(
     },
     stage: (paths) => changeIndex("stage", paths),
     unstage: (paths) => changeIndex("unstage", paths),
+    loadDiff,
+    clearDiff() {
+      latestDiffRequest += 1;
+      store.setState((state) => ({ ...state, diff: null }));
+    },
     dispose: unsubscribe,
   };
 }

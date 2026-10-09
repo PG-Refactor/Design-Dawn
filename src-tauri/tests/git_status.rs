@@ -1561,6 +1561,150 @@ fn git_unstage_over_ipc_is_refused_for_a_window_that_does_not_have_the_project()
     }
 }
 
+// ---- Diff (`git_diff`, docs/git-development.md §11.10) ----
+
+/// Opens a repository Project whose `project.json` is committed and then changed in the
+/// working tree.
+fn open_project_with_modified_file(
+    fixture: &Fixture,
+) -> (
+    App<tauri::test::MockRuntime>,
+    tauri::WebviewWindow<tauri::test::MockRuntime>,
+    Value,
+) {
+    let (app, webview, project_id) = open_repository_project(fixture, true);
+    let project = fixture.directory(PROJECT_DIRECTORY);
+    fixture.git(&project, &["add", "-A"]);
+    fixture.git(&project, &["commit", "-q", "-m", "initial"]);
+    let file = project.join("project.json");
+    let mut content = fs::read_to_string(&file).unwrap();
+    content.push('\n');
+    fs::write(&file, content).unwrap();
+    (app, webview, project_id)
+}
+
+#[test]
+fn git_diff_over_ipc_returns_a_text_diff_without_absolute_paths() {
+    let fixture = fixture_or_skip!();
+    let (_app, webview, project_id) = open_project_with_modified_file(&fixture);
+
+    let response = invoke(
+        &webview,
+        "git_diff",
+        &serde_json::json!({
+            "projectId": project_id,
+            "path": "project.json",
+            "side": "unstaged"
+        }),
+    )
+    .unwrap();
+
+    assert_eq!(response["path"], "project.json");
+    assert_eq!(response["side"], "unstaged");
+    assert_eq!(response["outcome"], "text");
+    assert!(response["diff"].as_str().unwrap().contains("project.json"));
+    assert!(!response
+        .to_string()
+        .contains(fixture.temp.path().to_str().unwrap()));
+}
+
+#[test]
+fn git_diff_over_ipc_rejects_an_unknown_side_without_crashing() {
+    let fixture = fixture_or_skip!();
+    let (_app, webview, project_id) = open_project_with_modified_file(&fixture);
+
+    let rejected = invoke(
+        &webview,
+        "git_diff",
+        &serde_json::json!({
+            "projectId": project_id,
+            "path": "project.json",
+            "side": "both"
+        }),
+    );
+
+    assert!(rejected.is_err());
+    // The window still answers afterwards.
+    let status = invoke(
+        &webview,
+        "git_status",
+        &serde_json::json!({ "projectId": project_id }),
+    )
+    .unwrap();
+    assert_eq!(status["repository"]["state"], "ready");
+}
+
+#[test]
+fn git_diff_over_ipc_reports_an_invalid_path() {
+    let fixture = fixture_or_skip!();
+    let (_app, webview, project_id) = open_project_with_modified_file(&fixture);
+
+    let invalid = invoke(
+        &webview,
+        "git_diff",
+        &serde_json::json!({
+            "projectId": project_id,
+            "path": "../escape",
+            "side": "unstaged"
+        }),
+    );
+
+    match invalid {
+        Err(error) => {
+            assert_eq!(error["kind"], "invalidGitPath");
+            assert!(!error
+                .to_string()
+                .contains(fixture.temp.path().to_str().unwrap()));
+        }
+        Ok(value) => panic!("expected invalidGitPath, got {value}"),
+    }
+}
+
+#[test]
+fn git_diff_over_ipc_is_refused_for_a_window_that_does_not_have_the_project() {
+    let fixture = fixture_or_skip!();
+    let (app, _main, project_id) = open_project_with_modified_file(&fixture);
+    let other = WebviewWindowBuilder::new(&app, SECOND_WINDOW_LABEL, Default::default())
+        .build()
+        .expect("second window");
+
+    let refused = invoke(
+        &other,
+        "git_diff",
+        &serde_json::json!({
+            "projectId": project_id,
+            "path": "project.json",
+            "side": "unstaged"
+        }),
+    );
+
+    match refused {
+        Err(error) => assert_eq!(error["kind"], "projectNotOpen"),
+        Ok(value) => panic!("expected projectNotOpen, got {value}"),
+    }
+}
+
+#[test]
+fn git_diff_over_ipc_reports_a_missing_repository() {
+    let fixture = fixture_or_skip!();
+    let (_app, webview, project_id) = open_repository_project(&fixture, false);
+
+    let refused = invoke(
+        &webview,
+        "git_diff",
+        &serde_json::json!({
+            "projectId": project_id,
+            "path": "project.json",
+            "side": "unstaged"
+        }),
+    );
+
+    match refused {
+        Err(error) => assert_eq!(error["kind"], "gitNotReady"),
+        Ok(value) => panic!("expected gitNotReady, got {value}"),
+    }
+}
+
 /// Set while probing a freshly written fake git, which then exits at once.
 #[cfg(unix)]
 const FAKE_GIT_PROBE_VARIABLE: &str = "DAWN_FAKE_GIT_PROBE";

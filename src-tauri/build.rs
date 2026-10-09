@@ -42,6 +42,7 @@ const APP_COMMANDS: &[&str] = &[
     "git_status",
     "git_stage",
     "git_unstage",
+    "git_diff",
 ];
 
 fn main() {

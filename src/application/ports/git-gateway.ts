@@ -46,6 +46,37 @@ export interface GitStatus {
   readonly files: readonly GitFileStatus[];
 }
 
+export const GIT_DIFF_SIDES = ["unstaged", "staged"] as const;
+
+// `unstaged`: working tree against the index; `staged`: index against HEAD.
+export type GitDiffSide = (typeof GIT_DIFF_SIDES)[number];
+
+export const GIT_DIFF_OUTCOMES = [
+  "text",
+  "empty",
+  "untracked",
+  "binary",
+  "tooLarge",
+  "notUtf8",
+] as const;
+
+export type GitDiffOutcome = (typeof GIT_DIFF_OUTCOMES)[number];
+
+// Every outcome is a result, not a failure (docs/git-development.md §11.10).
+export type GitDiffContent =
+  | { readonly outcome: "text"; readonly diff: string }
+  | { readonly outcome: "empty" }
+  | { readonly outcome: "untracked" }
+  | { readonly outcome: "binary" }
+  | { readonly outcome: "tooLarge"; readonly limitBytes: number }
+  | { readonly outcome: "notUtf8" };
+
+export type GitDiff = {
+  // Project root relative, `/` separated.
+  readonly path: string;
+  readonly side: GitDiffSide;
+} & GitDiffContent;
+
 export interface GitGateway {
   gitStatus(projectId: ProjectId): Promise<OperationResult<GitStatus>>;
   // Stages changed files (Project root relative, `/` separated) and returns the status
@@ -60,4 +91,10 @@ export interface GitGateway {
     projectId: ProjectId,
     paths: readonly string[],
   ): Promise<OperationResult<GitStatus>>;
+  // Diff of one changed file on one side. Read-only.
+  diff(
+    projectId: ProjectId,
+    path: string,
+    side: GitDiffSide,
+  ): Promise<OperationResult<GitDiff>>;
 }

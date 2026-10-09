@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PROJECT_ID } from "../../domain/shared/test-fixtures";
-import type { GitStatus } from "../ports/git-gateway";
+import type { GitDiff, GitStatus } from "../ports/git-gateway";
 import type { OperationError } from "../ports/operation-error";
 import {
   CLEAN_GIT_STATUS,
@@ -51,6 +51,7 @@ describe("following the open Project", () => {
       status: null,
       refreshing: false,
       operating: false,
+      diff: null,
     });
     expect(await controller.refreshGitStatus()).toEqual({
       ok: true,
@@ -72,6 +73,7 @@ describe("following the open Project", () => {
       status: MODIFIED_STATUS,
       refreshing: false,
       operating: false,
+      diff: null,
     });
   });
 
@@ -101,6 +103,7 @@ describe("following the open Project", () => {
       status: null,
       refreshing: false,
       operating: false,
+      diff: null,
     });
   });
 
@@ -346,6 +349,7 @@ describe("stage / unstage", () => {
       status: null,
       refreshing: false,
       operating: false,
+      diff: null,
     });
   });
 
@@ -409,6 +413,247 @@ describe("stage / unstage", () => {
     await controller.unstage(PATHS);
     gitGateway.failure = { kind: "gitCommandFailed", detail: "x" };
     await controller.stage(PATHS);
+
+    expect(gateway.calls).toEqual([]);
+    expect(store.getState()).toBe(stateBefore);
+  });
+});
+
+describe("loadDiff", () => {
+  const PATH = "project.json";
+  const UNSTAGED_DIFF: GitDiff = {
+    path: PATH,
+    side: "unstaged",
+    outcome: "text",
+    diff: "unstaged text",
+  };
+  const STAGED_DIFF: GitDiff = {
+    path: PATH,
+    side: "staged",
+    outcome: "text",
+    diff: "staged text",
+  };
+
+  async function openedSetup() {
+    const context = setup();
+    await context.workspace.openProject(SELECTION_ID);
+    await settle();
+    return context;
+  }
+
+  it("does nothing without a Project", async () => {
+    const { gitGateway, controller } = setup();
+
+    expect(await controller.loadDiff(PATH, "unstaged")).toEqual({
+      ok: true,
+      value: undefined,
+    });
+
+    expect(gitGateway.diffCalls).toEqual([]);
+    expect(controller.store.getState().diff).toBeNull();
+  });
+
+  it("shows loading, then the loaded result, and sends the requested side", async () => {
+    const { gitGateway, controller } = await openedSetup();
+    gitGateway.diffs = {
+      [`unstaged:${PATH}`]: UNSTAGED_DIFF,
+      [`staged:${PATH}`]: STAGED_DIFF,
+    };
+    const release = gitGateway.holdNextDiff();
+
+    const pending = controller.loadDiff(PATH, "unstaged");
+    expect(controller.store.getState().diff).toEqual({
+      path: PATH,
+      side: "unstaged",
+      status: "loading",
+    });
+    release();
+    await pending;
+    expect(controller.store.getState().diff).toEqual({
+      path: PATH,
+      side: "unstaged",
+      status: "loaded",
+      result: UNSTAGED_DIFF,
+    });
+
+    await controller.loadDiff(PATH, "staged");
+    expect(controller.store.getState().diff).toEqual({
+      path: PATH,
+      side: "staged",
+      status: "loaded",
+      result: STAGED_DIFF,
+    });
+    expect(gitGateway.diffCalls).toEqual([
+      { projectId: PROJECT_ID, path: PATH, side: "unstaged" },
+      { projectId: PROJECT_ID, path: PATH, side: "staged" },
+    ]);
+  });
+
+  it("keeps only the latest request even when an older one answers later", async () => {
+    const { gitGateway, controller } = await openedSetup();
+    gitGateway.diffs = {
+      [`unstaged:${PATH}`]: UNSTAGED_DIFF,
+      [`staged:${PATH}`]: STAGED_DIFF,
+    };
+    const releaseFirst = gitGateway.holdNextDiff();
+    const first = controller.loadDiff(PATH, "unstaged");
+    await settle();
+    const second = controller.loadDiff(PATH, "staged");
+
+    releaseFirst();
+    await Promise.all([first, second]);
+
+    expect(controller.store.getState().diff).toEqual({
+      path: PATH,
+      side: "staged",
+      status: "loaded",
+      result: STAGED_DIFF,
+    });
+  });
+
+  it("drops a result that arrives after the Project was closed", async () => {
+    const { workspace, gitGateway, controller, failures } = await openedSetup();
+    gitGateway.diffs = { [`unstaged:${PATH}`]: UNSTAGED_DIFF };
+    const release = gitGateway.holdNextDiff();
+    const pending = controller.loadDiff(PATH, "unstaged");
+    await settle();
+
+    await workspace.closeProject();
+    release();
+    await pending;
+
+    expect(controller.store.getState().diff).toBeNull();
+    expect(failures).toEqual([]);
+  });
+
+  it("reports a failure and clears the diff", async () => {
+    const { gitGateway, controller, failures, failureLabels } =
+      await openedSetup();
+    await controller.loadDiff(PATH, "unstaged");
+    gitGateway.failure = { kind: "gitCommandFailed", detail: "boom" };
+
+    const result = await controller.loadDiff(PATH, "unstaged");
+
+    expect(result.ok).toBe(false);
+    expect(controller.store.getState().diff).toBeNull();
+    expect(failureLabels).toEqual(["loadGitDiff"]);
+    expect(failures).toEqual([{ kind: "gitCommandFailed", detail: "boom" }]);
+  });
+
+  it("reports a rejecting gateway as an error result", async () => {
+    const { gitGateway, controller, failures } = await openedSetup();
+    gitGateway.diff = async () => {
+      throw new Error("ipc down");
+    };
+
+    const result = await controller.loadDiff(PATH, "unstaged");
+
+    expect(result.ok).toBe(false);
+    expect(controller.store.getState().diff).toBeNull();
+    expect(failures).toEqual([
+      { kind: "unexpectedCommandError", detail: "ipc down" },
+    ]);
+  });
+
+  it.each<GitDiff>([
+    { path: PATH, side: "unstaged", outcome: "empty" },
+    { path: PATH, side: "unstaged", outcome: "untracked" },
+    { path: PATH, side: "unstaged", outcome: "binary" },
+    { path: PATH, side: "unstaged", outcome: "tooLarge", limitBytes: 1024 },
+    { path: PATH, side: "unstaged", outcome: "notUtf8" },
+  ])(
+    "treats the $outcome outcome as a result, not a failure",
+    async (outcome) => {
+      const { gitGateway, controller, failures } = await openedSetup();
+      gitGateway.diffs = { [`unstaged:${PATH}`]: outcome };
+
+      await controller.loadDiff(PATH, "unstaged");
+
+      expect(controller.store.getState().diff).toEqual({
+        path: PATH,
+        side: "unstaged",
+        status: "loaded",
+        result: outcome,
+      });
+      expect(failures).toEqual([]);
+    },
+  );
+
+  it("clearDiff drops the diff and ignores a load in flight", async () => {
+    const { gitGateway, controller } = await openedSetup();
+    const release = gitGateway.holdNextDiff();
+    const pending = controller.loadDiff(PATH, "unstaged");
+    await settle();
+
+    controller.clearDiff();
+    release();
+    await pending;
+
+    expect(controller.store.getState().diff).toBeNull();
+  });
+
+  it("runs after a queued stage and before a later refresh", async () => {
+    const { gitGateway, controller } = await openedSetup();
+    gitGateway.calls.length = 0;
+    const events: string[] = [];
+    const release = (() => {
+      let resolve: () => void = () => undefined;
+      const held = new Promise<void>((done) => {
+        resolve = done;
+      });
+      const originalStage = gitGateway.stage;
+      gitGateway.stage = async (projectId, paths) => {
+        events.push("stage:start");
+        await held;
+        events.push("stage:end");
+        return originalStage(projectId, paths);
+      };
+      return resolve;
+    })();
+    const originalDiff = gitGateway.diff;
+    gitGateway.diff = async (projectId, path, side) => {
+      events.push("diff");
+      return originalDiff(projectId, path, side);
+    };
+    const originalStatus = gitGateway.gitStatus;
+    gitGateway.gitStatus = async (projectId) => {
+      events.push("status");
+      return originalStatus(projectId);
+    };
+
+    const all = Promise.all([
+      controller.stage([PATH]),
+      controller.loadDiff(PATH, "unstaged"),
+      controller.refreshGitStatus(),
+    ]);
+    await settle();
+    expect(events).toEqual(["stage:start"]);
+    release();
+    await all;
+
+    expect(events).toEqual(["stage:start", "stage:end", "diff", "status"]);
+  });
+
+  it("is left as is by a stage (the UI reloads it)", async () => {
+    const { gitGateway, controller } = await openedSetup();
+    gitGateway.diffs = { [`unstaged:${PATH}`]: UNSTAGED_DIFF };
+    await controller.loadDiff(PATH, "unstaged");
+    const shown = controller.store.getState().diff;
+
+    await controller.stage([PATH]);
+
+    expect(controller.store.getState().diff).toBe(shown);
+  });
+
+  it("neither saves the workspace nor touches the undo history", async () => {
+    const { gateway, gitGateway, store, controller } = await openedSetup();
+    const stateBefore = store.getState();
+    gateway.clearCalls();
+
+    await controller.loadDiff(PATH, "unstaged");
+    gitGateway.failure = { kind: "gitCommandFailed", detail: "x" };
+    await controller.loadDiff(PATH, "staged");
+    controller.clearDiff();
 
     expect(gateway.calls).toEqual([]);
     expect(store.getState()).toBe(stateBefore);

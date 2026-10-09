@@ -52,7 +52,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 40] = [
+pub const COMMAND_NAMES: [&str; 41] = [
     "select_project_folder",
     "create_project",
     "open_project",
@@ -93,6 +93,7 @@ pub const COMMAND_NAMES: [&str; 40] = [
     "git_status",
     "git_stage",
     "git_unstage",
+    "git_diff",
 ];
 
 pub use app_channel::{AppNotification, AppNotificationSink, AppRequestHub, AppRequestSubscriber};
@@ -821,6 +822,24 @@ pub async fn git_unstage<R: Runtime>(
     run_blocking(move || {
         let sessions = app.state::<Mutex<ProjectSessions>>();
         git_operations::git_unstage(&sessions, &project_id, &paths)
+    })
+    .await
+}
+
+/// Diff of one changed file of the calling window's Project (docs/git-development.md §11.10).
+/// Read-only: never saves, not an Undo step. `side` must be `unstaged` or `staged`.
+#[tauri::command]
+pub async fn git_diff<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    path: String,
+    side: git_operations::DiffSide,
+) -> Result<git_operations::GitDiff, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_operations::git_diff(&sessions, &project_id, &path, side)
     })
     .await
 }
