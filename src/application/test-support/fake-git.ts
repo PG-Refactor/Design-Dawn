@@ -37,6 +37,8 @@ export interface FakeGitGateway extends GitGateway {
   // Pages in order: a null cursor answers the first, the cursor a page returned answers the
   // page after it; anything else answers an empty last page.
   historyPages: readonly GitHistoryPage[];
+  // Fails `history` only (`failure` fails every call); null answers from `historyPages`.
+  historyFailure: OperationError | null;
   // Suspends the next `history` call until the returned function is called.
   holdNextHistory(): () => void;
   readonly commitCalls: { projectId: ProjectId; message: string }[];
@@ -84,6 +86,7 @@ export function createFakeGitGateway(): FakeGitGateway {
     diffs: {},
     historyCalls: [],
     historyPages: [],
+    historyFailure: null,
     commitCalls: [],
     commitResult: null,
     status: CLEAN_GIT_STATUS,
@@ -140,11 +143,10 @@ export function createFakeGitGateway(): FakeGitGateway {
           : gateway.historyPages.findIndex(
               (page) => page.nextCursor === cursor,
             ) + 1;
-      const answer = gateway.failure
-        ? operationErr<GitHistoryPage>(
-            gateway.failure.kind,
-            gateway.failure.detail,
-          )
+      const failure = gateway.historyFailure ?? gateway.failure;
+      // Captured before waiting, like the other calls.
+      const answer = failure
+        ? operationErr<GitHistoryPage>(failure.kind, failure.detail)
         : operationOk<GitHistoryPage>(
             index > 0 || cursor === null
               ? (gateway.historyPages[index] ?? {

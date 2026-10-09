@@ -65,6 +65,7 @@ describe("createAppServices", () => {
       operating: false,
       diff: null,
       history: null,
+      historyError: null,
       lastCommit: null,
     });
     expect(invokeMock).not.toHaveBeenCalledWith(

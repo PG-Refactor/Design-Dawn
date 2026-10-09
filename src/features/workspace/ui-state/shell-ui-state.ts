@@ -98,3 +98,12 @@ export function setGitCommitMessage(state: UiState, message: string): UiState {
     ? state
     : { ...state, gitCommitMessage: message };
 }
+
+export function setGitHistoryExpanded(
+  state: UiState,
+  expanded: boolean,
+): UiState {
+  return state.gitHistoryExpanded === expanded
+    ? state
+    : { ...state, gitHistoryExpanded: expanded };
+}

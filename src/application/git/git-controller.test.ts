@@ -55,6 +55,7 @@ describe("following the open Project", () => {
       operating: false,
       diff: null,
       history: null,
+      historyError: null,
       lastCommit: null,
     });
     expect(await controller.refreshGitStatus()).toEqual({
@@ -80,6 +81,7 @@ describe("following the open Project", () => {
       operating: false,
       diff: null,
       history: null,
+      historyError: null,
       lastCommit: null,
     });
   });
@@ -113,6 +115,7 @@ describe("following the open Project", () => {
       operating: false,
       diff: null,
       history: null,
+      historyError: null,
       lastCommit: null,
     });
   });
@@ -475,6 +478,7 @@ describe("stage / unstage", () => {
       operating: false,
       diff: null,
       history: null,
+      historyError: null,
       lastCommit: null,
     });
   });
@@ -945,6 +949,7 @@ describe("commit", () => {
       operating: false,
       diff: null,
       history: null,
+      historyError: null,
       lastCommit: null,
     });
     expect(failureLabels).toEqual([]);
@@ -1267,6 +1272,88 @@ describe("history", () => {
     await pending;
 
     expect(controller.store.getState().history).toBeNull();
+  });
+
+  it("sets historyError for a failed first load and clears it on the next start", async () => {
+    const { gitGateway, controller } = await openedSetup();
+    gitGateway.historyFailure = { kind: "gitTimeout", detail: "x" };
+    await controller.loadHistory();
+    expect(controller.store.getState().history).toBeNull();
+    expect(controller.store.getState().historyError).toBe("gitTimeout");
+
+    gitGateway.historyFailure = null;
+    const release = gitGateway.holdNextHistory();
+    const pending = controller.loadHistory();
+    expect(controller.store.getState().historyError).toBeNull();
+    release();
+    await pending;
+    expect(controller.store.getState().historyError).toBeNull();
+    expect(controller.store.getState().history?.entries).toHaveLength(2);
+  });
+
+  it("keeps the entries and sets historyError when loading more fails, then clears it on retry", async () => {
+    const { gitGateway, controller } = await openedSetup();
+    await controller.loadHistory();
+    gitGateway.historyFailure = { kind: "gitTimeout", detail: "x" };
+    await controller.loadMoreHistory();
+    expect(controller.store.getState().historyError).toBe("gitTimeout");
+    expect(controller.store.getState().history?.entries).toHaveLength(2);
+
+    gitGateway.historyFailure = null;
+    const release = gitGateway.holdNextHistory();
+    const pending = controller.loadMoreHistory();
+    expect(controller.store.getState().historyError).toBeNull();
+    release();
+    await pending;
+    expect(controller.store.getState().history?.entries).toHaveLength(3);
+  });
+
+  it("does not set historyError for a superseded failure", async () => {
+    const { gitGateway, controller } = await openedSetup();
+    gitGateway.historyFailure = { kind: "gitTimeout", detail: "x" };
+    const release = gitGateway.holdNextHistory();
+    const older = controller.loadHistory();
+    await settle();
+    gitGateway.historyFailure = null;
+    const newer = controller.loadHistory();
+    release();
+    await Promise.all([older, newer]);
+    expect(controller.store.getState().historyError).toBeNull();
+    expect(controller.store.getState().history?.entries).toHaveLength(2);
+  });
+
+  it("clears historyError on clearHistory and on a Project change", async () => {
+    const { workspace, gitGateway, controller } = await openedSetup();
+    gitGateway.historyFailure = { kind: "gitTimeout", detail: "x" };
+    await controller.loadHistory();
+    controller.clearHistory();
+    expect(controller.store.getState().historyError).toBeNull();
+
+    await controller.loadHistory();
+    expect(controller.store.getState().historyError).toBe("gitTimeout");
+    await workspace.closeProject();
+    expect(controller.store.getState().historyError).toBeNull();
+  });
+
+  it("never appends a commit that is already listed", async () => {
+    const { gitGateway, controller } = await openedSetup();
+    gitGateway.historyPages = [
+      FIRST_PAGE,
+      {
+        entries: [entry(ID_TWO, "two again"), entry(ID_THREE, "three")],
+        nextCursor: null,
+      },
+    ];
+    await controller.loadHistory();
+    await controller.loadMoreHistory();
+    expect(
+      controller.store
+        .getState()
+        .history?.entries.map((listed) => listed.commitId),
+    ).toEqual([ID_ONE, ID_TWO, ID_THREE]);
+    expect(controller.store.getState().history?.entries[1]?.summary).toBe(
+      "two",
+    );
   });
 
   it("leaves the status untouched and does not reload after a commit", async () => {

@@ -13,6 +13,7 @@ import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import { deriveGitChangeSections } from "./git-change-sections";
 import { refreshDiffAfterStatusChange } from "./git-diff-session";
 import { GIT_MESSAGES } from "./git-messages";
+import { reloadHistoryIfShown } from "./git-view-refresh";
 
 // Module-level so `useWorkspaceModel` recomputes only when a state changes. The draft
 // registry is not observable, so uncommitted Markdown text is not part of this; the note
@@ -61,7 +62,9 @@ export function GitCommitBox({ status }: { readonly status: GitStatus }) {
       // A failure keeps the draft. A commit that succeeded clears it even when the status
       // could not be read afterwards. The Project may have changed meanwhile: then the
       // draft (reset with the old Project) is not ours to clear.
-      if (result.ok && gitController.store.getState().projectId === projectId) {
+      const committedHere =
+        result.ok && gitController.store.getState().projectId === projectId;
+      if (committedHere) {
         uiStateStore.setState((state) =>
           state.gitCommitMessage === submitted
             ? setGitCommitMessage(state, "")
@@ -69,6 +72,8 @@ export function GitCommitBox({ status }: { readonly status: GitStatus }) {
         );
       }
       refreshDiffAfterStatusChange(services);
+      // Only a made commit changes the history; the load never affects this outcome.
+      if (committedHere) reloadHistoryIfShown(services);
     } finally {
       inFlight.current = false;
       setSubmitting(false);

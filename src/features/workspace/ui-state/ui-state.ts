@@ -262,6 +262,9 @@ export interface UiState {
   // The commit message typed in the Git panel. UI state so it survives switching between
   // the Project and Git views; dropped with the Project and never saved.
   readonly gitCommitMessage: string;
+  // Whether the history section of the Git panel is expanded. A view choice kept across
+  // Project | Git switches; dropped with the Project.
+  readonly gitHistoryExpanded: boolean;
 }
 
 // Which side of a file the Git panel selected: `staged` for rows of the staged section,
@@ -304,6 +307,7 @@ export function createInitialUiState(): UiState {
     leftPanelMode: DEFAULT_LEFT_PANEL_MODE,
     gitSelection: null,
     gitCommitMessage: "",
+    gitHistoryExpanded: false,
   };
 }
 

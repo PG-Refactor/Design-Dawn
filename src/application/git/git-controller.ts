@@ -74,6 +74,11 @@ export interface GitState {
   // Independent of `status`. Null before a load, after `clearHistory`, after a failed first
   // load and after a Project change. A failed load restores the last loaded state.
   readonly history: GitHistoryState | null;
+  // The kind of the last failed history load (first page or more) if it was the latest
+  // request; null before a load, while a load runs, after a successful one, after
+  // `clearHistory` and after a Project change. With a null `history` it means the first load
+  // failed ("not loaded yet" is never an error); with entries it means loading more failed.
+  readonly historyError: OperationErrorKind | null;
   // The last commit made in this Project during this session (for a UI to confirm it);
   // null before one and after a Project change. A failed commit leaves it as is.
   readonly lastCommit: { readonly commitId: string | null } | null;
@@ -149,6 +154,7 @@ const NO_PROJECT_STATE: GitState = {
   operating: false,
   diff: null,
   history: null,
+  historyError: null,
   lastCommit: null,
 };
 
@@ -407,15 +413,33 @@ export function createGitController(
         return result.ok ? operationOk(undefined) : result;
       }
       if (result.ok) {
+        // Pages come from a fixed HEAD with offsets, so a repeat should not happen; the
+        // UI must still never show one commit twice, so a known commit is dropped.
+        const knownIds = new Set(
+          (previous?.entries ?? []).map((known) => known.commitId),
+        );
         settledHistory = {
           status: "loaded",
-          entries: [...(previous?.entries ?? []), ...result.value.entries],
+          entries: [
+            ...(previous?.entries ?? []),
+            ...result.value.entries.filter(
+              (added) => !knownIds.has(added.commitId),
+            ),
+          ],
           nextCursor: result.value.nextCursor,
         };
-        store.setState((state) => ({ ...state, history: settledHistory }));
+        store.setState((state) => ({
+          ...state,
+          history: settledHistory,
+          historyError: null,
+        }));
         return operationOk(undefined);
       }
-      store.setState((state) => ({ ...state, history: settledHistory }));
+      store.setState((state) => ({
+        ...state,
+        history: settledHistory,
+        historyError: result.error.kind,
+      }));
       reportFailure("loadGitHistory", result.error);
       return result;
     });
@@ -428,6 +452,7 @@ export function createGitController(
     store.setState((state) => ({
       ...state,
       history: { status: "loading", entries: [], nextCursor: null },
+      historyError: null,
     }));
     return runHistoryLoad(projectId, null);
   }
@@ -445,6 +470,7 @@ export function createGitController(
     store.setState((state) => ({
       ...state,
       history: { ...history, status: "loading" },
+      historyError: null,
     }));
     return runHistoryLoad(projectId, history);
   }
@@ -482,7 +508,11 @@ export function createGitController(
     clearHistory() {
       latestHistoryRequest += 1;
       settledHistory = null;
-      store.setState((state) => ({ ...state, history: null }));
+      store.setState((state) => ({
+        ...state,
+        history: null,
+        historyError: null,
+      }));
     },
     clearDiff() {
       latestDiffRequest += 1;

@@ -8,6 +8,7 @@ import {
   openDialog,
   setBusy,
   setGitCommitMessage,
+  setGitHistoryExpanded,
   setGitSelection,
   setNotificationsOpen,
   showNotice,
@@ -122,5 +123,16 @@ describe("git commit message", () => {
     expect(typed.gitCommitMessage).toBe("draft");
     expect(setGitCommitMessage(typed, "draft")).toBe(typed);
     expect(resetUiState().gitCommitMessage).toBe("");
+  });
+});
+
+describe("git history expanded", () => {
+  it("defaults to collapsed, is replaced by the setter and reset with the UI state", () => {
+    const initial = createInitialUiState();
+    expect(initial.gitHistoryExpanded).toBe(false);
+    const expanded = setGitHistoryExpanded(initial, true);
+    expect(expanded.gitHistoryExpanded).toBe(true);
+    expect(setGitHistoryExpanded(expanded, true)).toBe(expanded);
+    expect(resetUiState().gitHistoryExpanded).toBe(false);
   });
 });

@@ -4,7 +4,9 @@ import { useGitState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import { GitChangeList } from "./git-change-list";
 import { GitCommitBox } from "./git-commit-box";
+import { GitHistorySection } from "./git-history-section";
 import { GIT_MESSAGES } from "./git-messages";
+import { refreshGitView } from "./git-view-refresh";
 
 // What the panel knows, decided from the Git state only (docs/ui-design.md §13.2).
 type RepositoryView =
@@ -26,7 +28,7 @@ function viewOf(
 // The repository state as text. No Git state is shown without an open Project, and a
 // stale status is never shown (the controller drops it on failure).
 export function GitRepositoryState() {
-  const { gitController } = useWorkspaceServices();
+  const services = useWorkspaceServices();
   const projectId = useGitState((git) => git.projectId);
   const status = useGitState((git) => git.status);
   const statusError = useGitState((git) => git.statusError);
@@ -50,7 +52,10 @@ export function GitRepositoryState() {
           <button
             type="button"
             className="button"
-            onClick={() => void gitController.refreshGitStatus()}
+            disabled={refreshing}
+            // Same flow as the refresh button, so an expanded history follows the
+            // recovered status too.
+            onClick={() => void refreshGitView(services)}
           >
             {GIT_MESSAGES.retry}
           </button>
@@ -75,6 +80,7 @@ export function GitRepositoryState() {
             <div className="git-panel__changes">
               <GitCommitBox status={view.status} />
               <GitChangeList status={view.status} />
+              <GitHistorySection />
             </div>
           ) : null}
         </div>

@@ -34,6 +34,14 @@ export const GIT_MESSAGES = {
   commitUnsavedNote: "未保存の変更はコミットに含まれません。",
   // Shown before the note while something is unsaved, so the emphasis is not colour only.
   commitUnsavedPrefix: "注意：",
+  historyToggle: "履歴",
+  historyLoading: "履歴を読み込んでいます…",
+  historyFailed: "履歴を取得できませんでした",
+  historyEmpty: "まだコミットがありません",
+  historyLoadMore: "さらに読み込む",
+  historyLoadingMore: "読み込み中…",
+  historyMoreFailed: "続きを読み込めませんでした",
+  historyListLabel: "コミットの履歴",
   conflictNote: "競合の解決はこのバージョンでは扱いません",
   sectionTitles: {
     staged: "ステージ済み",
@@ -70,4 +78,9 @@ export function diffTooLargeText(limit: string): string {
 // A renamed file as "old → new".
 export function renamedPathText(originalPath: string, path: string): string {
   return `${originalPath} → ${path}`;
+}
+
+// The accessible name of the short commit ID, so the full one is reachable without a mouse.
+export function commitIdLabel(commitId: string): string {
+  return `コミットID ${commitId}`;
 }
