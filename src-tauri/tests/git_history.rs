@@ -537,6 +537,11 @@ fn a_large_history_is_returned_in_pages_bounded_by_the_limit() {
     for (name, value) in &fixture.environment {
         command.env(name, value);
     }
+    // Another test sets GIT_DIR / GIT_INDEX_FILE process-wide while it runs; the git calls of
+    // this script must not follow them (git_command removes them for the same reason).
+    for name in ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"] {
+        command.env_remove(name);
+    }
     let output = command.output().expect("run sh");
     assert!(
         output.status.success(),
