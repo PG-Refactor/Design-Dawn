@@ -52,6 +52,7 @@ describe("following the open Project", () => {
       refreshing: false,
       operating: false,
       diff: null,
+      lastCommit: null,
     });
     expect(await controller.refreshGitStatus()).toEqual({
       ok: true,
@@ -74,6 +75,7 @@ describe("following the open Project", () => {
       refreshing: false,
       operating: false,
       diff: null,
+      lastCommit: null,
     });
   });
 
@@ -104,6 +106,7 @@ describe("following the open Project", () => {
       refreshing: false,
       operating: false,
       diff: null,
+      lastCommit: null,
     });
   });
 
@@ -350,6 +353,7 @@ describe("stage / unstage", () => {
       refreshing: false,
       operating: false,
       diff: null,
+      lastCommit: null,
     });
   });
 
@@ -654,6 +658,233 @@ describe("loadDiff", () => {
     gitGateway.failure = { kind: "gitCommandFailed", detail: "x" };
     await controller.loadDiff(PATH, "staged");
     controller.clearDiff();
+
+    expect(gateway.calls).toEqual([]);
+    expect(store.getState()).toBe(stateBefore);
+  });
+});
+
+describe("commit", () => {
+  const MESSAGE = "設計を更新\n\n詳細";
+  const NEW_COMMIT_ID = "abcdef0123456789abcdef0123456789abcdef01";
+
+  it("passes the message untouched and replaces the status and lastCommit", async () => {
+    const { workspace, gitGateway, controller, failures } = setup();
+    gitGateway.status = MODIFIED_STATUS;
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.status = CLEAN_GIT_STATUS;
+    gitGateway.commitResult = {
+      commitId: NEW_COMMIT_ID,
+      status: { outcome: "updated", status: CLEAN_GIT_STATUS },
+    };
+
+    const result = await controller.commit(MESSAGE);
+
+    expect(result).toEqual({ ok: true, value: undefined });
+    expect(gitGateway.commitCalls).toEqual([
+      { projectId: PROJECT_ID, message: MESSAGE },
+    ]);
+    const state = controller.store.getState();
+    expect(state.status).toEqual(CLEAN_GIT_STATUS);
+    expect(state.lastCommit).toEqual({ commitId: NEW_COMMIT_ID });
+    expect(state.operating).toBe(false);
+    expect(failures).toEqual([]);
+    // Only the refresh at install: the commit did not read the status separately.
+    expect(gitGateway.calls).toHaveLength(1);
+  });
+
+  it("keeps a null commit id as a success", async () => {
+    const { workspace, gitGateway, controller, failures } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.commitResult = {
+      commitId: null,
+      status: { outcome: "updated", status: CLEAN_GIT_STATUS },
+    };
+
+    await controller.commit(MESSAGE);
+
+    expect(controller.store.getState().lastCommit).toEqual({ commitId: null });
+    expect(failures).toEqual([]);
+  });
+
+  it("does nothing without a Project", async () => {
+    const { gitGateway, controller } = setup();
+
+    expect(await controller.commit(MESSAGE)).toEqual({
+      ok: true,
+      value: undefined,
+    });
+    expect(gitGateway.commitCalls).toEqual([]);
+  });
+
+  it("reports a status that could not be read as a refresh problem, not a commit failure", async () => {
+    const { workspace, gitGateway, controller, failures, failureLabels } =
+      setup();
+    gitGateway.status = MODIFIED_STATUS;
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.commitResult = {
+      commitId: NEW_COMMIT_ID,
+      status: { outcome: "unavailable", errorKind: "gitTimeout" },
+    };
+
+    const result = await controller.commit(MESSAGE);
+
+    expect(result).toEqual({ ok: true, value: undefined });
+    expect(failureLabels).toEqual(["refreshGitStatus"]);
+    expect(failures.map((failure) => failure.kind)).toEqual(["gitTimeout"]);
+    const state = controller.store.getState();
+    expect(state.status).toBeNull();
+    expect(state.lastCommit).toEqual({ commitId: NEW_COMMIT_ID });
+    expect(state.operating).toBe(false);
+    // No automatic retry.
+    expect(gitGateway.calls).toHaveLength(1);
+  });
+
+  it.each([
+    "invalidCommitMessage",
+    "nothingToCommit",
+    "gitUnmergedChanges",
+    "gitOperationInProgress",
+    "gitIdentityMissing",
+    "gitCommitRejected",
+  ] as const)(
+    "reports %s as a commit failure and reads the status again",
+    async (kind) => {
+      const { workspace, gitGateway, controller, failures, failureLabels } =
+        setup();
+      await workspace.openProject(SELECTION_ID);
+      await settle();
+      gitGateway.calls.length = 0;
+      gitGateway.failure = { kind, detail: "refused" };
+      const original = gitGateway.commit;
+      gitGateway.commit = async (projectId, message) => {
+        const answer = await original(projectId, message);
+        // Hooks may have changed the index; the following read succeeds.
+        gitGateway.failure = null;
+        gitGateway.status = MODIFIED_STATUS;
+        return answer;
+      };
+
+      const result = await controller.commit(MESSAGE);
+
+      expect(!result.ok && result.error.kind).toBe(kind);
+      expect(failureLabels).toEqual(["commitGitChanges"]);
+      expect(failures).toEqual([{ kind, detail: "refused" }]);
+      expect(gitGateway.calls).toHaveLength(1);
+      const state = controller.store.getState();
+      expect(state.status).toEqual(MODIFIED_STATUS);
+      expect(state.lastCommit).toBeNull();
+      expect(state.operating).toBe(false);
+    },
+  );
+
+  it("labels a rejecting gateway as a commit failure", async () => {
+    const { workspace, gitGateway, controller, failureLabels } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.commit = () => Promise.reject(new Error("boom"));
+
+    const result = await controller.commit(MESSAGE);
+
+    expect(!result.ok && result.error.kind).toBe("unexpectedCommandError");
+    expect(failureLabels).toEqual(["commitGitChanges"]);
+    expect(controller.store.getState().operating).toBe(false);
+  });
+
+  it("ignores a commit answer that arrives after the Project was closed", async () => {
+    const { workspace, gitGateway, controller, failureLabels } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    const original = gitGateway.commit;
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    gitGateway.commit = async (projectId, message) => {
+      await held;
+      return original(projectId, message);
+    };
+    const pending = controller.commit(MESSAGE);
+    await settle();
+    expect(controller.store.getState().operating).toBe(true);
+
+    await workspace.closeProject();
+    release();
+    await pending;
+
+    expect(controller.store.getState()).toEqual({
+      projectId: null,
+      status: null,
+      refreshing: false,
+      operating: false,
+      diff: null,
+      lastCommit: null,
+    });
+    expect(failureLabels).toEqual([]);
+  });
+
+  it("runs after stage and before a later refresh, one at a time", async () => {
+    const { workspace, gitGateway, controller } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.calls.length = 0;
+    const events: string[] = [];
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const originalStage = gitGateway.stage;
+    const originalCommit = gitGateway.commit;
+    const originalStatus = gitGateway.gitStatus;
+    gitGateway.stage = async (projectId, paths) => {
+      events.push("stage:start");
+      await held;
+      events.push("stage:end");
+      return originalStage(projectId, paths);
+    };
+    gitGateway.commit = async (projectId, message) => {
+      events.push("commit:start");
+      const result = await originalCommit(projectId, message);
+      events.push("commit:end");
+      return result;
+    };
+    gitGateway.gitStatus = async (projectId) => {
+      events.push("status");
+      return originalStatus(projectId);
+    };
+
+    const all = Promise.all([
+      controller.stage(["project.json"]),
+      controller.commit(MESSAGE),
+      controller.refreshGitStatus(),
+    ]);
+    await settle();
+    expect(events).toEqual(["stage:start"]);
+    release();
+    await all;
+
+    expect(events).toEqual([
+      "stage:start",
+      "stage:end",
+      "commit:start",
+      "commit:end",
+      "status",
+    ]);
+  });
+
+  it("neither saves the workspace nor touches the undo history", async () => {
+    const { workspace, gateway, gitGateway, store, controller } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    const stateBefore = store.getState();
+    gateway.clearCalls();
+
+    await controller.commit(MESSAGE);
+    gitGateway.failure = { kind: "nothingToCommit", detail: "x" };
+    await controller.commit(MESSAGE);
 
     expect(gateway.calls).toEqual([]);
     expect(store.getState()).toBe(stateBefore);

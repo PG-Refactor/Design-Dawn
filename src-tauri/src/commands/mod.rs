@@ -30,6 +30,7 @@ use crate::application::folder_selection::{
     resolve_selection, select_project_folder as select_folder, FolderPicker, FolderSelection,
     FolderSelectionState,
 };
+use crate::application::git_commit;
 use crate::application::git_operations::{self, GitStatusResult};
 use crate::application::local_state::operations::{AppSettings, LocalState, SheetViewportResult};
 use crate::application::open_request::{self, OpenRequest, OpenedRequest, PendingOpenRequests};
@@ -52,7 +53,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 41] = [
+pub const COMMAND_NAMES: [&str; 42] = [
     "select_project_folder",
     "create_project",
     "open_project",
@@ -94,6 +95,7 @@ pub const COMMAND_NAMES: [&str; 41] = [
     "git_stage",
     "git_unstage",
     "git_diff",
+    "git_commit",
 ];
 
 pub use app_channel::{AppNotification, AppNotificationSink, AppRequestHub, AppRequestSubscriber};
@@ -840,6 +842,24 @@ pub async fn git_diff<R: Runtime>(
     run_blocking(move || {
         let sessions = app.state::<Mutex<ProjectSessions>>();
         git_operations::git_diff(&sessions, &project_id, &path, side)
+    })
+    .await
+}
+
+/// Commits the staged changes of the calling window's Project (docs/git-development.md
+/// §11.11). Not an Undo step and never saves. The message is user text: it is passed on
+/// to the application layer only and is never logged or echoed here.
+#[tauri::command]
+pub async fn git_commit<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    message: String,
+) -> Result<git_commit::GitCommitResult, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_commit::git_commit(&sessions, &project_id, &message)
     })
     .await
 }

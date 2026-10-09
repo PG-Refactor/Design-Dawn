@@ -3,7 +3,7 @@
 // or its stderr. The values below are the wire identifiers Rust sends.
 
 import type { ProjectId } from "../../domain/shared/entity-id";
-import type { OperationResult } from "./operation-error";
+import type { GIT_ERROR_KINDS, OperationResult } from "./operation-error";
 
 // Anything but `ready` is a normal answer (the app works without Git), not an error.
 export const GIT_REPOSITORY_STATES = [
@@ -77,6 +77,26 @@ export type GitDiff = {
   readonly side: GitDiffSide;
 } & GitDiffContent;
 
+export const GIT_COMMIT_OUTCOMES = ["updated", "unavailable"] as const;
+
+export type GitCommitOutcome = (typeof GIT_COMMIT_OUTCOMES)[number];
+
+export type GitErrorKind = (typeof GIT_ERROR_KINDS)[number];
+
+// Whether the status read right after a successful commit could be obtained. A failure
+// there does not undo the commit, so it is part of the result, not an error
+// (docs/git-development.md §11.11).
+export type GitCommitStatus =
+  | { readonly outcome: "updated"; readonly status: GitStatus }
+  | { readonly outcome: "unavailable"; readonly errorKind: GitErrorKind };
+
+export interface GitCommitResult {
+  // Object ID of the new HEAD (40 or 64 lowercase hexadecimal characters); null only when
+  // the commit was made but HEAD could not be read afterwards.
+  readonly commitId: string | null;
+  readonly status: GitCommitStatus;
+}
+
 export interface GitGateway {
   gitStatus(projectId: ProjectId): Promise<OperationResult<GitStatus>>;
   // Stages changed files (Project root relative, `/` separated) and returns the status
@@ -97,4 +117,11 @@ export interface GitGateway {
     path: string,
     side: GitDiffSide,
   ): Promise<OperationResult<GitDiff>>;
+  // Commits the staged changes only. Rust validates the message (nothing is trimmed or
+  // checked here). After a failure the index may have been changed by hooks: read the
+  // status again.
+  commit(
+    projectId: ProjectId,
+    message: string,
+  ): Promise<OperationResult<GitCommitResult>>;
 }

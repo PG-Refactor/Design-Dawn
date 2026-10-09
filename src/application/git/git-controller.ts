@@ -3,11 +3,12 @@
 // the open Project: the state is reset when the Project changes and refreshed once the new
 // one is installed. Refreshing only reads; Git never saves or changes the Project. Stage /
 // Unstage change the index only: they never save the workspace and are not part of the
-// document Undo history (docs/git-development.md §11). Loading a Diff only reads.
+// document Undo history (docs/git-development.md §11); Commit is the same. Loading a Diff only reads.
 
 import type { ProjectId } from "../../domain/shared/entity-id";
 import { createStore, type Store } from "../../shared/store/store";
 import type {
+  GitCommitResult,
   GitDiff,
   GitDiffSide,
   GitGateway,
@@ -42,13 +43,16 @@ export interface GitState {
   // stale status must not be shown as current).
   readonly status: GitStatus | null;
   readonly refreshing: boolean;
-  // True while a Stage / Unstage (and the refresh that follows its failure) runs, so a UI
+  // True while a Stage / Unstage / Commit (and the refresh that follows its failure) runs, so a UI
   // can disable its buttons.
   readonly operating: boolean;
   // Null when no Diff was requested, after `clearDiff`, after a failed load and after a
   // Project change. Stage / Unstage leave it as is even when the shown side changed: the
   // UI reloads it (docs/git-development.md §11.10).
   readonly diff: GitDiffState | null;
+  // The last commit made in this Project during this session (for a UI to confirm it);
+  // null before one and after a Project change. A failed commit leaves it as is.
+  readonly lastCommit: { readonly commitId: string | null } | null;
 }
 
 export const GIT_OPERATION_LABELS = [
@@ -56,6 +60,7 @@ export const GIT_OPERATION_LABELS = [
   "stageGitFiles",
   "unstageGitFiles",
   "loadGitDiff",
+  "commitGitChanges",
 ] as const;
 
 export type GitOperationLabel = (typeof GIT_OPERATION_LABELS)[number];
@@ -77,6 +82,13 @@ export interface GitController {
   // answers later. A failure is reported and clears the diff; the non-text outcomes
   // (untracked, binary, tooLarge, notUtf8, empty) are results, not failures.
   loadDiff(path: string, side: GitDiffSide): Promise<OperationResult<void>>;
+  // Commits the staged changes of the open Project on the same queue. The message is
+  // passed on untouched: Rust validates it. On success the status is replaced by the one
+  // returned and `lastCommit` is set; when the commit was made but the status could not be
+  // read afterwards, no commit failure is reported: the status is dropped and a
+  // `refreshGitStatus` problem is reported instead. On failure it is reported as
+  // `commitGitChanges` and the status is read again (hooks may have changed the index).
+  commit(message: string): Promise<OperationResult<void>>;
   // Drops the shown Diff and ignores a load still in flight.
   clearDiff(): void;
   // Stops following the Project.
@@ -100,6 +112,7 @@ const NO_PROJECT_STATE: GitState = {
   refreshing: false,
   operating: false,
   diff: null,
+  lastCommit: null,
 };
 
 type IndexOperation = "stage" | "unstage";
@@ -220,6 +233,60 @@ export function createGitController(
     });
   }
 
+  function commit(message: string): Promise<OperationResult<void>> {
+    const projectId = store.getState().projectId;
+    if (projectId === null) return Promise.resolve(operationOk(undefined));
+    const taskEpoch = epoch;
+    return enqueue(async () => {
+      if (taskEpoch !== epoch) return operationOk(undefined);
+      store.setState((state) => ({ ...state, operating: true }));
+      let result: OperationResult<GitCommitResult>;
+      try {
+        result = await gateway.commit(projectId, message);
+      } catch (failure) {
+        result = operationErr(
+          "unexpectedCommandError",
+          failure instanceof Error ? failure.message : String(failure),
+        );
+      }
+      if (taskEpoch !== epoch)
+        return result.ok ? operationOk(undefined) : result;
+      if (result.ok) {
+        const { commitId, status } = result.value;
+        const lastCommit = { commitId };
+        if (status.outcome === "updated") {
+          store.setState((state) => ({
+            ...state,
+            status: status.status,
+            lastCommit,
+            operating: false,
+          }));
+        } else {
+          // The commit exists; only the status read after it failed. Same as a failed
+          // refresh: a stale status must not be shown as current.
+          store.setState((state) => ({
+            ...state,
+            status: null,
+            lastCommit,
+            operating: false,
+          }));
+          reportFailure("refreshGitStatus", {
+            kind: status.errorKind,
+            detail: "the status could not be read after the commit",
+          });
+        }
+        return operationOk(undefined);
+      }
+      reportFailure("commitGitChanges", result.error);
+      // Inside this task, like Stage: nothing may run between the failure and the read.
+      await readStatus(projectId, taskEpoch);
+      if (taskEpoch === epoch) {
+        store.setState((state) => ({ ...state, operating: false }));
+      }
+      return result;
+    });
+  }
+
   function loadDiff(
     path: string,
     side: GitDiffSide,
@@ -288,6 +355,7 @@ export function createGitController(
     stage: (paths) => changeIndex("stage", paths),
     unstage: (paths) => changeIndex("unstage", paths),
     loadDiff,
+    commit,
     clearDiff() {
       latestDiffRequest += 1;
       store.setState((state) => ({ ...state, diff: null }));

@@ -1705,6 +1705,121 @@ fn git_diff_over_ipc_reports_a_missing_repository() {
     }
 }
 
+// ---- Commit (`git_commit`, docs/git-development.md §11.11) ----
+
+/// The command runs the machine's git, not the hermetic one, so the identity comes from
+/// the repository's own config.
+fn give_repository_an_identity(fixture: &Fixture) {
+    let project = fixture.directory(PROJECT_DIRECTORY);
+    fixture.git(&project, &["config", "user.name", AUTHOR_NAME]);
+    fixture.git(&project, &["config", "user.email", AUTHOR_EMAIL]);
+    fixture.git(&project, &["config", "commit.gpgsign", "false"]);
+}
+
+#[test]
+fn git_commit_over_ipc_returns_the_commit_id_and_status_without_absolute_paths() {
+    let fixture = fixture_or_skip!();
+    let (_app, webview, project_id) = open_repository_project(&fixture, true);
+    give_repository_an_identity(&fixture);
+    invoke(
+        &webview,
+        "git_stage",
+        &serde_json::json!({ "projectId": project_id, "paths": ["project.json"] }),
+    )
+    .unwrap();
+
+    let response = invoke(
+        &webview,
+        "git_commit",
+        &serde_json::json!({ "projectId": project_id, "message": "first commit" }),
+    )
+    .unwrap();
+
+    let commit_id = response["commitId"].as_str().unwrap();
+    assert!(matches!(commit_id.len(), 40 | 64));
+    assert!(commit_id
+        .chars()
+        .all(|character| matches!(character, '0'..='9' | 'a'..='f')));
+    assert_eq!(response["status"]["outcome"], "updated");
+    assert_eq!(response["status"]["status"]["repository"]["state"], "ready");
+    assert!(!response
+        .to_string()
+        .contains(fixture.temp.path().to_str().unwrap()));
+}
+
+#[test]
+fn git_commit_over_ipc_reports_nothing_to_commit() {
+    let fixture = fixture_or_skip!();
+    let (_app, webview, project_id) = open_repository_project(&fixture, true);
+    give_repository_an_identity(&fixture);
+
+    let refused = invoke(
+        &webview,
+        "git_commit",
+        &serde_json::json!({ "projectId": project_id, "message": "nothing" }),
+    );
+
+    match refused {
+        Err(error) => assert_eq!(error["kind"], "nothingToCommit"),
+        Ok(value) => panic!("expected nothingToCommit, got {value}"),
+    }
+}
+
+#[test]
+fn git_commit_over_ipc_reports_an_invalid_message() {
+    let fixture = fixture_or_skip!();
+    let (_app, webview, project_id) = open_repository_project(&fixture, true);
+    give_repository_an_identity(&fixture);
+
+    let refused = invoke(
+        &webview,
+        "git_commit",
+        &serde_json::json!({ "projectId": project_id, "message": "  \n " }),
+    );
+
+    match refused {
+        Err(error) => assert_eq!(error["kind"], "invalidCommitMessage"),
+        Ok(value) => panic!("expected invalidCommitMessage, got {value}"),
+    }
+}
+
+#[test]
+fn git_commit_over_ipc_is_refused_for_a_window_that_does_not_have_the_project() {
+    let fixture = fixture_or_skip!();
+    let (app, _main, project_id) = open_repository_project(&fixture, true);
+    let other = WebviewWindowBuilder::new(&app, SECOND_WINDOW_LABEL, Default::default())
+        .build()
+        .expect("second window");
+
+    let refused = invoke(
+        &other,
+        "git_commit",
+        &serde_json::json!({ "projectId": project_id, "message": "not mine" }),
+    );
+
+    match refused {
+        Err(error) => assert_eq!(error["kind"], "projectNotOpen"),
+        Ok(value) => panic!("expected projectNotOpen, got {value}"),
+    }
+}
+
+#[test]
+fn git_commit_over_ipc_reports_a_missing_repository() {
+    let fixture = fixture_or_skip!();
+    let (_app, webview, project_id) = open_repository_project(&fixture, false);
+
+    let refused = invoke(
+        &webview,
+        "git_commit",
+        &serde_json::json!({ "projectId": project_id, "message": "no repository" }),
+    );
+
+    match refused {
+        Err(error) => assert_eq!(error["kind"], "gitNotReady"),
+        Ok(value) => panic!("expected gitNotReady, got {value}"),
+    }
+}
+
 /// Set while probing a freshly written fake git, which then exits at once.
 #[cfg(unix)]
 const FAKE_GIT_PROBE_VARIABLE: &str = "DAWN_FAKE_GIT_PROBE";

@@ -3,21 +3,27 @@
 // instead of reaching the application layer.
 
 import {
+  GIT_COMMIT_OUTCOMES,
   GIT_DIFF_OUTCOMES,
   GIT_DIFF_SIDES,
   GIT_FILE_CHANGES,
   GIT_REPOSITORY_STATES,
+  type GitCommitOutcome,
+  type GitCommitResult,
   type GitDiff,
   type GitDiffOutcome,
   type GitDiffSide,
+  type GitErrorKind,
   type GitFileChange,
   type GitFileStatus,
   type GitRepositoryState,
   type GitStatus,
 } from "../../application/ports/git-gateway";
+import { GIT_ERROR_KINDS } from "../../application/ports/operation-error";
 import { type CommandResult, commandErr, commandOk } from "./command-error";
 import {
   arrayOf,
+  type Decoder,
   decodeNumber,
   decodeString,
   nullable,
@@ -98,4 +104,70 @@ export function toGitDiff(payload: unknown): CommandResult<GitDiff> {
     case "notUtf8":
       return commandOk({ path, side, outcome });
   }
+}
+
+interface RawGitCommitHead {
+  readonly commitId: string | null;
+  readonly status: { readonly outcome: GitCommitOutcome };
+}
+
+// A full object ID only: the UI may show it or hand it back to git, so anything else is a
+// broken payload.
+const OBJECT_ID_PATTERN = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
+
+const decodeObjectId: Decoder<string> = (value, path) => {
+  const text = decodeString(value, path);
+  if (!text.ok) return text;
+  return OBJECT_ID_PATTERN.test(text.value)
+    ? text
+    : {
+        ok: false,
+        detail: `${path}: expected a lowercase hexadecimal object id`,
+      };
+};
+
+const rawGitCommitHead = objectOf<RawGitCommitHead>({
+  commitId: nullable(decodeObjectId),
+  status: objectOf<{ readonly outcome: GitCommitOutcome }>({
+    outcome: oneOf<readonly GitCommitOutcome[]>(GIT_COMMIT_OUTCOMES),
+  }),
+});
+
+const rawUpdatedStatus = objectOf<{ readonly status: unknown }>({
+  status: (value) => ({ ok: true, value }),
+});
+
+const rawUnavailableStatus = objectOf<{ readonly errorKind: GitErrorKind }>({
+  errorKind: oneOf<readonly GitErrorKind[]>(GIT_ERROR_KINDS),
+});
+
+export function toGitCommitResult(
+  payload: unknown,
+): CommandResult<GitCommitResult> {
+  const head = rawGitCommitHead(payload, PAYLOAD_ROOT);
+  if (!head.ok) return commandErr("invalidCommandResponse", head.detail);
+  const { commitId, status } = head.value;
+  // `head` proved the payload is an object with an object `status`.
+  const rawStatus = (payload as { readonly status: unknown }).status;
+  if (status.outcome === "unavailable") {
+    const body = rawUnavailableStatus(rawStatus, `${PAYLOAD_ROOT}.status`);
+    return body.ok
+      ? commandOk({
+          commitId,
+          status: { outcome: "unavailable", errorKind: body.value.errorKind },
+        })
+      : commandErr("invalidCommandResponse", body.detail);
+  }
+  const body = rawUpdatedStatus(rawStatus, `${PAYLOAD_ROOT}.status`);
+  if (!body.ok) return commandErr("invalidCommandResponse", body.detail);
+  const nested = toGitStatus(body.value.status);
+  return nested.ok
+    ? commandOk({
+        commitId,
+        status: { outcome: "updated", status: nested.value },
+      })
+    : commandErr(
+        "invalidCommandResponse",
+        `status.status: ${nested.error.detail}`,
+      );
 }

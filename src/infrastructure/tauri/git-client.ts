@@ -2,6 +2,7 @@
 // only the Project ID; Rust finds the Repository from the Project's root.
 
 import type {
+  GitCommitResult,
   GitDiff,
   GitDiffSide,
   GitStatus,
@@ -9,7 +10,7 @@ import type {
 import type { ProjectId } from "../../domain/shared/entity-id";
 import { COMMANDS } from "./command-constants";
 import type { CommandResult } from "./command-error";
-import { toGitDiff, toGitStatus } from "./git-payloads";
+import { toGitCommitResult, toGitDiff, toGitStatus } from "./git-payloads";
 import { call } from "./invoke-command";
 
 export function gitStatus(
@@ -38,4 +39,11 @@ export function gitDiff(
   side: GitDiffSide,
 ): Promise<CommandResult<GitDiff>> {
   return call(COMMANDS.gitDiff, { projectId, path, side }, toGitDiff);
+}
+
+export function gitCommit(
+  projectId: ProjectId,
+  message: string,
+): Promise<CommandResult<GitCommitResult>> {
+  return call(COMMANDS.gitCommit, { projectId, message }, toGitCommitResult);
 }

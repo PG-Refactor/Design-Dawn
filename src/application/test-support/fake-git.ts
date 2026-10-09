@@ -2,6 +2,7 @@
 
 import type { ProjectId } from "../../domain/shared/entity-id";
 import type {
+  GitCommitResult,
   GitDiff,
   GitDiffSide,
   GitGateway,
@@ -26,12 +27,17 @@ export interface FakeGitGateway extends GitGateway {
   diffs: Record<string, GitDiff>;
   // Suspends the next `diff` call until the returned function is called.
   holdNextDiff(): () => void;
+  readonly commitCalls: { projectId: ProjectId; message: string }[];
+  // Answer of `commit` (when `failure` is null): the status after it defaults to `status`.
+  commitResult: GitCommitResult | null;
   // Returned by the next calls until changed.
   status: GitStatus;
   failure: OperationError | null;
   // Suspends the next call until the returned function is called.
   holdNextCall(): () => void;
 }
+
+export const FAKE_COMMIT_ID = "0123456789abcdef0123456789abcdef01234567";
 
 export const CLEAN_GIT_STATUS: GitStatus = {
   repositoryState: "ready",
@@ -47,6 +53,8 @@ export function createFakeGitGateway(): FakeGitGateway {
     unstageCalls: [],
     diffCalls: [],
     diffs: {},
+    commitCalls: [],
+    commitResult: null,
     status: CLEAN_GIT_STATUS,
     failure: null,
     holdNextCall() {
@@ -95,6 +103,20 @@ export function createFakeGitGateway(): FakeGitGateway {
       return gateway.failure
         ? operationErr<GitStatus>(gateway.failure.kind, gateway.failure.detail)
         : operationOk(gateway.status);
+    },
+    async commit(projectId, message) {
+      gateway.commitCalls.push({ projectId, message });
+      return gateway.failure
+        ? operationErr<GitCommitResult>(
+            gateway.failure.kind,
+            gateway.failure.detail,
+          )
+        : operationOk(
+            gateway.commitResult ?? {
+              commitId: FAKE_COMMIT_ID,
+              status: { outcome: "updated", status: gateway.status },
+            },
+          );
     },
     async unstage(projectId, paths) {
       gateway.unstageCalls.push({ projectId, paths });

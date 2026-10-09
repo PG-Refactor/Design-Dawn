@@ -169,6 +169,7 @@ export const OPERATION_LABELS = [
   "stageGitFiles",
   "unstageGitFiles",
   "loadGitDiff",
+  "commitGitChanges",
 ] as const;
 
 export type OperationLabel = (typeof OPERATION_LABELS)[number];
