@@ -195,7 +195,7 @@ describe("document rename (inline)", () => {
 
   it("renaming a document that is not open opens it first (a tab appears), then renames", async () => {
     const harness = await openedShell();
-    expect(screen.queryByRole("tab")).toBeNull();
+    expect(screen.queryByRole("tablist", { name: "Document Tabs" })).toBeNull();
 
     await chooseRowMenuItem(harness.user, "Document B", "名前変更");
 

@@ -5,6 +5,7 @@
 import type { OperationError } from "../../../application/ports/operation-error";
 import type {
   DialogState,
+  LeftPanelMode,
   NoticeKind,
   OperationLabel,
   UiState,
@@ -66,4 +67,10 @@ export function clearNotice(state: UiState, id: number): UiState {
 
 export function setBusy(state: UiState, busy: boolean): UiState {
   return state.busy === busy ? state : { ...state, busy };
+}
+
+export function setLeftPanelMode(state: UiState, mode: LeftPanelMode): UiState {
+  return state.leftPanelMode === mode
+    ? state
+    : { ...state, leftPanelMode: mode };
 }

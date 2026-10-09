@@ -1,0 +1,37 @@
+/* Colours come from tokens only (theme-tokens.css). */
+.git-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.git-panel__header {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.git-panel__message {
+  margin: 0;
+  color: var(--color-text);
+}
+
+.git-panel__state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.git-panel__refreshing {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.git-main-area {
+  flex: 1 1 auto;
+}
+
+.git-main-area__placeholder {
+  margin: var(--space-3) 0;
+  color: var(--color-text-muted);
+}

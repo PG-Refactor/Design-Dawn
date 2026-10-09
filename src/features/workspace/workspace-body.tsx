@@ -2,10 +2,12 @@ import { type CSSProperties, useRef, useState } from "react";
 import type { LayoutSettingsState } from "../../application/settings/layout-settings-controller";
 import { LAYOUT_CONFIG } from "../../config/layout-config";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
+import { GitMainArea } from "../git/git-main-area";
 import { DocumentPanel } from "./document-panel";
 import { DocumentTabs } from "./document-tabs";
-import { ProjectTree } from "./project-tree";
 import { ProjectTreeSplitter } from "./project-tree-splitter";
+import { Sidebar } from "./sidebar";
+import { useUiState } from "./workspace-hooks";
 import { MESSAGES } from "./workspace-messages";
 import { useWorkspaceServices } from "./workspace-services-context";
 
@@ -26,6 +28,7 @@ export function WorkspaceBody() {
     layoutSettingsController.store,
     selectProjectTreeWidth,
   );
+  const leftPanelMode = useUiState((ui) => ui.leftPanelMode);
   const [liveWidth, setLiveWidth] = useState<number | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   // Only the newest save may clear the live width: an older, slower one finishing later
@@ -76,7 +79,7 @@ export function WorkspaceBody() {
         className="workspace-shell__sidebar"
         aria-label={MESSAGES.appRegionTreeLabel}
       >
-        <ProjectTree />
+        <Sidebar />
       </aside>
       <ProjectTreeSplitter
         width={width}
@@ -87,8 +90,14 @@ export function WorkspaceBody() {
         onReset={() => void commit(Math.min(defaultWidthPx, measureMaxWidth()))}
       />
       <main className="workspace-shell__main">
-        <DocumentTabs />
-        <DocumentPanel />
+        {leftPanelMode === "git" ? (
+          <GitMainArea />
+        ) : (
+          <>
+            <DocumentTabs />
+            <DocumentPanel />
+          </>
+        )}
       </main>
     </div>
   );

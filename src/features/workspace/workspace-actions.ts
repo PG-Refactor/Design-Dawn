@@ -56,12 +56,14 @@ import {
   dismissOperationError,
   openDialog,
   setBusy,
+  setLeftPanelMode,
   setNotificationsOpen,
   showNotice,
 } from "./ui-state/shell-ui-state";
 import {
   beginRenaming,
   endRenaming,
+  type LeftPanelMode,
   type OperationLabel,
   type RenamingTarget,
   setActiveDocument,
@@ -218,6 +220,7 @@ export interface WorkspaceActions {
 
   dismissOperationError(id: number): void;
   setNotificationsOpen(open: boolean): void;
+  setLeftPanelMode(mode: LeftPanelMode): void;
 }
 
 export interface WorkspaceActionsDependencies {
@@ -1175,6 +1178,9 @@ export function createWorkspaceActions(
     },
     setNotificationsOpen(open) {
       uiStateStore.setState((state) => setNotificationsOpen(state, open));
+    },
+    setLeftPanelMode(mode) {
+      uiStateStore.setState((state) => setLeftPanelMode(state, mode));
     },
   };
 }

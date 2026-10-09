@@ -221,6 +221,13 @@ export type RenamingTarget =
       readonly sheetId: SheetId;
     };
 
+// What the left panel shows (docs/ui-design.md §13.1). Window-local, never saved.
+export const LEFT_PANEL_MODES = ["project", "git"] as const;
+
+export type LeftPanelMode = (typeof LEFT_PANEL_MODES)[number];
+
+export const DEFAULT_LEFT_PANEL_MODE: LeftPanelMode = "project";
+
 export interface UiState {
   readonly activeDocumentId: DocumentId | null;
   readonly activeSheetIdByDocument: ReadonlyMap<DocumentId, SheetId>;
@@ -246,6 +253,9 @@ export interface UiState {
   readonly nextNoticeId: number;
   // A workspace operation is running; repeated clicks are disabled meanwhile.
   readonly busy: boolean;
+  // Project Tree or Git panel in the sidebar. Kept across Project changes (only the Git
+  // content follows the Project).
+  readonly leftPanelMode: LeftPanelMode;
 }
 
 export type UiStateStore = Store<UiState>;
@@ -273,6 +283,7 @@ export function createInitialUiState(): UiState {
     notice: null,
     nextNoticeId: 1,
     busy: false,
+    leftPanelMode: DEFAULT_LEFT_PANEL_MODE,
   };
 }
 

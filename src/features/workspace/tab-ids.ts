@@ -18,3 +18,9 @@ export function sheetTabId(sheetId: SheetId): string {
 export function sheetPanelId(documentId: DocumentId): string {
   return `sheet-panel-${documentId}`;
 }
+
+export function leftPanelTabId(mode: string): string {
+  return `left-panel-tab-${mode}`;
+}
+
+export const LEFT_PANEL_PANEL_ID = "left-panel-panel";

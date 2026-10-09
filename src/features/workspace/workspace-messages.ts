@@ -9,6 +9,11 @@ import type { OperationLabel } from "./ui-state/ui-state";
 
 export const MESSAGES = {
   appRegionTreeLabel: "Project Tree",
+  leftPanel: {
+    tabsLabel: "左パネルの表示切り替え",
+    project: "Project",
+    git: "Git",
+  },
   splitter: {
     label: "Project Treeの幅",
   },
