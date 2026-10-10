@@ -1,9 +1,10 @@
+import { useMessages } from "../workspace/use-messages";
 import type { BlockRendererProps } from "./block-renderer";
-import { CANVAS_MESSAGES, shortBlockId } from "./canvas-messages";
+import { shortBlockId } from "./canvas-messages";
 
 // Shows what the block is until its type has a real renderer.
 export function BlockPlaceholder({ block }: BlockRendererProps) {
-  const labels = CANVAS_MESSAGES.placeholder;
+  const labels = useMessages().canvas.placeholder;
   return (
     <dl className="block-placeholder">
       <dt>{labels.type}</dt>

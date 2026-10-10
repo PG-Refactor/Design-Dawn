@@ -24,7 +24,9 @@ import {
   type ShellHarness,
   treeItemNamed,
 } from "./test-support/shell-harness";
-import { MESSAGES } from "./workspace-messages";
+import { WORKSPACE_MESSAGES } from "./workspace-messages";
+
+const MESSAGES = WORKSPACE_MESSAGES.ja;
 
 afterEach(() => {
   cleanup();
@@ -227,7 +229,7 @@ describe("document reorder", () => {
       expect(storedDocumentOrder(harness)?.[0]).toBe(DOCUMENT_B),
     );
     expect(harness.store.getState().documents.size).toBe(0);
-    expect(screen.queryByRole("tab")).toBeNull();
+    expect(screen.queryByRole("tablist", { name: "Document Tabs" })).toBeNull();
   });
 
   it("is saved at once: a new workspace over the same disk has the order", async () => {

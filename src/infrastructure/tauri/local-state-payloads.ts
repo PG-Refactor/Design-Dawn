@@ -2,6 +2,7 @@
 // the same parsers TypeScript callers use, so everything Rust returns is validated again.
 // A payload that fails either step is `invalidCommandResponse`.
 
+import { parseLanguagePreference } from "../../application/local-state/language";
 import type { LocalStateResult } from "../../application/local-state/local-state-result";
 import { parseProjectTreeWidth } from "../../application/local-state/project-tree-width";
 import {
@@ -13,6 +14,7 @@ import {
   type RawViewport,
   type Viewport,
 } from "../../application/local-state/viewport";
+import type { LanguagePreference } from "../../config/language-config";
 import {
   type CommandResult,
   commandErr,
@@ -48,6 +50,7 @@ const decodeLoadIssue = objectOf<LocalStateLoadIssue>({
 
 interface RawAppSettings {
   readonly themePreference: string;
+  readonly languagePreference: string;
   readonly autoSave: boolean;
   readonly projectTreeWidth: number;
   readonly loadIssue: LocalStateLoadIssue | null;
@@ -59,6 +62,7 @@ interface RawSheetViewportState {
 
 const rawAppSettings = objectOf<RawAppSettings>({
   themePreference: decodeString,
+  languagePreference: decodeString,
   autoSave: decodeBoolean,
   projectTreeWidth: decodeNumber,
   loadIssue: nullable(decodeLoadIssue),
@@ -103,12 +107,17 @@ export function toAppSettingsResult(
     parseThemePreference(raw.value.themePreference),
   );
   if (!themePreference.ok) return themePreference;
+  const languagePreference: CommandResult<LanguagePreference> = asResponseValue(
+    parseLanguagePreference(raw.value.languagePreference),
+  );
+  if (!languagePreference.ok) return languagePreference;
   const projectTreeWidth: CommandResult<number> = asResponseValue(
     parseProjectTreeWidth(raw.value.projectTreeWidth),
   );
   if (!projectTreeWidth.ok) return projectTreeWidth;
   return commandOk({
     themePreference: themePreference.value,
+    languagePreference: languagePreference.value,
     autoSave: raw.value.autoSave,
     projectTreeWidth: projectTreeWidth.value,
     loadIssue: raw.value.loadIssue,

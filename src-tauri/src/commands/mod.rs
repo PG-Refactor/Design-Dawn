@@ -30,6 +30,11 @@ use crate::application::folder_selection::{
     resolve_selection, select_project_folder as select_folder, FolderPicker, FolderSelection,
     FolderSelectionState,
 };
+use crate::application::git_commit;
+use crate::application::git_discard;
+use crate::application::git_history;
+use crate::application::git_operations::{self, GitStatusResult};
+use crate::application::git_remote;
 use crate::application::local_state::operations::{AppSettings, LocalState, SheetViewportResult};
 use crate::application::open_request::{self, OpenRequest, OpenedRequest, PendingOpenRequests};
 use crate::application::project_operations as projects;
@@ -40,7 +45,7 @@ use crate::application::snapshot::{
 };
 use crate::application::window_binding::{
     close_window_project, create_project_in_window, open_project_in_window, release_window_project,
-    WindowOpenError,
+    reload_project_in_window, WindowOpenError,
 };
 use crate::application::window_registry::WindowRegistry;
 use crate::domain::entity_id::ProjectId;
@@ -51,10 +56,11 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 37] = [
+pub const COMMAND_NAMES: [&str; 53] = [
     "select_project_folder",
     "create_project",
     "open_project",
+    "reload_project",
     "save_project",
     "create_folder",
     "save_folder",
@@ -75,6 +81,7 @@ pub const COMMAND_NAMES: [&str; 37] = [
     "delete_document",
     "get_app_settings",
     "set_theme_preference",
+    "set_language_preference",
     "set_auto_save",
     "set_project_tree_width",
     "get_sheet_viewport",
@@ -89,6 +96,20 @@ pub const COMMAND_NAMES: [&str; 37] = [
     "subscribe_app_requests",
     "ack_open_request",
     "open_project_in_new_window",
+    "git_status",
+    "git_stage",
+    "git_unstage",
+    "git_discard_impact",
+    "git_discard",
+    "git_diff",
+    "git_commit",
+    "git_undo_last_commit",
+    "git_history",
+    "git_fetch",
+    "git_pull",
+    "git_push",
+    "git_publish",
+    "git_remotes",
 ];
 
 pub use app_channel::{AppNotification, AppNotificationSink, AppRequestHub, AppRequestSubscriber};
@@ -324,6 +345,31 @@ pub fn open_project<R: Runtime>(
             &project_root,
         )
     };
+    settle_open(&window, outcome)
+}
+
+/// Reads the Project this window has open again from its own root on disk (after files
+/// changed underneath, e.g. a Git discard). The Frontend names the Project only by id; no
+/// path crosses IPC. Behaves like `open_project` of the same Project.
+#[tauri::command]
+pub fn reload_project<R: Runtime>(
+    window: Window<R>,
+    state: SessionState<'_>,
+    registry: State<'_, Mutex<WindowRegistry>>,
+    project_id: String,
+) -> Result<ProjectSnapshot, ApplicationError> {
+    let outcome = ProjectId::parse(&project_id)
+        .map_err(ApplicationError::from)
+        .map_err(WindowOpenError::from)
+        .and_then(|project_id| {
+            let mut sessions = state.lock().unwrap_or_else(PoisonError::into_inner);
+            reload_project_in_window(
+                &mut sessions,
+                &mut lock_registry(&registry),
+                window.label(),
+                &project_id,
+            )
+        });
     settle_open(&window, outcome)
 }
 
@@ -634,7 +680,7 @@ pub fn get_app_settings<R: Runtime>(app: AppHandle<R>) -> Result<AppSettings, Ap
     with_local_state(&app, |local_state| Ok(local_state.get_app_settings()))
 }
 
-/// Tells every other window with an app channel about the new theme and auto-save values.
+/// Tells every other window with an app channel about the new theme, language and auto-save values.
 /// The caller already updated itself from the command result. Not sent for the Project Tree
 /// width: that is a per-window state (docs/architecture.md §11.0.1).
 fn broadcast_settings<R: Runtime>(window: &Window<R>, settings: &AppSettings) {
@@ -642,6 +688,7 @@ fn broadcast_settings<R: Runtime>(window: &Window<R>, settings: &AppSettings) {
         hub.broadcast_settings_changed(
             window.label(),
             settings.theme_preference,
+            settings.language_preference,
             settings.auto_save,
         );
     }
@@ -654,6 +701,18 @@ pub fn set_theme_preference<R: Runtime>(
 ) -> Result<AppSettings, ApplicationError> {
     let settings = with_local_state(window.app_handle(), |local_state| {
         local_state.set_theme_preference(&theme_preference)
+    })?;
+    broadcast_settings(&window, &settings);
+    Ok(settings)
+}
+
+#[tauri::command]
+pub fn set_language_preference<R: Runtime>(
+    window: Window<R>,
+    language_preference: String,
+) -> Result<AppSettings, ApplicationError> {
+    let settings = with_local_state(window.app_handle(), |local_state| {
+        local_state.set_language_preference(&language_preference)
     })?;
     broadcast_settings(&window, &settings);
     Ok(settings)
@@ -766,6 +825,246 @@ pub async fn copy_asset_to_document<R: Runtime>(
             &content_path,
             &target_document_id,
         )
+    })
+    .await
+}
+
+/// Repository state and changed files of the calling window's Project
+/// (docs/git-development.md §11). `async` + the blocking pool: git can take seconds, and the
+/// sessions lock is held only to copy the Project root out.
+#[tauri::command]
+pub async fn git_status<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+) -> Result<GitStatusResult, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_operations::git_status(&sessions, &project_id)
+    })
+    .await
+}
+
+/// Stages changed files of the calling window's Project and returns the status read after
+/// it (docs/git-development.md §11.6). Not an Undo step and never saves.
+#[tauri::command]
+pub async fn git_stage<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    paths: Vec<String>,
+) -> Result<GitStatusResult, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_operations::git_stage(&sessions, &project_id, &paths)
+    })
+    .await
+}
+
+/// Unstages files of the calling window's Project and returns the status read after it
+/// (docs/git-development.md §11.6). Not an Undo step and never saves.
+#[tauri::command]
+pub async fn git_unstage<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    paths: Vec<String>,
+) -> Result<GitStatusResult, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_operations::git_unstage(&sessions, &project_id, &paths)
+    })
+    .await
+}
+
+/// Which Documents and Project files of the calling window's Project the given paths belong
+/// to (docs/git-development.md §11.14). Read-only: no git process, no absolute paths.
+#[tauri::command]
+pub async fn git_discard_impact<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    paths: Vec<String>,
+) -> Result<git_discard::GitDiscardImpact, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_discard::git_discard_impact(&sessions, &project_id, &paths)
+    })
+    .await
+}
+
+/// Discards working tree changes of the calling window's Project (restores tracked files,
+/// deletes untracked ones) and returns the status read after it (docs/git-development.md
+/// §11.14). Not an Undo step and never saves; the UI must have asked for confirmation.
+#[tauri::command]
+pub async fn git_discard<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    paths: Vec<String>,
+) -> Result<GitStatusResult, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_discard::git_discard(&sessions, &project_id, &paths)
+    })
+    .await
+}
+
+/// Diff of one changed file of the calling window's Project (docs/git-development.md §11.10).
+/// Read-only: never saves, not an Undo step. `side` must be `unstaged` or `staged`.
+#[tauri::command]
+pub async fn git_diff<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    path: String,
+    side: git_operations::DiffSide,
+) -> Result<git_operations::GitDiff, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_operations::git_diff(&sessions, &project_id, &path, side)
+    })
+    .await
+}
+
+/// Commits the staged changes of the calling window's Project (docs/git-development.md
+/// §11.11). Not an Undo step and never saves. The message is user text: it is passed on
+/// to the application layer only and is never logged or echoed here.
+#[tauri::command]
+pub async fn git_commit<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    message: String,
+    options: git_commit::GitCommitOptions,
+) -> Result<git_commit::GitCommitResult, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_commit::git_commit(&sessions, &project_id, &message, options)
+    })
+    .await
+}
+
+/// Takes the last commit of the calling window's Project back, keeping the index and the
+/// working tree (docs/git-development.md §11.16). Not an Undo step and never saves. The
+/// returned message is user text and is never logged here.
+#[tauri::command]
+pub async fn git_undo_last_commit<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+) -> Result<git_commit::GitUndoCommitResult, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_commit::git_undo_last_commit(&sessions, &project_id)
+    })
+    .await
+}
+
+/// Fetches the calling window's Project (docs/git-development.md §11.16). Network access with the user's own git credentials; never saves and is not an Undo step.
+#[tauri::command]
+pub async fn git_fetch<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+) -> Result<git_remote::GitRemoteResult, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_remote::git_fetch(&sessions, &project_id)
+    })
+    .await
+}
+
+/// Pulls (merge, never rebase) the calling window's Project (§11.16). Rewrites working tree files: the caller saves first and reloads afterwards. Not an Undo step.
+#[tauri::command]
+pub async fn git_pull<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+) -> Result<git_remote::GitRemoteResult, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_remote::git_pull(&sessions, &project_id)
+    })
+    .await
+}
+
+/// Pushes the current branch of the calling window's Project to its upstream (§11.16). Never forces.
+#[tauri::command]
+pub async fn git_push<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+) -> Result<git_remote::GitRemoteResult, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_remote::git_push(&sessions, &project_id)
+    })
+    .await
+}
+
+/// Pushes the current branch to `remote` and sets it as upstream (§11.16). `remote` is user text: the core accepts only a name `git remote` lists.
+#[tauri::command]
+pub async fn git_publish<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    remote: String,
+) -> Result<git_remote::GitRemoteResult, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_remote::git_publish(&sessions, &project_id, &remote)
+    })
+    .await
+}
+
+/// Names of the remotes of the calling window's Project (§11.16). Names only, never URLs.
+#[tauri::command]
+pub async fn git_remotes<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+) -> Result<Vec<String>, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_remote::git_remotes(&sessions, &project_id)
+    })
+    .await
+}
+
+/// One page of the commit history of the calling window's Project (docs/git-development.md
+/// §11.12). Read-only: never saves, not an Undo step. `limit` is taken as a signed 64 bit
+/// integer, so a negative number is not an argument error but an out-of-range page size
+/// that the core refuses as `invalidHistoryRequest`; a non-integer or beyond-i64 value is
+/// rejected by Tauri's argument deserialization. The cursor is opaque; the core checks it.
+/// The entries are repository data and are never logged here.
+#[tauri::command]
+pub async fn git_history<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    limit: i64,
+    cursor: Option<String>,
+) -> Result<git_history::GitHistory, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    // A negative limit becomes usize::MAX, which the core's range check refuses.
+    let limit = usize::try_from(limit).unwrap_or(usize::MAX);
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_history::git_history(&sessions, &project_id, limit, cursor.as_deref())
     })
     .await
 }

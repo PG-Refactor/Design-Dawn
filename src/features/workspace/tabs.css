@@ -104,3 +104,13 @@
 .tab--drop-after::after {
   right: calc(var(--space-1) / -2 - 1.5px);
 }
+
+/* A diff tab is told from a Document tab by its mark, not by colour. */
+.tab__icon {
+  color: var(--color-text-muted);
+}
+
+/* The preview tab is replaced by the next preview until it is pinned. */
+.tab--preview .tab__name {
+  font-style: italic;
+}

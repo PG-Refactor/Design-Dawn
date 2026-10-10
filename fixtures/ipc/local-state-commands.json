@@ -17,6 +17,7 @@
           "expected": {
             "ok": {
               "themePreference": "system",
+              "languagePreference": "system",
               "autoSave": true,
               "projectTreeWidth": 320,
               "loadIssue": null
@@ -34,6 +35,7 @@
           "expected": {
             "ok": {
               "themePreference": "dark",
+              "languagePreference": "system",
               "autoSave": true,
               "projectTreeWidth": 320,
               "loadIssue": null
@@ -49,6 +51,7 @@
           "expected": {
             "ok": {
               "themePreference": "dark",
+              "languagePreference": "system",
               "autoSave": true,
               "projectTreeWidth": 320,
               "loadIssue": null
@@ -66,6 +69,7 @@
           "expected": {
             "ok": {
               "themePreference": "dark",
+              "languagePreference": "system",
               "autoSave": false,
               "projectTreeWidth": 320,
               "loadIssue": null
@@ -81,6 +85,7 @@
           "expected": {
             "ok": {
               "themePreference": "dark",
+              "languagePreference": "system",
               "autoSave": false,
               "projectTreeWidth": 320,
               "loadIssue": null
@@ -98,6 +103,7 @@
           "expected": {
             "ok": {
               "themePreference": "light",
+              "languagePreference": "system",
               "autoSave": false,
               "projectTreeWidth": 320,
               "loadIssue": null
@@ -115,6 +121,7 @@
           "expected": {
             "ok": {
               "themePreference": "light",
+              "languagePreference": "system",
               "autoSave": true,
               "projectTreeWidth": 320,
               "loadIssue": null
@@ -132,6 +139,7 @@
           "expected": {
             "ok": {
               "themePreference": "light",
+              "languagePreference": "system",
               "autoSave": true,
               "projectTreeWidth": 400,
               "loadIssue": null
@@ -147,6 +155,7 @@
           "expected": {
             "ok": {
               "themePreference": "light",
+              "languagePreference": "system",
               "autoSave": true,
               "projectTreeWidth": 400,
               "loadIssue": null
@@ -296,6 +305,7 @@
           "expected": {
             "ok": {
               "themePreference": "light",
+              "languagePreference": "system",
               "autoSave": true,
               "projectTreeWidth": 400,
               "loadIssue": null
@@ -419,6 +429,90 @@
               "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
               "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef"
             }
+          },
+          "expected": {
+            "tauriError": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "language-preference",
+      "description": "Default, round trip, independence from the other settings, and rejection of invalid input.",
+      "cases": [
+        {
+          "name": "set_language_preference: ja",
+          "request": {
+            "command": "set_language_preference",
+            "args": {
+              "languagePreference": "ja"
+            }
+          },
+          "expected": {
+            "ok": {
+              "themePreference": "system",
+              "languagePreference": "ja",
+              "autoSave": true,
+              "projectTreeWidth": 320,
+              "loadIssue": null
+            }
+          }
+        },
+        {
+          "name": "set_theme_preference: keeps the language",
+          "request": {
+            "command": "set_theme_preference",
+            "args": {
+              "themePreference": "dark"
+            }
+          },
+          "expected": {
+            "ok": {
+              "themePreference": "dark",
+              "languagePreference": "ja",
+              "autoSave": true,
+              "projectTreeWidth": 320,
+              "loadIssue": null
+            }
+          }
+        },
+        {
+          "name": "get_app_settings: returns the saved language",
+          "request": {
+            "command": "get_app_settings",
+            "args": {}
+          },
+          "expected": {
+            "ok": {
+              "themePreference": "dark",
+              "languagePreference": "ja",
+              "autoSave": true,
+              "projectTreeWidth": 320,
+              "loadIssue": null
+            }
+          }
+        },
+        {
+          "name": "set_language_preference: unknown preference",
+          "targets": ["rust"],
+          "request": {
+            "command": "set_language_preference",
+            "args": {
+              "languagePreference": "fr"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidLanguagePreference"
+            }
+          }
+        },
+        {
+          "name": "set_language_preference: missing argument",
+          "targets": ["rust"],
+          "request": {
+            "command": "set_language_preference",
+            "args": {}
           },
           "expected": {
             "tauriError": true

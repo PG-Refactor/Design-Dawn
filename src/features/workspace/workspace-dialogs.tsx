@@ -1,17 +1,19 @@
+import { GitRemoteDialog, GitStageAllDialog } from "../git/git-action-dialogs";
+import { GitDiscardDialog } from "../git/git-discard-dialog";
 import { ConfirmDialog } from "./confirm-dialog";
 import { MoveDialog } from "./move-dialog";
 import { NameDialog } from "./name-dialog";
 import type { UiState, UnsavedCloseTarget } from "./ui-state/ui-state";
+import { useMessages } from "./use-messages";
 import { useUiState } from "./workspace-hooks";
-import {
-  closeDocumentConfirmationTitle,
-  deleteConfirmationTitle,
-  MESSAGES,
-} from "./workspace-messages";
+import type { WorkspaceMessages } from "./workspace-messages";
 import { useWorkspaceServices } from "./workspace-services-context";
 
-function unsavedCloseTitle(target: UnsavedCloseTarget): string {
-  const texts = MESSAGES.dialogs.confirmUnsavedClose;
+function unsavedCloseTitle(
+  messages: WorkspaceMessages,
+  target: UnsavedCloseTarget,
+): string {
+  const texts = messages.dialogs.confirmUnsavedClose;
   switch (target.kind) {
     case "window":
       return texts.windowTitle;
@@ -21,7 +23,9 @@ function unsavedCloseTitle(target: UnsavedCloseTarget): string {
     case "createProject":
       return texts.switchProjectTitle;
     case "document":
-      return closeDocumentConfirmationTitle(target.name);
+      return messages.closeDocumentConfirmationTitle(
+        target.name ?? messages.tree.unnamedEntity,
+      );
   }
 }
 
@@ -33,7 +37,10 @@ export function WorkspaceDialogs() {
   const { actions } = useWorkspaceServices();
   const dialog = useUiState(selectDialog);
   const busy = useUiState(selectBusy);
-  const texts = MESSAGES.dialogs;
+  const messages = useMessages().workspace;
+  const texts = messages.dialogs;
+  const nameOf = (name: string | null): string =>
+    name ?? messages.tree.unnamedEntity;
 
   switch (dialog.kind) {
     case "none":
@@ -79,7 +86,7 @@ export function WorkspaceDialogs() {
       return (
         <MoveDialog
           entryId={dialog.entryId}
-          name={dialog.name}
+          name={nameOf(dialog.name)}
           busy={busy}
           onCancel={actions.cancelDialog}
           onChoose={(target) =>
@@ -91,7 +98,7 @@ export function WorkspaceDialogs() {
     case "confirmMoveSave":
       return (
         <ConfirmDialog
-          title={`「${dialog.name}」${MESSAGES.tree.moveTo}`}
+          title={messages.moveEntryTitle(nameOf(dialog.name))}
           paragraphs={[texts.confirmMoveSave.body]}
           cancelLabel={texts.cancel}
           confirmLabel={texts.confirmMoveSave.confirm}
@@ -104,7 +111,7 @@ export function WorkspaceDialogs() {
     case "confirmUnsavedClose":
       return (
         <ConfirmDialog
-          title={unsavedCloseTitle(dialog.target)}
+          title={unsavedCloseTitle(messages, dialog.target)}
           paragraphs={[texts.confirmUnsavedClose.body]}
           cancelLabel={texts.cancel}
           confirmLabel={texts.confirmUnsavedClose.save}
@@ -121,7 +128,7 @@ export function WorkspaceDialogs() {
     case "confirmDeleteFolder":
       return (
         <ConfirmDialog
-          title={deleteConfirmationTitle(dialog.name)}
+          title={messages.deleteConfirmationTitle(nameOf(dialog.name))}
           paragraphs={[texts.undoNotice, texts.deleteFolderConsequence]}
           cancelLabel={texts.cancel}
           confirmLabel={texts.delete}
@@ -146,7 +153,7 @@ export function WorkspaceDialogs() {
     case "confirmDeleteDocument":
       return (
         <ConfirmDialog
-          title={deleteConfirmationTitle(dialog.name)}
+          title={messages.deleteConfirmationTitle(nameOf(dialog.name))}
           paragraphs={[texts.undoNotice, texts.deleteDocumentConsequence]}
           cancelLabel={texts.cancel}
           confirmLabel={texts.delete}
@@ -155,10 +162,23 @@ export function WorkspaceDialogs() {
           onConfirm={() => void actions.confirmDelete()}
         />
       );
+    case "confirmDiscardGitChanges":
+      return (
+        <GitDiscardDialog
+          targets={dialog.targets}
+          documentIds={dialog.documentIds}
+          projectFilesAffected={dialog.projectFilesAffected}
+          busy={busy}
+        />
+      );
+    case "confirmGitStageAll":
+      return <GitStageAllDialog busy={busy} />;
+    case "chooseGitRemote":
+      return <GitRemoteDialog remoteNames={dialog.remoteNames} busy={busy} />;
     case "confirmDeleteSheet":
       return (
         <ConfirmDialog
-          title={deleteConfirmationTitle(dialog.name)}
+          title={messages.deleteConfirmationTitle(nameOf(dialog.name))}
           paragraphs={[texts.undoNotice]}
           cancelLabel={texts.cancel}
           confirmLabel={texts.delete}

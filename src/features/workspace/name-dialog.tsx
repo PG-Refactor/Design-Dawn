@@ -1,7 +1,8 @@
 import { type FormEvent, useId, useRef, useState } from "react";
 import { parseDisplayName } from "../../domain/shared/display-name";
 import { Modal } from "./modal";
-import { describeInvalidName, MESSAGES } from "./workspace-messages";
+import { useMessages } from "./use-messages";
+import { describeInvalidName } from "./workspace-messages";
 import "./name-dialog.css";
 
 export interface NameDialogProps {
@@ -24,6 +25,7 @@ export function NameDialog({
   onCancel,
   busy,
 }: NameDialogProps) {
+  const messages = useMessages().workspace;
   const titleId = useId();
   const inputId = useId();
   const errorId = useId();
@@ -35,7 +37,7 @@ export function NameDialog({
     event.preventDefault();
     if (busy) return;
     if (!parseDisplayName(name).ok) {
-      setErrorMessage(describeInvalidName(name));
+      setErrorMessage(describeInvalidName(messages, name));
       inputRef.current?.focus();
       return;
     }
@@ -84,7 +86,7 @@ export function NameDialog({
             disabled={busy}
             onClick={onCancel}
           >
-            {MESSAGES.dialogs.cancel}
+            {messages.dialogs.cancel}
           </button>
           <button
             type="submit"

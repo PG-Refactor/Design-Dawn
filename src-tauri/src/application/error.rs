@@ -45,6 +45,8 @@ pub enum ErrorKind {
     AssetTooLarge,
     /// A theme preference that is not `system` or a defined theme id.
     InvalidThemePreference,
+    /// A language preference that is not `system`, `en` or `ja`.
+    InvalidLanguagePreference,
     /// `delete_folder` on a folder that holds anything besides `folder.json` and temp files.
     FolderNotEmpty,
     /// `move_entry` that is not allowed: into itself or a descendant, or an entry that is
@@ -56,6 +58,61 @@ pub enum ErrorKind {
     InvalidProjectTreeWidth,
     /// The Project is already open in another window (docs/architecture.md §11.0.1).
     ProjectOpenInOtherWindow,
+    /// A git process failed in a way that is not a repository state (non-zero exit of a
+    /// ready repository, unreadable output, the process could not be started).
+    GitCommandFailed,
+    /// A git process exceeded its time limit and was killed.
+    GitTimeout,
+    /// A Project-relative path for git that is empty, absolute, contains `..`, a drive
+    /// letter, a UNC prefix, a backslash or NUL.
+    InvalidGitPath,
+    /// A git operation was requested while the repository is not `ready` (no git, not a
+    /// repository, unsupported layout, broken repository).
+    GitNotReady,
+    /// A commit message that is empty, contains control characters or is too long.
+    InvalidCommitMessage,
+    /// Commit requested while nothing is staged.
+    NothingToCommit,
+    /// Commit requested while files are unmerged (a conflict is unresolved).
+    GitUnmergedChanges,
+    /// Commit requested during a merge / cherry-pick / revert / rebase.
+    GitOperationInProgress,
+    /// `user.name` / `user.email` are not configured.
+    GitIdentityMissing,
+    /// git refused the commit (a hook failed, signing failed, ...).
+    GitCommitRejected,
+    /// A History request with a page size or cursor that is out of range, malformed, or
+    /// names a commit that no longer exists.
+    InvalidHistoryRequest,
+    /// Discard requested for a path the repository's status does not report as a
+    /// discardable change (staged only, conflicted, unchanged, ignored, a directory, ...),
+    /// or an untracked file whose location cannot be removed safely.
+    GitDiscardRejected,
+    /// Amend requested while the repository has no commit.
+    GitNoCommitToAmend,
+    /// Amend / Undo requested for a commit that is contained in a remote-tracking branch
+    /// (or whose containment could not be determined): rewriting it would need a force push.
+    GitCommitAlreadyPushed,
+    /// Undo requested for a commit that is missing, the first commit, or a merge commit.
+    GitCannotUndoCommit,
+    /// Fetch requested while the repository has no remote.
+    GitNoRemote,
+    /// Pull / Push requested for a branch without an upstream.
+    GitNoUpstream,
+    /// Pull / Push / Publish requested on a detached HEAD.
+    GitDetachedHead,
+    /// Publish named a remote that `git remote` does not list (or one that looks like an option).
+    GitRemoteNotFound,
+    /// The remote refused the credentials, or none were available without a prompt.
+    GitAuthenticationFailed,
+    /// The remote could not be reached (name resolution, connection, timeout of the transport).
+    GitNetworkUnavailable,
+    /// The remote rejected the push (non-fast-forward); never retried with force.
+    GitPushRejected,
+    /// The pull stopped with unmerged files.
+    GitPullConflicts,
+    /// The pull was refused because local changes would be overwritten.
+    GitPullBlockedByLocalChanges,
 }
 
 impl ErrorKind {
@@ -72,11 +129,36 @@ impl ErrorKind {
             Self::InvalidImageContent => "invalidImageContent",
             Self::AssetTooLarge => "assetTooLarge",
             Self::InvalidThemePreference => "invalidThemePreference",
+            Self::InvalidLanguagePreference => "invalidLanguagePreference",
             Self::FolderNotEmpty => "folderNotEmpty",
             Self::InvalidMove => "invalidMove",
             Self::InvalidViewport => "invalidViewport",
             Self::InvalidProjectTreeWidth => "invalidProjectTreeWidth",
             Self::ProjectOpenInOtherWindow => "projectOpenInOtherWindow",
+            Self::GitCommandFailed => "gitCommandFailed",
+            Self::GitTimeout => "gitTimeout",
+            Self::InvalidGitPath => "invalidGitPath",
+            Self::GitNotReady => "gitNotReady",
+            Self::InvalidCommitMessage => "invalidCommitMessage",
+            Self::NothingToCommit => "nothingToCommit",
+            Self::GitUnmergedChanges => "gitUnmergedChanges",
+            Self::GitOperationInProgress => "gitOperationInProgress",
+            Self::GitIdentityMissing => "gitIdentityMissing",
+            Self::GitCommitRejected => "gitCommitRejected",
+            Self::InvalidHistoryRequest => "invalidHistoryRequest",
+            Self::GitDiscardRejected => "gitDiscardRejected",
+            Self::GitNoCommitToAmend => "gitNoCommitToAmend",
+            Self::GitCommitAlreadyPushed => "gitCommitAlreadyPushed",
+            Self::GitCannotUndoCommit => "gitCannotUndoCommit",
+            Self::GitNoRemote => "gitNoRemote",
+            Self::GitNoUpstream => "gitNoUpstream",
+            Self::GitDetachedHead => "gitDetachedHead",
+            Self::GitRemoteNotFound => "gitRemoteNotFound",
+            Self::GitAuthenticationFailed => "gitAuthenticationFailed",
+            Self::GitNetworkUnavailable => "gitNetworkUnavailable",
+            Self::GitPushRejected => "gitPushRejected",
+            Self::GitPullConflicts => "gitPullConflicts",
+            Self::GitPullBlockedByLocalChanges => "gitPullBlockedByLocalChanges",
         }
     }
 
@@ -97,11 +179,36 @@ impl ErrorKind {
             Self::InvalidImageContent => "the file is not a valid image",
             Self::AssetTooLarge => "the image file is too large",
             Self::InvalidThemePreference => "the theme preference is not valid",
+            Self::InvalidLanguagePreference => "the language preference is not valid",
             Self::FolderNotEmpty => "the folder is not empty",
             Self::InvalidMove => "the item cannot be moved there",
             Self::InvalidViewport => "the viewport is not valid",
             Self::InvalidProjectTreeWidth => "the project tree width is not valid",
             Self::ProjectOpenInOtherWindow => "the project is open in another window",
+            Self::GitCommandFailed => "the git command failed",
+            Self::GitTimeout => "the git command did not finish in time",
+            Self::InvalidGitPath => "the path is not valid for git",
+            Self::GitNotReady => "the repository is not ready for git operations",
+            Self::InvalidCommitMessage => "the commit message is not valid",
+            Self::NothingToCommit => "there are no staged changes to commit",
+            Self::GitUnmergedChanges => "there are unresolved conflicts",
+            Self::GitOperationInProgress => "a merge or similar operation is in progress",
+            Self::GitIdentityMissing => "the git user name or email is not configured",
+            Self::GitCommitRejected => "git rejected the commit",
+            Self::InvalidHistoryRequest => "the history request is not valid",
+            Self::GitDiscardRejected => "the change cannot be discarded",
+            Self::GitNoCommitToAmend => "there is no commit to amend",
+            Self::GitCommitAlreadyPushed => "a pushed commit cannot be changed",
+            Self::GitCannotUndoCommit => "the commit cannot be undone",
+            Self::GitNoRemote => "no remote is configured",
+            Self::GitNoUpstream => "the branch has no upstream branch",
+            Self::GitDetachedHead => "no branch is checked out",
+            Self::GitRemoteNotFound => "the remote was not found",
+            Self::GitAuthenticationFailed => "authentication with the remote failed",
+            Self::GitNetworkUnavailable => "the remote could not be reached",
+            Self::GitPushRejected => "the push was rejected",
+            Self::GitPullConflicts => "the pull produced conflicts",
+            Self::GitPullBlockedByLocalChanges => "the pull would overwrite local changes",
         }
     }
 }
@@ -181,7 +288,7 @@ impl Serialize for ApplicationError {
 mod tests {
     use super::*;
 
-    const ALL_KINDS: [ErrorKind; 30] = [
+    const ALL_KINDS: [ErrorKind; 56] = [
         ErrorKind::Domain(DomainErrorKind::InvalidEntityId),
         ErrorKind::Domain(DomainErrorKind::InvalidDisplayName),
         ErrorKind::Domain(DomainErrorKind::InvalidPosition),
@@ -208,10 +315,36 @@ mod tests {
         ErrorKind::InvalidImageContent,
         ErrorKind::AssetTooLarge,
         ErrorKind::InvalidThemePreference,
+        ErrorKind::InvalidLanguagePreference,
         ErrorKind::FolderNotEmpty,
         ErrorKind::InvalidMove,
         ErrorKind::InvalidViewport,
         ErrorKind::InvalidProjectTreeWidth,
+        ErrorKind::ProjectOpenInOtherWindow,
+        ErrorKind::GitCommandFailed,
+        ErrorKind::GitTimeout,
+        ErrorKind::InvalidGitPath,
+        ErrorKind::GitNotReady,
+        ErrorKind::InvalidCommitMessage,
+        ErrorKind::NothingToCommit,
+        ErrorKind::GitUnmergedChanges,
+        ErrorKind::GitOperationInProgress,
+        ErrorKind::GitIdentityMissing,
+        ErrorKind::GitCommitRejected,
+        ErrorKind::InvalidHistoryRequest,
+        ErrorKind::GitDiscardRejected,
+        ErrorKind::GitNoCommitToAmend,
+        ErrorKind::GitCommitAlreadyPushed,
+        ErrorKind::GitCannotUndoCommit,
+        ErrorKind::GitNoRemote,
+        ErrorKind::GitNoUpstream,
+        ErrorKind::GitDetachedHead,
+        ErrorKind::GitRemoteNotFound,
+        ErrorKind::GitAuthenticationFailed,
+        ErrorKind::GitNetworkUnavailable,
+        ErrorKind::GitPushRejected,
+        ErrorKind::GitPullConflicts,
+        ErrorKind::GitPullBlockedByLocalChanges,
     ];
 
     /// A Windows drive path (`C:\`) or any separator would mean a path leaked.

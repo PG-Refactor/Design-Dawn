@@ -7,6 +7,10 @@ import {
   dismissOperationError,
   openDialog,
   setBusy,
+  setDiffViewMode,
+  setGitCommitMessage,
+  setGitHistoryExpanded,
+  setGitSectionCollapsed,
   setNotificationsOpen,
   showNotice,
 } from "./shell-ui-state";
@@ -93,5 +97,53 @@ describe("light notices", () => {
     // The timer of the replaced notice does nothing.
     expect(clearNotice(state, 1)).toBe(state);
     expect(clearNotice(state, 2).notice).toBeNull();
+  });
+});
+
+describe("git commit message", () => {
+  it("defaults to empty, is replaced by the setter and reset with the UI state", () => {
+    const initial = createInitialUiState();
+    expect(initial.gitCommitMessage).toBe("");
+    const typed = setGitCommitMessage(initial, "draft");
+    expect(typed.gitCommitMessage).toBe("draft");
+    expect(setGitCommitMessage(typed, "draft")).toBe(typed);
+    expect(resetUiState().gitCommitMessage).toBe("");
+  });
+});
+
+describe("git history expanded", () => {
+  it("defaults to collapsed, is replaced by the setter and reset with the UI state", () => {
+    const initial = createInitialUiState();
+    expect(initial.gitHistoryExpanded).toBe(false);
+    const expanded = setGitHistoryExpanded(initial, true);
+    expect(expanded.gitHistoryExpanded).toBe(true);
+    expect(setGitHistoryExpanded(expanded, true)).toBe(expanded);
+    expect(resetUiState().gitHistoryExpanded).toBe(false);
+  });
+});
+
+describe("git collapsed sections", () => {
+  it("defaults to none collapsed, toggles per section and resets with the UI state", () => {
+    const initial = createInitialUiState();
+    expect(initial.gitCollapsedSections.size).toBe(0);
+    const collapsed = setGitSectionCollapsed(initial, "staged", true);
+    expect(collapsed.gitCollapsedSections.has("staged")).toBe(true);
+    expect(collapsed.gitCollapsedSections.has("changes")).toBe(false);
+    expect(setGitSectionCollapsed(collapsed, "staged", true)).toBe(collapsed);
+    const expanded = setGitSectionCollapsed(collapsed, "staged", false);
+    expect(expanded.gitCollapsedSections.size).toBe(0);
+    expect(setGitSectionCollapsed(initial, "staged", false)).toBe(initial);
+    expect(resetUiState().gitCollapsedSections.size).toBe(0);
+  });
+});
+
+describe("diff view mode", () => {
+  it("defaults to split, is replaced by the setter and resets with the UI state", () => {
+    const initial = createInitialUiState();
+    expect(initial.diffViewMode).toBe("split");
+    const inline = setDiffViewMode(initial, "inline");
+    expect(inline.diffViewMode).toBe("inline");
+    expect(setDiffViewMode(inline, "inline")).toBe(inline);
+    expect(resetUiState().diffViewMode).toBe("split");
   });
 });

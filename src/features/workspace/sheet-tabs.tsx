@@ -4,6 +4,7 @@ import { restoreFocus } from "./focus-utils";
 import { sheetPanelId, sheetTabId } from "./tab-ids";
 import { TreeRenameInput } from "./tree-rename-input";
 import { sameRenamingTarget } from "./ui-state/ui-state";
+import { useMessages } from "./use-messages";
 import { useTabDrag } from "./use-tab-drag";
 import {
   NAVIGATION_KEYS,
@@ -13,17 +14,13 @@ import { MOVE_DIRECTIONS, oneStepMove } from "./view-models/reorder";
 import { dropMarker, tabClassName, ZERO_RECT } from "./view-models/tab-drag";
 import { type SheetTabsModel, selectSheetTabs } from "./view-models/tabs-model";
 import { useUiState, useWorkspaceModel } from "./workspace-hooks";
-import {
-  deleteSheetTabLabel,
-  MESSAGES,
-  renameInputLabel,
-} from "./workspace-messages";
 import { useWorkspaceServices } from "./workspace-services-context";
 import "./tabs.css";
 
 const RENAME_KEY = "F2";
 
 function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
+  const messages = useMessages().workspace;
   const { actions } = useWorkspaceServices();
   const tabElements = useRef(new Map<SheetId, HTMLButtonElement>());
   const renaming = useUiState((ui) => ui.renaming);
@@ -92,7 +89,7 @@ function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
   return (
     <div
       role="tablist"
-      aria-label={MESSAGES.tabs.sheetTabsLabel}
+      aria-label={messages.tabs.sheetTabsLabel}
       className="tab-list"
     >
       {tabs.map((tab, index) => {
@@ -144,7 +141,7 @@ function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
             {isRenaming ? (
               <TreeRenameInput
                 initialName={tab.name}
-                label={renameInputLabel(tab.name)}
+                label={messages.renameInputLabel(tab.name)}
                 onSubmit={(name) => void actions.commitRename(name)}
                 onCancel={actions.cancelRename}
                 restoreFocus={() =>
@@ -156,13 +153,13 @@ function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
               type="button"
               className="tab__control"
               tabIndex={isTabStop ? 0 : -1}
-              aria-label={deleteSheetTabLabel(tab.name)}
+              aria-label={messages.deleteSheetTabLabel(tab.name)}
               onClick={() =>
                 actions.requestDeleteSheet(documentId, tab.sheetId)
               }
             >
               <span aria-hidden="true">
-                {MESSAGES.tabs.deleteSheetButtonText}
+                {messages.tabs.deleteSheetButtonText}
               </span>
             </button>
           </div>
@@ -173,6 +170,7 @@ function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
 }
 
 export function SheetTabs() {
+  const messages = useMessages().workspace;
   const { actions } = useWorkspaceServices();
   const model = useWorkspaceModel(selectSheetTabs);
   if (model === null) return null;
@@ -184,7 +182,7 @@ export function SheetTabs() {
         className="button"
         onClick={() => void actions.requestCreateSheet(model.documentId)}
       >
-        {MESSAGES.tabs.createSheet}
+        {messages.tabs.createSheet}
       </button>
     </div>
   );

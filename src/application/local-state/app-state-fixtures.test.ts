@@ -2,6 +2,7 @@
 // (docs/testing.md §8, §12). The Rust runner is src-tauri/tests/app_state_fixtures.rs.
 
 import { describe, expect, it } from "vitest";
+import { parseLanguagePreference } from "./language";
 import type { LocalStateResult } from "./local-state-result";
 import { parseThemePreference } from "./theme";
 import { parseViewport, type RawViewport } from "./viewport";
@@ -27,6 +28,7 @@ interface FixtureFile {
 type SubjectRunner = (input: unknown) => LocalStateResult<unknown>;
 
 const SUBJECT_RUNNERS: Readonly<Record<string, SubjectRunner>> = {
+  languagePreference: (input) => parseLanguagePreference(input as string),
   themePreference: (input) => parseThemePreference(input as string),
   viewport: (input) => parseViewport(input as RawViewport),
 };

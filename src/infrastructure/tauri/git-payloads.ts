@@ -1,0 +1,335 @@
+// Strict decoder for the `git_status` payload: every field and every identifier is
+// checked, so a payload from a newer or broken backend becomes `invalidCommandResponse`
+// instead of reaching the application layer.
+
+import {
+  GIT_COMMIT_OUTCOMES,
+  GIT_DIFF_OUTCOMES,
+  GIT_DIFF_SIDES,
+  GIT_FILE_CHANGES,
+  GIT_REPOSITORY_STATES,
+  type GitBranchInfo,
+  type GitCommitOutcome,
+  type GitCommitResult,
+  type GitCommitStatus,
+  type GitDiff,
+  type GitDiffOutcome,
+  type GitDiffSide,
+  type GitDiscardImpact,
+  type GitErrorKind,
+  type GitFileChange,
+  type GitFileStatus,
+  type GitHistoryEntry,
+  type GitHistoryPage,
+  type GitRemoteResult,
+  type GitRepositoryState,
+  type GitStatus,
+  type GitUndoCommitResult,
+} from "../../application/ports/git-gateway";
+import { GIT_ERROR_KINDS } from "../../application/ports/operation-error";
+import { parseDocumentId } from "../../domain/shared/entity-id";
+import { type CommandResult, commandErr, commandOk } from "./command-error";
+import {
+  arrayOf,
+  type Decoder,
+  decodeBoolean,
+  decodeNumber,
+  decodeString,
+  nullable,
+  objectOf,
+  oneOf,
+} from "./payload-decoder";
+
+const PAYLOAD_ROOT = "payload";
+
+interface RawGitStatus {
+  readonly repository: { readonly state: GitRepositoryState };
+  readonly branch: GitBranchInfo | null;
+  readonly files: readonly GitFileStatus[];
+}
+
+// A commit count: a non-negative integer.
+const decodeCount: Decoder<number> = (value, path) => {
+  const count = decodeNumber(value, path);
+  if (!count.ok) return count;
+  return Number.isInteger(count.value) && count.value >= 0
+    ? count
+    : { ok: false, detail: `${path}: expected a non-negative integer` };
+};
+
+const decodeFileChange = oneOf<readonly GitFileChange[]>(GIT_FILE_CHANGES);
+
+const rawGitStatus = objectOf<RawGitStatus>({
+  repository: objectOf<{ readonly state: GitRepositoryState }>({
+    state: oneOf<readonly GitRepositoryState[]>(GIT_REPOSITORY_STATES),
+  }),
+  branch: nullable(
+    objectOf<GitBranchInfo>({
+      head: nullable(decodeString),
+      oid: nullable(decodeString),
+      upstream: nullable(decodeString),
+      ahead: nullable(decodeCount),
+      behind: nullable(decodeCount),
+      headPushed: decodeBoolean,
+    }),
+  ),
+  files: arrayOf(
+    objectOf<GitFileStatus>({
+      path: decodeString,
+      indexStatus: decodeFileChange,
+      worktreeStatus: decodeFileChange,
+      originalPath: nullable(decodeString),
+    }),
+  ),
+});
+
+export function toGitStatus(payload: unknown): CommandResult<GitStatus> {
+  const decoded = rawGitStatus(payload, PAYLOAD_ROOT);
+  return decoded.ok
+    ? commandOk({
+        repositoryState: decoded.value.repository.state,
+        branch: decoded.value.branch,
+        files: decoded.value.files,
+      })
+    : commandErr("invalidCommandResponse", decoded.detail);
+}
+
+interface RawGitDiffHead {
+  readonly path: string;
+  readonly side: GitDiffSide;
+  readonly outcome: GitDiffOutcome;
+}
+
+const rawGitDiffHead = objectOf<RawGitDiffHead>({
+  path: decodeString,
+  side: oneOf<readonly GitDiffSide[]>(GIT_DIFF_SIDES),
+  outcome: oneOf<readonly GitDiffOutcome[]>(GIT_DIFF_OUTCOMES),
+});
+
+const rawTextDiff = objectOf<{ readonly diff: string }>({ diff: decodeString });
+const rawTooLargeDiff = objectOf<{ readonly limitBytes: number }>({
+  limitBytes: decodeNumber,
+});
+
+export function toGitDiff(payload: unknown): CommandResult<GitDiff> {
+  const head = rawGitDiffHead(payload, PAYLOAD_ROOT);
+  if (!head.ok) return commandErr("invalidCommandResponse", head.detail);
+  const { path, side, outcome } = head.value;
+  switch (outcome) {
+    case "text": {
+      const body = rawTextDiff(payload, PAYLOAD_ROOT);
+      return body.ok
+        ? commandOk({ path, side, outcome, diff: body.value.diff })
+        : commandErr("invalidCommandResponse", body.detail);
+    }
+    case "tooLarge": {
+      const body = rawTooLargeDiff(payload, PAYLOAD_ROOT);
+      return body.ok
+        ? commandOk({ path, side, outcome, limitBytes: body.value.limitBytes })
+        : commandErr("invalidCommandResponse", body.detail);
+    }
+    case "empty":
+    case "binary":
+    case "notUtf8":
+      return commandOk({ path, side, outcome });
+  }
+}
+
+interface RawGitCommitHead {
+  readonly commitId: string | null;
+  readonly status: { readonly outcome: GitCommitOutcome };
+}
+
+// A full object ID only: the UI may show it or hand it back to git, so anything else is a
+// broken payload.
+const OBJECT_ID_PATTERN = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
+
+const decodeObjectId: Decoder<string> = (value, path) => {
+  const text = decodeString(value, path);
+  if (!text.ok) return text;
+  return OBJECT_ID_PATTERN.test(text.value)
+    ? text
+    : {
+        ok: false,
+        detail: `${path}: expected a lowercase hexadecimal object id`,
+      };
+};
+
+const rawGitCommitHead = objectOf<RawGitCommitHead>({
+  commitId: nullable(decodeObjectId),
+  status: objectOf<{ readonly outcome: GitCommitOutcome }>({
+    outcome: oneOf<readonly GitCommitOutcome[]>(GIT_COMMIT_OUTCOMES),
+  }),
+});
+
+const rawUpdatedStatus = objectOf<{ readonly status: unknown }>({
+  status: (value) => ({ ok: true, value }),
+});
+
+const rawUnavailableStatus = objectOf<{ readonly errorKind: GitErrorKind }>({
+  errorKind: oneOf<readonly GitErrorKind[]>(GIT_ERROR_KINDS),
+});
+
+// The status part shared by the commit and the undo results. `outcome` was checked by the
+// caller; the rest of the object is checked here.
+const rawGitRemoteHead = objectOf<{
+  readonly status: { readonly outcome: GitCommitOutcome };
+}>({
+  status: objectOf<{ readonly outcome: GitCommitOutcome }>({
+    outcome: oneOf<readonly GitCommitOutcome[]>(GIT_COMMIT_OUTCOMES),
+  }),
+});
+
+function toCommitStatus(
+  outcome: GitCommitOutcome,
+  rawStatus: unknown,
+): CommandResult<GitCommitStatus> {
+  const path = `${PAYLOAD_ROOT}.status`;
+  if (outcome === "unavailable") {
+    const body = rawUnavailableStatus(rawStatus, path);
+    return body.ok
+      ? commandOk({ outcome, errorKind: body.value.errorKind })
+      : commandErr("invalidCommandResponse", body.detail);
+  }
+  const body = rawUpdatedStatus(rawStatus, path);
+  if (!body.ok) return commandErr("invalidCommandResponse", body.detail);
+  const nested = toGitStatus(body.value.status);
+  return nested.ok
+    ? commandOk({ outcome, status: nested.value })
+    : commandErr(
+        "invalidCommandResponse",
+        `status.status: ${nested.error.detail}`,
+      );
+}
+
+export function toGitCommitResult(
+  payload: unknown,
+): CommandResult<GitCommitResult> {
+  const head = rawGitCommitHead(payload, PAYLOAD_ROOT);
+  if (!head.ok) return commandErr("invalidCommandResponse", head.detail);
+  const { commitId, status } = head.value;
+  // `head` proved the payload is an object with an object `status`.
+  const rawStatus = (payload as { readonly status: unknown }).status;
+  const decodedStatus = toCommitStatus(status.outcome, rawStatus);
+  return decodedStatus.ok
+    ? commandOk({ commitId, status: decodedStatus.value })
+    : decodedStatus;
+}
+
+const rawGitUndoCommitHead = objectOf<{
+  readonly message: string | null;
+  readonly status: { readonly outcome: GitCommitOutcome };
+}>({
+  message: nullable(decodeString),
+  status: objectOf<{ readonly outcome: GitCommitOutcome }>({
+    outcome: oneOf<readonly GitCommitOutcome[]>(GIT_COMMIT_OUTCOMES),
+  }),
+});
+
+export function toGitUndoCommitResult(
+  payload: unknown,
+): CommandResult<GitUndoCommitResult> {
+  const head = rawGitUndoCommitHead(payload, PAYLOAD_ROOT);
+  if (!head.ok) return commandErr("invalidCommandResponse", head.detail);
+  const { message, status } = head.value;
+  const rawStatus = (payload as { readonly status: unknown }).status;
+  const decodedStatus = toCommitStatus(status.outcome, rawStatus);
+  return decodedStatus.ok
+    ? commandOk({ message, status: decodedStatus.value })
+    : decodedStatus;
+}
+
+export function toGitRemoteResult(
+  payload: unknown,
+): CommandResult<GitRemoteResult> {
+  const head = rawGitRemoteHead(payload, PAYLOAD_ROOT);
+  if (!head.ok) return commandErr("invalidCommandResponse", head.detail);
+  // `head` proved the payload is an object with an object `status`.
+  const rawStatus = (payload as { readonly status: unknown }).status;
+  const decodedStatus = toCommitStatus(head.value.status.outcome, rawStatus);
+  return decodedStatus.ok
+    ? commandOk({ status: decodedStatus.value })
+    : decodedStatus;
+}
+
+const rawRemoteNames = arrayOf(decodeString);
+
+export function toRemoteNames(
+  payload: unknown,
+): CommandResult<readonly string[]> {
+  const names = rawRemoteNames(payload, PAYLOAD_ROOT);
+  return names.ok
+    ? commandOk(names.value)
+    : commandErr("invalidCommandResponse", names.detail);
+}
+
+// ISO 8601 date and time with an offset or Z (git prints `+00:00` style offsets). Only the
+// shape is checked; the UI formats the value.
+const ISO_DATE_TIME_PATTERN =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+
+const decodeIsoDateTime: Decoder<string> = (value, path) => {
+  const text = decodeString(value, path);
+  if (!text.ok) return text;
+  return ISO_DATE_TIME_PATTERN.test(text.value)
+    ? text
+    : { ok: false, detail: `${path}: expected an ISO 8601 date and time` };
+};
+
+const rawGitHistoryPage = objectOf<GitHistoryPage>({
+  entries: arrayOf(
+    objectOf<GitHistoryEntry>({
+      commitId: decodeObjectId,
+      parentIds: arrayOf(decodeObjectId),
+      authorName: decodeString,
+      authorEmail: decodeString,
+      authorDate: decodeIsoDateTime,
+      summary: decodeString,
+    }),
+  ),
+  nextCursor: nullable(decodeString),
+});
+
+export function toGitHistoryPage(
+  payload: unknown,
+): CommandResult<GitHistoryPage> {
+  const decoded = rawGitHistoryPage(payload, PAYLOAD_ROOT);
+  return decoded.ok
+    ? commandOk({
+        entries: decoded.value.entries,
+        nextCursor: decoded.value.nextCursor,
+      })
+    : commandErr("invalidCommandResponse", decoded.detail);
+}
+
+interface RawGitDiscardImpact {
+  readonly documentIds: readonly string[];
+  readonly projectFilesAffected: boolean;
+}
+
+const rawGitDiscardImpact = objectOf<RawGitDiscardImpact>({
+  documentIds: arrayOf(decodeString),
+  projectFilesAffected: decodeBoolean,
+});
+
+export function toGitDiscardImpact(
+  payload: unknown,
+): CommandResult<GitDiscardImpact> {
+  const decoded = rawGitDiscardImpact(payload, PAYLOAD_ROOT);
+  if (!decoded.ok) return commandErr("invalidCommandResponse", decoded.detail);
+  const documentIds: GitDiscardImpact["documentIds"][number][] = [];
+  for (const [index, raw] of decoded.value.documentIds.entries()) {
+    const parsed = parseDocumentId(raw);
+    if (!parsed.ok) {
+      return commandErr(
+        "invalidCommandResponse",
+        `${PAYLOAD_ROOT}.documentIds[${index}]: ${parsed.error.detail}`,
+      );
+    }
+    documentIds.push(parsed.value);
+  }
+  return commandOk({
+    documentIds,
+    projectFilesAffected: decoded.value.projectFilesAffected,
+  });
+}

@@ -4,6 +4,7 @@ import type {
   SettingsChange,
 } from "../../application/ports/app-request-source";
 import type { OperationResult } from "../../application/ports/operation-error";
+import type { LanguagePreference } from "../../config/language-config";
 import type { DocumentId } from "../../domain/shared/entity-id";
 
 export interface AppRequestHandlerDependencies {
@@ -84,6 +85,7 @@ export function createAppRequestHandler(
 
 export interface SettingsChangeTargets {
   readonly applyThemePreference: (preference: ThemePreference) => void;
+  readonly applyLanguagePreference: (preference: LanguagePreference) => void;
   readonly applyAutoSave: (enabled: boolean) => void;
 }
 
@@ -95,6 +97,7 @@ export function createSettingsChangeHandler(
 ): (change: SettingsChange) => void {
   return (change) => {
     targets.applyThemePreference(change.themePreference);
+    targets.applyLanguagePreference(change.languagePreference);
     targets.applyAutoSave(change.autoSave);
   };
 }

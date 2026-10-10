@@ -88,6 +88,22 @@ pub fn open_project_in_window(
     admit_loaded_project(sessions, registry, window_label, loaded)
 }
 
+/// Reads the window's own Project again from its root on disk, like a fresh open of the same
+/// Project in this window: the new session replaces the old one, so every Document counts
+/// as not open until the Frontend loads it again. No path comes from the caller; the root is
+/// the one the session already has. Nothing changes when the window does not have
+/// `project_id` open or when reading fails.
+pub fn reload_project_in_window(
+    sessions: &mut ProjectSessions,
+    registry: &mut WindowRegistry,
+    window_label: &str,
+    project_id: &ProjectId,
+) -> OpenResult<ProjectSnapshot> {
+    registry.ensure_bound(window_label, project_id)?;
+    let project_root = sessions.get(project_id)?.root().to_path_buf();
+    open_project_in_window(sessions, registry, window_label, &project_root)
+}
+
 /// What `take_open_request` returns once the Project is the window's.
 pub struct AdmittedEntryPoint {
     pub snapshot: ProjectSnapshot,

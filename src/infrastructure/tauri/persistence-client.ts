@@ -66,6 +66,15 @@ export function openProject(
   return call(COMMANDS.openProject, { selectionId }, toProjectSnapshotResult);
 }
 
+// Reads the Project this window has open again from its own folder on disk (after files
+// changed underneath it). Only the id is sent: Rust knows the folder. Answers like
+// `openProject`.
+export function reloadProject(
+  projectId: ProjectId,
+): Promise<CommandResult<ProjectSnapshot>> {
+  return call(COMMANDS.reloadProject, { projectId }, toProjectSnapshotResult);
+}
+
 // The request a launch argument left for this window (consumed once; null when none). It
 // takes no argument: Rust knows the window, and the path never reaches the Frontend.
 export function takeOpenRequest(): Promise<

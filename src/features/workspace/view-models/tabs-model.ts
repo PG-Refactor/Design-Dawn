@@ -58,14 +58,17 @@ export function saveStatusOf(session: DocumentSessionState): SaveStatus {
 // application store's `documents` map (not duplicated anywhere).
 export function selectDocumentTabs(
   application: TabsStateInput,
-  ui: Pick<UiState, "activeDocumentId">,
+  ui: Pick<UiState, "activeDocumentId" | "activeMainTab">,
 ): readonly DocumentTab[] {
   return [...application.documents.values()].map((session): DocumentTab => {
     const documentId = session.document.documentId;
     return {
       documentId,
       name: session.document.name,
-      isActive: ui.activeDocumentId === documentId,
+      // While a diff tab is active the Document is only the remembered one, not selected.
+      isActive:
+        ui.activeDocumentId === documentId &&
+        ui.activeMainTab.kind === "document",
       saveStatus: saveStatusOf(session),
       saveError: session.save.lastError,
     };

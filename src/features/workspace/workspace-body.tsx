@@ -2,11 +2,13 @@ import { type CSSProperties, useRef, useState } from "react";
 import type { LayoutSettingsState } from "../../application/settings/layout-settings-controller";
 import { LAYOUT_CONFIG } from "../../config/layout-config";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
+import { GitDiffPanel } from "../git/git-diff-panel";
 import { DocumentPanel } from "./document-panel";
 import { DocumentTabs } from "./document-tabs";
-import { ProjectTree } from "./project-tree";
 import { ProjectTreeSplitter } from "./project-tree-splitter";
-import { MESSAGES } from "./workspace-messages";
+import { Sidebar } from "./sidebar";
+import { useMessages } from "./use-messages";
+import { useUiState } from "./workspace-hooks";
 import { useWorkspaceServices } from "./workspace-services-context";
 
 const { defaultWidthPx, maxWidthPx } = LAYOUT_CONFIG.projectTree;
@@ -21,11 +23,13 @@ const selectProjectTreeWidth = (state: LayoutSettingsState) =>
 // Project Tree, the splitter and the document area. The stored width comes from the layout
 // settings; while the user drags, a local live width is shown and stored only at the end.
 export function WorkspaceBody() {
+  const messages = useMessages().workspace;
   const { layoutSettingsController } = useWorkspaceServices();
   const storedWidth = useStoreSelector(
     layoutSettingsController.store,
     selectProjectTreeWidth,
   );
+  const diffShown = useUiState((ui) => ui.activeMainTab.kind === "diff");
   const [liveWidth, setLiveWidth] = useState<number | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   // Only the newest save may clear the live width: an older, slower one finishing later
@@ -74,9 +78,9 @@ export function WorkspaceBody() {
     <div ref={bodyRef} className="workspace-shell__body" style={style}>
       <aside
         className="workspace-shell__sidebar"
-        aria-label={MESSAGES.appRegionTreeLabel}
+        aria-label={messages.appRegionTreeLabel}
       >
-        <ProjectTree />
+        <Sidebar />
       </aside>
       <ProjectTreeSplitter
         width={width}
@@ -88,7 +92,7 @@ export function WorkspaceBody() {
       />
       <main className="workspace-shell__main">
         <DocumentTabs />
-        <DocumentPanel />
+        {diffShown ? <GitDiffPanel /> : <DocumentPanel />}
       </main>
     </div>
   );

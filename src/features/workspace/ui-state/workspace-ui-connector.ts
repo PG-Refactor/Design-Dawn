@@ -27,7 +27,13 @@ export function connectWorkspaceToUiState(
         );
         return;
       case "projectClosed":
-        uiStore.setState(resetUiState());
+        // The left panel mode and the diff layout are view choices of this window, not
+        // Project data.
+        uiStore.setState((state) => ({
+          ...resetUiState(),
+          leftPanelMode: state.leftPanelMode,
+          diffViewMode: state.diffViewMode,
+        }));
         return;
     }
   });

@@ -1,8 +1,14 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { THEME_PREFERENCES } from "../../application/local-state/theme";
-import { THEME_PREFERENCE_LABELS, THEME_SETTINGS_LEGEND } from "./theme-labels";
 import { ThemePreferenceSelector } from "./theme-preference-selector";
+
+const THEME_SETTINGS_LEGEND = "Theme";
+const THEME_PREFERENCE_LABELS = {
+  system: "System",
+  light: "Light",
+  dark: "Dark",
+};
 
 const options = THEME_PREFERENCES.map((preference) => ({
   value: preference,

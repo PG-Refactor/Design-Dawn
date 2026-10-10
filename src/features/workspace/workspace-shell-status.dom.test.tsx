@@ -263,7 +263,8 @@ describe("accessibility roles and names", () => {
     expect(screen.getAllByRole("treeitem")).toHaveLength(4);
     expect(screen.getByRole("tablist", { name: "Document Tabs" })).toBeTruthy();
     expect(screen.getByRole("tablist", { name: "Sheet Tabs" })).toBeTruthy();
-    expect(screen.getAllByRole("tabpanel")).toHaveLength(2);
+    // Document panel, sheet panel and the left panel (Project | Git).
+    expect(screen.getAllByRole("tabpanel")).toHaveLength(3);
     expect(screen.getByRole("status", { name: "読み込み状況" })).toBeTruthy();
     expect(screen.getByRole("main")).toBeTruthy();
     const buttons = screen.getAllByRole("button");

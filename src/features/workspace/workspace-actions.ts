@@ -29,6 +29,10 @@ import {
   moveOpenDocument,
 } from "../../application/state/application-state";
 import {
+  hasUnsavedDocumentChanges,
+  hasUnsavedProjectChanges as hasUnsavedProjectChangesIn,
+} from "../../application/state/unsaved-changes";
+import {
   childOrderOf,
   findFolder,
   findProjectEntry,
@@ -50,19 +54,24 @@ import type {
   SheetId,
 } from "../../domain/shared/entity-id";
 import type { DraftRegistry } from "./draft-registry";
+import { restoreMainTab, showDocumentTab } from "./ui-state/diff-tabs";
 import {
   addOperationError,
   closeDialog,
   dismissOperationError,
   openDialog,
   setBusy,
+  setLeftPanelMode,
   setNotificationsOpen,
   showNotice,
 } from "./ui-state/shell-ui-state";
 import {
   beginRenaming,
   endRenaming,
+  entitySubject,
+  type LeftPanelMode,
   type OperationLabel,
+  type OperationSubject,
   type RenamingTarget,
   setActiveDocument,
   setActiveSheet,
@@ -72,7 +81,6 @@ import {
 } from "./ui-state/ui-state";
 import { type MoveDirection, oneStepMove } from "./view-models/reorder";
 import { firstLoadedSheetId } from "./view-models/tabs-model";
-import { MESSAGES } from "./workspace-messages";
 
 // The answer to the "unsaved changes" question of a window close request.
 export type UnsavedCloseChoice = "save" | "discard" | "cancel";
@@ -216,8 +224,25 @@ export interface WorkspaceActions {
   // through the operation errors / save states, so nothing is recorded here.
   saveAll(): Promise<OperationResult<void>>;
 
+  // Building blocks of the Git discard flow (`features/git/git-discard-flow.ts`), which
+  // owns the order of the steps. Both are plain steps: neither asks a question nor sets the
+  // busy state; the caller has done that.
+  //
+  // Closes the open Document WITHOUT saving: its pending save and Markdown draft are
+  // dropped and its Undo history ends, so a later open reads the files from disk again. A
+  // failure is returned and recorded; the Document then stays open.
+  closeDocumentWithoutSaving(
+    documentId: DocumentId,
+  ): Promise<OperationResult<void>>;
+  // Reads the current Project from disk again (`Workspace.reloadProject`; it must have
+  // nothing unsaved, open Documents are saved and closed first). Resolves to whether the
+  // Project is open again. When reading fails the error is recorded and the Project is
+  // closed so that no stale tree stays.
+  reopenProject(): Promise<OperationResult<boolean>>;
+
   dismissOperationError(id: number): void;
   setNotificationsOpen(open: boolean): void;
+  setLeftPanelMode(mode: LeftPanelMode): void;
 }
 
 export interface WorkspaceActionsDependencies {
@@ -261,7 +286,7 @@ export function createWorkspaceActions(
 
   function record(
     operation: OperationLabel,
-    subject: string | null,
+    subject: OperationSubject | null,
     error: OperationError,
   ): void {
     uiStateStore.setState((state) =>
@@ -290,7 +315,11 @@ export function createWorkspaceActions(
 
   function activateSheet(documentId: DocumentId, sheetId: SheetId): void {
     uiStateStore.setState((state) =>
-      setActiveSheet(setActiveDocument(state, documentId), documentId, sheetId),
+      setActiveSheet(
+        showDocumentTab(setActiveDocument(state, documentId)),
+        documentId,
+        sheetId,
+      ),
     );
   }
 
@@ -319,8 +348,11 @@ export function createWorkspaceActions(
     }
   }
 
+  // The user chose this Document, so it is shown in the main area (a diff tab stays open).
   function activateDocument(documentId: DocumentId): void {
-    uiStateStore.setState((state) => setActiveDocument(state, documentId));
+    uiStateStore.setState((state) =>
+      showDocumentTab(setActiveDocument(state, documentId)),
+    );
     ensureActiveSheet(documentId, null);
   }
 
@@ -362,8 +394,11 @@ export function createWorkspaceActions(
   ): Promise<OperationResult<void>> {
     const orderBefore = [...applicationStore.getState().documents.keys()];
     const wasActive = uiStateStore.getState().activeDocumentId === documentId;
+    // The neighbour becomes the remembered Document; an active diff tab keeps the main area.
+    const mainTab = uiStateStore.getState().activeMainTab;
     const result = await removal();
     activateNeighbourTab(documentId, orderBefore, wasActive);
+    uiStateStore.setState((state) => restoreMainTab(state, mainTab));
     return result;
   }
 
@@ -429,33 +464,17 @@ export function createWorkspaceActions(
   // its save, a failed save, a save in progress, or a Markdown draft not yet committed.
   function hasUnsavedChangesIn(documentIds: readonly DocumentId[]): boolean {
     if (draftRegistry.hasPendingFor(documentIds)) return true;
-    const documents = applicationStore.getState().documents;
-    return documentIds.some((documentId) => {
-      const save = documents.get(documentId)?.save;
-      return (
-        save !== undefined &&
-        (save.dirtySheetIds.size > 0 ||
-          save.dirtyContentBlockIds.size > 0 ||
-          save.documentDirty ||
-          save.saving ||
-          save.lastError !== null)
-      );
-    });
+    return hasUnsavedDocumentChanges(applicationStore.getState(), documentIds);
   }
 
-  // The Project itself or any Folder is unsaved, or anything in an open document.
+  // The Project itself or any Folder is unsaved, or anything in an open document
+  // (including Markdown drafts, which only the draft registry knows).
   function hasUnsavedProjectChanges(): boolean {
     const state = applicationStore.getState();
-    const { project } = state;
-    if (project !== null) {
-      const unsaved = (save: {
-        readonly dirty: boolean;
-        readonly lastError: OperationError | null;
-      }) => save.dirty || save.lastError !== null;
-      if (unsaved(project.save)) return true;
-      if (project.folders.some((folder) => unsaved(folder.save))) return true;
-    }
-    return hasUnsavedChangesIn([...state.documents.keys()]);
+    return (
+      hasUnsavedProjectChangesIn(state) ||
+      draftRegistry.hasPendingFor([...state.documents.keys()])
+    );
   }
 
   // Auto-save on keeps today's behaviour (save, then close): only with it off can closing
@@ -503,7 +522,7 @@ export function createWorkspaceActions(
       if (!drafts.ok) return drafts;
       return workspace.closeDocument(documentId);
     });
-    if (!result.ok) record("closeDocument", name, result.error);
+    if (!result.ok) record("closeDocument", entitySubject(name), result.error);
     return result;
   }
 
@@ -514,7 +533,7 @@ export function createWorkspaceActions(
   ): Promise<OperationResult<void>> {
     const result = await workspace.moveEntry(entryId, targetParentFolderId);
     if (!result.ok) {
-      record("moveEntry", name, result.error);
+      record("moveEntry", entitySubject(name), result.error);
       return result;
     }
     expandFolder(targetParentFolderId);
@@ -530,11 +549,11 @@ export function createWorkspaceActions(
 
   async function deleteFolderConfirmed(
     folderId: FolderId,
-    name: string,
+    name: string | null,
   ): Promise<OperationResult<void>> {
     const result = await workspace.deleteFolder(folderId, USER_CONFIRMATION);
     if (!result.ok) {
-      record("deleteFolder", name, result.error);
+      record("deleteFolder", entitySubject(name), result.error);
       return result;
     }
     // The folded state of a folder that no longer exists is not worth keeping.
@@ -578,6 +597,17 @@ export function createWorkspaceActions(
     }
   }
 
+  async function reopenProjectNow(): Promise<OperationResult<boolean>> {
+    const reloaded = await workspace.reloadProject();
+    if (reloaded.ok) return operationOk(true);
+    // Not reloaded: the Documents were closed and the tree may be out of date, so the
+    // Project is closed instead of staying half alive. Nothing is unsaved by now.
+    const closed = await closeProjectNow(false);
+    // After the close, which resets the UI state (and with it the notifications).
+    record("openProject", null, reloaded.error);
+    return closed.ok ? operationOk(false) : closed;
+  }
+
   function openOrCreateProject(
     operation: "openProject" | "createProject",
     name: string | null,
@@ -587,19 +617,19 @@ export function createWorkspaceActions(
 
   async function deleteDocumentConfirmed(
     documentId: DocumentId,
-    name: string,
+    name: string | null,
   ): Promise<OperationResult<void>> {
     const result = await finishRemoval(documentId, () =>
       workspace.deleteDocument(documentId, USER_CONFIRMATION),
     );
-    if (!result.ok) record("deleteDocument", name, result.error);
+    if (!result.ok) record("deleteDocument", entitySubject(name), result.error);
     return result;
   }
 
   async function deleteSheetConfirmed(
     documentId: DocumentId,
     sheetId: SheetId,
-    name: string,
+    name: string | null,
   ): Promise<OperationResult<void>> {
     const loadedOrder = (
       applicationStore.getState().documentDetails.get(documentId)
@@ -616,7 +646,7 @@ export function createWorkspaceActions(
       USER_CONFIRMATION,
     );
     if (!result.ok) {
-      record("deleteSheet", name, result.error);
+      record("deleteSheet", entitySubject(name), result.error);
       return result;
     }
     if (wasActive)
@@ -783,7 +813,7 @@ export function createWorkspaceActions(
       return operationOk(undefined);
     },
     closeDocument(documentId) {
-      const name = documentNameOf(documentId) ?? MESSAGES.tree.unnamedEntity;
+      const name = documentNameOf(documentId);
       if (
         opensUnsavedCloseDialog(hasUnsavedChangesIn([documentId]), {
           kind: "document",
@@ -875,7 +905,7 @@ export function createWorkspaceActions(
         openDialog(state, {
           kind: "confirmDeleteDocument",
           documentId,
-          name: documentNameOf(documentId) ?? MESSAGES.tree.unnamedEntity,
+          name: documentNameOf(documentId),
         }),
       );
     },
@@ -890,7 +920,7 @@ export function createWorkspaceActions(
           kind: "confirmDeleteSheet",
           documentId,
           sheetId,
-          name: entry.name ?? MESSAGES.tree.unnamedEntity,
+          name: entry.name,
         }),
       );
     },
@@ -904,7 +934,7 @@ export function createWorkspaceActions(
         openDialog(state, {
           kind: "confirmDeleteFolder",
           folderId,
-          name: folderNameOf(folderId) ?? MESSAGES.tree.unnamedEntity,
+          name: folderNameOf(folderId),
         }),
       );
     },
@@ -917,7 +947,7 @@ export function createWorkspaceActions(
         openDialog(state, {
           kind: "moveEntry",
           entryId,
-          name: found.entry.name ?? MESSAGES.tree.unnamedEntity,
+          name: found.entry.name,
         }),
       );
     },
@@ -931,7 +961,7 @@ export function createWorkspaceActions(
           openDialog(state, {
             kind: "confirmMoveSave",
             entryId,
-            name: name ?? MESSAGES.tree.unnamedEntity,
+            name,
             targetParentFolderId,
           }),
         );
@@ -1170,11 +1200,18 @@ export function createWorkspaceActions(
       return drafts.ok ? saved : drafts;
     },
 
+    closeDocumentWithoutSaving: (documentId) =>
+      closeDocumentNow(documentId, true),
+    reopenProject: reopenProjectNow,
+
     dismissOperationError(id) {
       uiStateStore.setState((state) => dismissOperationError(state, id));
     },
     setNotificationsOpen(open) {
       uiStateStore.setState((state) => setNotificationsOpen(state, open));
+    },
+    setLeftPanelMode(mode) {
+      uiStateStore.setState((state) => setLeftPanelMode(state, mode));
     },
   };
 }

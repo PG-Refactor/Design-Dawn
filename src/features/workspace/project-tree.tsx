@@ -7,6 +7,7 @@ import {
   type TreeHandlers,
 } from "./tree-entries";
 import { TreeItem } from "./tree-item";
+import { useMessages } from "./use-messages";
 import { treeNavigation } from "./view-models/keyboard-navigation";
 import {
   documentTreeKey,
@@ -20,7 +21,6 @@ import {
   type TreeEntryNode,
 } from "./view-models/tree-model";
 import { useUiState, useWorkspaceModel } from "./workspace-hooks";
-import { MESSAGES } from "./workspace-messages";
 import { useWorkspaceServices } from "./workspace-services-context";
 import "./project-tree.css";
 
@@ -59,6 +59,7 @@ function findEntryByKey(
 }
 
 function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
+  const messages = useMessages().workspace;
   const { actions, canvasActions, uiStateStore } = useWorkspaceServices();
   const renaming = useUiState((ui) => ui.renaming);
   const items = useMemo(() => flattenProjectTree(model), [model]);
@@ -140,7 +141,7 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
     <ul
       // biome-ignore lint/a11y/noNoninteractiveElementToInteractiveRole: the ARIA tree pattern puts role="tree" on a list.
       role="tree"
-      aria-label={MESSAGES.appRegionTreeLabel}
+      aria-label={messages.appRegionTreeLabel}
       className="project-tree"
       onKeyDown={handleHistoryKey}
     >
@@ -156,23 +157,23 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
         menuItems={[
           {
             id: "createFolder",
-            label: MESSAGES.tree.createFolder,
+            label: messages.tree.createFolder,
             onSelect: () => actions.requestCreateFolder(null),
           },
           {
             id: "createDocument",
-            label: MESSAGES.tree.createDocument,
+            label: messages.tree.createDocument,
             onSelect: () => actions.requestCreateDocument(null),
           },
           {
             id: "openProjectInNewWindow",
-            label: MESSAGES.tree.openProjectInNewWindow,
+            label: messages.tree.openProjectInNewWindow,
             onSelect: () => void actions.openProjectInNewWindowViaDialog(),
           },
         ]}
       >
         {model.entries.length === 0 ? (
-          <p className="project-tree__empty">{MESSAGES.tree.emptyProject}</p>
+          <p className="project-tree__empty">{messages.tree.emptyProject}</p>
         ) : (
           <EntryItems
             entries={model.entries}
@@ -186,9 +187,10 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
 }
 
 export function ProjectTree() {
+  const messages = useMessages().workspace;
   const model = useWorkspaceModel(selectProjectTree);
   return model === null ? (
-    <p className="project-tree__empty">{MESSAGES.tree.noProject}</p>
+    <p className="project-tree__empty">{messages.tree.noProject}</p>
   ) : (
     <ProjectTreeView model={model} />
   );

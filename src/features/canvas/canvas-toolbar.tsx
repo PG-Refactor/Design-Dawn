@@ -3,10 +3,11 @@ import type { BlockType } from "../../domain/block/block-type";
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
 import { PopupMenu, type PopupMenuEntry } from "../../shared/menu/popup-menu";
 import { getSelection } from "../workspace/ui-state/ui-state";
+import { useMessages } from "../workspace/use-messages";
 import { useUiState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import { BlockCreateMenu } from "./block-create-menu";
-import { CANVAS_MESSAGES } from "./canvas-messages";
+import type { CanvasMessages } from "./canvas-messages";
 import type { AlignMode } from "./geometry/align";
 import type { Extent } from "./geometry/viewport-math";
 import "./canvas-toolbar.css";
@@ -18,31 +19,32 @@ export interface CanvasToolbarProps {
   readonly measureCanvas: () => Extent;
 }
 
+// The labels are looked up by key at render time, so they follow the display language.
 const REORDER_ITEMS: readonly {
   readonly direction: ReorderDirection;
-  readonly label: string;
+  readonly labelKey: keyof CanvasMessages["reorder"];
 }[] = [
-  { direction: "forward", label: CANVAS_MESSAGES.reorder.forward },
-  { direction: "backward", label: CANVAS_MESSAGES.reorder.backward },
-  { direction: "toFront", label: CANVAS_MESSAGES.reorder.toFront },
-  { direction: "toBack", label: CANVAS_MESSAGES.reorder.toBack },
+  { direction: "forward", labelKey: "forward" },
+  { direction: "backward", labelKey: "backward" },
+  { direction: "toFront", labelKey: "toFront" },
+  { direction: "toBack", labelKey: "toBack" },
 ];
 
 // Top / vertical entries come after the separator.
 const ALIGN_ITEMS: readonly (
-  | { readonly mode: AlignMode; readonly label: string }
+  | {
+      readonly mode: AlignMode;
+      readonly labelKey: keyof CanvasMessages["align"];
+    }
   | { readonly separator: true }
 )[] = [
-  { mode: "alignLeft", label: CANVAS_MESSAGES.align.left },
-  {
-    mode: "alignHorizontalCenter",
-    label: CANVAS_MESSAGES.align.horizontalCenter,
-  },
-  { mode: "alignRight", label: CANVAS_MESSAGES.align.right },
+  { mode: "alignLeft", labelKey: "left" },
+  { mode: "alignHorizontalCenter", labelKey: "horizontalCenter" },
+  { mode: "alignRight", labelKey: "right" },
   { separator: true },
-  { mode: "alignTop", label: CANVAS_MESSAGES.align.top },
-  { mode: "alignVerticalCenter", label: CANVAS_MESSAGES.align.verticalCenter },
-  { mode: "alignBottom", label: CANVAS_MESSAGES.align.bottom },
+  { mode: "alignTop", labelKey: "top" },
+  { mode: "alignVerticalCenter", labelKey: "verticalCenter" },
+  { mode: "alignBottom", labelKey: "bottom" },
 ];
 
 // Aligning needs a reference: at least two blocks.
@@ -55,6 +57,7 @@ export function CanvasToolbar({
   sheetId,
   measureCanvas,
 }: CanvasToolbarProps) {
+  const messages = useMessages().canvas;
   const { canvasActions } = useWorkspaceServices();
   const selectionSize = useUiState((ui) => getSelection(ui, sheetId).size);
   const hasSelection = selectionSize > 0;
@@ -72,7 +75,7 @@ export function CanvasToolbar({
         ? { id: `align-separator-${index}`, separator: true }
         : {
             id: item.mode,
-            label: item.label,
+            label: messages.align[item.labelKey],
             disabled: selectionSize < MIN_ALIGN_SELECTION,
             onSelect: () => {
               void canvasActions.alignSelection({
@@ -85,7 +88,7 @@ export function CanvasToolbar({
   );
   const reorderItems: readonly PopupMenuEntry[] = REORDER_ITEMS.map((item) => ({
     id: item.direction,
-    label: item.label,
+    label: messages.reorder[item.labelKey],
     // Stays visible so the menu can be discovered; does nothing without a selection.
     disabled: !hasSelection,
     onSelect: () => {
@@ -99,22 +102,22 @@ export function CanvasToolbar({
   return (
     <div
       role="toolbar"
-      aria-label={CANVAS_MESSAGES.toolbar.label}
+      aria-label={messages.toolbar.label}
       className="canvas-toolbar"
     >
       <BlockCreateMenu onCreate={createBlock} />
       <PopupMenu
         className="align-menu"
-        triggerLabel={CANVAS_MESSAGES.align.menuButton}
-        triggerContent={CANVAS_MESSAGES.align.menuButton}
-        menuLabel={CANVAS_MESSAGES.align.menuLabel}
+        triggerLabel={messages.align.menuButton}
+        triggerContent={messages.align.menuButton}
+        menuLabel={messages.align.menuLabel}
         items={alignItems}
       />
       <PopupMenu
         className="reorder-menu"
-        triggerLabel={CANVAS_MESSAGES.reorder.menuButton}
-        triggerContent={CANVAS_MESSAGES.reorder.menuButton}
-        menuLabel={CANVAS_MESSAGES.reorder.menuLabel}
+        triggerLabel={messages.reorder.menuButton}
+        triggerContent={messages.reorder.menuButton}
+        menuLabel={messages.reorder.menuLabel}
         items={reorderItems}
       />
     </div>

@@ -33,6 +33,7 @@ import {
   openProject,
   openProjectInNewWindow,
   readBlockContent,
+  reloadProject,
   restoreBlockContent,
   saveFolder,
   saveProject,
@@ -222,6 +223,15 @@ describe("open_project_in_new_window payloads", () => {
 });
 
 describe("successful conversion", () => {
+  it("sends only the project id for reload_project and converts the snapshot", async () => {
+    invokeMock.mockResolvedValue(rawProjectSnapshot);
+    const result = await reloadProject(projectId);
+    expect(invokeMock).toHaveBeenCalledWith(COMMANDS.reloadProject, {
+      projectId: PROJECT_ID,
+    });
+    expect(result.ok && result.value.project.projectId).toBe(PROJECT_ID);
+  });
+
   it("turns an open_project payload into domain values", async () => {
     invokeMock.mockResolvedValue(rawProjectSnapshot);
     const result = await openProject(SELECTION_ID);

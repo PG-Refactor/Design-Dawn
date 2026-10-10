@@ -1,5 +1,6 @@
 import type { ThemePreference } from "../../application/local-state/theme";
 import type { Viewport } from "../../application/local-state/viewport";
+import type { LanguagePreference } from "../../config/language-config";
 import type { CommandErrorKind } from "./command-error";
 
 // Why the stored file could not be used. The value next to it is then the default.
@@ -10,6 +11,7 @@ export interface LocalStateLoadIssue {
 
 export interface AppSettings {
   readonly themePreference: ThemePreference;
+  readonly languagePreference: LanguagePreference;
   readonly autoSave: boolean;
   // CSS pixels.
   readonly projectTreeWidth: number;

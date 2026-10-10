@@ -14,13 +14,13 @@ import type {
   FolderId,
 } from "../../../domain/shared/entity-id";
 import type { UiState } from "../ui-state/ui-state";
-import { MESSAGES } from "../workspace-messages";
 import { canMoveOneStep, MOVE_DIRECTIONS } from "./reorder";
 
 export interface DocumentNode {
   readonly kind: "document";
   readonly documentId: DocumentId;
-  readonly name: string;
+  // null = the name could not be loaded; the text for it is chosen at render time.
+  readonly name: string | null;
   readonly state: EntityState;
   readonly isOpen: boolean;
   readonly isActive: boolean;
@@ -31,7 +31,8 @@ export interface DocumentNode {
 export interface FolderNode {
   readonly kind: "folder";
   readonly folderId: FolderId;
-  readonly name: string;
+  // null = the name could not be loaded; the text for it is chosen at render time.
+  readonly name: string | null;
   readonly state: EntityState;
   readonly isExpanded: boolean;
   readonly canMoveUp: boolean;
@@ -68,7 +69,7 @@ function selectDocumentNode(
     kind: "document",
     documentId: entry.documentId,
     // The open document's current name follows rename commands.
-    name: entry.name ?? MESSAGES.tree.unnamedEntity,
+    name: entry.name,
     state: entry.state,
     isOpen,
     isActive,
@@ -126,7 +127,7 @@ function selectFolderNode(
   return {
     kind: "folder",
     folderId: entry.folderId,
-    name: entry.name ?? MESSAGES.tree.unnamedEntity,
+    name: entry.name,
     state: entry.state,
     isExpanded: !ui.collapsedFolderIds.has(entry.folderId),
     canMoveUp:

@@ -31,6 +31,11 @@ export interface PersistenceGateway {
   // handles a path: `selectionId` is the only handle (docs/architecture.md §6.2.2).
   selectProjectFolder(): Promise<OperationResult<FolderSelection>>;
   openProject(selectionId: string): Promise<OperationResult<ProjectSnapshot>>;
+  // Reads the Project this window has open again from disk, as a fresh open of it (Rust
+  // drops its session for the old read). Needs no selection: the window's own Project.
+  reloadProject(
+    projectId: ProjectId,
+  ): Promise<OperationResult<ProjectSnapshot>>;
   // Opens the selected folder's Project in a new window, or brings forward the window that
   // has it. This window's own Project is not touched.
   openProjectInNewWindow(

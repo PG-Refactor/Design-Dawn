@@ -6,7 +6,13 @@ import { DEFAULT_AUTO_SAVE_ENABLED } from "../../config/session-config";
 import { parseProject } from "../../domain/project/project";
 import { PROJECT_ID } from "../../domain/shared/test-fixtures";
 import { unwrap } from "../../domain/shared/test-support";
+import {
+  createProjectWriteSignal,
+  type ProjectWriteSignal,
+  withWriteSignal,
+} from "../git/project-write-signal";
 import type { OperationResult } from "../ports/operation-error";
+import type { PersistenceGateway } from "../ports/persistence-gateway";
 import type { LoadIssue, ProjectSnapshot } from "../ports/persistence-types";
 import {
   type AutoSaveController,
@@ -57,6 +63,10 @@ export const DOCUMENT_A_ISSUE: LoadIssue = {
 export interface WorkspaceHarness {
   readonly workspace: Workspace;
   readonly gateway: FakeGateway;
+  // Told after every write the workspace makes through the fake gateway.
+  readonly writeSignal: ProjectWriteSignal;
+  // The fake gateway as the application sees it (decorated with the write signal).
+  readonly signalingGateway: PersistenceGateway;
   readonly scheduler: FakeScheduler;
   readonly store: ApplicationStore;
   readonly events: WorkspaceEvent[];
@@ -97,8 +107,10 @@ export function createWorkspaceHarness(): WorkspaceHarness {
     gateway: settingsGateway,
     defaultProjectTreeWidth: LAYOUT_CONFIG.projectTree.defaultWidthPx,
   });
+  const writeSignal = createProjectWriteSignal();
+  const signalingGateway = withWriteSignal(gateway, writeSignal);
   const workspace = createWorkspace({
-    gateway,
+    gateway: signalingGateway,
     scheduler,
     autoSavePolicy: autoSaveController,
     idGenerator: createSequentialIdGenerator(),
@@ -109,6 +121,8 @@ export function createWorkspaceHarness(): WorkspaceHarness {
   return {
     workspace,
     gateway,
+    writeSignal,
+    signalingGateway,
     scheduler,
     store,
     events,

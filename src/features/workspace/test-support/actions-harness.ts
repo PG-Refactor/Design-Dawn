@@ -10,6 +10,14 @@ import {
   deleteBlocksCommand,
 } from "../../../application/commands/file-backed-commands";
 import { renameSheetCommand } from "../../../application/commands/naming-commands";
+import {
+  createGitController,
+  type GitController,
+} from "../../../application/git/git-controller";
+import {
+  createLanguageController,
+  type LanguageController,
+} from "../../../application/language/language-controller";
 import type { LoadIssue } from "../../../application/ports/persistence-types";
 import {
   type ApplicationStore,
@@ -29,8 +37,13 @@ import {
   type FakeDropEventSource,
 } from "../../../application/test-support/fake-drop";
 import {
+  createFakeGitGateway,
+  type FakeGitGateway,
+} from "../../../application/test-support/fake-git";
+import {
   createFakeAppSettingsGateway,
   createFakeOsThemeSource,
+  type FakeAppSettingsGateway,
 } from "../../../application/test-support/fake-theme";
 import {
   createFakeViewportGateway,
@@ -73,6 +86,7 @@ import {
   type ViewportPersistence,
 } from "../../canvas/viewport-persistence";
 import { createDraftRegistry, type DraftRegistry } from "../draft-registry";
+import { addOperationError } from "../ui-state/shell-ui-state";
 import { createUiStateStore, type UiStateStore } from "../ui-state/ui-state";
 import { connectWorkspaceToUiState } from "../ui-state/workspace-ui-connector";
 import {
@@ -94,10 +108,28 @@ export interface ActionsHarness extends WorkspaceHarness {
   // Its own clock, so viewport saves are advanced independently of auto-save.
   readonly viewportScheduler: FakeScheduler;
   readonly viewportPersistence: ViewportPersistence;
+  readonly gitGateway: FakeGitGateway;
+  readonly gitController: GitController;
+  // The clock that debounces the automatic status read; tests advance it.
+  readonly gitRefreshScheduler: FakeScheduler;
+  // The language controller has its own settings gateway, so a test can fail or inspect
+  // its saves without touching the theme / auto-save ones.
+  readonly languageController: LanguageController;
+  readonly languageGateway: FakeAppSettingsGateway;
   readonly services: WorkspaceServices;
 }
 
-export function createActionsHarness(): ActionsHarness {
+export interface ActionsHarnessOptions {
+  // The languages the fake WebView reports; the language preference stays "system".
+  readonly systemLanguages?: readonly string[];
+}
+
+// The tests assert Japanese texts unless a test asks for another language.
+export const DEFAULT_TEST_SYSTEM_LANGUAGES: readonly string[] = ["ja"];
+
+export function createActionsHarness(
+  options: ActionsHarnessOptions = {},
+): ActionsHarness {
   const base = createWorkspaceHarness();
   const uiStateStore = createUiStateStore();
   connectWorkspaceToUiState(base.workspace, uiStateStore);
@@ -115,7 +147,7 @@ export function createActionsHarness(): ActionsHarness {
     applicationStore: base.store,
     uiStateStore,
     idGenerator: createSequentialIdGenerator(),
-    gateway: base.gateway,
+    gateway: base.signalingGateway,
     clipboard,
   });
   const dropEventSource = createFakeDropEventSource();
@@ -133,8 +165,31 @@ export function createActionsHarness(): ActionsHarness {
     gateway: createFakeAppSettingsGateway(),
     osThemeSource: createFakeOsThemeSource("light"),
   });
+  const languageGateway = createFakeAppSettingsGateway();
+  const languageController = createLanguageController({
+    gateway: languageGateway,
+    systemLanguageSource: {
+      current: () => options.systemLanguages ?? DEFAULT_TEST_SYSTEM_LANGUAGES,
+    },
+  });
+  const gitGateway = createFakeGitGateway();
+  const gitRefreshScheduler = createFakeScheduler();
+  const gitController = createGitController({
+    gateway: gitGateway,
+    applicationStore: base.store,
+    // Like the application: a Git failure ends up in the notifications.
+    reportFailure: (operation, error) =>
+      uiStateStore.setState((state) =>
+        addOperationError(state, operation, null, error),
+      ),
+  });
   return {
     ...base,
+    gitGateway,
+    gitController,
+    gitRefreshScheduler,
+    languageController,
+    languageGateway,
     uiStateStore,
     actions,
     canvasActions,
@@ -158,8 +213,12 @@ export function createActionsHarness(): ActionsHarness {
       viewportPersistence,
       assetUrlResolver: createFakeAssetUrlResolver(),
       themeController,
+      languageController,
       autoSaveController: base.autoSaveController,
       layoutSettingsController: base.layoutSettingsController,
+      gitController,
+      projectWriteSignal: base.writeSignal,
+      gitRefreshScheduler,
     },
   };
 }

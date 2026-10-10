@@ -7,6 +7,7 @@
     "allow-select-project-folder",
     "allow-create-project",
     "allow-open-project",
+    "allow-reload-project",
     "allow-save-project",
     "allow-create-folder",
     "allow-save-folder",
@@ -27,6 +28,7 @@
     "allow-delete-document",
     "allow-get-app-settings",
     "allow-set-theme-preference",
+    "allow-set-language-preference",
     "allow-set-auto-save",
     "allow-set-project-tree-width",
     "allow-get-sheet-viewport",
@@ -40,6 +42,20 @@
     "allow-close-project",
     "allow-subscribe-app-requests",
     "allow-ack-open-request",
-    "allow-open-project-in-new-window"
+    "allow-open-project-in-new-window",
+    "allow-git-status",
+    "allow-git-stage",
+    "allow-git-unstage",
+    "allow-git-discard-impact",
+    "allow-git-discard",
+    "allow-git-diff",
+    "allow-git-commit",
+    "allow-git-undo-last-commit",
+    "allow-git-history",
+    "allow-git-fetch",
+    "allow-git-pull",
+    "allow-git-push",
+    "allow-git-publish",
+    "allow-git-remotes"
   ]
 }

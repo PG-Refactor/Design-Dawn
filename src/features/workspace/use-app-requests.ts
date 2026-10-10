@@ -10,8 +10,13 @@ import { useWorkspaceServices } from "./workspace-services-context";
 // lifetime of the shell. Registered once;
 // the latest actions are read through a ref, so re-renders never re-subscribe.
 export function useAppRequests(closeStatus: WindowCloseStatus): void {
-  const { actions, appRequestSource, themeController, autoSaveController } =
-    useWorkspaceServices();
+  const {
+    actions,
+    appRequestSource,
+    themeController,
+    languageController,
+    autoSaveController,
+  } = useWorkspaceServices();
   const latest = useRef({ actions });
   latest.current = { actions };
 
@@ -33,6 +38,8 @@ export function useAppRequests(closeStatus: WindowCloseStatus): void {
       createSettingsChangeHandler({
         applyThemePreference: (preference) =>
           themeController.applyExternal(preference),
+        applyLanguagePreference: (preference) =>
+          languageController.applyExternal(preference),
         applyAutoSave: (enabled) => autoSaveController.applyExternal(enabled),
       }),
     );
@@ -42,5 +49,11 @@ export function useAppRequests(closeStatus: WindowCloseStatus): void {
       stopWaiting();
       handler.dispose();
     };
-  }, [appRequestSource, closeStatus, themeController, autoSaveController]);
+  }, [
+    appRequestSource,
+    closeStatus,
+    themeController,
+    languageController,
+    autoSaveController,
+  ]);
 }

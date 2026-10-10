@@ -1,4 +1,5 @@
 import { Channel } from "@tauri-apps/api/core";
+import { parseLanguagePreference } from "../../application/local-state/language";
 import { parseThemePreference } from "../../application/local-state/theme";
 import type {
   AppRequestSource,
@@ -31,19 +32,25 @@ function toOpenDocumentRequest(message: unknown): OpenDocumentRequest | null {
 
 function toSettingsChange(message: unknown): SettingsChange | null {
   if (typeof message !== "object" || message === null) return null;
-  const { kind, themePreference, autoSave } = message as Record<
-    string,
-    unknown
-  >;
+  const { kind, themePreference, languagePreference, autoSave } =
+    message as Record<string, unknown>;
   if (
     kind !== SETTINGS_CHANGED_KIND ||
     typeof themePreference !== "string" ||
+    typeof languagePreference !== "string" ||
     typeof autoSave !== "boolean"
   ) {
     return null;
   }
-  const parsed = parseThemePreference(themePreference);
-  return parsed.ok ? { themePreference: parsed.value, autoSave } : null;
+  const theme = parseThemePreference(themePreference);
+  const language = parseLanguagePreference(languagePreference);
+  return theme.ok && language.ok
+    ? {
+        themePreference: theme.value,
+        languagePreference: language.value,
+        autoSave,
+      }
+    : null;
 }
 
 // Requests arrive on an IPC channel for the same reason as close requests: listening to

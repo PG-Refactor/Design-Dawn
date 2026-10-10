@@ -14,7 +14,9 @@ import {
   renderOpenedCanvas,
   sourceBox,
 } from "../markdown/test-support/markdown-harness";
-import { closeTabLabel, MESSAGES } from "./workspace-messages";
+import { WORKSPACE_MESSAGES } from "./workspace-messages";
+
+const MESSAGES = WORKSPACE_MESSAGES.ja;
 
 afterEach(() => {
   cleanup();
@@ -50,7 +52,9 @@ describe("close confirmation with auto-save off", () => {
   it("shows the three choices, with 保存せずに閉じる in the destructive style", async () => {
     const { shell } = await editingWithAutoSaveOff();
     await shell.user.click(
-      screen.getByRole("button", { name: closeTabLabel("Document A") }),
+      screen.getByRole("button", {
+        name: MESSAGES.closeTabLabel("Document A"),
+      }),
     );
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText(TEXTS.body)).toBeTruthy();
@@ -67,7 +71,9 @@ describe("close confirmation with auto-save off", () => {
   it("closes the tab on 保存せずに閉じる without writing, committing or reporting anything", async () => {
     const { shell, path, original } = await editingWithAutoSaveOff();
     await shell.user.click(
-      screen.getByRole("button", { name: closeTabLabel("Document A") }),
+      screen.getByRole("button", {
+        name: MESSAGES.closeTabLabel("Document A"),
+      }),
     );
     await shell.user.click(
       within(screen.getByRole("dialog")).getByRole("button", {
@@ -103,7 +109,9 @@ describe("close confirmation with auto-save off", () => {
   it("keeps everything on キャンセル", async () => {
     const { shell } = await editingWithAutoSaveOff();
     await shell.user.click(
-      screen.getByRole("button", { name: closeTabLabel("Document A") }),
+      screen.getByRole("button", {
+        name: MESSAGES.closeTabLabel("Document A"),
+      }),
     );
     await shell.user.click(
       within(screen.getByRole("dialog")).getByRole("button", {

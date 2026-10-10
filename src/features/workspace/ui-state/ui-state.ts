@@ -63,6 +63,30 @@ export type Interaction =
       readonly mode: RangeSelectionMode;
     };
 
+// The name an entity had when the user asked; null = its name could not be loaded. The
+// text for that case is chosen at render time, so it follows the display language.
+export type EntityName = string | null;
+
+// What an operation error is about: a named thing, or blocks that were left out (counted,
+// so the sentence is built at render time in the current language).
+export interface BlockCountSubject {
+  readonly blockCount: number;
+}
+
+// An entity whose name could not be loaded; its placeholder text is chosen at render time.
+export interface UnnamedSubject {
+  readonly unnamed: true;
+}
+
+export const UNNAMED_SUBJECT: UnnamedSubject = { unnamed: true };
+
+export type OperationSubject = string | BlockCountSubject | UnnamedSubject;
+
+// The subject of an operation on an entity: its name, or the unnamed placeholder.
+export function entitySubject(name: EntityName): OperationSubject {
+  return name ?? UNNAMED_SUBJECT;
+}
+
 // What a "close with unsaved changes" confirmation is about (auto-save off). The window
 // answer is delivered to the pending close request, the others run an action when answered.
 export type UnsavedCloseTarget =
@@ -74,7 +98,7 @@ export type UnsavedCloseTarget =
   | {
       readonly kind: "document";
       readonly documentId: DocumentId;
-      readonly name: string;
+      readonly name: EntityName;
     };
 
 // The modal that is open (at most one). Confirmation states carry the entity name as it
@@ -96,13 +120,13 @@ export type DialogState =
   | {
       readonly kind: "moveEntry";
       readonly entryId: EntryId;
-      readonly name: string;
+      readonly name: EntityName;
     }
   // Asked after a target was picked while a Document that would move has unsaved changes.
   | {
       readonly kind: "confirmMoveSave";
       readonly entryId: EntryId;
-      readonly name: string;
+      readonly name: EntityName;
       readonly targetParentFolderId: FolderId | null;
     }
   | {
@@ -112,19 +136,54 @@ export type DialogState =
   | {
       readonly kind: "confirmDeleteFolder";
       readonly folderId: FolderId;
-      readonly name: string;
+      readonly name: EntityName;
     }
   | {
       readonly kind: "confirmDeleteDocument";
       readonly documentId: DocumentId;
-      readonly name: string;
+      readonly name: EntityName;
     }
   | {
       readonly kind: "confirmDeleteSheet";
       readonly documentId: DocumentId;
       readonly sheetId: SheetId;
-      readonly name: string;
+      readonly name: EntityName;
+    }
+  // Asked before Git changes are discarded (docs/ui-design.md §13.5 V-5). Carries what the
+  // question needs, as it was when the user asked; document names are looked up at render.
+  | {
+      readonly kind: "confirmDiscardGitChanges";
+      readonly targets: readonly DiscardTarget[];
+      // Open Documents whose files are among the targets (from `discardImpact`).
+      readonly documentIds: readonly DocumentId[];
+      readonly projectFilesAffected: boolean;
+    }
+  // Smart commit (docs/ui-design.md §13.6): nothing is staged but there are changes; asked
+  // before they are all staged. Carries what the commit continues with after the answer.
+  | {
+      readonly kind: "confirmGitStageAll";
+      readonly followUp: GitCommitFollowUp;
+      readonly remote: string | null;
+    }
+  // Which remote to publish the branch to, asked only when there are several. The names
+  // are repository text: shown as text only.
+  | {
+      readonly kind: "chooseGitRemote";
+      readonly remoteNames: readonly string[];
+      readonly continuation: GitRemoteContinuation;
     };
+
+// What a commit does once it has been made (also `git-commit-flow.ts`).
+export type GitCommitFollowUp = "none" | "push" | "sync";
+
+// What goes on after the user has picked a remote.
+export type GitRemoteContinuation = "commitAndPush" | "push";
+
+// One file of a discard question: untracked files are deleted, the others restored.
+export interface DiscardTarget {
+  readonly path: string;
+  readonly untracked: boolean;
+}
 
 // The user-level operations that can fail and be reported (one value per message).
 export const OPERATION_LABELS = [
@@ -165,6 +224,18 @@ export const OPERATION_LABELS = [
   "redo",
   "loadViewport",
   "saveViewport",
+  "refreshGitStatus",
+  "stageGitFiles",
+  "unstageGitFiles",
+  "discardGitChanges",
+  "loadGitDiff",
+  "commitGitChanges",
+  "undoGitCommit",
+  "fetchGit",
+  "pullGit",
+  "pushGit",
+  "publishGit",
+  "loadGitHistory",
 ] as const;
 
 export type OperationLabel = (typeof OPERATION_LABELS)[number];
@@ -191,7 +262,7 @@ export interface OperationErrorEntry {
   readonly id: number;
   readonly operation: OperationLabel;
   // Name of the entity the operation was about, when there was one.
-  readonly subject: string | null;
+  readonly subject: OperationSubject | null;
   readonly error: OperationError;
 }
 
@@ -214,6 +285,20 @@ export type RenamingTarget =
       readonly documentId: DocumentId;
       readonly sheetId: SheetId;
     };
+
+// What the left panel shows (docs/ui-design.md §13.1). Window-local, never saved.
+export const LEFT_PANEL_MODES = ["project", "git"] as const;
+
+export type LeftPanelMode = (typeof LEFT_PANEL_MODES)[number];
+
+export const DEFAULT_LEFT_PANEL_MODE: LeftPanelMode = "project";
+
+// How a text diff is laid out: two columns (old | new) or one column with both numbers.
+export const DIFF_VIEW_MODES = ["split", "inline"] as const;
+
+export type DiffViewMode = (typeof DIFF_VIEW_MODES)[number];
+
+export const DEFAULT_DIFF_VIEW_MODE: DiffViewMode = "split";
 
 export interface UiState {
   readonly activeDocumentId: DocumentId | null;
@@ -240,7 +325,62 @@ export interface UiState {
   readonly nextNoticeId: number;
   // A workspace operation is running; repeated clicks are disabled meanwhile.
   readonly busy: boolean;
+  // Project Tree or Git panel in the sidebar. Kept across Project changes (only the Git
+  // content follows the Project).
+  readonly leftPanelMode: LeftPanelMode;
+  // Side-by-side or inline diff. A view preference of this window shared by all diff tabs;
+  // kept across Project changes (like `leftPanelMode`) and never saved.
+  readonly diffViewMode: DiffViewMode;
+  // The diff tabs of the main tab strip, shown after the Document tabs. A view choice only
+  // (the Git state itself lives in the Git controller); dropped when the Project changes.
+  readonly diffTabs: readonly DiffTab[];
+  // What the main area shows: the active Document (`activeDocumentId`, application state)
+  // or one of the diff tabs. Always names an existing diff tab when it is `diff`.
+  readonly activeMainTab: MainTabRef;
+  // The commit message typed in the Git panel. UI state so it survives switching between
+  // the Project and Git views; dropped with the Project and never saved.
+  readonly gitCommitMessage: string;
+  // Whether the history section of the Git panel is expanded. A view choice kept across
+  // Project | Git switches; dropped with the Project.
+  readonly gitHistoryExpanded: boolean;
+  // Sections of the Git change list the user collapsed (all are expanded by default). A view
+  // choice kept across Project | Git switches; dropped with the Project and never saved.
+  readonly gitCollapsedSections: ReadonlySet<GitChangeSectionId>;
 }
+
+// The sections of the Git change list in display order (docs/ui-design.md §13.5). Defined
+// here because the UI state records which of them are collapsed.
+export const GIT_CHANGE_SECTION_IDS = [
+  "conflicts",
+  "staged",
+  "changes",
+] as const;
+
+export type GitChangeSectionId = (typeof GIT_CHANGE_SECTION_IDS)[number];
+
+// Which side of a file the Git panel selected: `staged` for rows of the staged section,
+// `unstaged` for rows of the changes and untracked sections.
+export const GIT_SELECTION_SIDES = ["staged", "unstaged"] as const;
+
+export type GitSelectionSide = (typeof GIT_SELECTION_SIDES)[number];
+
+// A file side whose diff can be shown; the identity of a diff tab.
+export interface GitSelection {
+  // Project root relative, `/` separated.
+  readonly path: string;
+  readonly side: GitSelectionSide;
+}
+
+export interface DiffTab extends GitSelection {
+  // A preview tab is replaced by the next preview; pinning keeps it (docs/ui-design.md §13.5).
+  readonly preview: boolean;
+}
+
+export type MainTabRef =
+  | { readonly kind: "document" }
+  | ({ readonly kind: "diff" } & GitSelection);
+
+export const DOCUMENT_MAIN_TAB: MainTabRef = { kind: "document" };
 
 export type UiStateStore = Store<UiState>;
 
@@ -267,6 +407,13 @@ export function createInitialUiState(): UiState {
     notice: null,
     nextNoticeId: 1,
     busy: false,
+    leftPanelMode: DEFAULT_LEFT_PANEL_MODE,
+    diffViewMode: DEFAULT_DIFF_VIEW_MODE,
+    diffTabs: [],
+    activeMainTab: DOCUMENT_MAIN_TAB,
+    gitCommitMessage: "",
+    gitHistoryExpanded: false,
+    gitCollapsedSections: new Set(),
   };
 }
 

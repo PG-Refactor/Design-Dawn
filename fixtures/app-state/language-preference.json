@@ -1,0 +1,50 @@
+{
+  "fixtureVersion": 1,
+  "subject": "languagePreference",
+  "description": "Language preference accepts exactly system, en and ja (case-sensitive). See docs/architecture.md §6.2.2.",
+  "cases": [
+    { "name": "system", "input": "system", "expected": { "result": "accept" } },
+    { "name": "en", "input": "en", "expected": { "result": "accept" } },
+    { "name": "ja", "input": "ja", "expected": { "result": "accept" } },
+    {
+      "name": "capitalized",
+      "input": "JA",
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidLanguagePreference"
+      }
+    },
+    {
+      "name": "region tag",
+      "input": "ja-JP",
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidLanguagePreference"
+      }
+    },
+    {
+      "name": "unknown language",
+      "input": "fr",
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidLanguagePreference"
+      }
+    },
+    {
+      "name": "empty",
+      "input": "",
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidLanguagePreference"
+      }
+    },
+    {
+      "name": "trailing space",
+      "input": "en ",
+      "expected": {
+        "result": "reject",
+        "errorKind": "invalidLanguagePreference"
+      }
+    }
+  ]
+}

@@ -4,7 +4,8 @@ import { MARKDOWN_BLOCK_DEFAULTS } from "../markdown/markdown-block-defaults";
 
 export interface CreatableBlockType {
   readonly blockType: TextBlockType;
-  // Shown in the "+ Block" menu.
+  // Shown in the "+ Block" menu. A proper name, identical in every display language, so it
+  // is a plain constant here and not a catalog entry.
   readonly label: string;
   // World units.
   readonly defaultSize: { readonly width: number; readonly height: number };

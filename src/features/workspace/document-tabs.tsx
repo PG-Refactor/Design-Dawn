@@ -1,7 +1,11 @@
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import type { DocumentId } from "../../domain/shared/entity-id";
+import { activateDiff, closeDiff, pinDiff } from "../git/git-diff-session";
+import { GitDiffTabItem } from "../git/git-diff-tab";
 import { focusFallbackElement } from "./focus-utils";
 import { documentPanelId, documentTabId } from "./tab-ids";
+import type { DiffTab, GitSelection } from "./ui-state/ui-state";
+import { useMessages } from "./use-messages";
 import { useTabDrag } from "./use-tab-drag";
 import {
   NAVIGATION_KEYS,
@@ -10,8 +14,7 @@ import {
 import { MOVE_DIRECTIONS, oneStepMove } from "./view-models/reorder";
 import { dropMarker, tabClassName, ZERO_RECT } from "./view-models/tab-drag";
 import { type DocumentTab, selectDocumentTabs } from "./view-models/tabs-model";
-import { useWorkspaceModel } from "./workspace-hooks";
-import { closeTabLabel, MESSAGES, retrySaveLabel } from "./workspace-messages";
+import { useUiState, useWorkspaceModel } from "./workspace-hooks";
 import { useWorkspaceServices } from "./workspace-services-context";
 import "./tabs.css";
 
@@ -23,8 +26,9 @@ const SAVE_STATUS_ICON = {
 } as const;
 
 function SaveStatusIndicator({ tab }: { readonly tab: DocumentTab }) {
+  const messages = useMessages().workspace;
   if (tab.saveStatus === "saved") return null;
-  const label = MESSAGES.saveStatus[tab.saveStatus];
+  const label = messages.saveStatus[tab.saveStatus];
   // The icon is decoration; the text carries the meaning (never colour alone).
   return (
     <span className={`save-status save-status--${tab.saveStatus}`}>
@@ -34,13 +38,39 @@ function SaveStatusIndicator({ tab }: { readonly tab: DocumentTab }) {
   );
 }
 
+// Element keys of the strip: Document tabs first, then the diff tabs.
+function documentKey(documentId: DocumentId): string {
+  return `document:${documentId}`;
+}
+
+function diffKey(target: GitSelection): string {
+  return `diff:${target.side}:${target.path}`;
+}
+
+type StripEntry =
+  | { readonly kind: "document"; readonly tab: DocumentTab }
+  | { readonly kind: "diff"; readonly tab: DiffTab };
+
+function keyOf(entry: StripEntry): string {
+  return entry.kind === "document"
+    ? documentKey(entry.tab.documentId)
+    : diffKey(entry.tab);
+}
+
+// The main tab strip: the Document tabs (reorderable, closed with confirmation) followed by
+// the diff tabs (UI state only; docs/ui-design.md §13.5). Arrow keys move through all of
+// them; Ctrl/Cmd+Arrow reorders Document tabs only.
 export function DocumentTabs() {
-  const { actions, uiStateStore } = useWorkspaceServices();
+  const messages = useMessages().workspace;
+  const services = useWorkspaceServices();
+  const { actions, uiStateStore } = services;
   const tabs = useWorkspaceModel(selectDocumentTabs);
-  const tabElements = useRef(new Map<DocumentId, HTMLButtonElement>());
+  const diffTabs = useUiState((ui) => ui.diffTabs);
+  const activeMainTab = useUiState((ui) => ui.activeMainTab);
+  const tabElements = useRef(new Map<string, HTMLButtonElement>());
   // Set after a tab was closed (the neighbour that became active gets focus, because the
   // focused close button no longer exists) or moved (it keeps focus).
-  const [focusRequest, setFocusRequest] = useState<DocumentId | null>(null);
+  const [focusRequest, setFocusRequest] = useState<string | null>(null);
 
   useEffect(() => {
     if (focusRequest === null) return;
@@ -57,7 +87,7 @@ export function DocumentTabs() {
   // once the new order is rendered.
   function moveTab(documentId: DocumentId, before: DocumentId | null): void {
     actions.moveDocumentTab(documentId, before);
-    setFocusRequest(documentId);
+    setFocusRequest(documentKey(documentId));
   }
 
   const drag = useTabDrag({
@@ -66,67 +96,122 @@ export function DocumentTabs() {
       tabIds.map(
         (documentId) =>
           tabElements.current
-            .get(documentId)
+            .get(documentKey(documentId))
             ?.parentElement?.getBoundingClientRect() ?? ZERO_RECT,
       ),
     onDrop: moveTab,
   });
 
-  if (tabs.length === 0) return null;
+  const entries: readonly StripEntry[] = [
+    ...tabs.map((tab): StripEntry => ({ kind: "document", tab })),
+    ...diffTabs.map((tab): StripEntry => ({ kind: "diff", tab })),
+  ];
+  if (entries.length === 0) return null;
 
-  const activeTab = tabs.find((tab) => tab.isActive) ?? null;
+  const activeIndex = entries.findIndex((entry) =>
+    entry.kind === "document"
+      ? entry.tab.isActive
+      : activeMainTab.kind === "diff" &&
+        activeMainTab.path === entry.tab.path &&
+        activeMainTab.side === entry.tab.side,
+  );
+
+  function activate(entry: StripEntry): void {
+    if (entry.kind === "document")
+      void actions.openDocument(entry.tab.documentId);
+    else activateDiff(services, entry.tab);
+  }
+
+  function registerElement(key: string) {
+    return (element: HTMLButtonElement | null): void => {
+      if (element === null) tabElements.current.delete(key);
+      else tabElements.current.set(key, element);
+    };
+  }
 
   function handleKeyDown(
     event: KeyboardEvent<HTMLButtonElement>,
     index: number,
   ): void {
-    // Ctrl/Cmd+Arrow moves the tab by one place; plain arrows keep moving focus. Nothing
-    // happens at the ends.
+    const entry = entries[index];
+    if (entry === undefined) return;
+    // Ctrl/Cmd+Arrow moves a Document tab by one place; plain arrows keep moving focus.
+    // Nothing happens at the ends, nor on a diff tab (they are not reorderable).
     if (
       (event.ctrlKey || event.metaKey) &&
       (event.key === NAVIGATION_KEYS.arrowLeft ||
         event.key === NAVIGATION_KEYS.arrowRight)
     ) {
       event.preventDefault();
-      const tab = tabs[index];
-      if (tab === undefined) return;
+      if (entry.kind !== "document") return;
       const step = oneStepMove(
         tabIds,
-        tab.documentId,
+        entry.tab.documentId,
         event.key === NAVIGATION_KEYS.arrowLeft
           ? MOVE_DIRECTIONS.up
           : MOVE_DIRECTIONS.down,
       );
-      if (step !== null) moveTab(tab.documentId, step.before);
+      if (step !== null) moveTab(entry.tab.documentId, step.before);
       return;
     }
-    const target = tabTargetIndex(event.key, index, tabs.length);
-    const targetTab = target === null ? undefined : tabs[target];
-    if (targetTab === undefined) return;
+    const target = tabTargetIndex(event.key, index, entries.length);
+    const targetEntry = target === null ? undefined : entries[target];
+    if (targetEntry === undefined) return;
     event.preventDefault();
     // Automatic activation: moving focus along the tabs also selects the tab.
-    void actions.openDocument(targetTab.documentId);
-    tabElements.current.get(targetTab.documentId)?.focus();
+    activate(targetEntry);
+    tabElements.current.get(keyOf(targetEntry))?.focus();
+  }
+
+  // Focus goes to whichever tab is active once the closed one is gone.
+  function focusActiveTabOrFallback(): void {
+    const state = uiStateStore.getState();
+    if (state.activeMainTab.kind === "diff") {
+      setFocusRequest(diffKey(state.activeMainTab));
+    } else if (state.activeDocumentId !== null) {
+      setFocusRequest(documentKey(state.activeDocumentId));
+    } else {
+      focusFallbackElement();
+    }
   }
 
   async function handleClose(tab: DocumentTab): Promise<void> {
-    const wasActive = tab.isActive;
     const result = await actions.closeDocument(tab.documentId);
     if (!result.ok) return;
-    const nextActive = uiStateStore.getState().activeDocumentId;
-    if (wasActive && nextActive === null) focusFallbackElement();
-    else if (nextActive !== null) setFocusRequest(nextActive);
+    focusActiveTabOrFallback();
+  }
+
+  function handleCloseDiff(tab: DiffTab): void {
+    closeDiff(services, tab);
+    focusActiveTabOrFallback();
   }
 
   return (
     <div
       role="tablist"
-      aria-label={MESSAGES.tabs.documentTabsLabel}
+      aria-label={messages.tabs.documentTabsLabel}
       className="tab-list"
     >
-      {tabs.map((tab, index) => {
+      {entries.map((entry, index) => {
         // Only the active tab (or the first one when none is active) is a tab stop.
-        const isTabStop = activeTab === null ? index === 0 : tab.isActive;
+        const isTabStop = activeIndex < 0 ? index === 0 : index === activeIndex;
+        if (entry.kind === "diff") {
+          const { tab } = entry;
+          return (
+            <GitDiffTabItem
+              key={keyOf(entry)}
+              tab={tab}
+              isActive={index === activeIndex}
+              isTabStop={isTabStop}
+              register={registerElement(keyOf(entry))}
+              onActivate={() => activate(entry)}
+              onPin={() => pinDiff(services, tab)}
+              onClose={() => handleCloseDiff(tab)}
+              onKeyDown={(event) => handleKeyDown(event, index)}
+            />
+          );
+        }
+        const { tab } = entry;
         const pointerHandlers = drag.handlersFor(tab.documentId);
         const dragState = drag.dragState;
         return (
@@ -139,11 +224,7 @@ export function DocumentTabs() {
             )}
           >
             <button
-              ref={(element) => {
-                if (element === null)
-                  tabElements.current.delete(tab.documentId);
-                else tabElements.current.set(tab.documentId, element);
-              }}
+              ref={registerElement(documentKey(tab.documentId))}
               type="button"
               role="tab"
               id={documentTabId(tab.documentId)}
@@ -168,20 +249,20 @@ export function DocumentTabs() {
                 type="button"
                 className="tab__control"
                 tabIndex={isTabStop ? 0 : -1}
-                aria-label={retrySaveLabel(tab.name)}
+                aria-label={messages.retrySaveLabel(tab.name)}
                 onClick={() => void actions.retryDocumentSave(tab.documentId)}
               >
-                {MESSAGES.tabs.retrySave}
+                {messages.tabs.retrySave}
               </button>
             ) : null}
             <button
               type="button"
               className="tab__control"
               tabIndex={isTabStop ? 0 : -1}
-              aria-label={closeTabLabel(tab.name)}
+              aria-label={messages.closeTabLabel(tab.name)}
               onClick={() => void handleClose(tab)}
             >
-              <span aria-hidden="true">{MESSAGES.tabs.closeButtonText}</span>
+              <span aria-hidden="true">{messages.tabs.closeButtonText}</span>
             </button>
           </div>
         );

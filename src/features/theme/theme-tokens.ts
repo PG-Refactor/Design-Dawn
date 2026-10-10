@@ -17,6 +17,22 @@ export const COLOR_TOKEN_NAMES = [
   "--color-focus-ring",
   "--color-canvas-background",
   "--color-canvas-grid",
+  "--color-diff-added-bg",
+  "--color-diff-added-text",
+  "--color-diff-removed-bg",
+  "--color-diff-removed-text",
+  "--color-diff-hunk-text",
+  "--color-diff-meta-text",
+  "--color-diff-filler-bg",
+  "--color-button-primary-bg",
+  "--color-button-primary-text",
+  "--color-button-primary-hover",
+  "--color-git-modified",
+  "--color-git-added",
+  "--color-git-deleted",
+  "--color-git-renamed",
+  "--color-git-untracked",
+  "--color-git-conflict",
 ] as const;
 
 export const SHADOW_TOKEN_NAMES = ["--shadow-raised"] as const;

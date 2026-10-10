@@ -7,7 +7,6 @@ import {
   openedWorkspace,
 } from "../../../application/test-support/workspace-harness";
 import { createInitialUiState, setActiveDocument } from "../ui-state/ui-state";
-import { MESSAGES } from "../workspace-messages";
 import { flattenProjectTree } from "./tree-items";
 import {
   type DocumentNode,
@@ -44,7 +43,8 @@ describe("selectProjectTree", () => {
     expect(rootDocuments(model).every((node) => !node.isOpen)).toBe(true);
     const failed = rootDocuments(model)[2];
     expect(failed?.state).toBe("loadFailed");
-    expect(failed?.name).toBe(MESSAGES.tree.unnamedEntity);
+    // The text for an unreadable name is chosen at render time.
+    expect(failed?.name).toBeNull();
   });
 
   it("follows the project's childOrder", async () => {

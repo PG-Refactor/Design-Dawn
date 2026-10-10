@@ -3,6 +3,7 @@
 // from outside. Rust keeps a request until the window acknowledges it, and routes it again
 // when the window goes away first.
 
+import type { LanguagePreference } from "../../config/language-config";
 import type { DocumentId } from "../../domain/shared/entity-id";
 import type { ThemePreference } from "../local-state/theme";
 import type { OperationResult } from "./operation-error";
@@ -13,10 +14,11 @@ export interface OpenDocumentRequest {
   readonly documentId: DocumentId;
 }
 
-// The theme and auto-save values after another window changed them (docs/architecture.md
+// The theme, language and auto-save values after another window changed them (docs/architecture.md
 // §11.0.1). The Project Tree width is per window and is never sent.
 export interface SettingsChange {
   readonly themePreference: ThemePreference;
+  readonly languagePreference: LanguagePreference;
   readonly autoSave: boolean;
 }
 

@@ -2,10 +2,24 @@
 // layer. No React here; `main.tsx` hands the returned services to the UI.
 
 import { createInMemoryClipboard } from "../application/clipboard/clipboard";
+import {
+  createGitController,
+  type GitController,
+} from "../application/git/git-controller";
+import {
+  createProjectWriteSignal,
+  type ProjectWriteSignal,
+  withWriteSignal,
+} from "../application/git/project-write-signal";
 import { createDefaultIdGenerator } from "../application/id-generator";
+import {
+  createLanguageController,
+  type LanguageController,
+} from "../application/language/language-controller";
 import type { AppRequestSource } from "../application/ports/app-request-source";
 import type { AssetUrlResolver } from "../application/ports/asset-url-resolver";
 import type { DropEventSource } from "../application/ports/drop-event-source";
+import type { Scheduler } from "../application/ports/scheduler";
 import type { CloseRequestSource } from "../application/ports/window-close";
 import {
   type AutoSaveController,
@@ -45,6 +59,7 @@ import {
   createDraftRegistry,
   type DraftRegistry,
 } from "../features/workspace/draft-registry";
+import { addOperationError } from "../features/workspace/ui-state/shell-ui-state";
 import {
   createUiStateStore,
   type UiStateStore,
@@ -55,11 +70,13 @@ import {
   type WorkspaceActions,
 } from "../features/workspace/workspace-actions";
 import { createMatchMediaOsThemeSource } from "../infrastructure/browser/match-media-os-theme-source";
+import { createNavigatorSystemLanguageSource } from "../infrastructure/browser/navigator-system-language-source";
 import { createTauriAppRequestSource } from "../infrastructure/tauri/tauri-app-request-source";
 import { createTauriAppSettingsGateway } from "../infrastructure/tauri/tauri-app-settings-gateway";
 import { createTauriAssetUrlResolver } from "../infrastructure/tauri/tauri-asset-url-resolver";
 import { createTauriCloseRequestSource } from "../infrastructure/tauri/tauri-close-request-source";
 import { createTauriDropEventSource } from "../infrastructure/tauri/tauri-drop-event-source";
+import { createTauriGitGateway } from "../infrastructure/tauri/tauri-git-gateway";
 import { createTauriPersistenceGateway } from "../infrastructure/tauri/tauri-persistence-gateway";
 import { createTauriViewportGateway } from "../infrastructure/tauri/tauri-viewport-gateway";
 import { createTimeoutScheduler } from "../infrastructure/timer/timeout-scheduler";
@@ -85,10 +102,18 @@ export interface AppServices {
   readonly viewportPersistence: ViewportPersistence;
   // App-level theme state; independent of the workspace, sessions and undo history.
   readonly themeController: ThemeController;
+  // The display language app setting (preference and the language it resolves to).
+  readonly languageController: LanguageController;
   // The auto-save on/off app setting; also the policy the document sessions follow.
   readonly autoSaveController: AutoSaveController;
   // The Project Tree width app setting (the splitter between the tree and the documents).
   readonly layoutSettingsController: LayoutSettingsController;
+  // The open Project's Git state (runtime only; refreshed when a Project is installed).
+  // No UI shows it yet.
+  readonly gitController: GitController;
+  // Told after every write of Project files; the Git panel refreshes itself from it.
+  readonly projectWriteSignal: ProjectWriteSignal;
+  readonly gitRefreshScheduler: Scheduler;
   // Detaches the workspace -> UI state connector.
   readonly disconnectUiState: () => void;
 }
@@ -97,7 +122,11 @@ export function createAppServices(): AppServices {
   const applicationStore = createApplicationStore();
   const uiStateStore = createUiStateStore();
   const idGenerator = createDefaultIdGenerator();
-  const gateway = createTauriPersistenceGateway();
+  const projectWriteSignal = createProjectWriteSignal();
+  const gateway = withWriteSignal(
+    createTauriPersistenceGateway(),
+    projectWriteSignal,
+  );
   const settingsGateway = createTauriAppSettingsGateway();
   const autoSaveController = createAutoSaveController({
     gateway: settingsGateway,
@@ -141,6 +170,14 @@ export function createAppServices(): AppServices {
     applicationStore,
     uiStateStore,
   });
+  const gitController = createGitController({
+    gateway: createTauriGitGateway(),
+    applicationStore,
+    reportFailure: (operation, error) =>
+      uiStateStore.setState((state) =>
+        addOperationError(state, operation, null, error),
+      ),
+  });
   const disconnectUiState = connectWorkspaceToUiState(workspace, uiStateStore);
   const themeController = createThemeController({
     gateway: settingsGateway,
@@ -149,6 +186,15 @@ export function createAppServices(): AppServices {
       typeof globalThis.matchMedia === "function"
         ? globalThis.matchMedia.bind(globalThis)
         : undefined,
+    ),
+  });
+  const languageController = createLanguageController({
+    gateway: settingsGateway,
+    systemLanguageSource: createNavigatorSystemLanguageSource(
+      // Absent outside a webview (for example in node tests).
+      typeof globalThis.navigator === "undefined"
+        ? undefined
+        : globalThis.navigator,
     ),
   });
   return {
@@ -164,8 +210,12 @@ export function createAppServices(): AppServices {
     appRequestSource: createTauriAppRequestSource(),
     viewportPersistence,
     themeController,
+    languageController,
     autoSaveController,
     layoutSettingsController,
+    gitController,
+    projectWriteSignal,
+    gitRefreshScheduler: createTimeoutScheduler(),
     disconnectUiState,
   };
 }

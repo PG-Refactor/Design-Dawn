@@ -5,8 +5,12 @@
 import type { OperationError } from "../../../application/ports/operation-error";
 import type {
   DialogState,
+  DiffViewMode,
+  GitChangeSectionId,
+  LeftPanelMode,
   NoticeKind,
   OperationLabel,
+  OperationSubject,
   UiState,
 } from "./ui-state";
 
@@ -24,7 +28,7 @@ export function closeDialog(state: UiState): UiState {
 export function addOperationError(
   state: UiState,
   operation: OperationLabel,
-  subject: string | null,
+  subject: OperationSubject | null,
   error: OperationError,
 ): UiState {
   return {
@@ -66,4 +70,41 @@ export function clearNotice(state: UiState, id: number): UiState {
 
 export function setBusy(state: UiState, busy: boolean): UiState {
   return state.busy === busy ? state : { ...state, busy };
+}
+
+export function setLeftPanelMode(state: UiState, mode: LeftPanelMode): UiState {
+  return state.leftPanelMode === mode
+    ? state
+    : { ...state, leftPanelMode: mode };
+}
+
+export function setDiffViewMode(state: UiState, mode: DiffViewMode): UiState {
+  return state.diffViewMode === mode ? state : { ...state, diffViewMode: mode };
+}
+
+export function setGitCommitMessage(state: UiState, message: string): UiState {
+  return state.gitCommitMessage === message
+    ? state
+    : { ...state, gitCommitMessage: message };
+}
+
+export function setGitHistoryExpanded(
+  state: UiState,
+  expanded: boolean,
+): UiState {
+  return state.gitHistoryExpanded === expanded
+    ? state
+    : { ...state, gitHistoryExpanded: expanded };
+}
+
+export function setGitSectionCollapsed(
+  state: UiState,
+  sectionId: GitChangeSectionId,
+  collapsed: boolean,
+): UiState {
+  if (state.gitCollapsedSections.has(sectionId) === collapsed) return state;
+  const gitCollapsedSections = new Set(state.gitCollapsedSections);
+  if (collapsed) gitCollapsedSections.add(sectionId);
+  else gitCollapsedSections.delete(sectionId);
+  return { ...state, gitCollapsedSections };
 }

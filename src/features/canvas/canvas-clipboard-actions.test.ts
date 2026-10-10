@@ -123,7 +123,7 @@ describe("copySelection", () => {
     expect(harness.uiStateStore.getState().operationErrors).toMatchObject([
       {
         operation: "copyBlocks",
-        subject: "1個のBlock",
+        subject: { blockCount: 1 },
         error: { kind: "fileNotFound" },
       },
     ]);
@@ -362,7 +362,7 @@ describe("duplicateSelection", () => {
     expect(harness.blocksOfSheetA1()).toHaveLength(3);
     expect(harness.session.getState().history.canUndo).toBe(false);
     expect(harness.uiStateStore.getState().operationErrors).toMatchObject([
-      { operation: "duplicateBlocks", subject: "1個のBlock" },
+      { operation: "duplicateBlocks", subject: { blockCount: 1 } },
     ]);
   });
 });
@@ -433,7 +433,7 @@ describe("cutSelection", () => {
     expect(orderOf(harness)).toEqual([BLOCK_TWO, BLOCK_THREE]);
     expect(harness.clipboard.read()?.blocks).toHaveLength(1);
     expect(harness.uiStateStore.getState().operationErrors).toMatchObject([
-      { operation: "cutBlocks", subject: "1個のBlock" },
+      { operation: "cutBlocks", subject: { blockCount: 1 } },
     ]);
     expect(await harness.undoDepth()).toBe(1);
   });

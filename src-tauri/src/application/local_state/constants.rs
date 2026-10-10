@@ -9,6 +9,12 @@ pub const THEME_SYSTEM: &str = "system";
 pub const THEME_IDS: [&str; 2] = ["light", "dark"];
 pub const DEFAULT_THEME_PREFERENCE: &str = THEME_SYSTEM;
 
+/// Preference that follows the WebView's language (resolved in the Frontend).
+pub const LANGUAGE_SYSTEM: &str = "system";
+/// Display languages. Mirrors `LANGUAGE_PREFERENCES` in `src/config/language-config.ts`.
+pub const LANGUAGE_IDS: [&str; 2] = ["en", "ja"];
+pub const DEFAULT_LANGUAGE_PREFERENCE: &str = LANGUAGE_SYSTEM;
+
 /// Mirrors `DEFAULT_AUTO_SAVE_ENABLED` in `src/config/app-config.ts` (or wherever TS keeps it).
 pub const DEFAULT_AUTO_SAVE: bool = true;
 

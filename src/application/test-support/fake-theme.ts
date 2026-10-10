@@ -1,5 +1,6 @@
 // Fakes for the theme ports: an in-memory settings "file" and a controllable OS theme.
 
+import type { LanguagePreference } from "../../config/language-config";
 import { LAYOUT_CONFIG } from "../../config/layout-config";
 import type { ResolvedTheme, ThemePreference } from "../local-state/theme";
 import type {
@@ -15,6 +16,7 @@ import type { OsThemeSource } from "../ports/os-theme-source";
 
 export interface FakeAppSettingsStorage {
   themePreference: ThemePreference;
+  languagePreference: LanguagePreference;
   autoSave: boolean;
   projectTreeWidth: number;
   loadIssue: OperationError | null;
@@ -26,11 +28,13 @@ export interface FakeAppSettingsGateway extends AppSettingsGateway {
   readonly setCalls: ThemePreference[];
   failGet: OperationError | null;
   failSet: OperationError | null;
+  // Preferences passed to `setLanguagePreference`, in call order.
+  readonly languageCalls: LanguagePreference[];
   // Values passed to `setAutoSave`, in call order.
   readonly autoSaveCalls: boolean[];
   // Values passed to `setProjectTreeWidth`, in call order.
   readonly projectTreeWidthCalls: number[];
-  // Suspends the next set (theme, auto-save or width) until the returned function is called.
+  // Suspends the next set (theme, language, auto-save or width) until the returned function is called.
   holdNextSet(): () => void;
 }
 
@@ -42,6 +46,7 @@ export const FAKE_SETTINGS_ERROR: OperationError = {
 export function createFakeAppSettingsGateway(
   storage: FakeAppSettingsStorage = {
     themePreference: "system",
+    languagePreference: "system",
     autoSave: true,
     projectTreeWidth: LAYOUT_CONFIG.projectTree.defaultWidthPx,
     loadIssue: null,
@@ -50,6 +55,7 @@ export function createFakeAppSettingsGateway(
   let releaseNext: Promise<void> | null = null;
   const snapshot = (): AppSettingsSnapshot => ({
     themePreference: storage.themePreference,
+    languagePreference: storage.languagePreference,
     autoSave: storage.autoSave,
     projectTreeWidth: storage.projectTreeWidth,
     loadIssue: storage.loadIssue,
@@ -69,6 +75,7 @@ export function createFakeAppSettingsGateway(
   const gateway: FakeAppSettingsGateway = {
     storage,
     setCalls: [],
+    languageCalls: [],
     autoSaveCalls: [],
     projectTreeWidthCalls: [],
     failGet: null,
@@ -84,6 +91,14 @@ export function createFakeAppSettingsGateway(
       const failure = await settleSet();
       if (failure !== null) return failure;
       storage.themePreference = preference;
+      storage.loadIssue = null;
+      return operationOk(snapshot());
+    },
+    async setLanguagePreference(preference) {
+      gateway.languageCalls.push(preference);
+      const failure = await settleSet();
+      if (failure !== null) return failure;
+      storage.languagePreference = preference;
       storage.loadIssue = null;
       return operationOk(snapshot());
     },

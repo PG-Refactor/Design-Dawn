@@ -3,6 +3,7 @@ import {
   FOLDER_1,
   openedFolderDiskWorkspace,
 } from "../../../application/test-support/workspace-harness";
+import { WORKSPACE_MESSAGES } from "../workspace-messages";
 import { selectNotifications } from "./notifications-model";
 
 const NO_THEME_PROBLEMS = { loadIssue: null, saveError: null } as const;
@@ -13,6 +14,7 @@ describe("folder save error notifications", () => {
     harness.gateway.failOn("saveFolder", "ioError");
     await harness.workspace.renameFolder(FOLDER_1, "Renamed");
     const model = selectNotifications({
+      messages: WORKSPACE_MESSAGES.ja,
       application: harness.store.getState(),
       operationErrors: [],
       theme: NO_THEME_PROBLEMS,
@@ -27,6 +29,7 @@ describe("folder save error notifications", () => {
     expect((await harness.workspace.saveFolder(FOLDER_1)).ok).toBe(true);
     expect(
       selectNotifications({
+        messages: WORKSPACE_MESSAGES.ja,
         application: harness.store.getState(),
         operationErrors: [],
         theme: NO_THEME_PROBLEMS,

@@ -1005,6 +1005,68 @@ fn closing_the_project_unbinds_it_so_another_window_can_open_it() {
 }
 
 #[test]
+fn reload_project_reads_an_on_disk_change_of_the_windows_own_project() {
+    let temp = TempDir::new();
+    let opened = open_fixture_project_with_pickers(&temp, Vec::new());
+
+    // The file changes underneath the open Project (e.g. a Git discard).
+    let project_file = opened.project_root.join("project.json");
+    let mut on_disk: Value =
+        serde_json::from_str(&std::fs::read_to_string(&project_file).unwrap()).unwrap();
+    on_disk["name"] = Value::String("Changed On Disk".to_owned());
+    std::fs::write(
+        &project_file,
+        serde_json::to_string_pretty(&on_disk).unwrap(),
+    )
+    .unwrap();
+
+    // No path is sent: the id alone names the window's own Project.
+    let snapshot = invoke(
+        &opened.webview,
+        "reload_project",
+        &serde_json::json!({ "projectId": opened.project_id }),
+    )
+    .unwrap();
+    assert_eq!(snapshot["project"]["name"], "Changed On Disk");
+    assert_eq!(snapshot["project"]["projectId"], opened.project_id);
+
+    // A fresh open: the window still has the Project, and Documents load again.
+    let loaded = invoke(
+        &opened.webview,
+        "load_document",
+        &serde_json::json!({ "projectId": opened.project_id, "documentId": DOCUMENT_ID }),
+    );
+    assert!(loaded.is_ok(), "{loaded:?}");
+}
+
+#[test]
+fn reload_project_refuses_another_project_id_and_a_window_without_a_project() {
+    let temp = TempDir::new();
+    let opened = open_fixture_project_with_pickers(&temp, Vec::new());
+    let second = second_window(&opened);
+
+    assert_eq!(
+        error_kind(invoke(
+            &opened.webview,
+            "reload_project",
+            &serde_json::json!({ "projectId": "01928f3a-ffff-7fff-bfff-ffffffffffff" }),
+        )),
+        "projectNotOpen"
+    );
+    // The owner's Project is not reachable from a window that has none.
+    assert_eq!(
+        error_kind(invoke(
+            &second,
+            "reload_project",
+            &serde_json::json!({ "projectId": opened.project_id }),
+        )),
+        "projectNotOpen"
+    );
+    // The refused calls left the owner's session alone.
+    assert!(read_overview_markdown(&opened.webview, &opened.project_id).is_ok());
+}
+
+#[test]
 fn what_one_window_selected_or_dropped_or_subscribed_is_unusable_from_another() {
     use design_dawn_lib::commands::{handle_window_event, DropNotification, DropSubscriber};
     use tauri::ipc::{Channel, InvokeResponseBody};

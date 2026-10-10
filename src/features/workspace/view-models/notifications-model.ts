@@ -3,6 +3,7 @@
 // and operation errors. Nothing is stored here; the order follows docs/ui-design.md
 // §12.5: save errors > load failures > load warnings > orphan content files.
 
+import type { LanguageState } from "../../../application/language/language-controller";
 import type { OperationError } from "../../../application/ports/operation-error";
 import type {
   EntityState,
@@ -27,13 +28,14 @@ import {
   describeLoadIssueKind,
   describeOperationFailure,
   describeSaveFailure,
-  MESSAGES,
+  type WorkspaceMessages,
 } from "../workspace-messages";
 
 export type NotificationKind =
   | "saveError"
   | "operationError"
   | "themeSaveError"
+  | "languageSaveError"
   | "autoSaveSaveError"
   | "projectTreeWidthSaveError"
   | "loadFailed"
@@ -51,6 +53,7 @@ export const NOTIFICATION_PRIORITY: Record<NotificationKind, number> = {
   saveError: 0,
   operationError: 0,
   themeSaveError: 0,
+  languageSaveError: 0,
   autoSaveSaveError: 0,
   projectTreeWidthSaveError: 0,
   loadFailed: 1,
@@ -65,6 +68,7 @@ const NOTIFICATION_SEVERITY: Record<NotificationKind, NotificationSeverity> = {
   saveError: "error",
   operationError: "error",
   themeSaveError: "error",
+  languageSaveError: "error",
   autoSaveSaveError: "error",
   projectTreeWidthSaveError: "error",
   loadFailed: "error",
@@ -132,6 +136,8 @@ export interface NotificationsModel {
 }
 
 export interface NotificationsInput {
+  // The texts are produced here, so the model is recomputed when the language changes.
+  readonly messages: WorkspaceMessages;
   readonly application: Pick<
     ApplicationState,
     "project" | "documents" | "documentDetails"
@@ -143,6 +149,7 @@ export interface NotificationsInput {
   // Only its save error is shown: a settings file that could not be read is already
   // reported once through `theme.loadIssue`.
   readonly autoSave?: Pick<AutoSaveState, "saveError">;
+  readonly language?: Pick<LanguageState, "saveError">;
   readonly layoutSettings?: Pick<LayoutSettingsState, "saveError">;
 }
 
@@ -150,26 +157,32 @@ const NO_IMAGE_LOAD_FAILURES: NonNullable<
   NotificationsInput["imageLoadFailures"]
 > = new Map();
 
-const DETAIL_LABELS = MESSAGES.notifications.detailLabels;
+type DetailLabels = WorkspaceMessages["notifications"]["detailLabels"];
 
-function errorDetails(error: OperationError): readonly NotificationDetail[] {
+function errorDetails(
+  labels: DetailLabels,
+  error: OperationError,
+): readonly NotificationDetail[] {
   return [
-    { label: DETAIL_LABELS.kind, value: error.kind },
-    { label: DETAIL_LABELS.detail, value: error.detail },
+    { label: labels.kind, value: error.kind },
+    { label: labels.detail, value: error.detail },
   ];
 }
 
-function issueDetails(issue: LoadIssue): readonly NotificationDetail[] {
+function issueDetails(
+  labels: DetailLabels,
+  issue: LoadIssue,
+): readonly NotificationDetail[] {
   const details: NotificationDetail[] = [
-    { label: DETAIL_LABELS.kind, value: issue.kind },
+    { label: labels.kind, value: issue.kind },
   ];
   if (issue.path !== null) {
-    details.push({ label: DETAIL_LABELS.path, value: issue.path });
+    details.push({ label: labels.path, value: issue.path });
   }
   if (issue.entityId !== null) {
-    details.push({ label: DETAIL_LABELS.entityId, value: issue.entityId });
+    details.push({ label: labels.entityId, value: issue.entityId });
   }
-  details.push({ label: DETAIL_LABELS.detail, value: issue.detail });
+  details.push({ label: labels.detail, value: issue.detail });
   return details;
 }
 
@@ -193,6 +206,7 @@ function makeItem(
 // An `entityLoadFailed` load issue and the loadFailed entity describe the same fact, so
 // the issue is folded into the entity's item instead of being counted twice.
 function loadFailedItems(
+  labels: DetailLabels,
   source: NotificationSource,
   idPrefix: string,
   failedEntityIds: ReadonlyMap<string, string>,
@@ -212,8 +226,8 @@ function loadFailedItems(
       message,
       details:
         issue === undefined
-          ? [{ label: DETAIL_LABELS.entityId, value: entityId }]
-          : issueDetails(issue),
+          ? [{ label: labels.entityId, value: entityId }]
+          : issueDetails(labels, issue),
       sheetDeletion: sheetDeletionOf?.(entityId) ?? null,
     });
   });
@@ -248,6 +262,8 @@ function failedIds<Entry extends { readonly state: EntityState }>(
 function collectProjectItems(
   input: NotificationsInput,
 ): readonly NotificationItem[] {
+  const { messages } = input;
+  const labels = messages.notifications.detailLabels;
   const project = input.application.project;
   if (project === null) return [];
   const source: NotificationSource = { scope: "project" };
@@ -258,8 +274,12 @@ function collectProjectItems(
         id: "saveError:project",
         kind: "saveError",
         source,
-        message: describeSaveFailure(null, project.save.lastError.kind),
-        details: errorDetails(project.save.lastError),
+        message: describeSaveFailure(
+          messages,
+          null,
+          project.save.lastError.kind,
+        ),
+        details: errorDetails(labels, project.save.lastError),
         retry: { kind: "project" },
       }),
     );
@@ -271,8 +291,12 @@ function collectProjectItems(
         id: `saveError:folder:${folder.folderId}`,
         kind: "saveError",
         source,
-        message: describeSaveFailure(folder.name, folder.save.lastError.kind),
-        details: errorDetails(folder.save.lastError),
+        message: describeSaveFailure(
+          messages,
+          folder.name,
+          folder.save.lastError.kind,
+        ),
+        details: errorDetails(labels, folder.save.lastError),
         retry: {
           kind: "folder",
           folderId: folder.folderId,
@@ -284,10 +308,16 @@ function collectProjectItems(
   const failed = failedIds(
     project.documents,
     (entry) => entry.documentId,
-    MESSAGES.notifications.loadFailedDocument,
+    messages.notifications.loadFailedDocument,
   );
   items.push(
-    ...loadFailedItems(source, "loadFailed:document", failed, project.issues),
+    ...loadFailedItems(
+      labels,
+      source,
+      "loadFailed:document",
+      failed,
+      project.issues,
+    ),
   );
   nonDuplicateIssues(project.issues, failed).forEach((issue, index) => {
     items.push(
@@ -295,8 +325,8 @@ function collectProjectItems(
         id: `loadIssue:project:${index}`,
         kind: "loadIssue",
         source,
-        message: describeLoadIssueKind(issue.kind),
-        details: issueDetails(issue),
+        message: describeLoadIssueKind(messages, issue.kind),
+        details: issueDetails(labels, issue),
       }),
     );
   });
@@ -306,10 +336,12 @@ function collectProjectItems(
 // A text block whose file could not be read: shown as an error inside the block, and
 // listed here so it is not only visible while that sheet is on screen.
 function contentLoadFailedItems(
+  messages: WorkspaceMessages,
   documentId: DocumentId,
   source: NotificationSource,
   session: DocumentSessionState,
 ): readonly NotificationItem[] {
+  const labels = messages.notifications.detailLabels;
   const contentPaths = new Map(
     [...session.sheets.values()].flatMap((sheet) =>
       sheet.blocks.map((block) => [block.blockId, block.contentPath] as const),
@@ -323,13 +355,11 @@ function contentLoadFailedItems(
         id: `contentLoadFailed:${documentId}:${blockId}`,
         kind: "contentLoadFailed",
         source,
-        message: MESSAGES.notifications.contentLoadFailed,
+        message: messages.notifications.contentLoadFailed,
         details: [
-          { label: DETAIL_LABELS.entityId, value: blockId },
-          ...(path === undefined
-            ? []
-            : [{ label: DETAIL_LABELS.path, value: path }]),
-          ...errorDetails(loadStatus.error),
+          { label: labels.entityId, value: blockId },
+          ...(path === undefined ? [] : [{ label: labels.path, value: path }]),
+          ...errorDetails(labels, loadStatus.error),
         ],
       }),
     ];
@@ -340,11 +370,13 @@ function contentLoadFailedItems(
 // and listed here so it is not only visible while that sheet is on screen. The block must
 // still exist (the failure set is pruned with the blocks, this is the second guard).
 function imageLoadFailedItems(
+  messages: WorkspaceMessages,
   documentId: DocumentId,
   source: NotificationSource,
   session: DocumentSessionState,
   failures: NonNullable<NotificationsInput["imageLoadFailures"]>,
 ): readonly NotificationItem[] {
+  const labels = messages.notifications.detailLabels;
   return [...session.sheets].flatMap(([sheetId, sheet]) => {
     const failed = failures.get(sheetId);
     if (failed === undefined) return [];
@@ -355,10 +387,10 @@ function imageLoadFailedItems(
           id: `imageLoadFailed:${documentId}:${block.blockId}`,
           kind: "imageLoadFailed",
           source,
-          message: MESSAGES.notifications.imageLoadFailed,
+          message: messages.notifications.imageLoadFailed,
           details: [
-            { label: DETAIL_LABELS.entityId, value: block.blockId },
-            { label: DETAIL_LABELS.path, value: block.contentPath },
+            { label: labels.entityId, value: block.blockId },
+            { label: labels.path, value: block.contentPath },
           ],
         }),
       );
@@ -368,6 +400,8 @@ function imageLoadFailedItems(
 function collectDocumentItems(
   input: NotificationsInput,
 ): readonly NotificationItem[] {
+  const { messages } = input;
+  const labels = messages.notifications.detailLabels;
   const items: NotificationItem[] = [];
   for (const [documentId, session] of input.application.documents) {
     const source: NotificationSource = {
@@ -383,10 +417,11 @@ function collectDocumentItems(
           kind: "saveError",
           source,
           message: describeSaveFailure(
+            messages,
             session.document.name,
             session.save.lastError.kind,
           ),
-          details: errorDetails(session.save.lastError),
+          details: errorDetails(labels, session.save.lastError),
           retry: { kind: "document", documentId },
         }),
       );
@@ -395,10 +430,11 @@ function collectDocumentItems(
     const failed = failedIds<{ sheetId: SheetId; state: EntityState }>(
       details?.sheetEntries ?? [],
       (entry) => entry.sheetId,
-      MESSAGES.notifications.loadFailedSheet,
+      messages.notifications.loadFailedSheet,
     );
     items.push(
       ...loadFailedItems(
+        labels,
         source,
         `loadFailed:sheet:${documentId}`,
         failed,
@@ -412,14 +448,17 @@ function collectDocumentItems(
           id: `loadIssue:document:${documentId}:${index}`,
           kind: "loadIssue",
           source,
-          message: describeLoadIssueKind(issue.kind),
-          details: issueDetails(issue),
+          message: describeLoadIssueKind(messages, issue.kind),
+          details: issueDetails(labels, issue),
         }),
       );
     });
-    items.push(...contentLoadFailedItems(documentId, source, session));
+    items.push(
+      ...contentLoadFailedItems(messages, documentId, source, session),
+    );
     items.push(
       ...imageLoadFailedItems(
+        messages,
         documentId,
         source,
         session,
@@ -432,10 +471,10 @@ function collectDocumentItems(
           id: `orphanContentFile:${documentId}:${index}`,
           kind: "orphanContentFile",
           source,
-          message: MESSAGES.notifications.orphanContentFile,
+          message: messages.notifications.orphanContentFile,
           details: [
-            { label: DETAIL_LABELS.path, value: warning.contentPath },
-            ...errorDetails(warning.error),
+            { label: labels.path, value: warning.contentPath },
+            ...errorDetails(labels, warning.error),
           ],
         }),
       );
@@ -447,6 +486,8 @@ function collectDocumentItems(
 function collectAppItems(
   input: NotificationsInput,
 ): readonly NotificationItem[] {
+  const { messages } = input;
+  const labels = messages.notifications.detailLabels;
   const source: NotificationSource = { scope: "app" };
   const items: NotificationItem[] = input.operationErrors.map((entry) =>
     makeItem({
@@ -454,11 +495,12 @@ function collectAppItems(
       kind: "operationError",
       source,
       message: describeOperationFailure(
+        messages,
         entry.operation,
         entry.subject,
         entry.error.kind,
       ),
-      details: errorDetails(entry.error),
+      details: errorDetails(labels, entry.error),
       dismissId: entry.id,
     }),
   );
@@ -469,8 +511,8 @@ function collectAppItems(
         id: "themeSaveError",
         kind: "themeSaveError",
         source,
-        message: `${MESSAGES.notifications.themeSaveError} ${describeErrorKind(saveError.kind)}`,
-        details: errorDetails(saveError),
+        message: `${messages.notifications.themeSaveError} ${describeErrorKind(messages, saveError.kind)}`,
+        details: errorDetails(labels, saveError),
       }),
     );
   }
@@ -481,8 +523,20 @@ function collectAppItems(
         id: "autoSaveSaveError",
         kind: "autoSaveSaveError",
         source,
-        message: `${MESSAGES.notifications.autoSaveSaveError} ${describeErrorKind(autoSaveError.kind)}`,
-        details: errorDetails(autoSaveError),
+        message: `${messages.notifications.autoSaveSaveError} ${describeErrorKind(messages, autoSaveError.kind)}`,
+        details: errorDetails(labels, autoSaveError),
+      }),
+    );
+  }
+  const languageError = input.language?.saveError ?? null;
+  if (languageError !== null) {
+    items.push(
+      makeItem({
+        id: "languageSaveError",
+        kind: "languageSaveError",
+        source,
+        message: `${messages.notifications.languageSaveError} ${describeErrorKind(messages, languageError.kind)}`,
+        details: errorDetails(labels, languageError),
       }),
     );
   }
@@ -493,8 +547,8 @@ function collectAppItems(
         id: "projectTreeWidthSaveError",
         kind: "projectTreeWidthSaveError",
         source,
-        message: `${MESSAGES.notifications.projectTreeWidthSaveError} ${describeErrorKind(layoutError.kind)}`,
-        details: errorDetails(layoutError),
+        message: `${messages.notifications.projectTreeWidthSaveError} ${describeErrorKind(messages, layoutError.kind)}`,
+        details: errorDetails(labels, layoutError),
       }),
     );
   }
@@ -504,8 +558,8 @@ function collectAppItems(
         id: "themeLoadIssue",
         kind: "themeLoadIssue",
         source,
-        message: MESSAGES.notifications.themeLoadIssue,
-        details: errorDetails(loadIssue),
+        message: messages.notifications.themeLoadIssue,
+        details: errorDetails(labels, loadIssue),
       }),
     );
   }
@@ -538,21 +592,22 @@ export function selectNotifications(
 // warnings. Load issues never go away while the entity stays open, so this is derived
 // state, not an event log.
 export function selectLoadStatusMessages(
+  messages: WorkspaceMessages,
   application: Pick<
     ApplicationState,
     "project" | "documents" | "documentDetails"
   >,
 ): readonly string[] {
-  const messages: string[] = [];
+  const texts: string[] = [];
   const project = application.project;
   if (project !== null && project.issues.length > 0) {
-    messages.push(MESSAGES.notifications.projectLoadedWithWarnings);
+    texts.push(messages.notifications.projectLoadedWithWarnings);
   }
   for (const [documentId, session] of application.documents) {
     const issues = application.documentDetails.get(documentId)?.issues ?? [];
     if (issues.length > 0) {
-      messages.push(describeDocumentLoadStatus(session.document.name));
+      texts.push(describeDocumentLoadStatus(messages, session.document.name));
     }
   }
-  return messages;
+  return texts;
 }

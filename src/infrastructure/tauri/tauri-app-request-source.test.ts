@@ -99,9 +99,15 @@ describe("settingsChanged", () => {
     const settingsListener = vi.fn();
     source.subscribe(openListener);
     source.subscribeSettings(settingsListener);
-    send({ kind: "settingsChanged", themePreference: "dark", autoSave: false });
+    send({
+      kind: "settingsChanged",
+      themePreference: "dark",
+      languagePreference: "ja",
+      autoSave: false,
+    });
     expect(settingsListener).toHaveBeenCalledWith({
       themePreference: "dark",
+      languagePreference: "ja",
       autoSave: false,
     });
     expect(openListener).not.toHaveBeenCalled();
@@ -111,10 +117,18 @@ describe("settingsChanged", () => {
     const source = createTauriAppRequestSource();
     const settingsListener = vi.fn();
     source.subscribeSettings(settingsListener);
-    send({ kind: "settingsChanged", themePreference: "sepia", autoSave: true });
-    send({ kind: "settingsChanged", themePreference: "dark" });
-    send({ kind: "settingsChanged", themePreference: "dark", autoSave: "yes" });
-    send({ kind: "somethingElse", themePreference: "dark", autoSave: true });
+    const valid = {
+      kind: "settingsChanged",
+      themePreference: "dark",
+      languagePreference: "ja",
+      autoSave: true,
+    };
+    send({ ...valid, themePreference: "sepia" });
+    send({ ...valid, languagePreference: "fr" });
+    send({ ...valid, languagePreference: undefined });
+    send({ ...valid, autoSave: "yes" });
+    send({ ...valid, themePreference: undefined });
+    send({ ...valid, kind: "somethingElse" });
     expect(settingsListener).not.toHaveBeenCalled();
   });
 
@@ -126,7 +140,12 @@ describe("settingsChanged", () => {
     await settle();
     expect(tauriCore.FakeChannel.instances).toHaveLength(1);
     unsubscribe();
-    send({ kind: "settingsChanged", themePreference: "light", autoSave: true });
+    send({
+      kind: "settingsChanged",
+      themePreference: "light",
+      languagePreference: "system",
+      autoSave: true,
+    });
     expect(settingsListener).not.toHaveBeenCalled();
   });
 });

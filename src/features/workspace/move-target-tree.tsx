@@ -8,6 +8,7 @@ import {
   useRef,
 } from "react";
 import { TreeRenameInput } from "./tree-rename-input";
+import { useMessages } from "./use-messages";
 import {
   type FlatTreeItem,
   NAVIGATION_KEYS,
@@ -17,20 +18,23 @@ import type {
   MoveTarget,
   MoveTargetDisabledReason,
 } from "./view-models/move-targets";
-import { MESSAGES } from "./workspace-messages";
+import type { WorkspaceMessages } from "./workspace-messages";
 import "./project-tree.css";
 import "./move-dialog.css";
 
 const FOLD_MARKER_CLASS = "move-target__marker";
 
-function disabledHint(reason: MoveTargetDisabledReason): string {
+function disabledHint(
+  messages: WorkspaceMessages,
+  reason: MoveTargetDisabledReason,
+): string {
   switch (reason) {
     case "currentParent":
-      return MESSAGES.dialogs.moveEntry.currentParentHint;
+      return messages.dialogs.moveEntry.currentParentHint;
     case "selfOrDescendant":
-      return MESSAGES.dialogs.moveEntry.selfOrDescendantHint;
+      return messages.dialogs.moveEntry.selfOrDescendantHint;
     case "notLoaded":
-      return MESSAGES.tree.loadFailedHint;
+      return messages.tree.loadFailedHint;
   }
 }
 
@@ -93,6 +97,12 @@ export function MoveTargetTree({
   onCreateFolder,
   onCancelCreate,
 }: MoveTargetTreeProps) {
+  const messages = useMessages().workspace;
+  // The root row has no name of its own; a Folder whose name could not be loaded has none.
+  const rowName = (row: MoveTarget): string =>
+    row.parentFolderId === null
+      ? messages.dialogs.moveEntry.projectRoot
+      : (row.name ?? messages.tree.unnamedEntity);
   const elements = useRef(new Map<string, HTMLLIElement>());
   const idPrefix = useId();
 
@@ -154,7 +164,8 @@ export function MoveTargetTree({
     >
       {rows.flatMap((row, index) => {
         const reason = row.disabledReason;
-        const hint = reason === null ? undefined : disabledHint(reason);
+        const hint =
+          reason === null ? undefined : disabledHint(messages, reason);
         const selected = row.key === highlightedKey;
         const expanded = expandedKeys.has(row.key);
         const itemClass = [
@@ -204,12 +215,12 @@ export function MoveTargetTree({
               >
                 {row.hasChildFolders
                   ? expanded
-                    ? MESSAGES.tree.folderExpandedMarker
-                    : MESSAGES.tree.folderCollapsedMarker
+                    ? messages.tree.folderExpandedMarker
+                    : messages.tree.folderCollapsedMarker
                   : ""}
               </span>
               <span id={`${idPrefix}-${row.key}`} className="tree-item__label">
-                {row.name}
+                {rowName(row)}
               </span>
             </div>
           </li>
@@ -226,7 +237,7 @@ export function MoveTargetTree({
             <div className="tree-item__row">
               <TreeRenameInput
                 initialName=""
-                label={MESSAGES.dialogs.moveEntry.newFolderInputLabel}
+                label={messages.dialogs.moveEntry.newFolderInputLabel}
                 onSubmit={(name) => onCreateFolder(name, row.key)}
                 onCancel={onCancelCreate}
                 restoreFocus={() => elements.current.get(row.key)?.focus()}

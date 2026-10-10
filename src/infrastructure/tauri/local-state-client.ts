@@ -3,6 +3,7 @@
 
 import type { ThemePreference } from "../../application/local-state/theme";
 import type { Viewport } from "../../application/local-state/viewport";
+import type { LanguagePreference } from "../../config/language-config";
 import type {
   DocumentId,
   ProjectId,
@@ -28,6 +29,16 @@ export function setThemePreference(
   return call(
     COMMANDS.setThemePreference,
     { themePreference },
+    toAppSettingsResult,
+  );
+}
+
+export function setLanguagePreference(
+  languagePreference: LanguagePreference,
+): Promise<CommandResult<AppSettings>> {
+  return call(
+    COMMANDS.setLanguagePreference,
+    { languagePreference },
     toAppSettingsResult,
   );
 }

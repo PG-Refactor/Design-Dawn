@@ -20,6 +20,7 @@ import type {
 } from "../../domain/shared/entity-id";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { getSelection, stopEditingSheet } from "../workspace/ui-state/ui-state";
+import { useMessages } from "../workspace/use-messages";
 import { useUiState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import {
@@ -37,7 +38,6 @@ import {
   isSnapSuspendKey,
   keyCommandOf,
 } from "./canvas-keyboard";
-import { CANVAS_MESSAGES } from "./canvas-messages";
 import { routePointerDown } from "./canvas-pointer-routing";
 import { displayedFrame, isInteracting } from "./geometry/preview-frame";
 import { normalizeRect } from "./geometry/range-selection";
@@ -96,6 +96,7 @@ export interface CanvasProps {
 // moved / scaled with a CSS transform. Blocks come from the application store (the single
 // source of truth); selection, drag / resize previews and the viewport come from UI state.
 export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
+  const messages = useMessages().canvas;
   const { applicationStore, uiStateStore, canvasActions } =
     useWorkspaceServices();
   const selectBlocks = useCallback(
@@ -460,7 +461,7 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
           data-testid="canvas-drop-overlay"
           className="canvas__drop-overlay"
         >
-          {CANVAS_MESSAGES.dropHint}
+          {messages.dropHint}
         </div>
       )}
     </div>

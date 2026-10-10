@@ -4,6 +4,7 @@ import type { EntryId, FolderId } from "../../domain/shared/entity-id";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { Modal } from "./modal";
 import { MoveTargetTree } from "./move-target-tree";
+import { useMessages } from "./use-messages";
 import {
   canCreateFolderIn,
   MOVE_TARGET_ROOT_KEY,
@@ -12,7 +13,6 @@ import {
   selectMoveTargets,
   visibleMoveTargets,
 } from "./view-models/move-targets";
-import { MESSAGES } from "./workspace-messages";
 import { useWorkspaceServices } from "./workspace-services-context";
 
 export interface MoveDialogProps {
@@ -45,6 +45,7 @@ export function MoveDialog({
   onChoose,
   onCreateFolder,
 }: MoveDialogProps) {
+  const messages = useMessages().workspace;
   const { applicationStore } = useWorkspaceServices();
   const application = useStoreSelector(applicationStore, identity);
   const targets = selectMoveTargets(application, entryId);
@@ -118,14 +119,14 @@ export function MoveDialog({
       busy={busy}
     >
       <h2 id={titleId} className="modal__title">
-        {`「${name}」${MESSAGES.tree.moveTo}`}
+        {messages.moveEntryTitle(name)}
       </h2>
       <p id={descriptionId} className="modal__body">
-        {MESSAGES.dialogs.moveEntry.description}
+        {messages.dialogs.moveEntry.description}
       </p>
       <MoveTargetTree
         rows={rows}
-        label={MESSAGES.dialogs.moveEntry.listLabel}
+        label={messages.dialogs.moveEntry.listLabel}
         highlightedKey={highlightedKey}
         expandedKeys={expandedKeys}
         creatingInKey={creatingInKey}
@@ -147,7 +148,7 @@ export function MoveDialog({
           disabled={busy || !canCreate || creatingInKey !== null}
           onClick={startCreating}
         >
-          {MESSAGES.dialogs.moveEntry.newFolder}
+          {messages.dialogs.moveEntry.newFolder}
         </button>
         <button
           type="button"
@@ -155,7 +156,7 @@ export function MoveDialog({
           disabled={busy}
           onClick={onCancel}
         >
-          {MESSAGES.dialogs.cancel}
+          {messages.dialogs.cancel}
         </button>
         <button
           type="button"
@@ -165,7 +166,7 @@ export function MoveDialog({
             if (highlighted !== undefined) choose(highlighted);
           }}
         >
-          {MESSAGES.dialogs.moveEntry.choose}
+          {messages.dialogs.moveEntry.choose}
         </button>
       </div>
     </Modal>

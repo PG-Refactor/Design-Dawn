@@ -119,6 +119,10 @@ export interface Workspace {
     name: string,
     options?: CloseOptions,
   ): Promise<OperationResult<void>>;
+  // Reads the open Project again from disk: like opening it afresh, so the open Documents
+  // are saved and closed first (`options` as for `openProject`) and the Project and its
+  // tree are replaced by what is on disk. `projectNotOpen` without a Project.
+  reloadProject(options?: CloseOptions): Promise<OperationResult<void>>;
   // Installs the Project that a launch argument (`.dawn`) or an "open in a new window"
   // asked for, which Rust has already opened, and resolves to the Document to open (null
   // when nothing was requested, or for a Project folder, which names no Document). It does
@@ -768,6 +772,14 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
         () => gateway.openProject(selectionId),
         options?.discardChanges === true,
       ),
+    reloadProject(options) {
+      const project = requireProject();
+      if (!project.ok) return Promise.resolve(project);
+      return openOrCreateProject(
+        () => gateway.reloadProject(project.value.projectId),
+        options?.discardChanges === true,
+      );
+    },
     createProject(selectionId, name, options) {
       const displayName = fromDomainResult(parseDisplayName(name));
       // Validated before anything is closed.

@@ -11,6 +11,8 @@ export interface ConfirmDialogAlternative {
 export interface ConfirmDialogProps {
   readonly title: string;
   readonly paragraphs: readonly string[];
+  // Shown as a list after the paragraphs (e.g. the names of affected Documents).
+  readonly listItems?: readonly string[];
   readonly cancelLabel: string;
   readonly confirmLabel: string;
   // Destructive by default; a plain confirmation (save and move) uses the primary look.
@@ -26,6 +28,7 @@ export interface ConfirmDialogProps {
 export function ConfirmDialog({
   title,
   paragraphs,
+  listItems = [],
   cancelLabel,
   confirmLabel,
   confirmVariant = "danger",
@@ -52,6 +55,14 @@ export function ConfirmDialog({
         {paragraphs.map((paragraph) => (
           <p key={paragraph}>{paragraph}</p>
         ))}
+        {listItems.length === 0 ? null : (
+          <ul>
+            {listItems.map((item, index) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: names may repeat, the list is static
+              <li key={`${index}:${item}`}>{item}</li>
+            ))}
+          </ul>
+        )}
       </div>
       <div className="modal__actions">
         <button

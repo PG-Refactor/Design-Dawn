@@ -35,6 +35,7 @@ describe("createAppServices", () => {
   it("wires the theme controller to the app settings commands", async () => {
     invokeMock.mockResolvedValue({
       themePreference: "dark",
+      languagePreference: "ja",
       autoSave: true,
       projectTreeWidth: 320,
       loadIssue: null,
@@ -46,12 +47,51 @@ describe("createAppServices", () => {
     themeController.dispose();
   });
 
+  it("wires the language controller to the app settings commands", async () => {
+    invokeMock.mockResolvedValue({
+      themePreference: "dark",
+      languagePreference: "ja",
+      autoSave: true,
+      projectTreeWidth: 320,
+      loadIssue: null,
+    });
+    const { languageController } = createAppServices();
+    await languageController.initialize();
+    expect(invokeMock).toHaveBeenCalledWith(COMMANDS.getAppSettings, {});
+    expect(languageController.store.getState()).toMatchObject({
+      preference: "ja",
+      language: "ja",
+    });
+  });
+
   it("provides the drop event source and the asset URL resolver", () => {
     const { dropEventSource, assetUrlResolver, disconnectUiState } =
       createAppServices();
     expect(typeof dropEventSource.subscribeFilesDropped).toBe("function");
     expect(typeof dropEventSource.subscribeDragState).toBe("function");
     expect(typeof assetUrlResolver.urlFor).toBe("function");
+    disconnectUiState();
+  });
+
+  it("provides a Git controller that has no status without a Project", () => {
+    const { gitController, disconnectUiState } = createAppServices();
+    expect(gitController.store.getState()).toEqual({
+      projectId: null,
+      status: null,
+      statusError: null,
+      refreshing: false,
+      operating: false,
+      runningOperation: null,
+      diff: null,
+      history: null,
+      historyError: null,
+      lastCommit: null,
+    });
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      COMMANDS.gitStatus,
+      expect.anything(),
+    );
+    gitController.dispose();
     disconnectUiState();
   });
 

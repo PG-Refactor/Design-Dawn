@@ -2,6 +2,7 @@ import type { AppSettingsGateway } from "../../application/ports/app-settings-ga
 import {
   getAppSettings,
   setAutoSave,
+  setLanguagePreference,
   setProjectTreeWidth,
   setThemePreference,
 } from "./local-state-client";
@@ -11,6 +12,7 @@ export function createTauriAppSettingsGateway(): AppSettingsGateway {
   return {
     getAppSettings,
     setThemePreference,
+    setLanguagePreference,
     setAutoSave,
     setProjectTreeWidth,
   };
