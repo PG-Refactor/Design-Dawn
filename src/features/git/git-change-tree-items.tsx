@@ -289,9 +289,6 @@ export function GitFileRow({
           </button>
         )}
       </span>
-      {operation === null ? (
-        <span className="git-file-row__note">{messages.conflictNote}</span>
-      ) : null}
       <span
         role="img"
         className={`git-file-row__kind git-file-row__kind--${entry.change}`}
@@ -300,6 +297,10 @@ export function GitFileRow({
       >
         {kind.letter}
       </span>
+      {/* Last, so its full-width line wraps under the row instead of pushing the letter down. */}
+      {operation === null ? (
+        <span className="git-file-row__note">{messages.conflictNote}</span>
+      ) : null}
     </div>
   );
 }

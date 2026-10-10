@@ -165,6 +165,12 @@
   opacity: 0;
 }
 
+/* The actions sit at the right edge whether or not the row has a directory to fill the
+   space in between (a file at the project root has none). */
+.git-file-row .git-tree-item__actions {
+  margin-left: auto;
+}
+
 .git-tree-item:hover .git-tree-item__actions,
 .git-tree-item:focus-within .git-tree-item__actions,
 .git-tree-item[aria-selected="true"] .git-tree-item__actions {
@@ -245,7 +251,6 @@
 .git-file-row__kind {
   flex: 0 0 auto;
   min-width: 1.25rem;
-  margin-left: auto;
   font-family: monospace;
   font-weight: 700;
   text-align: center;
