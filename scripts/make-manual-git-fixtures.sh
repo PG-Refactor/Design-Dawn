@@ -90,8 +90,49 @@ gc "$C" commit -qam "main"
 gc "$C" merge other >/dev/null 2>&1 || true
 printf 'unrelated change\n' > "$C/free.txt"
 
+# 6. Remote scenarios (docs/testing.md §26, R): local bare remotes, no network.
+#    sync:          1 commit behind and 1 ahead of origin/main (Sync merges), plus the
+#                   branch feature/unpublished with no upstream and two remotes (Publish asks).
+#    pull-conflict: local and remote changed the same line (Pull stops on a conflict).
+REMOTES="$BASE/remotes"
+mkdir -p "$REMOTES"
+git init -q --bare -b main "$REMOTES/origin.git"
+git init -q --bare -b main "$REMOTES/backup.git"
+S="$BASE/sync"
+cp -r "$SRC" "$S"
+git -C "$S" init -q -b main
+printf 'shared\n' > "$S/shared.txt"
+gc "$S" add -A
+gc "$S" commit -qm "initial"
+git -C "$S" remote add origin "$REMOTES/origin.git"
+git -C "$S" remote add backup "$REMOTES/backup.git"
+git -C "$S" push -q -u origin main
+# Someone else pushes a commit (behind 1).
+OTHER="$BASE/.other-clone"
+git clone -q "$REMOTES/origin.git" "$OTHER"
+printf 'from the remote\n' > "$OTHER/remote-only.txt"
+gc "$OTHER" add -A
+gc "$OTHER" commit -qm "remote change"
+git -C "$OTHER" push -q origin main
+git -C "$S" fetch -q origin
+# A local commit that is not pushed (ahead 1; Amend / Undo Last Commit allowed).
+printf 'from here\n' > "$S/local-only.txt"
+gc "$S" add -A
+gc "$S" commit -qm "local change"
+git -C "$S" branch feature/unpublished
+
+P="$BASE/pull-conflict"
+git clone -q "$REMOTES/origin.git" "$P"
+printf 'remote line\n' > "$OTHER/shared.txt"
+gc "$OTHER" commit -qam "remote edit of shared"
+git -C "$OTHER" push -q origin main
+printf 'local line\n' > "$P/shared.txt"
+gc "$P" commit -qam "local edit of shared"
+git -C "$P" fetch -q origin
+rm -rf "$OTHER"
+
 # A local identity so commits from the app work without touching the global config.
-for repo in "$BASE/clean" "$R" "$C"; do
+for repo in "$BASE/clean" "$R" "$C" "$S" "$P"; do
   git -C "$repo" config user.name "Manual Tester"
   git -C "$repo" config user.email "tester@example.invalid"
 done
@@ -100,3 +141,5 @@ echo "created in $BASE:"
 ls "$BASE"
 git -C "$R" status --short
 git -C "$C" status --short
+git -C "$S" status --short --branch
+git -C "$P" status --short --branch
