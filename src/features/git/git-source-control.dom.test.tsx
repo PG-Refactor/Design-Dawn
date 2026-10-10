@@ -109,7 +109,16 @@ describe("commit box", () => {
   });
 
   it("keeps the label as the accessible name, and shows a full-width commit button with an icon", async () => {
-    await openGit(statusOf({ head: "main", oid: FULL_ID }));
+    await openGit(
+      statusOf({ head: "main", oid: FULL_ID }, [
+        {
+          path: "a.md",
+          indexStatus: "modified",
+          worktreeStatus: "unmodified",
+          originalPath: null,
+        },
+      ]),
+    );
     const label = screen.getByText(GIT_MESSAGES.ja.commitMessageLabel);
     expect(label.classList.contains("git-visually-hidden")).toBe(true);
     const button = screen.getByRole("button", { name: "コミット" });

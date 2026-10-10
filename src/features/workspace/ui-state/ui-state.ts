@@ -157,7 +157,27 @@ export type DialogState =
       // Open Documents whose files are among the targets (from `discardImpact`).
       readonly documentIds: readonly DocumentId[];
       readonly projectFilesAffected: boolean;
+    }
+  // Smart commit (docs/ui-design.md §13.6): nothing is staged but there are changes; asked
+  // before they are all staged. Carries what the commit continues with after the answer.
+  | {
+      readonly kind: "confirmGitStageAll";
+      readonly followUp: GitCommitFollowUp;
+      readonly remote: string | null;
+    }
+  // Which remote to publish the branch to, asked only when there are several. The names
+  // are repository text: shown as text only.
+  | {
+      readonly kind: "chooseGitRemote";
+      readonly remoteNames: readonly string[];
+      readonly continuation: GitRemoteContinuation;
     };
+
+// What a commit does once it has been made (also `git-commit-flow.ts`).
+export type GitCommitFollowUp = "none" | "push" | "sync";
+
+// What goes on after the user has picked a remote.
+export type GitRemoteContinuation = "commitAndPush" | "push";
 
 // One file of a discard question: untracked files are deleted, the others restored.
 export interface DiscardTarget {

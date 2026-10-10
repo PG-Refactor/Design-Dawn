@@ -2,7 +2,6 @@ import {
   type KeyboardEvent,
   useId,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -18,9 +17,10 @@ import {
   useWorkspaceModel,
 } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
-import { deriveGitChangeSections } from "./git-change-sections";
-import { runGitCommit } from "./git-commit-flow";
-import { CheckIcon } from "./git-icons";
+import { requestGitCommit } from "./git-action-flow";
+import { GitCommitActions } from "./git-commit-actions";
+import { hasCommittableChanges } from "./git-menu-items";
+import { useGitBlocked } from "./use-git-blocked";
 
 // Module-level so `useWorkspaceModel` recomputes only when a state changes. The draft
 // registry is not observable, so uncommitted Markdown text is not part of this; the note
@@ -37,7 +37,7 @@ export function GitCommitBox({ status }: { readonly status: GitStatus }) {
   const { uiStateStore } = services;
   const message = useUiState((ui) => ui.gitCommitMessage);
   const operating = useGitState((git) => git.operating);
-  const refreshing = useGitState((git) => git.refreshing);
+  const blocked = useGitBlocked();
   const hasUnsaved = useWorkspaceModel(selectHasUnsaved);
   const [submitting, setSubmitting] = useState(false);
   // Synchronous, because two clicks can arrive before `operating` is rendered.
@@ -45,23 +45,17 @@ export function GitCommitBox({ status }: { readonly status: GitStatus }) {
   const messageId = useId();
   const textarea = useRef<HTMLTextAreaElement | null>(null);
   const noteId = useId();
-  const hasStaged = useMemo(
-    () =>
-      deriveGitChangeSections(status).some(
-        (section) => section.id === "staged",
-      ),
-    [status],
-  );
   const branchName = status.branch?.head ?? null;
   const placeholder =
     branchName === null
       ? messages.commitPlaceholderGeneric
       : messages.commitPlaceholder(branchName);
-  const busy = submitting || operating || refreshing;
+  // Enabled with any committable change (VS Code): when nothing is staged the flow asks
+  // whether to stage everything.
   const canCommit =
-    !busy &&
+    !(submitting || blocked) &&
     status.repositoryState === "ready" &&
-    hasStaged &&
+    hasCommittableChanges(status) &&
     message.trim() !== "";
 
   // Grows with the content; the stylesheet caps the height (then the field scrolls).
@@ -79,12 +73,7 @@ export function GitCommitBox({ status }: { readonly status: GitStatus }) {
     inFlight.current = true;
     setSubmitting(true);
     try {
-      await runGitCommit(services, {
-        amend: false,
-        stageAll: false,
-        followUp: "none",
-        remote: null,
-      });
+      await requestGitCommit(services, { amend: false, followUp: "none" });
     } finally {
       inFlight.current = false;
       setSubmitting(false);
@@ -124,16 +113,15 @@ export function GitCommitBox({ status }: { readonly status: GitStatus }) {
         onKeyDown={handleKeyDown}
       />
       <div className="git-commit-box__actions">
-        <button
-          type="button"
-          className="git-primary-button"
-          disabled={!canCommit}
-          aria-describedby={noteId}
-          onClick={() => void submit()}
-        >
-          <CheckIcon />
-          {submitting ? messages.committing : messages.commit}
-        </button>
+        <GitCommitActions
+          status={status}
+          message={message}
+          blocked={submitting || blocked}
+          canCommit={canCommit}
+          submitting={submitting}
+          describedBy={noteId}
+          onCommit={() => void submit()}
+        />
       </div>
       <p
         id={noteId}

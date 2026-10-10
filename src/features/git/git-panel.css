@@ -26,6 +26,54 @@
   margin-left: auto;
 }
 
+/* The "More Actions" trigger looks like the other icon buttons of the header. */
+.git-more-actions .popup-menu__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+}
+
+.git-branch__sync {
+  flex: 0 0 auto;
+  padding: 0 var(--space-1);
+  border: 0;
+  border-radius: var(--radius-medium);
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.git-branch__sync:hover:not(:disabled) {
+  background: var(--color-selection);
+  color: var(--color-text);
+}
+
+.git-branch__sync:disabled {
+  cursor: not-allowed;
+}
+
+.git-remote-choices {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.git-remote-choices__option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  overflow-wrap: anywhere;
+}
+
 .git-branch {
   display: inline-flex;
   align-items: center;
@@ -437,6 +485,41 @@
 
 .git-commit-box__actions {
   display: flex;
+}
+
+/* Main commit button + the chevron that opens the other commit actions. */
+.git-commit-split {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 1px;
+}
+
+.git-commit-split .git-primary-button {
+  flex: 1 1 auto;
+  min-width: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.git-commit-split__menu .popup-menu__trigger {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  border: 0;
+  border-radius: 0 var(--radius-medium) var(--radius-medium) 0;
+  background: var(--color-button-primary-bg);
+  color: var(--color-button-primary-text);
+}
+
+.git-commit-split__menu .popup-menu__trigger:hover,
+.git-commit-split__menu .popup-menu__trigger[aria-expanded="true"] {
+  background: var(--color-button-primary-hover);
+}
+
+/* The list opens below and leans on the right edge of the narrow panel. */
+.git-commit-split__menu .popup-menu__list {
+  right: 0;
 }
 
 .git-commit-box__note {

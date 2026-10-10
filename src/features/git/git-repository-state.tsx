@@ -34,6 +34,7 @@ export function GitRepositoryState() {
   const status = useGitState((git) => git.status);
   const statusError = useGitState((git) => git.statusError);
   const refreshing = useGitState((git) => git.refreshing);
+  const runningOperation = useGitState((git) => git.runningOperation);
   const view = viewOf(projectId, status, statusError);
 
   switch (view.kind) {
@@ -68,6 +69,11 @@ export function GitRepositoryState() {
           {refreshing ? (
             <p role="status" className="git-panel__refreshing">
               {messages.refreshing}
+            </p>
+          ) : runningOperation !== null ? (
+            // Same place and live region as "refreshing": what the Git action is doing.
+            <p role="status" className="git-panel__refreshing">
+              {messages.runningOperation[runningOperation]}
             </p>
           ) : null}
           <p

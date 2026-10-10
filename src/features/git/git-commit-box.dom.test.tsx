@@ -93,12 +93,13 @@ describe("commit button state", () => {
     expect(commitButton().disabled).toBe(false);
   });
 
-  it("is disabled when nothing is staged", async () => {
+  it("is enabled with only unstaged changes (the smart commit question follows), disabled with no changes", async () => {
     const shell = await openGit(UNSTAGED_ONLY);
     await typeMessage(shell, "message");
-    expect(commitButton().disabled).toBe(true);
+    expect(commitButton().disabled).toBe(false);
     await shell.user.keyboard("{Control>}{Enter}{/Control}");
     expect(shell.gitGateway.commitCalls).toHaveLength(0);
+    expect(screen.getByRole("dialog")).toBeTruthy();
   });
 
   it("is not shown when the repository is not ready", async () => {

@@ -5,6 +5,9 @@
 import type { DisplayLanguage } from "../../config/language-config";
 import type { Widen } from "../../shared/i18n/catalog-types";
 
+const DOWN_ARROW = "↓";
+const UP_ARROW = "↑";
+
 const GIT_MESSAGES_JA = {
   panelLabel: "Git",
   diffTabIcon: "±",
@@ -73,6 +76,48 @@ const GIT_MESSAGES_JA = {
     pull: "プルしています...",
     push: "プッシュしています...",
     publish: "ブランチを発行しています...",
+  },
+  // Commit options, remote operations and their menus (docs/ui-design.md §13.6, R-4).
+  commitMenuLabel: "その他のコミット操作",
+  commitActions: {
+    commit: "コミット",
+    amend: "コミット (修正)",
+    commitPush: "コミットしてプッシュ",
+    commitSync: "コミットして同期",
+  },
+  moreActions: "その他の操作...",
+  headerActions: {
+    pull: "プル",
+    push: "プッシュ",
+    fetch: "フェッチ",
+    sync: "同期",
+    undoLastCommit: "最後のコミットを元に戻す",
+  },
+  disabledReasons: {
+    noCommits: "コミットがまだありません",
+    alreadyPushed: "プッシュ済みのコミットは変更できません",
+    noUpstream: "このブランチには上流ブランチがありません",
+    detached: "ブランチをチェックアウトしていません",
+    messageRequired: "コミットメッセージを入力してください",
+    nothingToCommit: "コミットする変更がありません",
+  },
+  syncChanges: "変更の同期",
+  behindCount: (count: number): string => `${count}${DOWN_ARROW}`,
+  aheadCount: (count: number): string => `${count}${UP_ARROW}`,
+  syncChangesWithCounts: (behind: number, ahead: number): string =>
+    `変更の同期 ${behind}${DOWN_ARROW} ${ahead}${UP_ARROW}`,
+  syncCountsLabel: (behind: number, ahead: number): string =>
+    `変更の同期: ${behind} 件プル、${ahead} 件プッシュ`,
+  publishBranch: "ブランチの発行",
+  stageAllDialog: {
+    title:
+      "コミットする変更がステージされていません。すべての変更をステージして直接コミットしますか?",
+    confirm: "はい",
+  },
+  remoteDialog: {
+    title: "ブランチの発行先のリモートを選択してください",
+    listLabel: "リモート",
+    confirm: "発行",
   },
   commitUnsavedNote: "未保存の変更はコミットに含まれません。",
   // Shown before the note while something is unsaved, so the emphasis is not colour only.
@@ -191,6 +236,47 @@ const GIT_MESSAGES_EN: GitMessages = {
     pull: "Pulling...",
     push: "Pushing...",
     publish: "Publishing the branch...",
+  },
+  commitMenuLabel: "More Commit Actions",
+  commitActions: {
+    commit: "Commit",
+    amend: "Commit (Amend)",
+    commitPush: "Commit & Push",
+    commitSync: "Commit & Sync",
+  },
+  moreActions: "More Actions...",
+  headerActions: {
+    pull: "Pull",
+    push: "Push",
+    fetch: "Fetch",
+    sync: "Sync",
+    undoLastCommit: "Undo Last Commit",
+  },
+  disabledReasons: {
+    noCommits: "There are no commits yet",
+    alreadyPushed: "A pushed commit cannot be changed",
+    noUpstream: "This branch has no upstream branch",
+    detached: "No branch is checked out",
+    messageRequired: "Enter a commit message",
+    nothingToCommit: "There are no changes to commit",
+  },
+  syncChanges: "Synchronize Changes",
+  behindCount: (count) => `${count}${DOWN_ARROW}`,
+  aheadCount: (count) => `${count}${UP_ARROW}`,
+  syncChangesWithCounts: (behind, ahead) =>
+    `Sync Changes ${behind}${DOWN_ARROW} ${ahead}${UP_ARROW}`,
+  syncCountsLabel: (behind, ahead) =>
+    `Synchronize Changes: ${behind} to pull, ${ahead} to push`,
+  publishBranch: "Publish Branch",
+  stageAllDialog: {
+    title:
+      "There are no staged changes to commit. Would you like to stage all your changes and commit them directly?",
+    confirm: "Yes",
+  },
+  remoteDialog: {
+    title: "Pick a remote to publish the branch to",
+    listLabel: "Remotes",
+    confirm: "Publish",
   },
   commitUnsavedNote: "Unsaved changes are not included in the commit.",
   commitUnsavedPrefix: "Note: ",

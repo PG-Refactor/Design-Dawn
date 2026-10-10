@@ -96,3 +96,36 @@ export function DiscardIcon() {
     </Icon>
   );
 }
+
+// The "more actions" button: three dots.
+export function EllipsisIcon() {
+  return (
+    <Icon>
+      <circle cx="3.5" cy="8" r="0.75" fill="currentColor" />
+      <circle cx="8" cy="8" r="0.75" fill="currentColor" />
+      <circle cx="12.5" cy="8" r="0.75" fill="currentColor" />
+    </Icon>
+  );
+}
+
+// Two arrows turning round: synchronize (pull then push).
+export function SyncIcon() {
+  return (
+    <Icon>
+      <path d="M3 7a5 5 0 0 1 9-2" />
+      <path d="M12.5 2v3h-3" />
+      <path d="M13 9a5 5 0 0 1-9 2" />
+      <path d="M3.5 14v-3h3" />
+    </Icon>
+  );
+}
+
+// An arrow rising out of a cloud: publish the branch.
+export function CloudUploadIcon() {
+  return (
+    <Icon>
+      <path d="M4.5 12a3 3 0 0 1-.4-5.97A4 4 0 0 1 11.8 5.5 3 3 0 0 1 11.5 12" />
+      <path d="M8 13V8M6 9.5L8 7.5l2 2" />
+    </Icon>
+  );
+}

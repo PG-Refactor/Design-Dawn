@@ -1,3 +1,4 @@
+import { GitRemoteDialog, GitStageAllDialog } from "../git/git-action-dialogs";
 import { GitDiscardDialog } from "../git/git-discard-dialog";
 import { ConfirmDialog } from "./confirm-dialog";
 import { MoveDialog } from "./move-dialog";
@@ -170,6 +171,10 @@ export function WorkspaceDialogs() {
           busy={busy}
         />
       );
+    case "confirmGitStageAll":
+      return <GitStageAllDialog busy={busy} />;
+    case "chooseGitRemote":
+      return <GitRemoteDialog remoteNames={dialog.remoteNames} busy={busy} />;
     case "confirmDeleteSheet":
       return (
         <ConfirmDialog

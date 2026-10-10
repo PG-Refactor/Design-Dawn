@@ -3,6 +3,7 @@
 // stage everything? then what?) and call these.
 
 import { setGitCommitMessage } from "../workspace/ui-state/shell-ui-state";
+import type { GitCommitFollowUp } from "../workspace/ui-state/ui-state";
 import { deriveGitChangeSections } from "./git-change-sections";
 import { refreshDiffAfterStatusChange } from "./git-diff-session";
 import {
@@ -13,7 +14,7 @@ import {
 } from "./git-remote-flow";
 import { reloadHistoryIfShown } from "./git-view-refresh";
 
-export type GitCommitFollowUp = "none" | "push" | "sync";
+export type { GitCommitFollowUp };
 
 export interface GitCommitRequest {
   readonly amend: boolean;

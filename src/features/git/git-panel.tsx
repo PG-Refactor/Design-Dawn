@@ -4,6 +4,7 @@ import { useGitState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import { GitBranchIndicator } from "./git-branch-indicator";
 import { RefreshIcon } from "./git-icons";
+import { GitMoreActionsMenu } from "./git-more-actions-menu";
 import { GitRepositoryState } from "./git-repository-state";
 import { refreshGitView } from "./git-view-refresh";
 import "./git-panel.css";
@@ -19,7 +20,8 @@ export function GitPanel() {
   const hasProject = useGitState((git) => git.projectId !== null);
   const refreshing = useGitState((git) => git.refreshing);
   const operating = useGitState((git) => git.operating);
-  const branch = useGitState((git) => git.status?.branch ?? null);
+  const status = useGitState((git) => git.status);
+  const branch = status?.branch ?? null;
 
   async function refresh(): Promise<void> {
     if (refreshInFlight.current) return;
@@ -49,6 +51,9 @@ export function GitPanel() {
           >
             <RefreshIcon />
           </button>
+          {status?.repositoryState === "ready" ? (
+            <GitMoreActionsMenu status={status} />
+          ) : null}
         </header>
       ) : null}
       <GitRepositoryState />
