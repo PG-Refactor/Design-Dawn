@@ -52,7 +52,7 @@ describe("Project | Git switch", () => {
     expect(modeTab("Git").getAttribute("aria-controls")).toBe(panel.id);
   });
 
-  it("replaces the document area in Git mode and restores it with the same state", async () => {
+  it("keeps the Document tabs and canvas in Git mode and keeps the same state", async () => {
     const shell = await renderShell();
     await shell.openProjectInUi();
     await shell.user.click(
@@ -69,21 +69,12 @@ describe("Project | Git switch", () => {
     const before = shell.uiStateStore.getState();
 
     await showGit(shell);
-    expect(screen.queryByRole("tablist", { name: "Document Tabs" })).toBeNull();
-    expect(screen.queryByRole("tablist", { name: "Sheet Tabs" })).toBeNull();
-    const mainArea = screen.getByRole("region", {
-      name: GIT_MESSAGES.ja.mainAreaLabel,
-    });
-    expect(
-      within(mainArea).getByText(GIT_MESSAGES.ja.mainAreaPlaceholder),
-    ).toBeTruthy();
+    expect(screen.getByRole("tablist", { name: "Document Tabs" })).toBeTruthy();
+    expect(screen.getByRole("tablist", { name: "Sheet Tabs" })).toBeTruthy();
 
     await shell.user.click(modeTab("Project"));
     expect(screen.getByRole("tablist", { name: "Document Tabs" })).toBeTruthy();
     expect(screen.getByRole("tablist", { name: "Sheet Tabs" })).toBeTruthy();
-    expect(
-      screen.queryByRole("region", { name: GIT_MESSAGES.ja.mainAreaLabel }),
-    ).toBeNull();
     const after = shell.uiStateStore.getState();
     expect(after.activeDocumentId).toBe(DOCUMENT_A);
     expect(after.activeSheetIdByDocument).toBe(before.activeSheetIdByDocument);

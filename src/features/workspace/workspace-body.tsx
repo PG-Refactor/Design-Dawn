@@ -2,7 +2,7 @@ import { type CSSProperties, useRef, useState } from "react";
 import type { LayoutSettingsState } from "../../application/settings/layout-settings-controller";
 import { LAYOUT_CONFIG } from "../../config/layout-config";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
-import { GitMainArea } from "../git/git-main-area";
+import { GitDiffPanel } from "../git/git-diff-panel";
 import { DocumentPanel } from "./document-panel";
 import { DocumentTabs } from "./document-tabs";
 import { ProjectTreeSplitter } from "./project-tree-splitter";
@@ -29,7 +29,7 @@ export function WorkspaceBody() {
     layoutSettingsController.store,
     selectProjectTreeWidth,
   );
-  const leftPanelMode = useUiState((ui) => ui.leftPanelMode);
+  const diffShown = useUiState((ui) => ui.activeMainTab.kind === "diff");
   const [liveWidth, setLiveWidth] = useState<number | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   // Only the newest save may clear the live width: an older, slower one finishing later
@@ -91,14 +91,8 @@ export function WorkspaceBody() {
         onReset={() => void commit(Math.min(defaultWidthPx, measureMaxWidth()))}
       />
       <main className="workspace-shell__main">
-        {leftPanelMode === "git" ? (
-          <GitMainArea />
-        ) : (
-          <>
-            <DocumentTabs />
-            <DocumentPanel />
-          </>
-        )}
+        <DocumentTabs />
+        {diffShown ? <GitDiffPanel /> : <DocumentPanel />}
       </main>
     </div>
   );

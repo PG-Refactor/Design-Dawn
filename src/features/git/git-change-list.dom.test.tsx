@@ -343,7 +343,8 @@ describe("selection", () => {
     expect(rowOf("変更", "変更 c.md").getAttribute("aria-selected")).toBe(
       "true",
     );
-    expect(shell.uiStateStore.getState().gitSelection).toEqual({
+    expect(shell.uiStateStore.getState().activeMainTab).toEqual({
+      kind: "diff",
       path: "c.md",
       side: "unstaged",
     });
@@ -364,7 +365,8 @@ describe("selection", () => {
     expect(rowOf("変更", "変更 c.md").getAttribute("aria-selected")).toBe(
       "false",
     );
-    expect(shell.uiStateStore.getState().gitSelection).toEqual({
+    expect(shell.uiStateStore.getState().activeMainTab).toEqual({
+      kind: "diff",
       path: "a.md",
       side: "staged",
     });
@@ -375,20 +377,23 @@ describe("selection", () => {
     await shell.user.click(
       within(rowOf("マージの変更", "競合 x.md")).getByText("x.md"),
     );
-    expect(shell.uiStateStore.getState().gitSelection).toBeNull();
+    expect(shell.uiStateStore.getState().diffTabs).toEqual([]);
   });
 
-  it("drops the selection when the Project changes", async () => {
+  it("drops the diff tabs when the Project changes", async () => {
     const shell = await openChanges(...MIXED);
     await shell.user.click(
       within(rowOf("変更", "変更 c.md")).getByText("c.md"),
     );
-    expect(shell.uiStateStore.getState().gitSelection).not.toBeNull();
+    expect(shell.uiStateStore.getState().diffTabs).toHaveLength(1);
     await act(async () => {
       await shell.actions.closeProject();
       await settle();
     });
-    expect(shell.uiStateStore.getState().gitSelection).toBeNull();
+    expect(shell.uiStateStore.getState().diffTabs).toEqual([]);
+    expect(shell.uiStateStore.getState().activeMainTab).toEqual({
+      kind: "document",
+    });
     expect(shell.uiStateStore.getState().leftPanelMode).toBe("git");
   });
 });
@@ -642,13 +647,15 @@ describe("tree keyboard navigation", () => {
     const shell = await openChanges(...MIXED);
     rowOf("変更", "変更 c.md").focus();
     await shell.user.keyboard(" ");
-    expect(shell.uiStateStore.getState().gitSelection).toEqual({
+    expect(shell.uiStateStore.getState().activeMainTab).toEqual({
+      kind: "diff",
       path: "c.md",
       side: "unstaged",
     });
     headerOf("変更").focus();
     await shell.user.keyboard("{Enter}");
-    expect(shell.uiStateStore.getState().gitSelection).toEqual({
+    expect(shell.uiStateStore.getState().activeMainTab).toEqual({
+      kind: "diff",
       path: "c.md",
       side: "unstaged",
     });

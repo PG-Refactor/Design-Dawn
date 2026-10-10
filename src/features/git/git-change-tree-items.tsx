@@ -153,6 +153,7 @@ interface FileRowProps extends ItemProps {
   readonly entry: GitChangeEntry;
   readonly selected: boolean;
   readonly onSelect: (entry: GitChangeEntry) => void;
+  readonly onPin: (entry: GitChangeEntry) => void;
   readonly onOperate: (entry: GitChangeEntry) => void;
 }
 
@@ -165,6 +166,7 @@ export function GitFileRow({
   onFocusItem,
   onNavigate,
   onSelect,
+  onPin,
   onOperate,
 }: FileRowProps) {
   const messages = useMessages().git;
@@ -190,6 +192,14 @@ export function GitFileRow({
     onSelect(entry);
   }
 
+  function handleDoubleClick(event: MouseEvent<HTMLDivElement>): void {
+    const target = event.target;
+    if (!(target instanceof Element) || target.closest("button") !== null) {
+      return;
+    }
+    onPin(entry);
+  }
+
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
     if (!isOwnKey(event)) return;
     if (isActivationKey(event.key)) {
@@ -211,6 +221,7 @@ export function GitFileRow({
       tabIndex={isRoving ? 0 : -1}
       className={classNames.join(" ")}
       onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
       onKeyDown={handleKeyDown}
       onFocus={(event) => {
         if (event.target === event.currentTarget) onFocusItem(entry.key);

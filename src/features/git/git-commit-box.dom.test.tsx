@@ -216,7 +216,7 @@ describe("committing", () => {
     shell.gitGateway.status = CLEAN_AFTER_COMMIT;
     await shell.user.click(commitButton());
     await settled();
-    expect(shell.uiStateStore.getState().gitSelection).toBeNull();
+    expect(shell.uiStateStore.getState().diffTabs).toEqual([]);
     expect(shell.gitController.store.getState().diff).toBeNull();
     expect(screen.queryByText("+staged line")).toBeNull();
   });
@@ -267,7 +267,7 @@ describe("committing", () => {
         .getState()
         .operationErrors.map((entry) => entry.operation),
     ).toEqual(["refreshGitStatus"]);
-    expect(shell.uiStateStore.getState().gitSelection).toBeNull();
+    expect(shell.uiStateStore.getState().diffTabs).toEqual([]);
     expect(screen.getByText(GIT_MESSAGES.ja.statusFailed)).toBeTruthy();
   });
 
@@ -403,7 +403,7 @@ describe("refresh button", () => {
     shell.gitGateway.status = statusOf(file("e.md", "unmodified", "modified"));
     await shell.user.click(refreshButton());
     await settled();
-    expect(shell.uiStateStore.getState().gitSelection).toBeNull();
+    expect(shell.uiStateStore.getState().diffTabs).toEqual([]);
     expect(screen.queryByText("+first c")).toBeNull();
   });
 

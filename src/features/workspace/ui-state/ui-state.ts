@@ -280,9 +280,12 @@ export interface UiState {
   // Project Tree or Git panel in the sidebar. Kept across Project changes (only the Git
   // content follows the Project).
   readonly leftPanelMode: LeftPanelMode;
-  // The file row selected in the Git panel. A view choice only (the Git state itself lives
-  // in the Git controller); dropped when the Project changes.
-  readonly gitSelection: GitSelection | null;
+  // The diff tabs of the main tab strip, shown after the Document tabs. A view choice only
+  // (the Git state itself lives in the Git controller); dropped when the Project changes.
+  readonly diffTabs: readonly DiffTab[];
+  // What the main area shows: the active Document (`activeDocumentId`, application state)
+  // or one of the diff tabs. Always names an existing diff tab when it is `diff`.
+  readonly activeMainTab: MainTabRef;
   // The commit message typed in the Git panel. UI state so it survives switching between
   // the Project and Git views; dropped with the Project and never saved.
   readonly gitCommitMessage: string;
@@ -310,11 +313,23 @@ export const GIT_SELECTION_SIDES = ["staged", "unstaged"] as const;
 
 export type GitSelectionSide = (typeof GIT_SELECTION_SIDES)[number];
 
+// A file side whose diff can be shown; the identity of a diff tab.
 export interface GitSelection {
   // Project root relative, `/` separated.
   readonly path: string;
   readonly side: GitSelectionSide;
 }
+
+export interface DiffTab extends GitSelection {
+  // A preview tab is replaced by the next preview; pinning keeps it (docs/ui-design.md §13.5).
+  readonly preview: boolean;
+}
+
+export type MainTabRef =
+  | { readonly kind: "document" }
+  | ({ readonly kind: "diff" } & GitSelection);
+
+export const DOCUMENT_MAIN_TAB: MainTabRef = { kind: "document" };
 
 export type UiStateStore = Store<UiState>;
 
@@ -342,7 +357,8 @@ export function createInitialUiState(): UiState {
     nextNoticeId: 1,
     busy: false,
     leftPanelMode: DEFAULT_LEFT_PANEL_MODE,
-    gitSelection: null,
+    diffTabs: [],
+    activeMainTab: DOCUMENT_MAIN_TAB,
     gitCommitMessage: "",
     gitHistoryExpanded: false,
     gitCollapsedSections: new Set(),

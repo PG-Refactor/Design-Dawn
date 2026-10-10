@@ -30,7 +30,11 @@ import {
   type IndexOperation,
   SECTION_OPERATIONS,
 } from "./git-change-tree-items";
-import { openDiff, refreshDiffAfterStatusChange } from "./git-diff-session";
+import {
+  openDiffPinned,
+  openDiffPreview,
+  refreshDiffAfterStatusChange,
+} from "./git-diff-session";
 import {
   GIT_CHANGE_HEADING_ATTRIBUTE,
   GIT_CHANGE_LIST_ATTRIBUTE,
@@ -50,7 +54,7 @@ export function GitChangeList({ status }: { readonly status: GitStatus }) {
   const { gitController, uiStateStore } = services;
   const operating = useGitState((git) => git.operating);
   const refreshing = useGitState((git) => git.refreshing);
-  const gitSelection = useUiState((ui) => ui.gitSelection);
+  const activeMainTab = useUiState((ui) => ui.activeMainTab);
   const collapsedSections = useUiState((ui) => ui.gitCollapsedSections);
   const sections = useMemo(() => deriveGitChangeSections(status), [status]);
   const items = useMemo(
@@ -105,11 +109,17 @@ export function GitChangeList({ status }: { readonly status: GitStatus }) {
     setCollapsed(sectionId, !collapsedSections.has(sectionId));
   }
 
-  // The single place a selected row is handed on: it selects the row and opens its diff
-  // (staged rows the staged one, the others the unstaged one; conflicts open none).
+  // The single place a row is handed on: a click / Enter opens its diff in the preview tab,
+  // a double click pins it (staged rows the staged diff, the others the unstaged one;
+  // conflicts open none). The row shows as selected while its diff tab is the active one.
   function selectRow(entry: GitChangeEntry): void {
     if (entry.selectionSide === null) return;
-    openDiff(services, { path: entry.path, side: entry.selectionSide });
+    openDiffPreview(services, { path: entry.path, side: entry.selectionSide });
+  }
+
+  function pinRow(entry: GitChangeEntry): void {
+    if (entry.selectionSide === null) return;
+    openDiffPinned(services, { path: entry.path, side: entry.selectionSide });
   }
 
   async function operate(
@@ -216,10 +226,12 @@ export function GitChangeList({ status }: { readonly status: GitStatus }) {
                 isRoving={item.key === effectiveRovingKey}
                 selected={
                   item.entry.selectionSide !== null &&
-                  gitSelection?.path === item.entry.path &&
-                  gitSelection.side === item.entry.selectionSide
+                  activeMainTab.kind === "diff" &&
+                  activeMainTab.path === item.entry.path &&
+                  activeMainTab.side === item.entry.selectionSide
                 }
                 onSelect={selectRow}
+                onPin={pinRow}
                 onOperate={operateOnRow}
                 {...itemProps}
               />

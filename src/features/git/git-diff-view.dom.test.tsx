@@ -12,6 +12,7 @@ import {
   operationOk,
 } from "../../application/ports/operation-error";
 import { settle } from "../../application/test-support/fakes";
+import { DIFF_PANEL_ID } from "../workspace/tab-ids";
 import {
   renderShell,
   type ShellHarness,
@@ -57,8 +58,13 @@ const clickRow = (shell: ShellHarness, title: string, name: string) =>
   shell.user.click(
     rowOf(title, name).querySelector(".git-file-row__name") as HTMLElement,
   );
-const sideTabs = () => screen.queryByRole("tablist", { name: "差分の対象" });
-const mainArea = () => screen.getByRole("region", { name: "Gitの差分" });
+const diffPanel = () => document.getElementById(DIFF_PANEL_ID);
+const mainArea = (): HTMLElement => {
+  const panel = diffPanel();
+  if (panel === null) throw new Error("no diff panel");
+  return panel;
+};
+const noDiffPanel = () => expect(diffPanel()).toBeNull();
 
 function textDiff(
   path: string,
@@ -85,9 +91,7 @@ describe("opening a diff", () => {
       file("c.md", "unmodified", "modified"),
       file("d.md", "untracked", "untracked"),
     );
-    expect(
-      within(mainArea()).getByText(GIT_MESSAGES.ja.mainAreaPlaceholder),
-    ).toBeTruthy();
+    noDiffPanel();
     await clickRow(shell, "ステージされている変更", "変更 a.md");
     await clickRow(shell, "変更", "変更 c.md");
     await clickRow(shell, "変更", "未追跡 d.md");
@@ -105,9 +109,8 @@ describe("opening a diff", () => {
     const shell = await openChanges(file("x.md", "unmerged", "unmerged"));
     await clickRow(shell, "マージの変更", "競合 x.md");
     expect(shell.gitGateway.diffCalls).toHaveLength(0);
-    expect(
-      within(mainArea()).getByText(GIT_MESSAGES.ja.mainAreaPlaceholder),
-    ).toBeTruthy();
+    expect(shell.uiStateStore.getState().diffTabs).toEqual([]);
+    noDiffPanel();
   });
 
   it("loads again when the same row is selected again", async () => {
@@ -245,12 +248,9 @@ describe("outcomes", () => {
   });
 });
 
-describe("side switch", () => {
-  it("is offered only when both sides have a change, and loads the other side", async () => {
-    const shell = await openChanges(
-      file("both.md", "modified", "modified"),
-      file("one.md", "modified", "unmodified"),
-    );
+describe("both sides of a file", () => {
+  it("open as two tabs, each with its own diff", async () => {
+    const shell = await openChanges(file("both.md", "modified", "modified"));
     shell.gitGateway.diffs["unstaged:both.md"] = textDiff(
       "both.md",
       "unstaged",
@@ -261,53 +261,42 @@ describe("side switch", () => {
       "staged",
       "@@ -1 +1 @@\n+staged side\n",
     );
-    await clickRow(shell, "ステージされている変更", "変更 one.md");
+    // A double click pins the first tab, so the next preview does not replace it.
+    await shell.user.dblClick(
+      rowOf("変更", "変更 both.md").querySelector(
+        ".git-file-row__name",
+      ) as HTMLElement,
+    );
     await settled();
-    expect(sideTabs()).toBeNull();
-
-    await clickRow(shell, "変更", "変更 both.md");
-    await settled();
-    const tabs = within(sideTabs() as HTMLElement);
-    expect(
-      tabs
-        .getByRole("tab", { name: "未ステージ" })
-        .getAttribute("aria-selected"),
-    ).toBe("true");
     expect(within(mainArea()).getByText("+unstaged side")).toBeTruthy();
-
-    await shell.user.click(tabs.getByRole("tab", { name: "ステージ済み" }));
+    await clickRow(shell, "ステージされている変更", "変更 both.md");
     await settled();
     expect(within(mainArea()).getByText("+staged side")).toBeTruthy();
-    expect(shell.uiStateStore.getState().gitSelection).toEqual({
-      path: "both.md",
-      side: "staged",
-    });
-    expect(shell.gitGateway.diffCalls.at(-1)).toMatchObject({
-      path: "both.md",
-      side: "staged",
-    });
+    expect(within(mainArea()).queryByText("+unstaged side")).toBeNull();
+    // The side is not a switch inside the view any more.
+    expect(screen.queryByRole("tablist", { name: "差分の対象" })).toBeNull();
+    expect(screen.getByRole("tab", { name: "both.md (Index)" })).toBeTruthy();
+    expect(
+      screen.getByRole("tab", { name: "both.md (Working Tree)" }),
+    ).toBeTruthy();
   });
 });
 
 describe("closing", () => {
-  it("closes with the button and returns the focus to the selected row", async () => {
+  it("closes with the tab's button and drops the loaded diff", async () => {
     const shell = await openChanges(file("a.md", "unmodified", "modified"));
     await clickRow(shell, "変更", "変更 a.md");
     await settled();
     await shell.user.click(
-      within(mainArea()).getByRole("button", {
-        name: GIT_MESSAGES.ja.closeDiff,
-      }),
+      screen.getByRole("button", { name: "a.md (Working Tree)を閉じる" }),
     );
-    expect(shell.uiStateStore.getState().gitSelection).toBeNull();
+    expect(shell.uiStateStore.getState().diffTabs).toEqual([]);
     expect(shell.gitController.store.getState().diff).toBeNull();
-    expect(
-      within(mainArea()).getByText(GIT_MESSAGES.ja.mainAreaPlaceholder),
-    ).toBeTruthy();
-    expect(document.activeElement).toBe(rowOf("変更", "変更 a.md"));
+    noDiffPanel();
+    expect(screen.queryByRole("tablist", { name: "Document Tabs" })).toBeNull();
   });
 
-  it("closes with Escape inside the view", async () => {
+  it("has no Close button or Escape handling inside the view", async () => {
     const shell = await openChanges(file("a.md", "unmodified", "modified"));
     shell.gitGateway.diffs["unstaged:a.md"] = textDiff(
       "a.md",
@@ -316,10 +305,12 @@ describe("closing", () => {
     );
     await clickRow(shell, "変更", "変更 a.md");
     await settled();
+    expect(
+      within(mainArea()).queryByRole("button", { name: "閉じる" }),
+    ).toBeNull();
     within(mainArea()).getByRole("region", { name: "差分の内容" }).focus();
     await shell.user.keyboard("{Escape}");
-    expect(shell.uiStateStore.getState().gitSelection).toBeNull();
-    expect(document.activeElement).toBe(rowOf("変更", "変更 a.md"));
+    expect(shell.uiStateStore.getState().diffTabs).toHaveLength(1);
   });
 });
 
@@ -341,7 +332,8 @@ describe("after stage and unstage", () => {
       "unstaged",
       "unstaged",
     ]);
-    expect(shell.uiStateStore.getState().gitSelection).toEqual({
+    expect(shell.uiStateStore.getState().activeMainTab).toEqual({
+      kind: "diff",
       path: "a.md",
       side: "unstaged",
     });
@@ -365,7 +357,8 @@ describe("after stage and unstage", () => {
       }),
     );
     await settled();
-    expect(shell.uiStateStore.getState().gitSelection).toEqual({
+    expect(shell.uiStateStore.getState().activeMainTab).toEqual({
+      kind: "diff",
       path: "a.md",
       side: "staged",
     });
@@ -391,7 +384,8 @@ describe("after stage and unstage", () => {
       }),
     );
     await settled();
-    expect(shell.uiStateStore.getState().gitSelection).toEqual({
+    expect(shell.uiStateStore.getState().activeMainTab).toEqual({
+      kind: "diff",
       path: "a.md",
       side: "unstaged",
     });
@@ -406,7 +400,7 @@ describe("after stage and unstage", () => {
       }),
     );
     await settled();
-    expect(shell.uiStateStore.getState().gitSelection).toBeNull();
+    expect(shell.uiStateStore.getState().diffTabs).toEqual([]);
     expect(shell.gitController.store.getState().diff).toBeNull();
   });
 
@@ -429,7 +423,8 @@ describe("after stage and unstage", () => {
       }),
     );
     await settled();
-    expect(shell.uiStateStore.getState().gitSelection).toEqual({
+    expect(shell.uiStateStore.getState().activeMainTab).toEqual({
+      kind: "diff",
       path: "a.md",
       side: "staged",
     });
@@ -447,7 +442,8 @@ describe("after stage and unstage", () => {
     );
     await settled();
     // The unchanged status was read again, so the unstaged diff is still the right one.
-    expect(shell.uiStateStore.getState().gitSelection).toEqual({
+    expect(shell.uiStateStore.getState().activeMainTab).toEqual({
+      kind: "diff",
       path: "a.md",
       side: "unstaged",
     });
@@ -504,8 +500,6 @@ describe("races", () => {
       await settle();
     });
     expect(screen.queryByText("+secret")).toBeNull();
-    expect(
-      within(mainArea()).getByText(GIT_MESSAGES.ja.mainAreaPlaceholder),
-    ).toBeTruthy();
+    noDiffPanel();
   });
 });

@@ -7,8 +7,11 @@ import type { Widen } from "../../shared/i18n/catalog-types";
 
 const GIT_MESSAGES_JA = {
   panelLabel: "Git",
-  mainAreaLabel: "Gitの差分",
-  mainAreaPlaceholder: "ファイルを選択すると差分を表示します",
+  diffTabIcon: "±",
+  diffTabTitle: (name: string, side: "staged" | "unstaged"): string =>
+    `${name} (${side === "staged" ? "Index" : "Working Tree"})`,
+  diffTabDescription: (pathText: string, preview: boolean): string =>
+    preview ? `${pathText}（プレビュー）` : pathText,
   diffLoading: "差分を読み込んでいます…",
   diffEmpty: "差分はありません",
   diffUntracked: "新しいファイルです（まだGitで管理されていません）",
@@ -16,9 +19,6 @@ const GIT_MESSAGES_JA = {
   diffNotUtf8: "UTF-8として読めないため、差分を表示できません",
   diffTextLabel: "差分の内容",
   diffFailed: "差分を取得できませんでした",
-  diffSideSwitchLabel: "差分の対象",
-  diffSides: { staged: "ステージ済み", unstaged: "未ステージ" },
-  closeDiff: "閉じる",
   panelTitle: "ソース管理",
   branchLabel: (name: string): string => `ブランチ ${name}`,
   detachedSuffix: "(detached)",
@@ -92,8 +92,11 @@ export type GitMessages = Widen<typeof GIT_MESSAGES_JA>;
 
 const GIT_MESSAGES_EN: GitMessages = {
   panelLabel: "Git",
-  mainAreaLabel: "Git diff",
-  mainAreaPlaceholder: "Select a file to show its diff",
+  diffTabIcon: "±",
+  diffTabTitle: (name, side) =>
+    `${name} (${side === "staged" ? "Index" : "Working Tree"})`,
+  diffTabDescription: (pathText, preview) =>
+    preview ? `${pathText} (Preview)` : pathText,
   diffLoading: "Loading the diff…",
   diffEmpty: "No differences",
   diffUntracked: "This is a new file (not yet tracked by Git)",
@@ -101,9 +104,6 @@ const GIT_MESSAGES_EN: GitMessages = {
   diffNotUtf8: "The diff cannot be shown because the file is not valid UTF-8",
   diffTextLabel: "Diff content",
   diffFailed: "Could not get the diff",
-  diffSideSwitchLabel: "Diff target",
-  diffSides: { staged: "Staged", unstaged: "Unstaged" },
-  closeDiff: "Close",
   panelTitle: "Source Control",
   branchLabel: (name) => `Branch ${name}`,
   detachedSuffix: "(detached)",

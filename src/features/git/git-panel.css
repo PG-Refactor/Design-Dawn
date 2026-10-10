@@ -133,11 +133,6 @@
   min-width: 0;
 }
 
-.git-main-area__placeholder {
-  margin: var(--space-3) 0;
-  color: var(--color-text-muted);
-}
-
 .git-change-list {
   display: flex;
   flex-direction: column;
@@ -308,11 +303,6 @@
   margin: 0;
   font-size: 0.9375rem;
   overflow-wrap: anywhere;
-}
-
-.git-diff__sides {
-  display: flex;
-  gap: var(--space-1);
 }
 
 .git-diff__message {

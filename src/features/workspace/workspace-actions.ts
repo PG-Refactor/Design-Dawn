@@ -54,6 +54,7 @@ import type {
   SheetId,
 } from "../../domain/shared/entity-id";
 import type { DraftRegistry } from "./draft-registry";
+import { restoreMainTab, showDocumentTab } from "./ui-state/diff-tabs";
 import {
   addOperationError,
   closeDialog,
@@ -298,7 +299,11 @@ export function createWorkspaceActions(
 
   function activateSheet(documentId: DocumentId, sheetId: SheetId): void {
     uiStateStore.setState((state) =>
-      setActiveSheet(setActiveDocument(state, documentId), documentId, sheetId),
+      setActiveSheet(
+        showDocumentTab(setActiveDocument(state, documentId)),
+        documentId,
+        sheetId,
+      ),
     );
   }
 
@@ -327,8 +332,11 @@ export function createWorkspaceActions(
     }
   }
 
+  // The user chose this Document, so it is shown in the main area (a diff tab stays open).
   function activateDocument(documentId: DocumentId): void {
-    uiStateStore.setState((state) => setActiveDocument(state, documentId));
+    uiStateStore.setState((state) =>
+      showDocumentTab(setActiveDocument(state, documentId)),
+    );
     ensureActiveSheet(documentId, null);
   }
 
@@ -370,8 +378,11 @@ export function createWorkspaceActions(
   ): Promise<OperationResult<void>> {
     const orderBefore = [...applicationStore.getState().documents.keys()];
     const wasActive = uiStateStore.getState().activeDocumentId === documentId;
+    // The neighbour becomes the remembered Document; an active diff tab keeps the main area.
+    const mainTab = uiStateStore.getState().activeMainTab;
     const result = await removal();
     activateNeighbourTab(documentId, orderBefore, wasActive);
+    uiStateStore.setState((state) => restoreMainTab(state, mainTab));
     return result;
   }
 

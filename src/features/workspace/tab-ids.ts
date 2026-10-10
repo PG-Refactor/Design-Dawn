@@ -24,3 +24,11 @@ export function leftPanelTabId(mode: string): string {
 }
 
 export const LEFT_PANEL_PANEL_ID = "left-panel-panel";
+
+// The side is a fixed word and the path is encoded, so the id has no spaces (an id list in
+// `aria-controls` is space separated).
+export function diffTabId(path: string, side: string): string {
+  return `diff-tab-${side}-${encodeURIComponent(path)}`;
+}
+
+export const DIFF_PANEL_ID = "diff-panel";
