@@ -105,6 +105,11 @@ export interface GitController {
   // `reportFailure`; a refresh without an open Project does nothing. A refresh requested
   // while another one is still waiting in the queue shares it.
   refreshGitStatus(): Promise<OperationResult<void>>;
+  // The same read for the refreshes nobody asked for (after the app saved, when the window
+  // regains focus): it goes through the same queue and shares a waiting refresh, but it
+  // neither sets `refreshing` (the panel must not flash on every auto-save) nor reports a
+  // failure (`statusError` already shows it, with a retry).
+  refreshGitStatusInBackground(): Promise<OperationResult<void>>;
   // Stage / Unstage changed files (Project root relative, `/` separated) of the open
   // Project. On success the status is replaced by the one git returned (never computed
   // here). On failure it is reported and the status is read again, because git may have
@@ -198,6 +203,7 @@ export function createGitController(
   let latestHistoryRequest = 0;
   let settledHistory: GitHistoryState | null = null;
   let waitingRefresh: Promise<OperationResult<void>> | null = null;
+  let waitingRefreshSilent = false;
 
   function enqueue<T>(task: () => Promise<T>): Promise<T> {
     const next = queueTail.then(task);
@@ -222,8 +228,9 @@ export function createGitController(
   async function readStatus(
     projectId: ProjectId,
     taskEpoch: number,
+    silent = false,
   ): Promise<OperationResult<void>> {
-    store.setState((state) => ({ ...state, refreshing: true }));
+    if (!silent) store.setState((state) => ({ ...state, refreshing: true }));
     const result = await call(() => gateway.gitStatus(projectId));
     if (taskEpoch !== epoch) return result.ok ? operationOk(undefined) : result;
     if (result.ok) {
@@ -243,19 +250,24 @@ export function createGitController(
       statusError: result.error.kind,
       refreshing: false,
     }));
-    reportFailure("refreshGitStatus", result.error);
+    if (!silent) reportFailure("refreshGitStatus", result.error);
     return result;
   }
 
   function refreshProject(
     projectId: ProjectId,
+    silent = false,
   ): Promise<OperationResult<void>> {
+    // A refresh someone asked for, joining a waiting background one, makes it a normal
+    // one: the person who pressed the button must see the progress and the failure.
+    if (!silent) waitingRefreshSilent = false;
     if (waitingRefresh !== null) return waitingRefresh;
+    waitingRefreshSilent = silent;
     const taskEpoch = epoch;
     const refresh = enqueue(async () => {
       waitingRefresh = null;
       if (taskEpoch !== epoch) return operationOk(undefined);
-      return readStatus(projectId, taskEpoch);
+      return readStatus(projectId, taskEpoch, waitingRefreshSilent);
     });
     waitingRefresh = refresh;
     return refresh;
@@ -519,6 +531,12 @@ export function createGitController(
       return projectId === null
         ? operationOk(undefined)
         : refreshProject(projectId);
+    },
+    async refreshGitStatusInBackground() {
+      const projectId = store.getState().projectId;
+      return projectId === null
+        ? operationOk(undefined)
+        : refreshProject(projectId, true);
     },
     stage: (paths) => changeIndex("stage", paths),
     unstage: (paths) => changeIndex("unstage", paths),

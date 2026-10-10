@@ -110,6 +110,8 @@ export interface ActionsHarness extends WorkspaceHarness {
   readonly viewportPersistence: ViewportPersistence;
   readonly gitGateway: FakeGitGateway;
   readonly gitController: GitController;
+  // The clock that debounces the automatic status read; tests advance it.
+  readonly gitRefreshScheduler: FakeScheduler;
   // The language controller has its own settings gateway, so a test can fail or inspect
   // its saves without touching the theme / auto-save ones.
   readonly languageController: LanguageController;
@@ -145,7 +147,7 @@ export function createActionsHarness(
     applicationStore: base.store,
     uiStateStore,
     idGenerator: createSequentialIdGenerator(),
-    gateway: base.gateway,
+    gateway: base.signalingGateway,
     clipboard,
   });
   const dropEventSource = createFakeDropEventSource();
@@ -171,6 +173,7 @@ export function createActionsHarness(
     },
   });
   const gitGateway = createFakeGitGateway();
+  const gitRefreshScheduler = createFakeScheduler();
   const gitController = createGitController({
     gateway: gitGateway,
     applicationStore: base.store,
@@ -184,6 +187,7 @@ export function createActionsHarness(
     ...base,
     gitGateway,
     gitController,
+    gitRefreshScheduler,
     languageController,
     languageGateway,
     uiStateStore,
@@ -213,6 +217,8 @@ export function createActionsHarness(
       autoSaveController: base.autoSaveController,
       layoutSettingsController: base.layoutSettingsController,
       gitController,
+      projectWriteSignal: base.writeSignal,
+      gitRefreshScheduler,
     },
   };
 }

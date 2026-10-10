@@ -1,4 +1,5 @@
 import { useFileDrop } from "../canvas/use-file-drop";
+import { useGitAutoRefresh } from "../git/use-git-auto-refresh";
 import { LoadStatus, TransientNotice } from "./notifications";
 import { TopBar } from "./top-bar";
 import { useAppRequests } from "./use-app-requests";
@@ -18,6 +19,7 @@ export function WorkspaceShell() {
   useSaveShortcut();
   const closeStatus = useWindowCloseSave();
   useAppRequests(closeStatus);
+  useGitAutoRefresh();
   return (
     <div className="workspace-shell">
       <TopBar />

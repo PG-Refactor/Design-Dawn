@@ -1590,3 +1590,99 @@ describe("dispose", () => {
     expect(gitGateway.calls).toEqual([]);
   });
 });
+
+describe("refreshGitStatusInBackground", () => {
+  it("updates the status without showing refreshing or reporting", async () => {
+    const { workspace, gitGateway, controller } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.status = MODIFIED_STATUS;
+    const release = gitGateway.holdNextCall();
+    const observed: boolean[] = [];
+    const unsubscribe = controller.store.subscribe(() =>
+      observed.push(controller.store.getState().refreshing),
+    );
+
+    const refresh = controller.refreshGitStatusInBackground();
+    await settle();
+    release();
+    const result = await refresh;
+    unsubscribe();
+
+    expect(result).toEqual({ ok: true, value: undefined });
+    expect(observed).not.toContain(true);
+    expect(controller.store.getState().status).toEqual(MODIFIED_STATUS);
+  });
+
+  it("records a failure silently", async () => {
+    const { workspace, gitGateway, controller, failures } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.failure = { kind: "gitTimeout", detail: "slow" };
+
+    const result = await controller.refreshGitStatusInBackground();
+
+    expect(!result.ok && result.error.kind).toBe("gitTimeout");
+    expect(failures).toEqual([]);
+    expect(controller.store.getState().status).toBeNull();
+    expect(controller.store.getState().statusError).toBe("gitTimeout");
+  });
+
+  it("shares a refresh that is still waiting", async () => {
+    const { workspace, gitGateway, controller } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    const release = gitGateway.holdNextCall();
+    const running = controller.refreshGitStatus();
+    await settle();
+    const waiting = controller.refreshGitStatus();
+    const background = controller.refreshGitStatusInBackground();
+    release();
+    await Promise.all([running, waiting, background]);
+
+    // The initial open, the running one and the shared waiting one.
+    expect(gitGateway.calls).toHaveLength(3);
+  });
+
+  it("becomes a normal refresh when the button joins a waiting background one", async () => {
+    const { workspace, gitGateway, controller, failureLabels } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    const release = gitGateway.holdNextCall();
+    const running = controller.refreshGitStatusInBackground();
+    await settle();
+    const background = controller.refreshGitStatusInBackground();
+    const asked = controller.refreshGitStatus();
+    gitGateway.failure = { kind: "gitTimeout", detail: "slow" };
+    release();
+    await Promise.all([running, background, asked]);
+
+    // The running read was silent; the shared waiting one reports, as the button asked.
+    expect(failureLabels).toEqual(["refreshGitStatus"]);
+  });
+
+  it("does nothing without a Project", async () => {
+    const { controller, gitGateway } = setup();
+
+    await controller.refreshGitStatusInBackground();
+
+    expect(gitGateway.calls).toEqual([]);
+  });
+
+  it("drops the answer when the Project changed meanwhile", async () => {
+    const { workspace, gitGateway, controller } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.status = MODIFIED_STATUS;
+    const release = gitGateway.holdNextCall();
+    const refresh = controller.refreshGitStatusInBackground();
+    await settle();
+
+    await workspace.closeProject();
+    release();
+    await refresh;
+
+    expect(controller.store.getState().status).toBeNull();
+    expect(controller.store.getState().projectId).toBeNull();
+  });
+});

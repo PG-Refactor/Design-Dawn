@@ -1,9 +1,11 @@
 import { createContext, type ReactNode, useContext } from "react";
 import type { GitController } from "../../application/git/git-controller";
+import type { ProjectWriteSignal } from "../../application/git/project-write-signal";
 import type { LanguageController } from "../../application/language/language-controller";
 import type { AppRequestSource } from "../../application/ports/app-request-source";
 import type { AssetUrlResolver } from "../../application/ports/asset-url-resolver";
 import type { DropEventSource } from "../../application/ports/drop-event-source";
+import type { Scheduler } from "../../application/ports/scheduler";
 import type { CloseRequestSource } from "../../application/ports/window-close";
 import type { AutoSaveController } from "../../application/settings/auto-save-controller";
 import type { LayoutSettingsController } from "../../application/settings/layout-settings-controller";
@@ -59,6 +61,10 @@ export interface WorkspaceServices {
   // The Git state of the open Project and the operations on it; the UI never calls the Git
   // commands directly.
   readonly gitController: GitController;
+  // Told when the app wrote Project files, and the clock that debounces the status read
+  // it triggers (see `useGitAutoRefresh`).
+  readonly projectWriteSignal: ProjectWriteSignal;
+  readonly gitRefreshScheduler: Scheduler;
 }
 
 const WorkspaceServicesContext = createContext<WorkspaceServices | null>(null);

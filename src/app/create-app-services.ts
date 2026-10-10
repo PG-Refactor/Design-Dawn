@@ -6,6 +6,11 @@ import {
   createGitController,
   type GitController,
 } from "../application/git/git-controller";
+import {
+  createProjectWriteSignal,
+  type ProjectWriteSignal,
+  withWriteSignal,
+} from "../application/git/project-write-signal";
 import { createDefaultIdGenerator } from "../application/id-generator";
 import {
   createLanguageController,
@@ -14,6 +19,7 @@ import {
 import type { AppRequestSource } from "../application/ports/app-request-source";
 import type { AssetUrlResolver } from "../application/ports/asset-url-resolver";
 import type { DropEventSource } from "../application/ports/drop-event-source";
+import type { Scheduler } from "../application/ports/scheduler";
 import type { CloseRequestSource } from "../application/ports/window-close";
 import {
   type AutoSaveController,
@@ -105,6 +111,9 @@ export interface AppServices {
   // The open Project's Git state (runtime only; refreshed when a Project is installed).
   // No UI shows it yet.
   readonly gitController: GitController;
+  // Told after every write of Project files; the Git panel refreshes itself from it.
+  readonly projectWriteSignal: ProjectWriteSignal;
+  readonly gitRefreshScheduler: Scheduler;
   // Detaches the workspace -> UI state connector.
   readonly disconnectUiState: () => void;
 }
@@ -113,7 +122,11 @@ export function createAppServices(): AppServices {
   const applicationStore = createApplicationStore();
   const uiStateStore = createUiStateStore();
   const idGenerator = createDefaultIdGenerator();
-  const gateway = createTauriPersistenceGateway();
+  const projectWriteSignal = createProjectWriteSignal();
+  const gateway = withWriteSignal(
+    createTauriPersistenceGateway(),
+    projectWriteSignal,
+  );
   const settingsGateway = createTauriAppSettingsGateway();
   const autoSaveController = createAutoSaveController({
     gateway: settingsGateway,
@@ -201,6 +214,8 @@ export function createAppServices(): AppServices {
     autoSaveController,
     layoutSettingsController,
     gitController,
+    projectWriteSignal,
+    gitRefreshScheduler: createTimeoutScheduler(),
     disconnectUiState,
   };
 }
