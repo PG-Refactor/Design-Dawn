@@ -3,6 +3,7 @@
 // Rust (`ErrorKind::as_str`) and the Rust/TypeScript kind-equality test covers them.
 export const LOCAL_STATE_ERROR_KINDS = [
   "invalidThemePreference",
+  "invalidLanguagePreference",
   "invalidViewport",
   "invalidProjectTreeWidth",
 ] as const;

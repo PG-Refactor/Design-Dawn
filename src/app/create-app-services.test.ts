@@ -35,6 +35,7 @@ describe("createAppServices", () => {
   it("wires the theme controller to the app settings commands", async () => {
     invokeMock.mockResolvedValue({
       themePreference: "dark",
+      languagePreference: "ja",
       autoSave: true,
       projectTreeWidth: 320,
       loadIssue: null,
@@ -44,6 +45,23 @@ describe("createAppServices", () => {
     expect(invokeMock).toHaveBeenCalledWith(COMMANDS.getAppSettings, {});
     expect(themeController.store.getState().resolvedTheme).toBe("dark");
     themeController.dispose();
+  });
+
+  it("wires the language controller to the app settings commands", async () => {
+    invokeMock.mockResolvedValue({
+      themePreference: "dark",
+      languagePreference: "ja",
+      autoSave: true,
+      projectTreeWidth: 320,
+      loadIssue: null,
+    });
+    const { languageController } = createAppServices();
+    await languageController.initialize();
+    expect(invokeMock).toHaveBeenCalledWith(COMMANDS.getAppSettings, {});
+    expect(languageController.store.getState()).toMatchObject({
+      preference: "ja",
+      language: "ja",
+    });
   });
 
   it("provides the drop event source and the asset URL resolver", () => {

@@ -116,19 +116,23 @@ describe("open in a new window", () => {
 });
 
 describe("settingsChanged notifications from Rust", () => {
-  it("applies the theme and auto-save of another window to this window's controllers", async () => {
+  it("applies the theme, language and auto-save of another window to this window's controllers", async () => {
     const shell = await renderShell();
     await act(settle);
 
     await act(async () => {
       shell.appRequestSource.emitSettings({
         themePreference: "dark",
+        languagePreference: "ja",
         autoSave: false,
       });
     });
 
     expect(shell.services.themeController.store.getState().preference).toBe(
       "dark",
+    );
+    expect(shell.services.languageController.store.getState().preference).toBe(
+      "ja",
     );
     expect(shell.services.autoSaveController.store.getState().enabled).toBe(
       false,
@@ -144,6 +148,7 @@ describe("settingsChanged notifications from Rust", () => {
     await act(async () => {
       shell.appRequestSource.emitSettings({
         themePreference: "light",
+        languagePreference: "system",
         autoSave: true,
       });
     });

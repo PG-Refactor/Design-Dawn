@@ -139,15 +139,22 @@ describe("app request handler", () => {
 });
 
 describe("settings change handler", () => {
-  it("hands the theme and auto-save values to their controllers", () => {
+  it("hands the theme, language and auto-save values to their controllers", () => {
     const applyThemePreference = vi.fn();
+    const applyLanguagePreference = vi.fn();
     const applyAutoSave = vi.fn();
     const handle = createSettingsChangeHandler({
       applyThemePreference,
+      applyLanguagePreference,
       applyAutoSave,
     });
-    handle({ themePreference: "dark", autoSave: false });
+    handle({
+      themePreference: "dark",
+      languagePreference: "ja",
+      autoSave: false,
+    });
     expect(applyThemePreference).toHaveBeenCalledWith("dark");
+    expect(applyLanguagePreference).toHaveBeenCalledWith("ja");
     expect(applyAutoSave).toHaveBeenCalledWith(false);
   });
 });

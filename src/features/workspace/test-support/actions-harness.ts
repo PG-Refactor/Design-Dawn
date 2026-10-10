@@ -14,6 +14,7 @@ import {
   createGitController,
   type GitController,
 } from "../../../application/git/git-controller";
+import { createLanguageController } from "../../../application/language/language-controller";
 import type { LoadIssue } from "../../../application/ports/persistence-types";
 import {
   type ApplicationStore,
@@ -144,6 +145,10 @@ export function createActionsHarness(): ActionsHarness {
     gateway: createFakeAppSettingsGateway(),
     osThemeSource: createFakeOsThemeSource("light"),
   });
+  const languageController = createLanguageController({
+    gateway: createFakeAppSettingsGateway(),
+    systemLanguageSource: { current: () => ["en"] },
+  });
   const gitGateway = createFakeGitGateway();
   const gitController = createGitController({
     gateway: gitGateway,
@@ -181,6 +186,7 @@ export function createActionsHarness(): ActionsHarness {
       viewportPersistence,
       assetUrlResolver: createFakeAssetUrlResolver(),
       themeController,
+      languageController,
       autoSaveController: base.autoSaveController,
       layoutSettingsController: base.layoutSettingsController,
       gitController,

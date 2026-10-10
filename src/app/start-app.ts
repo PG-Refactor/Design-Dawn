@@ -2,6 +2,7 @@
 // painted, the saved preference is loaded, and only then is the UI rendered, so content is
 // never shown in the wrong theme. Dependencies are parameters to keep this testable.
 
+import type { LanguageController } from "../application/language/language-controller";
 import type { ResolvedTheme } from "../application/local-state/theme";
 import type { AutoSaveController } from "../application/settings/auto-save-controller";
 import type { LayoutSettingsController } from "../application/settings/layout-settings-controller";
@@ -10,6 +11,8 @@ import { applyTheme, type ThemeTarget } from "../features/theme/apply-theme";
 
 export interface StartAppDependencies {
   readonly themeController: Pick<ThemeController, "store" | "initialize">;
+  // Loaded alongside the theme; the language is not shown anywhere yet.
+  readonly languageController?: Pick<LanguageController, "initialize">;
   // Loaded alongside the theme; behaves as "on" until then.
   readonly autoSaveController?: Pick<AutoSaveController, "initialize">;
   // Loaded alongside the theme so the panel has its stored width on the first paint.
@@ -27,6 +30,7 @@ export async function startApp(
 ): Promise<void> {
   const {
     themeController,
+    languageController,
     autoSaveController,
     layoutSettingsController,
     themeTarget,
@@ -47,6 +51,7 @@ export async function startApp(
   try {
     await Promise.all([
       themeController.initialize(),
+      languageController?.initialize(),
       autoSaveController?.initialize(),
       layoutSettingsController?.initialize(),
     ]);

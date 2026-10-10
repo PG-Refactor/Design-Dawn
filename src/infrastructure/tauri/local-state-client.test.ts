@@ -13,6 +13,7 @@ import {
   getSheetViewport,
   saveSheetViewport,
   setAutoSave,
+  setLanguagePreference,
   setProjectTreeWidth,
   setThemePreference,
 } from "./local-state-client";
@@ -37,6 +38,7 @@ describe("getAppSettings", () => {
   it("decodes the settings", async () => {
     invokeMock.mockResolvedValueOnce({
       themePreference: "dark",
+      languagePreference: "system",
       autoSave: false,
       projectTreeWidth: 400,
       loadIssue: null,
@@ -45,6 +47,7 @@ describe("getAppSettings", () => {
       ok: true,
       value: {
         themePreference: "dark",
+        languagePreference: "system",
         autoSave: false,
         projectTreeWidth: 400,
         loadIssue: null,
@@ -58,6 +61,7 @@ describe("getAppSettings", () => {
   it("passes a load issue through next to the default", async () => {
     invokeMock.mockResolvedValueOnce({
       themePreference: "system",
+      languagePreference: "system",
       autoSave: true,
       projectTreeWidth: 320,
       loadIssue: ISSUE,
@@ -66,6 +70,7 @@ describe("getAppSettings", () => {
       ok: true,
       value: {
         themePreference: "system",
+        languagePreference: "system",
         autoSave: true,
         projectTreeWidth: 320,
         loadIssue: ISSUE,
@@ -76,6 +81,7 @@ describe("getAppSettings", () => {
   it("rejects malformed payloads as invalidCommandResponse", async () => {
     const valid = {
       themePreference: "system",
+      languagePreference: "system",
       autoSave: true,
       projectTreeWidth: 320,
       loadIssue: null,
@@ -87,6 +93,8 @@ describe("getAppSettings", () => {
       { ...valid, themePreference: "sepia" },
       { ...valid, loadIssue: { kind: "nope", detail: "d" } },
       { ...valid, themePreference: 1 },
+      { ...valid, languagePreference: "fr" },
+      { ...valid, languagePreference: undefined },
       { ...valid, projectTreeWidth: undefined },
       { ...valid, projectTreeWidth: "320" },
       { ...valid, projectTreeWidth: 159 },
@@ -106,6 +114,7 @@ describe("setThemePreference", () => {
   it("sends the preference and decodes the settings", async () => {
     invokeMock.mockResolvedValueOnce({
       themePreference: "light",
+      languagePreference: "system",
       autoSave: true,
       projectTreeWidth: 320,
       loadIssue: null,
@@ -125,6 +134,34 @@ describe("setThemePreference", () => {
     expect(await setThemePreference("dark")).toStrictEqual({
       ok: false,
       error: { kind: "invalidThemePreference", detail: "d" },
+    });
+  });
+});
+
+describe("setLanguagePreference", () => {
+  it("sends the preference and decodes the settings", async () => {
+    invokeMock.mockResolvedValueOnce({
+      themePreference: "system",
+      languagePreference: "ja",
+      autoSave: true,
+      projectTreeWidth: 320,
+      loadIssue: null,
+    });
+    const result = await setLanguagePreference("ja");
+    expect(result.ok && result.value.languagePreference).toBe("ja");
+    expect(invokeMock.mock.calls).toStrictEqual([
+      [COMMANDS.setLanguagePreference, { languagePreference: "ja" }],
+    ]);
+  });
+
+  it("returns Rust errors as they are", async () => {
+    invokeMock.mockRejectedValueOnce({
+      kind: "invalidLanguagePreference",
+      detail: "d",
+    });
+    expect(await setLanguagePreference("en")).toStrictEqual({
+      ok: false,
+      error: { kind: "invalidLanguagePreference", detail: "d" },
     });
   });
 });
@@ -184,6 +221,7 @@ describe("setAutoSave", () => {
   it("sends the flag and decodes the settings", async () => {
     invokeMock.mockResolvedValueOnce({
       themePreference: "dark",
+      languagePreference: "system",
       autoSave: false,
       projectTreeWidth: 320,
       loadIssue: null,
@@ -208,6 +246,7 @@ describe("setProjectTreeWidth", () => {
   it("sends the width and decodes the settings", async () => {
     invokeMock.mockResolvedValueOnce({
       themePreference: "dark",
+      languagePreference: "system",
       autoSave: true,
       projectTreeWidth: 480,
       loadIssue: null,

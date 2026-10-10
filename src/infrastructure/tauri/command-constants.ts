@@ -26,6 +26,7 @@ export const COMMANDS = {
   deleteDocument: "delete_document",
   getAppSettings: "get_app_settings",
   setThemePreference: "set_theme_preference",
+  setLanguagePreference: "set_language_preference",
   setAutoSave: "set_auto_save",
   setProjectTreeWidth: "set_project_tree_width",
   getSheetViewport: "get_sheet_viewport",

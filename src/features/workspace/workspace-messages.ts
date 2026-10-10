@@ -270,6 +270,7 @@ const ERROR_KIND_MESSAGES: Record<OperationErrorKind, string> = {
   gitCommitRejected: "コミットが拒否されました（フックなど）",
   invalidHistoryRequest: "履歴を取得する条件が正しくありません",
   invalidThemePreference: "テーマ設定の値が正しくありません。",
+  invalidLanguagePreference: "表示言語の設定値が正しくありません。",
   invalidViewport: "表示位置の値が正しくありません。",
   invalidProjectTreeWidth: "Project Treeの幅の値が正しくありません。",
   invalidCommandResponse: "内部処理の応答が正しくありません。",

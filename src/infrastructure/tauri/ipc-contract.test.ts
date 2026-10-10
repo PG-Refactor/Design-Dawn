@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import applicationErrorSource from "../../../src-tauri/src/application/error.rs?raw";
 import domainErrorSource from "../../../src-tauri/src/domain/error.rs?raw";
 import persistenceErrorSource from "../../../src-tauri/src/infrastructure/error.rs?raw";
+import { parseLanguagePreference } from "../../application/local-state/language";
 import { LOCAL_STATE_ERROR_KINDS } from "../../application/local-state/local-state-result";
 import {
   parseThemePreference,
@@ -17,6 +18,7 @@ import {
   parseViewport,
   type RawViewport,
 } from "../../application/local-state/viewport";
+import type { LanguagePreference } from "../../config/language-config";
 import { parseBlockType } from "../../domain/block/block-type";
 import { parseContentPath } from "../../domain/block/content-path";
 import { parseFolder, type RawFolder } from "../../domain/folder/folder";
@@ -47,6 +49,7 @@ import {
   getSheetViewport,
   saveSheetViewport,
   setAutoSave,
+  setLanguagePreference,
   setProjectTreeWidth,
   setThemePreference,
 } from "./local-state-client";
@@ -137,6 +140,14 @@ function unwrapTheme(
   return result.value;
 }
 
+function unwrapLanguage(
+  result: ReturnType<typeof parseLanguagePreference>,
+): LanguagePreference {
+  if (!result.ok)
+    throw new Error(`invalid language in fixture: ${result.error.kind}`);
+  return result.value;
+}
+
 function unwrapViewport(result: ReturnType<typeof parseViewport>) {
   if (!result.ok)
     throw new Error(`invalid viewport in fixture: ${result.error.kind}`);
@@ -221,6 +232,12 @@ const WRAPPERS: Readonly<Record<string, Wrapper>> = {
   set_theme_preference: (args) =>
     setThemePreference(
       unwrapTheme(parseThemePreference(args.themePreference as string)),
+    ),
+  set_language_preference: (args) =>
+    setLanguagePreference(
+      unwrapLanguage(
+        parseLanguagePreference(args.languagePreference as string),
+      ),
     ),
   set_auto_save: (args) => setAutoSave(args.enabled as boolean),
   set_project_tree_width: (args) => setProjectTreeWidth(args.width as number),

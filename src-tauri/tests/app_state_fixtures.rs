@@ -3,6 +3,7 @@
 //! path as the `save_sheet_viewport` payload.
 
 use design_dawn_lib::application::error::ApplicationError;
+use design_dawn_lib::application::local_state::language::LanguagePreference;
 use design_dawn_lib::application::local_state::operations::parse_viewport_payload;
 use design_dawn_lib::application::local_state::theme::ThemePreference;
 use serde_json::Value;
@@ -25,8 +26,11 @@ macro_rules! fixture {
     };
 }
 
-const FIXTURE_FILES: [(&str, &str); 2] =
-    [fixture!("theme-preference.json"), fixture!("viewport.json")];
+const FIXTURE_FILES: [(&str, &str); 3] = [
+    fixture!("language-preference.json"),
+    fixture!("theme-preference.json"),
+    fixture!("viewport.json"),
+];
 
 /// Outer `Err` means the fixture itself is malformed; inner is the validator's verdict.
 type Verdict = Result<Result<(), ApplicationError>, String>;
@@ -36,6 +40,10 @@ fn run_subject(subject: &str, input: &Value) -> Verdict {
         "themePreference" => {
             let text = input.as_str().ok_or("input is not a string")?;
             Ok(ThemePreference::parse(text).map(|_| ()))
+        }
+        "languagePreference" => {
+            let text = input.as_str().ok_or("input is not a string")?;
+            Ok(LanguagePreference::parse(text).map(|_| ()))
         }
         "viewport" => Ok(parse_viewport_payload(input.clone()).map(|_| ())),
         other => Err(format!("unknown subject {other:?}")),

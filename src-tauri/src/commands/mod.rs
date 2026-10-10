@@ -54,7 +54,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 43] = [
+pub const COMMAND_NAMES: [&str; 44] = [
     "select_project_folder",
     "create_project",
     "open_project",
@@ -78,6 +78,7 @@ pub const COMMAND_NAMES: [&str; 43] = [
     "delete_document",
     "get_app_settings",
     "set_theme_preference",
+    "set_language_preference",
     "set_auto_save",
     "set_project_tree_width",
     "get_sheet_viewport",
@@ -643,7 +644,7 @@ pub fn get_app_settings<R: Runtime>(app: AppHandle<R>) -> Result<AppSettings, Ap
     with_local_state(&app, |local_state| Ok(local_state.get_app_settings()))
 }
 
-/// Tells every other window with an app channel about the new theme and auto-save values.
+/// Tells every other window with an app channel about the new theme, language and auto-save values.
 /// The caller already updated itself from the command result. Not sent for the Project Tree
 /// width: that is a per-window state (docs/architecture.md §11.0.1).
 fn broadcast_settings<R: Runtime>(window: &Window<R>, settings: &AppSettings) {
@@ -651,6 +652,7 @@ fn broadcast_settings<R: Runtime>(window: &Window<R>, settings: &AppSettings) {
         hub.broadcast_settings_changed(
             window.label(),
             settings.theme_preference,
+            settings.language_preference,
             settings.auto_save,
         );
     }
@@ -663,6 +665,18 @@ pub fn set_theme_preference<R: Runtime>(
 ) -> Result<AppSettings, ApplicationError> {
     let settings = with_local_state(window.app_handle(), |local_state| {
         local_state.set_theme_preference(&theme_preference)
+    })?;
+    broadcast_settings(&window, &settings);
+    Ok(settings)
+}
+
+#[tauri::command]
+pub fn set_language_preference<R: Runtime>(
+    window: Window<R>,
+    language_preference: String,
+) -> Result<AppSettings, ApplicationError> {
+    let settings = with_local_state(window.app_handle(), |local_state| {
+        local_state.set_language_preference(&language_preference)
     })?;
     broadcast_settings(&window, &settings);
     Ok(settings)

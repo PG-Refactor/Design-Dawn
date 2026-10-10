@@ -1,5 +1,6 @@
 import { createContext, type ReactNode, useContext } from "react";
 import type { GitController } from "../../application/git/git-controller";
+import type { LanguageController } from "../../application/language/language-controller";
 import type { AppRequestSource } from "../../application/ports/app-request-source";
 import type { AssetUrlResolver } from "../../application/ports/asset-url-resolver";
 import type { DropEventSource } from "../../application/ports/drop-event-source";
@@ -44,6 +45,11 @@ export interface WorkspaceServices {
     Pick<ThemeController, "applyExternal"> & {
       readonly store: Store<ThemeState>;
     };
+  // `applyExternal` as for the theme; no UI uses the language yet.
+  readonly languageController: Pick<
+    LanguageController,
+    "store" | "setPreference" | "applyExternal"
+  >;
   readonly autoSaveController: AutoSaveSettingsController &
     Pick<AutoSaveController, "applyExternal">;
   readonly layoutSettingsController: Pick<

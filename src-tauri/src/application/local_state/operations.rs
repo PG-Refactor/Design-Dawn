@@ -10,6 +10,7 @@ use serde::Serialize;
 use serde_json::{Number, Value};
 
 use super::constants::{DEFAULT_AUTO_SAVE, DEFAULT_PROJECT_TREE_WIDTH, MAX_SHEET_VIEWPORT_ENTRIES};
+use super::language::LanguagePreference;
 use super::layout::parse_project_tree_width;
 use super::theme::ThemePreference;
 use super::viewport::{SheetViewportKey, Viewport};
@@ -38,12 +39,13 @@ pub struct LocalStateDirectories {
     pub local_data_dir: PathBuf,
 }
 
-/// Wire form: `{ themePreference, autoSave, projectTreeWidth, loadIssue }` (the window size stays in Rust); `loadIssue` is `null` or
+/// Wire form: `{ themePreference, languagePreference, autoSave, projectTreeWidth, loadIssue }` (the window size stays in Rust); `loadIssue` is `null` or
 /// `{ kind, detail }`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
     pub theme_preference: ThemePreference,
+    pub language_preference: LanguagePreference,
     pub auto_save: bool,
     /// CSS pixels.
     pub project_tree_width: u32,
@@ -57,6 +59,7 @@ impl AppSettings {
     fn defaults(load_issue: Option<ApplicationError>) -> Self {
         Self {
             theme_preference: ThemePreference::default(),
+            language_preference: LanguagePreference::default(),
             auto_save: DEFAULT_AUTO_SAVE,
             project_tree_width: DEFAULT_PROJECT_TREE_WIDTH,
             window_size: None,
@@ -184,6 +187,11 @@ impl LocalState {
                 )?),
                 None => None,
             },
+            // Absent before schema version 5.
+            language_preference: match &dto.language_preference {
+                Some(value) => LanguagePreference::parse(value)?,
+                None => LanguagePreference::default(),
+            },
             load_issue: None,
         })
     }
@@ -206,6 +214,7 @@ impl LocalState {
             &SettingsFileDto {
                 schema_version: Number::from(CURRENT_SETTINGS_SCHEMA_VERSION),
                 theme_preference: settings.theme_preference.as_str().to_owned(),
+                language_preference: Some(settings.language_preference.as_str().to_owned()),
                 auto_save: Some(settings.auto_save),
                 project_tree_width: Some(Number::from(settings.project_tree_width)),
                 window_size: settings.window_size.map(|size| WindowSizeDto {
@@ -240,6 +249,15 @@ impl LocalState {
         // Validated before anything is touched, so a rejected value leaves the file as it was.
         let theme_preference = ThemePreference::parse(theme_preference)?;
         self.update_settings(|settings| settings.theme_preference = theme_preference)
+    }
+
+    pub fn set_language_preference(
+        &self,
+        language_preference: &str,
+    ) -> ApplicationResult<AppSettings> {
+        // Validated before anything is touched, so a rejected value leaves the file as it was.
+        let language_preference = LanguagePreference::parse(language_preference)?;
+        self.update_settings(|settings| settings.language_preference = language_preference)
     }
 
     pub fn set_auto_save(&self, enabled: bool) -> ApplicationResult<AppSettings> {

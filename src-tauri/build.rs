@@ -25,6 +25,7 @@ const APP_COMMANDS: &[&str] = &[
     "delete_document",
     "get_app_settings",
     "set_theme_preference",
+    "set_language_preference",
     "set_auto_save",
     "set_project_tree_width",
     "get_sheet_viewport",

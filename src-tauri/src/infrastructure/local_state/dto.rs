@@ -13,6 +13,9 @@ use crate::infrastructure::error::{PersistenceError, PersistenceErrorKind};
 pub struct SettingsFileDto {
     pub schema_version: Number,
     pub theme_preference: String,
+    /// Absent in schema versions 1 to 4 (read as `system`).
+    #[serde(default)]
+    pub language_preference: Option<String>,
     /// Absent in schema version 1.
     #[serde(default)]
     pub auto_save: Option<bool>,

@@ -7,6 +7,10 @@ import {
   type GitController,
 } from "../application/git/git-controller";
 import { createDefaultIdGenerator } from "../application/id-generator";
+import {
+  createLanguageController,
+  type LanguageController,
+} from "../application/language/language-controller";
 import type { AppRequestSource } from "../application/ports/app-request-source";
 import type { AssetUrlResolver } from "../application/ports/asset-url-resolver";
 import type { DropEventSource } from "../application/ports/drop-event-source";
@@ -60,6 +64,7 @@ import {
   type WorkspaceActions,
 } from "../features/workspace/workspace-actions";
 import { createMatchMediaOsThemeSource } from "../infrastructure/browser/match-media-os-theme-source";
+import { createNavigatorSystemLanguageSource } from "../infrastructure/browser/navigator-system-language-source";
 import { createTauriAppRequestSource } from "../infrastructure/tauri/tauri-app-request-source";
 import { createTauriAppSettingsGateway } from "../infrastructure/tauri/tauri-app-settings-gateway";
 import { createTauriAssetUrlResolver } from "../infrastructure/tauri/tauri-asset-url-resolver";
@@ -91,6 +96,8 @@ export interface AppServices {
   readonly viewportPersistence: ViewportPersistence;
   // App-level theme state; independent of the workspace, sessions and undo history.
   readonly themeController: ThemeController;
+  // The display language app setting (preference and the language it resolves to).
+  readonly languageController: LanguageController;
   // The auto-save on/off app setting; also the policy the document sessions follow.
   readonly autoSaveController: AutoSaveController;
   // The Project Tree width app setting (the splitter between the tree and the documents).
@@ -168,6 +175,15 @@ export function createAppServices(): AppServices {
         : undefined,
     ),
   });
+  const languageController = createLanguageController({
+    gateway: settingsGateway,
+    systemLanguageSource: createNavigatorSystemLanguageSource(
+      // Absent outside a webview (for example in node tests).
+      typeof globalThis.navigator === "undefined"
+        ? undefined
+        : globalThis.navigator,
+    ),
+  });
   return {
     applicationStore,
     uiStateStore,
@@ -181,6 +197,7 @@ export function createAppServices(): AppServices {
     appRequestSource: createTauriAppRequestSource(),
     viewportPersistence,
     themeController,
+    languageController,
     autoSaveController,
     layoutSettingsController,
     gitController,
