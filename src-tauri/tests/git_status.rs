@@ -2556,38 +2556,112 @@ fn diff_of_an_unstaged_deletion_shows_a_removal() {
     assert!(text.contains("deleted file mode"), "{text}");
 }
 
+fn untracked_diff(fixture: &Fixture, project: &Path, name: &str) -> GitDiff {
+    diff_leaving_everything_unchanged(fixture, project, name, DiffSide::Unstaged).unwrap()
+}
+
 #[test]
-fn an_untracked_file_has_the_untracked_outcome_and_no_git_diff_is_run() {
+fn an_untracked_text_file_is_shown_as_added_lines() {
     let fixture = fixture_or_skip!();
     let project = fixture.repository();
-    write(&project, "fresh.md", "x\n");
-    // A git that fails for `diff` proves that no diff process is started.
-    let real = fixture.executable.display().to_string();
-    let directory = fixture.directory("fake-git");
-    let script = directory.join("git");
-    #[cfg(unix)]
-    {
-        write_fake_git(
-            &script,
-            &format!(
-                "for argument in \"$@\"; do [ \"$argument\" = diff ] && {{ echo no >&2; exit 1; }}; done\nexec '{real}' \"$@\""
-            ),
-        );
-        let runner = fixture
-            .environment
-            .iter()
-            .fold(GitRunner::new(script), |runner, (name, value)| {
-                runner.with_environment(name, value)
-            });
+    write(&project, "fresh.md", "first\nsecond\n");
 
-        let result = diff_path(Some(&runner), &project, "fresh.md", DiffSide::Unstaged).unwrap();
+    let result = untracked_diff(&fixture, &project, "fresh.md");
 
-        assert_eq!(result.outcome, GitDiffOutcome::Untracked);
+    assert_eq!(result.path, "fresh.md");
+    let text = diff_text(result);
+    assert!(text.contains("new file mode"), "{text}");
+    assert!(text.contains("--- /dev/null"), "{text}");
+    assert!(text.contains("+first\n+second\n"), "{text}");
+}
+
+#[test]
+fn untracked_files_with_unusual_names_and_locations_are_shown() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    write(&project, "deep/er/note.md", "nested\n");
+    write(&project, "sub/a b 日本語.md", "japanese\n");
+    write(&project, "-dash.md", "dash\n");
+
+    for (name, expected) in [
+        ("deep/er/note.md", "+nested"),
+        ("sub/a b 日本語.md", "+japanese"),
+        ("-dash.md", "+dash"),
+    ] {
+        let text = diff_text(untracked_diff(&fixture, &project, name));
+        assert!(text.contains(expected), "{name}: {text}");
     }
-    #[cfg(not(unix))]
-    let _ = (real, script);
-    let result = diff(&fixture, &project, "fresh.md", DiffSide::Unstaged).unwrap();
-    assert_eq!(result.outcome, GitDiffOutcome::Untracked);
+}
+
+#[test]
+fn an_empty_untracked_file_has_only_the_header() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    write(&project, "empty.md", "");
+
+    // git exits with 1 here as well; the exit code rule must not turn it into a failure.
+    let text = diff_text(untracked_diff(&fixture, &project, "empty.md"));
+
+    assert!(text.contains("new file mode"), "{text}");
+    assert!(!text.contains("@@"), "{text}");
+}
+
+#[test]
+fn untracked_binary_latin1_and_large_files_have_their_own_outcomes() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    fs::write(project.join("image.bin"), [0_u8, 1, 2, 0, 255]).unwrap();
+    fs::write(project.join("latin1.md"), [b'c', b'a', b'f', 0xE9, b'\n']).unwrap();
+    let large: String = (0..300_000)
+        .map(|number| format!("line {number}\n"))
+        .collect();
+    write(&project, "large.md", &large);
+
+    assert_eq!(
+        untracked_diff(&fixture, &project, "image.bin").outcome,
+        GitDiffOutcome::Binary
+    );
+    assert_eq!(
+        untracked_diff(&fixture, &project, "latin1.md").outcome,
+        GitDiffOutcome::NotUtf8
+    );
+    assert_eq!(
+        untracked_diff(&fixture, &project, "large.md").outcome,
+        GitDiffOutcome::TooLarge {
+            limit_bytes: DIFF_OUTPUT_LIMIT_BYTES
+        }
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn an_untracked_symlink_does_not_expose_the_content_of_its_target() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    let outside = fixture.directory("outside-target");
+    fs::write(outside.join("secret.txt"), "TOP-SECRET-CONTENT\n").unwrap();
+    std::os::unix::fs::symlink(outside.join("secret.txt"), project.join("link.md")).unwrap();
+
+    let text = diff_text(untracked_diff(&fixture, &project, "link.md"));
+
+    assert!(!text.contains("TOP-SECRET-CONTENT"), "{text}");
+    assert!(text.contains("new file mode 120000"), "{text}");
+}
+
+#[cfg(unix)]
+#[test]
+fn an_untracked_file_below_a_symlinked_directory_is_rejected() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    let outside = fixture.directory("outside-directory");
+    fs::write(outside.join("secret.txt"), "TOP-SECRET-CONTENT\n").unwrap();
+    std::os::unix::fs::symlink(&outside, project.join("linked")).unwrap();
+
+    // Git does not list files below a link, so the request fails the status check; the
+    // location check is the second line of defence.
+    let error = diff(&fixture, &project, "linked/secret.txt", DiffSide::Unstaged).unwrap_err();
+
+    assert_eq!(error.kind, ErrorKind::InvalidGitPath);
 }
 
 #[test]
@@ -2973,10 +3047,6 @@ fn the_wire_form_has_an_outcome_tag_and_camel_case_fields() {
         (
             GitDiffOutcome::Empty,
             serde_json::json!({"path": "a.md", "side": "unstaged", "outcome": "empty"}),
-        ),
-        (
-            GitDiffOutcome::Untracked,
-            serde_json::json!({"path": "a.md", "side": "unstaged", "outcome": "untracked"}),
         ),
         (
             GitDiffOutcome::Binary,

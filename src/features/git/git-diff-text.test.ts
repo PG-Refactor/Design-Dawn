@@ -31,6 +31,40 @@ describe("classifyDiffLines", () => {
     ]);
   });
 
+  it("reads the diff of a new file (git diff --no-index against /dev/null)", () => {
+    const diff = [
+      "diff --git a/sub/a b.md b/sub/a b.md",
+      "new file mode 100644",
+      "index 0000000..d5bfe4b",
+      "--- /dev/null",
+      "+++ b/sub/a b.md\t",
+      "@@ -0,0 +1,2 @@",
+      "+line1",
+      "+日本語",
+      "",
+    ].join("\n");
+    expect(kindsOf(diff)).toEqual([
+      "meta",
+      "meta",
+      "meta",
+      "meta",
+      "meta",
+      "hunk",
+      "add",
+      "add",
+    ]);
+  });
+
+  it("reads the header-only diff of an empty new file as headers", () => {
+    const diff = [
+      "diff --git a/empty.md b/empty.md",
+      "new file mode 100644",
+      "index 0000000..e69de29",
+      "",
+    ].join("\n");
+    expect(kindsOf(diff)).toEqual(["meta", "meta", "meta"]);
+  });
+
   it("keeps the prefix in the text and numbers the lines", () => {
     const lines = classifyDiffLines("@@ -1 +1 @@\n-a\n+b\n");
     expect(lines.map((line) => line.text)).toEqual(["@@ -1 +1 @@", "-a", "+b"]);

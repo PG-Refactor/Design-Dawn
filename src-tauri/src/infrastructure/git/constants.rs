@@ -127,6 +127,15 @@ pub const ARG_NUMSTAT: &str = "--numstat";
 /// configuration; neither may run (docs/git-development.md §11.6).
 pub const ARG_NO_EXT_DIFF: &str = "--no-ext-diff";
 pub const ARG_NO_TEXTCONV: &str = "--no-textconv";
+/// Compares two paths outside the index; used to show an untracked file as all additions.
+pub const ARG_NO_INDEX: &str = "--no-index";
+/// The empty left side of a `--no-index` diff. Git special-cases this literal on every
+/// platform (including Windows), so it is not a real device path there.
+pub const NO_INDEX_EMPTY_SIDE: &str = "/dev/null";
+/// `git diff --no-index` exits 0 when the sides are equal (an empty new file) ...
+pub const NO_INDEX_NO_DIFFERENCE_EXIT_CODE: i32 = 0;
+/// ... and 1 when they differ (any non-empty new file); both are successful runs.
+pub const NO_INDEX_DIFFERENCES_EXIT_CODE: i32 = 1;
 pub const ARG_NO_COLOR: &str = "--no-color";
 /// Shows a rename as one old / new pair instead of a deletion and an addition.
 pub const ARG_FIND_RENAMES: &str = "-M";

@@ -8,15 +8,17 @@ use std::sync::{Mutex, PoisonError};
 use serde::{Deserialize, Serialize};
 
 use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
+use crate::application::git_discard::untracked_file_location;
 use crate::application::session::ProjectSessions;
 use crate::infrastructure::git::constants::{
     ARG_ADD, ARG_CACHED, ARG_CONTAINS, ARG_COUNT_ONE, ARG_DIFF, ARG_END_OF_OPTIONS,
-    ARG_FIND_RENAMES, ARG_FOR_EACH_REF, ARG_NO_COLOR, ARG_NO_EXT_DIFF, ARG_NO_OPTIONAL_LOCKS,
-    ARG_NO_TEXTCONV, ARG_NUL_SEPARATED, ARG_NUMSTAT, ARG_PATHSPEC_FILE_NUL,
+    ARG_FIND_RENAMES, ARG_FOR_EACH_REF, ARG_NO_COLOR, ARG_NO_EXT_DIFF, ARG_NO_INDEX,
+    ARG_NO_OPTIONAL_LOCKS, ARG_NO_TEXTCONV, ARG_NUL_SEPARATED, ARG_NUMSTAT, ARG_PATHSPEC_FILE_NUL,
     ARG_PATHSPEC_FROM_STDIN, ARG_QUIET, ARG_RESTORE, ARG_REV_PARSE, ARG_RM, ARG_STAGED, ARG_STATUS,
     ARG_STATUS_BRANCH, ARG_STATUS_PORCELAIN_V2, ARG_UNTRACKED_ALL, ARG_VERIFY,
     DIFF_COMMAND_TIMEOUT, DIFF_OUTPUT_LIMIT_BYTES, FORMAT_REF_NAME, GIT_COMMAND_TIMEOUT,
-    GIT_STDOUT_LIMIT_BYTES, REMOTE_TRACKING_REFS, REVISION_HEAD,
+    GIT_STDOUT_LIMIT_BYTES, NO_INDEX_DIFFERENCES_EXIT_CODE, NO_INDEX_EMPTY_SIDE,
+    NO_INDEX_NO_DIFFERENCE_EXIT_CODE, REMOTE_TRACKING_REFS, REVISION_HEAD,
 };
 use crate::infrastructure::git::numstat_parser::contains_binary_file;
 use crate::infrastructure::git::paths::{
@@ -405,8 +407,6 @@ pub enum GitDiffOutcome {
     },
     /// The status lists a change but git's diff is empty (a timestamp-only change).
     Empty,
-    /// An untracked file has no diff in Phase 6; its content is not generated.
-    Untracked,
     Binary,
     TooLarge {
         limit_bytes: usize,
@@ -480,9 +480,23 @@ pub fn diff_path(
         outcome,
     };
 
-    if side == DiffSide::Unstaged && entry.worktree_status == GitFileChange::Untracked {
-        return Ok(result(GitDiffOutcome::Untracked));
+    // An untracked file is compared against an empty side, so its content shows as
+    // additions. Nothing outside the project may be read through a link on the way.
+    let untracked = side == DiffSide::Unstaged && entry.worktree_status == GitFileChange::Untracked;
+    if untracked {
+        untracked_file_location(project_root, &validated).map_err(|error| {
+            if error.kind == ErrorKind::GitDiscardRejected {
+                ApplicationError::new(ErrorKind::InvalidGitPath, error.detail)
+            } else {
+                error
+            }
+        })?;
     }
+    let target = if untracked {
+        DiffTarget::UntrackedFile
+    } else {
+        DiffTarget::Side(side)
+    };
 
     // A staged rename is shown as an old / new pair only when both names are in the
     // pathspec; with the new name alone it would look like a plain addition.
@@ -504,7 +518,7 @@ pub fn diff_path(
     let numstat = run_diff(
         runner,
         project_root,
-        side,
+        target,
         &[ARG_NUMSTAT, ARG_NUL_SEPARATED],
         &pathspecs,
         GIT_STDOUT_LIMIT_BYTES,
@@ -532,7 +546,7 @@ pub fn diff_path(
     let text = run_diff(
         runner,
         project_root,
-        side,
+        target,
         &[ARG_NO_COLOR],
         &pathspecs,
         DIFF_OUTPUT_LIMIT_BYTES + 1,
@@ -551,23 +565,36 @@ pub fn diff_path(
     }))
 }
 
+/// What one `git diff` call compares.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DiffTarget {
+    Side(DiffSide),
+    /// An untracked file against an empty side (`--no-index`).
+    UntrackedFile,
+}
+
 /// One `git diff` with the options every Diff call shares. `extra` holds the options that
 /// differ (numstat or colour); `pathspecs` follow `--` so none can be read as an option.
 fn run_diff(
     runner: &GitRunner,
     project_root: &Path,
-    side: DiffSide,
+    target: DiffTarget,
     extra: &[&str],
     pathspecs: &[String],
     stdout_limit: usize,
 ) -> ApplicationResult<GitOutput> {
     let mut arguments: Vec<&str> = vec![ARG_NO_OPTIONAL_LOCKS, ARG_DIFF];
-    if side == DiffSide::Staged {
-        arguments.push(ARG_CACHED);
+    match target {
+        DiffTarget::Side(DiffSide::Staged) => arguments.push(ARG_CACHED),
+        DiffTarget::Side(DiffSide::Unstaged) => {}
+        DiffTarget::UntrackedFile => arguments.push(ARG_NO_INDEX),
     }
     arguments.extend_from_slice(extra);
     arguments.extend_from_slice(&[ARG_NO_EXT_DIFF, ARG_NO_TEXTCONV, ARG_FIND_RENAMES]);
     arguments.push(ARG_END_OF_OPTIONS);
+    if target == DiffTarget::UntrackedFile {
+        arguments.push(NO_INDEX_EMPTY_SIDE);
+    }
     arguments.extend(pathspecs.iter().map(String::as_str));
 
     let output = runner
@@ -579,7 +606,16 @@ fn run_diff(
             stdout_limit,
         )
         .map_err(|error| run_error("diff", error))?;
-    if !output.success() {
+    // `--no-index` follows `diff(1)`: 1 means "differences found", which is the normal
+    // result for a non-empty new file. Every other code (and a signal) is a failure.
+    let succeeded = match target {
+        DiffTarget::UntrackedFile => matches!(
+            output.exit_code(),
+            Some(NO_INDEX_NO_DIFFERENCE_EXIT_CODE | NO_INDEX_DIFFERENCES_EXIT_CODE)
+        ),
+        DiffTarget::Side(_) => output.success(),
+    };
+    if !succeeded {
         return Err(ApplicationError::new(
             ErrorKind::GitCommandFailed,
             format!(

@@ -72,7 +72,6 @@ export type GitDiffSide = (typeof GIT_DIFF_SIDES)[number];
 export const GIT_DIFF_OUTCOMES = [
   "text",
   "empty",
-  "untracked",
   "binary",
   "tooLarge",
   "notUtf8",
@@ -84,7 +83,6 @@ export type GitDiffOutcome = (typeof GIT_DIFF_OUTCOMES)[number];
 export type GitDiffContent =
   | { readonly outcome: "text"; readonly diff: string }
   | { readonly outcome: "empty" }
-  | { readonly outcome: "untracked" }
   | { readonly outcome: "binary" }
   | { readonly outcome: "tooLarge"; readonly limitBytes: number }
   | { readonly outcome: "notUtf8" };

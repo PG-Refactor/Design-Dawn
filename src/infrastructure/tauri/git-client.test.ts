@@ -376,7 +376,6 @@ describe("gitDiff", () => {
   it.each([
     ["text", { diff: "@@ -1 +1 @@" }],
     ["empty", {}],
-    ["untracked", {}],
     ["binary", {}],
     ["tooLarge", { limitBytes: 1048576 }],
     ["notUtf8", {}],

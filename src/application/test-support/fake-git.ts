@@ -301,14 +301,25 @@ export function createFakeGitGateway(): FakeGitGateway {
     },
     async diff(projectId, path, side) {
       gateway.diffCalls.push({ projectId, path, side });
+      // Like git, an untracked file shows as all-added lines; any other path without a
+      // prepared answer has an empty diff.
+      const isUntracked =
+        side === "unstaged" &&
+        gateway.status.files.some(
+          (file) => file.path === path && file.worktreeStatus === "untracked",
+        );
       const answer = gateway.failure
         ? operationErr<GitDiff>(gateway.failure.kind, gateway.failure.detail)
         : operationOk<GitDiff>(
-            gateway.diffs[`${side}:${path}`] ?? {
-              path,
-              side,
-              outcome: "empty",
-            },
+            gateway.diffs[`${side}:${path}`] ??
+              (isUntracked
+                ? {
+                    path,
+                    side,
+                    outcome: "text",
+                    diff: newFileDiff(path, ["new line"]),
+                  }
+                : { path, side, outcome: "empty" }),
           );
       const pending = diffHold;
       diffHold = null;
@@ -401,4 +412,18 @@ export function createFakeGitGateway(): FakeGitGateway {
     },
   };
   return gateway;
+}
+
+// The unified diff git prints for a new file (`git diff --no-index -- /dev/null <path>`).
+function newFileDiff(path: string, lines: readonly string[]): string {
+  return [
+    `diff --git a/${path} b/${path}`,
+    "new file mode 100644",
+    "index 0000000..1111111",
+    "--- /dev/null",
+    `+++ b/${path}`,
+    `@@ -0,0 +1,${lines.length} @@`,
+    ...lines.map((line) => `+${line}`),
+    "",
+  ].join("\n");
 }

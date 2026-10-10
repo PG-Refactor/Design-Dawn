@@ -29,8 +29,6 @@ export function GitDiffContent({ diff }: { readonly diff: GitDiff }) {
       return <DiffText diff={diff.diff} />;
     case "empty":
       return <p className="git-diff__message">{messages.diffEmpty}</p>;
-    case "untracked":
-      return <p className="git-diff__message">{messages.diffUntracked}</p>;
     case "binary":
       return <p className="git-diff__message">{messages.diffBinary}</p>;
     case "tooLarge":

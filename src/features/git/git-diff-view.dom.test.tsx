@@ -154,6 +154,14 @@ describe("opening a diff", () => {
     ).toBeTruthy();
   });
 
+  it("shows the content of an untracked file as added lines", async () => {
+    const shell = await openChanges(file("d.md", "untracked", "untracked"));
+    await clickRow(shell, "変更", "未追跡 d.md");
+    await settled();
+    const added = within(mainArea()).getByText("new line");
+    expect(added.closest("td")?.className).toContain("git-diff__code--added");
+  });
+
   it("renders HTML-looking diff text as text", async () => {
     const shell = await openChanges(file("a.md", "unmodified", "modified"));
     shell.gitGateway.diffs["unstaged:a.md"] = textDiff(
@@ -187,11 +195,6 @@ describe("outcomes", () => {
       "empty",
       { path: "a.md", side: "unstaged", outcome: "empty" },
       GIT_MESSAGES.ja.diffEmpty,
-    ],
-    [
-      "untracked",
-      { path: "a.md", side: "unstaged", outcome: "untracked" },
-      "新しいファイルです（まだGitで管理されていません）",
     ],
     [
       "binary",

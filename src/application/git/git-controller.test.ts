@@ -841,7 +841,6 @@ describe("loadDiff", () => {
 
   it.each<GitDiff>([
     { path: PATH, side: "unstaged", outcome: "empty" },
-    { path: PATH, side: "unstaged", outcome: "untracked" },
     { path: PATH, side: "unstaged", outcome: "binary" },
     { path: PATH, side: "unstaged", outcome: "tooLarge", limitBytes: 1024 },
     { path: PATH, side: "unstaged", outcome: "notUtf8" },

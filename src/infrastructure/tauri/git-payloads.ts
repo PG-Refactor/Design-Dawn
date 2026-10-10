@@ -129,7 +129,6 @@ export function toGitDiff(payload: unknown): CommandResult<GitDiff> {
         : commandErr("invalidCommandResponse", body.detail);
     }
     case "empty":
-    case "untracked":
     case "binary":
     case "notUtf8":
       return commandOk({ path, side, outcome });
