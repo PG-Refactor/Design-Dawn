@@ -15,10 +15,23 @@ afterEach(cleanup);
 const FULL_ID = "0123456789abcdef0123456789abcdef01234567";
 
 function statusOf(
-  branch: GitBranchInfo | null,
+  branch: Pick<GitBranchInfo, "head" | "oid"> | null,
   files: GitFileStatus[] = [],
 ): GitStatus {
-  return { repositoryState: "ready", branch, files };
+  return {
+    repositoryState: "ready",
+    branch:
+      branch === null
+        ? null
+        : {
+            ...branch,
+            upstream: null,
+            ahead: null,
+            behind: null,
+            headPushed: false,
+          },
+    files,
+  };
 }
 
 async function openGit(status: GitStatus) {

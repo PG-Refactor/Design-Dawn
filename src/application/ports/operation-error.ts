@@ -67,6 +67,10 @@ export const GIT_ERROR_KINDS = [
   "invalidHistoryRequest",
   // Discard (docs/git-development.md §11.14).
   "gitDiscardRejected",
+  // Commit options and Undo Last Commit (docs/git-development.md §11.16).
+  "gitNoCommitToAmend",
+  "gitCommitAlreadyPushed",
+  "gitCannotUndoCommit",
 ] as const;
 
 // Domain errors that only Rust can produce (TypeScript treats contentPath as opaque).

@@ -88,6 +88,13 @@ pub enum ErrorKind {
     /// discardable change (staged only, conflicted, unchanged, ignored, a directory, ...),
     /// or an untracked file whose location cannot be removed safely.
     GitDiscardRejected,
+    /// Amend requested while the repository has no commit.
+    GitNoCommitToAmend,
+    /// Amend / Undo requested for a commit that is contained in a remote-tracking branch
+    /// (or whose containment could not be determined): rewriting it would need a force push.
+    GitCommitAlreadyPushed,
+    /// Undo requested for a commit that is missing, the first commit, or a merge commit.
+    GitCannotUndoCommit,
 }
 
 impl ErrorKind {
@@ -122,6 +129,9 @@ impl ErrorKind {
             Self::GitCommitRejected => "gitCommitRejected",
             Self::InvalidHistoryRequest => "invalidHistoryRequest",
             Self::GitDiscardRejected => "gitDiscardRejected",
+            Self::GitNoCommitToAmend => "gitNoCommitToAmend",
+            Self::GitCommitAlreadyPushed => "gitCommitAlreadyPushed",
+            Self::GitCannotUndoCommit => "gitCannotUndoCommit",
         }
     }
 
@@ -160,6 +170,9 @@ impl ErrorKind {
             Self::GitCommitRejected => "git rejected the commit",
             Self::InvalidHistoryRequest => "the history request is not valid",
             Self::GitDiscardRejected => "the change cannot be discarded",
+            Self::GitNoCommitToAmend => "there is no commit to amend",
+            Self::GitCommitAlreadyPushed => "a pushed commit cannot be changed",
+            Self::GitCannotUndoCommit => "the commit cannot be undone",
         }
     }
 }
@@ -239,7 +252,7 @@ impl Serialize for ApplicationError {
 mod tests {
     use super::*;
 
-    const ALL_KINDS: [ErrorKind; 44] = [
+    const ALL_KINDS: [ErrorKind; 47] = [
         ErrorKind::Domain(DomainErrorKind::InvalidEntityId),
         ErrorKind::Domain(DomainErrorKind::InvalidDisplayName),
         ErrorKind::Domain(DomainErrorKind::InvalidPosition),
@@ -284,6 +297,9 @@ mod tests {
         ErrorKind::GitCommitRejected,
         ErrorKind::InvalidHistoryRequest,
         ErrorKind::GitDiscardRejected,
+        ErrorKind::GitNoCommitToAmend,
+        ErrorKind::GitCommitAlreadyPushed,
+        ErrorKind::GitCannotUndoCommit,
     ];
 
     /// A Windows drive path (`C:\`) or any separator would mean a path leaked.

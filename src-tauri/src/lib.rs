@@ -109,6 +109,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::git_discard,
             commands::git_diff,
             commands::git_commit,
+            commands::git_undo_last_commit,
             commands::git_history,
         ])
 }

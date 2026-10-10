@@ -4,19 +4,22 @@
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use serde::{Serialize, Serializer};
+use serde::{Deserialize, Serialize, Serializer};
 
 use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
 use crate::application::git_operations::{
-    is_unstageable, not_ready_error, project_root_of, read_file_statuses, read_git_status,
-    repository_state, run_error, GitFileChange, GitRepositoryState, GitStatusResult,
+    head_is_pushed, is_unstageable, not_ready_error, project_root_of, read_file_statuses,
+    read_git_status, repository_state, run_error, GitFileChange, GitFileStatus, GitRepositoryState,
+    GitStatusResult,
 };
 use crate::application::session::ProjectSessions;
 use crate::infrastructure::git::constants::{
-    ARG_CLEANUP_WHITESPACE, ARG_COMMIT, ARG_CONFIG, ARG_GIT_PATH, ARG_MESSAGE_FILE, ARG_REV_PARSE,
-    ARG_STDIN_FILE, ARG_VAR, ARG_VERIFY, COMMIT_MESSAGE_LIMIT_BYTES, CONFIG_COMMIT_ENCODING_UTF8,
+    ARG_ADD, ARG_ADD_ALL, ARG_AMEND, ARG_CLEANUP_WHITESPACE, ARG_COMMIT, ARG_CONFIG, ARG_GIT_PATH,
+    ARG_LOG, ARG_MAX_COUNT, ARG_MESSAGE_FILE, ARG_NO_EDIT, ARG_NO_SHOW_SIGNATURE, ARG_QUIET,
+    ARG_RESET, ARG_REV_PARSE, ARG_SOFT, ARG_STDIN_FILE, ARG_VAR, ARG_VERIFY,
+    COMMIT_MESSAGE_LIMIT_BYTES, CONFIG_COMMIT_ENCODING_UTF8, FORMAT_PARENTS, FORMAT_RAW_BODY,
     GIT_COMMAND_TIMEOUT, GIT_COMMIT_TIMEOUT, GIT_FATAL_EXIT_CODE, IN_PROGRESS_GIT_PATHS,
-    OBJECT_ID_LENGTHS, REVISION_HEAD, VAR_AUTHOR_IDENT, VAR_COMMITTER_IDENT,
+    OBJECT_ID_LENGTHS, REVISION_HEAD, SINGLE_COMMIT_COUNT, VAR_AUTHOR_IDENT, VAR_COMMITTER_IDENT,
 };
 use crate::infrastructure::git::redaction::redact_credentials;
 use crate::infrastructure::git::runner::GitRunner;
@@ -53,14 +56,49 @@ pub struct GitCommitResult {
     pub status: GitCommitStatus,
 }
 
+/// What the UI asks of a commit besides its message (docs/git-development.md §11.16).
+/// Both default to `false`: a plain commit of the index.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitCommitOptions {
+    /// Rewrite the last commit instead of making a new one.
+    pub amend: bool,
+    /// Stage every change (`git add -A`) before committing.
+    pub stage_all: bool,
+}
+
+/// Outcome of Undo Last Commit: the message of the commit that was taken back (`null`
+/// when it is not valid UTF-8) and the status read afterwards.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitUndoCommitResult {
+    pub message: Option<String>,
+    pub status: GitCommitStatus,
+}
+
 /// Commits the staged changes of the Project's Repository with the `git` found on PATH.
 pub fn git_commit(
     sessions: &Mutex<ProjectSessions>,
     project_id: &str,
     message: &str,
+    options: GitCommitOptions,
 ) -> ApplicationResult<GitCommitResult> {
     let project_root = project_root_of(sessions, project_id)?;
-    commit_staged(GitRunner::discover().ok().as_ref(), &project_root, message)
+    commit_with_options(
+        GitRunner::discover().ok().as_ref(),
+        &project_root,
+        message,
+        options,
+    )
+}
+
+/// Takes the last commit back with the `git` found on PATH.
+pub fn git_undo_last_commit(
+    sessions: &Mutex<ProjectSessions>,
+    project_id: &str,
+) -> ApplicationResult<GitUndoCommitResult> {
+    let project_root = project_root_of(sessions, project_id)?;
+    undo_last_commit(GitRunner::discover().ok().as_ref(), &project_root)
 }
 
 /// Why a message is refused; the detail never contains the message.
@@ -92,72 +130,113 @@ pub fn normalize_commit_message(message: &str) -> Result<String, CommitMessageEr
     Ok(normalized)
 }
 
-/// `git commit` of what is staged (docs/git-development.md §11.11). Checks run in a fixed
-/// order and nothing is executed after the first failing one: repository ready, message,
-/// staged changes / conflicts, unfinished operation, identity. Never saves anything.
+/// `git commit` of what is staged with no options (docs/git-development.md §11.11).
+pub fn commit_staged(
+    runner: Option<&GitRunner>,
+    project_root: &Path,
+    message: &str,
+) -> ApplicationResult<GitCommitResult> {
+    commit_with_options(runner, project_root, message, GitCommitOptions::default())
+}
+
+/// `git commit` (docs/git-development.md §11.11, §11.16). Checks run in a fixed order and
+/// nothing is executed after the first failing one: repository ready, message, (amend:
+/// HEAD exists, not pushed), conflicts, (stage all: unfinished operation, `git add -A`),
+/// staged changes, unfinished operation, identity. Never saves anything.
 ///
 /// A failure of the commit itself (`gitCommitRejected` / `gitTimeout` /
 /// `gitCommandFailed`) may have been caused after hooks changed the index or working
 /// tree, so the caller reads the status again. If the commit succeeded but HEAD cannot be
 /// read afterwards, the result is still `Ok` with `commit_id: None`.
-pub fn commit_staged(
+pub fn commit_with_options(
     runner: Option<&GitRunner>,
     project_root: &Path,
     message: &str,
+    options: GitCommitOptions,
 ) -> ApplicationResult<GitCommitResult> {
     let state = repository_state(runner, project_root)?;
     let (GitRepositoryState::Ready, Some(runner)) = (state, runner) else {
         return Err(not_ready_error(state));
     };
 
-    let message = normalize_commit_message(message).map_err(|reason| {
-        ApplicationError::new(
-            ErrorKind::InvalidCommitMessage,
-            format!("the commit message was rejected: {reason:?}"),
-        )
-    })?;
+    // An amend without a message keeps the old one (`--no-edit`); for a new commit a
+    // blank message is an error.
+    let message = if options.amend && message.trim().is_empty() {
+        None
+    } else {
+        Some(normalize_commit_message(message).map_err(|reason| {
+            ApplicationError::new(
+                ErrorKind::InvalidCommitMessage,
+                format!("the commit message was rejected: {reason:?}"),
+            )
+        })?)
+    };
 
-    let files = read_file_statuses(runner, project_root)?;
-    if files
-        .iter()
-        .any(|file| file.index_status == GitFileChange::Unmerged)
-    {
-        return Err(ApplicationError::new(
-            ErrorKind::GitUnmergedChanges,
-            "the repository has unmerged files",
-        ));
+    if options.amend {
+        if read_head_object_id_if_any(runner, project_root)?.is_none() {
+            return Err(ApplicationError::new(
+                ErrorKind::GitNoCommitToAmend,
+                "the repository has no commit",
+            ));
+        }
+        require_head_not_pushed(runner, project_root)?;
     }
-    if !files.iter().any(|file| is_unstageable(file.index_status)) {
+
+    let mut files = read_file_statuses(runner, project_root)?;
+    require_no_unmerged(&files)?;
+    if options.stage_all {
+        // Checked before adding: `git add -A` during a merge would mark conflicted files
+        // as resolved.
+        require_no_operation_in_progress(runner, project_root)?;
+        let output = runner
+            .run(
+                &[ARG_ADD, ARG_ADD_ALL],
+                project_root,
+                None,
+                GIT_COMMAND_TIMEOUT,
+            )
+            .map_err(|error| run_error("add", error))?;
+        if !output.success() {
+            return Err(ApplicationError::new(
+                ErrorKind::GitCommandFailed,
+                format!(
+                    "git add exited with {:?}: {}",
+                    output.exit_code(),
+                    redact_credentials(output.stderr_text().trim_end())
+                ),
+            ));
+        }
+        files = read_file_statuses(runner, project_root)?;
+        require_no_unmerged(&files)?;
+    }
+    // A message-only amend has nothing staged.
+    if !options.amend && !files.iter().any(|file| is_unstageable(file.index_status)) {
         return Err(ApplicationError::new(
             ErrorKind::NothingToCommit,
             "nothing is staged",
         ));
     }
 
-    if operation_in_progress(runner, project_root)? {
-        return Err(ApplicationError::new(
-            ErrorKind::GitOperationInProgress,
-            "a merge, cherry-pick, revert or rebase is unfinished",
-        ));
-    }
+    require_no_operation_in_progress(runner, project_root)?;
     for variable in [VAR_AUTHOR_IDENT, VAR_COMMITTER_IDENT] {
         require_identity(runner, project_root, variable)?;
     }
 
     // No `-a` / `--only` / `--include` / `--allow-empty` / `--no-verify` / paths: exactly
     // the index, with the user's hooks and signing settings.
+    let mut arguments = vec![ARG_CONFIG, CONFIG_COMMIT_ENCODING_UTF8, ARG_COMMIT];
+    if options.amend {
+        arguments.push(ARG_AMEND);
+    }
+    match message {
+        Some(_) => arguments.extend([ARG_MESSAGE_FILE, ARG_STDIN_FILE, ARG_CLEANUP_WHITESPACE]),
+        None => arguments.push(ARG_NO_EDIT),
+    }
     let output = runner
         .run(
-            &[
-                ARG_CONFIG,
-                CONFIG_COMMIT_ENCODING_UTF8,
-                ARG_COMMIT,
-                ARG_MESSAGE_FILE,
-                ARG_STDIN_FILE,
-                ARG_CLEANUP_WHITESPACE,
-            ],
+            &arguments,
             project_root,
-            Some(message.as_bytes()),
+            message.as_deref().map(str::as_bytes),
             GIT_COMMIT_TIMEOUT,
         )
         .map_err(|error| run_error("commit", error))?;
@@ -181,16 +260,189 @@ pub fn commit_staged(
             None
         }
     };
-    let status = match read_git_status(Some(runner), project_root) {
+    Ok(GitCommitResult {
+        commit_id,
+        status: status_after_change(runner, project_root, "a commit"),
+    })
+}
+
+/// Undo Last Commit: `git reset --soft <parent>` (docs/git-development.md §11.16). The
+/// index and the working tree are not touched, so everything the commit contained is
+/// staged again. The target is the parent's object ID read here, never text from the
+/// caller. The message is returned to the caller and never logged.
+pub fn undo_last_commit(
+    runner: Option<&GitRunner>,
+    project_root: &Path,
+) -> ApplicationResult<GitUndoCommitResult> {
+    let state = repository_state(runner, project_root)?;
+    let (GitRepositoryState::Ready, Some(runner)) = (state, runner) else {
+        return Err(not_ready_error(state));
+    };
+
+    let cannot_undo = |detail: &str| ApplicationError::new(ErrorKind::GitCannotUndoCommit, detail);
+    if read_head_object_id_if_any(runner, project_root)?.is_none() {
+        return Err(cannot_undo("the repository has no commit"));
+    }
+    let parents = read_head_log(runner, project_root, FORMAT_PARENTS)?;
+    let parents = String::from_utf8_lossy(&parents);
+    let mut parent_ids = parents.split_whitespace();
+    let parent_id = match (parent_ids.next(), parent_ids.next()) {
+        (Some(parent_id), None) if is_object_id(parent_id) => parent_id.to_owned(),
+        _ => {
+            return Err(cannot_undo(
+                "HEAD is a root commit, a merge commit or has an unreadable parent",
+            ))
+        }
+    };
+    require_head_not_pushed(runner, project_root)?;
+    require_no_operation_in_progress(runner, project_root)?;
+
+    let mut body = read_head_log(runner, project_root, FORMAT_RAW_BODY)?;
+    // `--format` terminates the record with one newline that is not part of the message.
+    if body.last() == Some(&b'\n') {
+        body.pop();
+    }
+    let message = String::from_utf8(body).ok();
+
+    let output = runner
+        .run(
+            &[ARG_RESET, ARG_SOFT, &parent_id],
+            project_root,
+            None,
+            GIT_COMMAND_TIMEOUT,
+        )
+        .map_err(|error| run_error("reset", error))?;
+    if !output.success() {
+        return Err(ApplicationError::new(
+            ErrorKind::GitCommandFailed,
+            format!(
+                "git reset exited with {:?}: {}",
+                output.exit_code(),
+                redact_credentials(output.stderr_text().trim_end())
+            ),
+        ));
+    }
+    Ok(GitUndoCommitResult {
+        message,
+        status: status_after_change(runner, project_root, "an undo"),
+    })
+}
+
+/// A failure to read the status after a change that succeeded does not undo the change,
+/// so it is a state of the result, not an error.
+fn status_after_change(runner: &GitRunner, project_root: &Path, what: &str) -> GitCommitStatus {
+    match read_git_status(Some(runner), project_root) {
         Ok(status) => GitCommitStatus::Updated { status },
         Err(error) => {
-            eprintln!("git status after a commit failed: {error}");
+            eprintln!("git status after {what} failed: {error}");
             GitCommitStatus::Unavailable {
                 error_kind: error.kind,
             }
         }
-    };
-    Ok(GitCommitResult { commit_id, status })
+    }
+}
+
+fn require_no_unmerged(files: &[GitFileStatus]) -> ApplicationResult<()> {
+    if files
+        .iter()
+        .any(|file| file.index_status == GitFileChange::Unmerged)
+    {
+        return Err(ApplicationError::new(
+            ErrorKind::GitUnmergedChanges,
+            "the repository has unmerged files",
+        ));
+    }
+    Ok(())
+}
+
+fn require_no_operation_in_progress(
+    runner: &GitRunner,
+    project_root: &Path,
+) -> ApplicationResult<()> {
+    if operation_in_progress(runner, project_root)? {
+        return Err(ApplicationError::new(
+            ErrorKind::GitOperationInProgress,
+            "a merge, cherry-pick, revert or rebase is unfinished",
+        ));
+    }
+    Ok(())
+}
+
+/// A commit contained in a remote-tracking branch is refused; so is one whose containment
+/// cannot be determined, because rewriting a pushed commit needs a force push.
+fn require_head_not_pushed(runner: &GitRunner, project_root: &Path) -> ApplicationResult<()> {
+    match head_is_pushed(runner, project_root) {
+        Ok(false) => Ok(()),
+        Ok(true) => Err(ApplicationError::new(
+            ErrorKind::GitCommitAlreadyPushed,
+            "HEAD is contained in a remote-tracking branch",
+        )),
+        Err(error) => {
+            eprintln!("git head containment lookup failed: {error}");
+            Err(ApplicationError::new(
+                ErrorKind::GitCommitAlreadyPushed,
+                "whether HEAD was pushed could not be determined",
+            ))
+        }
+    }
+}
+
+/// Raw output of `git log -1 <format> HEAD`.
+fn read_head_log(
+    runner: &GitRunner,
+    project_root: &Path,
+    format: &str,
+) -> ApplicationResult<Vec<u8>> {
+    let output = runner
+        .run(
+            &[
+                ARG_LOG,
+                ARG_NO_SHOW_SIGNATURE,
+                ARG_MAX_COUNT,
+                SINGLE_COMMIT_COUNT,
+                format,
+                REVISION_HEAD,
+            ],
+            project_root,
+            None,
+            GIT_COMMAND_TIMEOUT,
+        )
+        .map_err(|error| run_error("log", error))?;
+    if !output.success() || output.stdout_truncated {
+        return Err(ApplicationError::new(
+            ErrorKind::GitCommandFailed,
+            format!("git log exited with {:?}", output.exit_code()),
+        ));
+    }
+    Ok(output.stdout)
+}
+
+/// `None` when the repository has no commit yet (`--quiet` makes that a silent exit 1).
+fn read_head_object_id_if_any(
+    runner: &GitRunner,
+    project_root: &Path,
+) -> ApplicationResult<Option<String>> {
+    let output = runner
+        .run(
+            &[ARG_REV_PARSE, ARG_VERIFY, ARG_QUIET, REVISION_HEAD],
+            project_root,
+            None,
+            GIT_COMMAND_TIMEOUT,
+        )
+        .map_err(|error| run_error("HEAD lookup", error))?;
+    if output.success() {
+        let text = String::from_utf8_lossy(&output.stdout);
+        let object_id = text.trim_end_matches(['\n', '\r']);
+        if is_object_id(object_id) {
+            return Ok(Some(object_id.to_owned()));
+        }
+    } else if output.exit_code() == Some(1) {
+        return Ok(None);
+    }
+    Err(ApplicationError::new(
+        ErrorKind::GitCommandFailed,
+        format!("git rev-parse HEAD exited with {:?}", output.exit_code()),
+    ))
 }
 
 /// True when git's own locations for `MERGE_HEAD` and friends exist. Asking git keeps this

@@ -12,15 +12,18 @@
 import { HISTORY_PAGE_SIZE } from "../../config/git-config";
 import type { ProjectId } from "../../domain/shared/entity-id";
 import { createStore, type Store } from "../../shared/store/store";
-import type {
-  GitCommitResult,
-  GitDiff,
-  GitDiffSide,
-  GitDiscardImpact,
-  GitGateway,
-  GitHistoryEntry,
-  GitHistoryPage,
-  GitStatus,
+import {
+  DEFAULT_GIT_COMMIT_OPTIONS,
+  type GitCommitOptions,
+  type GitCommitResult,
+  type GitDiff,
+  type GitDiffSide,
+  type GitDiscardImpact,
+  type GitGateway,
+  type GitHistoryEntry,
+  type GitHistoryPage,
+  type GitStatus,
+  type GitUndoCommitResult,
 } from "../ports/git-gateway";
 import {
   type OperationError,
@@ -94,10 +97,16 @@ export const GIT_OPERATION_LABELS = [
   "discardGitChanges",
   "loadGitDiff",
   "commitGitChanges",
+  "undoGitCommit",
   "loadGitHistory",
 ] as const;
 
 export type GitOperationLabel = (typeof GIT_OPERATION_LABELS)[number];
+
+// What Undo Last Commit hands back to the UI.
+export interface GitUndoOutcome {
+  readonly message: string | null;
+}
 
 export interface GitController {
   readonly store: Store<GitState>;
@@ -138,7 +147,18 @@ export interface GitController {
   // read afterwards, no commit failure is reported: the status is dropped and a
   // `refreshGitStatus` problem is reported instead. On failure it is reported as
   // `commitGitChanges` and the status is read again (hooks may have changed the index).
-  commit(message: string): Promise<OperationResult<void>>;
+  // `options` (default: both false) are passed to Rust as they are: `stageAll` runs
+  // `git add -A` first, `amend` rewrites the last commit (a blank message keeps its text).
+  commit(
+    message: string,
+    options?: GitCommitOptions,
+  ): Promise<OperationResult<void>>;
+  // Takes the last commit back (index and working tree stay) on the same queue. On success
+  // the status is replaced and the commit's message is returned (null when it is not valid
+  // UTF-8) for the UI to put back into the message box. On failure it is reported as
+  // `undoGitCommit` and the status is read again. When the project changed meanwhile the
+  // message is not returned (the commit belonged to the previous Project).
+  undoLastCommit(): Promise<OperationResult<GitUndoOutcome>>;
   // Loads the first page of the commit history of the open Project (page size
   // `HISTORY_PAGE_SIZE`) on the same queue, replacing the entries. A newer `loadHistory` (or
   // `clearHistory`) supersedes an older one even if the older answers later. A failure is
@@ -315,7 +335,10 @@ export function createGitController(
     });
   }
 
-  function commit(message: string): Promise<OperationResult<void>> {
+  function commit(
+    message: string,
+    options: GitCommitOptions = DEFAULT_GIT_COMMIT_OPTIONS,
+  ): Promise<OperationResult<void>> {
     const projectId = store.getState().projectId;
     if (projectId === null) return Promise.resolve(operationOk(undefined));
     const taskEpoch = epoch;
@@ -324,7 +347,7 @@ export function createGitController(
       store.setState((state) => ({ ...state, operating: true }));
       let result: OperationResult<GitCommitResult>;
       try {
-        result = await gateway.commit(projectId, message);
+        result = await gateway.commit(projectId, message, options);
       } catch (failure) {
         result = operationErr(
           "unexpectedCommandError",
@@ -363,6 +386,60 @@ export function createGitController(
       }
       reportFailure("commitGitChanges", result.error);
       // Inside this task, like Stage: nothing may run between the failure and the read.
+      await readStatus(projectId, taskEpoch);
+      if (taskEpoch === epoch) {
+        store.setState((state) => ({ ...state, operating: false }));
+      }
+      return result;
+    });
+  }
+
+  function undoLastCommit(): Promise<OperationResult<GitUndoOutcome>> {
+    const projectId = store.getState().projectId;
+    if (projectId === null) {
+      return Promise.resolve(operationOk({ message: null }));
+    }
+    const taskEpoch = epoch;
+    return enqueue(async () => {
+      if (taskEpoch !== epoch) return operationOk({ message: null });
+      store.setState((state) => ({ ...state, operating: true }));
+      let result: OperationResult<GitUndoCommitResult>;
+      try {
+        result = await gateway.undoLastCommit(projectId);
+      } catch (failure) {
+        result = operationErr(
+          "unexpectedCommandError",
+          failure instanceof Error ? failure.message : String(failure),
+        );
+      }
+      if (taskEpoch !== epoch) {
+        return result.ok ? operationOk({ message: null }) : result;
+      }
+      if (result.ok) {
+        const { message, status } = result.value;
+        if (status.outcome === "updated") {
+          store.setState((state) => ({
+            ...state,
+            status: status.status,
+            statusError: null,
+            operating: false,
+          }));
+        } else {
+          // The commit was taken back; only the status read after it failed.
+          store.setState((state) => ({
+            ...state,
+            status: null,
+            statusError: status.errorKind,
+            operating: false,
+          }));
+          reportFailure("refreshGitStatus", {
+            kind: status.errorKind,
+            detail: "the status could not be read after the undo",
+          });
+        }
+        return operationOk({ message });
+      }
+      reportFailure("undoGitCommit", result.error);
       await readStatus(projectId, taskEpoch);
       if (taskEpoch === epoch) {
         store.setState((state) => ({ ...state, operating: false }));
@@ -557,6 +634,7 @@ export function createGitController(
     },
     loadDiff,
     commit,
+    undoLastCommit,
     loadHistory,
     loadMoreHistory,
     clearHistory() {

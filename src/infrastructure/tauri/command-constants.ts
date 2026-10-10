@@ -49,6 +49,7 @@ export const COMMANDS = {
   gitDiscard: "git_discard",
   gitDiff: "git_diff",
   gitCommit: "git_commit",
+  gitUndoLastCommit: "git_undo_last_commit",
   gitHistory: "git_history",
 } as const;
 

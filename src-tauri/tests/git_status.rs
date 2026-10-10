@@ -131,6 +131,25 @@ impl Fixture {
         );
     }
 
+    fn git_output(&self, directory: &Path, arguments: &[&str]) -> String {
+        let mut command = Command::new(&self.executable);
+        command.args(arguments).current_dir(directory);
+        for (name, value) in &self.environment {
+            command.env(name, value);
+        }
+        // Another test sets these to prove the app ignores them; the set-up must not see them.
+        for name in ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"] {
+            command.env_remove(name);
+        }
+        let output = command.output().expect("run git");
+        assert!(
+            output.status.success(),
+            "git {arguments:?} failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).unwrap()
+    }
+
     /// A repository whose root is the Project directory, with one commit.
     fn repository(&self) -> PathBuf {
         let project = self.project();
@@ -1861,7 +1880,7 @@ fn git_commit_over_ipc_returns_the_commit_id_and_status_without_absolute_paths()
     let response = invoke(
         &webview,
         "git_commit",
-        &serde_json::json!({ "projectId": project_id, "message": "first commit" }),
+        &serde_json::json!({ "projectId": project_id, "message": "first commit", "options": { "amend": false, "stageAll": false } }),
     )
     .unwrap();
 
@@ -1886,7 +1905,7 @@ fn git_commit_over_ipc_reports_nothing_to_commit() {
     let refused = invoke(
         &webview,
         "git_commit",
-        &serde_json::json!({ "projectId": project_id, "message": "nothing" }),
+        &serde_json::json!({ "projectId": project_id, "message": "nothing", "options": { "amend": false, "stageAll": false } }),
     );
 
     match refused {
@@ -1904,7 +1923,7 @@ fn git_commit_over_ipc_reports_an_invalid_message() {
     let refused = invoke(
         &webview,
         "git_commit",
-        &serde_json::json!({ "projectId": project_id, "message": "  \n " }),
+        &serde_json::json!({ "projectId": project_id, "message": "  \n ", "options": { "amend": false, "stageAll": false } }),
     );
 
     match refused {
@@ -1924,7 +1943,7 @@ fn git_commit_over_ipc_is_refused_for_a_window_that_does_not_have_the_project() 
     let refused = invoke(
         &other,
         "git_commit",
-        &serde_json::json!({ "projectId": project_id, "message": "not mine" }),
+        &serde_json::json!({ "projectId": project_id, "message": "not mine", "options": { "amend": false, "stageAll": false } }),
     );
 
     match refused {
@@ -1941,12 +1960,208 @@ fn git_commit_over_ipc_reports_a_missing_repository() {
     let refused = invoke(
         &webview,
         "git_commit",
-        &serde_json::json!({ "projectId": project_id, "message": "no repository" }),
+        &serde_json::json!({ "projectId": project_id, "message": "no repository", "options": { "amend": false, "stageAll": false } }),
     );
 
     match refused {
         Err(error) => assert_eq!(error["kind"], "gitNotReady"),
         Ok(value) => panic!("expected gitNotReady, got {value}"),
+    }
+}
+
+// ---- Commit options and Undo Last Commit (docs/git-development.md §11.16) ----
+
+fn commit_over_ipc(
+    webview: &tauri::WebviewWindow<tauri::test::MockRuntime>,
+    project_id: &Value,
+    message: &str,
+    options: Value,
+) -> Result<Value, Value> {
+    invoke(
+        webview,
+        "git_commit",
+        &serde_json::json!({ "projectId": project_id, "message": message, "options": options }),
+    )
+}
+
+#[test]
+fn git_status_over_ipc_reports_the_branch_fields_of_a_repository_without_upstream() {
+    let fixture = fixture_or_skip!();
+    let (_app, webview, project_id) = open_repository_project(&fixture, true);
+
+    let response = invoke(
+        &webview,
+        "git_status",
+        &serde_json::json!({ "projectId": project_id }),
+    )
+    .unwrap();
+
+    let branch = &response["branch"];
+    assert_eq!(branch["upstream"], Value::Null);
+    assert_eq!(branch["ahead"], Value::Null);
+    assert_eq!(branch["behind"], Value::Null);
+    assert_eq!(branch["headPushed"], false);
+}
+
+#[test]
+fn git_commit_over_ipc_stages_everything_with_stage_all() {
+    let fixture = fixture_or_skip!();
+    let (_app, webview, project_id) = open_repository_project(&fixture, true);
+    give_repository_an_identity(&fixture);
+
+    let response = commit_over_ipc(
+        &webview,
+        &project_id,
+        "all of it",
+        serde_json::json!({ "amend": false, "stageAll": true }),
+    )
+    .unwrap();
+
+    assert_eq!(response["status"]["outcome"], "updated");
+    assert_eq!(response["status"]["status"]["files"], serde_json::json!([]));
+}
+
+#[test]
+fn git_commit_over_ipc_rejects_options_it_does_not_know() {
+    let fixture = fixture_or_skip!();
+    let (_app, webview, project_id) = open_repository_project(&fixture, true);
+    give_repository_an_identity(&fixture);
+
+    assert!(commit_over_ipc(
+        &webview,
+        &project_id,
+        "x",
+        serde_json::json!({ "amend": false, "stageAll": false, "noVerify": true }),
+    )
+    .is_err());
+    assert!(invoke(
+        &webview,
+        "git_commit",
+        &serde_json::json!({ "projectId": project_id, "message": "x" }),
+    )
+    .is_err());
+}
+
+#[test]
+fn git_commit_over_ipc_amends_with_a_blank_message() {
+    let fixture = fixture_or_skip!();
+    let (_app, webview, project_id) = open_repository_project(&fixture, true);
+    give_repository_an_identity(&fixture);
+    commit_over_ipc(
+        &webview,
+        &project_id,
+        "original",
+        serde_json::json!({ "amend": false, "stageAll": true }),
+    )
+    .unwrap();
+
+    let response = commit_over_ipc(
+        &webview,
+        &project_id,
+        "",
+        serde_json::json!({ "amend": true, "stageAll": false }),
+    )
+    .unwrap();
+
+    assert!(response["commitId"].is_string());
+    let project = fixture.directory(PROJECT_DIRECTORY);
+    assert_eq!(
+        fixture
+            .git_output(&project, &["log", "-1", "--format=%s"])
+            .trim(),
+        "original"
+    );
+}
+
+#[test]
+fn git_undo_last_commit_over_ipc_returns_the_message_and_the_status() {
+    let fixture = fixture_or_skip!();
+    let (_app, webview, project_id) = open_repository_project(&fixture, true);
+    give_repository_an_identity(&fixture);
+    commit_over_ipc(
+        &webview,
+        &project_id,
+        "first",
+        serde_json::json!({ "amend": false, "stageAll": true }),
+    )
+    .unwrap();
+    let project = fixture.directory(PROJECT_DIRECTORY);
+    std::fs::write(project.join("extra.txt"), "extra\n").unwrap();
+    commit_over_ipc(
+        &webview,
+        &project_id,
+        "second",
+        serde_json::json!({ "amend": false, "stageAll": true }),
+    )
+    .unwrap();
+
+    let response = invoke(
+        &webview,
+        "git_undo_last_commit",
+        &serde_json::json!({ "projectId": project_id }),
+    )
+    .unwrap();
+
+    assert_eq!(response["message"], "second\n");
+    assert_eq!(response["status"]["outcome"], "updated");
+    assert_eq!(
+        response["status"]["status"]["files"][0]["path"],
+        "extra.txt"
+    );
+    assert_eq!(
+        response["status"]["status"]["files"][0]["indexStatus"],
+        "added"
+    );
+    assert!(!response
+        .to_string()
+        .contains(fixture.temp.path().to_str().unwrap()));
+}
+
+#[test]
+fn git_undo_last_commit_over_ipc_refuses_the_root_commit_with_a_fixed_message() {
+    let fixture = fixture_or_skip!();
+    let (_app, webview, project_id) = open_repository_project(&fixture, true);
+    give_repository_an_identity(&fixture);
+    commit_over_ipc(
+        &webview,
+        &project_id,
+        "only",
+        serde_json::json!({ "amend": false, "stageAll": true }),
+    )
+    .unwrap();
+
+    let refused = invoke(
+        &webview,
+        "git_undo_last_commit",
+        &serde_json::json!({ "projectId": project_id }),
+    );
+
+    match refused {
+        Err(error) => {
+            assert_eq!(error["kind"], "gitCannotUndoCommit");
+            assert_eq!(error["detail"], "the commit cannot be undone");
+        }
+        Ok(value) => panic!("expected gitCannotUndoCommit, got {value}"),
+    }
+}
+
+#[test]
+fn git_undo_last_commit_over_ipc_is_refused_for_a_window_that_does_not_have_the_project() {
+    let fixture = fixture_or_skip!();
+    let (app, _main, project_id) = open_repository_project(&fixture, true);
+    let other = WebviewWindowBuilder::new(&app, SECOND_WINDOW_LABEL, Default::default())
+        .build()
+        .expect("second window");
+
+    let refused = invoke(
+        &other,
+        "git_undo_last_commit",
+        &serde_json::json!({ "projectId": project_id }),
+    );
+
+    match refused {
+        Err(error) => assert_eq!(error["kind"], "projectNotOpen"),
+        Ok(value) => panic!("expected projectNotOpen, got {value}"),
     }
 }
 

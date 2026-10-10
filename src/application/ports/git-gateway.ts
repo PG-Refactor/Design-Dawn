@@ -45,6 +45,15 @@ export interface GitBranchInfo {
   readonly head: string | null;
   // Commit id of HEAD; null on an unborn branch (no commit yet).
   readonly oid: string | null;
+  // Upstream such as `origin/main`; null without one. Untrusted text: render it as text only.
+  readonly upstream: string | null;
+  // Commits only here / only upstream; null without an upstream or when git gave no counts
+  // (for example the upstream branch is gone).
+  readonly ahead: number | null;
+  readonly behind: number | null;
+  // Whether HEAD is contained in a remote-tracking branch. A hint for the UI only: Rust
+  // reads it again before Amend / Undo and refuses a pushed commit.
+  readonly headPushed: boolean;
 }
 
 export interface GitStatus {
@@ -98,6 +107,26 @@ export type GitErrorKind = (typeof GIT_ERROR_KINDS)[number];
 export type GitCommitStatus =
   | { readonly outcome: "updated"; readonly status: GitStatus }
   | { readonly outcome: "unavailable"; readonly errorKind: GitErrorKind };
+
+// Besides the message (docs/git-development.md §11.16).
+export interface GitCommitOptions {
+  // Rewrite the last commit; a blank message then keeps the old one.
+  readonly amend: boolean;
+  // Stage every change (`git add -A`) before committing. The caller asks for confirmation.
+  readonly stageAll: boolean;
+}
+
+export const DEFAULT_GIT_COMMIT_OPTIONS: GitCommitOptions = {
+  amend: false,
+  stageAll: false,
+};
+
+// Undo Last Commit: the commit's message (null when it is not valid UTF-8) and the status
+// read afterwards, like a commit.
+export interface GitUndoCommitResult {
+  readonly message: string | null;
+  readonly status: GitCommitStatus;
+}
 
 export interface GitCommitResult {
   // Object ID of the new HEAD (40 or 64 lowercase hexadecimal characters); null only when
@@ -169,13 +198,19 @@ export interface GitGateway {
     path: string,
     side: GitDiffSide,
   ): Promise<OperationResult<GitDiff>>;
-  // Commits the staged changes only. Rust validates the message (nothing is trimmed or
-  // checked here). After a failure the index may have been changed by hooks: read the
-  // status again.
+  // Commits the staged changes (all changes with `stageAll`; replaces the last commit with
+  // `amend`). Rust validates the message (nothing is trimmed or checked here). After a
+  // failure the index may have been changed by hooks or `git add -A`: read the status again.
   commit(
     projectId: ProjectId,
     message: string,
+    options: GitCommitOptions,
   ): Promise<OperationResult<GitCommitResult>>;
+  // Takes the last commit back (`git reset --soft`): index and working tree stay. Rust
+  // refuses a first, merge or pushed commit. After a failure read the status again.
+  undoLastCommit(
+    projectId: ProjectId,
+  ): Promise<OperationResult<GitUndoCommitResult>>;
   // One page of the commit history, newest first, starting from the first page when
   // `cursor` is null. Read-only. Rust validates `limit` and the cursor.
   history(

@@ -50,6 +50,7 @@
     "allow-git-discard",
     "allow-git-diff",
     "allow-git-commit",
+    "allow-git-undo-last-commit",
     "allow-git-history"
   ]
 }

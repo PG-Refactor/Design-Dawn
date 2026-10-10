@@ -10,6 +10,7 @@ import {
   gitHistory,
   gitStage,
   gitStatus,
+  gitUndoLastCommit,
   gitUnstage,
 } from "./git-client";
 
@@ -18,7 +19,14 @@ const invokeMock = vi.mocked(invoke);
 
 const VALID_PAYLOAD = {
   repository: { state: "ready" },
-  branch: { head: "feature/設計", oid: "0123456789abcdef" },
+  branch: {
+    head: "feature/設計",
+    oid: "0123456789abcdef",
+    upstream: "origin/feature/設計",
+    ahead: 2,
+    behind: 0,
+    headPushed: false,
+  },
   files: [
     {
       path: "documents/設計/sheet.json",
@@ -92,7 +100,7 @@ describe("gitStatus", () => {
       "a non-string branch head",
       {
         repository: { state: "ready" },
-        branch: { head: 1, oid: null },
+        branch: { ...VALID_PAYLOAD.branch, head: 1 },
         files: [],
       },
     ],
@@ -417,6 +425,8 @@ describe("gitDiff", () => {
 describe("gitCommit", () => {
   const COMMIT_ID = "0123456789abcdef0123456789abcdef01234567";
   const SHA256_COMMIT_ID = `${COMMIT_ID}0123456789abcdef01234567`;
+  const NO_OPTIONS = { amend: false, stageAll: false };
+
   const UPDATED = {
     commitId: COMMIT_ID,
     status: { outcome: "updated", status: VALID_PAYLOAD },
@@ -425,10 +435,20 @@ describe("gitCommit", () => {
   it("sends the project id and message and decodes an updated result", async () => {
     invokeMock.mockResolvedValueOnce(UPDATED);
 
-    const result = await gitCommit(PROJECT_ID, "メッセージ");
+    const result = await gitCommit(PROJECT_ID, "メッセージ", {
+      amend: true,
+      stageAll: false,
+    });
 
     expect(invokeMock.mock.calls).toStrictEqual([
-      [COMMANDS.gitCommit, { projectId: PROJECT_ID, message: "メッセージ" }],
+      [
+        COMMANDS.gitCommit,
+        {
+          projectId: PROJECT_ID,
+          message: "メッセージ",
+          options: { amend: true, stageAll: false },
+        },
+      ],
     ]);
     expect(result).toStrictEqual({
       ok: true,
@@ -453,8 +473,8 @@ describe("gitCommit", () => {
     });
     invokeMock.mockResolvedValueOnce({ ...UPDATED, commitId: null });
 
-    const long = await gitCommit(PROJECT_ID, "m");
-    const none = await gitCommit(PROJECT_ID, "m");
+    const long = await gitCommit(PROJECT_ID, "m", NO_OPTIONS);
+    const none = await gitCommit(PROJECT_ID, "m", NO_OPTIONS);
 
     expect(long.ok && long.value.commitId).toBe(SHA256_COMMIT_ID);
     expect(none.ok && none.value.commitId).toBeNull();
@@ -466,7 +486,7 @@ describe("gitCommit", () => {
       status: { outcome: "unavailable", errorKind: "gitTimeout" },
     });
 
-    const result = await gitCommit(PROJECT_ID, "m");
+    const result = await gitCommit(PROJECT_ID, "m", NO_OPTIONS);
 
     expect(result).toStrictEqual({
       ok: true,
@@ -517,7 +537,7 @@ describe("gitCommit", () => {
   ])("rejects %s", async (_name, payload) => {
     invokeMock.mockResolvedValueOnce(payload);
 
-    const result = await gitCommit(PROJECT_ID, "m");
+    const result = await gitCommit(PROJECT_ID, "m", NO_OPTIONS);
 
     expect(!result.ok && result.error.kind).toBe("invalidCommandResponse");
   });
@@ -528,10 +548,145 @@ describe("gitCommit", () => {
       detail: "nothing staged",
     });
 
-    const result = await gitCommit(PROJECT_ID, "m");
+    const result = await gitCommit(PROJECT_ID, "m", NO_OPTIONS);
 
     expect(!result.ok && result.error.kind).toBe("nothingToCommit");
   });
+});
+
+describe("branch information", () => {
+  function statusWithBranch(branch: unknown) {
+    return { repository: { state: "ready" }, branch, files: [] };
+  }
+
+  it("decodes a branch without an upstream", async () => {
+    const branch = {
+      head: "main",
+      oid: null,
+      upstream: null,
+      ahead: null,
+      behind: null,
+      headPushed: false,
+    };
+    invokeMock.mockResolvedValueOnce(statusWithBranch(branch));
+
+    const result = await gitStatus(PROJECT_ID);
+
+    expect(result.ok && result.value.branch).toStrictEqual(branch);
+  });
+
+  it.each([
+    ["a missing upstream", { upstream: undefined }],
+    ["a missing headPushed", { headPushed: undefined }],
+    ["a non-boolean headPushed", { headPushed: "yes" }],
+    ["a negative ahead", { ahead: -1 }],
+    ["a fractional behind", { behind: 1.5 }],
+    ["a string ahead", { ahead: "2" }],
+    ["a numeric upstream", { upstream: 1 }],
+  ])("rejects %s", async (_name, change) => {
+    invokeMock.mockResolvedValueOnce(
+      statusWithBranch({ ...VALID_PAYLOAD.branch, ...change }),
+    );
+
+    const result = await gitStatus(PROJECT_ID);
+
+    expect(!result.ok && result.error.kind).toBe("invalidCommandResponse");
+  });
+});
+
+describe("gitUndoLastCommit", () => {
+  const UPDATED = {
+    message: "元のメッセージ\n",
+    status: { outcome: "updated", status: VALID_PAYLOAD },
+  };
+
+  it("sends only the project id and decodes the message and status", async () => {
+    invokeMock.mockResolvedValueOnce(UPDATED);
+
+    const result = await gitUndoLastCommit(PROJECT_ID);
+
+    expect(invokeMock.mock.calls).toStrictEqual([
+      [COMMANDS.gitUndoLastCommit, { projectId: PROJECT_ID }],
+    ]);
+    expect(result).toStrictEqual({
+      ok: true,
+      value: {
+        message: "元のメッセージ\n",
+        status: {
+          outcome: "updated",
+          status: {
+            repositoryState: "ready",
+            branch: VALID_PAYLOAD.branch,
+            files: VALID_PAYLOAD.files,
+          },
+        },
+      },
+    });
+  });
+
+  it("accepts a null message and an unavailable status", async () => {
+    invokeMock.mockResolvedValueOnce({
+      message: null,
+      status: { outcome: "unavailable", errorKind: "gitTimeout" },
+    });
+
+    const result = await gitUndoLastCommit(PROJECT_ID);
+
+    expect(result).toStrictEqual({
+      ok: true,
+      value: {
+        message: null,
+        status: { outcome: "unavailable", errorKind: "gitTimeout" },
+      },
+    });
+  });
+
+  it.each([
+    ["a missing message", { status: UPDATED.status }],
+    ["a numeric message", { ...UPDATED, message: 1 }],
+    ["a missing status", { message: "m" }],
+    ["an unknown outcome", { message: "m", status: { outcome: "later" } }],
+    [
+      "an updated outcome without a status",
+      { message: "m", status: { outcome: "updated" } },
+    ],
+    ["a non object payload", "ok"],
+  ])("rejects %s", async (_name, payload) => {
+    invokeMock.mockResolvedValueOnce(payload);
+
+    const result = await gitUndoLastCommit(PROJECT_ID);
+
+    expect(!result.ok && result.error.kind).toBe("invalidCommandResponse");
+  });
+
+  it.each([
+    "gitCannotUndoCommit",
+    "gitCommitAlreadyPushed",
+    "gitOperationInProgress",
+    "gitNotReady",
+  ])("keeps the %s error kind", async (kind) => {
+    invokeMock.mockRejectedValueOnce({ kind, detail: "d" });
+
+    const result = await gitUndoLastCommit(PROJECT_ID);
+
+    expect(result).toStrictEqual({ ok: false, error: { kind, detail: "d" } });
+  });
+});
+
+describe("commit option error kinds", () => {
+  it.each(["gitNoCommitToAmend", "gitCommitAlreadyPushed"])(
+    "keeps the %s error kind",
+    async (kind) => {
+      invokeMock.mockRejectedValueOnce({ kind, detail: "d" });
+
+      const result = await gitCommit(PROJECT_ID, "m", {
+        amend: true,
+        stageAll: false,
+      });
+
+      expect(result).toStrictEqual({ ok: false, error: { kind, detail: "d" } });
+    },
+  );
 });
 
 describe("gitHistory", () => {

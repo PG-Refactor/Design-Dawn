@@ -7,6 +7,7 @@ import {
   gitHistory,
   gitStage,
   gitStatus,
+  gitUndoLastCommit,
   gitUnstage,
 } from "./git-client";
 
@@ -20,6 +21,7 @@ export function createTauriGitGateway(): GitGateway {
     discardImpact: gitDiscardImpact,
     diff: gitDiff,
     commit: gitCommit,
+    undoLastCommit: gitUndoLastCommit,
     history: gitHistory,
   };
 }

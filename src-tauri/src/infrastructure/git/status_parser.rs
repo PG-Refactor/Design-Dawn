@@ -23,6 +23,11 @@ const IGNORED_RECORD: &str = "!";
 const HEADER_RECORD: &str = "#";
 const BRANCH_OID_HEADER_PREFIX: &str = "# branch.oid ";
 const BRANCH_HEAD_HEADER_PREFIX: &str = "# branch.head ";
+const BRANCH_UPSTREAM_HEADER_PREFIX: &str = "# branch.upstream ";
+const BRANCH_AHEAD_BEHIND_HEADER_PREFIX: &str = "# branch.ab ";
+/// `# branch.ab +<ahead> -<behind>`: the sign characters in front of each count.
+const AHEAD_COUNT_SIGN: char = '+';
+const BEHIND_COUNT_SIGN: char = '-';
 /// What git prints instead of an object id before the first commit.
 const UNBORN_OID_MARKER: &str = "(initial)";
 /// What git prints instead of a branch name on a detached HEAD.
@@ -65,6 +70,12 @@ pub struct ParsedBranch {
     pub head: Option<String>,
     /// Commit id of HEAD; `None` on an unborn branch.
     pub oid: Option<String>,
+    /// Upstream name such as `origin/main`; `None` when none is configured. Untrusted text.
+    pub upstream: Option<String>,
+    /// Commits only here / only upstream. `None` when git printed no (or a malformed)
+    /// `# branch.ab` line, e.g. the upstream no longer exists.
+    pub ahead: Option<u64>,
+    pub behind: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -115,11 +126,15 @@ pub fn parse_status(output: &[u8]) -> Result<ParsedStatus, StatusParseError> {
         let record_type = text.split(FIELD_SEPARATOR).next().unwrap_or_default();
         let parsed = match record_type {
             HEADER_RECORD => {
-                // `# branch.upstream`, `# branch.ab` and unknown headers are ignored.
+                // Unknown headers are ignored.
                 if let Some(oid) = text.strip_prefix(BRANCH_OID_HEADER_PREFIX) {
                     branch.oid = (oid != UNBORN_OID_MARKER).then(|| oid.to_owned());
                 } else if let Some(head) = text.strip_prefix(BRANCH_HEAD_HEADER_PREFIX) {
                     branch.head = (head != DETACHED_HEAD_MARKER).then(|| head.to_owned());
+                } else if let Some(upstream) = text.strip_prefix(BRANCH_UPSTREAM_HEADER_PREFIX) {
+                    branch.upstream = Some(upstream.to_owned());
+                } else if let Some(counts) = text.strip_prefix(BRANCH_AHEAD_BEHIND_HEADER_PREFIX) {
+                    (branch.ahead, branch.behind) = parse_ahead_behind(counts);
                 }
                 continue;
             }
@@ -149,6 +164,31 @@ pub fn parse_status(output: &[u8]) -> Result<ParsedStatus, StatusParseError> {
         branch,
         skipped_records,
     })
+}
+
+/// `+<ahead> -<behind>`; both counts or neither, so a half-understood line never shows a
+/// wrong number.
+fn parse_ahead_behind(counts: &str) -> (Option<u64>, Option<u64>) {
+    let mut fields = counts.split(FIELD_SEPARATOR);
+    let (Some(ahead), Some(behind), None) = (fields.next(), fields.next(), fields.next()) else {
+        return (None, None);
+    };
+    match (
+        parse_count(ahead, AHEAD_COUNT_SIGN),
+        parse_count(behind, BEHIND_COUNT_SIGN),
+    ) {
+        (Some(ahead), Some(behind)) => (Some(ahead), Some(behind)),
+        _ => (None, None),
+    }
+}
+
+fn parse_count(field: &str, sign: char) -> Option<u64> {
+    let digits = field.strip_prefix(sign)?;
+    // `u64::from_str` would accept a leading `+`.
+    if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    digits.parse().ok()
 }
 
 /// `None` when the path is not safe to hand on.
@@ -491,7 +531,54 @@ mod tests {
 
         assert_eq!(parsed.branch.head.as_deref(), Some("feature/日本語"));
         assert_eq!(parsed.branch.oid.as_deref(), Some(HASH));
+        assert_eq!(parsed.branch.upstream.as_deref(), Some("origin/x"));
+        assert_eq!(parsed.branch.ahead, Some(1));
+        assert_eq!(parsed.branch.behind, Some(2));
         assert_eq!(parsed.entries.len(), 1);
+    }
+
+    #[test]
+    fn an_upstream_without_counts_has_no_ahead_or_behind() {
+        let parsed =
+            parse("# branch.oid {HASH}\0# branch.head main\0# branch.upstream origin/gone\0");
+
+        assert_eq!(parsed.branch.upstream.as_deref(), Some("origin/gone"));
+        assert_eq!((parsed.branch.ahead, parsed.branch.behind), (None, None));
+    }
+
+    #[test]
+    fn malformed_counts_give_neither_number() {
+        for counts in [
+            "",
+            "+1",
+            "+1 -2 -3",
+            "1 2",
+            "+a -2",
+            "+1 -",
+            "++1 -2",
+            "+1 --2",
+            "+-1 -2",
+            "+1  -2",
+            "-1 +2",
+            "+99999999999999999999999 -1",
+        ] {
+            let parsed = parse(&format!("# branch.ab {counts}\0"));
+            assert_eq!(
+                (parsed.branch.ahead, parsed.branch.behind),
+                (None, None),
+                "{counts:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn zero_counts_are_numbers() {
+        let parsed = parse("# branch.ab +0 -0\0");
+
+        assert_eq!(
+            (parsed.branch.ahead, parsed.branch.behind),
+            (Some(0), Some(0))
+        );
     }
 
     #[test]

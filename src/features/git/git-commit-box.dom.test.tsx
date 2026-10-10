@@ -223,8 +223,8 @@ describe("committing", () => {
 
   it("keeps the draft on failure and reports exactly one commit failure", async () => {
     const shell = await openGit(STAGED);
-    shell.gitGateway.commit = async (projectId, message) => {
-      shell.gitGateway.commitCalls.push({ projectId, message });
+    shell.gitGateway.commit = async (projectId, message, options) => {
+      shell.gitGateway.commitCalls.push({ projectId, message, options });
       return operationErr("gitCommitRejected", "hook said no");
     };
     await typeMessage(shell, MESSAGE);

@@ -190,3 +190,23 @@ pub const ARG_MAX_COUNT: &str = "-n";
 pub const ARG_SKIP_PREFIX: &str = "--skip=";
 /// Peels a revision to a commit: it names nothing unless the object is a commit.
 pub const REVISION_COMMIT_SUFFIX: &str = "^{commit}";
+
+/// Commit options and Undo Last Commit (docs/git-development.md §11.16).
+/// `git add -A` stages every change of the working tree (no pathspec) for "commit all".
+pub const ARG_ADD_ALL: &str = "-A";
+pub const ARG_AMEND: &str = "--amend";
+/// Keeps the old message when an amend is given none.
+pub const ARG_NO_EDIT: &str = "--no-edit";
+pub const ARG_RESET: &str = "reset";
+/// Moves HEAD only; the index and the working tree stay as they are.
+pub const ARG_SOFT: &str = "--soft";
+/// `-n 1` for the commit at HEAD.
+pub const SINGLE_COMMIT_COUNT: &str = "1";
+pub const FORMAT_PARENTS: &str = "--format=%P";
+pub const FORMAT_RAW_BODY: &str = "--format=%B";
+pub const ARG_FOR_EACH_REF: &str = "for-each-ref";
+pub const ARG_CONTAINS: &str = "--contains";
+pub const ARG_COUNT_ONE: &str = "--count=1";
+pub const FORMAT_REF_NAME: &str = "--format=%(refname)";
+/// Remote-tracking branches: a commit reachable from one of them is (assumed to be) pushed.
+pub const REMOTE_TRACKING_REFS: &str = "refs/remotes";

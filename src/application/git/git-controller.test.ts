@@ -959,7 +959,11 @@ describe("commit", () => {
 
     expect(result).toEqual({ ok: true, value: undefined });
     expect(gitGateway.commitCalls).toEqual([
-      { projectId: PROJECT_ID, message: MESSAGE },
+      {
+        projectId: PROJECT_ID,
+        message: MESSAGE,
+        options: { amend: false, stageAll: false },
+      },
     ]);
     const state = controller.store.getState();
     expect(state.status).toEqual(CLEAN_GIT_STATUS);
@@ -1036,8 +1040,8 @@ describe("commit", () => {
       gitGateway.calls.length = 0;
       gitGateway.failure = { kind, detail: "refused" };
       const original = gitGateway.commit;
-      gitGateway.commit = async (projectId, message) => {
-        const answer = await original(projectId, message);
+      gitGateway.commit = async (projectId, message, options) => {
+        const answer = await original(projectId, message, options);
         // Hooks may have changed the index; the following read succeeds.
         gitGateway.failure = null;
         gitGateway.status = MODIFIED_STATUS;
@@ -1079,9 +1083,9 @@ describe("commit", () => {
     const held = new Promise<void>((resolve) => {
       release = resolve;
     });
-    gitGateway.commit = async (projectId, message) => {
+    gitGateway.commit = async (projectId, message, options) => {
       await held;
-      return original(projectId, message);
+      return original(projectId, message, options);
     };
     const pending = controller.commit(MESSAGE);
     await settle();
@@ -1124,9 +1128,9 @@ describe("commit", () => {
       events.push("stage:end");
       return originalStage(projectId, paths);
     };
-    gitGateway.commit = async (projectId, message) => {
+    gitGateway.commit = async (projectId, message, options) => {
       events.push("commit:start");
-      const result = await originalCommit(projectId, message);
+      const result = await originalCommit(projectId, message, options);
       events.push("commit:end");
       return result;
     };
@@ -1684,5 +1688,176 @@ describe("refreshGitStatusInBackground", () => {
 
     expect(controller.store.getState().status).toBeNull();
     expect(controller.store.getState().projectId).toBeNull();
+  });
+});
+
+describe("commit options", () => {
+  it("passes both options as false by default", async () => {
+    const { workspace, gitGateway, controller } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+
+    await controller.commit("message");
+
+    expect(gitGateway.commitCalls).toEqual([
+      {
+        projectId: PROJECT_ID,
+        message: "message",
+        options: { amend: false, stageAll: false },
+      },
+    ]);
+  });
+
+  it("passes the given options on unchanged", async () => {
+    const { workspace, gitGateway, controller } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+
+    await controller.commit("", { amend: true, stageAll: true });
+
+    expect(gitGateway.commitCalls[0]?.options).toEqual({
+      amend: true,
+      stageAll: true,
+    });
+    expect(gitGateway.commitCalls[0]?.message).toBe("");
+  });
+
+  it.each(["gitNoCommitToAmend", "gitCommitAlreadyPushed"] as const)(
+    "reports %s as a commit failure and reads the status again",
+    async (kind) => {
+      const { workspace, gitGateway, controller, failureLabels } = setup();
+      await workspace.openProject(SELECTION_ID);
+      await settle();
+      gitGateway.calls.length = 0;
+      gitGateway.failure = { kind, detail: "refused" };
+      const original = gitGateway.commit;
+      gitGateway.commit = async (projectId, message, options) => {
+        const answer = await original(projectId, message, options);
+        gitGateway.failure = null;
+        return answer;
+      };
+
+      const result = await controller.commit("m", {
+        amend: true,
+        stageAll: false,
+      });
+
+      expect(!result.ok && result.error.kind).toBe(kind);
+      expect(failureLabels).toEqual(["commitGitChanges"]);
+      expect(gitGateway.calls).toHaveLength(1);
+      expect(controller.store.getState().operating).toBe(false);
+    },
+  );
+});
+
+describe("undoLastCommit", () => {
+  it("replaces the status and returns the message of the undone commit", async () => {
+    const { workspace, gitGateway, controller, failureLabels } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.undoResult = {
+      message: "元のメッセージ\n",
+      status: { outcome: "updated", status: MODIFIED_STATUS },
+    };
+
+    const result = await controller.undoLastCommit();
+
+    expect(result).toEqual({
+      ok: true,
+      value: { message: "元のメッセージ\n" },
+    });
+    expect(gitGateway.undoCalls).toEqual([{ projectId: PROJECT_ID }]);
+    const state = controller.store.getState();
+    expect(state.status).toEqual(MODIFIED_STATUS);
+    expect(state.statusError).toBeNull();
+    expect(state.operating).toBe(false);
+    expect(failureLabels).toEqual([]);
+  });
+
+  it("does nothing without a Project", async () => {
+    const { gitGateway, controller } = setup();
+
+    const result = await controller.undoLastCommit();
+
+    expect(result).toEqual({ ok: true, value: { message: null } });
+    expect(gitGateway.undoCalls).toEqual([]);
+  });
+
+  it("drops the status when it could not be read afterwards and reports it", async () => {
+    const { workspace, gitGateway, controller, failureLabels, failures } =
+      setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.undoResult = {
+      message: "m",
+      status: { outcome: "unavailable", errorKind: "gitTimeout" },
+    };
+
+    const result = await controller.undoLastCommit();
+
+    expect(result).toEqual({ ok: true, value: { message: "m" } });
+    expect(controller.store.getState().status).toBeNull();
+    expect(controller.store.getState().statusError).toBe("gitTimeout");
+    expect(failureLabels).toEqual(["refreshGitStatus"]);
+    expect(failures.map((failure) => failure.kind)).toEqual(["gitTimeout"]);
+  });
+
+  it.each([
+    "gitCannotUndoCommit",
+    "gitCommitAlreadyPushed",
+    "gitOperationInProgress",
+  ] as const)(
+    "reports %s with the undo label and reads the status again",
+    async (kind) => {
+      const { workspace, gitGateway, controller, failureLabels } = setup();
+      await workspace.openProject(SELECTION_ID);
+      await settle();
+      gitGateway.calls.length = 0;
+      gitGateway.failure = { kind, detail: "refused" };
+      const original = gitGateway.undoLastCommit;
+      gitGateway.undoLastCommit = async (projectId) => {
+        const answer = await original(projectId);
+        gitGateway.failure = null;
+        return answer;
+      };
+
+      const result = await controller.undoLastCommit();
+
+      expect(!result.ok && result.error.kind).toBe(kind);
+      expect(failureLabels).toEqual(["undoGitCommit"]);
+      expect(gitGateway.calls).toHaveLength(1);
+      expect(controller.store.getState().operating).toBe(false);
+    },
+  );
+
+  it("reports a rejecting gateway as an unexpected error", async () => {
+    const { workspace, gitGateway, controller, failures } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.undoLastCommit = async () => {
+      throw new Error("boom");
+    };
+
+    const result = await controller.undoLastCommit();
+
+    expect(!result.ok && result.error.kind).toBe("unexpectedCommandError");
+    expect(failures[0]?.kind).toBe("unexpectedCommandError");
+  });
+
+  it("drops the answer when the Project changed meanwhile", async () => {
+    const { workspace, gitGateway, controller } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.status = MODIFIED_STATUS;
+    const release = gitGateway.holdNextUndo();
+    const pending = controller.undoLastCommit();
+    await settle();
+
+    await workspace.closeProject();
+    release();
+    const result = await pending;
+
+    expect(result).toEqual({ ok: true, value: { message: null } });
+    expect(controller.store.getState().status).toBeNull();
   });
 });

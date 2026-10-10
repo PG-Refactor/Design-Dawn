@@ -56,6 +56,7 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   discardGitChanges: "Could not discard changes",
   loadGitDiff: "Could not get the diff",
   commitGitChanges: "Could not commit",
+  undoGitCommit: "Could not undo the commit",
   loadGitHistory: "Could not get the history",
 };
 
@@ -105,6 +106,10 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
   gitCommitRejected: "The commit was rejected (for example by a hook)",
   invalidHistoryRequest: "The history request is invalid",
   gitDiscardRejected: "This change cannot be discarded",
+  gitNoCommitToAmend: "There is no commit to amend yet",
+  gitCommitAlreadyPushed: "A pushed commit cannot be changed",
+  gitCannotUndoCommit:
+    "This commit cannot be undone (it is the first commit or a merge commit)",
   invalidThemePreference: "The theme setting value is invalid.",
   invalidLanguagePreference: "The display language setting value is invalid.",
   invalidViewport: "The view position value is invalid.",

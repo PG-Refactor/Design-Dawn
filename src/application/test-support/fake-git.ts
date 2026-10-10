@@ -2,6 +2,7 @@
 
 import type { ProjectId } from "../../domain/shared/entity-id";
 import type {
+  GitCommitOptions,
   GitCommitResult,
   GitDiff,
   GitDiffSide,
@@ -9,6 +10,7 @@ import type {
   GitGateway,
   GitHistoryPage,
   GitStatus,
+  GitUndoCommitResult,
 } from "../ports/git-gateway";
 import {
   type OperationError,
@@ -54,7 +56,17 @@ export interface FakeGitGateway extends GitGateway {
   historyFailure: OperationError | null;
   // Suspends the next `history` call until the returned function is called.
   holdNextHistory(): () => void;
-  readonly commitCalls: { projectId: ProjectId; message: string }[];
+  readonly commitCalls: {
+    projectId: ProjectId;
+    message: string;
+    options: GitCommitOptions;
+  }[];
+  readonly undoCalls: { projectId: ProjectId }[];
+  // Answer of `undoLastCommit` (when `failure` is null); defaults to message "undone" and
+  // the status `status`.
+  undoResult: GitUndoCommitResult | null;
+  // Suspends the next `undoLastCommit` call until the returned function is called.
+  holdNextUndo(): () => void;
   // Answer of `commit` (when `failure` is null): the status after it defaults to `status`.
   commitResult: GitCommitResult | null;
   // Returned by the next calls until changed.
@@ -76,9 +88,18 @@ export const FAKE_COMMIT_ID = "0123456789abcdef0123456789abcdef01234567";
 
 export const FAKE_BRANCH_NAME = "main";
 
+export const FAKE_UNDONE_MESSAGE = "undone";
+
 export const CLEAN_GIT_STATUS: GitStatus = {
   repositoryState: "ready",
-  branch: { head: FAKE_BRANCH_NAME, oid: FAKE_COMMIT_ID },
+  branch: {
+    head: FAKE_BRANCH_NAME,
+    oid: FAKE_COMMIT_ID,
+    upstream: null,
+    ahead: null,
+    behind: null,
+    headPushed: false,
+  },
   files: [],
 };
 
@@ -89,6 +110,7 @@ export function createFakeGitGateway(): FakeGitGateway {
   let stageHold: Promise<void> | null = null;
   let unstageHold: Promise<void> | null = null;
   let commitHold: Promise<void> | null = null;
+  let undoHold: Promise<void> | null = null;
   let discardHold: Promise<void> | null = null;
   function indexAnswer(): OperationResult<GitStatus> {
     return gateway.failure
@@ -109,6 +131,8 @@ export function createFakeGitGateway(): FakeGitGateway {
     historyPages: [],
     historyFailure: null,
     commitCalls: [],
+    undoCalls: [],
+    undoResult: null,
     commitResult: null,
     status: CLEAN_GIT_STATUS,
     failure: null,
@@ -131,6 +155,13 @@ export function createFakeGitGateway(): FakeGitGateway {
     holdNextDiscard() {
       let release: () => void = () => undefined;
       discardHold = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return release;
+    },
+    holdNextUndo() {
+      let release: () => void = () => undefined;
+      undoHold = new Promise<void>((resolve) => {
         release = resolve;
       });
       return release;
@@ -243,8 +274,26 @@ export function createFakeGitGateway(): FakeGitGateway {
           )
         : operationOk(gateway.impactResult);
     },
-    async commit(projectId, message) {
-      gateway.commitCalls.push({ projectId, message });
+    async undoLastCommit(projectId) {
+      gateway.undoCalls.push({ projectId });
+      const answer: OperationResult<GitUndoCommitResult> = gateway.failure
+        ? operationErr<GitUndoCommitResult>(
+            gateway.failure.kind,
+            gateway.failure.detail,
+          )
+        : operationOk(
+            gateway.undoResult ?? {
+              message: FAKE_UNDONE_MESSAGE,
+              status: { outcome: "updated", status: gateway.status },
+            },
+          );
+      const pending = undoHold;
+      undoHold = null;
+      if (pending !== null) await pending;
+      return answer;
+    },
+    async commit(projectId, message, options) {
+      gateway.commitCalls.push({ projectId, message, options });
       const answer: OperationResult<GitCommitResult> = gateway.failure
         ? operationErr<GitCommitResult>(
             gateway.failure.kind,

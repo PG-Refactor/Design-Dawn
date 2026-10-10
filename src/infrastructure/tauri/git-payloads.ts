@@ -11,6 +11,7 @@ import {
   type GitBranchInfo,
   type GitCommitOutcome,
   type GitCommitResult,
+  type GitCommitStatus,
   type GitDiff,
   type GitDiffOutcome,
   type GitDiffSide,
@@ -22,6 +23,7 @@ import {
   type GitHistoryPage,
   type GitRepositoryState,
   type GitStatus,
+  type GitUndoCommitResult,
 } from "../../application/ports/git-gateway";
 import { GIT_ERROR_KINDS } from "../../application/ports/operation-error";
 import { parseDocumentId } from "../../domain/shared/entity-id";
@@ -45,6 +47,15 @@ interface RawGitStatus {
   readonly files: readonly GitFileStatus[];
 }
 
+// A commit count: a non-negative integer.
+const decodeCount: Decoder<number> = (value, path) => {
+  const count = decodeNumber(value, path);
+  if (!count.ok) return count;
+  return Number.isInteger(count.value) && count.value >= 0
+    ? count
+    : { ok: false, detail: `${path}: expected a non-negative integer` };
+};
+
 const decodeFileChange = oneOf<readonly GitFileChange[]>(GIT_FILE_CHANGES);
 
 const rawGitStatus = objectOf<RawGitStatus>({
@@ -55,6 +66,10 @@ const rawGitStatus = objectOf<RawGitStatus>({
     objectOf<GitBranchInfo>({
       head: nullable(decodeString),
       oid: nullable(decodeString),
+      upstream: nullable(decodeString),
+      ahead: nullable(decodeCount),
+      behind: nullable(decodeCount),
+      headPushed: decodeBoolean,
     }),
   ),
   files: arrayOf(
@@ -155,6 +170,30 @@ const rawUnavailableStatus = objectOf<{ readonly errorKind: GitErrorKind }>({
   errorKind: oneOf<readonly GitErrorKind[]>(GIT_ERROR_KINDS),
 });
 
+// The status part shared by the commit and the undo results. `outcome` was checked by the
+// caller; the rest of the object is checked here.
+function toCommitStatus(
+  outcome: GitCommitOutcome,
+  rawStatus: unknown,
+): CommandResult<GitCommitStatus> {
+  const path = `${PAYLOAD_ROOT}.status`;
+  if (outcome === "unavailable") {
+    const body = rawUnavailableStatus(rawStatus, path);
+    return body.ok
+      ? commandOk({ outcome, errorKind: body.value.errorKind })
+      : commandErr("invalidCommandResponse", body.detail);
+  }
+  const body = rawUpdatedStatus(rawStatus, path);
+  if (!body.ok) return commandErr("invalidCommandResponse", body.detail);
+  const nested = toGitStatus(body.value.status);
+  return nested.ok
+    ? commandOk({ outcome, status: nested.value })
+    : commandErr(
+        "invalidCommandResponse",
+        `status.status: ${nested.error.detail}`,
+      );
+}
+
 export function toGitCommitResult(
   payload: unknown,
 ): CommandResult<GitCommitResult> {
@@ -163,27 +202,33 @@ export function toGitCommitResult(
   const { commitId, status } = head.value;
   // `head` proved the payload is an object with an object `status`.
   const rawStatus = (payload as { readonly status: unknown }).status;
-  if (status.outcome === "unavailable") {
-    const body = rawUnavailableStatus(rawStatus, `${PAYLOAD_ROOT}.status`);
-    return body.ok
-      ? commandOk({
-          commitId,
-          status: { outcome: "unavailable", errorKind: body.value.errorKind },
-        })
-      : commandErr("invalidCommandResponse", body.detail);
-  }
-  const body = rawUpdatedStatus(rawStatus, `${PAYLOAD_ROOT}.status`);
-  if (!body.ok) return commandErr("invalidCommandResponse", body.detail);
-  const nested = toGitStatus(body.value.status);
-  return nested.ok
-    ? commandOk({
-        commitId,
-        status: { outcome: "updated", status: nested.value },
-      })
-    : commandErr(
-        "invalidCommandResponse",
-        `status.status: ${nested.error.detail}`,
-      );
+  const decodedStatus = toCommitStatus(status.outcome, rawStatus);
+  return decodedStatus.ok
+    ? commandOk({ commitId, status: decodedStatus.value })
+    : decodedStatus;
+}
+
+const rawGitUndoCommitHead = objectOf<{
+  readonly message: string | null;
+  readonly status: { readonly outcome: GitCommitOutcome };
+}>({
+  message: nullable(decodeString),
+  status: objectOf<{ readonly outcome: GitCommitOutcome }>({
+    outcome: oneOf<readonly GitCommitOutcome[]>(GIT_COMMIT_OUTCOMES),
+  }),
+});
+
+export function toGitUndoCommitResult(
+  payload: unknown,
+): CommandResult<GitUndoCommitResult> {
+  const head = rawGitUndoCommitHead(payload, PAYLOAD_ROOT);
+  if (!head.ok) return commandErr("invalidCommandResponse", head.detail);
+  const { message, status } = head.value;
+  const rawStatus = (payload as { readonly status: unknown }).status;
+  const decodedStatus = toCommitStatus(status.outcome, rawStatus);
+  return decodedStatus.ok
+    ? commandOk({ message, status: decodedStatus.value })
+    : decodedStatus;
 }
 
 // ISO 8601 date and time with an offset or Z (git prints `+00:00` style offsets). Only the

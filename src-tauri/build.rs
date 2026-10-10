@@ -48,6 +48,7 @@ const APP_COMMANDS: &[&str] = &[
     "git_discard",
     "git_diff",
     "git_commit",
+    "git_undo_last_commit",
     "git_history",
 ];
 

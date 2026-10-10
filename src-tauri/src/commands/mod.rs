@@ -55,7 +55,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 47] = [
+pub const COMMAND_NAMES: [&str; 48] = [
     "select_project_folder",
     "create_project",
     "open_project",
@@ -102,6 +102,7 @@ pub const COMMAND_NAMES: [&str; 47] = [
     "git_discard",
     "git_diff",
     "git_commit",
+    "git_undo_last_commit",
     "git_history",
 ];
 
@@ -935,11 +936,29 @@ pub async fn git_commit<R: Runtime>(
     window: Window<R>,
     project_id: String,
     message: String,
+    options: git_commit::GitCommitOptions,
 ) -> Result<git_commit::GitCommitResult, ApplicationError> {
     ensure_window_project(&window, &project_id)?;
     run_blocking(move || {
         let sessions = app.state::<Mutex<ProjectSessions>>();
-        git_commit::git_commit(&sessions, &project_id, &message)
+        git_commit::git_commit(&sessions, &project_id, &message, options)
+    })
+    .await
+}
+
+/// Takes the last commit of the calling window's Project back, keeping the index and the
+/// working tree (docs/git-development.md §11.16). Not an Undo step and never saves. The
+/// returned message is user text and is never logged here.
+#[tauri::command]
+pub async fn git_undo_last_commit<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+) -> Result<git_commit::GitUndoCommitResult, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_commit::git_undo_last_commit(&sessions, &project_id)
     })
     .await
 }

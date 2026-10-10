@@ -58,6 +58,7 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   discardGitChanges: "変更を破棄できませんでした",
   loadGitDiff: "差分を取得できませんでした",
   commitGitChanges: "コミットできませんでした",
+  undoGitCommit: "コミットを元に戻せませんでした",
   loadGitHistory: "履歴を取得できませんでした",
 };
 
@@ -106,6 +107,10 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
   gitCommitRejected: "コミットが拒否されました（フックなど）",
   invalidHistoryRequest: "履歴を取得する条件が正しくありません",
   gitDiscardRejected: "この変更は破棄できません",
+  gitNoCommitToAmend: "コミットがまだありません",
+  gitCommitAlreadyPushed: "プッシュ済みのコミットは変更できません",
+  gitCannotUndoCommit:
+    "このコミットは元に戻せません（最初のコミットまたはマージコミット）",
   invalidThemePreference: "テーマ設定の値が正しくありません。",
   invalidLanguagePreference: "表示言語の設定値が正しくありません。",
   invalidViewport: "表示位置の値が正しくありません。",

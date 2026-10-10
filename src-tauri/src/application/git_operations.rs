@@ -10,12 +10,13 @@ use serde::{Deserialize, Serialize};
 use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
 use crate::application::session::ProjectSessions;
 use crate::infrastructure::git::constants::{
-    ARG_ADD, ARG_CACHED, ARG_DIFF, ARG_END_OF_OPTIONS, ARG_FIND_RENAMES, ARG_NO_COLOR,
-    ARG_NO_EXT_DIFF, ARG_NO_OPTIONAL_LOCKS, ARG_NO_TEXTCONV, ARG_NUL_SEPARATED, ARG_NUMSTAT,
-    ARG_PATHSPEC_FILE_NUL, ARG_PATHSPEC_FROM_STDIN, ARG_QUIET, ARG_RESTORE, ARG_REV_PARSE, ARG_RM,
-    ARG_STAGED, ARG_STATUS, ARG_STATUS_BRANCH, ARG_STATUS_PORCELAIN_V2, ARG_UNTRACKED_ALL,
-    ARG_VERIFY, DIFF_COMMAND_TIMEOUT, DIFF_OUTPUT_LIMIT_BYTES, GIT_COMMAND_TIMEOUT,
-    GIT_STDOUT_LIMIT_BYTES, REVISION_HEAD,
+    ARG_ADD, ARG_CACHED, ARG_CONTAINS, ARG_COUNT_ONE, ARG_DIFF, ARG_END_OF_OPTIONS,
+    ARG_FIND_RENAMES, ARG_FOR_EACH_REF, ARG_NO_COLOR, ARG_NO_EXT_DIFF, ARG_NO_OPTIONAL_LOCKS,
+    ARG_NO_TEXTCONV, ARG_NUL_SEPARATED, ARG_NUMSTAT, ARG_PATHSPEC_FILE_NUL,
+    ARG_PATHSPEC_FROM_STDIN, ARG_QUIET, ARG_RESTORE, ARG_REV_PARSE, ARG_RM, ARG_STAGED, ARG_STATUS,
+    ARG_STATUS_BRANCH, ARG_STATUS_PORCELAIN_V2, ARG_UNTRACKED_ALL, ARG_VERIFY,
+    DIFF_COMMAND_TIMEOUT, DIFF_OUTPUT_LIMIT_BYTES, FORMAT_REF_NAME, GIT_COMMAND_TIMEOUT,
+    GIT_STDOUT_LIMIT_BYTES, REMOTE_TRACKING_REFS, REVISION_HEAD,
 };
 use crate::infrastructure::git::numstat_parser::contains_binary_file;
 use crate::infrastructure::git::paths::{
@@ -72,11 +73,21 @@ pub struct GitRepositoryInfo {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GitBranchInfo {
     /// Branch name; `null` on a detached HEAD. Untrusted text, shown as text only.
     pub head: Option<String>,
     /// Commit id of HEAD; `null` on an unborn branch.
     pub oid: Option<String>,
+    /// Upstream such as `origin/main`; `null` when none is configured. Untrusted text.
+    pub upstream: Option<String>,
+    /// Commits only on this branch / only on the upstream; `null` without an upstream or
+    /// when git printed no counts (e.g. the upstream branch is gone).
+    pub ahead: Option<u64>,
+    pub behind: Option<u64>,
+    /// Whether HEAD is contained in a remote-tracking branch. Display only: Amend / Undo
+    /// read it again before running.
+    pub head_pushed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -125,7 +136,15 @@ pub fn read_git_status(
     let (GitRepositoryState::Ready, Some(runner)) = (state, runner) else {
         return Ok(GitStatusResult::without_files(state));
     };
-    let (files, branch) = read_status_snapshot(runner, project_root)?;
+    let (files, mut branch) = read_status_snapshot(runner, project_root)?;
+    if branch.oid.is_some() {
+        // A failed lookup only hides the "already pushed" hint; the commands that depend on
+        // it ask again and treat a failure as pushed.
+        branch.head_pushed = head_is_pushed(runner, project_root).unwrap_or_else(|error| {
+            eprintln!("git head containment lookup failed: {error}");
+            false
+        });
+    }
     Ok(GitStatusResult {
         repository: GitRepositoryInfo {
             state: GitRepositoryState::Ready,
@@ -695,11 +714,47 @@ fn read_status_snapshot(
     let branch = GitBranchInfo {
         head: parsed.branch.head,
         oid: parsed.branch.oid,
+        upstream: parsed.branch.upstream,
+        ahead: parsed.branch.ahead,
+        behind: parsed.branch.behind,
+        head_pushed: false,
     };
     Ok((
         parsed.entries.into_iter().map(file_status).collect(),
         branch,
     ))
+}
+
+/// Whether HEAD is reachable from any remote-tracking branch (docs/git-development.md
+/// §11.16). Read-only, one process. The caller must know that HEAD exists.
+pub(crate) fn head_is_pushed(runner: &GitRunner, project_root: &Path) -> ApplicationResult<bool> {
+    let output = runner
+        .run(
+            &[
+                ARG_NO_OPTIONAL_LOCKS,
+                ARG_FOR_EACH_REF,
+                ARG_CONTAINS,
+                REVISION_HEAD,
+                ARG_COUNT_ONE,
+                FORMAT_REF_NAME,
+                REMOTE_TRACKING_REFS,
+            ],
+            project_root,
+            None,
+            GIT_COMMAND_TIMEOUT,
+        )
+        .map_err(|error| run_error("for-each-ref", error))?;
+    if !output.success() {
+        return Err(ApplicationError::new(
+            ErrorKind::GitCommandFailed,
+            format!(
+                "git for-each-ref exited with {:?}: {}",
+                output.exit_code(),
+                redact_credentials(output.stderr_text().trim_end())
+            ),
+        ));
+    }
+    Ok(output.stdout.iter().any(|byte| !byte.is_ascii_whitespace()))
 }
 
 pub(crate) fn run_error(operation: &str, error: GitRunError) -> ApplicationError {

@@ -2,12 +2,14 @@
 // only the Project ID; Rust finds the Repository from the Project's root.
 
 import type {
+  GitCommitOptions,
   GitCommitResult,
   GitDiff,
   GitDiffSide,
   GitDiscardImpact,
   GitHistoryPage,
   GitStatus,
+  GitUndoCommitResult,
 } from "../../application/ports/git-gateway";
 import type { ProjectId } from "../../domain/shared/entity-id";
 import { COMMANDS } from "./command-constants";
@@ -18,6 +20,7 @@ import {
   toGitDiscardImpact,
   toGitHistoryPage,
   toGitStatus,
+  toGitUndoCommitResult,
 } from "./git-payloads";
 import { call } from "./invoke-command";
 
@@ -70,8 +73,23 @@ export function gitDiff(
 export function gitCommit(
   projectId: ProjectId,
   message: string,
+  options: GitCommitOptions,
 ): Promise<CommandResult<GitCommitResult>> {
-  return call(COMMANDS.gitCommit, { projectId, message }, toGitCommitResult);
+  return call(
+    COMMANDS.gitCommit,
+    {
+      projectId,
+      message,
+      options: { amend: options.amend, stageAll: options.stageAll },
+    },
+    toGitCommitResult,
+  );
+}
+
+export function gitUndoLastCommit(
+  projectId: ProjectId,
+): Promise<CommandResult<GitUndoCommitResult>> {
+  return call(COMMANDS.gitUndoLastCommit, { projectId }, toGitUndoCommitResult);
 }
 
 export function gitHistory(
