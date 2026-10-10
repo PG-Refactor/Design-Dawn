@@ -204,21 +204,21 @@ describe("committing", () => {
       path: "a.md",
       side: "staged",
       outcome: "text",
-      diff: "+staged line",
+      diff: "@@ -0,0 +1 @@\n+staged line\n",
     } satisfies GitDiff;
     await shell.user.click(
       rowText("ステージされている変更", "変更 a.md").querySelector(
         ".git-file-row__name",
       ) as HTMLElement,
     );
-    await screen.findByText("+staged line");
+    await screen.findByText("staged line");
     await typeMessage(shell, MESSAGE);
     shell.gitGateway.status = CLEAN_AFTER_COMMIT;
     await shell.user.click(commitButton());
     await settled();
     expect(shell.uiStateStore.getState().diffTabs).toEqual([]);
     expect(shell.gitController.store.getState().diff).toBeNull();
-    expect(screen.queryByText("+staged line")).toBeNull();
+    expect(screen.queryByText("staged line")).toBeNull();
   });
 
   it("keeps the draft on failure and reports exactly one commit failure", async () => {
@@ -246,14 +246,14 @@ describe("committing", () => {
       path: "a.md",
       side: "staged",
       outcome: "text",
-      diff: "+staged line",
+      diff: "@@ -0,0 +1 @@\n+staged line\n",
     };
     await shell.user.click(
       rowText("ステージされている変更", "変更 a.md").querySelector(
         ".git-file-row__name",
       ) as HTMLElement,
     );
-    await screen.findByText("+staged line");
+    await screen.findByText("staged line");
     await typeMessage(shell, MESSAGE);
     shell.gitGateway.commitResult = {
       commitId: FAKE_COMMIT_ID,
@@ -369,7 +369,7 @@ describe("refresh button", () => {
     path,
     side: "unstaged",
     outcome: "text",
-    diff: text,
+    diff: `@@ -0,0 +1 @@\n${text}\n`,
   });
 
   async function openWithShownDiff() {
@@ -384,7 +384,7 @@ describe("refresh button", () => {
         ".git-file-row__name",
       ) as HTMLElement,
     );
-    await screen.findByText("+first c");
+    await screen.findByText("first c");
     return shell;
   }
 
@@ -395,7 +395,7 @@ describe("refresh button", () => {
     await shell.user.click(refreshButton());
     await settled();
     expect(shell.gitGateway.calls.length).toBe(statusCallsBefore + 1);
-    await screen.findByText("+second c");
+    await screen.findByText("second c");
   });
 
   it("closes the diff when the file is no longer changed", async () => {
@@ -404,7 +404,7 @@ describe("refresh button", () => {
     await shell.user.click(refreshButton());
     await settled();
     expect(shell.uiStateStore.getState().diffTabs).toEqual([]);
-    expect(screen.queryByText("+first c")).toBeNull();
+    expect(screen.queryByText("first c")).toBeNull();
   });
 
   it("starts one status read for a double click", async () => {
@@ -435,7 +435,7 @@ describe("refresh button", () => {
       release();
       await settle();
     });
-    await screen.findByText("+only e");
-    expect(screen.queryByText("+first c")).toBeNull();
+    await screen.findByText("only e");
+    expect(screen.queryByText("first c")).toBeNull();
   });
 });

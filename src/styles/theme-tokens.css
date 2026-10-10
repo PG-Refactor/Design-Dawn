@@ -25,6 +25,7 @@
   --color-diff-removed-text: #8c1d18;
   --color-diff-hunk-text: #1d4f9f;
   --color-diff-meta-text: #566074;
+  --color-diff-filler-bg: #eef0f4;
   --color-button-primary-bg: #1f5fbf;
   --color-button-primary-text: #ffffff;
   --color-button-primary-hover: #194c99;
@@ -60,6 +61,7 @@
   --color-diff-removed-text: #ffb3ac;
   --color-diff-hunk-text: #8db4ff;
   --color-diff-meta-text: #a3acba;
+  --color-diff-filler-bg: #161a20;
   --color-button-primary-bg: #2a69cf;
   --color-button-primary-text: #ffffff;
   --color-button-primary-hover: #1f58b3;

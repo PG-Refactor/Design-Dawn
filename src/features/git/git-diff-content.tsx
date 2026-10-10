@@ -1,11 +1,13 @@
 import type { GitDiff } from "../../application/ports/git-gateway";
 import { useMessages } from "../workspace/use-messages";
-import { classifyDiffLines, formatByteLimit } from "./git-diff-text";
+import { useUiState } from "../workspace/workspace-hooks";
+import { GitDiffTable } from "./git-diff-table";
+import { formatByteLimit } from "./git-diff-text";
 
 function DiffText({ diff }: { readonly diff: string }) {
   const messages = useMessages().git;
-  // Repository text: only ever rendered as React text, never as markup. The region is
-  // focusable so a keyboard user can scroll it.
+  const mode = useUiState((ui) => ui.diffViewMode);
+  // The region is focusable so a keyboard user can scroll it.
   return (
     <section
       className="git-diff__scroll"
@@ -13,16 +15,7 @@ function DiffText({ diff }: { readonly diff: string }) {
       // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable region must be reachable by keyboard to scroll it
       tabIndex={0}
     >
-      <pre className="git-diff__text">
-        {classifyDiffLines(diff).map((line) => (
-          <span
-            key={line.number}
-            className={`git-diff__line git-diff__line--${line.kind}`}
-          >
-            {line.text}
-          </span>
-        ))}
-      </pre>
+      <GitDiffTable diff={diff} mode={mode} />
     </section>
   );
 }

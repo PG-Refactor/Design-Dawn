@@ -7,6 +7,7 @@ import {
   dismissOperationError,
   openDialog,
   setBusy,
+  setDiffViewMode,
   setGitCommitMessage,
   setGitHistoryExpanded,
   setGitSectionCollapsed,
@@ -133,5 +134,16 @@ describe("git collapsed sections", () => {
     expect(expanded.gitCollapsedSections.size).toBe(0);
     expect(setGitSectionCollapsed(initial, "staged", false)).toBe(initial);
     expect(resetUiState().gitCollapsedSections.size).toBe(0);
+  });
+});
+
+describe("diff view mode", () => {
+  it("defaults to split, is replaced by the setter and resets with the UI state", () => {
+    const initial = createInitialUiState();
+    expect(initial.diffViewMode).toBe("split");
+    const inline = setDiffViewMode(initial, "inline");
+    expect(inline.diffViewMode).toBe("inline");
+    expect(setDiffViewMode(inline, "inline")).toBe(inline);
+    expect(resetUiState().diffViewMode).toBe("split");
   });
 });

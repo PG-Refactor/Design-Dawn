@@ -110,6 +110,7 @@ describe("theme token stylesheet", () => {
       ["--color-diff-hunk-text", "--color-background"],
       ["--color-diff-meta-text", "--color-surface"],
       ["--color-diff-meta-text", "--color-background"],
+      ["--color-text-muted", "--color-diff-filler-bg"],
       ["--color-text", "--color-diff-added-bg"],
       ["--color-text", "--color-diff-removed-bg"],
       ["--color-button-primary-text", "--color-button-primary-bg"],

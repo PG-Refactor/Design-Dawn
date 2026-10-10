@@ -318,42 +318,94 @@
   background: var(--color-surface);
 }
 
-.git-diff__text {
-  width: max-content;
-  min-width: 100%;
-  margin: 0;
-  padding: var(--space-2) 0;
+/* No wrapping (like VS Code): a long line scrolls the view sideways. */
+.git-diff__table {
+  width: 100%;
+  border-collapse: collapse;
   color: var(--color-text);
   font-family: monospace;
   font-size: 0.8125rem;
   line-height: 1.4;
   tab-size: 4;
+  white-space: pre;
 }
 
-.git-diff__line {
-  display: block;
-  min-height: 1.4em;
+.git-diff__row > td {
+  height: 1.4em;
+  padding: 0;
+  vertical-align: top;
+}
+
+.git-diff__number {
+  min-width: 3ch;
   padding: 0 var(--space-2);
-  width: max-content;
-  min-width: 100%;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  text-align: right;
+  user-select: none;
 }
 
-.git-diff__line--add {
+.git-diff__number--filler,
+.git-diff__code--filler {
+  background: var(--color-diff-filler-bg);
+}
+
+/* The new side is set apart from the old one. */
+.git-diff__table--split .git-diff__number:nth-child(3) {
+  border-left: 1px solid var(--color-border);
+}
+
+.git-diff__code {
+  padding: 0 var(--space-2);
+}
+
+.git-diff__table--split .git-diff__code {
+  width: 50%;
+}
+
+.git-diff__sign {
+  display: inline-block;
+  width: 1.5ch;
+  user-select: none;
+}
+
+.git-diff__unselectable {
+  user-select: none;
+}
+
+.git-diff__code--added {
   background: var(--color-diff-added-bg);
   color: var(--color-diff-added-text);
 }
 
-.git-diff__line--del {
+.git-diff__code--removed {
   background: var(--color-diff-removed-bg);
   color: var(--color-diff-removed-text);
 }
 
-.git-diff__line--hunk {
+.git-diff__code--note,
+.git-diff__note {
+  color: var(--color-diff-meta-text);
+}
+
+.git-diff__note {
+  display: block;
+}
+
+.git-diff__row--hunk > td,
+.git-diff__row--note > td {
+  padding: 0 var(--space-2);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
   color: var(--color-diff-hunk-text);
 }
 
-.git-diff__line--meta {
+.git-diff__row--note > td {
   color: var(--color-diff-meta-text);
+}
+
+.git-diff__toggle[aria-pressed="true"] {
+  background: var(--color-selection);
 }
 
 .git-commit-box {

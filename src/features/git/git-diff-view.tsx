@@ -6,6 +6,7 @@ import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import { changeSidesOf } from "./git-change-sections";
 import { GitDiffContent } from "./git-diff-content";
 import { activateDiff } from "./git-diff-session";
+import { DiffViewToggle } from "./git-diff-view-toggle";
 
 interface GitDiffViewProps {
   readonly selection: GitSelection;
@@ -27,6 +28,14 @@ export function GitDiffView({ selection, status }: GitDiffViewProps) {
       ? messages.renamedPathText(stagedEntry.originalPath, selection.path)
       : selection.path;
 
+  const loaded =
+    diff !== null &&
+    diff.path === selection.path &&
+    diff.side === selection.side &&
+    diff.status !== "loading"
+      ? diff.result
+      : null;
+
   function renderBody() {
     if (diff === null) {
       // The controller clears the diff on failure and the failure is already reported.
@@ -43,24 +52,21 @@ export function GitDiffView({ selection, status }: GitDiffViewProps) {
         </div>
       );
     }
-    if (
-      diff.path !== selection.path ||
-      diff.side !== selection.side ||
-      diff.status === "loading"
-    ) {
+    if (loaded === null) {
       return (
         <p role="status" aria-busy="true" className="git-diff__message">
           {messages.diffLoading}
         </p>
       );
     }
-    return <GitDiffContent diff={diff.result} />;
+    return <GitDiffContent diff={loaded} />;
   }
 
   return (
     <div className="git-diff">
       <header className="git-diff__header">
         <h2 className="git-diff__path">{pathText}</h2>
+        {loaded?.outcome === "text" ? <DiffViewToggle /> : null}
       </header>
       <div className="git-diff__body">{renderBody()}</div>
     </div>

@@ -285,17 +285,17 @@ describe("loading", () => {
     await dblClick(shell, "変更", "変更 a.md");
     await dblClick(shell, "変更", "変更 b.md");
     await settled();
-    expect(screen.getByText("+from B")).toBeTruthy();
+    expect(screen.getByText("from B")).toBeTruthy();
     const release = shell.gitGateway.holdNextDiff();
     await shell.user.click(diffTab(A));
-    expect(screen.queryByText("+from B")).toBeNull();
-    expect(screen.queryByText("+from A")).toBeNull();
+    expect(screen.queryByText("from B")).toBeNull();
+    expect(screen.queryByText("from A")).toBeNull();
     expect(screen.getByText(GIT_MESSAGES.ja.diffLoading)).toBeTruthy();
     await act(async () => {
       release();
       await settle();
     });
-    expect(screen.getByText("+from A")).toBeTruthy();
+    expect(screen.getByText("from A")).toBeTruthy();
   });
 });
 

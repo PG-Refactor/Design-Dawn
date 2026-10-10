@@ -5,6 +5,7 @@
 import type { OperationError } from "../../../application/ports/operation-error";
 import type {
   DialogState,
+  DiffViewMode,
   GitChangeSectionId,
   LeftPanelMode,
   NoticeKind,
@@ -75,6 +76,10 @@ export function setLeftPanelMode(state: UiState, mode: LeftPanelMode): UiState {
   return state.leftPanelMode === mode
     ? state
     : { ...state, leftPanelMode: mode };
+}
+
+export function setDiffViewMode(state: UiState, mode: DiffViewMode): UiState {
+  return state.diffViewMode === mode ? state : { ...state, diffViewMode: mode };
 }
 
 export function setGitCommitMessage(state: UiState, message: string): UiState {

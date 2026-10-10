@@ -252,6 +252,13 @@ export type LeftPanelMode = (typeof LEFT_PANEL_MODES)[number];
 
 export const DEFAULT_LEFT_PANEL_MODE: LeftPanelMode = "project";
 
+// How a text diff is laid out: two columns (old | new) or one column with both numbers.
+export const DIFF_VIEW_MODES = ["split", "inline"] as const;
+
+export type DiffViewMode = (typeof DIFF_VIEW_MODES)[number];
+
+export const DEFAULT_DIFF_VIEW_MODE: DiffViewMode = "split";
+
 export interface UiState {
   readonly activeDocumentId: DocumentId | null;
   readonly activeSheetIdByDocument: ReadonlyMap<DocumentId, SheetId>;
@@ -280,6 +287,9 @@ export interface UiState {
   // Project Tree or Git panel in the sidebar. Kept across Project changes (only the Git
   // content follows the Project).
   readonly leftPanelMode: LeftPanelMode;
+  // Side-by-side or inline diff. A view preference of this window shared by all diff tabs;
+  // kept across Project changes (like `leftPanelMode`) and never saved.
+  readonly diffViewMode: DiffViewMode;
   // The diff tabs of the main tab strip, shown after the Document tabs. A view choice only
   // (the Git state itself lives in the Git controller); dropped when the Project changes.
   readonly diffTabs: readonly DiffTab[];
@@ -357,6 +367,7 @@ export function createInitialUiState(): UiState {
     nextNoticeId: 1,
     busy: false,
     leftPanelMode: DEFAULT_LEFT_PANEL_MODE,
+    diffViewMode: DEFAULT_DIFF_VIEW_MODE,
     diffTabs: [],
     activeMainTab: DOCUMENT_MAIN_TAB,
     gitCommitMessage: "",

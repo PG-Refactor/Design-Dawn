@@ -137,17 +137,17 @@ describe("opening a diff", () => {
       release();
       await settle();
     });
-    const added = within(mainArea()).getByText("+new");
-    expect(added.className).toContain("git-diff__line--add");
-    expect(within(mainArea()).getByText("-old").className).toContain(
-      "git-diff__line--del",
+    // Side by side by default: old then new, the sign is a gutter and not part of the text.
+    const added = within(mainArea()).getByText("new");
+    expect(added.closest("td")?.className).toContain("git-diff__code--added");
+    const removed = within(mainArea()).getByText("old");
+    expect(removed.closest("td")?.className).toContain(
+      "git-diff__code--removed",
     );
-    expect(within(mainArea()).getByText("@@ -1 +1 @@").className).toContain(
-      "git-diff__line--hunk",
-    );
-    expect(within(mainArea()).getByText("+++ b/a.md").className).toContain(
-      "git-diff__line--meta",
-    );
+    expect(removed.closest("tr")).toBe(added.closest("tr"));
+    expect(removed.closest("td")?.textContent).toBe("-削除old");
+    expect(added.closest("td")?.textContent).toBe("+追加new");
+    expect(within(mainArea()).queryByText("+++ b/a.md")).toBeNull();
     expect(within(mainArea()).queryByRole("status")).toBeNull();
     expect(
       within(mainArea()).getByRole("heading", { name: "a.md" }),
@@ -164,7 +164,7 @@ describe("opening a diff", () => {
     await clickRow(shell, "変更", "変更 a.md");
     await settled();
     expect(
-      within(mainArea()).getByText("+<img src=x onerror=alert(1)><b>bold</b>"),
+      within(mainArea()).getByText("<img src=x onerror=alert(1)><b>bold</b>"),
     ).toBeTruthy();
     expect(mainArea().querySelector("img, b")).toBeNull();
   });
@@ -241,7 +241,7 @@ describe("outcomes", () => {
       within(mainArea()).getByRole("button", { name: GIT_MESSAGES.ja.retry }),
     );
     await settled();
-    expect(within(mainArea()).getByText("+ok")).toBeTruthy();
+    expect(within(mainArea()).getByText("ok")).toBeTruthy();
     expect(
       within(mainArea()).queryByText(GIT_MESSAGES.ja.diffFailed),
     ).toBeNull();
@@ -268,11 +268,11 @@ describe("both sides of a file", () => {
       ) as HTMLElement,
     );
     await settled();
-    expect(within(mainArea()).getByText("+unstaged side")).toBeTruthy();
+    expect(within(mainArea()).getByText("unstaged side")).toBeTruthy();
     await clickRow(shell, "ステージされている変更", "変更 both.md");
     await settled();
-    expect(within(mainArea()).getByText("+staged side")).toBeTruthy();
-    expect(within(mainArea()).queryByText("+unstaged side")).toBeNull();
+    expect(within(mainArea()).getByText("staged side")).toBeTruthy();
+    expect(within(mainArea()).queryByText("unstaged side")).toBeNull();
     // The side is not a switch inside the view any more.
     expect(screen.queryByRole("tablist", { name: "差分の対象" })).toBeNull();
     expect(screen.getByRole("tab", { name: "both.md (Index)" })).toBeTruthy();
@@ -362,7 +362,7 @@ describe("after stage and unstage", () => {
       path: "a.md",
       side: "staged",
     });
-    expect(within(mainArea()).getByText("+now staged")).toBeTruthy();
+    expect(within(mainArea()).getByText("now staged")).toBeTruthy();
   });
 
   it("switches to the unstaged side after unstaging everything, and closes when the file is gone", async () => {
@@ -474,7 +474,7 @@ describe("races", () => {
     await clickRow(shell, "変更", "変更 a.md");
     await clickRow(shell, "変更", "変更 b.md");
     // While A is outstanding nothing of A may show for B.
-    expect(within(mainArea()).queryByText("+from A")).toBeNull();
+    expect(within(mainArea()).queryByText("from A")).toBeNull();
     expect(
       within(mainArea()).getByText(GIT_MESSAGES.ja.diffLoading),
     ).toBeTruthy();
@@ -482,8 +482,8 @@ describe("races", () => {
       release();
       await settle();
     });
-    expect(within(mainArea()).queryByText("+from A")).toBeNull();
-    expect(within(mainArea()).getByText("+from B")).toBeTruthy();
+    expect(within(mainArea()).queryByText("from A")).toBeNull();
+    expect(within(mainArea()).getByText("from B")).toBeTruthy();
   });
 
   it("hides the old diff when the Project is closed", async () => {
@@ -499,7 +499,145 @@ describe("races", () => {
       await shell.actions.closeProject();
       await settle();
     });
-    expect(screen.queryByText("+secret")).toBeNull();
+    expect(screen.queryByText("secret")).toBeNull();
     noDiffPanel();
+  });
+});
+
+describe("diff layout", () => {
+  const MODIFIED = [
+    "diff --git a/a.md b/a.md",
+    "--- a/a.md",
+    "+++ b/a.md",
+    "@@ -10,3 +10,4 @@ heading",
+    " same",
+    "-old one",
+    "-old two",
+    "+new one",
+    "+new two",
+    "+new three",
+    "",
+  ].join("\n");
+
+  const toggle = () =>
+    within(mainArea()).getByRole("button", {
+      name: GIT_MESSAGES.ja.diffViewToggle,
+    });
+  const rowsOf = () =>
+    Array.from(mainArea().querySelectorAll("tbody tr")).map((row) =>
+      Array.from(row.children).map((cell) => cell.textContent),
+    );
+
+  async function openModified(): Promise<ShellHarness> {
+    const shell = await openChanges(
+      file("a.md", "unmodified", "modified"),
+      file("b.md", "unmodified", "modified"),
+    );
+    shell.gitGateway.diffs["unstaged:a.md"] = textDiff(
+      "a.md",
+      "unstaged",
+      MODIFIED,
+    );
+    shell.gitGateway.diffs["unstaged:b.md"] = textDiff(
+      "b.md",
+      "unstaged",
+      "@@ -0,0 +1 @@\n+only\n",
+    );
+    await clickRow(shell, "変更", "変更 a.md");
+    await settled();
+    return shell;
+  }
+
+  it("is side by side by default: numbers, pairing and fillers", async () => {
+    await openModified();
+    expect(toggle().getAttribute("aria-pressed")).toBe("false");
+    expect(toggle().getAttribute("title")).toBe(GIT_MESSAGES.ja.diffViewToggle);
+    expect(rowsOf()).toEqual([
+      [`${GIT_MESSAGES.ja.diffHunkLabel}heading`],
+      ["10", "same", "10", "same"],
+      ["11", "-削除old one", "11", "+追加new one"],
+      ["12", "-削除old two", "12", "+追加new two"],
+      ["", "", "13", "+追加new three"],
+    ]);
+    expect(mainArea().querySelector(".git-diff__code--filler")).not.toBeNull();
+  });
+
+  it("switches to inline and back, and keeps the scroll region reachable", async () => {
+    const shell = await openModified();
+    await shell.user.click(toggle());
+    expect(toggle().getAttribute("aria-pressed")).toBe("true");
+    expect(shell.uiStateStore.getState().diffViewMode).toBe("inline");
+    expect(rowsOf()).toEqual([
+      [`${GIT_MESSAGES.ja.diffHunkLabel}heading`],
+      ["10", "10", "same"],
+      ["11", "", "-削除old one"],
+      ["12", "", "-削除old two"],
+      ["", "11", "+追加new one"],
+      ["", "12", "+追加new two"],
+      ["", "13", "+追加new three"],
+    ]);
+    const region = within(mainArea()).getByRole("region", {
+      name: GIT_MESSAGES.ja.diffTextLabel,
+    });
+    expect(region.getAttribute("tabindex")).toBe("0");
+    await shell.user.click(toggle());
+    expect(toggle().getAttribute("aria-pressed")).toBe("false");
+    expect(rowsOf()).toHaveLength(5);
+  });
+
+  it("shares the mode between tabs and keeps it when the Project is closed", async () => {
+    const shell = await openModified();
+    await shell.user.click(toggle());
+    await clickRow(shell, "変更", "変更 b.md");
+    await settled();
+    expect(toggle().getAttribute("aria-pressed")).toBe("true");
+    expect(rowsOf()).toEqual([
+      [GIT_MESSAGES.ja.diffHunkLabel],
+      ["", "1", "+追加only"],
+    ]);
+    expect(mainArea().querySelector(".git-diff__table--inline")).not.toBeNull();
+    await act(async () => {
+      await shell.actions.closeProject();
+      await settle();
+    });
+    expect(shell.uiStateStore.getState().diffViewMode).toBe("inline");
+  });
+
+  it("has no toggle for results that are not text", async () => {
+    const shell = await openChanges(file("a.md", "unmodified", "modified"));
+    shell.gitGateway.diffs["unstaged:a.md"] = {
+      path: "a.md",
+      side: "unstaged",
+      outcome: "binary",
+    };
+    await clickRow(shell, "変更", "変更 a.md");
+    await settled();
+    expect(
+      within(mainArea()).getByText(GIT_MESSAGES.ja.diffBinary),
+    ).toBeTruthy();
+    expect(
+      within(mainArea()).queryByRole("button", {
+        name: GIT_MESSAGES.ja.diffViewToggle,
+      }),
+    ).toBeNull();
+    expect(mainArea().querySelector("table")).toBeNull();
+  });
+
+  it("uses the English labels", async () => {
+    const shell = await openModified();
+    act(() => shell.services.languageController.applyExternal("en"));
+    const messages = GIT_MESSAGES.en;
+    expect(
+      within(mainArea()).getByRole("button", { name: "Toggle Inline View" }),
+    ).toBeTruthy();
+    expect(
+      within(mainArea()).getByRole("region", { name: messages.diffTextLabel }),
+    ).toBeTruthy();
+    expect(rowsOf()[2]).toEqual([
+      "11",
+      "-removedold one",
+      "11",
+      "+addednew one",
+    ]);
   });
 });

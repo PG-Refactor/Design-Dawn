@@ -23,6 +23,7 @@ export const COLOR_TOKEN_NAMES = [
   "--color-diff-removed-text",
   "--color-diff-hunk-text",
   "--color-diff-meta-text",
+  "--color-diff-filler-bg",
   "--color-button-primary-bg",
   "--color-button-primary-text",
   "--color-button-primary-hover",

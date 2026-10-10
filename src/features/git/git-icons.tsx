@@ -76,3 +76,13 @@ export function MinusIcon() {
     </Icon>
   );
 }
+
+// Two stacked rows: the inline (one column) layout of the diff.
+export function InlineViewIcon() {
+  return (
+    <Icon>
+      <rect x="2.5" y="2.5" width="11" height="4" rx="0.5" />
+      <rect x="2.5" y="9.5" width="11" height="4" rx="0.5" />
+    </Icon>
+  );
+}
