@@ -29,7 +29,13 @@ async function renderThemeSettings() {
     document.documentElement,
     controller.store.getState().resolvedTheme,
   );
-  render(<ThemeSettings controller={controller} />);
+  render(
+    <ThemeSettings
+      controller={controller}
+      legend="Theme"
+      labels={{ system: "System", light: "Light", dark: "Dark" }}
+    />,
+  );
   return { gateway, osThemeSource, controller, user: userEvent.setup() };
 }
 

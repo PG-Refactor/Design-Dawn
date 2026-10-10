@@ -1,13 +1,28 @@
 import type { ApplicationState } from "../../application/state/application-state";
 import { APP_CONFIG } from "../../config/app-config";
+import { LanguageSettings } from "../language/language-settings";
 import { AutoSaveSetting } from "../settings/auto-save-settings";
-import { ThemeSettings } from "../theme/theme-settings";
+import {
+  type ThemePreferenceLabels,
+  ThemeSettings,
+} from "../theme/theme-settings";
 import { Notifications } from "./notifications";
 import type { UiState } from "./ui-state/ui-state";
 import { useMessages } from "./use-messages";
 import { useUiState, useWorkspaceModel } from "./workspace-hooks";
+import type { WorkspaceMessages } from "./workspace-messages";
 import { useWorkspaceServices } from "./workspace-services-context";
 import "./top-bar.css";
+
+function themeLabels(
+  topBar: WorkspaceMessages["topBar"],
+): ThemePreferenceLabels {
+  return {
+    system: topBar.systemOption,
+    light: topBar.themeLight,
+    dark: topBar.themeDark,
+  };
+}
 
 const selectBusy = (ui: UiState) => ui.busy;
 const selectProjectName = (application: ApplicationState) =>
@@ -15,7 +30,7 @@ const selectProjectName = (application: ApplicationState) =>
 
 export function TopBar() {
   const messages = useMessages().workspace;
-  const { actions, themeController, autoSaveController } =
+  const { actions, themeController, languageController, autoSaveController } =
     useWorkspaceServices();
   const projectName = useWorkspaceModel(selectProjectName);
   const busy = useUiState(selectBusy);
@@ -65,7 +80,16 @@ export function TopBar() {
       </div>
       <Notifications />
       <AutoSaveSetting controller={autoSaveController} />
-      <ThemeSettings controller={themeController} />
+      <LanguageSettings
+        controller={languageController}
+        legend={messages.topBar.languageLegend}
+        systemLabel={messages.topBar.systemOption}
+      />
+      <ThemeSettings
+        controller={themeController}
+        legend={messages.topBar.themeLegend}
+        labels={themeLabels(messages.topBar)}
+      />
     </header>
   );
 }

@@ -234,17 +234,33 @@ describe("entries", () => {
 
 describe("formatCommitDate", () => {
   it("converts to the given time zone", () => {
-    const tokyo = formatCommitDate("2026-01-02T03:04:05+00:00", {
+    const tokyo = formatCommitDate("2026-01-02T03:04:05+00:00", "ja", {
       timeZone: "Asia/Tokyo",
     });
     expect(tokyo).toBe("2026/01/02 12:04");
     expect(
-      formatCommitDate("2026-01-02T23:30:00-05:00", { timeZone: "UTC" }),
+      formatCommitDate("2026-01-02T23:30:00-05:00", "ja", { timeZone: "UTC" }),
     ).toBe("2026/01/03 04:30");
   });
 
+  it("follows the display language's locale", () => {
+    const options = { timeZone: "UTC" };
+    const japanese = formatCommitDate(
+      "2026-01-02T13:04:00+00:00",
+      "ja",
+      options,
+    );
+    const english = formatCommitDate(
+      "2026-01-02T13:04:00+00:00",
+      "en",
+      options,
+    );
+    expect(japanese).toBe("2026/01/02 13:04");
+    expect(english).toBe("01/02/2026, 13:04");
+  });
+
   it("returns an unreadable date as it is", () => {
-    expect(formatCommitDate("not a date")).toBe("not a date");
+    expect(formatCommitDate("not a date", "en")).toBe("not a date");
   });
 });
 

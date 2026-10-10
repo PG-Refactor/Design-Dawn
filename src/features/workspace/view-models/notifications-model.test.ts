@@ -111,6 +111,7 @@ describe("selectNotifications", () => {
       application: harness.store.getState(),
       operationErrors,
       theme: { loadIssue: IO_ERROR, saveError: IO_ERROR },
+      language: { saveError: IO_ERROR },
     });
     const priorities = model.items.map((item) => item.priority);
     expect(priorities).toEqual([...priorities].sort((a, b) => a - b));
@@ -118,6 +119,7 @@ describe("selectNotifications", () => {
       "saveError",
       "operationError",
       "themeSaveError",
+      "languageSaveError",
       "loadFailed",
       "loadFailed",
       "loadIssue",

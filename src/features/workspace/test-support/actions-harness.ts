@@ -14,7 +14,10 @@ import {
   createGitController,
   type GitController,
 } from "../../../application/git/git-controller";
-import { createLanguageController } from "../../../application/language/language-controller";
+import {
+  createLanguageController,
+  type LanguageController,
+} from "../../../application/language/language-controller";
 import type { LoadIssue } from "../../../application/ports/persistence-types";
 import {
   type ApplicationStore,
@@ -40,6 +43,7 @@ import {
 import {
   createFakeAppSettingsGateway,
   createFakeOsThemeSource,
+  type FakeAppSettingsGateway,
 } from "../../../application/test-support/fake-theme";
 import {
   createFakeViewportGateway,
@@ -106,6 +110,10 @@ export interface ActionsHarness extends WorkspaceHarness {
   readonly viewportPersistence: ViewportPersistence;
   readonly gitGateway: FakeGitGateway;
   readonly gitController: GitController;
+  // The language controller has its own settings gateway, so a test can fail or inspect
+  // its saves without touching the theme / auto-save ones.
+  readonly languageController: LanguageController;
+  readonly languageGateway: FakeAppSettingsGateway;
   readonly services: WorkspaceServices;
 }
 
@@ -155,8 +163,9 @@ export function createActionsHarness(
     gateway: createFakeAppSettingsGateway(),
     osThemeSource: createFakeOsThemeSource("light"),
   });
+  const languageGateway = createFakeAppSettingsGateway();
   const languageController = createLanguageController({
-    gateway: createFakeAppSettingsGateway(),
+    gateway: languageGateway,
     systemLanguageSource: {
       current: () => options.systemLanguages ?? DEFAULT_TEST_SYSTEM_LANGUAGES,
     },
@@ -175,6 +184,8 @@ export function createActionsHarness(
     ...base,
     gitGateway,
     gitController,
+    languageController,
+    languageGateway,
     uiStateStore,
     actions,
     canvasActions,

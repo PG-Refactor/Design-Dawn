@@ -1,5 +1,5 @@
 import type { GitHistoryEntry as HistoryEntry } from "../../application/ports/git-gateway";
-import { useMessages } from "../workspace/use-messages";
+import { useDisplayLanguage, useMessages } from "../workspace/use-messages";
 import { formatCommitDate, shortCommitId } from "./git-history-format";
 
 // One commit. Every value is rendered as React text, never as markup. The email address is
@@ -11,6 +11,7 @@ export function GitHistoryEntryRow({
   readonly entry: HistoryEntry;
 }) {
   const messages = useMessages().git;
+  const language = useDisplayLanguage();
   return (
     <li className="git-history-entry">
       <p className="git-history-entry__summary">{entry.summary}</p>
@@ -25,7 +26,7 @@ export function GitHistoryEntryRow({
         </code>
         <span className="git-history-entry__author">{entry.authorName}</span>
         <time dateTime={entry.authorDate} title={entry.authorDate}>
-          {formatCommitDate(entry.authorDate)}
+          {formatCommitDate(entry.authorDate, language)}
         </time>
       </p>
     </li>

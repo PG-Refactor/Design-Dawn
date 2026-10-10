@@ -141,6 +141,11 @@ export const WORKSPACE_MESSAGES_JA = {
     closeProject: "Projectを閉じる",
     openProjectInNewWindow: "新しいウィンドウでProjectを開く",
     autoSave: "自動保存",
+    languageLegend: "言語",
+    themeLegend: "テーマ",
+    systemOption: "システム",
+    themeLight: "ライト",
+    themeDark: "ダーク",
   },
   notices: {
     // A light, self-clearing region; not part of the notifications panel.
@@ -208,6 +213,7 @@ export const WORKSPACE_MESSAGES_JA = {
     documentLoadedWithWarnings: "Documentを警告付きで読み込みました",
     statusLabel: "読み込み状況",
     themeSaveError: "テーマ設定を保存できませんでした",
+    languageSaveError: "表示言語の設定を保存できませんでした",
     autoSaveSaveError: "自動保存の設定を保存できませんでした",
     projectTreeWidthSaveError: "Project Treeの幅を保存できませんでした",
     themeLoadIssue:

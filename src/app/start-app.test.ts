@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createLanguageController } from "../application/language/language-controller";
 import { createAutoSaveController } from "../application/settings/auto-save-controller";
 import { createLayoutSettingsController } from "../application/settings/layout-settings-controller";
 import {
@@ -132,5 +133,32 @@ describe("startApp", () => {
       reportError: () => {},
     });
     expect(log).toContain("render:480");
+  });
+
+  it("keeps the lang attribute in sync with the display language", async () => {
+    const { gateway, themeController, themeTarget } = setup("light");
+    gateway.storage.languagePreference = "en";
+    let systemLanguages = ["ja"];
+    const languageController = createLanguageController({
+      gateway,
+      systemLanguageSource: { current: () => systemLanguages },
+    });
+    const languageTarget = { lang: "" };
+    const langAtRender: string[] = [];
+    await startApp({
+      themeController,
+      languageController,
+      themeTarget,
+      languageTarget,
+      render: () => langAtRender.push(languageTarget.lang),
+      reportError: () => {},
+    });
+    expect(langAtRender).toEqual(["en"]);
+
+    systemLanguages = ["ja"];
+    await languageController.setPreference("system");
+    expect(languageTarget.lang).toBe("ja");
+    await languageController.setPreference("en");
+    expect(languageTarget.lang).toBe("en");
   });
 });

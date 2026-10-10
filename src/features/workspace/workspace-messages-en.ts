@@ -140,6 +140,11 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     closeProject: "Close Project",
     openProjectInNewWindow: "Open Project in New Window",
     autoSave: "Auto Save",
+    languageLegend: "Language",
+    themeLegend: "Theme",
+    systemOption: "System",
+    themeLight: "Light",
+    themeDark: "Dark",
   },
   notices: {
     regionLabel: "Notices",
@@ -207,6 +212,7 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     documentLoadedWithWarnings: "The Document was loaded with warnings",
     statusLabel: "Load status",
     themeSaveError: "Could not save the theme setting",
+    languageSaveError: "Could not save the display language setting",
     autoSaveSaveError: "Could not save the Auto Save setting",
     projectTreeWidthSaveError: "Could not save the Project Tree width",
     themeLoadIssue:

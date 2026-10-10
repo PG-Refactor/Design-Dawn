@@ -24,3 +24,14 @@ export const DEFAULT_LANGUAGE_PREFERENCE: LanguagePreference =
 
 // Used when no system language is one the UI has text for (or none is known).
 export const FALLBACK_DISPLAY_LANGUAGE: DisplayLanguage = "en";
+
+// Locale for date formatting per display language (`Intl` needs a region for stable output).
+export const DISPLAY_LANGUAGE_LOCALES: Readonly<
+  Record<DisplayLanguage, string>
+> = { en: "en-US", ja: "ja-JP" };
+
+// Each language is named in itself in every UI language, so a user who cannot read the
+// current language can still find theirs.
+export const DISPLAY_LANGUAGE_NATIVE_NAMES: Readonly<
+  Record<DisplayLanguage, string>
+> = { en: "English", ja: "日本語" };

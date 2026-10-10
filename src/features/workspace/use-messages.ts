@@ -49,11 +49,14 @@ export function messagesFor(language: DisplayLanguage): Messages {
 
 const selectLanguage = (state: LanguageState) => state.language;
 
+// For formatting that is not a catalog sentence (dates); components re-render on change.
+export function useDisplayLanguage(): DisplayLanguage {
+  const { languageController } = useWorkspaceServices();
+  return useStoreSelector(languageController.store, selectLanguage);
+}
+
 // The texts of the current display language; the component re-renders when it changes.
 // All user-visible text goes through this hook (docs/coding-guidelines.md §14).
 export function useMessages(): Messages {
-  const { languageController } = useWorkspaceServices();
-  return messagesFor(
-    useStoreSelector(languageController.store, selectLanguage),
-  );
+  return messagesFor(useDisplayLanguage());
 }

@@ -59,7 +59,7 @@ describe("empty state and opening a project", () => {
 
   it("places the theme settings in the top bar", async () => {
     await renderShell();
-    expect(screen.getByRole("group", { name: "Theme" })).toBeTruthy();
+    expect(screen.getByRole("group", { name: "テーマ" })).toBeTruthy();
   });
 });
 

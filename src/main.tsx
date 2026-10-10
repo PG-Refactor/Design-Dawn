@@ -26,6 +26,7 @@ void startApp({
   autoSaveController,
   layoutSettingsController,
   themeTarget: document.documentElement,
+  languageTarget: document.documentElement,
   render: () =>
     createRoot(rootElement).render(
       <StrictMode>

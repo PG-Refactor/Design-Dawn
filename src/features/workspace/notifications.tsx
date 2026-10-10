@@ -141,6 +141,7 @@ export function Notifications() {
   const {
     applicationStore,
     themeController,
+    languageController,
     autoSaveController,
     layoutSettingsController,
     actions,
@@ -150,6 +151,7 @@ export function Notifications() {
   const imageLoadFailures = useUiState(selectImageLoadFailures);
   const open = useUiState(selectNotificationsOpen);
   const theme = useStoreSelector(themeController.store, identity);
+  const language = useStoreSelector(languageController.store, identity);
   const autoSave = useStoreSelector(autoSaveController.store, identity);
   const layoutSettings = useStoreSelector(
     layoutSettingsController.store,
@@ -164,6 +166,7 @@ export function Notifications() {
         operationErrors,
         imageLoadFailures,
         theme,
+        language,
         autoSave,
         layoutSettings,
       }),
@@ -173,6 +176,7 @@ export function Notifications() {
       operationErrors,
       imageLoadFailures,
       theme,
+      language,
       autoSave,
       layoutSettings,
     ],

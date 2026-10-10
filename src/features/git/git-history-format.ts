@@ -1,8 +1,10 @@
 // Display helpers of the history list. Pure, so they can be tested without a DOM.
 
 import { SHORT_COMMIT_ID_LENGTH } from "../../config/git-config";
-
-const HISTORY_DATE_LOCALE = "ja-JP";
+import {
+  DISPLAY_LANGUAGE_LOCALES,
+  type DisplayLanguage,
+} from "../../config/language-config";
 
 const HISTORY_DATE_FORMAT: Intl.DateTimeFormatOptions = {
   year: "numeric",
@@ -18,15 +20,16 @@ export interface FormatCommitDateOptions {
   readonly timeZone?: string;
 }
 
-// The author date (ISO 8601 with an offset) in local time. An unreadable date is shown as
+// The author date (ISO 8601 with an offset) in local time, in the display language's locale. An unreadable date is shown as
 // it came, so no information is lost.
 export function formatCommitDate(
   isoDate: string,
+  language: DisplayLanguage,
   options: FormatCommitDateOptions = {},
 ): string {
   const parsed = new Date(isoDate);
   if (Number.isNaN(parsed.getTime())) return isoDate;
-  return new Intl.DateTimeFormat(HISTORY_DATE_LOCALE, {
+  return new Intl.DateTimeFormat(DISPLAY_LANGUAGE_LOCALES[language], {
     ...HISTORY_DATE_FORMAT,
     ...(options.timeZone === undefined ? {} : { timeZone: options.timeZone }),
   }).format(parsed);

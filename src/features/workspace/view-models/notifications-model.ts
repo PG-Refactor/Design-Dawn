@@ -3,6 +3,7 @@
 // and operation errors. Nothing is stored here; the order follows docs/ui-design.md
 // §12.5: save errors > load failures > load warnings > orphan content files.
 
+import type { LanguageState } from "../../../application/language/language-controller";
 import type { OperationError } from "../../../application/ports/operation-error";
 import type {
   EntityState,
@@ -34,6 +35,7 @@ export type NotificationKind =
   | "saveError"
   | "operationError"
   | "themeSaveError"
+  | "languageSaveError"
   | "autoSaveSaveError"
   | "projectTreeWidthSaveError"
   | "loadFailed"
@@ -51,6 +53,7 @@ export const NOTIFICATION_PRIORITY: Record<NotificationKind, number> = {
   saveError: 0,
   operationError: 0,
   themeSaveError: 0,
+  languageSaveError: 0,
   autoSaveSaveError: 0,
   projectTreeWidthSaveError: 0,
   loadFailed: 1,
@@ -65,6 +68,7 @@ const NOTIFICATION_SEVERITY: Record<NotificationKind, NotificationSeverity> = {
   saveError: "error",
   operationError: "error",
   themeSaveError: "error",
+  languageSaveError: "error",
   autoSaveSaveError: "error",
   projectTreeWidthSaveError: "error",
   loadFailed: "error",
@@ -145,6 +149,7 @@ export interface NotificationsInput {
   // Only its save error is shown: a settings file that could not be read is already
   // reported once through `theme.loadIssue`.
   readonly autoSave?: Pick<AutoSaveState, "saveError">;
+  readonly language?: Pick<LanguageState, "saveError">;
   readonly layoutSettings?: Pick<LayoutSettingsState, "saveError">;
 }
 
@@ -520,6 +525,18 @@ function collectAppItems(
         source,
         message: `${messages.notifications.autoSaveSaveError} ${describeErrorKind(messages, autoSaveError.kind)}`,
         details: errorDetails(labels, autoSaveError),
+      }),
+    );
+  }
+  const languageError = input.language?.saveError ?? null;
+  if (languageError !== null) {
+    items.push(
+      makeItem({
+        id: "languageSaveError",
+        kind: "languageSaveError",
+        source,
+        message: `${messages.notifications.languageSaveError} ${describeErrorKind(messages, languageError.kind)}`,
+        details: errorDetails(labels, languageError),
       }),
     );
   }
