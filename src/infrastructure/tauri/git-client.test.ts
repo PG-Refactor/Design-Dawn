@@ -1,10 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { PROJECT_ID } from "../../domain/shared/test-fixtures";
+import { DOCUMENT_ID, PROJECT_ID } from "../../domain/shared/test-fixtures";
 import { COMMANDS } from "./command-constants";
 import {
   gitCommit,
   gitDiff,
+  gitDiscard,
+  gitDiscardImpact,
   gitHistory,
   gitStage,
   gitStatus,
@@ -201,6 +203,103 @@ describe("gitStage", () => {
       expect(result).toStrictEqual({ ok: false, error: { kind, detail: "d" } });
     },
   );
+});
+
+describe("gitDiscard", () => {
+  it("sends the project id and the paths and decodes the status", async () => {
+    invokeMock.mockResolvedValueOnce(VALID_PAYLOAD);
+
+    const result = await gitDiscard(PROJECT_ID, ["notes.md", "設計 書.md"]);
+
+    expect(invokeMock.mock.calls).toStrictEqual([
+      [
+        COMMANDS.gitDiscard,
+        { projectId: PROJECT_ID, paths: ["notes.md", "設計 書.md"] },
+      ],
+    ]);
+    expect(result).toStrictEqual({
+      ok: true,
+      value: {
+        repositoryState: "ready",
+        branch: VALID_PAYLOAD.branch,
+        files: VALID_PAYLOAD.files,
+      },
+    });
+  });
+
+  it("rejects a malformed payload as invalidCommandResponse", async () => {
+    invokeMock.mockResolvedValueOnce({ repository: { state: "ready" } });
+
+    const result = await gitDiscard(PROJECT_ID, ["a.md"]);
+
+    expect(!result.ok && result.error.kind).toBe("invalidCommandResponse");
+  });
+
+  it.each([
+    "gitDiscardRejected",
+    "gitNotReady",
+    "invalidGitPath",
+    "gitCommandFailed",
+    "gitTimeout",
+    "ioError",
+  ])("keeps the %s error kind", async (kind) => {
+    invokeMock.mockRejectedValueOnce({ kind, detail: "d" });
+
+    const result = await gitDiscard(PROJECT_ID, ["a.md"]);
+
+    expect(result).toStrictEqual({ ok: false, error: { kind, detail: "d" } });
+  });
+});
+
+describe("gitDiscardImpact", () => {
+  it("sends the project id and the paths and decodes the impact", async () => {
+    invokeMock.mockResolvedValueOnce({
+      documentIds: [DOCUMENT_ID],
+      projectFilesAffected: true,
+    });
+
+    const result = await gitDiscardImpact(PROJECT_ID, ["project.json"]);
+
+    expect(invokeMock.mock.calls).toStrictEqual([
+      [
+        COMMANDS.gitDiscardImpact,
+        { projectId: PROJECT_ID, paths: ["project.json"] },
+      ],
+    ]);
+    expect(result).toStrictEqual({
+      ok: true,
+      value: { documentIds: [DOCUMENT_ID], projectFilesAffected: true },
+    });
+  });
+
+  it.each([
+    ["a missing field", { documentIds: [] }],
+    ["a non-boolean flag", { documentIds: [], projectFilesAffected: "yes" }],
+    ["a non-array id list", { documentIds: "x", projectFilesAffected: false }],
+    ["a non-string id", { documentIds: [1], projectFilesAffected: false }],
+    [
+      "an id that is not a canonical id",
+      { documentIds: ["not-an-id"], projectFilesAffected: false },
+    ],
+    ["null", null],
+  ])("rejects %s as invalidCommandResponse", async (_name, payload) => {
+    invokeMock.mockResolvedValueOnce(payload);
+
+    const result = await gitDiscardImpact(PROJECT_ID, ["a.md"]);
+
+    expect(!result.ok && result.error.kind).toBe("invalidCommandResponse");
+  });
+
+  it("keeps the error kinds", async () => {
+    invokeMock.mockRejectedValueOnce({ kind: "invalidGitPath", detail: "d" });
+
+    const result = await gitDiscardImpact(PROJECT_ID, ["../a"]);
+
+    expect(result).toStrictEqual({
+      ok: false,
+      error: { kind: "invalidGitPath", detail: "d" },
+    });
+  });
 });
 
 describe("gitUnstage", () => {

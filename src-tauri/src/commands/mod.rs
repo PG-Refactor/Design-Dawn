@@ -31,6 +31,7 @@ use crate::application::folder_selection::{
     FolderSelectionState,
 };
 use crate::application::git_commit;
+use crate::application::git_discard;
 use crate::application::git_history;
 use crate::application::git_operations::{self, GitStatusResult};
 use crate::application::local_state::operations::{AppSettings, LocalState, SheetViewportResult};
@@ -54,7 +55,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 44] = [
+pub const COMMAND_NAMES: [&str; 46] = [
     "select_project_folder",
     "create_project",
     "open_project",
@@ -96,6 +97,8 @@ pub const COMMAND_NAMES: [&str; 44] = [
     "git_status",
     "git_stage",
     "git_unstage",
+    "git_discard_impact",
+    "git_discard",
     "git_diff",
     "git_commit",
     "git_history",
@@ -840,6 +843,41 @@ pub async fn git_unstage<R: Runtime>(
     run_blocking(move || {
         let sessions = app.state::<Mutex<ProjectSessions>>();
         git_operations::git_unstage(&sessions, &project_id, &paths)
+    })
+    .await
+}
+
+/// Which Documents and Project files of the calling window's Project the given paths belong
+/// to (docs/git-development.md §11.14). Read-only: no git process, no absolute paths.
+#[tauri::command]
+pub async fn git_discard_impact<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    paths: Vec<String>,
+) -> Result<git_discard::GitDiscardImpact, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_discard::git_discard_impact(&sessions, &project_id, &paths)
+    })
+    .await
+}
+
+/// Discards working tree changes of the calling window's Project (restores tracked files,
+/// deletes untracked ones) and returns the status read after it (docs/git-development.md
+/// §11.14). Not an Undo step and never saves; the UI must have asked for confirmation.
+#[tauri::command]
+pub async fn git_discard<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    paths: Vec<String>,
+) -> Result<GitStatusResult, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_discard::git_discard(&sessions, &project_id, &paths)
     })
     .await
 }

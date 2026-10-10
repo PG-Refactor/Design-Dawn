@@ -5,6 +5,7 @@ import type {
   GitCommitResult,
   GitDiff,
   GitDiffSide,
+  GitDiscardImpact,
   GitGateway,
   GitHistoryPage,
   GitStatus,
@@ -20,6 +21,18 @@ export interface FakeGitGateway extends GitGateway {
   readonly calls: ProjectId[];
   readonly stageCalls: { projectId: ProjectId; paths: readonly string[] }[];
   readonly unstageCalls: { projectId: ProjectId; paths: readonly string[] }[];
+  readonly discardCalls: { projectId: ProjectId; paths: readonly string[] }[];
+  readonly discardImpactCalls: {
+    projectId: ProjectId;
+    paths: readonly string[];
+  }[];
+  // Answer of `discardImpact` (when `failure` is null).
+  impactResult: GitDiscardImpact;
+  // Answer of the next `discard` call only (then back to `status` / `failure`).
+  nextDiscardResult: OperationResult<GitStatus> | null;
+  // Suspends the next `discard` call until the returned function is called (the call is
+  // recorded before it waits).
+  holdNextDiscard(): () => void;
   readonly diffCalls: {
     projectId: ProjectId;
     path: string;
@@ -76,6 +89,7 @@ export function createFakeGitGateway(): FakeGitGateway {
   let stageHold: Promise<void> | null = null;
   let unstageHold: Promise<void> | null = null;
   let commitHold: Promise<void> | null = null;
+  let discardHold: Promise<void> | null = null;
   function indexAnswer(): OperationResult<GitStatus> {
     return gateway.failure
       ? operationErr<GitStatus>(gateway.failure.kind, gateway.failure.detail)
@@ -85,6 +99,10 @@ export function createFakeGitGateway(): FakeGitGateway {
     calls: [],
     stageCalls: [],
     unstageCalls: [],
+    discardCalls: [],
+    discardImpactCalls: [],
+    impactResult: { documentIds: [], projectFilesAffected: false },
+    nextDiscardResult: null,
     diffCalls: [],
     diffs: {},
     historyCalls: [],
@@ -106,6 +124,13 @@ export function createFakeGitGateway(): FakeGitGateway {
     holdNextUnstage() {
       let release: () => void = () => undefined;
       unstageHold = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return release;
+    },
+    holdNextDiscard() {
+      let release: () => void = () => undefined;
+      discardHold = new Promise<void>((resolve) => {
         release = resolve;
       });
       return release;
@@ -199,6 +224,24 @@ export function createFakeGitGateway(): FakeGitGateway {
       stageHold = null;
       if (pending !== null) await pending;
       return answer;
+    },
+    async discard(projectId, paths) {
+      gateway.discardCalls.push({ projectId, paths });
+      const answer = gateway.nextDiscardResult ?? indexAnswer();
+      gateway.nextDiscardResult = null;
+      const pending = discardHold;
+      discardHold = null;
+      if (pending !== null) await pending;
+      return answer;
+    },
+    async discardImpact(projectId, paths) {
+      gateway.discardImpactCalls.push({ projectId, paths });
+      return gateway.failure
+        ? operationErr<GitDiscardImpact>(
+            gateway.failure.kind,
+            gateway.failure.detail,
+          )
+        : operationOk(gateway.impactResult);
     },
     async commit(projectId, message) {
       gateway.commitCalls.push({ projectId, message });

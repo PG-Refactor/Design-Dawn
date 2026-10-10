@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { HISTORY_PAGE_SIZE } from "../../config/git-config";
-import { PROJECT_ID } from "../../domain/shared/test-fixtures";
+import { DOCUMENT_ID, PROJECT_ID } from "../../domain/shared/test-fixtures";
 import type { GitDiff, GitHistoryPage, GitStatus } from "../ports/git-gateway";
 import type { OperationError } from "../ports/operation-error";
 import {
@@ -347,6 +347,154 @@ describe("statusError", () => {
     const state = controller.store.getState();
     expect(state.statusError).toBeNull();
     expect(state.status).toEqual(CLEAN_GIT_STATUS);
+  });
+});
+
+describe("discard", () => {
+  const PATHS = ["project.json"];
+
+  it("replaces the status by the returned one and does not read it again", async () => {
+    const { workspace, gitGateway, controller } = setup();
+    gitGateway.status = MODIFIED_STATUS;
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.status = CLEAN_GIT_STATUS;
+
+    const result = await controller.discard(PATHS);
+
+    expect(result).toEqual({ ok: true, value: undefined });
+    expect(controller.store.getState().status).toEqual(CLEAN_GIT_STATUS);
+    expect(controller.store.getState().operating).toBe(false);
+    expect(gitGateway.discardCalls).toEqual([
+      { projectId: PROJECT_ID, paths: PATHS },
+    ]);
+    expect(gitGateway.calls).toHaveLength(1);
+  });
+
+  it("does nothing without a Project", async () => {
+    const { gitGateway, controller } = setup();
+
+    expect(await controller.discard(PATHS)).toEqual({
+      ok: true,
+      value: undefined,
+    });
+
+    expect(gitGateway.discardCalls).toEqual([]);
+  });
+
+  it("reports a failure as discardGitChanges, then reads the status again", async () => {
+    const { workspace, gitGateway, controller, failures, failureLabels } =
+      setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.calls.length = 0;
+    gitGateway.nextDiscardResult = {
+      ok: false,
+      error: { kind: "gitDiscardRejected", detail: "no" },
+    };
+    gitGateway.status = MODIFIED_STATUS;
+
+    const result = await controller.discard(PATHS);
+
+    expect(!result.ok && result.error.kind).toBe("gitDiscardRejected");
+    expect(failureLabels).toEqual(["discardGitChanges"]);
+    expect(failures).toEqual([{ kind: "gitDiscardRejected", detail: "no" }]);
+    expect(gitGateway.calls).toHaveLength(1);
+    expect(controller.store.getState().status).toEqual(MODIFIED_STATUS);
+    expect(controller.store.getState().operating).toBe(false);
+  });
+
+  it("labels a rejecting gateway", async () => {
+    const { workspace, gitGateway, controller, failureLabels } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.discard = () => Promise.reject(new Error("boom"));
+
+    const result = await controller.discard(PATHS);
+
+    expect(!result.ok && result.error.kind).toBe("unexpectedCommandError");
+    expect(failureLabels).toEqual(["discardGitChanges"]);
+    expect(gitGateway.calls).toHaveLength(2);
+  });
+
+  it("ignores an answer that arrives after the Project was closed", async () => {
+    const { workspace, gitGateway, controller, failureLabels } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    const release = gitGateway.holdNextDiscard();
+    const pending = controller.discard(PATHS);
+    await settle();
+    expect(controller.store.getState().operating).toBe(true);
+
+    await workspace.closeProject();
+    release();
+    await pending;
+
+    expect(controller.store.getState().projectId).toBeNull();
+    expect(controller.store.getState().status).toBeNull();
+    expect(controller.store.getState().operating).toBe(false);
+    expect(failureLabels).toEqual([]);
+  });
+
+  it("runs after a pending stage, not alongside it", async () => {
+    const { workspace, gitGateway, controller } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    const releaseStage = gitGateway.holdNextStage();
+
+    const staging = controller.stage(PATHS);
+    const discarding = controller.discard(PATHS);
+    await settle();
+    expect(gitGateway.stageCalls).toHaveLength(1);
+    expect(gitGateway.discardCalls).toHaveLength(0);
+    releaseStage();
+    await Promise.all([staging, discarding]);
+
+    expect(gitGateway.discardCalls).toHaveLength(1);
+  });
+
+  it("passes the impact request through for the open Project", async () => {
+    const { workspace, gitGateway, controller } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.impactResult = {
+      documentIds: [DOCUMENT_ID],
+      projectFilesAffected: true,
+    };
+
+    const result = await controller.discardImpact(PATHS);
+
+    expect(result).toEqual({ ok: true, value: gitGateway.impactResult });
+    expect(gitGateway.discardImpactCalls).toEqual([
+      { projectId: PROJECT_ID, paths: PATHS },
+    ]);
+  });
+
+  it("answers an empty impact without a Project and reports no failure state", async () => {
+    const { gitGateway, controller } = setup();
+
+    expect(await controller.discardImpact(PATHS)).toEqual({
+      ok: true,
+      value: { documentIds: [], projectFilesAffected: false },
+    });
+    expect(gitGateway.discardImpactCalls).toEqual([]);
+  });
+
+  it("returns an impact failure as a result and a rejecting gateway as unexpectedCommandError", async () => {
+    const { workspace, gitGateway, controller, failureLabels } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.failure = { kind: "invalidGitPath", detail: "bad" };
+
+    const failed = await controller.discardImpact(["../x"]);
+    gitGateway.failure = null;
+    gitGateway.discardImpact = () => Promise.reject(new Error("boom"));
+    const rejected = await controller.discardImpact(PATHS);
+
+    expect(!failed.ok && failed.error.kind).toBe("invalidGitPath");
+    expect(!rejected.ok && rejected.error.kind).toBe("unexpectedCommandError");
+    expect(failureLabels).toEqual([]);
+    expect(controller.store.getState().operating).toBe(false);
   });
 });
 

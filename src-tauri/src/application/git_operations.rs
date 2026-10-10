@@ -232,7 +232,7 @@ pub fn stage_paths(
     read_git_status(Some(runner), project_root)
 }
 
-fn validate_requested_paths(
+pub(crate) fn validate_requested_paths(
     paths: &[String],
     operation: &str,
 ) -> ApplicationResult<Vec<ValidatedGitPath>> {

@@ -3,7 +3,9 @@
 // the open Project: the state is reset when the Project changes and refreshed once the new
 // one is installed. Refreshing only reads; Git never saves or changes the Project. Stage /
 // Unstage change the index only: they never save the workspace and are not part of the
-// document Undo history (docs/git-development.md §11); Commit is the same. Loading a Diff
+// document Undo history (docs/git-development.md §11); Commit is the same. Discard changes working tree files (a Document
+// on screen can then be stale: the UI reloads it from `discardImpact`) but is no Undo step
+// either. Loading a Diff
 // or the history only reads. A successful commit does not reload the history: the UI decides
 // when (docs/git-development.md §11.12).
 
@@ -14,6 +16,7 @@ import type {
   GitCommitResult,
   GitDiff,
   GitDiffSide,
+  GitDiscardImpact,
   GitGateway,
   GitHistoryEntry,
   GitHistoryPage,
@@ -88,6 +91,7 @@ export const GIT_OPERATION_LABELS = [
   "refreshGitStatus",
   "stageGitFiles",
   "unstageGitFiles",
+  "discardGitChanges",
   "loadGitDiff",
   "commitGitChanges",
   "loadGitHistory",
@@ -107,6 +111,17 @@ export interface GitController {
   // changed the index partly.
   stage(paths: readonly string[]): Promise<OperationResult<void>>;
   unstage(paths: readonly string[]): Promise<OperationResult<void>>;
+  // Discards working tree changes of the given files (restores tracked files, deletes
+  // untracked ones) on the same queue, exactly like Stage: on success the status is replaced
+  // by the one returned; on failure it is reported as `discardGitChanges` and the status is
+  // read again (a discard may have been partly done). Destructive and not an Undo step: the
+  // caller must have confirmed it, and reloads the affected Documents (`discardImpact`).
+  discard(paths: readonly string[]): Promise<OperationResult<void>>;
+  // Which Documents / Project files the paths belong to. A plain read, no state and no
+  // queue; without an open Project it answers an empty impact.
+  discardImpact(
+    paths: readonly string[],
+  ): Promise<OperationResult<GitDiscardImpact>>;
   // Loads the Diff of one file (Project root relative, `/` separated) on the same queue as
   // the other Git operations. A newer request supersedes an older one even if the older
   // answers later. A failure is reported and clears the diff; the non-text outcomes
@@ -158,11 +173,12 @@ const NO_PROJECT_STATE: GitState = {
   lastCommit: null,
 };
 
-type IndexOperation = "stage" | "unstage";
+type IndexOperation = "stage" | "unstage" | "discard";
 
 const INDEX_OPERATION_LABELS: Record<IndexOperation, GitOperationLabel> = {
   stage: "stageGitFiles",
   unstage: "unstageGitFiles",
+  discard: "discardGitChanges",
 };
 
 export function createGitController(
@@ -255,11 +271,16 @@ export function createGitController(
     return enqueue(async () => {
       if (taskEpoch !== epoch) return operationOk(undefined);
       store.setState((state) => ({ ...state, operating: true }));
-      const result = await call(() =>
-        operation === "stage"
-          ? gateway.stage(projectId, paths)
-          : gateway.unstage(projectId, paths),
-      );
+      const result = await call(() => {
+        switch (operation) {
+          case "stage":
+            return gateway.stage(projectId, paths);
+          case "unstage":
+            return gateway.unstage(projectId, paths);
+          case "discard":
+            return gateway.discard(projectId, paths);
+        }
+      });
       if (taskEpoch !== epoch)
         return result.ok ? operationOk(undefined) : result;
       if (result.ok) {
@@ -501,6 +522,21 @@ export function createGitController(
     },
     stage: (paths) => changeIndex("stage", paths),
     unstage: (paths) => changeIndex("unstage", paths),
+    discard: (paths) => changeIndex("discard", paths),
+    async discardImpact(paths) {
+      const projectId = store.getState().projectId;
+      if (projectId === null) {
+        return operationOk({ documentIds: [], projectFilesAffected: false });
+      }
+      try {
+        return await gateway.discardImpact(projectId, paths);
+      } catch (failure) {
+        return operationErr(
+          "unexpectedCommandError",
+          failure instanceof Error ? failure.message : String(failure),
+        );
+      }
+    },
     loadDiff,
     commit,
     loadHistory,

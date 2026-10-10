@@ -5,6 +5,7 @@ import type {
   GitCommitResult,
   GitDiff,
   GitDiffSide,
+  GitDiscardImpact,
   GitHistoryPage,
   GitStatus,
 } from "../../application/ports/git-gateway";
@@ -14,6 +15,7 @@ import type { CommandResult } from "./command-error";
 import {
   toGitCommitResult,
   toGitDiff,
+  toGitDiscardImpact,
   toGitHistoryPage,
   toGitStatus,
 } from "./git-payloads";
@@ -37,6 +39,24 @@ export function gitUnstage(
   paths: readonly string[],
 ): Promise<CommandResult<GitStatus>> {
   return call(COMMANDS.gitUnstage, { projectId, paths }, toGitStatus);
+}
+
+export function gitDiscard(
+  projectId: ProjectId,
+  paths: readonly string[],
+): Promise<CommandResult<GitStatus>> {
+  return call(COMMANDS.gitDiscard, { projectId, paths }, toGitStatus);
+}
+
+export function gitDiscardImpact(
+  projectId: ProjectId,
+  paths: readonly string[],
+): Promise<CommandResult<GitDiscardImpact>> {
+  return call(
+    COMMANDS.gitDiscardImpact,
+    { projectId, paths },
+    toGitDiscardImpact,
+  );
 }
 
 export function gitDiff(

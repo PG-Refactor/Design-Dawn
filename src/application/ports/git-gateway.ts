@@ -2,7 +2,7 @@
 // Rust side only; the Frontend never sees a path of the machine, git's raw status codes
 // or its stderr. The values below are the wire identifiers Rust sends.
 
-import type { ProjectId } from "../../domain/shared/entity-id";
+import type { DocumentId, ProjectId } from "../../domain/shared/entity-id";
 import type { GIT_ERROR_KINDS, OperationResult } from "./operation-error";
 
 // Anything but `ready` is a normal answer (the app works without Git), not an error.
@@ -126,6 +126,14 @@ export interface GitHistoryPage {
   readonly nextCursor: string | null;
 }
 
+// What discarding would overwrite in the open Project (docs/git-development.md §11.14).
+export interface GitDiscardImpact {
+  // Documents with a requested path inside their directory (no duplicates).
+  readonly documentIds: readonly DocumentId[];
+  // True when a path is the Project's `project.json` or a Folder's `folder.json`.
+  readonly projectFilesAffected: boolean;
+}
+
 export interface GitGateway {
   gitStatus(projectId: ProjectId): Promise<OperationResult<GitStatus>>;
   // Stages changed files (Project root relative, `/` separated) and returns the status
@@ -140,6 +148,21 @@ export interface GitGateway {
     projectId: ProjectId,
     paths: readonly string[],
   ): Promise<OperationResult<GitStatus>>;
+  // Discards working tree changes: tracked files go back to the index, untracked files are
+  // deleted. Rust accepts only paths the status reports as such and rejects the whole
+  // request otherwise (`gitDiscardRejected`). Returns the status read afterwards. After a
+  // failure the work tree may be partly changed: read the status again. Destructive: the
+  // caller asks for confirmation first.
+  discard(
+    projectId: ProjectId,
+    paths: readonly string[],
+  ): Promise<OperationResult<GitStatus>>;
+  // Which Documents / Project files the paths belong to (for the confirmation and the
+  // reload after a discard). Read-only; needs no repository.
+  discardImpact(
+    projectId: ProjectId,
+    paths: readonly string[],
+  ): Promise<OperationResult<GitDiscardImpact>>;
   // Diff of one changed file on one side. Read-only.
   diff(
     projectId: ProjectId,

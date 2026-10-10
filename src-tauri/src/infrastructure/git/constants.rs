@@ -103,6 +103,8 @@ pub const ARG_SHOW_TOPLEVEL: &str = "--show-toplevel";
 pub const ARG_ADD: &str = "add";
 pub const ARG_RESTORE: &str = "restore";
 pub const ARG_STAGED: &str = "--staged";
+/// Restores the working tree from the index only (never `--source`, never `--staged`).
+pub const ARG_WORKTREE: &str = "--worktree";
 pub const ARG_RM: &str = "rm";
 pub const ARG_CACHED: &str = "--cached";
 pub const ARG_QUIET: &str = "--quiet";

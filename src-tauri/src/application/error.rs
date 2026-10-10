@@ -84,6 +84,10 @@ pub enum ErrorKind {
     /// A History request with a page size or cursor that is out of range, malformed, or
     /// names a commit that no longer exists.
     InvalidHistoryRequest,
+    /// Discard requested for a path the repository's status does not report as a
+    /// discardable change (staged only, conflicted, unchanged, ignored, a directory, ...),
+    /// or an untracked file whose location cannot be removed safely.
+    GitDiscardRejected,
 }
 
 impl ErrorKind {
@@ -117,6 +121,7 @@ impl ErrorKind {
             Self::GitIdentityMissing => "gitIdentityMissing",
             Self::GitCommitRejected => "gitCommitRejected",
             Self::InvalidHistoryRequest => "invalidHistoryRequest",
+            Self::GitDiscardRejected => "gitDiscardRejected",
         }
     }
 
@@ -154,6 +159,7 @@ impl ErrorKind {
             Self::GitIdentityMissing => "the git user name or email is not configured",
             Self::GitCommitRejected => "git rejected the commit",
             Self::InvalidHistoryRequest => "the history request is not valid",
+            Self::GitDiscardRejected => "the change cannot be discarded",
         }
     }
 }
@@ -233,7 +239,7 @@ impl Serialize for ApplicationError {
 mod tests {
     use super::*;
 
-    const ALL_KINDS: [ErrorKind; 43] = [
+    const ALL_KINDS: [ErrorKind; 44] = [
         ErrorKind::Domain(DomainErrorKind::InvalidEntityId),
         ErrorKind::Domain(DomainErrorKind::InvalidDisplayName),
         ErrorKind::Domain(DomainErrorKind::InvalidPosition),
@@ -277,6 +283,7 @@ mod tests {
         ErrorKind::GitIdentityMissing,
         ErrorKind::GitCommitRejected,
         ErrorKind::InvalidHistoryRequest,
+        ErrorKind::GitDiscardRejected,
     ];
 
     /// A Windows drive path (`C:\`) or any separator would mean a path leaked.

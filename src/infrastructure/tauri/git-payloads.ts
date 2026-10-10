@@ -14,6 +14,7 @@ import {
   type GitDiff,
   type GitDiffOutcome,
   type GitDiffSide,
+  type GitDiscardImpact,
   type GitErrorKind,
   type GitFileChange,
   type GitFileStatus,
@@ -23,10 +24,12 @@ import {
   type GitStatus,
 } from "../../application/ports/git-gateway";
 import { GIT_ERROR_KINDS } from "../../application/ports/operation-error";
+import { parseDocumentId } from "../../domain/shared/entity-id";
 import { type CommandResult, commandErr, commandOk } from "./command-error";
 import {
   arrayOf,
   type Decoder,
+  decodeBoolean,
   decodeNumber,
   decodeString,
   nullable,
@@ -220,4 +223,36 @@ export function toGitHistoryPage(
         nextCursor: decoded.value.nextCursor,
       })
     : commandErr("invalidCommandResponse", decoded.detail);
+}
+
+interface RawGitDiscardImpact {
+  readonly documentIds: readonly string[];
+  readonly projectFilesAffected: boolean;
+}
+
+const rawGitDiscardImpact = objectOf<RawGitDiscardImpact>({
+  documentIds: arrayOf(decodeString),
+  projectFilesAffected: decodeBoolean,
+});
+
+export function toGitDiscardImpact(
+  payload: unknown,
+): CommandResult<GitDiscardImpact> {
+  const decoded = rawGitDiscardImpact(payload, PAYLOAD_ROOT);
+  if (!decoded.ok) return commandErr("invalidCommandResponse", decoded.detail);
+  const documentIds: GitDiscardImpact["documentIds"][number][] = [];
+  for (const [index, raw] of decoded.value.documentIds.entries()) {
+    const parsed = parseDocumentId(raw);
+    if (!parsed.ok) {
+      return commandErr(
+        "invalidCommandResponse",
+        `${PAYLOAD_ROOT}.documentIds[${index}]: ${parsed.error.detail}`,
+      );
+    }
+    documentIds.push(parsed.value);
+  }
+  return commandOk({
+    documentIds,
+    projectFilesAffected: decoded.value.projectFilesAffected,
+  });
 }

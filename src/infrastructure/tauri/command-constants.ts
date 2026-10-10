@@ -44,6 +44,8 @@ export const COMMANDS = {
   gitStatus: "git_status",
   gitStage: "git_stage",
   gitUnstage: "git_unstage",
+  gitDiscardImpact: "git_discard_impact",
+  gitDiscard: "git_discard",
   gitDiff: "git_diff",
   gitCommit: "git_commit",
   gitHistory: "git_history",

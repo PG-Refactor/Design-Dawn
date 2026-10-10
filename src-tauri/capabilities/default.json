@@ -45,6 +45,8 @@
     "allow-git-status",
     "allow-git-stage",
     "allow-git-unstage",
+    "allow-git-discard-impact",
+    "allow-git-discard",
     "allow-git-diff",
     "allow-git-commit",
     "allow-git-history"

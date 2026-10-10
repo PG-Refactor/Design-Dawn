@@ -1528,6 +1528,88 @@ fn git_stage_over_ipc_is_refused_for_a_window_that_does_not_have_the_project() {
 }
 
 #[test]
+fn git_discard_over_ipc_deletes_an_untracked_file_and_returns_the_status() {
+    let fixture = fixture_or_skip!();
+    let (_app, webview, project_id) = open_repository_project(&fixture, true);
+    let scratch = fixture.directory(PROJECT_DIRECTORY).join("scratch.txt");
+    fs::write(&scratch, "x\n").unwrap();
+
+    let response = invoke(
+        &webview,
+        "git_discard",
+        &serde_json::json!({ "projectId": project_id, "paths": ["scratch.txt"] }),
+    )
+    .unwrap();
+
+    assert!(!scratch.exists());
+    assert_eq!(response["repository"]["state"], "ready");
+    assert!(response["files"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|file| file["path"] != "scratch.txt"));
+    assert!(!response
+        .to_string()
+        .contains(fixture.temp.path().to_str().unwrap()));
+}
+
+#[test]
+fn git_discard_over_ipc_reports_a_rejected_change_and_is_refused_for_other_windows() {
+    let fixture = fixture_or_skip!();
+    let (app, webview, project_id) = open_repository_project(&fixture, true);
+
+    let rejected = invoke(
+        &webview,
+        "git_discard",
+        &serde_json::json!({ "projectId": project_id, "paths": ["no-such-file.txt"] }),
+    );
+    match rejected {
+        Err(error) => {
+            assert_eq!(error["kind"], "gitDiscardRejected");
+            assert_eq!(error["detail"], "the change cannot be discarded");
+        }
+        Ok(value) => panic!("expected gitDiscardRejected, got {value}"),
+    }
+
+    let other = WebviewWindowBuilder::new(&app, SECOND_WINDOW_LABEL, Default::default())
+        .build()
+        .expect("second window");
+    for command in ["git_discard", "git_discard_impact"] {
+        let refused = invoke(
+            &other,
+            command,
+            &serde_json::json!({ "projectId": project_id, "paths": ["project.json"] }),
+        );
+        match refused {
+            Err(error) => assert_eq!(error["kind"], "projectNotOpen", "{command}"),
+            Ok(value) => panic!("expected projectNotOpen, got {value}"),
+        }
+    }
+}
+
+#[test]
+fn git_discard_impact_over_ipc_maps_paths_without_a_git_process() {
+    let fixture = fixture_or_skip!();
+    // Not a repository: the impact needs no git.
+    let (_app, webview, project_id) = open_repository_project(&fixture, false);
+
+    let response = invoke(
+        &webview,
+        "git_discard_impact",
+        &serde_json::json!({
+            "projectId": project_id,
+            "paths": ["project.json", "documents/system-design/document.json", "notes/x.txt"]
+        }),
+    )
+    .unwrap();
+
+    assert_eq!(
+        response,
+        serde_json::json!({ "documentIds": [DOCUMENT_ID], "projectFilesAffected": true })
+    );
+}
+
+#[test]
 fn git_unstage_over_ipc_returns_the_updated_status_without_absolute_paths() {
     let fixture = fixture_or_skip!();
     let (_app, webview, project_id) = open_repository_project(&fixture, true);
