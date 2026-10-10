@@ -4,9 +4,10 @@ import {
   cleanup,
   fireEvent,
   screen,
+  waitFor,
   within,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeBlockAt, settle } from "../../application/test-support/fakes";
 import {
   DOCUMENT_A,
@@ -28,10 +29,24 @@ import { setActiveSheet } from "../workspace/ui-state/ui-state";
 import { WORKSPACE_MESSAGES } from "../workspace/workspace-messages";
 import { MERMAID_BLOCK_DEFAULTS } from "./mermaid-block-defaults";
 import { MERMAID_MESSAGES } from "./mermaid-messages";
+import type { MermaidRenderer } from "./mermaid-renderer-types";
+import {
+  createFakeRenderer,
+  type FakeMermaidRenderer,
+  installObjectUrlFake,
+  type ObjectUrlFake,
+} from "./test-support/fake-mermaid-renderer";
+
+let objectUrls: ObjectUrlFake;
+
+beforeEach(() => {
+  objectUrls = installObjectUrlFake();
+});
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  objectUrls.restore();
 });
 
 const MESSAGES = MERMAID_MESSAGES.ja;
@@ -53,8 +68,20 @@ function seedMermaid(source: string = SEEDED_SOURCE) {
   };
 }
 
-const opened = (source?: string) => renderOpenedCanvas(seedMermaid(source));
+// The renderer is a fake: these tests are about the block (states, editing, saving), not
+// about Mermaid. The real library is covered by render-mermaid.real.dom.test.ts.
+const opened = (
+  source?: string,
+  renderer: MermaidRenderer = createFakeRenderer(),
+) => renderOpenedCanvas(seedMermaid(source), { mermaidRenderer: renderer });
 type Rendered = Awaited<ReturnType<typeof opened>>;
+
+const diagramOf = (shortId = "00000001") =>
+  within(previewOf(shortId)).getByRole("img", {
+    name: MESSAGES.diagramAlt(shortId),
+  }) as HTMLImageElement;
+const lastSource = (renderer: FakeMermaidRenderer) =>
+  renderer.calls.at(-1)?.source;
 
 const previewOf = (shortId = "00000001") =>
   screen.getByRole("region", { name: MESSAGES.previewLabel(shortId) });
@@ -125,32 +152,79 @@ describe("creating a Mermaid block", () => {
 });
 
 describe("a Mermaid block outside edit mode", () => {
-  it("shows the unavailable notice and the source as plain text, nothing rendered", async () => {
-    await opened();
-    const preview = previewOf();
-    expect(within(preview).getByText(MESSAGES.previewUnavailable)).toBeTruthy();
-    const source = preview.querySelector("pre");
-    expect(source?.textContent).toBe(SEEDED_SOURCE);
-    // Plain text: no element comes out of the source, and nothing like an image.
-    expect(source?.children).toHaveLength(0);
-    expect(preview.querySelector("svg, img, canvas")).toBeNull();
+  it("shows the rendered diagram as an image, not markup in the page", async () => {
+    const renderer = createFakeRenderer();
+    await opened(undefined, renderer);
+    const image = await screen.findByRole("img", {
+      name: MESSAGES.diagramAlt("00000001"),
+    });
+    expect(image.getAttribute("src")).toMatch(/^blob:fake-/);
+    expect(renderer.calls.map((call) => call.source)).toEqual([SEEDED_SOURCE]);
+    // The SVG is the image's content only: nothing of it is in the page.
+    expect(previewOf().querySelector("svg, text, pre")).toBeNull();
     expect(screen.queryByRole("textbox")).toBeNull();
   });
 
-  it("shows source that looks like markup as text only", async () => {
-    await opened("<img src=x onerror=alert(1)>");
+  it("shows source that looks like markup, and an error message that does, as text only", async () => {
+    const markup = "<img src=x onerror=alert(1)>";
+    const renderer = createFakeRenderer((source) => ({
+      ok: false,
+      message: `Parse error near ${source}`,
+    }));
+    await opened(markup, renderer);
     const preview = previewOf();
-    expect(preview.querySelector("img")).toBeNull();
-    expect(preview.querySelector("pre")?.textContent).toBe(
-      "<img src=x onerror=alert(1)>",
+    const detail = await within(preview).findByText(
+      `Parse error near ${markup}`,
     );
+    expect(detail.tagName).toBe("PRE");
+    expect(detail.children).toHaveLength(0);
+    expect(preview.querySelector("img")).toBeNull();
   });
 
-  it("shows the empty message for an empty source", async () => {
-    await opened("");
+  it("shows the failure with the hint to edit when there is no earlier diagram", async () => {
+    const renderer = createFakeRenderer(() => ({
+      ok: false,
+      message: "Parse error on line 2",
+    }));
+    await opened(undefined, renderer);
+    const preview = previewOf();
+    expect(
+      await within(preview).findByText(MESSAGES.renderFailed),
+    ).toBeTruthy();
+    expect(within(preview).getByText("Parse error on line 2")).toBeTruthy();
+    expect(within(preview).getByText(MESSAGES.editHint)).toBeTruthy();
+    expect(preview.querySelector("img")).toBeNull();
+  });
+
+  it("draws again with the new theme when the theme changes", async () => {
+    const renderer = createFakeRenderer();
+    const { shell } = await opened(undefined, renderer);
+    await screen.findByRole("img", { name: MESSAGES.diagramAlt("00000001") });
+    expect(renderer.calls).toHaveLength(1);
+    const previous = objectUrls.created.length;
+
+    await act(async () => {
+      shell.services.themeController.applyExternal(
+        shell.services.themeController.store.getState().resolvedTheme === "dark"
+          ? "light"
+          : "dark",
+      );
+      await settle();
+    });
+
+    await waitFor(() => expect(renderer.calls).toHaveLength(2));
+    await waitFor(() => expect(objectUrls.created.length).toBe(previous + 1));
+    // The old image is released once the new one replaces it.
+    expect(objectUrls.live()).toHaveLength(1);
+  });
+
+  it("shows the empty message for an empty source and does not render", async () => {
+    const renderer = createFakeRenderer();
+    await opened("", renderer);
     const preview = previewOf();
     expect(within(preview).getByText(MESSAGES.empty)).toBeTruthy();
-    expect(preview.querySelector("pre")).toBeNull();
+    expect(preview.querySelector("img")).toBeNull();
+    expect(renderer.calls).toEqual([]);
   });
 
   it("shows an error state, not an empty diagram, when the source cannot be loaded", async () => {
@@ -176,20 +250,25 @@ describe("a Mermaid block outside edit mode", () => {
 });
 
 describe("editing a Mermaid block", () => {
-  it("opens the shared editor with the Mermaid labels and a placeholder preview", async () => {
-    await opened();
+  it("opens the shared editor with the Mermaid labels and the diagram as preview", async () => {
+    const renderer = createFakeRenderer();
+    await opened(undefined, renderer);
     const box = await startEditing();
     expect(box.value).toBe(SEEDED_SOURCE);
     expect(
       screen.getByRole("group", { name: MESSAGES.editorLabel("00000001") }),
     ).toBeTruthy();
     expect(screen.getByRole("button", { name: MESSAGES.done })).toBeTruthy();
-    expect(previewOf().querySelector("pre")?.textContent).toBe(SEEDED_SOURCE);
+    expect((await screen.findAllByRole("img")).length).toBeGreaterThan(0);
+    expect(lastSource(renderer)).toBe(SEEDED_SOURCE);
+    // No hint to double-click: the editor is already open.
+    expect(screen.queryByText(MESSAGES.editHint)).toBeNull();
     expect(document.activeElement).toBe(box);
   });
 
   it("changes only the draft while typing: no store update, history entry or I/O", async () => {
-    const { shell, canvas } = await opened();
+    const renderer = createFakeRenderer();
+    const { shell, canvas } = await opened(undefined, renderer);
     const box = await startEditing();
     const storeBefore = shell.store.getState();
     const callsBefore = shell.gateway.methods().length;
@@ -197,7 +276,8 @@ describe("editing a Mermaid block", () => {
     await typeInto(shell, box, EDITED);
 
     expect(box.value).toBe(EDITED);
-    expect(previewOf().querySelector("pre")?.textContent).toBe(EDITED);
+    // The preview follows the draft once typing pauses (debounced).
+    await waitFor(() => expect(lastSource(renderer)).toBe(EDITED));
     expect(shell.store.getState()).toBe(storeBefore);
     expect(canvas.session.getState().history.canUndo).toBe(false);
     expect(shell.gateway.methods()).toHaveLength(callsBefore);
@@ -205,7 +285,8 @@ describe("editing a Mermaid block", () => {
   });
 
   it("commits one editBlockContent when focus goes outside; undo and redo switch the source", async () => {
-    const { shell, canvas } = await opened();
+    const renderer = createFakeRenderer();
+    const { shell, canvas } = await opened(undefined, renderer);
     const box = await startEditing();
     await typeInto(shell, box, EDITED);
 
@@ -217,13 +298,15 @@ describe("editing a Mermaid block", () => {
       "editBlockContent",
     );
     expect(canvas.session.getState().contents.get(BLOCK_ONE)).toBe(EDITED);
-    expect(previewOf().querySelector("pre")?.textContent).toBe(EDITED);
+    // The normal view draws the committed text at once.
+    await waitFor(() => expect(lastSource(renderer)).toBe(EDITED));
+    expect(diagramOf()).toBeTruthy();
     expect(await canvas.undoDepth()).toBe(1);
 
     await press({ key: "z", ctrlKey: true });
-    expect(previewOf().querySelector("pre")?.textContent).toBe(SEEDED_SOURCE);
+    await waitFor(() => expect(lastSource(renderer)).toBe(SEEDED_SOURCE));
     await press({ key: "y", ctrlKey: true });
-    expect(previewOf().querySelector("pre")?.textContent).toBe(EDITED);
+    await waitFor(() => expect(lastSource(renderer)).toBe(EDITED));
   });
 
   it("is saved by the auto-save as one writeBlockContent and no sheet save", async () => {
@@ -347,7 +430,8 @@ describe("closing the document with a pending Mermaid draft and auto-save off", 
 
 describe("Mermaid blocks on the canvas", () => {
   it("is deleted by Delete and brought back by undo with its source", async () => {
-    const { canvas } = await opened();
+    const renderer = createFakeRenderer();
+    const { canvas } = await opened(undefined, renderer);
     fireEvent.pointerDown(blockOption(MERMAID_OPTION), pointer(5, 5));
     fireEvent.pointerUp(canvasElement(), pointer(5, 5));
 
@@ -356,7 +440,8 @@ describe("Mermaid blocks on the canvas", () => {
 
     await press({ key: "z", ctrlKey: true });
     expect(canvas.blocksOfSheetA1()).toHaveLength(3);
-    expect(previewOf().querySelector("pre")?.textContent).toBe(SEEDED_SOURCE);
+    await waitFor(() => expect(diagramOf()).toBeTruthy());
+    expect(lastSource(renderer)).toBe(SEEDED_SOURCE);
   });
 
   it("is copied and pasted with its type and source", async () => {

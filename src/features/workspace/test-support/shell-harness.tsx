@@ -6,6 +6,9 @@ import userEvent from "@testing-library/user-event";
 import type { LoadIssue } from "../../../application/ports/persistence-types";
 import { settle } from "../../../application/test-support/fakes";
 import { TEST_AUTO_SAVE_DELAY_MS } from "../../../application/test-support/session-harness";
+import { MermaidRendererContext } from "../../mermaid/mermaid-renderer-context";
+import type { MermaidRenderer } from "../../mermaid/mermaid-renderer-types";
+import { createFakeRenderer } from "../../mermaid/test-support/fake-mermaid-renderer";
 import { messagesFor } from "../use-messages";
 import { WorkspaceServicesProvider } from "../workspace-services-context";
 import { WorkspaceShell } from "../workspace-shell";
@@ -14,6 +17,9 @@ import {
   createActionsHarness,
   seedProjectIssues,
 } from "./actions-harness";
+
+// A shell test that does not care about diagrams still must not load the real library.
+const defaultMermaidRenderer = createFakeRenderer();
 
 export interface ShellHarness extends ActionsHarness {
   readonly user: ReturnType<typeof userEvent.setup>;
@@ -30,6 +36,8 @@ export interface ShellOptions {
   readonly seed?: (harness: ActionsHarness) => void;
   // See `ActionsHarnessOptions`; Japanese when omitted.
   readonly systemLanguages?: readonly string[];
+  // Replaces the real Mermaid renderer, so a test never loads the library.
+  readonly mermaidRenderer?: MermaidRenderer;
 }
 
 export async function renderShell(
@@ -43,9 +51,13 @@ export async function renderShell(
     await seedProjectIssues(harness, options.projectIssues);
   }
   const { container } = render(
-    <WorkspaceServicesProvider services={harness.services}>
-      <WorkspaceShell />
-    </WorkspaceServicesProvider>,
+    <MermaidRendererContext.Provider
+      value={options.mermaidRenderer ?? defaultMermaidRenderer}
+    >
+      <WorkspaceServicesProvider services={harness.services}>
+        <WorkspaceShell />
+      </WorkspaceServicesProvider>
+    </MermaidRendererContext.Provider>,
   );
   const user = userEvent.setup();
   return {

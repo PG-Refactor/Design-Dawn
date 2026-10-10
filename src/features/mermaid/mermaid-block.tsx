@@ -1,15 +1,13 @@
-import type { BlockId } from "../../domain/shared/entity-id";
 import type { BlockRendererProps } from "../canvas/block-renderer";
 import { shortBlockId } from "../canvas/canvas-messages";
 import { TextBlockEditor } from "../text-block/text-block-editor";
 import { TextBlockState } from "../text-block/text-block-state";
 import { useTextBlockContent } from "../text-block/use-text-block-content";
 import { useMessages } from "../workspace/use-messages";
-import { MermaidPlaceholderPreview } from "./mermaid-placeholder-preview";
+import { MermaidDiagramPreview } from "./mermaid-diagram-preview";
 
 // The renderer of a Mermaid block: the same states as the Markdown block, with the shared
-// editor. Until real rendering exists (docs/architecture.md §15.8) the preview is a
-// placeholder showing the source.
+// editor. The preview is the rendered diagram in both the normal view and the editor.
 export function MermaidBlock({
   documentId,
   sheetId,
@@ -40,31 +38,22 @@ export function MermaidBlock({
           done: messages.done,
         }}
         renderPreview={(draft) => (
-          <PlaceholderOf blockId={blockId} source={draft} scrollable />
+          <MermaidDiagramPreview
+            source={draft}
+            shortId={shortId}
+            debounced
+            showEditHint={false}
+          />
         )}
       />
     );
   }
-  return <PlaceholderOf blockId={blockId} source={text} />;
-}
-
-function PlaceholderOf({
-  blockId,
-  source,
-  scrollable,
-}: {
-  readonly blockId: BlockId;
-  readonly source: string;
-  readonly scrollable?: boolean;
-}) {
-  const messages = useMessages().mermaid;
   return (
-    <MermaidPlaceholderPreview
-      source={source}
-      label={messages.previewLabel(shortBlockId(blockId))}
-      notice={messages.previewUnavailable}
-      emptyMessage={messages.empty}
-      scrollable={scrollable}
+    <MermaidDiagramPreview
+      source={text}
+      shortId={shortBlockId(blockId)}
+      debounced={false}
+      showEditHint
     />
   );
 }
