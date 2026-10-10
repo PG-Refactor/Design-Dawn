@@ -2483,6 +2483,25 @@ fn diff_of_an_unstaged_modification_is_a_text_diff() {
 }
 
 #[test]
+fn diff_of_a_mermaid_source_is_a_text_diff() {
+    // `.mmd` needs no Git handling of its own (docs/architecture.md §15): git sees a text
+    // file, so a source change is a line diff, not a binary one.
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    write(&project, "flow.mmd", "flowchart TD\n  A --> B\n");
+    fixture.git(&project, &["add", "flow.mmd"]);
+    fixture.git(&project, &["commit", "-q", "-m", "add diagram"]);
+    write(&project, "flow.mmd", "flowchart TD\n  A --> B\n  B --> C\n");
+
+    let result =
+        diff_leaving_everything_unchanged(&fixture, &project, "flow.mmd", DiffSide::Unstaged)
+            .unwrap();
+
+    let text = diff_text(result);
+    assert!(text.contains("+  B --> C"), "{text}");
+}
+
+#[test]
 fn diff_of_a_staged_modification_is_a_text_diff() {
     let fixture = fixture_or_skip!();
     let project = fixture.repository();
