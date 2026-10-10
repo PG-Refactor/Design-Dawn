@@ -52,7 +52,11 @@ const STAGED: GitFileStatus = {
   worktreeStatus: "unmodified",
   originalPath: null,
 };
-const READY: GitStatus = { repositoryState: "ready", files: [STAGED] };
+const READY: GitStatus = {
+  repositoryState: "ready",
+  branch: null,
+  files: [STAGED],
+};
 
 const toggle = () =>
   screen.getByRole("button", {

@@ -187,6 +187,54 @@ fn project_root_equal_to_repository_root_is_ready_and_clean() {
 }
 
 #[test]
+fn the_status_reports_the_current_branch_and_its_commit() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    fixture.git(&project, &["checkout", "-q", "-b", "feature/日本語"]);
+
+    let branch = fixture.status(&project).branch.expect("branch");
+
+    assert_eq!(branch.head.as_deref(), Some("feature/日本語"));
+    assert_eq!(branch.oid.map(|oid| oid.len() >= 40), Some(true));
+}
+
+#[test]
+fn a_detached_head_has_no_branch_name_but_a_commit() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    fixture.git(&project, &["checkout", "-q", "--detach"]);
+
+    let branch = fixture.status(&project).branch.expect("branch");
+
+    assert_eq!(branch.head, None);
+    assert!(branch.oid.is_some());
+}
+
+#[test]
+fn an_unborn_branch_has_a_name_but_no_commit() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.project();
+    fixture.git(&project, &["init", "-q", "-b", "trunk"]);
+
+    let result = fixture.status(&project);
+
+    assert_eq!(result.repository.state, GitRepositoryState::Ready);
+    let branch = result.branch.expect("branch");
+    assert_eq!(branch.head.as_deref(), Some("trunk"));
+    assert_eq!(branch.oid, None);
+}
+
+#[test]
+fn a_repository_that_is_not_ready_has_no_branch() {
+    let fixture = fixture_or_skip!();
+    let repository = fixture.repository();
+    let nested = repository.join("nested-project");
+    write(&nested, "inside.md", "x");
+
+    assert_eq!(fixture.status(&nested).branch, None);
+}
+
+#[test]
 fn a_project_in_a_subdirectory_of_a_repository_is_unsupported_and_lists_no_files() {
     let fixture = fixture_or_skip!();
     let repository = fixture.repository();

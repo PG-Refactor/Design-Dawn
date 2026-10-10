@@ -8,6 +8,7 @@ import {
   GIT_DIFF_SIDES,
   GIT_FILE_CHANGES,
   GIT_REPOSITORY_STATES,
+  type GitBranchInfo,
   type GitCommitOutcome,
   type GitCommitResult,
   type GitDiff,
@@ -37,6 +38,7 @@ const PAYLOAD_ROOT = "payload";
 
 interface RawGitStatus {
   readonly repository: { readonly state: GitRepositoryState };
+  readonly branch: GitBranchInfo | null;
   readonly files: readonly GitFileStatus[];
 }
 
@@ -46,6 +48,12 @@ const rawGitStatus = objectOf<RawGitStatus>({
   repository: objectOf<{ readonly state: GitRepositoryState }>({
     state: oneOf<readonly GitRepositoryState[]>(GIT_REPOSITORY_STATES),
   }),
+  branch: nullable(
+    objectOf<GitBranchInfo>({
+      head: nullable(decodeString),
+      oid: nullable(decodeString),
+    }),
+  ),
   files: arrayOf(
     objectOf<GitFileStatus>({
       path: decodeString,
@@ -61,6 +69,7 @@ export function toGitStatus(payload: unknown): CommandResult<GitStatus> {
   return decoded.ok
     ? commandOk({
         repositoryState: decoded.value.repository.state,
+        branch: decoded.value.branch,
         files: decoded.value.files,
       })
     : commandErr("invalidCommandResponse", decoded.detail);

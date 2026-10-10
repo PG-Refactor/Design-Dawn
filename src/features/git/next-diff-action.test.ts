@@ -13,6 +13,7 @@ function statusOf(
 ): GitStatus {
   return {
     repositoryState: "ready",
+    branch: null,
     files: [{ path, indexStatus, worktreeStatus, originalPath: null }],
   };
 }
@@ -70,7 +71,11 @@ describe("nextDiffAction", () => {
       nextDiffAction(STAGED, statusOf("modified", "unmodified", "b.md")).kind,
     ).toBe("close");
     expect(
-      nextDiffAction(STAGED, { repositoryState: "ready", files: [] }).kind,
+      nextDiffAction(STAGED, {
+        repositoryState: "ready",
+        branch: null,
+        files: [],
+      }).kind,
     ).toBe("close");
   });
 
@@ -83,7 +88,11 @@ describe("nextDiffAction", () => {
   it("closes when the repository is not ready or the status is gone", () => {
     expect(nextDiffAction(STAGED, null).kind).toBe("close");
     expect(
-      nextDiffAction(STAGED, { repositoryState: "error", files: [] }).kind,
+      nextDiffAction(STAGED, {
+        repositoryState: "error",
+        branch: null,
+        files: [],
+      }).kind,
     ).toBe("close");
   });
 });

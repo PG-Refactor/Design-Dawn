@@ -17,6 +17,7 @@ import { createGitController, type GitOperationLabel } from "./git-controller";
 
 const MODIFIED_STATUS: GitStatus = {
   repositoryState: "ready",
+  branch: null,
   files: [
     {
       path: "project.json",
@@ -360,6 +361,7 @@ describe("stage / unstage", () => {
     expect(controller.store.getState().status).toEqual(MODIFIED_STATUS);
     const staged: GitStatus = {
       repositoryState: "ready",
+      branch: null,
       files: [
         {
           path: "project.json",

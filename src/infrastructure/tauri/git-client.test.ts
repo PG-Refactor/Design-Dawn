@@ -16,6 +16,7 @@ const invokeMock = vi.mocked(invoke);
 
 const VALID_PAYLOAD = {
   repository: { state: "ready" },
+  branch: { head: "feature/設計", oid: "0123456789abcdef" },
   files: [
     {
       path: "documents/設計/sheet.json",
@@ -49,6 +50,7 @@ describe("gitStatus", () => {
       ok: true,
       value: {
         repositoryState: "ready",
+        branch: VALID_PAYLOAD.branch,
         files: VALID_PAYLOAD.files,
       },
     });
@@ -61,25 +63,46 @@ describe("gitStatus", () => {
     "gitUnavailable",
     "error",
   ])("accepts the %s state with no files", async (state) => {
-    invokeMock.mockResolvedValueOnce({ repository: { state }, files: [] });
+    invokeMock.mockResolvedValueOnce({
+      repository: { state },
+      branch: null,
+      files: [],
+    });
 
     const result = await gitStatus(PROJECT_ID);
 
     expect(result).toStrictEqual({
       ok: true,
-      value: { repositoryState: state, files: [] },
+      value: { repositoryState: state, branch: null, files: [] },
     });
   });
 
   it.each([
     ["a non-object", "ready"],
-    ["a missing repository", { files: [] }],
-    ["an unknown state", { repository: { state: "dirty" }, files: [] }],
-    ["missing files", { repository: { state: "ready" } }],
+    ["a missing repository", { branch: null, files: [] }],
+    [
+      "an unknown state",
+      { repository: { state: "dirty" }, branch: null, files: [] },
+    ],
+    ["missing files", { repository: { state: "ready" }, branch: null }],
+    ["a missing branch", { repository: { state: "ready" }, files: [] }],
+    [
+      "a non-string branch head",
+      {
+        repository: { state: "ready" },
+        branch: { head: 1, oid: null },
+        files: [],
+      },
+    ],
+    [
+      "a branch without oid",
+      { repository: { state: "ready" }, branch: { head: "main" }, files: [] },
+    ],
     [
       "an unknown change",
       {
         repository: { state: "ready" },
+        branch: null,
         files: [
           {
             path: "a",
@@ -94,6 +117,7 @@ describe("gitStatus", () => {
       "a missing originalPath",
       {
         repository: { state: "ready" },
+        branch: null,
         files: [
           { path: "a", indexStatus: "added", worktreeStatus: "modified" },
         ],
@@ -103,6 +127,7 @@ describe("gitStatus", () => {
       "a non-string path",
       {
         repository: { state: "ready" },
+        branch: null,
         files: [
           {
             path: 1,
@@ -150,7 +175,11 @@ describe("gitStage", () => {
     ]);
     expect(result).toStrictEqual({
       ok: true,
-      value: { repositoryState: "ready", files: VALID_PAYLOAD.files },
+      value: {
+        repositoryState: "ready",
+        branch: VALID_PAYLOAD.branch,
+        files: VALID_PAYLOAD.files,
+      },
     });
   });
 
@@ -188,7 +217,11 @@ describe("gitUnstage", () => {
     ]);
     expect(result).toStrictEqual({
       ok: true,
-      value: { repositoryState: "ready", files: VALID_PAYLOAD.files },
+      value: {
+        repositoryState: "ready",
+        branch: VALID_PAYLOAD.branch,
+        files: VALID_PAYLOAD.files,
+      },
     });
   });
 
@@ -304,7 +337,11 @@ describe("gitCommit", () => {
         commitId: COMMIT_ID,
         status: {
           outcome: "updated",
-          status: { repositoryState: "ready", files: VALID_PAYLOAD.files },
+          status: {
+            repositoryState: "ready",
+            branch: VALID_PAYLOAD.branch,
+            files: VALID_PAYLOAD.files,
+          },
         },
       },
     });

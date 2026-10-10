@@ -31,7 +31,7 @@ async function openProjectWithState(
   shell: ShellHarness,
   repositoryState: GitRepositoryState,
 ): Promise<void> {
-  shell.gitGateway.status = { repositoryState, files: [] };
+  shell.gitGateway.status = { repositoryState, branch: null, files: [] };
   await shell.openProjectInUi();
   await showGit(shell);
 }

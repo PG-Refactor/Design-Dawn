@@ -21,6 +21,12 @@ const UNMERGED_RECORD: &str = "u";
 const UNTRACKED_RECORD: &str = "?";
 const IGNORED_RECORD: &str = "!";
 const HEADER_RECORD: &str = "#";
+const BRANCH_OID_HEADER_PREFIX: &str = "# branch.oid ";
+const BRANCH_HEAD_HEADER_PREFIX: &str = "# branch.head ";
+/// What git prints instead of an object id before the first commit.
+const UNBORN_OID_MARKER: &str = "(initial)";
+/// What git prints instead of a branch name on a detached HEAD.
+const DETACHED_HEAD_MARKER: &str = "(detached)";
 /// Fields before the path, counting the record type: `1` has 8, `2` has 9, `u` has 10.
 const CHANGED_FIELD_COUNT: usize = 9;
 const RENAMED_FIELD_COUNT: usize = 10;
@@ -52,9 +58,19 @@ pub struct StatusEntry {
     pub original_path: Option<String>,
 }
 
+/// The `# branch.*` header lines. Both are `None` when git did not print them.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ParsedBranch {
+    /// Branch name; `None` on a detached HEAD. Untrusted text: show it, never act on it.
+    pub head: Option<String>,
+    /// Commit id of HEAD; `None` on an unborn branch.
+    pub oid: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParsedStatus {
     pub entries: Vec<StatusEntry>,
+    pub branch: ParsedBranch,
     /// Records that were left out because their path is not valid UTF-8 or not a safe
     /// relative path; the caller logs the count.
     pub skipped_records: usize,
@@ -84,6 +100,7 @@ pub fn parse_status(output: &[u8]) -> Result<ParsedStatus, StatusParseError> {
 
     let mut entries = Vec::new();
     let mut skipped_records = 0;
+    let mut branch = ParsedBranch::default();
     let mut remaining = records.into_iter();
     while let Some(record) = remaining.next() {
         let Ok(text) = std::str::from_utf8(record) else {
@@ -97,7 +114,15 @@ pub fn parse_status(output: &[u8]) -> Result<ParsedStatus, StatusParseError> {
         };
         let record_type = text.split(FIELD_SEPARATOR).next().unwrap_or_default();
         let parsed = match record_type {
-            HEADER_RECORD => continue,
+            HEADER_RECORD => {
+                // `# branch.upstream`, `# branch.ab` and unknown headers are ignored.
+                if let Some(oid) = text.strip_prefix(BRANCH_OID_HEADER_PREFIX) {
+                    branch.oid = (oid != UNBORN_OID_MARKER).then(|| oid.to_owned());
+                } else if let Some(head) = text.strip_prefix(BRANCH_HEAD_HEADER_PREFIX) {
+                    branch.head = (head != DETACHED_HEAD_MARKER).then(|| head.to_owned());
+                }
+                continue;
+            }
             CHANGED_RECORD => parse_changed(text)?,
             RENAMED_RECORD => {
                 let original = remaining
@@ -121,6 +146,7 @@ pub fn parse_status(output: &[u8]) -> Result<ParsedStatus, StatusParseError> {
     }
     Ok(ParsedStatus {
         entries,
+        branch,
         skipped_records,
     })
 }
@@ -454,5 +480,40 @@ mod tests {
         for case in cases {
             assert!(parse_status(case.as_bytes()).is_err(), "{case:?}");
         }
+    }
+
+    #[test]
+    fn branch_headers_are_read_and_other_headers_ignored() {
+        let parsed = parse(&format!(
+            "# branch.oid {HASH}\0# branch.head feature/日本語\0# branch.upstream origin/x\0# branch.ab +1 -2\0# future.thing 1\0{}",
+            changed(".M", "a.md")
+        ));
+
+        assert_eq!(parsed.branch.head.as_deref(), Some("feature/日本語"));
+        assert_eq!(parsed.branch.oid.as_deref(), Some(HASH));
+        assert_eq!(parsed.entries.len(), 1);
+    }
+
+    #[test]
+    fn a_detached_head_has_no_branch_name() {
+        let parsed = parse(&format!("# branch.oid {HASH}\0# branch.head (detached)\0"));
+
+        assert_eq!(parsed.branch.head, None);
+        assert_eq!(parsed.branch.oid.as_deref(), Some(HASH));
+    }
+
+    #[test]
+    fn an_unborn_branch_has_a_name_but_no_commit() {
+        let parsed = parse("# branch.oid (initial)\0# branch.head main\0");
+
+        assert_eq!(parsed.branch.head.as_deref(), Some("main"));
+        assert_eq!(parsed.branch.oid, None);
+    }
+
+    #[test]
+    fn missing_branch_headers_give_an_empty_branch() {
+        let parsed = parse(&changed(".M", "a.md"));
+
+        assert_eq!(parsed.branch, ParsedBranch::default());
     }
 }

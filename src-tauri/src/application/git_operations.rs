@@ -13,9 +13,9 @@ use crate::infrastructure::git::constants::{
     ARG_ADD, ARG_CACHED, ARG_DIFF, ARG_END_OF_OPTIONS, ARG_FIND_RENAMES, ARG_NO_COLOR,
     ARG_NO_EXT_DIFF, ARG_NO_OPTIONAL_LOCKS, ARG_NO_TEXTCONV, ARG_NUL_SEPARATED, ARG_NUMSTAT,
     ARG_PATHSPEC_FILE_NUL, ARG_PATHSPEC_FROM_STDIN, ARG_QUIET, ARG_RESTORE, ARG_REV_PARSE, ARG_RM,
-    ARG_STAGED, ARG_STATUS, ARG_STATUS_PORCELAIN_V2, ARG_UNTRACKED_ALL, ARG_VERIFY,
-    DIFF_COMMAND_TIMEOUT, DIFF_OUTPUT_LIMIT_BYTES, GIT_COMMAND_TIMEOUT, GIT_STDOUT_LIMIT_BYTES,
-    REVISION_HEAD,
+    ARG_STAGED, ARG_STATUS, ARG_STATUS_BRANCH, ARG_STATUS_PORCELAIN_V2, ARG_UNTRACKED_ALL,
+    ARG_VERIFY, DIFF_COMMAND_TIMEOUT, DIFF_OUTPUT_LIMIT_BYTES, GIT_COMMAND_TIMEOUT,
+    GIT_STDOUT_LIMIT_BYTES, REVISION_HEAD,
 };
 use crate::infrastructure::git::numstat_parser::contains_binary_file;
 use crate::infrastructure::git::paths::{
@@ -72,8 +72,18 @@ pub struct GitRepositoryInfo {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct GitBranchInfo {
+    /// Branch name; `null` on a detached HEAD. Untrusted text, shown as text only.
+    pub head: Option<String>,
+    /// Commit id of HEAD; `null` on an unborn branch.
+    pub oid: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct GitStatusResult {
     pub repository: GitRepositoryInfo,
+    /// Only for a `ready` repository; always present on the wire.
+    pub branch: Option<GitBranchInfo>,
     /// Empty unless the repository is `ready`.
     pub files: Vec<GitFileStatus>,
 }
@@ -82,6 +92,7 @@ impl GitStatusResult {
     fn without_files(state: GitRepositoryState) -> Self {
         Self {
             repository: GitRepositoryInfo { state },
+            branch: None,
             files: Vec::new(),
         }
     }
@@ -114,11 +125,12 @@ pub fn read_git_status(
     let (GitRepositoryState::Ready, Some(runner)) = (state, runner) else {
         return Ok(GitStatusResult::without_files(state));
     };
-    let files = read_file_statuses(runner, project_root)?;
+    let (files, branch) = read_status_snapshot(runner, project_root)?;
     Ok(GitStatusResult {
         repository: GitRepositoryInfo {
             state: GitRepositoryState::Ready,
         },
+        branch: Some(branch),
         files,
     })
 }
@@ -628,6 +640,13 @@ pub(crate) fn read_file_statuses(
     runner: &GitRunner,
     project_root: &Path,
 ) -> ApplicationResult<Vec<GitFileStatus>> {
+    Ok(read_status_snapshot(runner, project_root)?.0)
+}
+
+fn read_status_snapshot(
+    runner: &GitRunner,
+    project_root: &Path,
+) -> ApplicationResult<(Vec<GitFileStatus>, GitBranchInfo)> {
     // `--untracked-files=all` lists files, not just their directories, because Stage works
     // per file. Ignored files are not requested.
     let output = runner
@@ -636,6 +655,7 @@ pub(crate) fn read_file_statuses(
                 ARG_NO_OPTIONAL_LOCKS,
                 ARG_STATUS,
                 ARG_STATUS_PORCELAIN_V2,
+                ARG_STATUS_BRANCH,
                 ARG_NUL_SEPARATED,
                 ARG_UNTRACKED_ALL,
             ],
@@ -672,7 +692,14 @@ pub(crate) fn read_file_statuses(
             parsed.skipped_records
         );
     }
-    Ok(parsed.entries.into_iter().map(file_status).collect())
+    let branch = GitBranchInfo {
+        head: parsed.branch.head,
+        oid: parsed.branch.oid,
+    };
+    Ok((
+        parsed.entries.into_iter().map(file_status).collect(),
+        branch,
+    ))
 }
 
 pub(crate) fn run_error(operation: &str, error: GitRunError) -> ApplicationError {
@@ -733,12 +760,14 @@ mod tests {
                 worktree_status: GitFileChange::Unmodified,
                 original_path: None,
             }],
+            branch: None,
         };
 
         assert_eq!(
             serde_json::to_value(result).unwrap(),
             serde_json::json!({
                 "repository": { "state": "unsupportedRepositoryLayout" },
+                "branch": null,
                 "files": [{
                     "path": "a.md",
                     "indexStatus": "typeChanged",

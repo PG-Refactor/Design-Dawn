@@ -61,8 +61,11 @@ export interface FakeGitGateway extends GitGateway {
 
 export const FAKE_COMMIT_ID = "0123456789abcdef0123456789abcdef01234567";
 
+export const FAKE_BRANCH_NAME = "main";
+
 export const CLEAN_GIT_STATUS: GitStatus = {
   repositoryState: "ready",
+  branch: { head: FAKE_BRANCH_NAME, oid: FAKE_COMMIT_ID },
   files: [],
 };
 

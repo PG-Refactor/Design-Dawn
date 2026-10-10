@@ -30,7 +30,7 @@ function file(
 }
 
 function statusOf(...files: GitFileStatus[]): GitStatus {
-  return { repositoryState: "ready", files };
+  return { repositoryState: "ready", branch: null, files };
 }
 
 async function settled(): Promise<void> {

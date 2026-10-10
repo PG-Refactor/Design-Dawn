@@ -29,7 +29,7 @@ function file(
 }
 
 function statusOf(...files: GitFileStatus[]): GitStatus {
-  return { repositoryState: "ready", files };
+  return { repositoryState: "ready", branch: null, files };
 }
 
 const STAGED = [file("a.md", "modified", "unmodified")];
@@ -105,7 +105,11 @@ describe("commit button state", () => {
 
   it("is not shown when the repository is not ready", async () => {
     const shell = await renderShell();
-    shell.gitGateway.status = { repositoryState: "notRepository", files: [] };
+    shell.gitGateway.status = {
+      repositoryState: "notRepository",
+      branch: null,
+      files: [],
+    };
     await shell.openProjectInUi();
     await shell.user.click(gitTab());
     await screen.findByText(GIT_MESSAGES.ja.repositoryStates.notRepository);

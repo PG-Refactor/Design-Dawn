@@ -40,8 +40,17 @@ export interface GitFileStatus {
   readonly originalPath: string | null;
 }
 
+export interface GitBranchInfo {
+  // Branch name; null on a detached HEAD. Untrusted text: render it as text only.
+  readonly head: string | null;
+  // Commit id of HEAD; null on an unborn branch (no commit yet).
+  readonly oid: string | null;
+}
+
 export interface GitStatus {
   readonly repositoryState: GitRepositoryState;
+  // Null unless the repository state is `ready`.
+  readonly branch: GitBranchInfo | null;
   // Empty unless the repository state is `ready`.
   readonly files: readonly GitFileStatus[];
 }

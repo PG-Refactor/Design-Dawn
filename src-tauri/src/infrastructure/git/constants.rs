@@ -110,6 +110,8 @@ pub const ARG_VERIFY: &str = "--verify";
 pub const REVISION_HEAD: &str = "HEAD";
 pub const ARG_STATUS: &str = "status";
 pub const ARG_STATUS_PORCELAIN_V2: &str = "--porcelain=v2";
+/// Adds the `# branch.*` header lines to the status output.
+pub const ARG_STATUS_BRANCH: &str = "--branch";
 pub const ARG_NUL_SEPARATED: &str = "-z";
 pub const ARG_UNTRACKED_ALL: &str = "--untracked-files=all";
 

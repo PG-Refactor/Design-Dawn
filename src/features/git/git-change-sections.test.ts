@@ -19,7 +19,7 @@ function file(
 }
 
 function statusOf(...files: GitFileStatus[]): GitStatus {
-  return { repositoryState: "ready", files };
+  return { repositoryState: "ready", branch: null, files };
 }
 
 function summary(status: GitStatus) {
