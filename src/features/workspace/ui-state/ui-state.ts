@@ -211,6 +211,10 @@ export const OPERATION_LABELS = [
   "loadGitDiff",
   "commitGitChanges",
   "undoGitCommit",
+  "fetchGit",
+  "pullGit",
+  "pushGit",
+  "publishGit",
   "loadGitHistory",
 ] as const;
 

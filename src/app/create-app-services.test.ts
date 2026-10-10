@@ -81,6 +81,7 @@ describe("createAppServices", () => {
       statusError: null,
       refreshing: false,
       operating: false,
+      runningOperation: null,
       diff: null,
       history: null,
       historyError: null,

@@ -59,6 +59,10 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   loadGitDiff: "差分を取得できませんでした",
   commitGitChanges: "コミットできませんでした",
   undoGitCommit: "コミットを元に戻せませんでした",
+  fetchGit: "フェッチできませんでした",
+  pullGit: "プルできませんでした",
+  pushGit: "プッシュできませんでした",
+  publishGit: "ブランチを発行できませんでした",
   loadGitHistory: "履歴を取得できませんでした",
 };
 

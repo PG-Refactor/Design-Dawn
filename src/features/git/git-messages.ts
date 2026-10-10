@@ -64,6 +64,16 @@ const GIT_MESSAGES_JA = {
   countLabel: (count: number): string => `${count} 件`,
   commit: "コミット",
   committing: "コミット中…",
+  // Progress text per `GitState.runningOperation` (docs/git-development.md §11.16).
+  runningOperation: {
+    commit: "コミットしています...",
+    amend: "コミットを修正しています...",
+    undo: "コミットを元に戻しています...",
+    fetch: "フェッチしています...",
+    pull: "プルしています...",
+    push: "プッシュしています...",
+    publish: "ブランチを発行しています...",
+  },
   commitUnsavedNote: "未保存の変更はコミットに含まれません。",
   // Shown before the note while something is unsaved, so the emphasis is not colour only.
   commitUnsavedPrefix: "注意：",
@@ -173,6 +183,15 @@ const GIT_MESSAGES_EN: GitMessages = {
   countLabel: (count) => (count === 1 ? "1 change" : `${count} changes`),
   commit: "Commit",
   committing: "Committing…",
+  runningOperation: {
+    commit: "Committing...",
+    amend: "Amending...",
+    undo: "Undoing the commit...",
+    fetch: "Fetching...",
+    pull: "Pulling...",
+    push: "Pushing...",
+    publish: "Publishing the branch...",
+  },
   commitUnsavedNote: "Unsaved changes are not included in the commit.",
   commitUnsavedPrefix: "Note: ",
   historyToggle: "History",

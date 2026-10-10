@@ -54,6 +54,7 @@ describe("following the open Project", () => {
       statusError: null,
       refreshing: false,
       operating: false,
+      runningOperation: null,
       diff: null,
       history: null,
       historyError: null,
@@ -80,6 +81,7 @@ describe("following the open Project", () => {
       statusError: null,
       refreshing: false,
       operating: false,
+      runningOperation: null,
       diff: null,
       history: null,
       historyError: null,
@@ -114,6 +116,7 @@ describe("following the open Project", () => {
       statusError: null,
       refreshing: false,
       operating: false,
+      runningOperation: null,
       diff: null,
       history: null,
       historyError: null,
@@ -626,6 +629,7 @@ describe("stage / unstage", () => {
       statusError: null,
       refreshing: false,
       operating: false,
+      runningOperation: null,
       diff: null,
       history: null,
       historyError: null,
@@ -1101,6 +1105,7 @@ describe("commit", () => {
       statusError: null,
       refreshing: false,
       operating: false,
+      runningOperation: null,
       diff: null,
       history: null,
       historyError: null,
@@ -1859,5 +1864,223 @@ describe("undoLastCommit", () => {
 
     expect(result).toEqual({ ok: true, value: { message: null } });
     expect(controller.store.getState().status).toBeNull();
+  });
+});
+
+describe("remote operations", () => {
+  const REMOTE_CASES = [
+    ["fetch", "fetchGit", "fetchCalls"],
+    ["pull", "pullGit", "pullCalls"],
+    ["push", "pushGit", "pushCalls"],
+  ] as const;
+
+  it.each(REMOTE_CASES)(
+    "%s replaces the status and tracks the running operation",
+    async (operation, _label, calls) => {
+      const { workspace, gitGateway, controller, failureLabels } = setup();
+      await workspace.openProject(SELECTION_ID);
+      await settle();
+      gitGateway.status = MODIFIED_STATUS;
+      const release = gitGateway.holdNextRemote();
+
+      const pending = controller[operation]();
+      await settle();
+      expect(controller.store.getState().runningOperation).toBe(operation);
+      expect(controller.store.getState().operating).toBe(true);
+      release();
+      const result = await pending;
+
+      expect(result).toEqual({ ok: true, value: undefined });
+      expect(gitGateway[calls]).toEqual([{ projectId: PROJECT_ID }]);
+      const state = controller.store.getState();
+      expect(state.status).toEqual(MODIFIED_STATUS);
+      expect(state.runningOperation).toBeNull();
+      expect(state.operating).toBe(false);
+      expect(failureLabels).toEqual([]);
+    },
+  );
+
+  it("publish passes the remote and tracks the running operation", async () => {
+    const { workspace, gitGateway, controller } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    const release = gitGateway.holdNextRemote();
+
+    const pending = controller.publish("origin");
+    await settle();
+    expect(controller.store.getState().runningOperation).toBe("publish");
+    release();
+    await pending;
+
+    expect(gitGateway.publishCalls).toEqual([
+      { projectId: PROJECT_ID, remote: "origin" },
+    ]);
+    expect(controller.store.getState().runningOperation).toBeNull();
+  });
+
+  it("tracks commit, amend and undo as running operations too", async () => {
+    const { workspace, gitGateway, controller } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    const seen: (string | null)[] = [];
+    controller.store.subscribe(() =>
+      seen.push(controller.store.getState().runningOperation),
+    );
+
+    await controller.commit("m");
+    await controller.commit("m", { amend: true, stageAll: false });
+    await controller.undoLastCommit();
+
+    expect(seen).toContain("commit");
+    expect(seen).toContain("amend");
+    expect(seen).toContain("undo");
+    expect(controller.store.getState().runningOperation).toBeNull();
+    expect(gitGateway.commitCalls).toHaveLength(2);
+  });
+
+  it.each([
+    ["fetch", "fetchGit"],
+    ["pull", "pullGit"],
+    ["push", "pushGit"],
+  ] as const)(
+    "%s reports its label on failure and reads the status again",
+    async (operation, label) => {
+      const { workspace, gitGateway, controller, failureLabels } = setup();
+      await workspace.openProject(SELECTION_ID);
+      await settle();
+      gitGateway.calls.length = 0;
+      gitGateway.failure = { kind: "gitNetworkUnavailable", detail: "down" };
+      const original = gitGateway[operation];
+      gitGateway[operation] = async (projectId) => {
+        const answer = await original(projectId);
+        gitGateway.failure = null;
+        return answer;
+      };
+
+      const result = await controller[operation]();
+
+      expect(!result.ok && result.error.kind).toBe("gitNetworkUnavailable");
+      expect(failureLabels).toEqual([label]);
+      expect(gitGateway.calls).toHaveLength(1);
+      expect(controller.store.getState().runningOperation).toBeNull();
+      expect(controller.store.getState().operating).toBe(false);
+    },
+  );
+
+  it("publish reports publishGit on failure", async () => {
+    const { workspace, gitGateway, controller, failureLabels } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.failure = { kind: "gitRemoteNotFound", detail: "x" };
+
+    const result = await controller.publish("nope");
+
+    expect(!result.ok && result.error.kind).toBe("gitRemoteNotFound");
+    expect(failureLabels[0]).toBe("publishGit");
+  });
+
+  it("drops the status and reports a status problem when it was unavailable", async () => {
+    const { workspace, gitGateway, controller, failureLabels } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.pushResult = {
+      status: { outcome: "unavailable", errorKind: "gitTimeout" },
+    };
+
+    const result = await controller.push();
+
+    expect(result.ok).toBe(true);
+    expect(controller.store.getState().status).toBeNull();
+    expect(controller.store.getState().statusError).toBe("gitTimeout");
+    expect(failureLabels).toEqual(["refreshGitStatus"]);
+  });
+
+  it("reports a rejecting gateway as an unexpected error", async () => {
+    const { workspace, gitGateway, controller, failures } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.fetch = async () => {
+      throw new Error("boom");
+    };
+
+    const result = await controller.fetch();
+
+    expect(!result.ok && result.error.kind).toBe("unexpectedCommandError");
+    expect(failures[0]?.kind).toBe("unexpectedCommandError");
+  });
+
+  it("does nothing without a Project", async () => {
+    const { gitGateway, controller } = setup();
+
+    expect(await controller.pull()).toEqual({ ok: true, value: undefined });
+    expect(gitGateway.pullCalls).toEqual([]);
+  });
+
+  it("drops the answer when the Project changed meanwhile", async () => {
+    const { workspace, gitGateway, controller } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.status = MODIFIED_STATUS;
+    const release = gitGateway.holdNextRemote();
+    const pending = controller.pull();
+    await settle();
+
+    await workspace.closeProject();
+    release();
+    const result = await pending;
+
+    expect(result).toEqual({ ok: true, value: undefined });
+    expect(controller.store.getState().status).toBeNull();
+    expect(controller.store.getState().runningOperation).toBeNull();
+  });
+
+  it("runs after an earlier operation on the same queue", async () => {
+    const { workspace, gitGateway, controller } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    const release = gitGateway.holdNextRemote();
+    const first = controller.fetch();
+    const second = controller.push();
+    await settle();
+    expect(gitGateway.pushCalls).toEqual([]);
+    release();
+    await Promise.all([first, second]);
+    expect(gitGateway.pushCalls).toHaveLength(1);
+  });
+});
+
+describe("remotes", () => {
+  it("returns the names without changing the state or reporting", async () => {
+    const { workspace, gitGateway, controller, failureLabels } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.remoteNames = ["origin", "backup"];
+    const before = controller.store.getState();
+
+    const result = await controller.remotes();
+
+    expect(result).toEqual({ ok: true, value: ["origin", "backup"] });
+    expect(gitGateway.remotesCalls).toEqual([{ projectId: PROJECT_ID }]);
+    expect(controller.store.getState()).toBe(before);
+    expect(failureLabels).toEqual([]);
+  });
+
+  it("returns a failure without reporting it", async () => {
+    const { workspace, gitGateway, controller, failureLabels } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.failure = { kind: "ioError", detail: "x" };
+
+    const result = await controller.remotes();
+
+    expect(!result.ok && result.error.kind).toBe("ioError");
+    expect(failureLabels).toEqual([]);
+  });
+
+  it("answers an empty list without a Project", async () => {
+    const { gitGateway, controller } = setup();
+
+    expect(await controller.remotes()).toEqual({ ok: true, value: [] });
+    expect(gitGateway.remotesCalls).toEqual([]);
   });
 });

@@ -57,6 +57,10 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   loadGitDiff: "Could not get the diff",
   commitGitChanges: "Could not commit",
   undoGitCommit: "Could not undo the commit",
+  fetchGit: "Could not fetch",
+  pullGit: "Could not pull",
+  pushGit: "Could not push",
+  publishGit: "Could not publish the branch",
   loadGitHistory: "Could not get the history",
 };
 

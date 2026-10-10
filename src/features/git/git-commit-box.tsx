@@ -19,9 +19,8 @@ import {
 } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import { deriveGitChangeSections } from "./git-change-sections";
-import { refreshDiffAfterStatusChange } from "./git-diff-session";
+import { runGitCommit } from "./git-commit-flow";
 import { CheckIcon } from "./git-icons";
-import { reloadHistoryIfShown } from "./git-view-refresh";
 
 // Module-level so `useWorkspaceModel` recomputes only when a state changes. The draft
 // registry is not observable, so uncommitted Markdown text is not part of this; the note
@@ -35,7 +34,7 @@ function selectHasUnsaved(application: ApplicationState): boolean {
 export function GitCommitBox({ status }: { readonly status: GitStatus }) {
   const messages = useMessages().git;
   const services = useWorkspaceServices();
-  const { gitController, uiStateStore } = services;
+  const { uiStateStore } = services;
   const message = useUiState((ui) => ui.gitCommitMessage);
   const operating = useGitState((git) => git.operating);
   const refreshing = useGitState((git) => git.refreshing);
@@ -79,26 +78,13 @@ export function GitCommitBox({ status }: { readonly status: GitStatus }) {
     if (!canCommit || inFlight.current) return;
     inFlight.current = true;
     setSubmitting(true);
-    const projectId = gitController.store.getState().projectId;
-    // Read from the store, not the closure: it is what the user sees and what is sent.
-    const submitted = uiStateStore.getState().gitCommitMessage;
     try {
-      const result = await gitController.commit(submitted);
-      // A failure keeps the draft. A commit that succeeded clears it even when the status
-      // could not be read afterwards. The Project may have changed meanwhile: then the
-      // draft (reset with the old Project) is not ours to clear.
-      const committedHere =
-        result.ok && gitController.store.getState().projectId === projectId;
-      if (committedHere) {
-        uiStateStore.setState((state) =>
-          state.gitCommitMessage === submitted
-            ? setGitCommitMessage(state, "")
-            : state,
-        );
-      }
-      refreshDiffAfterStatusChange(services);
-      // Only a made commit changes the history; the load never affects this outcome.
-      if (committedHere) reloadHistoryIfShown(services);
+      await runGitCommit(services, {
+        amend: false,
+        stageAll: false,
+        followUp: "none",
+        remote: null,
+      });
     } finally {
       inFlight.current = false;
       setSubmitting(false);
