@@ -67,20 +67,42 @@ describe("deriveGitChangeSections", () => {
     },
   );
 
-  it("puts untracked files into their own section and unmerged on either side into conflicts", () => {
+  it("puts unmerged on either side into conflicts, listed first", () => {
     expect(
       summary(
         statusOf(
-          file("u", "untracked", "untracked"),
+          file("m", "modified", "unmodified"),
           file("c1", "unmerged", "unmerged"),
           file("c2", "unmodified", "unmerged"),
           file("c3", "added", "unmerged"),
         ),
       ),
     ).toEqual([
-      ["untracked", ["u"]],
       ["conflicts", ["c1", "c2", "c3"]],
+      ["staged", ["m"]],
     ]);
+  });
+
+  it("lists untracked files in changes, sorted with the other changes by path", () => {
+    const sections = deriveGitChangeSections(
+      statusOf(
+        file("m.md", "unmodified", "modified"),
+        file("a.md", "untracked", "untracked"),
+        file("z.md", "unmodified", "modified"),
+        file("b/c.md", "untracked", "untracked"),
+      ),
+    );
+    expect(sections.map((section) => section.id)).toEqual(["changes"]);
+    expect(
+      sections[0]?.entries.map((entry) => [entry.path, entry.change]),
+    ).toEqual([
+      ["a.md", "untracked"],
+      ["b/c.md", "untracked"],
+      ["m.md", "modified"],
+      ["z.md", "modified"],
+    ]);
+    expect(sections[0]?.entries[0]?.key).toBe("changes:a.md");
+    expect(sections[0]?.entries[0]?.selectionSide).toBe("unstaged");
   });
 
   it("lists a partly staged file in both staged and changes, in display order", () => {
@@ -159,7 +181,7 @@ describe("focusKeyAfterChange", () => {
 
   it("moves to the previous row when nothing follows, and to nothing when empty", () => {
     const next = statusAfter(file("a", "modified", "unmodified"));
-    expect(focusKeyAfterChange(before, next, "untracked:u")).toBe("staged:a");
+    expect(focusKeyAfterChange(before, next, "changes:u")).toBe("staged:a");
     expect(focusKeyAfterChange(before, statusAfter(), "staged:a")).toBeNull();
   });
 });

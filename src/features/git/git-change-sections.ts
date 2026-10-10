@@ -6,17 +6,15 @@ import type {
   GitFileStatus,
   GitStatus,
 } from "../../application/ports/git-gateway";
-import type { GitSelectionSide } from "../workspace/ui-state/ui-state";
+import {
+  GIT_CHANGE_SECTION_IDS,
+  type GitChangeSectionId,
+  type GitSelectionSide,
+} from "../workspace/ui-state/ui-state";
 
-// Display order.
-export const GIT_CHANGE_SECTION_IDS = [
-  "staged",
-  "changes",
-  "untracked",
-  "conflicts",
-] as const;
-
-export type GitChangeSectionId = (typeof GIT_CHANGE_SECTION_IDS)[number];
+export type { GitChangeSectionId };
+// Display order: Merge Changes, Staged Changes, Changes (docs/ui-design.md §13.5).
+export { GIT_CHANGE_SECTION_IDS };
 
 const STAGED_CHANGES: ReadonlySet<GitFileChange> = new Set([
   "modified",
@@ -68,15 +66,23 @@ function entryOf(
   };
 }
 
-// Only the sections that have entries, in display order.
+// Plain code-unit order, so the order does not depend on the locale. `Array.sort` is stable,
+// so equal paths (cannot happen within one section) would keep Git's order.
+function comparePaths(left: GitChangeEntry, right: GitChangeEntry): number {
+  if (left.path === right.path) return 0;
+  return left.path < right.path ? -1 : 1;
+}
+
+// Only the sections that have entries, in display order. Untracked files are listed in the
+// "changes" section (as VS Code does) and sorted with the other changes by path, because
+// Git reports them after the tracked ones.
 export function deriveGitChangeSections(
   status: GitStatus,
 ): readonly GitChangeSection[] {
   const entries: Record<GitChangeSectionId, GitChangeEntry[]> = {
+    conflicts: [],
     staged: [],
     changes: [],
-    untracked: [],
-    conflicts: [],
   };
   for (const file of status.files) {
     const { indexStatus, worktreeStatus } = file;
@@ -87,8 +93,8 @@ export function deriveGitChangeSections(
       continue;
     }
     if (indexStatus === "untracked" || worktreeStatus === "untracked") {
-      entries.untracked.push(
-        entryOf("untracked", file, "untracked", "unstaged", null),
+      entries.changes.push(
+        entryOf("changes", file, "untracked", "unstaged", null),
       );
       continue;
     }
@@ -111,6 +117,7 @@ export function deriveGitChangeSections(
       );
     }
   }
+  entries.changes.sort(comparePaths);
   return GIT_CHANGE_SECTION_IDS.filter((id) => entries[id].length > 0).map(
     (id) => ({ id, entries: entries[id] }),
   );

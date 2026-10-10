@@ -17,6 +17,7 @@ import {
   type ShellHarness,
 } from "../workspace/test-support/shell-harness";
 import { GIT_MESSAGES } from "./git-messages";
+import { headerOf, rowOf } from "./test-support/git-tree-queries";
 
 afterEach(cleanup);
 
@@ -57,10 +58,7 @@ const refreshButton = () =>
   screen.getByRole("button", { name: GIT_MESSAGES.ja.refresh });
 const noteElement = () =>
   screen.getByText(GIT_MESSAGES.ja.commitUnsavedNote, { exact: false });
-const rowText = (title: string, name: string) =>
-  within(screen.getByRole("listbox", { name: title })).getByRole("option", {
-    name,
-  });
+const rowText = rowOf;
 
 async function settled(): Promise<void> {
   await act(async () => {
@@ -124,12 +122,9 @@ describe("commit button state", () => {
     await typeMessage(shell, "message");
     const release = shell.gitGateway.holdNextStage();
     await shell.user.click(
-      within(screen.getByRole("listbox", { name: "変更" })).getByRole(
-        "button",
-        {
-          name: GIT_MESSAGES.ja.stage,
-        },
-      ),
+      within(headerOf("変更")).getByRole("button", {
+        name: GIT_MESSAGES.ja.stageAll,
+      }),
     );
     expect(commitButton().disabled).toBe(true);
     await shell.user.keyboard("{Control>}{Enter}{/Control}");
@@ -212,8 +207,8 @@ describe("committing", () => {
       diff: "+staged line",
     } satisfies GitDiff;
     await shell.user.click(
-      rowText("ステージ済み", "変更 a.md").querySelector(
-        ".git-change-row__path",
+      rowText("ステージされている変更", "変更 a.md").querySelector(
+        ".git-file-row__name",
       ) as HTMLElement,
     );
     await screen.findByText("+staged line");
@@ -254,8 +249,8 @@ describe("committing", () => {
       diff: "+staged line",
     };
     await shell.user.click(
-      rowText("ステージ済み", "変更 a.md").querySelector(
-        ".git-change-row__path",
+      rowText("ステージされている変更", "変更 a.md").querySelector(
+        ".git-file-row__name",
       ) as HTMLElement,
     );
     await screen.findByText("+staged line");
@@ -386,7 +381,7 @@ describe("refresh button", () => {
     shell.gitGateway.diffs["unstaged:e.md"] = sampleDiff("e.md", "+only e");
     await shell.user.click(
       rowText("変更", "変更 c.md").querySelector(
-        ".git-change-row__path",
+        ".git-file-row__name",
       ) as HTMLElement,
     );
     await screen.findByText("+first c");
@@ -433,7 +428,7 @@ describe("refresh button", () => {
     // The reload of c.md is now waiting; choosing e.md supersedes it.
     await shell.user.click(
       rowText("変更", "変更 e.md").querySelector(
-        ".git-change-row__path",
+        ".git-file-row__name",
       ) as HTMLElement,
     );
     await act(async () => {

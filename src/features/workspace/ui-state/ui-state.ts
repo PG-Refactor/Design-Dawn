@@ -289,7 +289,20 @@ export interface UiState {
   // Whether the history section of the Git panel is expanded. A view choice kept across
   // Project | Git switches; dropped with the Project.
   readonly gitHistoryExpanded: boolean;
+  // Sections of the Git change list the user collapsed (all are expanded by default). A view
+  // choice kept across Project | Git switches; dropped with the Project and never saved.
+  readonly gitCollapsedSections: ReadonlySet<GitChangeSectionId>;
 }
+
+// The sections of the Git change list in display order (docs/ui-design.md §13.5). Defined
+// here because the UI state records which of them are collapsed.
+export const GIT_CHANGE_SECTION_IDS = [
+  "conflicts",
+  "staged",
+  "changes",
+] as const;
+
+export type GitChangeSectionId = (typeof GIT_CHANGE_SECTION_IDS)[number];
 
 // Which side of a file the Git panel selected: `staged` for rows of the staged section,
 // `unstaged` for rows of the changes and untracked sections.
@@ -332,6 +345,7 @@ export function createInitialUiState(): UiState {
     gitSelection: null,
     gitCommitMessage: "",
     gitHistoryExpanded: false,
+    gitCollapsedSections: new Set(),
   };
 }
 

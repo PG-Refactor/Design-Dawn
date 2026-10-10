@@ -1,6 +1,5 @@
 import {
   type KeyboardEvent,
-  type MouseEvent,
   useEffect,
   useId,
   useMemo,
@@ -8,8 +7,9 @@ import {
   useState,
 } from "react";
 import type { GitStatus } from "../../application/ports/git-gateway";
+import { setGitSectionCollapsed } from "../workspace/ui-state/shell-ui-state";
 import { useMessages } from "../workspace/use-messages";
-import { NAVIGATION_KEYS } from "../workspace/view-models/keyboard-navigation";
+import { treeNavigation } from "../workspace/view-models/keyboard-navigation";
 import { useGitState, useUiState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import {
@@ -18,176 +18,55 @@ import {
   type GitChangeEntry,
   type GitChangeSection,
   type GitChangeSectionId,
-  type GitChangeSection as Section,
 } from "./git-change-sections";
+import {
+  buildGitTreeItems,
+  sectionKeyOf,
+  toFlatTreeItems,
+} from "./git-change-tree";
+import {
+  GitFileRow,
+  GitSectionHeader,
+  type IndexOperation,
+  SECTION_OPERATIONS,
+} from "./git-change-tree-items";
 import { openDiff, refreshDiffAfterStatusChange } from "./git-diff-session";
 import {
   GIT_CHANGE_HEADING_ATTRIBUTE,
   GIT_CHANGE_LIST_ATTRIBUTE,
 } from "./git-dom";
-import type { GitMessages } from "./git-messages";
-
-type IndexOperation = "stage" | "unstage";
-
-// Which operation and button text a section offers; conflicts offer none.
-const SECTION_OPERATIONS: Record<
-  GitChangeSectionId,
-  {
-    readonly operation: IndexOperation;
-    // Keys of the catalog, so the labels follow the display language.
-    readonly rowLabelKey: "stage" | "unstage";
-    readonly allLabelKey: "stageAll" | "unstageAll";
-  } | null
-> = {
-  staged: {
-    operation: "unstage",
-    rowLabelKey: "unstage",
-    allLabelKey: "unstageAll",
-  },
-  changes: {
-    operation: "stage",
-    rowLabelKey: "stage",
-    allLabelKey: "stageAll",
-  },
-  untracked: {
-    operation: "stage",
-    rowLabelKey: "stage",
-    allLabelKey: "stageAll",
-  },
-  conflicts: null,
-};
 
 interface FocusRequest {
-  readonly before: readonly Section[];
+  readonly before: readonly GitChangeSection[];
   readonly actedKey: string;
 }
 
-interface ChangeRowProps {
-  readonly entry: GitChangeEntry;
-  readonly isRoving: boolean;
-  readonly selected: boolean;
-  readonly busy: boolean;
-  readonly register: (key: string, element: HTMLDivElement | null) => void;
-  readonly onFocusRow: (key: string) => void;
-  readonly onSelect: (entry: GitChangeEntry) => void;
-  readonly onNavigate: (
-    event: KeyboardEvent<HTMLDivElement>,
-    key: string,
-  ) => void;
-  readonly onOperate: (entry: GitChangeEntry) => void;
-}
-
-function ChangeRow({
-  entry,
-  isRoving,
-  selected,
-  busy,
-  register,
-  onFocusRow,
-  onSelect,
-  onNavigate,
-  onOperate,
-}: ChangeRowProps) {
-  const messages = useMessages().git;
-  const kindId = useId();
-  const pathId = useId();
-  const kind =
-    messages.changeKinds[entry.change as keyof GitMessages["changeKinds"]];
-  const operation = SECTION_OPERATIONS[entry.sectionId];
-  // Paths are repository text: only ever rendered as React text.
-  const pathText =
-    entry.originalPath === null
-      ? entry.path
-      : messages.renamedPathText(entry.originalPath, entry.path);
-
-  function handleClick(event: MouseEvent<HTMLDivElement>): void {
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    if (target.closest("button") !== null) return;
-    event.currentTarget.focus();
-    onSelect(entry);
-  }
-
-  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
-    // Keys pressed in the row's button belong to the button.
-    if (event.target !== event.currentTarget) return;
-    if (event.key === NAVIGATION_KEYS.enter) {
-      event.preventDefault();
-      onSelect(entry);
-      return;
-    }
-    onNavigate(event, entry.key);
-  }
-
-  return (
-    <div
-      ref={(element) => register(entry.key, element)}
-      role="option"
-      aria-labelledby={`${kindId} ${pathId}`}
-      aria-selected={entry.selectionSide === null ? undefined : selected}
-      tabIndex={isRoving ? 0 : -1}
-      className={
-        selected ? "git-change-row git-change-row--selected" : "git-change-row"
-      }
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      onFocus={(event) => {
-        if (event.target === event.currentTarget) onFocusRow(entry.key);
-      }}
-    >
-      <span
-        id={kindId}
-        role="img"
-        className="git-change-row__kind"
-        aria-label={kind.label}
-      >
-        {kind.letter}
-      </span>
-      <span id={pathId} className="git-change-row__path">
-        {pathText}
-      </span>
-      {operation === null ? (
-        <span className="git-change-row__note">{messages.conflictNote}</span>
-      ) : (
-        <button
-          type="button"
-          className="button"
-          disabled={busy}
-          tabIndex={isRoving ? 0 : -1}
-          aria-describedby={pathId}
-          onClick={() => onOperate(entry)}
-        >
-          {messages[operation.rowLabelKey]}
-        </button>
-      )}
-    </div>
-  );
-}
-
-// The change list of a ready repository: the sections of the status, row selection and
-// Stage / Unstage. It only derives from the Git status; the status is replaced by the
-// answer of the Git controller, never edited here.
+// The change list of a ready repository as one tree (section headers and their files),
+// row selection and Stage / Unstage. It only derives from the Git status; the status is
+// replaced by the answer of the Git controller, never edited here.
 export function GitChangeList({ status }: { readonly status: GitStatus }) {
   const messages = useMessages().git;
   const services = useWorkspaceServices();
-  const { gitController } = services;
+  const { gitController, uiStateStore } = services;
   const operating = useGitState((git) => git.operating);
   const refreshing = useGitState((git) => git.refreshing);
   const gitSelection = useUiState((ui) => ui.gitSelection);
+  const collapsedSections = useUiState((ui) => ui.gitCollapsedSections);
   const sections = useMemo(() => deriveGitChangeSections(status), [status]);
-  const rows = useMemo(
-    () => sections.flatMap((section) => section.entries),
-    [sections],
+  const items = useMemo(
+    () => buildGitTreeItems(sections, collapsedSections),
+    [sections, collapsedSections],
   );
+  const flatItems = useMemo(() => toFlatTreeItems(items), [items]);
   const busy = operating || refreshing;
   const headingId = useId();
   const heading = useRef<HTMLHeadingElement | null>(null);
-  const rowElements = useRef(new Map<string, HTMLDivElement>());
+  const itemElements = useRef(new Map<string, HTMLDivElement>());
   const [rovingKey, setRovingKey] = useState<string | null>(null);
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
-  const effectiveRovingKey = rows.some((row) => row.key === rovingKey)
+  const effectiveRovingKey = items.some((item) => item.key === rovingKey)
     ? rovingKey
-    : (rows[0]?.key ?? null);
+    : (items[0]?.key ?? null);
 
   // Runs after the render that shows the controller's answer (the request is set only once
   // the operation has settled), so `sections` is already the new list.
@@ -203,13 +82,27 @@ export function GitChangeList({ status }: { readonly status: GitStatus }) {
       heading.current?.focus();
       return;
     }
-    setRovingKey(key);
-    rowElements.current.get(key)?.focus();
+    // A row hidden by a collapsed section is reached through its header.
+    const targetKey = itemElements.current.has(key)
+      ? key
+      : sectionKeyOf(sectionIdOfKey(sections, key));
+    setRovingKey(targetKey);
+    itemElements.current.get(targetKey)?.focus();
   }, [focusRequest, sections]);
 
   function register(key: string, element: HTMLDivElement | null): void {
-    if (element === null) rowElements.current.delete(key);
-    else rowElements.current.set(key, element);
+    if (element === null) itemElements.current.delete(key);
+    else itemElements.current.set(key, element);
+  }
+
+  function setCollapsed(sectionId: GitChangeSectionId, collapsed: boolean) {
+    uiStateStore.setState((state) =>
+      setGitSectionCollapsed(state, sectionId, collapsed),
+    );
+  }
+
+  function toggleSection(sectionId: GitChangeSectionId): void {
+    setCollapsed(sectionId, !collapsedSections.has(sectionId));
   }
 
   // The single place a selected row is handed on: it selects the row and opens its diff
@@ -252,35 +145,41 @@ export function GitChangeList({ status }: { readonly status: GitStatus }) {
   }
 
   function navigate(event: KeyboardEvent<HTMLDivElement>, key: string): void {
-    const index = rows.findIndex((row) => row.key === key);
-    let target: number;
-    switch (event.key) {
-      case NAVIGATION_KEYS.arrowUp:
-        target = Math.max(index - 1, 0);
-        break;
-      case NAVIGATION_KEYS.arrowDown:
-        target = Math.min(index + 1, rows.length - 1);
-        break;
-      case NAVIGATION_KEYS.home:
-        target = 0;
-        break;
-      case NAVIGATION_KEYS.end:
-        target = rows.length - 1;
-        break;
-      default:
+    const index = items.findIndex((item) => item.key === key);
+    const navigation = treeNavigation(event.key, flatItems, index);
+    if (navigation === null) return;
+    event.preventDefault();
+    const target = items[navigation.index];
+    if (target === undefined) return;
+    switch (navigation.action) {
+      case "focus":
+        itemElements.current.get(target.key)?.focus();
+        return;
+      case "expand":
+      case "collapse":
+        if (target.kind === "section") {
+          setCollapsed(target.section.id, navigation.action === "collapse");
+        }
+        return;
+      case "open":
         return;
     }
-    event.preventDefault();
-    const row = rows[target];
-    if (row !== undefined) rowElements.current.get(row.key)?.focus();
   }
+
+  const itemProps = {
+    busy,
+    register,
+    onFocusItem: setRovingKey,
+    onNavigate: navigate,
+  };
 
   return (
     <div className="git-change-list" {...{ [GIT_CHANGE_LIST_ATTRIBUTE]: "" }}>
       <h2
+        id={headingId}
         ref={heading}
         tabIndex={-1}
-        className="git-change-list__heading"
+        className="git-visually-hidden"
         {...{ [GIT_CHANGE_HEADING_ATTRIBUTE]: "" }}
       >
         {messages.changeListLabel}
@@ -292,61 +191,52 @@ export function GitChangeList({ status }: { readonly status: GitStatus }) {
       ) : null}
       {sections.length === 0 ? (
         <p className="git-panel__message">{messages.noChanges}</p>
-      ) : null}
-      {sections.map((section) => {
-        const operation = SECTION_OPERATIONS[section.id];
-        const title = messages.sectionTitles[section.id];
-        return (
-          <section
-            key={section.id}
-            className="git-change-section"
-            aria-labelledby={`${headingId}-${section.id}`}
-          >
-            <header className="git-change-section__header">
-              <h3
-                id={`${headingId}-${section.id}`}
-                className="git-change-section__title"
-              >
-                {title}
-              </h3>
-              {operation === null ? null : (
-                <button
-                  type="button"
-                  className="button"
-                  disabled={busy}
-                  onClick={() => operateOnSection(section)}
-                >
-                  {messages[operation.allLabelKey]}
-                </button>
-              )}
-            </header>
-            <div
-              role="listbox"
-              aria-label={title}
-              className="git-change-section__rows"
-            >
-              {section.entries.map((entry) => (
-                <ChangeRow
-                  key={entry.key}
-                  entry={entry}
-                  isRoving={entry.key === effectiveRovingKey}
-                  selected={
-                    entry.selectionSide !== null &&
-                    gitSelection?.path === entry.path &&
-                    gitSelection.side === entry.selectionSide
-                  }
-                  busy={busy}
-                  register={register}
-                  onFocusRow={setRovingKey}
-                  onSelect={selectRow}
-                  onNavigate={navigate}
-                  onOperate={operateOnRow}
-                />
-              ))}
-            </div>
-          </section>
-        );
-      })}
+      ) : (
+        <div
+          role="tree"
+          aria-labelledby={headingId}
+          className="git-change-tree"
+        >
+          {items.map((item) =>
+            item.kind === "section" ? (
+              <GitSectionHeader
+                key={item.key}
+                itemKey={item.key}
+                section={item.section}
+                expanded={item.expanded}
+                isRoving={item.key === effectiveRovingKey}
+                onToggle={toggleSection}
+                onOperateAll={operateOnSection}
+                {...itemProps}
+              />
+            ) : (
+              <GitFileRow
+                key={item.key}
+                entry={item.entry}
+                isRoving={item.key === effectiveRovingKey}
+                selected={
+                  item.entry.selectionSide !== null &&
+                  gitSelection?.path === item.entry.path &&
+                  gitSelection.side === item.entry.selectionSide
+                }
+                onSelect={selectRow}
+                onOperate={operateOnRow}
+                {...itemProps}
+              />
+            ),
+          )}
+        </div>
+      )}
     </div>
   );
+}
+
+function sectionIdOfKey(
+  sections: readonly GitChangeSection[],
+  key: string,
+): GitChangeSectionId {
+  const section = sections.find((candidate) =>
+    candidate.entries.some((entry) => entry.key === key),
+  );
+  return section?.id ?? "changes";
 }

@@ -2,6 +2,8 @@ import { useRef } from "react";
 import { useMessages } from "../workspace/use-messages";
 import { useGitState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
+import { GitBranchIndicator } from "./git-branch-indicator";
+import { RefreshIcon } from "./git-icons";
 import { GitRepositoryState } from "./git-repository-state";
 import { refreshGitView } from "./git-view-refresh";
 import "./git-panel.css";
@@ -17,6 +19,7 @@ export function GitPanel() {
   const hasProject = useGitState((git) => git.projectId !== null);
   const refreshing = useGitState((git) => git.refreshing);
   const operating = useGitState((git) => git.operating);
+  const branch = useGitState((git) => git.status?.branch ?? null);
 
   async function refresh(): Promise<void> {
     if (refreshInFlight.current) return;
@@ -32,15 +35,19 @@ export function GitPanel() {
     <section className="git-panel" aria-label={messages.panelLabel}>
       {hasProject ? (
         <header className="git-panel__header">
+          <h2 className="git-panel__title">{messages.panelTitle}</h2>
+          <GitBranchIndicator branch={branch} />
           <button
             type="button"
-            className="button"
+            className="git-icon-button git-panel__refresh"
             disabled={refreshing || operating}
+            aria-label={messages.refresh}
+            title={messages.refresh}
             // Status first, then the open diff follows it (reload / switch / close) and an
             // expanded history is reloaded from its first page (docs/ui-design.md §13.3).
             onClick={() => void refresh()}
           >
-            {messages.refresh}
+            <RefreshIcon />
           </button>
         </header>
       ) : null}

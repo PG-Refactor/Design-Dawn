@@ -15,8 +15,10 @@ export function findChangeListFocusTarget(
     ?.querySelector(`[${GIT_CHANGE_LIST_ATTRIBUTE}]`);
   if (list === null || list === undefined) return null;
   return (
-    list.querySelector<HTMLElement>('[role="option"][aria-selected="true"]') ??
-    list.querySelector<HTMLElement>('[role="option"][tabindex="0"]') ??
+    list.querySelector<HTMLElement>(
+      '[role="treeitem"][aria-selected="true"]',
+    ) ??
+    list.querySelector<HTMLElement>('[role="treeitem"][tabindex="0"]') ??
     list.querySelector<HTMLElement>(`[${GIT_CHANGE_HEADING_ATTRIBUTE}]`)
   );
 }

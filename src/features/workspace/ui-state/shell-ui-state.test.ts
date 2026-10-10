@@ -9,6 +9,7 @@ import {
   setBusy,
   setGitCommitMessage,
   setGitHistoryExpanded,
+  setGitSectionCollapsed,
   setGitSelection,
   setNotificationsOpen,
   showNotice,
@@ -134,5 +135,20 @@ describe("git history expanded", () => {
     expect(expanded.gitHistoryExpanded).toBe(true);
     expect(setGitHistoryExpanded(expanded, true)).toBe(expanded);
     expect(resetUiState().gitHistoryExpanded).toBe(false);
+  });
+});
+
+describe("git collapsed sections", () => {
+  it("defaults to none collapsed, toggles per section and resets with the UI state", () => {
+    const initial = createInitialUiState();
+    expect(initial.gitCollapsedSections.size).toBe(0);
+    const collapsed = setGitSectionCollapsed(initial, "staged", true);
+    expect(collapsed.gitCollapsedSections.has("staged")).toBe(true);
+    expect(collapsed.gitCollapsedSections.has("changes")).toBe(false);
+    expect(setGitSectionCollapsed(collapsed, "staged", true)).toBe(collapsed);
+    const expanded = setGitSectionCollapsed(collapsed, "staged", false);
+    expect(expanded.gitCollapsedSections.size).toBe(0);
+    expect(setGitSectionCollapsed(initial, "staged", false)).toBe(initial);
+    expect(resetUiState().gitCollapsedSections.size).toBe(0);
   });
 });

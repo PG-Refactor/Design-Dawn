@@ -5,6 +5,7 @@
 import type { OperationError } from "../../../application/ports/operation-error";
 import type {
   DialogState,
+  GitChangeSectionId,
   GitSelection,
   LeftPanelMode,
   NoticeKind,
@@ -107,4 +108,16 @@ export function setGitHistoryExpanded(
   return state.gitHistoryExpanded === expanded
     ? state
     : { ...state, gitHistoryExpanded: expanded };
+}
+
+export function setGitSectionCollapsed(
+  state: UiState,
+  sectionId: GitChangeSectionId,
+  collapsed: boolean,
+): UiState {
+  if (state.gitCollapsedSections.has(sectionId) === collapsed) return state;
+  const gitCollapsedSections = new Set(state.gitCollapsedSections);
+  if (collapsed) gitCollapsedSections.add(sectionId);
+  else gitCollapsedSections.delete(sectionId);
+  return { ...state, gitCollapsedSections };
 }

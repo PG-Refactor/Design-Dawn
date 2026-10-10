@@ -17,6 +17,7 @@ import {
   type ShellHarness,
 } from "../workspace/test-support/shell-harness";
 import { GIT_MESSAGES } from "./git-messages";
+import { headerOf, rowOf } from "./test-support/git-tree-queries";
 
 afterEach(cleanup);
 
@@ -52,13 +53,9 @@ async function openChanges(...files: GitFileStatus[]): Promise<ShellHarness> {
   return shell;
 }
 
-const rowOf = (title: string, name: string) =>
-  within(screen.getByRole("listbox", { name: title })).getByRole("option", {
-    name,
-  });
 const clickRow = (shell: ShellHarness, title: string, name: string) =>
   shell.user.click(
-    rowOf(title, name).querySelector(".git-change-row__path") as HTMLElement,
+    rowOf(title, name).querySelector(".git-file-row__name") as HTMLElement,
   );
 const sideTabs = () => screen.queryByRole("tablist", { name: "差分の対象" });
 const mainArea = () => screen.getByRole("region", { name: "Gitの差分" });
@@ -91,9 +88,9 @@ describe("opening a diff", () => {
     expect(
       within(mainArea()).getByText(GIT_MESSAGES.ja.mainAreaPlaceholder),
     ).toBeTruthy();
-    await clickRow(shell, "ステージ済み", "変更 a.md");
+    await clickRow(shell, "ステージされている変更", "変更 a.md");
     await clickRow(shell, "変更", "変更 c.md");
-    await clickRow(shell, "未追跡", "未追跡 d.md");
+    await clickRow(shell, "変更", "未追跡 d.md");
     await settled();
     expect(
       shell.gitGateway.diffCalls.map(({ path, side }) => ({ path, side })),
@@ -106,7 +103,7 @@ describe("opening a diff", () => {
 
   it("opens no diff for a conflict", async () => {
     const shell = await openChanges(file("x.md", "unmerged", "unmerged"));
-    await clickRow(shell, "競合", "競合 x.md");
+    await clickRow(shell, "マージの変更", "競合 x.md");
     expect(shell.gitGateway.diffCalls).toHaveLength(0);
     expect(
       within(mainArea()).getByText(GIT_MESSAGES.ja.mainAreaPlaceholder),
@@ -173,7 +170,7 @@ describe("opening a diff", () => {
     const shell = await openChanges(
       file("new.md", "renamed", "unmodified", "old.md"),
     );
-    await clickRow(shell, "ステージ済み", "名前変更 old.md → new.md");
+    await clickRow(shell, "ステージされている変更", "名前変更 old.md → new.md");
     await settled();
     expect(
       within(mainArea()).getByRole("heading", { name: "old.md → new.md" }),
@@ -264,7 +261,7 @@ describe("side switch", () => {
       "staged",
       "@@ -1 +1 @@\n+staged side\n",
     );
-    await clickRow(shell, "ステージ済み", "変更 one.md");
+    await clickRow(shell, "ステージされている変更", "変更 one.md");
     await settled();
     expect(sideTabs()).toBeNull();
 
@@ -380,7 +377,7 @@ describe("after stage and unstage", () => {
       file("a.md", "modified", "unmodified"),
       file("b.md", "added", "unmodified"),
     );
-    await clickRow(shell, "ステージ済み", "変更 a.md");
+    await clickRow(shell, "ステージされている変更", "変更 a.md");
     await settled();
     shell.gitGateway.nextUnstageResult = operationOk(
       statusOf(
@@ -389,7 +386,7 @@ describe("after stage and unstage", () => {
       ),
     );
     await shell.user.click(
-      within(rowOf("ステージ済み", "変更 a.md")).getByRole("button", {
+      within(rowOf("ステージされている変更", "変更 a.md")).getByRole("button", {
         name: GIT_MESSAGES.ja.unstage,
       }),
     );
@@ -427,7 +424,7 @@ describe("after stage and unstage", () => {
       ),
     );
     await shell.user.click(
-      within(screen.getByRole("region", { name: "変更" })).getByRole("button", {
+      within(headerOf("変更")).getByRole("button", {
         name: GIT_MESSAGES.ja.stageAll,
       }),
     );

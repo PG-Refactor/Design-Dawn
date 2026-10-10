@@ -25,6 +25,15 @@
   --color-diff-removed-text: #8c1d18;
   --color-diff-hunk-text: #1d4f9f;
   --color-diff-meta-text: #566074;
+  --color-button-primary-bg: #1f5fbf;
+  --color-button-primary-text: #ffffff;
+  --color-button-primary-hover: #194c99;
+  --color-git-modified: #7a5200;
+  --color-git-added: #1a6e2e;
+  --color-git-deleted: #b3261e;
+  --color-git-renamed: #0b6b8f;
+  --color-git-untracked: #17673f;
+  --color-git-conflict: #a31515;
   --shadow-raised: 0 1px 3px rgba(28, 35, 48, 0.18);
 }
 
@@ -51,5 +60,14 @@
   --color-diff-removed-text: #ffb3ac;
   --color-diff-hunk-text: #8db4ff;
   --color-diff-meta-text: #a3acba;
+  --color-button-primary-bg: #2a69cf;
+  --color-button-primary-text: #ffffff;
+  --color-button-primary-hover: #1f58b3;
+  --color-git-modified: #e2c08d;
+  --color-git-added: #81b88b;
+  --color-git-deleted: #ff9a8f;
+  --color-git-renamed: #7fc8e8;
+  --color-git-untracked: #73c991;
+  --color-git-conflict: #ffa89e;
   --shadow-raised: 0 1px 3px rgba(0, 0, 0, 0.5);
 }

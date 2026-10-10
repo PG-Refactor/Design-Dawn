@@ -4,6 +4,7 @@ import { useMessages } from "../workspace/use-messages";
 import { useGitState, useUiState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import { GitHistoryEntryRow } from "./git-history-entry";
+import { ChevronIcon } from "./git-icons";
 
 // The collapsible commit history of a ready repository. It reads the Git controller's
 // history and starts loads; collapsing neither clears it nor cancels a load in flight.
@@ -37,12 +38,17 @@ export function GitHistorySection() {
       <h2 className="git-history__heading">
         <button
           type="button"
-          className="git-history__toggle"
+          className="git-history__toggle git-section-header"
           aria-expanded={expanded}
           aria-controls={regionId}
           onClick={toggle}
         >
-          {messages.historyToggle}
+          <span className="git-section-header__chevron" aria-hidden="true">
+            <ChevronIcon />
+          </span>
+          <span className="git-section-header__title">
+            {messages.historyToggle}
+          </span>
         </button>
       </h2>
       <div id={regionId} hidden={!expanded} className="git-history__body">

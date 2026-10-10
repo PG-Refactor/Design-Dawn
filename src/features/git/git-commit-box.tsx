@@ -1,4 +1,11 @@
-import { type KeyboardEvent, useId, useMemo, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { GitStatus } from "../../application/ports/git-gateway";
 import type { ApplicationState } from "../../application/state/application-state";
 import { hasUnsavedProjectChanges } from "../../application/state/unsaved-changes";
@@ -13,6 +20,7 @@ import {
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import { deriveGitChangeSections } from "./git-change-sections";
 import { refreshDiffAfterStatusChange } from "./git-diff-session";
+import { CheckIcon } from "./git-icons";
 import { reloadHistoryIfShown } from "./git-view-refresh";
 
 // Module-level so `useWorkspaceModel` recomputes only when a state changes. The draft
@@ -36,6 +44,7 @@ export function GitCommitBox({ status }: { readonly status: GitStatus }) {
   // Synchronous, because two clicks can arrive before `operating` is rendered.
   const inFlight = useRef(false);
   const messageId = useId();
+  const textarea = useRef<HTMLTextAreaElement | null>(null);
   const noteId = useId();
   const hasStaged = useMemo(
     () =>
@@ -44,12 +53,27 @@ export function GitCommitBox({ status }: { readonly status: GitStatus }) {
       ),
     [status],
   );
+  const branchName = status.branch?.head ?? null;
+  const placeholder =
+    branchName === null
+      ? messages.commitPlaceholderGeneric
+      : messages.commitPlaceholder(branchName);
   const busy = submitting || operating || refreshing;
   const canCommit =
     !busy &&
     status.repositoryState === "ready" &&
     hasStaged &&
     message.trim() !== "";
+
+  // Grows with the content; the stylesheet caps the height (then the field scrolls).
+  // Measured after every layout (draft changes, restores, language switches) so the size is
+  // never stale; it is cheap for one small field.
+  useLayoutEffect(() => {
+    const element = textarea.current;
+    if (element === null) return;
+    element.style.height = "auto";
+    element.style.height = `${element.scrollHeight}px`;
+  });
 
   async function submit(): Promise<void> {
     if (!canCommit || inFlight.current) return;
@@ -94,11 +118,14 @@ export function GitCommitBox({ status }: { readonly status: GitStatus }) {
 
   return (
     <div className="git-commit-box">
-      <label htmlFor={messageId} className="git-commit-box__label">
+      <label htmlFor={messageId} className="git-visually-hidden">
         {messages.commitMessageLabel}
       </label>
       <textarea
         id={messageId}
+        ref={textarea}
+        rows={1}
+        placeholder={placeholder}
         className="git-commit-box__message"
         value={message}
         // Read-only while committing so the sent message and the draft cannot diverge.
@@ -113,11 +140,12 @@ export function GitCommitBox({ status }: { readonly status: GitStatus }) {
       <div className="git-commit-box__actions">
         <button
           type="button"
-          className="button"
+          className="git-primary-button"
           disabled={!canCommit}
           aria-describedby={noteId}
           onClick={() => void submit()}
         >
+          <CheckIcon />
           {submitting ? messages.committing : messages.commit}
         </button>
       </div>
