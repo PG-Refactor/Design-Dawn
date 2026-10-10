@@ -7,7 +7,7 @@ const BLOCK_CAPABILITIES: Readonly<
 > = {
   // Has an inline editor the canvas switches to (double-click / Enter).
   markdown: { editable: true },
-  mermaid: { editable: false },
+  mermaid: { editable: true },
   image: { editable: false },
 };
 

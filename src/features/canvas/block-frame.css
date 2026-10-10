@@ -41,21 +41,3 @@
   background: var(--color-accent);
   cursor: nwse-resize;
 }
-
-.block-placeholder {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 0 var(--space-2);
-  margin: 0;
-  padding: var(--space-2);
-  font-size: 0.75rem;
-  overflow-wrap: anywhere;
-}
-
-.block-placeholder dt {
-  color: var(--color-text-muted);
-}
-
-.block-placeholder dd {
-  margin: 0;
-}

@@ -49,7 +49,10 @@ describe("+ Block menu", () => {
     expect(addButton().getAttribute("aria-expanded")).toBe("true");
     const menu = screen.getByRole("menu", { name: "追加するBlockの種類" });
     const items = screen.getAllByRole("menuitem");
-    expect(items.map((item) => item.textContent)).toEqual(["Markdown"]);
+    expect(items.map((item) => item.textContent)).toEqual([
+      "Markdown",
+      "Mermaid",
+    ]);
     expect(menu.contains(items[0] ?? null)).toBe(true);
     await act(settle);
     expect(document.activeElement).toBe(items[0]);
@@ -72,7 +75,9 @@ describe("+ Block menu", () => {
     await shell.user.keyboard("{ArrowDown}");
     await act(settle);
     expect(screen.getByRole("menu")).toBeTruthy();
-    expect(document.activeElement).toBe(screen.getByRole("menuitem"));
+    expect(document.activeElement).toBe(
+      screen.getByRole("menuitem", { name: "Markdown" }),
+    );
     await shell.user.keyboard("{Enter}");
     await act(settle);
     expect(screen.queryByRole("menu")).toBeNull();
