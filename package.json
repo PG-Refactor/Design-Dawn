@@ -19,7 +19,9 @@
     "rust:fmt:check": "cargo fmt --check --manifest-path src-tauri/Cargo.toml",
     "rust:lint": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings",
     "rust:test": "cargo test --manifest-path src-tauri/Cargo.toml",
-    "verify": "npm run typecheck && npm run check && npm run test && npm run rust:fmt:check && npm run rust:lint && npm run rust:test"
+    "licenses:generate": "node scripts/third-party-notices.mjs generate",
+    "licenses:check": "node scripts/third-party-notices.mjs check",
+    "verify": "npm run typecheck && npm run check && npm run test && npm run licenses:check && npm run rust:fmt:check && npm run rust:lint && npm run rust:test"
   },
   "dependencies": {
     "@tauri-apps/api": "2.12.0",

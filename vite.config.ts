@@ -10,6 +10,11 @@ const DEV_SERVER_HOST = "localhost";
 const ENV_PREFIX = "DAWN_";
 const WATCH_POLLING_ENV_NAME = "DAWN_WATCH_POLLING";
 
+// Machine input for scripts/third-party-notices.mjs. Vite lists exactly the node_modules
+// packages that ended up in the production bundle. A dotted path keeps it out of the
+// way of the app's own assets; the script reads it from here (docs/oss-policy.md 5.1).
+const LICENSE_REPORT_FILE_NAME = ".vite/license.json";
+
 export default defineConfig(({ mode }) => {
   // loadEnv also reads process.env, so variables set by compose.yaml apply.
   const env = loadEnv(mode, ".", ENV_PREFIX);
@@ -18,6 +23,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     clearScreen: false,
     envPrefix: ["VITE_", "TAURI_ENV_"],
+    build: { license: { fileName: LICENSE_REPORT_FILE_NAME } },
     server: {
       port: DEV_SERVER_PORT,
       strictPort: true,
