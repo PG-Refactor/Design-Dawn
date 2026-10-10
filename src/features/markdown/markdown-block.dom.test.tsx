@@ -26,6 +26,7 @@ import { RESIZE_HANDLE_ATTRIBUTE } from "../canvas/block-dom";
 import { BLOCK_ONE, BLOCK_TWO } from "../canvas/test-support/canvas-harness";
 import { setActiveSheet } from "../workspace/ui-state/ui-state";
 import { selectNotifications } from "../workspace/view-models/notifications-model";
+import { WORKSPACE_MESSAGES } from "../workspace/workspace-messages";
 import {
   blockOption,
   canvasElement,
@@ -113,6 +114,7 @@ describe("content loading", () => {
 
     // ... and is listed as a warning.
     const model = selectNotifications({
+      messages: WORKSPACE_MESSAGES.ja,
       application: shell.store.getState(),
       operationErrors: [],
       theme: { loadIssue: null, saveError: null },

@@ -3,7 +3,7 @@ import type {
   AutoSaveState,
 } from "../../application/settings/auto-save-controller";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
-import { MESSAGES } from "../workspace/workspace-messages";
+import { useMessages } from "../workspace/use-messages";
 import "./auto-save-settings.css";
 
 // Only what the control needs, so a settings screen can pass the same controller.
@@ -20,6 +20,7 @@ export function AutoSaveSetting({
 }: {
   readonly controller: AutoSaveSettingsController;
 }) {
+  const messages = useMessages().workspace;
   const enabled = useStoreSelector(controller.store, selectEnabled);
   const isLoading = useStoreSelector(controller.store, selectIsLoading);
   return (
@@ -31,7 +32,7 @@ export function AutoSaveSetting({
         // A failed save is recorded in the controller state and shown as a notification.
         onChange={(event) => void controller.setEnabled(event.target.checked)}
       />
-      {MESSAGES.topBar.autoSave}
+      {messages.topBar.autoSave}
     </label>
   );
 }

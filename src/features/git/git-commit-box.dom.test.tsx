@@ -47,16 +47,16 @@ const projectTab = () =>
   ).getByRole("tab", { name: "Project" });
 const messageBox = () =>
   screen.getByRole("textbox", {
-    name: GIT_MESSAGES.commitMessageLabel,
+    name: GIT_MESSAGES.ja.commitMessageLabel,
   }) as HTMLTextAreaElement;
 const commitButton = () =>
   screen.getByRole("button", {
-    name: new RegExp(`^${GIT_MESSAGES.commit}`),
+    name: new RegExp(`^${GIT_MESSAGES.ja.commit}`),
   }) as HTMLButtonElement;
 const refreshButton = () =>
-  screen.getByRole("button", { name: GIT_MESSAGES.refresh });
+  screen.getByRole("button", { name: GIT_MESSAGES.ja.refresh });
 const noteElement = () =>
-  screen.getByText(GIT_MESSAGES.commitUnsavedNote, { exact: false });
+  screen.getByText(GIT_MESSAGES.ja.commitUnsavedNote, { exact: false });
 const rowText = (title: string, name: string) =>
   within(screen.getByRole("listbox", { name: title })).getByRole("option", {
     name,
@@ -76,7 +76,7 @@ async function openGit(
   target.gitGateway.status = statusOf(...files);
   await target.openProjectInUi();
   await target.user.click(gitTab());
-  await screen.findByRole("heading", { name: GIT_MESSAGES.changeListLabel });
+  await screen.findByRole("heading", { name: GIT_MESSAGES.ja.changeListLabel });
   return target;
 }
 
@@ -108,10 +108,10 @@ describe("commit button state", () => {
     shell.gitGateway.status = { repositoryState: "notRepository", files: [] };
     await shell.openProjectInUi();
     await shell.user.click(gitTab());
-    await screen.findByText(GIT_MESSAGES.repositoryStates.notRepository);
+    await screen.findByText(GIT_MESSAGES.ja.repositoryStates.notRepository);
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(
-      screen.queryByRole("button", { name: GIT_MESSAGES.commit }),
+      screen.queryByRole("button", { name: GIT_MESSAGES.ja.commit }),
     ).toBeNull();
   });
 
@@ -123,7 +123,7 @@ describe("commit button state", () => {
       within(screen.getByRole("listbox", { name: "変更" })).getByRole(
         "button",
         {
-          name: GIT_MESSAGES.stage,
+          name: GIT_MESSAGES.ja.stage,
         },
       ),
     );
@@ -150,7 +150,7 @@ describe("committing", () => {
     ]);
     expect(messageBox().value).toBe("");
     expect(shell.uiStateStore.getState().gitCommitMessage).toBe("");
-    expect(screen.getByText(GIT_MESSAGES.noChanges)).toBeTruthy();
+    expect(screen.getByText(GIT_MESSAGES.ja.noChanges)).toBeTruthy();
     expect(shell.gitController.store.getState().lastCommit).toEqual({
       commitId: FAKE_COMMIT_ID,
     });
@@ -269,7 +269,7 @@ describe("committing", () => {
         .operationErrors.map((entry) => entry.operation),
     ).toEqual(["refreshGitStatus"]);
     expect(shell.uiStateStore.getState().gitSelection).toBeNull();
-    expect(screen.getByText(GIT_MESSAGES.statusFailed)).toBeTruthy();
+    expect(screen.getByText(GIT_MESSAGES.ja.statusFailed)).toBeTruthy();
   });
 
   it("does not clear the draft of another Project when the answer arrives late", async () => {
@@ -316,7 +316,7 @@ describe("unsaved note", () => {
     await openGit(STAGED);
     const note = noteElement();
     expect(note.className).not.toContain("emphasised");
-    expect(screen.queryByText(GIT_MESSAGES.commitUnsavedPrefix)).toBeNull();
+    expect(screen.queryByText(GIT_MESSAGES.ja.commitUnsavedPrefix)).toBeNull();
     expect(messageBox().getAttribute("aria-describedby")).toBe(note.id);
     expect(commitButton().getAttribute("aria-describedby")).toBe(note.id);
   });
@@ -334,9 +334,11 @@ describe("unsaved note", () => {
       await settle();
     });
     await shell.user.click(gitTab());
-    await screen.findByRole("heading", { name: GIT_MESSAGES.changeListLabel });
+    await screen.findByRole("heading", {
+      name: GIT_MESSAGES.ja.changeListLabel,
+    });
     expect(noteElement().className).toContain("emphasised");
-    expect(screen.getByText(GIT_MESSAGES.commitUnsavedPrefix)).toBeTruthy();
+    expect(screen.getByText(GIT_MESSAGES.ja.commitUnsavedPrefix)).toBeTruthy();
 
     shell.gateway.clearCalls();
     const undoDepthBefore = shell.store

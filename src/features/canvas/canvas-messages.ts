@@ -1,10 +1,13 @@
-// User-visible strings of the canvas (Japanese UI, like `workspace-messages.ts`).
+// User-visible strings of the canvas, one catalog per display language (like the other
+// feature message modules).
 
 import { CANVAS_CONFIG } from "../../config/canvas-config";
+import type { DisplayLanguage } from "../../config/language-config";
 import type { Block } from "../../domain/block/block";
 import type { BlockId } from "../../domain/shared/entity-id";
+import type { Widen } from "../../shared/i18n/catalog-types";
 
-export const CANVAS_MESSAGES = {
+const CANVAS_MESSAGES_JA = {
   noSheet: "表示できるSheetがありません。Sheetを作成してください。",
   toolbar: {
     label: "Canvasツールバー",
@@ -36,21 +39,57 @@ export const CANVAS_MESSAGES = {
     position: "位置",
     size: "サイズ",
   },
+  resizeHandleLabel: (blockName: string): string =>
+    `${blockName} のサイズを変更`,
 } as const;
 
-// Subject of the notification for blocks that a copy / cut / duplicate had to leave out.
-export function skippedBlocksSubject(count: number): string {
-  return `${count}個のBlock`;
-}
+export type CanvasMessages = Widen<typeof CANVAS_MESSAGES_JA>;
 
+const CANVAS_MESSAGES_EN: CanvasMessages = {
+  noSheet: "There is no Sheet to show. Create a Sheet.",
+  toolbar: {
+    label: "Canvas toolbar",
+    addBlock: "+ Block",
+    blockTypeMenuLabel: "Block type to add",
+  },
+  reorder: {
+    menuButton: "Arrange",
+    menuLabel: "Change stacking order",
+    forward: "Bring Forward",
+    backward: "Send Backward",
+    toFront: "Bring to Front",
+    toBack: "Send to Back",
+  },
+  align: {
+    menuButton: "Align",
+    menuLabel: "Align blocks",
+    left: "Align Left",
+    horizontalCenter: "Align Horizontal Center",
+    right: "Align Right",
+    top: "Align Top",
+    verticalCenter: "Align Vertical Center",
+    bottom: "Align Bottom",
+  },
+  dropHint: "Drop images here",
+  placeholder: {
+    type: "Type",
+    id: "ID",
+    position: "Position",
+    size: "Size",
+  },
+  resizeHandleLabel: (blockName) => `Resize ${blockName}`,
+};
+
+export const CANVAS_MESSAGES: Readonly<
+  Record<DisplayLanguage, CanvasMessages>
+> = { ja: CANVAS_MESSAGES_JA, en: CANVAS_MESSAGES_EN };
+
+// The tail of the id is what names blocks everywhere; it is the same in every language.
 export function shortBlockId(blockId: BlockId): string {
   return blockId.slice(-CANVAS_CONFIG.block.shortIdLength);
 }
 
+// Block type id and id tail: language independent, so it lives outside the catalogs.
 export function blockAccessibleName(block: Block): string {
   return `${block.blockType} ${shortBlockId(block.blockId)}`;
-}
-
-export function resizeHandleLabel(block: Block): string {
-  return `${blockAccessibleName(block)} のサイズを変更`;
 }

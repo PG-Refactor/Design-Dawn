@@ -3,6 +3,7 @@ import { LAYOUT_CONFIG } from "../../config/layout-config";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { clearNotice } from "./ui-state/shell-ui-state";
 import type { UiState } from "./ui-state/ui-state";
+import { useMessages } from "./use-messages";
 import {
   type NotificationItem,
   type NotificationRetry,
@@ -11,12 +12,8 @@ import {
   selectNotifications,
 } from "./view-models/notifications-model";
 import type { WorkspaceActions } from "./workspace-actions";
-import { useUiState, useWorkspaceModel } from "./workspace-hooks";
-import {
-  MESSAGES,
-  retrySaveLabel,
-  summarizeNotificationCounts,
-} from "./workspace-messages";
+import { useUiState } from "./workspace-hooks";
+import type { WorkspaceMessages } from "./workspace-messages";
 import { useWorkspaceServices } from "./workspace-services-context";
 import "./notifications.css";
 
@@ -27,22 +24,28 @@ const selectOperationErrors = (ui: UiState) => ui.operationErrors;
 const selectImageLoadFailures = (ui: UiState) => ui.imageLoadFailures;
 const selectNotificationsOpen = (ui: UiState) => ui.notificationsOpen;
 
-function sourceLabel(source: NotificationSource): string {
+function sourceLabel(
+  messages: WorkspaceMessages,
+  source: NotificationSource,
+): string {
   switch (source.scope) {
     case "project":
-      return MESSAGES.notifications.projectSource;
+      return messages.notifications.projectSource;
     case "document":
-      return `Document: ${source.name}`;
+      return messages.documentSourceLabel(source.name);
     case "app":
-      return MESSAGES.notifications.appSource;
+      return messages.notifications.appSource;
   }
 }
 
-function retryTargetName(item: NotificationItem): string {
+function retryTargetName(
+  messages: WorkspaceMessages,
+  item: NotificationItem,
+): string {
   if (item.source.scope === "document") return item.source.name;
   return item.retry?.kind === "folder"
-    ? (item.retry.folderName ?? MESSAGES.tree.unnamedEntity)
-    : MESSAGES.notifications.projectSource;
+    ? (item.retry.folderName ?? messages.tree.unnamedEntity)
+    : messages.notifications.projectSource;
 }
 
 function runRetry(
@@ -60,11 +63,12 @@ function runRetry(
 }
 
 function NotificationEntry({ item }: { readonly item: NotificationItem }) {
+  const messages = useMessages().workspace;
   const { actions } = useWorkspaceServices();
   const severityLabel =
     item.severity === "error"
-      ? MESSAGES.notifications.errorSeverity
-      : MESSAGES.notifications.warningSeverity;
+      ? messages.notifications.errorSeverity
+      : messages.notifications.warningSeverity;
   const { retry, dismissId, sheetDeletion } = item;
   return (
     <li className={`notification notification--${item.severity}`}>
@@ -73,11 +77,13 @@ function NotificationEntry({ item }: { readonly item: NotificationItem }) {
           <span aria-hidden="true">{SEVERITY_ICON[item.severity]}</span>
           {severityLabel}
         </span>
-        <span className="notification__source">{sourceLabel(item.source)}</span>
+        <span className="notification__source">
+          {sourceLabel(messages, item.source)}
+        </span>
       </div>
       <p className="notification__message">{item.message}</p>
       <details className="notification__details">
-        <summary>{MESSAGES.notifications.details}</summary>
+        <summary>{messages.notifications.details}</summary>
         <dl className="notification__detail-list">
           {item.details.map((detail) => (
             <div key={`${detail.label}:${detail.value}`}>
@@ -92,10 +98,12 @@ function NotificationEntry({ item }: { readonly item: NotificationItem }) {
           <button
             type="button"
             className="button"
-            aria-label={retrySaveLabel(retryTargetName(item))}
+            aria-label={messages.retrySaveLabel(
+              retryTargetName(messages, item),
+            )}
             onClick={() => void runRetry(actions, retry)}
           >
-            {MESSAGES.notifications.retry}
+            {messages.notifications.retry}
           </button>
         )}
         {sheetDeletion === null ? null : (
@@ -109,7 +117,7 @@ function NotificationEntry({ item }: { readonly item: NotificationItem }) {
               )
             }
           >
-            {MESSAGES.notifications.deleteSheet}
+            {messages.notifications.deleteSheet}
           </button>
         )}
         {dismissId === null ? null : (
@@ -118,7 +126,7 @@ function NotificationEntry({ item }: { readonly item: NotificationItem }) {
             className="button"
             onClick={() => actions.dismissOperationError(dismissId)}
           >
-            {MESSAGES.notifications.dismiss}
+            {messages.notifications.dismiss}
           </button>
         )}
       </div>
@@ -129,6 +137,7 @@ function NotificationEntry({ item }: { readonly item: NotificationItem }) {
 // Summary control plus the non-modal panel it toggles. Nothing here blocks the rest of
 // the UI: the panel is an ordinary region, not a dialog.
 export function Notifications() {
+  const messages = useMessages().workspace;
   const {
     applicationStore,
     themeController,
@@ -150,6 +159,7 @@ export function Notifications() {
   const model = useMemo(
     () =>
       selectNotifications({
+        messages,
         application,
         operationErrors,
         imageLoadFailures,
@@ -158,6 +168,7 @@ export function Notifications() {
         layoutSettings,
       }),
     [
+      messages,
       application,
       operationErrors,
       imageLoadFailures,
@@ -176,17 +187,17 @@ export function Notifications() {
         aria-controls={panelId}
         onClick={() => actions.setNotificationsOpen(!open)}
       >
-        {summarizeNotificationCounts(counts.errors, counts.warnings)}
+        {messages.notificationCounts(counts.errors, counts.warnings)}
       </button>
       {open ? (
         <section
           id={panelId}
           className="notifications__panel"
-          aria-label={MESSAGES.notifications.panelLabel}
+          aria-label={messages.notifications.panelLabel}
         >
           {model.items.length === 0 ? (
             <p className="notifications__empty">
-              {MESSAGES.notifications.emptyPanel}
+              {messages.notifications.emptyPanel}
             </p>
           ) : (
             <ul className="notifications__list">
@@ -204,14 +215,20 @@ export function Notifications() {
 // A polite live region: "Project / Document loaded with warnings". The region always
 // exists so that messages added later are announced.
 export function LoadStatus() {
-  const messages = useWorkspaceModel(selectLoadStatusMessages);
+  const { applicationStore } = useWorkspaceServices();
+  const messages = useMessages().workspace;
+  const application = useStoreSelector(applicationStore, identity);
+  const statusMessages = useMemo(
+    () => selectLoadStatusMessages(messages, application),
+    [messages, application],
+  );
   return (
     <div
       role="status"
-      aria-label={MESSAGES.notifications.statusLabel}
+      aria-label={messages.notifications.statusLabel}
       className="load-status"
     >
-      {messages.map((message) => (
+      {statusMessages.map((message) => (
         <p key={message} className="load-status__message">
           <span aria-hidden="true">{SEVERITY_ICON.warning}</span> {message}
         </p>
@@ -225,6 +242,7 @@ const selectNotice = (ui: UiState) => ui.notice;
 // A light, polite notice ("already open") that clears itself. The region always exists so
 // a notice added later is announced; it is not a failure, so it is not in the panel.
 export function TransientNotice() {
+  const messages = useMessages().workspace;
   const { uiStateStore } = useWorkspaceServices();
   const notice = useUiState(selectNotice);
   const noticeId = notice?.id ?? null;
@@ -239,12 +257,12 @@ export function TransientNotice() {
   return (
     <div
       role="status"
-      aria-label={MESSAGES.notices.regionLabel}
+      aria-label={messages.notices.regionLabel}
       className="transient-notice"
     >
       {notice === null ? null : (
         <p className="transient-notice__message">
-          {MESSAGES.notices[notice.kind]}
+          {messages.notices[notice.kind]}
         </p>
       )}
     </div>

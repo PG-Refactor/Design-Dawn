@@ -45,7 +45,7 @@ export interface WorkspaceServices {
     Pick<ThemeController, "applyExternal"> & {
       readonly store: Store<ThemeState>;
     };
-  // `applyExternal` as for the theme; no UI uses the language yet.
+  // `applyExternal` as for the theme; the UI texts follow `store` (see `useMessages`).
   readonly languageController: Pick<
     LanguageController,
     "store" | "setPreference" | "applyExternal"

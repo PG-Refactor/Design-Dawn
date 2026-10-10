@@ -6,6 +6,7 @@ import userEvent from "@testing-library/user-event";
 import type { LoadIssue } from "../../../application/ports/persistence-types";
 import { settle } from "../../../application/test-support/fakes";
 import { TEST_AUTO_SAVE_DELAY_MS } from "../../../application/test-support/session-harness";
+import { messagesFor } from "../use-messages";
 import { WorkspaceServicesProvider } from "../workspace-services-context";
 import { WorkspaceShell } from "../workspace-shell";
 import {
@@ -17,7 +18,7 @@ import {
 export interface ShellHarness extends ActionsHarness {
   readonly user: ReturnType<typeof userEvent.setup>;
   readonly container: HTMLElement;
-  // Clicks "Projectを開く" and waits for the tree.
+  // Clicks the "open Project" button (in the current language) and waits for the tree.
   openProjectInUi(): Promise<void>;
   // Lets the auto-save timer fire and waits for the save to finish.
   runAutoSave(): Promise<void>;
@@ -27,12 +28,16 @@ export interface ShellOptions {
   readonly projectIssues?: readonly LoadIssue[];
   // Puts data on the fake disk before the shell is rendered.
   readonly seed?: (harness: ActionsHarness) => void;
+  // See `ActionsHarnessOptions`; Japanese when omitted.
+  readonly systemLanguages?: readonly string[];
 }
 
 export async function renderShell(
   options: ShellOptions = {},
 ): Promise<ShellHarness> {
-  const harness = createActionsHarness();
+  const harness = createActionsHarness({
+    systemLanguages: options.systemLanguages,
+  });
   options.seed?.(harness);
   if (options.projectIssues !== undefined) {
     await seedProjectIssues(harness, options.projectIssues);
@@ -48,7 +53,12 @@ export async function renderShell(
     user,
     container,
     async openProjectInUi() {
-      await user.click(screen.getByRole("button", { name: "Projectを開く" }));
+      const { language } = harness.services.languageController.store.getState();
+      await user.click(
+        screen.getByRole("button", {
+          name: messagesFor(language).workspace.topBar.openProject,
+        }),
+      );
       await screen.findByRole("tree");
     },
     async runAutoSave() {

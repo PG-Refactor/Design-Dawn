@@ -1,7 +1,11 @@
-// User-visible texts of the Git panel (docs/ui-design.md §13, docs/git-development.md §11.3).
-// The meaning of a state is carried by these texts, never by colour alone.
+// User-visible texts of the Git panel (docs/ui-design.md §13, docs/git-development.md §11.3),
+// one catalog per display language. The meaning of a state is carried by these texts,
+// never by colour alone.
 
-export const GIT_MESSAGES = {
+import type { DisplayLanguage } from "../../config/language-config";
+import type { Widen } from "../../shared/i18n/catalog-types";
+
+const GIT_MESSAGES_JA = {
   panelLabel: "Git",
   mainAreaLabel: "Gitの差分",
   mainAreaPlaceholder: "ファイルを選択すると差分を表示します",
@@ -69,18 +73,89 @@ export const GIT_MESSAGES = {
     gitUnavailable: "Gitが見つかりません（Git 2.25以上が必要です）",
     error: "Gitの状態を取得できませんでした",
   },
+  diffTooLargeText: (limit: string): string =>
+    `差分が大きすぎるため表示できません（上限 ${limit}）`,
+  // A renamed file as "old → new".
+  renamedPathText: (originalPath: string, path: string): string =>
+    `${originalPath} → ${path}`,
+  // The accessible name of the short commit ID, so the full one is reachable without a mouse.
+  commitIdLabel: (commitId: string): string => `コミットID ${commitId}`,
 } as const;
 
-export function diffTooLargeText(limit: string): string {
-  return `差分が大きすぎるため表示できません（上限 ${limit}）`;
-}
+export type GitMessages = Widen<typeof GIT_MESSAGES_JA>;
 
-// A renamed file as "old → new".
-export function renamedPathText(originalPath: string, path: string): string {
-  return `${originalPath} → ${path}`;
-}
+const GIT_MESSAGES_EN: GitMessages = {
+  panelLabel: "Git",
+  mainAreaLabel: "Git diff",
+  mainAreaPlaceholder: "Select a file to show its diff",
+  diffLoading: "Loading the diff…",
+  diffEmpty: "No differences",
+  diffUntracked: "This is a new file (not yet tracked by Git)",
+  diffBinary: "The diff cannot be shown because the file is binary",
+  diffNotUtf8: "The diff cannot be shown because the file is not valid UTF-8",
+  diffTextLabel: "Diff content",
+  diffFailed: "Could not get the diff",
+  diffSideSwitchLabel: "Diff target",
+  diffSides: { staged: "Staged", unstaged: "Unstaged" },
+  closeDiff: "Close",
+  refresh: "Refresh",
+  refreshing: "Refreshing…",
+  retry: "Retry",
+  noProject: "Open a Project to see its Git status",
+  loading: "Loading the Git status…",
+  statusFailed: "Could not get the Git status",
+  changeListLabel: "Changes",
+  noChanges: "No changes",
+  operating: "Working…",
+  stage: "Stage",
+  unstage: "Unstage",
+  stageAll: "Stage All Changes",
+  unstageAll: "Unstage All Changes",
+  commitMessageLabel: "Commit message",
+  commit: "Commit",
+  committing: "Committing…",
+  commitUnsavedNote: "Unsaved changes are not included in the commit.",
+  commitUnsavedPrefix: "Note: ",
+  historyToggle: "History",
+  historyLoading: "Loading the history…",
+  historyFailed: "Could not get the history",
+  historyEmpty: "No commits yet",
+  historyLoadMore: "Load More",
+  historyLoadingMore: "Loading…",
+  historyMoreFailed: "Could not load more commits",
+  historyListLabel: "Commit history",
+  conflictNote: "Resolving conflicts is not supported in this version",
+  sectionTitles: {
+    staged: "Staged Changes",
+    changes: "Changes",
+    untracked: "Untracked",
+    conflicts: "Merge Conflicts",
+  },
+  changeKinds: {
+    modified: { letter: "M", label: "Modified" },
+    added: { letter: "A", label: "Added" },
+    deleted: { letter: "D", label: "Deleted" },
+    renamed: { letter: "R", label: "Renamed" },
+    copied: { letter: "C", label: "Copied" },
+    typeChanged: { letter: "T", label: "Type changed" },
+    unmerged: { letter: "U", label: "Conflict" },
+    untracked: { letter: "?", label: "Untracked" },
+  },
+  repositoryStateLabel: "Repository status",
+  repositoryStates: {
+    ready: "This Project is managed by Git",
+    notRepository: "This Project is not managed by Git",
+    unsupportedRepositoryLayout:
+      "This Project is part of a larger Git repository. In this version, Git features are available only when the whole Project is the Git repository.",
+    gitUnavailable: "Git was not found (Git 2.25 or later is required)",
+    error: "Could not get the Git status",
+  },
+  diffTooLargeText: (limit) => `The diff is too large to show (limit ${limit})`,
+  renamedPathText: (originalPath, path) => `${originalPath} → ${path}`,
+  commitIdLabel: (commitId) => `Commit ID ${commitId}`,
+};
 
-// The accessible name of the short commit ID, so the full one is reachable without a mouse.
-export function commitIdLabel(commitId: string): string {
-  return `コミットID ${commitId}`;
-}
+export const GIT_MESSAGES: Readonly<Record<DisplayLanguage, GitMessages>> = {
+  ja: GIT_MESSAGES_JA,
+  en: GIT_MESSAGES_EN,
+};

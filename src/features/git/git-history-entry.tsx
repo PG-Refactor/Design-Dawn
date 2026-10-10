@@ -1,6 +1,6 @@
 import type { GitHistoryEntry as HistoryEntry } from "../../application/ports/git-gateway";
+import { useMessages } from "../workspace/use-messages";
 import { formatCommitDate, shortCommitId } from "./git-history-format";
-import { commitIdLabel } from "./git-messages";
 
 // One commit. Every value is rendered as React text, never as markup. The email address is
 // not shown. The short ID carries the full one in its accessible name (screen readers) and in
@@ -10,6 +10,7 @@ export function GitHistoryEntryRow({
 }: {
   readonly entry: HistoryEntry;
 }) {
+  const messages = useMessages().git;
   return (
     <li className="git-history-entry">
       <p className="git-history-entry__summary">{entry.summary}</p>
@@ -18,7 +19,7 @@ export function GitHistoryEntryRow({
           className="git-history-entry__id"
           role="note"
           title={entry.commitId}
-          aria-label={commitIdLabel(entry.commitId)}
+          aria-label={messages.commitIdLabel(entry.commitId)}
         >
           {shortCommitId(entry.commitId)}
         </code>

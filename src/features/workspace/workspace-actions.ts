@@ -67,8 +67,10 @@ import {
 import {
   beginRenaming,
   endRenaming,
+  entitySubject,
   type LeftPanelMode,
   type OperationLabel,
+  type OperationSubject,
   type RenamingTarget,
   setActiveDocument,
   setActiveSheet,
@@ -78,7 +80,6 @@ import {
 } from "./ui-state/ui-state";
 import { type MoveDirection, oneStepMove } from "./view-models/reorder";
 import { firstLoadedSheetId } from "./view-models/tabs-model";
-import { MESSAGES } from "./workspace-messages";
 
 // The answer to the "unsaved changes" question of a window close request.
 export type UnsavedCloseChoice = "save" | "discard" | "cancel";
@@ -268,7 +269,7 @@ export function createWorkspaceActions(
 
   function record(
     operation: OperationLabel,
-    subject: string | null,
+    subject: OperationSubject | null,
     error: OperationError,
   ): void {
     uiStateStore.setState((state) =>
@@ -494,7 +495,7 @@ export function createWorkspaceActions(
       if (!drafts.ok) return drafts;
       return workspace.closeDocument(documentId);
     });
-    if (!result.ok) record("closeDocument", name, result.error);
+    if (!result.ok) record("closeDocument", entitySubject(name), result.error);
     return result;
   }
 
@@ -505,7 +506,7 @@ export function createWorkspaceActions(
   ): Promise<OperationResult<void>> {
     const result = await workspace.moveEntry(entryId, targetParentFolderId);
     if (!result.ok) {
-      record("moveEntry", name, result.error);
+      record("moveEntry", entitySubject(name), result.error);
       return result;
     }
     expandFolder(targetParentFolderId);
@@ -521,11 +522,11 @@ export function createWorkspaceActions(
 
   async function deleteFolderConfirmed(
     folderId: FolderId,
-    name: string,
+    name: string | null,
   ): Promise<OperationResult<void>> {
     const result = await workspace.deleteFolder(folderId, USER_CONFIRMATION);
     if (!result.ok) {
-      record("deleteFolder", name, result.error);
+      record("deleteFolder", entitySubject(name), result.error);
       return result;
     }
     // The folded state of a folder that no longer exists is not worth keeping.
@@ -578,19 +579,19 @@ export function createWorkspaceActions(
 
   async function deleteDocumentConfirmed(
     documentId: DocumentId,
-    name: string,
+    name: string | null,
   ): Promise<OperationResult<void>> {
     const result = await finishRemoval(documentId, () =>
       workspace.deleteDocument(documentId, USER_CONFIRMATION),
     );
-    if (!result.ok) record("deleteDocument", name, result.error);
+    if (!result.ok) record("deleteDocument", entitySubject(name), result.error);
     return result;
   }
 
   async function deleteSheetConfirmed(
     documentId: DocumentId,
     sheetId: SheetId,
-    name: string,
+    name: string | null,
   ): Promise<OperationResult<void>> {
     const loadedOrder = (
       applicationStore.getState().documentDetails.get(documentId)
@@ -607,7 +608,7 @@ export function createWorkspaceActions(
       USER_CONFIRMATION,
     );
     if (!result.ok) {
-      record("deleteSheet", name, result.error);
+      record("deleteSheet", entitySubject(name), result.error);
       return result;
     }
     if (wasActive)
@@ -774,7 +775,7 @@ export function createWorkspaceActions(
       return operationOk(undefined);
     },
     closeDocument(documentId) {
-      const name = documentNameOf(documentId) ?? MESSAGES.tree.unnamedEntity;
+      const name = documentNameOf(documentId);
       if (
         opensUnsavedCloseDialog(hasUnsavedChangesIn([documentId]), {
           kind: "document",
@@ -866,7 +867,7 @@ export function createWorkspaceActions(
         openDialog(state, {
           kind: "confirmDeleteDocument",
           documentId,
-          name: documentNameOf(documentId) ?? MESSAGES.tree.unnamedEntity,
+          name: documentNameOf(documentId),
         }),
       );
     },
@@ -881,7 +882,7 @@ export function createWorkspaceActions(
           kind: "confirmDeleteSheet",
           documentId,
           sheetId,
-          name: entry.name ?? MESSAGES.tree.unnamedEntity,
+          name: entry.name,
         }),
       );
     },
@@ -895,7 +896,7 @@ export function createWorkspaceActions(
         openDialog(state, {
           kind: "confirmDeleteFolder",
           folderId,
-          name: folderNameOf(folderId) ?? MESSAGES.tree.unnamedEntity,
+          name: folderNameOf(folderId),
         }),
       );
     },
@@ -908,7 +909,7 @@ export function createWorkspaceActions(
         openDialog(state, {
           kind: "moveEntry",
           entryId,
-          name: found.entry.name ?? MESSAGES.tree.unnamedEntity,
+          name: found.entry.name,
         }),
       );
     },
@@ -922,7 +923,7 @@ export function createWorkspaceActions(
           openDialog(state, {
             kind: "confirmMoveSave",
             entryId,
-            name: name ?? MESSAGES.tree.unnamedEntity,
+            name,
             targetParentFolderId,
           }),
         );

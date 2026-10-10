@@ -1,13 +1,14 @@
 import { memo } from "react";
 import type { Block } from "../../domain/block/block";
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
+import { useMessages } from "../workspace/use-messages";
 import {
   BLOCK_BODY_ATTRIBUTE,
   BLOCK_ID_ATTRIBUTE,
   RESIZE_HANDLE_ATTRIBUTE,
 } from "./block-dom";
 import { BlockRenderer } from "./block-renderer";
-import { blockAccessibleName, resizeHandleLabel } from "./canvas-messages";
+import { blockAccessibleName } from "./canvas-messages";
 import "./block-frame.css";
 
 export interface BlockFrameProps {
@@ -37,6 +38,7 @@ export const BlockFrame = memo(function BlockFrame({
   width,
   height,
 }: BlockFrameProps) {
+  const messages = useMessages().canvas;
   const classNames = ["block-frame"];
   if (selected) classNames.push("block-frame--selected");
   if (interacting) classNames.push("block-frame--interacting");
@@ -64,7 +66,7 @@ export const BlockFrame = memo(function BlockFrame({
       <button
         type="button"
         tabIndex={-1}
-        aria-label={resizeHandleLabel(block)}
+        aria-label={messages.resizeHandleLabel(blockAccessibleName(block))}
         className="block-frame__resize-handle"
         {...{ [RESIZE_HANDLE_ATTRIBUTE]: "" }}
       />

@@ -4,6 +4,7 @@ import type {
   GitSelection,
   GitSelectionSide,
 } from "../workspace/ui-state/ui-state";
+import { useMessages } from "../workspace/use-messages";
 import { tabTargetIndex } from "../workspace/view-models/keyboard-navigation";
 import { useGitState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
@@ -11,7 +12,6 @@ import { changeSidesOf } from "./git-change-sections";
 import { GitDiffContent } from "./git-diff-content";
 import { closeDiff, openDiff } from "./git-diff-session";
 import { findChangeListFocusTarget } from "./git-dom";
-import { GIT_MESSAGES, renamedPathText } from "./git-messages";
 
 const DIFF_SIDES: readonly GitSelectionSide[] = ["staged", "unstaged"];
 const CLOSE_KEY = "Escape";
@@ -25,6 +25,7 @@ interface GitDiffViewProps {
 // change, close) and the body for what the controller holds. Only a diff of exactly the
 // selected path and side is shown; anything else counts as loading.
 export function GitDiffView({ selection, status }: GitDiffViewProps) {
+  const messages = useMessages().git;
   const services = useWorkspaceServices();
   const diff = useGitState((git) => git.diff);
   const root = useRef<HTMLDivElement | null>(null);
@@ -38,7 +39,7 @@ export function GitDiffView({ selection, status }: GitDiffViewProps) {
     sides !== null && sides.staged !== null && sides.unstaged !== null;
   const pathText =
     stagedEntry?.originalPath != null && selection.side === "staged"
-      ? renamedPathText(stagedEntry.originalPath, selection.path)
+      ? messages.renamedPathText(stagedEntry.originalPath, selection.path)
       : selection.path;
 
   function close(): void {
@@ -69,13 +70,13 @@ export function GitDiffView({ selection, status }: GitDiffViewProps) {
       // The controller clears the diff on failure and the failure is already reported.
       return (
         <div className="git-diff__message">
-          <p role="status">{GIT_MESSAGES.diffFailed}</p>
+          <p role="status">{messages.diffFailed}</p>
           <button
             type="button"
             className="button"
             onClick={() => openDiff(services, selection)}
           >
-            {GIT_MESSAGES.retry}
+            {messages.retry}
           </button>
         </div>
       );
@@ -87,7 +88,7 @@ export function GitDiffView({ selection, status }: GitDiffViewProps) {
     ) {
       return (
         <p role="status" aria-busy="true" className="git-diff__message">
-          {GIT_MESSAGES.diffLoading}
+          {messages.diffLoading}
         </p>
       );
     }
@@ -111,7 +112,7 @@ export function GitDiffView({ selection, status }: GitDiffViewProps) {
         {showSwitch ? (
           <div
             role="tablist"
-            aria-label={GIT_MESSAGES.diffSideSwitchLabel}
+            aria-label={messages.diffSideSwitchLabel}
             className="tab-list git-diff__sides"
           >
             {DIFF_SIDES.map((side, index) => {
@@ -133,14 +134,14 @@ export function GitDiffView({ selection, status }: GitDiffViewProps) {
                   onClick={() => switchTo(side)}
                   onKeyDown={(event) => handleTabKeyDown(event, index)}
                 >
-                  {GIT_MESSAGES.diffSides[side]}
+                  {messages.diffSides[side]}
                 </button>
               );
             })}
           </div>
         ) : null}
         <button type="button" className="button" onClick={close}>
-          {GIT_MESSAGES.closeDiff}
+          {messages.closeDiff}
         </button>
       </header>
       {showSwitch ? (

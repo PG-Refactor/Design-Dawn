@@ -2,6 +2,7 @@ import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import type { DocumentId } from "../../domain/shared/entity-id";
 import { focusFallbackElement } from "./focus-utils";
 import { documentPanelId, documentTabId } from "./tab-ids";
+import { useMessages } from "./use-messages";
 import { useTabDrag } from "./use-tab-drag";
 import {
   NAVIGATION_KEYS,
@@ -11,7 +12,6 @@ import { MOVE_DIRECTIONS, oneStepMove } from "./view-models/reorder";
 import { dropMarker, tabClassName, ZERO_RECT } from "./view-models/tab-drag";
 import { type DocumentTab, selectDocumentTabs } from "./view-models/tabs-model";
 import { useWorkspaceModel } from "./workspace-hooks";
-import { closeTabLabel, MESSAGES, retrySaveLabel } from "./workspace-messages";
 import { useWorkspaceServices } from "./workspace-services-context";
 import "./tabs.css";
 
@@ -23,8 +23,9 @@ const SAVE_STATUS_ICON = {
 } as const;
 
 function SaveStatusIndicator({ tab }: { readonly tab: DocumentTab }) {
+  const messages = useMessages().workspace;
   if (tab.saveStatus === "saved") return null;
-  const label = MESSAGES.saveStatus[tab.saveStatus];
+  const label = messages.saveStatus[tab.saveStatus];
   // The icon is decoration; the text carries the meaning (never colour alone).
   return (
     <span className={`save-status save-status--${tab.saveStatus}`}>
@@ -35,6 +36,7 @@ function SaveStatusIndicator({ tab }: { readonly tab: DocumentTab }) {
 }
 
 export function DocumentTabs() {
+  const messages = useMessages().workspace;
   const { actions, uiStateStore } = useWorkspaceServices();
   const tabs = useWorkspaceModel(selectDocumentTabs);
   const tabElements = useRef(new Map<DocumentId, HTMLButtonElement>());
@@ -121,7 +123,7 @@ export function DocumentTabs() {
   return (
     <div
       role="tablist"
-      aria-label={MESSAGES.tabs.documentTabsLabel}
+      aria-label={messages.tabs.documentTabsLabel}
       className="tab-list"
     >
       {tabs.map((tab, index) => {
@@ -168,20 +170,20 @@ export function DocumentTabs() {
                 type="button"
                 className="tab__control"
                 tabIndex={isTabStop ? 0 : -1}
-                aria-label={retrySaveLabel(tab.name)}
+                aria-label={messages.retrySaveLabel(tab.name)}
                 onClick={() => void actions.retryDocumentSave(tab.documentId)}
               >
-                {MESSAGES.tabs.retrySave}
+                {messages.tabs.retrySave}
               </button>
             ) : null}
             <button
               type="button"
               className="tab__control"
               tabIndex={isTabStop ? 0 : -1}
-              aria-label={closeTabLabel(tab.name)}
+              aria-label={messages.closeTabLabel(tab.name)}
               onClick={() => void handleClose(tab)}
             >
-              <span aria-hidden="true">{MESSAGES.tabs.closeButtonText}</span>
+              <span aria-hidden="true">{messages.tabs.closeButtonText}</span>
             </button>
           </div>
         );

@@ -109,7 +109,17 @@ export interface ActionsHarness extends WorkspaceHarness {
   readonly services: WorkspaceServices;
 }
 
-export function createActionsHarness(): ActionsHarness {
+export interface ActionsHarnessOptions {
+  // The languages the fake WebView reports; the language preference stays "system".
+  readonly systemLanguages?: readonly string[];
+}
+
+// The tests assert Japanese texts unless a test asks for another language.
+export const DEFAULT_TEST_SYSTEM_LANGUAGES: readonly string[] = ["ja"];
+
+export function createActionsHarness(
+  options: ActionsHarnessOptions = {},
+): ActionsHarness {
   const base = createWorkspaceHarness();
   const uiStateStore = createUiStateStore();
   connectWorkspaceToUiState(base.workspace, uiStateStore);
@@ -147,7 +157,9 @@ export function createActionsHarness(): ActionsHarness {
   });
   const languageController = createLanguageController({
     gateway: createFakeAppSettingsGateway(),
-    systemLanguageSource: { current: () => ["en"] },
+    systemLanguageSource: {
+      current: () => options.systemLanguages ?? DEFAULT_TEST_SYSTEM_LANGUAGES,
+    },
   });
   const gitGateway = createFakeGitGateway();
   const gitController = createGitController({

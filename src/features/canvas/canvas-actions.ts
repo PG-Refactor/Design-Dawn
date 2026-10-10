@@ -67,7 +67,6 @@ import {
   type UiStateStore,
 } from "../workspace/ui-state/ui-state";
 import { isEditableBlockType } from "./block-capabilities";
-import { skippedBlocksSubject } from "./canvas-messages";
 import { findCreatableBlockType } from "./creatable-block-types";
 import { type AlignMode, alignedMoves } from "./geometry/align";
 import { pasteTarget } from "./geometry/paste-target";
@@ -414,7 +413,7 @@ export function createCanvasActions(
       addOperationError(
         state,
         operation,
-        skippedBlocksSubject(skippedBlockIds.length),
+        { blockCount: skippedBlockIds.length },
         error,
       ),
     );
@@ -429,12 +428,7 @@ export function createCanvasActions(
     const [first] = errors;
     if (first === undefined) return;
     uiStateStore.setState((state) =>
-      addOperationError(
-        state,
-        operation,
-        skippedBlocksSubject(errors.length),
-        first,
-      ),
+      addOperationError(state, operation, { blockCount: errors.length }, first),
     );
   }
 

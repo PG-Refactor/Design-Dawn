@@ -7,8 +7,8 @@ import { DocumentPanel } from "./document-panel";
 import { DocumentTabs } from "./document-tabs";
 import { ProjectTreeSplitter } from "./project-tree-splitter";
 import { Sidebar } from "./sidebar";
+import { useMessages } from "./use-messages";
 import { useUiState } from "./workspace-hooks";
-import { MESSAGES } from "./workspace-messages";
 import { useWorkspaceServices } from "./workspace-services-context";
 
 const { defaultWidthPx, maxWidthPx } = LAYOUT_CONFIG.projectTree;
@@ -23,6 +23,7 @@ const selectProjectTreeWidth = (state: LayoutSettingsState) =>
 // Project Tree, the splitter and the document area. The stored width comes from the layout
 // settings; while the user drags, a local live width is shown and stored only at the end.
 export function WorkspaceBody() {
+  const messages = useMessages().workspace;
   const { layoutSettingsController } = useWorkspaceServices();
   const storedWidth = useStoreSelector(
     layoutSettingsController.store,
@@ -77,7 +78,7 @@ export function WorkspaceBody() {
     <div ref={bodyRef} className="workspace-shell__body" style={style}>
       <aside
         className="workspace-shell__sidebar"
-        aria-label={MESSAGES.appRegionTreeLabel}
+        aria-label={messages.appRegionTreeLabel}
       >
         <Sidebar />
       </aside>

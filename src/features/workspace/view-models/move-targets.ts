@@ -10,7 +10,6 @@ import {
   type ParentId,
 } from "../../../application/workspace/project-entries";
 import type { EntryId, FolderId } from "../../../domain/shared/entity-id";
-import { MESSAGES } from "../workspace-messages";
 
 export type MoveTargetDisabledReason =
   // Moving to where the entry already is would change nothing.
@@ -35,7 +34,9 @@ export interface MoveTarget {
   readonly parentKey: string | null;
   // Whether a Folder is nested under this row (the dialog can fold it).
   readonly hasChildFolders: boolean;
-  readonly name: string;
+  // null for the Project root and for a Folder whose name could not be loaded; the text
+  // for both is chosen at render time, so it follows the display language.
+  readonly name: string | null;
   readonly depth: number;
   readonly disabledReason: MoveTargetDisabledReason | null;
 }
@@ -57,7 +58,7 @@ export function selectMoveTargets(
       hasChildFolders: project.folders.some(
         (entry) => entry.parentFolderId === null,
       ),
-      name: MESSAGES.dialogs.moveEntry.projectRoot,
+      name: null,
       depth: 0,
       disabledReason: currentParent === null ? "currentParent" : null,
     },
@@ -86,7 +87,7 @@ export function selectMoveTargets(
           project?.folders.some(
             (entry) => entry.parentFolderId === folder.folderId,
           ) ?? false,
-        name: folder.name ?? MESSAGES.tree.unnamedEntity,
+        name: folder.name,
         depth,
         disabledReason: selfOrDescendant
           ? "selfOrDescendant"

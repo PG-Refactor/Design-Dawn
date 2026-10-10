@@ -3,6 +3,7 @@ import type { GitStatus } from "../../application/ports/git-gateway";
 import type { ApplicationState } from "../../application/state/application-state";
 import { hasUnsavedProjectChanges } from "../../application/state/unsaved-changes";
 import { setGitCommitMessage } from "../workspace/ui-state/shell-ui-state";
+import { useMessages } from "../workspace/use-messages";
 import { NAVIGATION_KEYS } from "../workspace/view-models/keyboard-navigation";
 import {
   useGitState,
@@ -12,7 +13,6 @@ import {
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import { deriveGitChangeSections } from "./git-change-sections";
 import { refreshDiffAfterStatusChange } from "./git-diff-session";
-import { GIT_MESSAGES } from "./git-messages";
 import { reloadHistoryIfShown } from "./git-view-refresh";
 
 // Module-level so `useWorkspaceModel` recomputes only when a state changes. The draft
@@ -25,6 +25,7 @@ function selectHasUnsaved(application: ApplicationState): boolean {
 // The commit form of a ready repository. It commits what is staged, nothing else: it never
 // saves the workspace and never touches documents or Undo (docs/ui-design.md §13.4).
 export function GitCommitBox({ status }: { readonly status: GitStatus }) {
+  const messages = useMessages().git;
   const services = useWorkspaceServices();
   const { gitController, uiStateStore } = services;
   const message = useUiState((ui) => ui.gitCommitMessage);
@@ -94,7 +95,7 @@ export function GitCommitBox({ status }: { readonly status: GitStatus }) {
   return (
     <div className="git-commit-box">
       <label htmlFor={messageId} className="git-commit-box__label">
-        {GIT_MESSAGES.commitMessageLabel}
+        {messages.commitMessageLabel}
       </label>
       <textarea
         id={messageId}
@@ -117,7 +118,7 @@ export function GitCommitBox({ status }: { readonly status: GitStatus }) {
           aria-describedby={noteId}
           onClick={() => void submit()}
         >
-          {submitting ? GIT_MESSAGES.committing : GIT_MESSAGES.commit}
+          {submitting ? messages.committing : messages.commit}
         </button>
       </div>
       <p
@@ -130,10 +131,10 @@ export function GitCommitBox({ status }: { readonly status: GitStatus }) {
       >
         {hasUnsaved ? (
           <span className="git-commit-box__note-prefix">
-            {GIT_MESSAGES.commitUnsavedPrefix}
+            {messages.commitUnsavedPrefix}
           </span>
         ) : null}
-        {GIT_MESSAGES.commitUnsavedNote}
+        {messages.commitUnsavedNote}
       </p>
     </div>
   );

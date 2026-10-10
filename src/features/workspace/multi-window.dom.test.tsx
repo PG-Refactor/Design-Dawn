@@ -10,7 +10,9 @@ import {
 import { LAYOUT_CONFIG } from "../../config/layout-config";
 import { makeDocumentADirty } from "./test-support/actions-harness";
 import { chooseRowMenuItem, renderShell } from "./test-support/shell-harness";
-import { MESSAGES } from "./workspace-messages";
+import { WORKSPACE_MESSAGES } from "./workspace-messages";
+
+const MESSAGES = WORKSPACE_MESSAGES.ja;
 
 afterEach(() => {
   cleanup();

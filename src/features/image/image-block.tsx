@@ -2,12 +2,13 @@ import { useCallback, useMemo, useState } from "react";
 import type { ApplicationState } from "../../application/state/application-state";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import type { BlockRendererProps } from "../canvas/block-renderer";
+import { shortBlockId } from "../canvas/canvas-messages";
 import {
   clearImageLoadFailure,
   markImageLoadFailed,
 } from "../workspace/ui-state/ui-state";
+import { useMessages } from "../workspace/use-messages";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
-import { IMAGE_MESSAGES, imageAltText } from "./image-messages";
 import "./image-block.css";
 
 const selectProjectId = (application: ApplicationState) =>
@@ -40,6 +41,7 @@ interface LoadedImageProps
 }
 
 function LoadedImage({ source, sheetId, block }: LoadedImageProps) {
+  const messages = useMessages().image;
   const { uiStateStore } = useWorkspaceServices();
   const { blockId } = block;
   // Local, so every mount (for example coming back to the sheet) tries the load again.
@@ -62,9 +64,9 @@ function LoadedImage({ source, sheetId, block }: LoadedImageProps) {
     // file the block expects.
     return (
       <div className="image-block__state">
-        <p className="image-block__headline">{IMAGE_MESSAGES.loadFailed}</p>
+        <p className="image-block__headline">{messages.loadFailed}</p>
         <p className="image-block__path">
-          {IMAGE_MESSAGES.pathLabel}: {block.contentPath}
+          {messages.pathLabel}: {block.contentPath}
         </p>
       </div>
     );
@@ -74,7 +76,7 @@ function LoadedImage({ source, sheetId, block }: LoadedImageProps) {
       <img
         className="image-block__picture"
         src={source}
-        alt={imageAltText(blockId)}
+        alt={messages.altText(shortBlockId(blockId))}
         draggable={false}
         onLoad={onLoad}
         onError={onError}

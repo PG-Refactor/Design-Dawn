@@ -11,6 +11,7 @@ import {
   createInitialUiState,
   markImageLoadFailed,
 } from "../ui-state/ui-state";
+import { WORKSPACE_MESSAGES } from "../workspace-messages";
 import { selectNotifications } from "./notifications-model";
 
 const NO_THEME_PROBLEMS = { loadIssue: null, saveError: null } as const;
@@ -28,6 +29,7 @@ describe("image load failure notifications", () => {
       image.blockId,
     );
     const model = selectNotifications({
+      messages: WORKSPACE_MESSAGES.ja,
       application: harness.store.getState(),
       operationErrors: [],
       imageLoadFailures: ui.imageLoadFailures,
@@ -55,6 +57,7 @@ describe("image load failure notifications", () => {
       makeBlockAt(9, 0, 0, "image").blockId,
     );
     const model = selectNotifications({
+      messages: WORKSPACE_MESSAGES.ja,
       application: harness.store.getState(),
       operationErrors: [],
       imageLoadFailures: stale.imageLoadFailures,

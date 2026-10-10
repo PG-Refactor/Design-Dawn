@@ -63,6 +63,30 @@ export type Interaction =
       readonly mode: RangeSelectionMode;
     };
 
+// The name an entity had when the user asked; null = its name could not be loaded. The
+// text for that case is chosen at render time, so it follows the display language.
+export type EntityName = string | null;
+
+// What an operation error is about: a named thing, or blocks that were left out (counted,
+// so the sentence is built at render time in the current language).
+export interface BlockCountSubject {
+  readonly blockCount: number;
+}
+
+// An entity whose name could not be loaded; its placeholder text is chosen at render time.
+export interface UnnamedSubject {
+  readonly unnamed: true;
+}
+
+export const UNNAMED_SUBJECT: UnnamedSubject = { unnamed: true };
+
+export type OperationSubject = string | BlockCountSubject | UnnamedSubject;
+
+// The subject of an operation on an entity: its name, or the unnamed placeholder.
+export function entitySubject(name: EntityName): OperationSubject {
+  return name ?? UNNAMED_SUBJECT;
+}
+
 // What a "close with unsaved changes" confirmation is about (auto-save off). The window
 // answer is delivered to the pending close request, the others run an action when answered.
 export type UnsavedCloseTarget =
@@ -74,7 +98,7 @@ export type UnsavedCloseTarget =
   | {
       readonly kind: "document";
       readonly documentId: DocumentId;
-      readonly name: string;
+      readonly name: EntityName;
     };
 
 // The modal that is open (at most one). Confirmation states carry the entity name as it
@@ -96,13 +120,13 @@ export type DialogState =
   | {
       readonly kind: "moveEntry";
       readonly entryId: EntryId;
-      readonly name: string;
+      readonly name: EntityName;
     }
   // Asked after a target was picked while a Document that would move has unsaved changes.
   | {
       readonly kind: "confirmMoveSave";
       readonly entryId: EntryId;
-      readonly name: string;
+      readonly name: EntityName;
       readonly targetParentFolderId: FolderId | null;
     }
   | {
@@ -112,18 +136,18 @@ export type DialogState =
   | {
       readonly kind: "confirmDeleteFolder";
       readonly folderId: FolderId;
-      readonly name: string;
+      readonly name: EntityName;
     }
   | {
       readonly kind: "confirmDeleteDocument";
       readonly documentId: DocumentId;
-      readonly name: string;
+      readonly name: EntityName;
     }
   | {
       readonly kind: "confirmDeleteSheet";
       readonly documentId: DocumentId;
       readonly sheetId: SheetId;
-      readonly name: string;
+      readonly name: EntityName;
     };
 
 // The user-level operations that can fail and be reported (one value per message).
@@ -197,7 +221,7 @@ export interface OperationErrorEntry {
   readonly id: number;
   readonly operation: OperationLabel;
   // Name of the entity the operation was about, when there was one.
-  readonly subject: string | null;
+  readonly subject: OperationSubject | null;
   readonly error: OperationError;
 }
 

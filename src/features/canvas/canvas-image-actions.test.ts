@@ -289,7 +289,7 @@ describe("clipboard with image blocks", () => {
     expect(operationErrors(harness)).toMatchObject([
       {
         operation: "copyBlocks",
-        subject: "1個のBlock",
+        subject: { blockCount: 1 },
         error: { kind: "fileNotFound" },
       },
     ]);
@@ -415,7 +415,7 @@ describe("clipboard with image blocks", () => {
     expect(operationErrors(harness)).toMatchObject([
       {
         operation: "pasteBlocks",
-        subject: "1個のBlock",
+        subject: { blockCount: 1 },
         error: { kind: "fileNotFound" },
       },
     ]);

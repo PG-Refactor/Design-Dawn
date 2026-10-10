@@ -1,13 +1,14 @@
 import { useId } from "react";
 import { setGitHistoryExpanded } from "../workspace/ui-state/shell-ui-state";
+import { useMessages } from "../workspace/use-messages";
 import { useGitState, useUiState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import { GitHistoryEntryRow } from "./git-history-entry";
-import { GIT_MESSAGES } from "./git-messages";
 
 // The collapsible commit history of a ready repository. It reads the Git controller's
 // history and starts loads; collapsing neither clears it nor cancels a load in flight.
 export function GitHistorySection() {
+  const messages = useMessages().git;
   const { gitController, uiStateStore } = useWorkspaceServices();
   const expanded = useUiState((ui) => ui.gitHistoryExpanded);
   const history = useGitState((git) => git.history);
@@ -41,7 +42,7 @@ export function GitHistorySection() {
           aria-controls={regionId}
           onClick={toggle}
         >
-          {GIT_MESSAGES.historyToggle}
+          {messages.historyToggle}
         </button>
       </h2>
       <div id={regionId} hidden={!expanded} className="git-history__body">
@@ -49,30 +50,30 @@ export function GitHistorySection() {
           <>
             {loadingFirst ? (
               <p role="status" aria-busy="true" className="git-history__note">
-                {GIT_MESSAGES.historyLoading}
+                {messages.historyLoading}
               </p>
             ) : null}
             {firstLoadFailed ? (
               <div className="git-history__note">
-                <p role="status">{GIT_MESSAGES.historyFailed}</p>
+                <p role="status">{messages.historyFailed}</p>
                 <button
                   type="button"
                   className="button"
                   onClick={() => void gitController.loadHistory()}
                 >
-                  {GIT_MESSAGES.retry}
+                  {messages.retry}
                 </button>
               </div>
             ) : null}
             {history !== null &&
             history.status === "loaded" &&
             history.entries.length === 0 ? (
-              <p className="git-history__note">{GIT_MESSAGES.historyEmpty}</p>
+              <p className="git-history__note">{messages.historyEmpty}</p>
             ) : null}
             {history !== null && history.entries.length > 0 ? (
               <ol
                 className="git-history__list"
-                aria-label={GIT_MESSAGES.historyListLabel}
+                aria-label={messages.historyListLabel}
               >
                 {history.entries.map((entry) => (
                   <GitHistoryEntryRow key={entry.commitId} entry={entry} />
@@ -83,7 +84,7 @@ export function GitHistorySection() {
             history.entries.length > 0 &&
             historyError !== null ? (
               <p role="status" className="git-history__note">
-                {GIT_MESSAGES.historyMoreFailed}
+                {messages.historyMoreFailed}
               </p>
             ) : null}
             {history !== null && history.nextCursor !== null ? (
@@ -94,8 +95,8 @@ export function GitHistorySection() {
                 onClick={() => void gitController.loadMoreHistory()}
               >
                 {loadingMore
-                  ? GIT_MESSAGES.historyLoadingMore
-                  : GIT_MESSAGES.historyLoadMore}
+                  ? messages.historyLoadingMore
+                  : messages.historyLoadMore}
               </button>
             ) : null}
           </>

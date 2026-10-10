@@ -8,13 +8,9 @@ import {
 import { PopupMenu, type PopupMenuItem } from "../../shared/menu/popup-menu";
 import { FOCUS_FALLBACK_ATTRIBUTE } from "./focus-utils";
 import { TreeRenameInput } from "./tree-rename-input";
+import { useMessages } from "./use-messages";
 import { NAVIGATION_KEYS } from "./view-models/keyboard-navigation";
 import { MOVE_DIRECTIONS, type MoveDirection } from "./view-models/reorder";
-import {
-  MESSAGES,
-  renameInputLabel,
-  treeMenuLabel,
-} from "./workspace-messages";
 
 // Present while this row's name is being edited.
 export interface TreeItemRenaming {
@@ -87,6 +83,7 @@ export function TreeItem({
   menuItems,
   children,
 }: TreeItemProps) {
+  const messages = useMessages().workspace;
   const labelId = useId();
   const markerId = useId();
   const itemElement = useRef<HTMLLIElement | null>(null);
@@ -190,7 +187,7 @@ export function TreeItem({
         {renaming === undefined ? null : (
           <TreeRenameInput
             initialName={label}
-            label={renameInputLabel(label)}
+            label={messages.renameInputLabel(label)}
             onSubmit={renaming.onSubmit}
             onCancel={renaming.onCancel}
             restoreFocus={() => itemElement.current?.focus()}
@@ -200,16 +197,16 @@ export function TreeItem({
           <span
             id={markerId}
             className="tree-item__marker"
-            title={MESSAGES.tree.loadFailedHint}
+            title={messages.tree.loadFailedHint}
           >
-            {`⚠ ${MESSAGES.tree.loadFailedMarker}`}
+            {`⚠ ${messages.tree.loadFailedMarker}`}
           </span>
         ) : null}
         <PopupMenu
           className="tree-item__menu"
-          triggerLabel={treeMenuLabel(label)}
-          triggerContent={MESSAGES.tree.menuButtonText}
-          menuLabel={treeMenuLabel(label)}
+          triggerLabel={messages.treeMenuLabel(label)}
+          triggerContent={messages.tree.menuButtonText}
+          menuLabel={messages.treeMenuLabel(label)}
           items={menuItems}
           triggerTabIndex={isRoving ? 0 : -1}
         />

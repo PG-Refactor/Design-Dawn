@@ -41,7 +41,7 @@ async function openChanges(...files: GitFileStatus[]): Promise<ShellHarness> {
       screen.getByRole("tablist", { name: "左パネルの表示切り替え" }),
     ).getByRole("tab", { name: "Git" }),
   );
-  await screen.findByRole("heading", { name: GIT_MESSAGES.changeListLabel });
+  await screen.findByRole("heading", { name: GIT_MESSAGES.ja.changeListLabel });
   return shell;
 }
 
@@ -56,10 +56,10 @@ const sectionOf = (title: string) =>
   screen.getByRole("region", { name: title });
 
 const STAGE_BUTTON_TEXTS: readonly string[] = [
-  GIT_MESSAGES.stage,
-  GIT_MESSAGES.unstage,
-  GIT_MESSAGES.stageAll,
-  GIT_MESSAGES.unstageAll,
+  GIT_MESSAGES.ja.stage,
+  GIT_MESSAGES.ja.unstage,
+  GIT_MESSAGES.ja.stageAll,
+  GIT_MESSAGES.ja.unstageAll,
 ];
 
 const MIXED = [
@@ -117,7 +117,7 @@ describe("change list display", () => {
   it("omits empty sections and says so when there is nothing", async () => {
     await openChanges(file("c.md", "unmodified", "modified"));
     expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(1);
-    expect(screen.queryByText(GIT_MESSAGES.noChanges)).toBeNull();
+    expect(screen.queryByText(GIT_MESSAGES.ja.noChanges)).toBeNull();
     cleanup();
     await openChanges();
     expect(screen.getByText("変更はありません")).toBeTruthy();
@@ -138,7 +138,7 @@ describe("change list display", () => {
     const row = rowOf("競合", "競合 x.md");
     expect(within(row).queryByRole("button")).toBeNull();
     expect(within(sectionOf("競合")).queryByRole("button")).toBeNull();
-    expect(within(row).getByText(GIT_MESSAGES.conflictNote)).toBeTruthy();
+    expect(within(row).getByText(GIT_MESSAGES.ja.conflictNote)).toBeTruthy();
     expect(row.hasAttribute("aria-selected")).toBe(false);
   });
 });
@@ -155,7 +155,7 @@ describe("stage and unstage", () => {
       ),
     );
     await shell.user.click(
-      buttonIn(rowOf("変更", "変更 c.md"), GIT_MESSAGES.stage),
+      buttonIn(rowOf("変更", "変更 c.md"), GIT_MESSAGES.ja.stage),
     );
     await waitFor(() => expect(rowCountOf("ステージ済み")).toBe(3));
     expect(shell.gitGateway.stageCalls.map((call) => call.paths)).toEqual([
@@ -167,7 +167,7 @@ describe("stage and unstage", () => {
   it("stages an untracked row", async () => {
     const shell = await openChanges(...MIXED);
     await shell.user.click(
-      buttonIn(rowOf("未追跡", "未追跡 d.md"), GIT_MESSAGES.stage),
+      buttonIn(rowOf("未追跡", "未追跡 d.md"), GIT_MESSAGES.ja.stage),
     );
     expect(shell.gitGateway.stageCalls.map((call) => call.paths)).toEqual([
       ["d.md"],
@@ -180,13 +180,13 @@ describe("stage and unstage", () => {
       file("new.md", "renamed", "unmodified", "old.md"),
     );
     await shell.user.click(
-      buttonIn(rowOf("ステージ済み", "変更 a.md"), GIT_MESSAGES.unstage),
+      buttonIn(rowOf("ステージ済み", "変更 a.md"), GIT_MESSAGES.ja.unstage),
     );
     await settled();
     await shell.user.click(
       buttonIn(
         rowOf("ステージ済み", "名前変更 old.md → new.md"),
-        GIT_MESSAGES.unstage,
+        GIT_MESSAGES.ja.unstage,
       ),
     );
     expect(shell.gitGateway.unstageCalls.map((call) => call.paths)).toEqual([
@@ -197,10 +197,12 @@ describe("stage and unstage", () => {
 
   it("stages all of changes and untracked in one call each, conflicts excluded", async () => {
     const shell = await openChanges(...MIXED);
-    await shell.user.click(buttonIn(sectionOf("変更"), GIT_MESSAGES.stageAll));
+    await shell.user.click(
+      buttonIn(sectionOf("変更"), GIT_MESSAGES.ja.stageAll),
+    );
     await settled();
     await shell.user.click(
-      buttonIn(sectionOf("未追跡"), GIT_MESSAGES.stageAll),
+      buttonIn(sectionOf("未追跡"), GIT_MESSAGES.ja.stageAll),
     );
     expect(shell.gitGateway.stageCalls.map((call) => call.paths)).toEqual([
       ["b.md", "c.md"],
@@ -211,7 +213,7 @@ describe("stage and unstage", () => {
   it("unstages all staged files in one call", async () => {
     const shell = await openChanges(...MIXED);
     await shell.user.click(
-      buttonIn(sectionOf("ステージ済み"), GIT_MESSAGES.unstageAll),
+      buttonIn(sectionOf("ステージ済み"), GIT_MESSAGES.ja.unstageAll),
     );
     expect(shell.gitGateway.unstageCalls.map((call) => call.paths)).toEqual([
       ["a.md", "b.md"],
@@ -223,11 +225,11 @@ describe("stage and unstage", () => {
     const shell = await openChanges(...MIXED);
     const release = shell.gitGateway.holdNextStage();
     await shell.user.click(
-      buttonIn(rowOf("変更", "変更 c.md"), GIT_MESSAGES.stage),
+      buttonIn(rowOf("変更", "変更 c.md"), GIT_MESSAGES.ja.stage),
     );
-    expect(screen.getByText(GIT_MESSAGES.operating).getAttribute("role")).toBe(
-      "status",
-    );
+    expect(
+      screen.getByText(GIT_MESSAGES.ja.operating).getAttribute("role"),
+    ).toBe("status");
     const buttons = screen
       .getAllByRole("button")
       .filter((button) =>
@@ -244,9 +246,9 @@ describe("stage and unstage", () => {
       release();
       await settle();
     });
-    expect(screen.queryByText(GIT_MESSAGES.operating)).toBeNull();
+    expect(screen.queryByText(GIT_MESSAGES.ja.operating)).toBeNull();
     expect(
-      buttonIn(rowOf("変更", "変更 b.md"), GIT_MESSAGES.stage).disabled,
+      buttonIn(rowOf("変更", "変更 b.md"), GIT_MESSAGES.ja.stage).disabled,
     ).toBe(false);
   });
 
@@ -254,14 +256,14 @@ describe("stage and unstage", () => {
     const shell = await openChanges(...MIXED);
     shell.gitGateway.nextStageResult = operationErr("gitCommandFailed", "no");
     await shell.user.click(
-      buttonIn(rowOf("変更", "変更 c.md"), GIT_MESSAGES.stage),
+      buttonIn(rowOf("変更", "変更 c.md"), GIT_MESSAGES.ja.stage),
     );
     await settled();
     expect(shell.gitGateway.stageCalls).toHaveLength(1);
     // The failed call is followed by one status read, which returns the unchanged status.
     expect(rowOf("変更", "変更 c.md")).toBeTruthy();
     expect(rowCountOf("ステージ済み")).toBe(2);
-    expect(screen.queryByText(GIT_MESSAGES.operating)).toBeNull();
+    expect(screen.queryByText(GIT_MESSAGES.ja.operating)).toBeNull();
   });
 
   it("does not apply a stale result after the Project changed", async () => {
@@ -271,13 +273,13 @@ describe("stage and unstage", () => {
       statusOf(file("stale.md", "added", "unmodified")),
     );
     await shell.user.click(
-      buttonIn(rowOf("変更", "変更 c.md"), GIT_MESSAGES.stage),
+      buttonIn(rowOf("変更", "変更 c.md"), GIT_MESSAGES.ja.stage),
     );
     await act(async () => {
       await shell.actions.closeProject();
       await settle();
     });
-    expect(screen.getByText(GIT_MESSAGES.noProject)).toBeTruthy();
+    expect(screen.getByText(GIT_MESSAGES.ja.noProject)).toBeTruthy();
     await act(async () => {
       release();
       await settle();
@@ -373,7 +375,7 @@ describe("keyboard and focus", () => {
     screen.getAllByRole("option")[0]?.focus();
     await shell.user.tab();
     expect(document.activeElement).toBe(
-      buttonIn(rowOf("ステージ済み", "変更 a.md"), GIT_MESSAGES.unstage),
+      buttonIn(rowOf("ステージ済み", "変更 a.md"), GIT_MESSAGES.ja.unstage),
     );
   });
 
@@ -391,7 +393,7 @@ describe("keyboard and focus", () => {
       ),
     );
     await shell.user.click(
-      buttonIn(rowOf("ステージ済み", "変更 a.md"), GIT_MESSAGES.unstage),
+      buttonIn(rowOf("ステージ済み", "変更 a.md"), GIT_MESSAGES.ja.unstage),
     );
     await waitFor(() =>
       expect(document.activeElement).toBe(rowOf("ステージ済み", "変更 b.md")),
@@ -402,7 +404,7 @@ describe("keyboard and focus", () => {
     const shell = await openChanges(...MIXED);
     shell.gitGateway.nextStageResult = operationErr("gitCommandFailed", "no");
     await shell.user.click(
-      buttonIn(rowOf("変更", "変更 c.md"), GIT_MESSAGES.stage),
+      buttonIn(rowOf("変更", "変更 c.md"), GIT_MESSAGES.ja.stage),
     );
     await waitFor(() =>
       expect(document.activeElement).toBe(rowOf("変更", "変更 c.md")),
@@ -421,7 +423,7 @@ describe("keyboard and focus", () => {
       ),
     );
     await shell.user.click(
-      buttonIn(rowOf("変更", "変更 a.md"), GIT_MESSAGES.stage),
+      buttonIn(rowOf("変更", "変更 a.md"), GIT_MESSAGES.ja.stage),
     );
     await waitFor(() =>
       expect(document.activeElement).toBe(rowOf("未追跡", "未追跡 d.md")),
@@ -440,7 +442,7 @@ describe("keyboard and focus", () => {
       ),
     );
     await shell.user.click(
-      buttonIn(rowOf("変更", "変更 c.md"), GIT_MESSAGES.stage),
+      buttonIn(rowOf("変更", "変更 c.md"), GIT_MESSAGES.ja.stage),
     );
     await waitFor(() =>
       expect(document.activeElement).toBe(rowOf("ステージ済み", "変更 c.md")),
@@ -448,11 +450,11 @@ describe("keyboard and focus", () => {
 
     shell.gitGateway.nextUnstageResult = operationOk(statusOf());
     await shell.user.click(
-      buttonIn(sectionOf("ステージ済み"), GIT_MESSAGES.unstageAll),
+      buttonIn(sectionOf("ステージ済み"), GIT_MESSAGES.ja.unstageAll),
     );
     await waitFor(() =>
       expect(document.activeElement).toBe(
-        screen.getByRole("heading", { name: GIT_MESSAGES.changeListLabel }),
+        screen.getByRole("heading", { name: GIT_MESSAGES.ja.changeListLabel }),
       ),
     );
   });

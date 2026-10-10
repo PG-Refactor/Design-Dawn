@@ -1,7 +1,7 @@
 import { useRef } from "react";
+import { useMessages } from "../workspace/use-messages";
 import { useGitState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
-import { GIT_MESSAGES } from "./git-messages";
 import { GitRepositoryState } from "./git-repository-state";
 import { refreshGitView } from "./git-view-refresh";
 import "./git-panel.css";
@@ -9,6 +9,7 @@ import "./git-panel.css";
 // The Git side of the sidebar. It only reads the Git controller's state and calls its
 // operations; it keeps no Git state of its own.
 export function GitPanel() {
+  const messages = useMessages().git;
   const services = useWorkspaceServices();
   // A second click before the first refresh settled would start a second status read
   // (and a second history load).
@@ -28,7 +29,7 @@ export function GitPanel() {
   }
 
   return (
-    <section className="git-panel" aria-label={GIT_MESSAGES.panelLabel}>
+    <section className="git-panel" aria-label={messages.panelLabel}>
       {hasProject ? (
         <header className="git-panel__header">
           <button
@@ -39,7 +40,7 @@ export function GitPanel() {
             // expanded history is reloaded from its first page (docs/ui-design.md §13.3).
             onClick={() => void refresh()}
           >
-            {GIT_MESSAGES.refresh}
+            {messages.refresh}
           </button>
         </header>
       ) : null}

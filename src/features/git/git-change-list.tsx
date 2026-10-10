@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import type { GitStatus } from "../../application/ports/git-gateway";
+import { useMessages } from "../workspace/use-messages";
 import { NAVIGATION_KEYS } from "../workspace/view-models/keyboard-navigation";
 import { useGitState, useUiState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
@@ -24,7 +25,7 @@ import {
   GIT_CHANGE_HEADING_ATTRIBUTE,
   GIT_CHANGE_LIST_ATTRIBUTE,
 } from "./git-dom";
-import { GIT_MESSAGES, renamedPathText } from "./git-messages";
+import type { GitMessages } from "./git-messages";
 
 type IndexOperation = "stage" | "unstage";
 
@@ -33,24 +34,25 @@ const SECTION_OPERATIONS: Record<
   GitChangeSectionId,
   {
     readonly operation: IndexOperation;
-    readonly rowLabel: string;
-    readonly allLabel: string;
+    // Keys of the catalog, so the labels follow the display language.
+    readonly rowLabelKey: "stage" | "unstage";
+    readonly allLabelKey: "stageAll" | "unstageAll";
   } | null
 > = {
   staged: {
     operation: "unstage",
-    rowLabel: GIT_MESSAGES.unstage,
-    allLabel: GIT_MESSAGES.unstageAll,
+    rowLabelKey: "unstage",
+    allLabelKey: "unstageAll",
   },
   changes: {
     operation: "stage",
-    rowLabel: GIT_MESSAGES.stage,
-    allLabel: GIT_MESSAGES.stageAll,
+    rowLabelKey: "stage",
+    allLabelKey: "stageAll",
   },
   untracked: {
     operation: "stage",
-    rowLabel: GIT_MESSAGES.stage,
-    allLabel: GIT_MESSAGES.stageAll,
+    rowLabelKey: "stage",
+    allLabelKey: "stageAll",
   },
   conflicts: null,
 };
@@ -86,18 +88,17 @@ function ChangeRow({
   onNavigate,
   onOperate,
 }: ChangeRowProps) {
+  const messages = useMessages().git;
   const kindId = useId();
   const pathId = useId();
   const kind =
-    GIT_MESSAGES.changeKinds[
-      entry.change as keyof typeof GIT_MESSAGES.changeKinds
-    ];
+    messages.changeKinds[entry.change as keyof GitMessages["changeKinds"]];
   const operation = SECTION_OPERATIONS[entry.sectionId];
   // Paths are repository text: only ever rendered as React text.
   const pathText =
     entry.originalPath === null
       ? entry.path
-      : renamedPathText(entry.originalPath, entry.path);
+      : messages.renamedPathText(entry.originalPath, entry.path);
 
   function handleClick(event: MouseEvent<HTMLDivElement>): void {
     const target = event.target;
@@ -146,9 +147,7 @@ function ChangeRow({
         {pathText}
       </span>
       {operation === null ? (
-        <span className="git-change-row__note">
-          {GIT_MESSAGES.conflictNote}
-        </span>
+        <span className="git-change-row__note">{messages.conflictNote}</span>
       ) : (
         <button
           type="button"
@@ -158,7 +157,7 @@ function ChangeRow({
           aria-describedby={pathId}
           onClick={() => onOperate(entry)}
         >
-          {operation.rowLabel}
+          {messages[operation.rowLabelKey]}
         </button>
       )}
     </div>
@@ -169,6 +168,7 @@ function ChangeRow({
 // Stage / Unstage. It only derives from the Git status; the status is replaced by the
 // answer of the Git controller, never edited here.
 export function GitChangeList({ status }: { readonly status: GitStatus }) {
+  const messages = useMessages().git;
   const services = useWorkspaceServices();
   const { gitController } = services;
   const operating = useGitState((git) => git.operating);
@@ -283,19 +283,19 @@ export function GitChangeList({ status }: { readonly status: GitStatus }) {
         className="git-change-list__heading"
         {...{ [GIT_CHANGE_HEADING_ATTRIBUTE]: "" }}
       >
-        {GIT_MESSAGES.changeListLabel}
+        {messages.changeListLabel}
       </h2>
       {operating ? (
         <p role="status" className="git-panel__refreshing">
-          {GIT_MESSAGES.operating}
+          {messages.operating}
         </p>
       ) : null}
       {sections.length === 0 ? (
-        <p className="git-panel__message">{GIT_MESSAGES.noChanges}</p>
+        <p className="git-panel__message">{messages.noChanges}</p>
       ) : null}
       {sections.map((section) => {
         const operation = SECTION_OPERATIONS[section.id];
-        const title = GIT_MESSAGES.sectionTitles[section.id];
+        const title = messages.sectionTitles[section.id];
         return (
           <section
             key={section.id}
@@ -316,7 +316,7 @@ export function GitChangeList({ status }: { readonly status: GitStatus }) {
                   disabled={busy}
                   onClick={() => operateOnSection(section)}
                 >
-                  {operation.allLabel}
+                  {messages[operation.allLabelKey]}
                 </button>
               )}
             </header>

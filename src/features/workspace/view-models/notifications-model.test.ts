@@ -25,6 +25,7 @@ import {
   seedSheetBlocks,
 } from "../test-support/actions-harness";
 import type { OperationErrorEntry } from "../ui-state/ui-state";
+import { WORKSPACE_MESSAGES } from "../workspace-messages";
 import {
   countNotifications,
   type NotificationItem,
@@ -50,6 +51,7 @@ const kindsOf = (items: readonly NotificationItem[]) =>
 describe("selectNotifications", () => {
   it("is empty without a project and without problems", () => {
     const model = selectNotifications({
+      messages: WORKSPACE_MESSAGES.ja,
       application: createApplicationStore().getState(),
       operationErrors: [],
       theme: NO_THEME_PROBLEMS,
@@ -61,6 +63,7 @@ describe("selectNotifications", () => {
   it("lists every load issue and the load failures, nothing else, for a fresh load", async () => {
     const harness = await richWorkspace();
     const model = selectNotifications({
+      messages: WORKSPACE_MESSAGES.ja,
       application: harness.store.getState(),
       operationErrors: [],
       theme: NO_THEME_PROBLEMS,
@@ -104,6 +107,7 @@ describe("selectNotifications", () => {
       { id: 1, operation: "openProject", subject: null, error: IO_ERROR },
     ];
     const model = selectNotifications({
+      messages: WORKSPACE_MESSAGES.ja,
       application: harness.store.getState(),
       operationErrors,
       theme: { loadIssue: IO_ERROR, saveError: IO_ERROR },
@@ -132,6 +136,7 @@ describe("selectNotifications", () => {
     harness.gateway.failAlways("saveProject", "ioError");
     await harness.workspace.createDocument("New");
     const model = selectNotifications({
+      messages: WORKSPACE_MESSAGES.ja,
       application: harness.store.getState(),
       operationErrors: [
         { id: 7, operation: "deleteSheet", subject: "S", error: IO_ERROR },
@@ -164,6 +169,7 @@ describe("selectNotifications", () => {
     ]);
     await harness.workspace.openProject(SELECTION_ID);
     const model = selectNotifications({
+      messages: WORKSPACE_MESSAGES.ja,
       application: harness.store.getState(),
       operationErrors: [],
       theme: NO_THEME_PROBLEMS,
@@ -200,6 +206,7 @@ describe("content load failures", () => {
       ?.loadSheetContents(SHEET_A1);
 
     const model = selectNotifications({
+      messages: WORKSPACE_MESSAGES.ja,
       application: harness.store.getState(),
       operationErrors: [],
       theme: NO_THEME_PROBLEMS,
@@ -230,6 +237,7 @@ describe("content load failures", () => {
       .getDocumentSession(DOCUMENT_A)
       ?.loadSheetContents(SHEET_A1);
     const model = selectNotifications({
+      messages: WORKSPACE_MESSAGES.ja,
       application: harness.store.getState(),
       operationErrors: [],
       theme: NO_THEME_PROBLEMS,
@@ -243,12 +251,14 @@ describe("selectLoadStatusMessages", () => {
     const harness = createWorkspaceHarness();
     await seedProjectIssues(harness, [PROJECT_ISSUE]);
     await harness.workspace.openProject(SELECTION_ID);
-    expect(selectLoadStatusMessages(harness.store.getState())).toEqual([
-      "Projectを警告付きで読み込みました",
-    ]);
+    expect(
+      selectLoadStatusMessages(WORKSPACE_MESSAGES.ja, harness.store.getState()),
+    ).toEqual(["Projectを警告付きで読み込みました"]);
     await harness.workspace.openDocument(DOCUMENT_A);
     await harness.workspace.openDocument(DOCUMENT_B);
-    expect(selectLoadStatusMessages(harness.store.getState())).toEqual([
+    expect(
+      selectLoadStatusMessages(WORKSPACE_MESSAGES.ja, harness.store.getState()),
+    ).toEqual([
       "Projectを警告付きで読み込みました",
       "Documentを警告付きで読み込みました（Document A）",
     ]);

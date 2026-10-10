@@ -72,17 +72,17 @@ describe("Project | Git switch", () => {
     expect(screen.queryByRole("tablist", { name: "Document Tabs" })).toBeNull();
     expect(screen.queryByRole("tablist", { name: "Sheet Tabs" })).toBeNull();
     const mainArea = screen.getByRole("region", {
-      name: GIT_MESSAGES.mainAreaLabel,
+      name: GIT_MESSAGES.ja.mainAreaLabel,
     });
     expect(
-      within(mainArea).getByText(GIT_MESSAGES.mainAreaPlaceholder),
+      within(mainArea).getByText(GIT_MESSAGES.ja.mainAreaPlaceholder),
     ).toBeTruthy();
 
     await shell.user.click(modeTab("Project"));
     expect(screen.getByRole("tablist", { name: "Document Tabs" })).toBeTruthy();
     expect(screen.getByRole("tablist", { name: "Sheet Tabs" })).toBeTruthy();
     expect(
-      screen.queryByRole("region", { name: GIT_MESSAGES.mainAreaLabel }),
+      screen.queryByRole("region", { name: GIT_MESSAGES.ja.mainAreaLabel }),
     ).toBeNull();
     const after = shell.uiStateStore.getState();
     expect(after.activeDocumentId).toBe(DOCUMENT_A);
@@ -116,7 +116,7 @@ describe("repository state", () => {
   it("asks for a Project when none is open and shows no Git state", async () => {
     const shell = await renderShell();
     await showGit(shell);
-    expect(screen.getByText(GIT_MESSAGES.noProject)).toBeTruthy();
+    expect(screen.getByText(GIT_MESSAGES.ja.noProject)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "更新" })).toBeNull();
   });
 
@@ -125,14 +125,16 @@ describe("repository state", () => {
     const release = shell.gitGateway.holdNextCall();
     await shell.openProjectInUi();
     await showGit(shell);
-    const loading = screen.getByText(GIT_MESSAGES.loading);
+    const loading = screen.getByText(GIT_MESSAGES.ja.loading);
     expect(loading.getAttribute("role")).toBe("status");
     expect(loading.getAttribute("aria-busy")).toBe("true");
     await act(async () => {
       release();
       await settle();
     });
-    expect(screen.getByText(GIT_MESSAGES.repositoryStates.ready)).toBeTruthy();
+    expect(
+      screen.getByText(GIT_MESSAGES.ja.repositoryStates.ready),
+    ).toBeTruthy();
   });
 
   it.each([
@@ -150,7 +152,7 @@ describe("repository state", () => {
     const status = screen.getByRole("status", { name: "Repositoryの状態" });
     expect(status.textContent).toBe(text);
     expect(screen.queryByRole("button", { name: "再試行" })).toBeNull();
-    expect(screen.queryByText(GIT_MESSAGES.loading)).toBeNull();
+    expect(screen.queryByText(GIT_MESSAGES.ja.loading)).toBeNull();
   });
 
   it("shows the change list placeholder only when ready", async () => {
@@ -168,14 +170,14 @@ describe("repository state", () => {
     shell.gitGateway.failure = { kind: "gitTimeout", detail: "slow" };
     await shell.openProjectInUi();
     await showGit(shell);
-    expect(screen.getByText(GIT_MESSAGES.statusFailed)).toBeTruthy();
+    expect(screen.getByText(GIT_MESSAGES.ja.statusFailed)).toBeTruthy();
     const callsBefore = shell.gitGateway.calls.length;
 
     shell.gitGateway.failure = null;
     await shell.user.click(screen.getByRole("button", { name: "再試行" }));
     await waitFor(() =>
       expect(
-        screen.getByText(GIT_MESSAGES.repositoryStates.ready),
+        screen.getByText(GIT_MESSAGES.ja.repositoryStates.ready),
       ).toBeTruthy(),
     );
     expect(shell.gitGateway.calls.length).toBe(callsBefore + 1);
@@ -191,8 +193,10 @@ describe("repository state", () => {
 
     const release = shell.gitGateway.holdNextCall();
     await shell.user.click(refresh);
-    expect(screen.getByText(GIT_MESSAGES.refreshing)).toBeTruthy();
-    expect(screen.getByText(GIT_MESSAGES.repositoryStates.ready)).toBeTruthy();
+    expect(screen.getByText(GIT_MESSAGES.ja.refreshing)).toBeTruthy();
+    expect(
+      screen.getByText(GIT_MESSAGES.ja.repositoryStates.ready),
+    ).toBeTruthy();
     expect(
       (screen.getByRole("button", { name: "更新" }) as HTMLButtonElement)
         .disabled,
@@ -201,7 +205,7 @@ describe("repository state", () => {
       release();
       await settle();
     });
-    expect(screen.queryByText(GIT_MESSAGES.refreshing)).toBeNull();
+    expect(screen.queryByText(GIT_MESSAGES.ja.refreshing)).toBeNull();
     expect(
       (screen.getByRole("button", { name: "更新" }) as HTMLButtonElement)
         .disabled,
@@ -235,16 +239,16 @@ describe("repository state", () => {
     const shell = await renderShell();
     await openProjectWithState(shell, "notRepository");
     expect(
-      screen.getByText(GIT_MESSAGES.repositoryStates.notRepository),
+      screen.getByText(GIT_MESSAGES.ja.repositoryStates.notRepository),
     ).toBeTruthy();
 
     await act(async () => {
       await shell.actions.closeProject();
       await settle();
     });
-    expect(screen.getByText(GIT_MESSAGES.noProject)).toBeTruthy();
+    expect(screen.getByText(GIT_MESSAGES.ja.noProject)).toBeTruthy();
     expect(
-      screen.queryByText(GIT_MESSAGES.repositoryStates.notRepository),
+      screen.queryByText(GIT_MESSAGES.ja.repositoryStates.notRepository),
     ).toBeNull();
 
     shell.gitGateway.status = CLEAN_GIT_STATUS;
@@ -253,14 +257,16 @@ describe("repository state", () => {
       await shell.actions.openProjectViaDialog();
       await settle();
     });
-    expect(screen.getByText(GIT_MESSAGES.loading)).toBeTruthy();
+    expect(screen.getByText(GIT_MESSAGES.ja.loading)).toBeTruthy();
     expect(
-      screen.queryByText(GIT_MESSAGES.repositoryStates.notRepository),
+      screen.queryByText(GIT_MESSAGES.ja.repositoryStates.notRepository),
     ).toBeNull();
     await act(async () => {
       release();
       await settle();
     });
-    expect(screen.getByText(GIT_MESSAGES.repositoryStates.ready)).toBeTruthy();
+    expect(
+      screen.getByText(GIT_MESSAGES.ja.repositoryStates.ready),
+    ).toBeTruthy();
   });
 });

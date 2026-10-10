@@ -9,6 +9,7 @@ import type {
   LeftPanelMode,
   NoticeKind,
   OperationLabel,
+  OperationSubject,
   UiState,
 } from "./ui-state";
 
@@ -26,7 +27,7 @@ export function closeDialog(state: UiState): UiState {
 export function addOperationError(
   state: UiState,
   operation: OperationLabel,
-  subject: string | null,
+  subject: OperationSubject | null,
   error: OperationError,
 ): UiState {
   return {

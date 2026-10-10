@@ -7,22 +7,22 @@ import {
   type LeftPanelMode,
   type UiState,
 } from "./ui-state/ui-state";
+import { useMessages } from "./use-messages";
 import { tabTargetIndex } from "./view-models/keyboard-navigation";
 import { useUiState } from "./workspace-hooks";
-import { MESSAGES } from "./workspace-messages";
 import { useWorkspaceServices } from "./workspace-services-context";
 import "./tabs.css";
 
 const selectLeftPanelMode = (ui: UiState) => ui.leftPanelMode;
 
-const MODE_LABELS: Record<LeftPanelMode, string> = {
-  project: MESSAGES.leftPanel.project,
-  git: MESSAGES.leftPanel.git,
-};
-
 // The sidebar content: a Project | Git switch above the Project Tree or the Git panel
 // (docs/ui-design.md §13.1). The mode is window-local UI state.
 export function Sidebar() {
+  const messages = useMessages().workspace;
+  const modeLabels: Record<LeftPanelMode, string> = {
+    project: messages.leftPanel.project,
+    git: messages.leftPanel.git,
+  };
   const { actions } = useWorkspaceServices();
   const mode = useUiState(selectLeftPanelMode);
   const tabElements = useRef(new Map<LeftPanelMode, HTMLButtonElement>());
@@ -44,7 +44,7 @@ export function Sidebar() {
     <>
       <div
         role="tablist"
-        aria-label={MESSAGES.leftPanel.tabsLabel}
+        aria-label={messages.leftPanel.tabsLabel}
         className="tab-list left-panel-tabs"
       >
         {LEFT_PANEL_MODES.map((tabMode, index) => {
@@ -66,7 +66,7 @@ export function Sidebar() {
                 onClick={() => actions.setLeftPanelMode(tabMode)}
                 onKeyDown={(event) => handleKeyDown(event, index)}
               >
-                <span className="tab__name">{MODE_LABELS[tabMode]}</span>
+                <span className="tab__name">{modeLabels[tabMode]}</span>
               </button>
             </div>
           );

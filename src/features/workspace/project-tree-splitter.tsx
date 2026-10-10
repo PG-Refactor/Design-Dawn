@@ -1,7 +1,7 @@
 import { type KeyboardEvent, type PointerEvent, useRef } from "react";
 import { clampProjectTreeWidth } from "../../application/local-state/project-tree-width";
 import { LAYOUT_CONFIG } from "../../config/layout-config";
-import { MESSAGES } from "./workspace-messages";
+import { useMessages } from "./use-messages";
 import "./project-tree-splitter.css";
 
 const { minWidthPx, maxWidthPx, keyStepPx, largeKeyStepPx } =
@@ -43,6 +43,7 @@ export function ProjectTreeSplitter({
   onCancel,
   onReset,
 }: ProjectTreeSplitterProps) {
+  const messages = useMessages().workspace;
   // A ref, not state: pointer moves must see the latest drag without waiting for a render.
   const dragRef = useRef<DragState | null>(null);
 
@@ -121,7 +122,7 @@ export function ProjectTreeSplitter({
     <div
       role="separator"
       aria-orientation="vertical"
-      aria-label={MESSAGES.splitter.label}
+      aria-label={messages.splitter.label}
       aria-valuenow={width}
       aria-valuemin={minWidthPx}
       aria-valuemax={maxWidthPx}

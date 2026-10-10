@@ -5,6 +5,7 @@ import type { KeyboardEvent } from "react";
 import type { PopupMenuItem } from "../../shared/menu/popup-menu";
 import { TreeItem, type TreeItemRenaming } from "./tree-item";
 import { type RenamingTarget, sameRenamingTarget } from "./ui-state/ui-state";
+import { useMessages } from "./use-messages";
 import { MOVE_DIRECTIONS, type MoveDirection } from "./view-models/reorder";
 import { documentTreeKey, folderTreeKey } from "./view-models/tree-items";
 import type {
@@ -13,7 +14,7 @@ import type {
   TreeEntryNode,
 } from "./view-models/tree-model";
 import type { WorkspaceActions } from "./workspace-actions";
-import { MESSAGES } from "./workspace-messages";
+import type { WorkspaceMessages } from "./workspace-messages";
 
 export interface TreeHandlers {
   readonly actions: WorkspaceActions;
@@ -46,6 +47,7 @@ function renamingProps(
 }
 
 function moveMenuItems(
+  messages: WorkspaceMessages,
   canMoveUp: boolean,
   canMoveDown: boolean,
   move: (direction: MoveDirection) => void,
@@ -53,13 +55,13 @@ function moveMenuItems(
   return [
     {
       id: "moveUp",
-      label: MESSAGES.tree.moveUp,
+      label: messages.tree.moveUp,
       disabled: !canMoveUp,
       onSelect: () => move(MOVE_DIRECTIONS.up),
     },
     {
       id: "moveDown",
-      label: MESSAGES.tree.moveDown,
+      label: messages.tree.moveDown,
       disabled: !canMoveDown,
       onSelect: () => move(MOVE_DIRECTIONS.down),
     },
@@ -75,6 +77,7 @@ function DocumentTreeItem({
   readonly level: number;
   readonly handlers: TreeHandlers;
 }) {
+  const messages = useMessages().workspace;
   const { actions, keepFocus } = handlers;
   const { documentId } = documentNode;
   const itemKey = documentTreeKey(documentId);
@@ -89,34 +92,39 @@ function DocumentTreeItem({
   const menuItems: PopupMenuItem[] = [
     {
       id: "rename",
-      label: MESSAGES.tree.rename,
+      label: messages.tree.rename,
       disabled: failed,
       onSelect: rename,
     },
-    ...moveMenuItems(documentNode.canMoveUp, documentNode.canMoveDown, move),
+    ...moveMenuItems(
+      messages,
+      documentNode.canMoveUp,
+      documentNode.canMoveDown,
+      move,
+    ),
     {
       id: "moveTo",
-      label: MESSAGES.tree.moveTo,
+      label: messages.tree.moveTo,
       disabled: failed,
       onSelect: () => actions.requestMoveEntry(documentId),
     },
     {
       id: "createSheet",
-      label: MESSAGES.tree.createSheet,
+      label: messages.tree.createSheet,
       // A document that failed to load has no sheets to add to.
       disabled: failed,
       onSelect: () => void actions.requestCreateSheet(documentId),
     },
     {
       id: "delete",
-      label: MESSAGES.tree.deleteDocument,
+      label: messages.tree.deleteDocument,
       onSelect: () => actions.requestDeleteDocument(documentId),
     },
   ];
   return (
     <TreeItem
       itemKey={itemKey}
-      label={documentNode.name}
+      label={documentNode.name ?? messages.tree.unnamedEntity}
       level={level}
       isRoving={handlers.rovingKey === itemKey}
       selected={documentNode.isActive}
@@ -144,6 +152,7 @@ function FolderTreeItem({
   readonly level: number;
   readonly handlers: TreeHandlers;
 }) {
+  const messages = useMessages().workspace;
   const { actions, keepFocus } = handlers;
   const { folderId } = folderNode;
   const itemKey = folderTreeKey(folderId);
@@ -159,48 +168,53 @@ function FolderTreeItem({
   const menuItems: PopupMenuItem[] = [
     {
       id: "createFolder",
-      label: MESSAGES.tree.createFolder,
+      label: messages.tree.createFolder,
       disabled: failed,
       onSelect: () => actions.requestCreateFolder(folderId),
     },
     {
       id: "createDocument",
-      label: MESSAGES.tree.createDocument,
+      label: messages.tree.createDocument,
       disabled: failed,
       onSelect: () => actions.requestCreateDocument(folderId),
     },
     {
       id: "rename",
-      label: MESSAGES.tree.rename,
+      label: messages.tree.rename,
       disabled: failed,
       onSelect: rename,
     },
-    ...moveMenuItems(folderNode.canMoveUp, folderNode.canMoveDown, move),
+    ...moveMenuItems(
+      messages,
+      folderNode.canMoveUp,
+      folderNode.canMoveDown,
+      move,
+    ),
     {
       id: "moveTo",
-      label: MESSAGES.tree.moveTo,
+      label: messages.tree.moveTo,
       disabled: failed,
       onSelect: () => actions.requestMoveEntry(folderId),
     },
     {
       id: "delete",
-      label: MESSAGES.tree.deleteFolder,
+      label: messages.tree.deleteFolder,
       disabled: !isEmpty,
-      hint: isEmpty ? undefined : MESSAGES.tree.deleteFolderNotEmptyHint,
+      hint: isEmpty ? undefined : messages.tree.deleteFolderNotEmptyHint,
       onSelect: () => actions.requestDeleteFolder(folderId),
     },
   ];
   return (
     <TreeItem
       itemKey={itemKey}
-      label={folderNode.name}
+      label={folderNode.name ?? messages.tree.unnamedEntity}
       level={level}
       isRoving={handlers.rovingKey === itemKey}
       expanded={folderNode.isExpanded}
       leadingMarker={
         folderNode.isExpanded
-          ? MESSAGES.tree.folderExpandedMarker
-          : MESSAGES.tree.folderCollapsedMarker
+          ? messages.tree.folderExpandedMarker
+          : messages.tree.folderCollapsedMarker
       }
       failed={failed}
       register={handlers.register}
@@ -214,7 +228,7 @@ function FolderTreeItem({
       menuItems={menuItems}
     >
       {!folderNode.isExpanded ? null : isEmpty ? (
-        <p className="project-tree__empty">{MESSAGES.tree.emptyFolder}</p>
+        <p className="project-tree__empty">{messages.tree.emptyFolder}</p>
       ) : (
         <EntryItems
           entries={folderNode.children}

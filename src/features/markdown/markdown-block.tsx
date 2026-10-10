@@ -3,10 +3,11 @@ import type { ApplicationState } from "../../application/state/application-state
 import type { BlockId } from "../../domain/shared/entity-id";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import type { BlockRendererProps } from "../canvas/block-renderer";
+import { shortBlockId } from "../canvas/canvas-messages";
+import { useMessages } from "../workspace/use-messages";
 import { useUiState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import { MarkdownEditor } from "./markdown-editor";
-import { MARKDOWN_MESSAGES, previewLabel } from "./markdown-messages";
 import { MarkdownPreview } from "./markdown-preview";
 import { renderMarkdown } from "./render-markdown";
 import "./markdown-block.css";
@@ -19,6 +20,7 @@ export function MarkdownBlock({
   sheetId,
   block,
 }: BlockRendererProps) {
+  const messages = useMessages().markdown;
   const { applicationStore } = useWorkspaceServices();
   const { blockId } = block;
   const status = useStoreSelector(
@@ -51,14 +53,12 @@ export function MarkdownBlock({
     // invite an edit that overwrites the one that could not be read.
     return (
       <div className="markdown-block__state markdown-block__state--error">
-        <p className="markdown-block__headline">
-          {MARKDOWN_MESSAGES.loadFailed}
-        </p>
-        <p>{MARKDOWN_MESSAGES.loadFailedHint}</p>
+        <p className="markdown-block__headline">{messages.loadFailed}</p>
+        <p>{messages.loadFailedHint}</p>
         <details>
-          <summary>{MARKDOWN_MESSAGES.errorDetails}</summary>
+          <summary>{messages.errorDetails}</summary>
           <dl className="markdown-block__details">
-            <dt>{MARKDOWN_MESSAGES.errorKind}</dt>
+            <dt>{messages.errorKind}</dt>
             <dd>{status.error.kind}</dd>
             <dd>{status.error.detail}</dd>
           </dl>
@@ -69,7 +69,7 @@ export function MarkdownBlock({
   if (status?.status !== "loaded" || text === undefined) {
     return (
       <div className="markdown-block__state" role="status">
-        {MARKDOWN_MESSAGES.loading}
+        {messages.loading}
       </div>
     );
   }
@@ -93,6 +93,12 @@ function RenderedMarkdown({
   readonly blockId: BlockId;
   readonly text: string;
 }) {
+  const markdownMessages = useMessages().markdown;
   const html = useMemo(() => renderMarkdown(text), [text]);
-  return <MarkdownPreview html={html} label={previewLabel(blockId)} />;
+  return (
+    <MarkdownPreview
+      html={html}
+      label={markdownMessages.previewLabel(shortBlockId(blockId))}
+    />
+  );
 }

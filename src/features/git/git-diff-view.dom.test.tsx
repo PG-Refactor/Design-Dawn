@@ -48,7 +48,7 @@ async function openChanges(...files: GitFileStatus[]): Promise<ShellHarness> {
       screen.getByRole("tablist", { name: "左パネルの表示切り替え" }),
     ).getByRole("tab", { name: "Git" }),
   );
-  await screen.findByRole("heading", { name: GIT_MESSAGES.changeListLabel });
+  await screen.findByRole("heading", { name: GIT_MESSAGES.ja.changeListLabel });
   return shell;
 }
 
@@ -89,7 +89,7 @@ describe("opening a diff", () => {
       file("d.md", "untracked", "untracked"),
     );
     expect(
-      within(mainArea()).getByText(GIT_MESSAGES.mainAreaPlaceholder),
+      within(mainArea()).getByText(GIT_MESSAGES.ja.mainAreaPlaceholder),
     ).toBeTruthy();
     await clickRow(shell, "ステージ済み", "変更 a.md");
     await clickRow(shell, "変更", "変更 c.md");
@@ -109,7 +109,7 @@ describe("opening a diff", () => {
     await clickRow(shell, "競合", "競合 x.md");
     expect(shell.gitGateway.diffCalls).toHaveLength(0);
     expect(
-      within(mainArea()).getByText(GIT_MESSAGES.mainAreaPlaceholder),
+      within(mainArea()).getByText(GIT_MESSAGES.ja.mainAreaPlaceholder),
     ).toBeTruthy();
   });
 
@@ -131,7 +131,7 @@ describe("opening a diff", () => {
     const release = shell.gitGateway.holdNextDiff();
     await clickRow(shell, "変更", "変更 a.md");
     const loading = within(mainArea()).getByRole("status");
-    expect(loading.textContent).toBe(GIT_MESSAGES.diffLoading);
+    expect(loading.textContent).toBe(GIT_MESSAGES.ja.diffLoading);
     expect(loading.getAttribute("aria-busy")).toBe("true");
     await act(async () => {
       release();
@@ -186,7 +186,7 @@ describe("outcomes", () => {
     [
       "empty",
       { path: "a.md", side: "unstaged", outcome: "empty" },
-      GIT_MESSAGES.diffEmpty,
+      GIT_MESSAGES.ja.diffEmpty,
     ],
     [
       "untracked",
@@ -228,7 +228,9 @@ describe("outcomes", () => {
     shell.gitGateway.failure = { kind: "gitTimeout", detail: "slow" };
     await clickRow(shell, "変更", "変更 a.md");
     await settled();
-    expect(within(mainArea()).getByText(GIT_MESSAGES.diffFailed)).toBeTruthy();
+    expect(
+      within(mainArea()).getByText(GIT_MESSAGES.ja.diffFailed),
+    ).toBeTruthy();
     shell.gitGateway.failure = null;
     shell.gitGateway.diffs["unstaged:a.md"] = textDiff(
       "a.md",
@@ -236,11 +238,13 @@ describe("outcomes", () => {
       "@@ -1 +1 @@\n+ok\n",
     );
     await shell.user.click(
-      within(mainArea()).getByRole("button", { name: GIT_MESSAGES.retry }),
+      within(mainArea()).getByRole("button", { name: GIT_MESSAGES.ja.retry }),
     );
     await settled();
     expect(within(mainArea()).getByText("+ok")).toBeTruthy();
-    expect(within(mainArea()).queryByText(GIT_MESSAGES.diffFailed)).toBeNull();
+    expect(
+      within(mainArea()).queryByText(GIT_MESSAGES.ja.diffFailed),
+    ).toBeNull();
   });
 });
 
@@ -294,12 +298,14 @@ describe("closing", () => {
     await clickRow(shell, "変更", "変更 a.md");
     await settled();
     await shell.user.click(
-      within(mainArea()).getByRole("button", { name: GIT_MESSAGES.closeDiff }),
+      within(mainArea()).getByRole("button", {
+        name: GIT_MESSAGES.ja.closeDiff,
+      }),
     );
     expect(shell.uiStateStore.getState().gitSelection).toBeNull();
     expect(shell.gitController.store.getState().diff).toBeNull();
     expect(
-      within(mainArea()).getByText(GIT_MESSAGES.mainAreaPlaceholder),
+      within(mainArea()).getByText(GIT_MESSAGES.ja.mainAreaPlaceholder),
     ).toBeTruthy();
     expect(document.activeElement).toBe(rowOf("変更", "変更 a.md"));
   });
@@ -330,7 +336,7 @@ describe("after stage and unstage", () => {
     );
     await shell.user.click(
       within(rowOf("変更", "変更 a.md")).getByRole("button", {
-        name: GIT_MESSAGES.stage,
+        name: GIT_MESSAGES.ja.stage,
       }),
     );
     await settled();
@@ -358,7 +364,7 @@ describe("after stage and unstage", () => {
     );
     await shell.user.click(
       within(rowOf("変更", "変更 a.md")).getByRole("button", {
-        name: GIT_MESSAGES.stage,
+        name: GIT_MESSAGES.ja.stage,
       }),
     );
     await settled();
@@ -384,7 +390,7 @@ describe("after stage and unstage", () => {
     );
     await shell.user.click(
       within(rowOf("ステージ済み", "変更 a.md")).getByRole("button", {
-        name: GIT_MESSAGES.unstage,
+        name: GIT_MESSAGES.ja.unstage,
       }),
     );
     await settled();
@@ -399,7 +405,7 @@ describe("after stage and unstage", () => {
     );
     await shell.user.click(
       within(rowOf("変更", "変更 a.md")).getByRole("button", {
-        name: GIT_MESSAGES.stage,
+        name: GIT_MESSAGES.ja.stage,
       }),
     );
     await settled();
@@ -422,7 +428,7 @@ describe("after stage and unstage", () => {
     );
     await shell.user.click(
       within(screen.getByRole("region", { name: "変更" })).getByRole("button", {
-        name: GIT_MESSAGES.stageAll,
+        name: GIT_MESSAGES.ja.stageAll,
       }),
     );
     await settled();
@@ -439,7 +445,7 @@ describe("after stage and unstage", () => {
     shell.gitGateway.nextStageResult = operationErr("gitCommandFailed", "no");
     await shell.user.click(
       within(rowOf("変更", "変更 a.md")).getByRole("button", {
-        name: GIT_MESSAGES.stage,
+        name: GIT_MESSAGES.ja.stage,
       }),
     );
     await settled();
@@ -476,7 +482,9 @@ describe("races", () => {
     await clickRow(shell, "変更", "変更 b.md");
     // While A is outstanding nothing of A may show for B.
     expect(within(mainArea()).queryByText("+from A")).toBeNull();
-    expect(within(mainArea()).getByText(GIT_MESSAGES.diffLoading)).toBeTruthy();
+    expect(
+      within(mainArea()).getByText(GIT_MESSAGES.ja.diffLoading),
+    ).toBeTruthy();
     await act(async () => {
       release();
       await settle();
@@ -500,7 +508,7 @@ describe("races", () => {
     });
     expect(screen.queryByText("+secret")).toBeNull();
     expect(
-      within(mainArea()).getByText(GIT_MESSAGES.mainAreaPlaceholder),
+      within(mainArea()).getByText(GIT_MESSAGES.ja.mainAreaPlaceholder),
     ).toBeTruthy();
   });
 });

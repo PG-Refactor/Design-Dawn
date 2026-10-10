@@ -1,5 +1,6 @@
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 import { parseDisplayName } from "../../domain/shared/display-name";
+import { useMessages } from "./use-messages";
 import { describeInvalidName } from "./workspace-messages";
 
 export interface TreeRenameInputProps {
@@ -26,6 +27,7 @@ export function TreeRenameInput({
   onCancel,
   restoreFocus,
 }: TreeRenameInputProps) {
+  const messages = useMessages().workspace;
   const errorId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   // Set once Enter / Escape ended the edit, so the blur caused by moving focus away does
@@ -57,7 +59,7 @@ export function TreeRenameInput({
     if (event.key !== KEYS.enter) return;
     event.preventDefault();
     if (!parseDisplayName(draft).ok) {
-      setErrorMessage(describeInvalidName(draft));
+      setErrorMessage(describeInvalidName(messages, draft));
       return;
     }
     finish(() => onSubmit(draft));

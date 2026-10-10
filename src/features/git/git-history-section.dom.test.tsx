@@ -13,7 +13,7 @@ import {
   type ShellHarness,
 } from "../workspace/test-support/shell-harness";
 import { formatCommitDate } from "./git-history-format";
-import { commitIdLabel, GIT_MESSAGES } from "./git-messages";
+import { GIT_MESSAGES } from "./git-messages";
 
 afterEach(cleanup);
 
@@ -56,10 +56,10 @@ const READY: GitStatus = { repositoryState: "ready", files: [STAGED] };
 
 const toggle = () =>
   screen.getByRole("button", {
-    name: GIT_MESSAGES.historyToggle,
+    name: GIT_MESSAGES.ja.historyToggle,
   }) as HTMLButtonElement;
 const list = () =>
-  screen.getByRole("list", { name: GIT_MESSAGES.historyListLabel });
+  screen.getByRole("list", { name: GIT_MESSAGES.ja.historyListLabel });
 const summaries = () =>
   within(list())
     .getAllByRole("listitem")
@@ -67,11 +67,11 @@ const summaries = () =>
 const moreButton = () =>
   screen.queryByRole("button", {
     name: new RegExp(
-      `^(${GIT_MESSAGES.historyLoadMore}|${GIT_MESSAGES.historyLoadingMore})$`,
+      `^(${GIT_MESSAGES.ja.historyLoadMore}|${GIT_MESSAGES.ja.historyLoadingMore})$`,
     ),
   }) as HTMLButtonElement | null;
 const refreshButton = () =>
-  screen.getByRole("button", { name: GIT_MESSAGES.refresh });
+  screen.getByRole("button", { name: GIT_MESSAGES.ja.refresh });
 
 async function settled(): Promise<void> {
   await act(async () => {
@@ -98,7 +98,7 @@ async function openGit(
       screen.getByRole("tablist", { name: "左パネルの表示切り替え" }),
     ).getByRole("tab", { name: "Git" }),
   );
-  await screen.findByRole("heading", { name: GIT_MESSAGES.changeListLabel });
+  await screen.findByRole("heading", { name: GIT_MESSAGES.ja.changeListLabel });
   return shell;
 }
 
@@ -154,20 +154,20 @@ describe("states", () => {
     const shell = await openGit();
     const hold = shell.gitGateway.holdNextHistory();
     await shell.user.click(toggle());
-    const status = screen.getByText(GIT_MESSAGES.historyLoading);
+    const status = screen.getByText(GIT_MESSAGES.ja.historyLoading);
     expect(status.getAttribute("role")).toBe("status");
     expect(status.getAttribute("aria-busy")).toBe("true");
     await release(hold);
-    expect(screen.queryByText(GIT_MESSAGES.historyLoading)).toBeNull();
+    expect(screen.queryByText(GIT_MESSAGES.ja.historyLoading)).toBeNull();
     expect(summaries()).toEqual(["first", "second"]);
   });
 
   it("shows the empty text without a commit", async () => {
     const shell = await openGit([{ entries: [], nextCursor: null }]);
     await expand(shell);
-    expect(screen.getByText(GIT_MESSAGES.historyEmpty)).toBeTruthy();
+    expect(screen.getByText(GIT_MESSAGES.ja.historyEmpty)).toBeTruthy();
     expect(
-      screen.queryByRole("list", { name: GIT_MESSAGES.historyListLabel }),
+      screen.queryByRole("list", { name: GIT_MESSAGES.ja.historyListLabel }),
     ).toBeNull();
   });
 
@@ -175,15 +175,15 @@ describe("states", () => {
     const shell = await openGit();
     shell.gitGateway.historyFailure = { kind: "gitTimeout", detail: "x" };
     await expand(shell);
-    expect(screen.getByText(GIT_MESSAGES.historyFailed)).toBeTruthy();
-    expect(screen.queryByText(GIT_MESSAGES.historyEmpty)).toBeNull();
+    expect(screen.getByText(GIT_MESSAGES.ja.historyFailed)).toBeTruthy();
+    expect(screen.queryByText(GIT_MESSAGES.ja.historyEmpty)).toBeNull();
 
     shell.gitGateway.historyFailure = null;
     await shell.user.click(
-      screen.getByRole("button", { name: GIT_MESSAGES.retry }),
+      screen.getByRole("button", { name: GIT_MESSAGES.ja.retry }),
     );
     await settled();
-    expect(screen.queryByText(GIT_MESSAGES.historyFailed)).toBeNull();
+    expect(screen.queryByText(GIT_MESSAGES.ja.historyFailed)).toBeNull();
     expect(summaries()).toEqual(["first", "second"]);
   });
 
@@ -206,7 +206,9 @@ describe("entries", () => {
     const item = within(list()).getAllByRole("listitem")[0] as HTMLElement;
     expect(within(item).getByText("first")).toBeTruthy();
     expect(within(item).getByText("Alice")).toBeTruthy();
-    const id = within(item).getByLabelText(commitIdLabel(ID_ONE));
+    const id = within(item).getByLabelText(
+      GIT_MESSAGES.ja.commitIdLabel(ID_ONE),
+    );
     expect(id.textContent).toBe(ID_ONE.slice(0, 7));
     expect(id.getAttribute("title")).toBe(ID_ONE);
     const time = item.querySelector("time");
@@ -270,7 +272,7 @@ describe("loading more", () => {
     const hold = shell.gitGateway.holdNextHistory();
     await shell.user.click(moreButton() as HTMLButtonElement);
     const busy = moreButton() as HTMLButtonElement;
-    expect(busy.textContent).toBe(GIT_MESSAGES.historyLoadingMore);
+    expect(busy.textContent).toBe(GIT_MESSAGES.ja.historyLoadingMore);
     expect(busy.disabled).toBe(true);
     expect(summaries()).toEqual(["first", "second"]);
     await shell.user.click(busy);
@@ -300,14 +302,14 @@ describe("loading more", () => {
     await shell.user.click(moreButton() as HTMLButtonElement);
     await settled();
     expect(summaries()).toEqual(["first", "second"]);
-    expect(screen.getByText(GIT_MESSAGES.historyMoreFailed)).toBeTruthy();
+    expect(screen.getByText(GIT_MESSAGES.ja.historyMoreFailed)).toBeTruthy();
     expect(moreButton()?.disabled).toBe(false);
 
     shell.gitGateway.historyFailure = null;
     await shell.user.click(moreButton() as HTMLButtonElement);
     await settled();
     expect(summaries()).toEqual(["first", "second", "third"]);
-    expect(screen.queryByText(GIT_MESSAGES.historyMoreFailed)).toBeNull();
+    expect(screen.queryByText(GIT_MESSAGES.ja.historyMoreFailed)).toBeNull();
   });
 
   it("shows a consistent result when collapsed and re-expanded during the load", async () => {
@@ -363,7 +365,7 @@ describe("refresh", () => {
     const historyCalls = shell.gitGateway.historyCalls.length;
 
     await shell.user.click(
-      screen.getByRole("button", { name: GIT_MESSAGES.retry }),
+      screen.getByRole("button", { name: GIT_MESSAGES.ja.retry }),
     );
     await settled();
 
@@ -399,12 +401,12 @@ describe("refresh", () => {
 describe("after a commit", () => {
   async function commit(shell: ShellHarness): Promise<void> {
     await shell.user.click(
-      screen.getByRole("textbox", { name: GIT_MESSAGES.commitMessageLabel }),
+      screen.getByRole("textbox", { name: GIT_MESSAGES.ja.commitMessageLabel }),
     );
     await shell.user.paste("message");
     await shell.user.click(
       screen.getByRole("button", {
-        name: new RegExp(`^${GIT_MESSAGES.commit}`),
+        name: new RegExp(`^${GIT_MESSAGES.ja.commit}`),
       }),
     );
     await settled();

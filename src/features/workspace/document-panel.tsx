@@ -3,8 +3,8 @@ import { CanvasPanel } from "../canvas/canvas-panel";
 import { SheetTabs } from "./sheet-tabs";
 import { documentPanelId, documentTabId } from "./tab-ids";
 import type { UiState } from "./ui-state/ui-state";
+import { useMessages } from "./use-messages";
 import { useWorkspaceModel } from "./workspace-hooks";
-import { MESSAGES } from "./workspace-messages";
 
 type PanelModel =
   | {
@@ -32,15 +32,16 @@ function selectPanel(application: ApplicationState, ui: UiState): PanelModel {
 
 // The tab panel of the active document tab: its sheet tabs and the sheet area.
 export function DocumentPanel() {
+  const messages = useMessages().workspace;
   const panel = useWorkspaceModel(selectPanel);
   if (panel.kind === "noProject") {
     return (
-      <p className="document-panel__empty">{MESSAGES.placeholder.noProject}</p>
+      <p className="document-panel__empty">{messages.placeholder.noProject}</p>
     );
   }
   if (panel.kind === "noDocument") {
     return (
-      <p className="document-panel__empty">{MESSAGES.placeholder.noDocument}</p>
+      <p className="document-panel__empty">{messages.placeholder.noDocument}</p>
     );
   }
   return (

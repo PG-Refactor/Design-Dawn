@@ -19,14 +19,10 @@ import {
   BLOCK_BODY_ATTRIBUTE,
   BLOCK_EDITOR_ATTRIBUTE,
 } from "../canvas/block-dom";
+import { shortBlockId } from "../canvas/canvas-messages";
 import { stopEditing } from "../workspace/ui-state/ui-state";
+import { useMessages } from "../workspace/use-messages";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
-import {
-  editorLabel,
-  MARKDOWN_MESSAGES,
-  previewLabel,
-  sourceLabel,
-} from "./markdown-messages";
 import { MarkdownPreview } from "./markdown-preview";
 import { renderMarkdown } from "./render-markdown";
 
@@ -55,6 +51,8 @@ export function MarkdownEditor({
   blockId,
   initialText,
 }: MarkdownEditorProps) {
+  const messages = useMessages().markdown;
+  const shortId = shortBlockId(blockId);
   const services = useWorkspaceServices();
   const { canvasActions, uiStateStore } = services;
   const [draft, setDraft] = useState(initialText);
@@ -173,7 +171,7 @@ export function MarkdownEditor({
     <div
       ref={containerRef}
       role="group"
-      aria-label={editorLabel(blockId)}
+      aria-label={messages.editorLabel(shortId)}
       // Programmatic / click focus only (see onBlur).
       tabIndex={-1}
       className="markdown-editor"
@@ -183,7 +181,7 @@ export function MarkdownEditor({
       <textarea
         ref={textareaRef}
         className="markdown-editor__source"
-        aria-label={sourceLabel(blockId)}
+        aria-label={messages.sourceLabel(shortId)}
         spellCheck={false}
         value={draft}
         onChange={(event) => {
@@ -197,11 +195,15 @@ export function MarkdownEditor({
           className="button"
           onClick={() => void finish(true)}
         >
-          {MARKDOWN_MESSAGES.done}
+          {messages.done}
         </button>
       </div>
       <div className="markdown-editor__preview">
-        <MarkdownPreview html={html} label={previewLabel(blockId)} scrollable />
+        <MarkdownPreview
+          html={html}
+          label={messages.previewLabel(shortId)}
+          scrollable
+        />
       </div>
     </div>
   );

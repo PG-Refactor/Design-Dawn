@@ -5,7 +5,7 @@ import {
   useState,
 } from "react";
 import type { BlockType } from "../../domain/block/block-type";
-import { CANVAS_MESSAGES } from "./canvas-messages";
+import { useMessages } from "../workspace/use-messages";
 import { CREATABLE_BLOCK_TYPES } from "./creatable-block-types";
 
 export interface BlockCreateMenuProps {
@@ -24,6 +24,7 @@ const KEYS = {
 // block types; arrow keys move, Enter / click chooses, Escape closes and focus goes back to
 // the button.
 export function BlockCreateMenu({ onCreate }: BlockCreateMenuProps) {
+  const messages = useMessages().canvas;
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -103,13 +104,13 @@ export function BlockCreateMenu({ onCreate }: BlockCreateMenuProps) {
           }
         }}
       >
-        {CANVAS_MESSAGES.toolbar.addBlock}
+        {messages.toolbar.addBlock}
       </button>
       {open && (
         <div
           ref={menuRef}
           role="menu"
-          aria-label={CANVAS_MESSAGES.toolbar.blockTypeMenuLabel}
+          aria-label={messages.toolbar.blockTypeMenuLabel}
           className="block-create-menu__list"
           onKeyDown={onMenuKeyDown}
         >

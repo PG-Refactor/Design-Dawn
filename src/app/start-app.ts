@@ -11,7 +11,7 @@ import { applyTheme, type ThemeTarget } from "../features/theme/apply-theme";
 
 export interface StartAppDependencies {
   readonly themeController: Pick<ThemeController, "store" | "initialize">;
-  // Loaded alongside the theme; the language is not shown anywhere yet.
+  // Loaded alongside the theme; the UI texts follow it (see `useMessages`).
   readonly languageController?: Pick<LanguageController, "initialize">;
   // Loaded alongside the theme; behaves as "on" until then.
   readonly autoSaveController?: Pick<AutoSaveController, "initialize">;

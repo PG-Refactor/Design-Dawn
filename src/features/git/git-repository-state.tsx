@@ -1,11 +1,11 @@
 import type { GitStatus } from "../../application/ports/git-gateway";
 import type { OperationErrorKind } from "../../application/ports/operation-error";
+import { useMessages } from "../workspace/use-messages";
 import { useGitState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import { GitChangeList } from "./git-change-list";
 import { GitCommitBox } from "./git-commit-box";
 import { GitHistorySection } from "./git-history-section";
-import { GIT_MESSAGES } from "./git-messages";
 import { refreshGitView } from "./git-view-refresh";
 
 // What the panel knows, decided from the Git state only (docs/ui-design.md §13.2).
@@ -28,6 +28,7 @@ function viewOf(
 // The repository state as text. No Git state is shown without an open Project, and a
 // stale status is never shown (the controller drops it on failure).
 export function GitRepositoryState() {
+  const messages = useMessages().git;
   const services = useWorkspaceServices();
   const projectId = useGitState((git) => git.projectId);
   const status = useGitState((git) => git.status);
@@ -37,18 +38,18 @@ export function GitRepositoryState() {
 
   switch (view.kind) {
     case "noProject":
-      return <p className="git-panel__message">{GIT_MESSAGES.noProject}</p>;
+      return <p className="git-panel__message">{messages.noProject}</p>;
     case "loading":
       return (
         <p role="status" aria-busy="true" className="git-panel__message">
-          {GIT_MESSAGES.loading}
+          {messages.loading}
         </p>
       );
     case "failed":
       // The failure itself is already reported by the application layer.
       return (
         <div className="git-panel__message">
-          <p role="status">{GIT_MESSAGES.statusFailed}</p>
+          <p role="status">{messages.statusFailed}</p>
           <button
             type="button"
             className="button"
@@ -57,7 +58,7 @@ export function GitRepositoryState() {
             // recovered status too.
             onClick={() => void refreshGitView(services)}
           >
-            {GIT_MESSAGES.retry}
+            {messages.retry}
           </button>
         </div>
       );
@@ -66,15 +67,15 @@ export function GitRepositoryState() {
         <div className="git-panel__state">
           {refreshing ? (
             <p role="status" className="git-panel__refreshing">
-              {GIT_MESSAGES.refreshing}
+              {messages.refreshing}
             </p>
           ) : null}
           <p
             role="status"
-            aria-label={GIT_MESSAGES.repositoryStateLabel}
+            aria-label={messages.repositoryStateLabel}
             className="git-panel__message"
           >
-            {GIT_MESSAGES.repositoryStates[view.status.repositoryState]}
+            {messages.repositoryStates[view.status.repositoryState]}
           </p>
           {view.status.repositoryState === "ready" ? (
             <div className="git-panel__changes">
