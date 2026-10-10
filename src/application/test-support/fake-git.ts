@@ -9,6 +9,7 @@ import type {
   GitDiscardImpact,
   GitGateway,
   GitHistoryPage,
+  GitRemoteResult,
   GitStatus,
   GitUndoCommitResult,
 } from "../ports/git-gateway";
@@ -69,6 +70,23 @@ export interface FakeGitGateway extends GitGateway {
   holdNextUndo(): () => void;
   // Answer of `commit` (when `failure` is null): the status after it defaults to `status`.
   commitResult: GitCommitResult | null;
+  // Remote operations (`fetch` / `pull` / `push` / `publish` share the hold and `failure`).
+  readonly fetchCalls: { projectId: ProjectId }[];
+  readonly pullCalls: { projectId: ProjectId }[];
+  readonly pushCalls: { projectId: ProjectId }[];
+  readonly publishCalls: { projectId: ProjectId; remote: string }[];
+  readonly remotesCalls: { projectId: ProjectId }[];
+  // Answer of the matching call (when `failure` is null); null answers an updated status
+  // equal to `status`.
+  fetchResult: GitRemoteResult | null;
+  pullResult: GitRemoteResult | null;
+  pushResult: GitRemoteResult | null;
+  publishResult: GitRemoteResult | null;
+  // Answer of `remotes` (when `failure` is null).
+  remoteNames: readonly string[];
+  // Suspends the next `fetch` / `pull` / `push` / `publish` call until the returned
+  // function is called (the call is recorded before it waits).
+  holdNextRemote(): () => void;
   // Returned by the next calls until changed.
   status: GitStatus;
   failure: OperationError | null;
@@ -112,6 +130,26 @@ export function createFakeGitGateway(): FakeGitGateway {
   let commitHold: Promise<void> | null = null;
   let undoHold: Promise<void> | null = null;
   let discardHold: Promise<void> | null = null;
+  let remoteHold: Promise<void> | null = null;
+  async function remoteAnswer(
+    configured: GitRemoteResult | null,
+  ): Promise<OperationResult<GitRemoteResult>> {
+    // Captured before waiting, like the other calls.
+    const answer: OperationResult<GitRemoteResult> = gateway.failure
+      ? operationErr<GitRemoteResult>(
+          gateway.failure.kind,
+          gateway.failure.detail,
+        )
+      : operationOk(
+          configured ?? {
+            status: { outcome: "updated", status: gateway.status },
+          },
+        );
+    const pending = remoteHold;
+    remoteHold = null;
+    if (pending !== null) await pending;
+    return answer;
+  }
   function indexAnswer(): OperationResult<GitStatus> {
     return gateway.failure
       ? operationErr<GitStatus>(gateway.failure.kind, gateway.failure.detail)
@@ -134,6 +172,48 @@ export function createFakeGitGateway(): FakeGitGateway {
     undoCalls: [],
     undoResult: null,
     commitResult: null,
+    fetchCalls: [],
+    pullCalls: [],
+    pushCalls: [],
+    publishCalls: [],
+    remotesCalls: [],
+    fetchResult: null,
+    pullResult: null,
+    pushResult: null,
+    publishResult: null,
+    remoteNames: [],
+    holdNextRemote() {
+      let release: () => void = () => undefined;
+      remoteHold = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return release;
+    },
+    async fetch(projectId) {
+      gateway.fetchCalls.push({ projectId });
+      return remoteAnswer(gateway.fetchResult);
+    },
+    async pull(projectId) {
+      gateway.pullCalls.push({ projectId });
+      return remoteAnswer(gateway.pullResult);
+    },
+    async push(projectId) {
+      gateway.pushCalls.push({ projectId });
+      return remoteAnswer(gateway.pushResult);
+    },
+    async publish(projectId, remote) {
+      gateway.publishCalls.push({ projectId, remote });
+      return remoteAnswer(gateway.publishResult);
+    },
+    async remotes(projectId) {
+      gateway.remotesCalls.push({ projectId });
+      return gateway.failure
+        ? operationErr<readonly string[]>(
+            gateway.failure.kind,
+            gateway.failure.detail,
+          )
+        : operationOk(gateway.remoteNames);
+    },
     status: CLEAN_GIT_STATUS,
     failure: null,
     nextStageResult: null,

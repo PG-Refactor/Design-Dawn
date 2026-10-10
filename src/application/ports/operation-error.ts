@@ -71,6 +71,16 @@ export const GIT_ERROR_KINDS = [
   "gitNoCommitToAmend",
   "gitCommitAlreadyPushed",
   "gitCannotUndoCommit",
+  // Remote operations (docs/git-development.md §11.16).
+  "gitNoRemote",
+  "gitNoUpstream",
+  "gitDetachedHead",
+  "gitRemoteNotFound",
+  "gitAuthenticationFailed",
+  "gitNetworkUnavailable",
+  "gitPushRejected",
+  "gitPullConflicts",
+  "gitPullBlockedByLocalChanges",
 ] as const;
 
 // Domain errors that only Rust can produce (TypeScript treats contentPath as opaque).

@@ -21,6 +21,7 @@ import {
   type GitFileStatus,
   type GitHistoryEntry,
   type GitHistoryPage,
+  type GitRemoteResult,
   type GitRepositoryState,
   type GitStatus,
   type GitUndoCommitResult,
@@ -172,6 +173,14 @@ const rawUnavailableStatus = objectOf<{ readonly errorKind: GitErrorKind }>({
 
 // The status part shared by the commit and the undo results. `outcome` was checked by the
 // caller; the rest of the object is checked here.
+const rawGitRemoteHead = objectOf<{
+  readonly status: { readonly outcome: GitCommitOutcome };
+}>({
+  status: objectOf<{ readonly outcome: GitCommitOutcome }>({
+    outcome: oneOf<readonly GitCommitOutcome[]>(GIT_COMMIT_OUTCOMES),
+  }),
+});
+
 function toCommitStatus(
   outcome: GitCommitOutcome,
   rawStatus: unknown,
@@ -229,6 +238,30 @@ export function toGitUndoCommitResult(
   return decodedStatus.ok
     ? commandOk({ message, status: decodedStatus.value })
     : decodedStatus;
+}
+
+export function toGitRemoteResult(
+  payload: unknown,
+): CommandResult<GitRemoteResult> {
+  const head = rawGitRemoteHead(payload, PAYLOAD_ROOT);
+  if (!head.ok) return commandErr("invalidCommandResponse", head.detail);
+  // `head` proved the payload is an object with an object `status`.
+  const rawStatus = (payload as { readonly status: unknown }).status;
+  const decodedStatus = toCommitStatus(head.value.status.outcome, rawStatus);
+  return decodedStatus.ok
+    ? commandOk({ status: decodedStatus.value })
+    : decodedStatus;
+}
+
+const rawRemoteNames = arrayOf(decodeString);
+
+export function toRemoteNames(
+  payload: unknown,
+): CommandResult<readonly string[]> {
+  const names = rawRemoteNames(payload, PAYLOAD_ROOT);
+  return names.ok
+    ? commandOk(names.value)
+    : commandErr("invalidCommandResponse", names.detail);
 }
 
 // ISO 8601 date and time with an offset or Z (git prints `+00:00` style offsets). Only the

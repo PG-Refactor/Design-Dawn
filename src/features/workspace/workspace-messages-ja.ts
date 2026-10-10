@@ -111,6 +111,17 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
   gitCommitAlreadyPushed: "プッシュ済みのコミットは変更できません",
   gitCannotUndoCommit:
     "このコミットは元に戻せません（最初のコミットまたはマージコミット）",
+  gitNoRemote: "リモートが設定されていません",
+  gitNoUpstream: "このブランチには上流ブランチがありません",
+  gitDetachedHead: "ブランチをチェックアウトしていません（detached HEAD）",
+  gitRemoteNotFound: "リモートが見つかりません",
+  gitAuthenticationFailed:
+    "認証に失敗しました。ターミナルの git で push / pull できるか（資格情報マネージャや SSH キーの設定）を確認してください",
+  gitNetworkUnavailable: "リモートに接続できませんでした",
+  gitPushRejected: "プッシュが拒否されました。先にプルしてください",
+  gitPullConflicts: "プルで競合が発生しました。マージの変更を解決してください",
+  gitPullBlockedByLocalChanges:
+    "ローカルの変更がプルで上書きされるため中止しました。先にコミットしてください",
   invalidThemePreference: "テーマ設定の値が正しくありません。",
   invalidLanguagePreference: "表示言語の設定値が正しくありません。",
   invalidViewport: "表示位置の値が正しくありません。",

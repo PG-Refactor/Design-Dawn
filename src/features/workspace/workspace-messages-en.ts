@@ -110,6 +110,17 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
   gitCommitAlreadyPushed: "A pushed commit cannot be changed",
   gitCannotUndoCommit:
     "This commit cannot be undone (it is the first commit or a merge commit)",
+  gitNoRemote: "No remote is configured",
+  gitNoUpstream: "This branch has no upstream branch",
+  gitDetachedHead: "No branch is checked out (detached HEAD)",
+  gitRemoteNotFound: "The remote was not found",
+  gitAuthenticationFailed:
+    "Authentication failed. Check that git in a terminal can push / pull (credential manager or SSH key)",
+  gitNetworkUnavailable: "Could not connect to the remote",
+  gitPushRejected: "The push was rejected. Pull first",
+  gitPullConflicts: "The pull produced conflicts. Resolve the merge changes",
+  gitPullBlockedByLocalChanges:
+    "The pull stopped because it would overwrite local changes. Commit them first",
   invalidThemePreference: "The theme setting value is invalid.",
   invalidLanguagePreference: "The display language setting value is invalid.",
   invalidViewport: "The view position value is invalid.",

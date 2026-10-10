@@ -11,6 +11,10 @@ pub const GIT_COMMAND_TIMEOUT: Duration = Duration::from_secs(30);
 /// (docs/git-development.md §11.11).
 pub const GIT_COMMIT_TIMEOUT: Duration = Duration::from_secs(120);
 
+/// Time limit of fetch / pull / push (docs/git-development.md §11.16): includes the time a
+/// credential manager may wait for the user to answer a prompt, and hooks of pull / push.
+pub const GIT_NETWORK_TIMEOUT: Duration = Duration::from_secs(5 * 60);
+
 /// Largest commit message accepted, in UTF-8 bytes after line ending normalization.
 pub const COMMIT_MESSAGE_LIMIT_BYTES: usize = 64 * 1024;
 
@@ -210,3 +214,50 @@ pub const ARG_COUNT_ONE: &str = "--count=1";
 pub const FORMAT_REF_NAME: &str = "--format=%(refname)";
 /// Remote-tracking branches: a commit reachable from one of them is (assumed to be) pushed.
 pub const REMOTE_TRACKING_REFS: &str = "refs/remotes";
+
+/// Remote operations (docs/git-development.md §11.16). None of these arguments forces
+/// anything: no `--force`, `--force-with-lease`, `+` refspec, `--no-verify`, `--mirror`,
+/// `--delete` or `--tags` exists in this list, so no code path can pass them.
+pub const ARG_REMOTE: &str = "remote";
+pub const ARG_FETCH: &str = "fetch";
+pub const ARG_PULL: &str = "pull";
+pub const ARG_PUSH: &str = "push";
+/// Merge on pull whatever `pull.rebase` says: an existing history is never rewritten.
+/// `--ff` / `--ff-only` are left out so the user's `pull.ff` setting stays in effect.
+pub const ARG_NO_REBASE: &str = "--no-rebase";
+pub const ARG_SET_UPSTREAM: &str = "-u";
+/// A remote name starting with this would be read by git as an option.
+pub const OPTION_PREFIX: char = '-';
+
+/// stderr fragments (untranslated, see `ENV_MESSAGE_LOCALE`, which network commands use too) that classify a failed fetch /
+/// pull / push. Auth patterns are checked first: an ssh authentication failure also prints
+/// "Could not read from remote repository".
+pub const AUTHENTICATION_FAILURE_PATTERNS: [&str; 9] = [
+    "Authentication failed",
+    "could not read Username",
+    "could not read Password",
+    "Permission denied (publickey",
+    "Permission denied (password",
+    "terminal prompts disabled",
+    "HTTP Basic: Access denied",
+    "returned error: 403",
+    "returned error: 401",
+];
+pub const PUSH_REJECTED_PATTERNS: [&str; 4] = [
+    "[rejected]",
+    "non-fast-forward",
+    "fetch first",
+    "Updates were rejected",
+];
+pub const PULL_BLOCKED_PATTERNS: [&str; 2] = [
+    "would be overwritten by merge",
+    "Please commit your changes or stash them",
+];
+pub const NETWORK_FAILURE_PATTERNS: [&str; 6] = [
+    "Could not resolve host",
+    "unable to access",
+    "Connection timed out",
+    "Connection refused",
+    "Network is unreachable",
+    "Could not read from remote repository",
+];

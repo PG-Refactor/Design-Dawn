@@ -51,6 +51,11 @@ export const COMMANDS = {
   gitCommit: "git_commit",
   gitUndoLastCommit: "git_undo_last_commit",
   gitHistory: "git_history",
+  gitFetch: "git_fetch",
+  gitPull: "git_pull",
+  gitPush: "git_push",
+  gitPublish: "git_publish",
+  gitRemotes: "git_remotes",
 } as const;
 
 export type CommandName = (typeof COMMANDS)[keyof typeof COMMANDS];

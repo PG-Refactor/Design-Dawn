@@ -34,6 +34,7 @@ use crate::application::git_commit;
 use crate::application::git_discard;
 use crate::application::git_history;
 use crate::application::git_operations::{self, GitStatusResult};
+use crate::application::git_remote;
 use crate::application::local_state::operations::{AppSettings, LocalState, SheetViewportResult};
 use crate::application::open_request::{self, OpenRequest, OpenedRequest, PendingOpenRequests};
 use crate::application::project_operations as projects;
@@ -55,7 +56,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 48] = [
+pub const COMMAND_NAMES: [&str; 53] = [
     "select_project_folder",
     "create_project",
     "open_project",
@@ -104,6 +105,11 @@ pub const COMMAND_NAMES: [&str; 48] = [
     "git_commit",
     "git_undo_last_commit",
     "git_history",
+    "git_fetch",
+    "git_pull",
+    "git_push",
+    "git_publish",
+    "git_remotes",
 ];
 
 pub use app_channel::{AppNotification, AppNotificationSink, AppRequestHub, AppRequestSubscriber};
@@ -959,6 +965,82 @@ pub async fn git_undo_last_commit<R: Runtime>(
     run_blocking(move || {
         let sessions = app.state::<Mutex<ProjectSessions>>();
         git_commit::git_undo_last_commit(&sessions, &project_id)
+    })
+    .await
+}
+
+/// Fetches the calling window's Project (docs/git-development.md §11.16). Network access with the user's own git credentials; never saves and is not an Undo step.
+#[tauri::command]
+pub async fn git_fetch<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+) -> Result<git_remote::GitRemoteResult, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_remote::git_fetch(&sessions, &project_id)
+    })
+    .await
+}
+
+/// Pulls (merge, never rebase) the calling window's Project (§11.16). Rewrites working tree files: the caller saves first and reloads afterwards. Not an Undo step.
+#[tauri::command]
+pub async fn git_pull<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+) -> Result<git_remote::GitRemoteResult, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_remote::git_pull(&sessions, &project_id)
+    })
+    .await
+}
+
+/// Pushes the current branch of the calling window's Project to its upstream (§11.16). Never forces.
+#[tauri::command]
+pub async fn git_push<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+) -> Result<git_remote::GitRemoteResult, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_remote::git_push(&sessions, &project_id)
+    })
+    .await
+}
+
+/// Pushes the current branch to `remote` and sets it as upstream (§11.16). `remote` is user text: the core accepts only a name `git remote` lists.
+#[tauri::command]
+pub async fn git_publish<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    remote: String,
+) -> Result<git_remote::GitRemoteResult, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_remote::git_publish(&sessions, &project_id, &remote)
+    })
+    .await
+}
+
+/// Names of the remotes of the calling window's Project (§11.16). Names only, never URLs.
+#[tauri::command]
+pub async fn git_remotes<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+) -> Result<Vec<String>, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_remote::git_remotes(&sessions, &project_id)
     })
     .await
 }

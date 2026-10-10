@@ -111,6 +111,11 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::git_commit,
             commands::git_undo_last_commit,
             commands::git_history,
+            commands::git_fetch,
+            commands::git_pull,
+            commands::git_push,
+            commands::git_publish,
+            commands::git_remotes,
         ])
 }
 

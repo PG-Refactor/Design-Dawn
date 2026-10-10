@@ -7,7 +7,12 @@ import {
   gitDiff,
   gitDiscard,
   gitDiscardImpact,
+  gitFetch,
   gitHistory,
+  gitPublish,
+  gitPull,
+  gitPush,
+  gitRemotes,
   gitStage,
   gitStatus,
   gitUndoLastCommit,
@@ -787,5 +792,167 @@ describe("gitHistory", () => {
     const result = await gitHistory(PROJECT_ID, 10, "bad");
 
     expect(!result.ok && result.error.kind).toBe("invalidHistoryRequest");
+  });
+});
+
+describe("remote operations", () => {
+  const UPDATED = { status: { outcome: "updated", status: VALID_PAYLOAD } };
+  const REMOTE_ERROR_KINDS = [
+    "gitNoRemote",
+    "gitNoUpstream",
+    "gitDetachedHead",
+    "gitRemoteNotFound",
+    "gitAuthenticationFailed",
+    "gitNetworkUnavailable",
+    "gitPushRejected",
+    "gitPullConflicts",
+    "gitPullBlockedByLocalChanges",
+    "gitTimeout",
+  ];
+  const OPERATIONS = [
+    ["gitFetch", COMMANDS.gitFetch, () => gitFetch(PROJECT_ID), {}],
+    ["gitPull", COMMANDS.gitPull, () => gitPull(PROJECT_ID), {}],
+    ["gitPush", COMMANDS.gitPush, () => gitPush(PROJECT_ID), {}],
+    [
+      "gitPublish",
+      COMMANDS.gitPublish,
+      () => gitPublish(PROJECT_ID, "origin"),
+      { remote: "origin" },
+    ],
+  ] as const;
+
+  it.each(OPERATIONS)(
+    "%s sends the project id (and the remote name) and decodes the status",
+    async (_name, command, run, extra) => {
+      invokeMock.mockResolvedValueOnce(UPDATED);
+
+      const result = await run();
+
+      expect(invokeMock.mock.calls).toStrictEqual([
+        [command, { projectId: PROJECT_ID, ...extra }],
+      ]);
+      expect(result).toStrictEqual({
+        ok: true,
+        value: {
+          status: {
+            outcome: "updated",
+            status: {
+              repositoryState: "ready",
+              branch: VALID_PAYLOAD.branch,
+              files: VALID_PAYLOAD.files,
+            },
+          },
+        },
+      });
+    },
+  );
+
+  it.each(OPERATIONS)(
+    "%s accepts an unavailable status",
+    async (_name, _command, run) => {
+      invokeMock.mockResolvedValueOnce({
+        status: { outcome: "unavailable", errorKind: "gitTimeout" },
+      });
+
+      const result = await run();
+
+      expect(result).toStrictEqual({
+        ok: true,
+        value: { status: { outcome: "unavailable", errorKind: "gitTimeout" } },
+      });
+    },
+  );
+
+  it.each(OPERATIONS)(
+    "%s rejects a malformed payload",
+    async (_name, _command, run) => {
+      for (const payload of [
+        {},
+        "ok",
+        { status: { outcome: "later" } },
+        { status: { outcome: "updated" } },
+        { status: { outcome: "updated", status: { repository: {} } } },
+        { status: { outcome: "unavailable" } },
+        { status: { outcome: "unavailable", errorKind: "unknownKind" } },
+      ]) {
+        invokeMock.mockResolvedValueOnce(payload);
+
+        const result = await run();
+
+        expect(!result.ok && result.error.kind).toBe("invalidCommandResponse");
+      }
+    },
+  );
+
+  it.each(OPERATIONS)(
+    "%s keeps every Rust error kind",
+    async (_name, _command, run) => {
+      for (const kind of REMOTE_ERROR_KINDS) {
+        invokeMock.mockRejectedValueOnce({ kind, detail: "d" });
+
+        const result = await run();
+
+        expect(result).toStrictEqual({
+          ok: false,
+          error: { kind, detail: "d" },
+        });
+      }
+    },
+  );
+
+  it("accepts every remote error kind inside an unavailable status", async () => {
+    for (const errorKind of REMOTE_ERROR_KINDS) {
+      invokeMock.mockResolvedValueOnce({
+        status: { outcome: "unavailable", errorKind },
+      });
+
+      const result = await gitFetch(PROJECT_ID);
+
+      expect(result.ok).toBe(true);
+    }
+  });
+});
+
+describe("gitRemotes", () => {
+  it("sends only the project id and decodes the names", async () => {
+    invokeMock.mockResolvedValueOnce(["origin", "バックアップ"]);
+
+    const result = await gitRemotes(PROJECT_ID);
+
+    expect(invokeMock.mock.calls).toStrictEqual([
+      [COMMANDS.gitRemotes, { projectId: PROJECT_ID }],
+    ]);
+    expect(result).toStrictEqual({
+      ok: true,
+      value: ["origin", "バックアップ"],
+    });
+  });
+
+  it("accepts an empty list", async () => {
+    invokeMock.mockResolvedValueOnce([]);
+
+    expect(await gitRemotes(PROJECT_ID)).toStrictEqual({ ok: true, value: [] });
+  });
+
+  it.each([
+    ["a non array", "origin"],
+    ["a null payload", null],
+    ["a numeric name", ["origin", 1]],
+    ["an object name", [{ name: "origin" }]],
+  ])("rejects %s", async (_name, payload) => {
+    invokeMock.mockResolvedValueOnce(payload);
+
+    const result = await gitRemotes(PROJECT_ID);
+
+    expect(!result.ok && result.error.kind).toBe("invalidCommandResponse");
+  });
+
+  it("keeps the Rust error kind", async () => {
+    invokeMock.mockRejectedValueOnce({ kind: "gitNotReady", detail: "d" });
+
+    expect(await gitRemotes(PROJECT_ID)).toStrictEqual({
+      ok: false,
+      error: { kind: "gitNotReady", detail: "d" },
+    });
   });
 });

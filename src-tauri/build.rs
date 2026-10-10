@@ -50,6 +50,11 @@ const APP_COMMANDS: &[&str] = &[
     "git_commit",
     "git_undo_last_commit",
     "git_history",
+    "git_fetch",
+    "git_pull",
+    "git_push",
+    "git_publish",
+    "git_remotes",
 ];
 
 fn main() {

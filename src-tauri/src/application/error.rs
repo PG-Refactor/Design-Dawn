@@ -95,6 +95,24 @@ pub enum ErrorKind {
     GitCommitAlreadyPushed,
     /// Undo requested for a commit that is missing, the first commit, or a merge commit.
     GitCannotUndoCommit,
+    /// Fetch requested while the repository has no remote.
+    GitNoRemote,
+    /// Pull / Push requested for a branch without an upstream.
+    GitNoUpstream,
+    /// Pull / Push / Publish requested on a detached HEAD.
+    GitDetachedHead,
+    /// Publish named a remote that `git remote` does not list (or one that looks like an option).
+    GitRemoteNotFound,
+    /// The remote refused the credentials, or none were available without a prompt.
+    GitAuthenticationFailed,
+    /// The remote could not be reached (name resolution, connection, timeout of the transport).
+    GitNetworkUnavailable,
+    /// The remote rejected the push (non-fast-forward); never retried with force.
+    GitPushRejected,
+    /// The pull stopped with unmerged files.
+    GitPullConflicts,
+    /// The pull was refused because local changes would be overwritten.
+    GitPullBlockedByLocalChanges,
 }
 
 impl ErrorKind {
@@ -132,6 +150,15 @@ impl ErrorKind {
             Self::GitNoCommitToAmend => "gitNoCommitToAmend",
             Self::GitCommitAlreadyPushed => "gitCommitAlreadyPushed",
             Self::GitCannotUndoCommit => "gitCannotUndoCommit",
+            Self::GitNoRemote => "gitNoRemote",
+            Self::GitNoUpstream => "gitNoUpstream",
+            Self::GitDetachedHead => "gitDetachedHead",
+            Self::GitRemoteNotFound => "gitRemoteNotFound",
+            Self::GitAuthenticationFailed => "gitAuthenticationFailed",
+            Self::GitNetworkUnavailable => "gitNetworkUnavailable",
+            Self::GitPushRejected => "gitPushRejected",
+            Self::GitPullConflicts => "gitPullConflicts",
+            Self::GitPullBlockedByLocalChanges => "gitPullBlockedByLocalChanges",
         }
     }
 
@@ -173,6 +200,15 @@ impl ErrorKind {
             Self::GitNoCommitToAmend => "there is no commit to amend",
             Self::GitCommitAlreadyPushed => "a pushed commit cannot be changed",
             Self::GitCannotUndoCommit => "the commit cannot be undone",
+            Self::GitNoRemote => "no remote is configured",
+            Self::GitNoUpstream => "the branch has no upstream branch",
+            Self::GitDetachedHead => "no branch is checked out",
+            Self::GitRemoteNotFound => "the remote was not found",
+            Self::GitAuthenticationFailed => "authentication with the remote failed",
+            Self::GitNetworkUnavailable => "the remote could not be reached",
+            Self::GitPushRejected => "the push was rejected",
+            Self::GitPullConflicts => "the pull produced conflicts",
+            Self::GitPullBlockedByLocalChanges => "the pull would overwrite local changes",
         }
     }
 }
@@ -252,7 +288,7 @@ impl Serialize for ApplicationError {
 mod tests {
     use super::*;
 
-    const ALL_KINDS: [ErrorKind; 47] = [
+    const ALL_KINDS: [ErrorKind; 56] = [
         ErrorKind::Domain(DomainErrorKind::InvalidEntityId),
         ErrorKind::Domain(DomainErrorKind::InvalidDisplayName),
         ErrorKind::Domain(DomainErrorKind::InvalidPosition),
@@ -300,6 +336,15 @@ mod tests {
         ErrorKind::GitNoCommitToAmend,
         ErrorKind::GitCommitAlreadyPushed,
         ErrorKind::GitCannotUndoCommit,
+        ErrorKind::GitNoRemote,
+        ErrorKind::GitNoUpstream,
+        ErrorKind::GitDetachedHead,
+        ErrorKind::GitRemoteNotFound,
+        ErrorKind::GitAuthenticationFailed,
+        ErrorKind::GitNetworkUnavailable,
+        ErrorKind::GitPushRejected,
+        ErrorKind::GitPullConflicts,
+        ErrorKind::GitPullBlockedByLocalChanges,
     ];
 
     /// A Windows drive path (`C:\`) or any separator would mean a path leaked.

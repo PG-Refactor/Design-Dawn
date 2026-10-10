@@ -330,7 +330,11 @@ pub fn undo_last_commit(
 
 /// A failure to read the status after a change that succeeded does not undo the change,
 /// so it is a state of the result, not an error.
-fn status_after_change(runner: &GitRunner, project_root: &Path, what: &str) -> GitCommitStatus {
+pub(crate) fn status_after_change(
+    runner: &GitRunner,
+    project_root: &Path,
+    what: &str,
+) -> GitCommitStatus {
     match read_git_status(Some(runner), project_root) {
         Ok(status) => GitCommitStatus::Updated { status },
         Err(error) => {
@@ -342,7 +346,7 @@ fn status_after_change(runner: &GitRunner, project_root: &Path, what: &str) -> G
     }
 }
 
-fn require_no_unmerged(files: &[GitFileStatus]) -> ApplicationResult<()> {
+pub(crate) fn require_no_unmerged(files: &[GitFileStatus]) -> ApplicationResult<()> {
     if files
         .iter()
         .any(|file| file.index_status == GitFileChange::Unmerged)
@@ -355,7 +359,7 @@ fn require_no_unmerged(files: &[GitFileStatus]) -> ApplicationResult<()> {
     Ok(())
 }
 
-fn require_no_operation_in_progress(
+pub(crate) fn require_no_operation_in_progress(
     runner: &GitRunner,
     project_root: &Path,
 ) -> ApplicationResult<()> {

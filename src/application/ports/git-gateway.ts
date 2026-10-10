@@ -135,6 +135,12 @@ export interface GitCommitResult {
   readonly status: GitCommitStatus;
 }
 
+// Result of fetch / pull / push / publish: the status read afterwards (`unavailable` when
+// the operation succeeded but the status could not be read).
+export interface GitRemoteResult {
+  readonly status: GitCommitStatus;
+}
+
 // One commit of the history. Author data is untrusted repository text: show it as text only.
 export interface GitHistoryEntry {
   // Full object IDs (40 or 64 lowercase hexadecimal characters).
@@ -211,6 +217,24 @@ export interface GitGateway {
   undoLastCommit(
     projectId: ProjectId,
   ): Promise<OperationResult<GitUndoCommitResult>>;
+  // Fetches from the branch's remote (needs a remote: `gitNoRemote`). The working tree is
+  // not changed. Authentication is the user's own git setup; nothing is asked here.
+  fetch(projectId: ProjectId): Promise<OperationResult<GitRemoteResult>>;
+  // Pulls the upstream by merge (never rebase). Rewrites working tree files: the caller
+  // saves first and reloads afterwards. A conflict is `gitPullConflicts` (the status then
+  // lists the unmerged files: read it again).
+  pull(projectId: ProjectId): Promise<OperationResult<GitRemoteResult>>;
+  // Pushes the branch to its upstream (`gitNoUpstream`: publish it instead). Never forces:
+  // a rejected push is `gitPushRejected`.
+  push(projectId: ProjectId): Promise<OperationResult<GitRemoteResult>>;
+  // Pushes the branch to `remote` and sets it as the upstream. `remote` must be one of
+  // `remotes()` (Rust checks: `gitRemoteNotFound`).
+  publish(
+    projectId: ProjectId,
+    remote: string,
+  ): Promise<OperationResult<GitRemoteResult>>;
+  // Names of the remotes. Never URLs.
+  remotes(projectId: ProjectId): Promise<OperationResult<readonly string[]>>;
   // One page of the commit history, newest first, starting from the first page when
   // `cursor` is null. Read-only. Rust validates `limit` and the cursor.
   history(

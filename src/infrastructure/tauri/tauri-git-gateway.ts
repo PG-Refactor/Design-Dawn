@@ -4,7 +4,12 @@ import {
   gitDiff,
   gitDiscard,
   gitDiscardImpact,
+  gitFetch,
   gitHistory,
+  gitPublish,
+  gitPull,
+  gitPush,
+  gitRemotes,
   gitStage,
   gitStatus,
   gitUndoLastCommit,
@@ -23,5 +28,10 @@ export function createTauriGitGateway(): GitGateway {
     commit: gitCommit,
     undoLastCommit: gitUndoLastCommit,
     history: gitHistory,
+    fetch: gitFetch,
+    pull: gitPull,
+    push: gitPush,
+    publish: gitPublish,
+    remotes: gitRemotes,
   };
 }

@@ -8,6 +8,7 @@ import type {
   GitDiffSide,
   GitDiscardImpact,
   GitHistoryPage,
+  GitRemoteResult,
   GitStatus,
   GitUndoCommitResult,
 } from "../../application/ports/git-gateway";
@@ -19,8 +20,10 @@ import {
   toGitDiff,
   toGitDiscardImpact,
   toGitHistoryPage,
+  toGitRemoteResult,
   toGitStatus,
   toGitUndoCommitResult,
+  toRemoteNames,
 } from "./git-payloads";
 import { call } from "./invoke-command";
 
@@ -102,4 +105,35 @@ export function gitHistory(
     { projectId, limit, cursor },
     toGitHistoryPage,
   );
+}
+
+export function gitFetch(
+  projectId: ProjectId,
+): Promise<CommandResult<GitRemoteResult>> {
+  return call(COMMANDS.gitFetch, { projectId }, toGitRemoteResult);
+}
+
+export function gitPull(
+  projectId: ProjectId,
+): Promise<CommandResult<GitRemoteResult>> {
+  return call(COMMANDS.gitPull, { projectId }, toGitRemoteResult);
+}
+
+export function gitPush(
+  projectId: ProjectId,
+): Promise<CommandResult<GitRemoteResult>> {
+  return call(COMMANDS.gitPush, { projectId }, toGitRemoteResult);
+}
+
+export function gitPublish(
+  projectId: ProjectId,
+  remote: string,
+): Promise<CommandResult<GitRemoteResult>> {
+  return call(COMMANDS.gitPublish, { projectId, remote }, toGitRemoteResult);
+}
+
+export function gitRemotes(
+  projectId: ProjectId,
+): Promise<CommandResult<readonly string[]>> {
+  return call(COMMANDS.gitRemotes, { projectId }, toRemoteNames);
 }

@@ -51,6 +51,11 @@
     "allow-git-diff",
     "allow-git-commit",
     "allow-git-undo-last-commit",
-    "allow-git-history"
+    "allow-git-history",
+    "allow-git-fetch",
+    "allow-git-pull",
+    "allow-git-push",
+    "allow-git-publish",
+    "allow-git-remotes"
   ]
 }
