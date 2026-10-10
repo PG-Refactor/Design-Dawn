@@ -39,6 +39,24 @@ const GIT_MESSAGES_JA = {
   unstage: "変更のステージング解除",
   stageAll: "すべての変更をステージ",
   unstageAll: "すべての変更のステージング解除",
+  discard: "変更を破棄",
+  discardAll: "すべての変更を破棄",
+  // The confirmation before changes are thrown away (docs/ui-design.md §13.5, V-5).
+  discardDialog: {
+    singleTracked: (name: string): string => `'${name}' の変更を破棄しますか?`,
+    singleUntracked: (name: string): string => `'${name}' を削除しますか?`,
+    multiple: (count: number): string =>
+      `${count} 個のファイルの変更を破棄しますか?`,
+    untrackedNote: (count: number): string =>
+      `うち ${count} 個の未追跡のファイルは削除されます。`,
+    irreversible: "この操作は元に戻せません。",
+    documentsNote:
+      "次の Document は保存せずに閉じ、元に戻した後に開き直します。Undo の履歴は消えます。",
+    projectFilesNote:
+      "Project の構成ファイルが含まれるため、Project を開き直します。ほかの未保存の変更は先に保存されます。",
+    confirm: "変更を破棄",
+    confirmDelete: "ファイルを削除",
+  },
   commitMessageLabel: "コミットメッセージ",
   commitPlaceholder: (branch: string): string =>
     `メッセージ (Ctrl+Enter で '${branch}' にコミット)`,
@@ -128,6 +146,26 @@ const GIT_MESSAGES_EN: GitMessages = {
   unstage: "Unstage Changes",
   stageAll: "Stage All Changes",
   unstageAll: "Unstage All Changes",
+  discard: "Discard Changes",
+  discardAll: "Discard All Changes",
+  discardDialog: {
+    singleTracked: (name) =>
+      `Are you sure you want to discard changes in '${name}'?`,
+    singleUntracked: (name) => `Are you sure you want to DELETE '${name}'?`,
+    multiple: (count) =>
+      `Are you sure you want to discard changes in ${count} files?`,
+    untrackedNote: (count) =>
+      count === 1
+        ? "1 untracked file will be DELETED."
+        : `${count} untracked files will be DELETED.`,
+    irreversible: "This action is irreversible!",
+    documentsNote:
+      "These Documents will be closed without saving and reopened after the discard. Their undo history will be lost.",
+    projectFilesNote:
+      "Project files are included, so the Project will be reopened. Other unsaved changes will be saved first.",
+    confirm: "Discard Changes",
+    confirmDelete: "Delete File",
+  },
   commitMessageLabel: "Commit message",
   commitPlaceholder: (branch) =>
     `Message (Ctrl+Enter to commit on '${branch}')`,

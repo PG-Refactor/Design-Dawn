@@ -7,7 +7,7 @@ import type {
   GitChangeSection,
   GitChangeSectionId,
 } from "./git-change-sections";
-import { ChevronIcon, MinusIcon, PlusIcon } from "./git-icons";
+import { ChevronIcon, DiscardIcon, MinusIcon, PlusIcon } from "./git-icons";
 import type { GitMessages } from "./git-messages";
 
 export type IndexOperation = "stage" | "unstage";
@@ -19,6 +19,8 @@ export const SECTION_OPERATIONS: Record<
     readonly operation: IndexOperation;
     readonly rowLabelKey: "stage" | "unstage";
     readonly allLabelKey: "stageAll" | "unstageAll";
+    // Whether rows and the header also offer to discard (worktree changes only).
+    readonly discardable: boolean;
   } | null
 > = {
   conflicts: null,
@@ -26,11 +28,13 @@ export const SECTION_OPERATIONS: Record<
     operation: "unstage",
     rowLabelKey: "unstage",
     allLabelKey: "unstageAll",
+    discardable: false,
   },
   changes: {
     operation: "stage",
     rowLabelKey: "stage",
     allLabelKey: "stageAll",
+    discardable: true,
   },
 };
 
@@ -64,6 +68,9 @@ interface SectionHeaderProps extends ItemProps {
   readonly expanded: boolean;
   readonly onToggle: (sectionId: GitChangeSectionId) => void;
   readonly onOperateAll: (section: GitChangeSection) => void;
+  readonly onDiscardAll: (section: GitChangeSection) => void;
+  // Discarding is also off while the workspace is busy (no edits meanwhile).
+  readonly discardDisabled: boolean;
 }
 
 export function GitSectionHeader({
@@ -77,6 +84,8 @@ export function GitSectionHeader({
   onNavigate,
   onToggle,
   onOperateAll,
+  onDiscardAll,
+  discardDisabled,
 }: SectionHeaderProps) {
   const messages = useMessages().git;
   const titleId = useId();
@@ -125,6 +134,19 @@ export function GitSectionHeader({
         {title}
       </span>
       <span className="git-tree-item__actions">
+        {operation?.discardable !== true ? null : (
+          <button
+            type="button"
+            className="git-icon-button"
+            disabled={discardDisabled}
+            tabIndex={isRoving ? 0 : -1}
+            aria-label={messages.discardAll}
+            title={messages.discardAll}
+            onClick={() => onDiscardAll(section)}
+          >
+            <DiscardIcon />
+          </button>
+        )}
         {operation === null ? null : (
           <button
             type="button"
@@ -155,6 +177,8 @@ interface FileRowProps extends ItemProps {
   readonly onSelect: (entry: GitChangeEntry) => void;
   readonly onPin: (entry: GitChangeEntry) => void;
   readonly onOperate: (entry: GitChangeEntry) => void;
+  readonly onDiscard: (entry: GitChangeEntry) => void;
+  readonly discardDisabled: boolean;
 }
 
 export function GitFileRow({
@@ -168,6 +192,8 @@ export function GitFileRow({
   onSelect,
   onPin,
   onOperate,
+  onDiscard,
+  discardDisabled,
 }: FileRowProps) {
   const messages = useMessages().git;
   const nameId = useId();
@@ -234,6 +260,20 @@ export function GitFileRow({
         <span className="git-file-row__directory">{directory}</span>
       )}
       <span className="git-tree-item__actions">
+        {operation?.discardable !== true ? null : (
+          <button
+            type="button"
+            className="git-icon-button"
+            disabled={discardDisabled}
+            tabIndex={isRoving ? 0 : -1}
+            aria-label={messages.discard}
+            title={messages.discard}
+            aria-describedby={nameId}
+            onClick={() => onDiscard(entry)}
+          >
+            <DiscardIcon />
+          </button>
+        )}
         {operation === null ? null : (
           <button
             type="button"

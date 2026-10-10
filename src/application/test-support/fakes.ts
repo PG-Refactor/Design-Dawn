@@ -585,6 +585,8 @@ export function createFakeGateway(
           ? operationOk(projectSnapshot())
           : operationErr("invalidFolderSelection", selectionId);
       }),
+    reloadProject: (projectId) =>
+      enter("reloadProject", projectId, () => operationOk(projectSnapshot())),
     createProject: (selectionId, name) =>
       enter("createProject", `${selectionId}:${name}`, () => {
         if (selectionId !== DEFAULT_SELECTION_ID) {

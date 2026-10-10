@@ -1,3 +1,4 @@
+import { GitDiscardDialog } from "../git/git-discard-dialog";
 import { ConfirmDialog } from "./confirm-dialog";
 import { MoveDialog } from "./move-dialog";
 import { NameDialog } from "./name-dialog";
@@ -158,6 +159,15 @@ export function WorkspaceDialogs() {
           busy={busy}
           onCancel={actions.cancelDialog}
           onConfirm={() => void actions.confirmDelete()}
+        />
+      );
+    case "confirmDiscardGitChanges":
+      return (
+        <GitDiscardDialog
+          targets={dialog.targets}
+          documentIds={dialog.documentIds}
+          projectFilesAffected={dialog.projectFilesAffected}
+          busy={busy}
         />
       );
     case "confirmDeleteSheet":

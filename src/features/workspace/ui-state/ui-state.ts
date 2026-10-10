@@ -148,7 +148,22 @@ export type DialogState =
       readonly documentId: DocumentId;
       readonly sheetId: SheetId;
       readonly name: EntityName;
+    }
+  // Asked before Git changes are discarded (docs/ui-design.md §13.5 V-5). Carries what the
+  // question needs, as it was when the user asked; document names are looked up at render.
+  | {
+      readonly kind: "confirmDiscardGitChanges";
+      readonly targets: readonly DiscardTarget[];
+      // Open Documents whose files are among the targets (from `discardImpact`).
+      readonly documentIds: readonly DocumentId[];
+      readonly projectFilesAffected: boolean;
     };
+
+// One file of a discard question: untracked files are deleted, the others restored.
+export interface DiscardTarget {
+  readonly path: string;
+  readonly untracked: boolean;
+}
 
 // The user-level operations that can fail and be reported (one value per message).
 export const OPERATION_LABELS = [

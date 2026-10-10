@@ -65,6 +65,7 @@ import {
   moveEntry,
   openProject,
   readBlockContent,
+  reloadProject,
   restoreBlockContent,
   saveFolder,
   saveSheet,
@@ -157,6 +158,7 @@ function unwrapViewport(result: ReturnType<typeof parseViewport>) {
 const WRAPPERS: Readonly<Record<string, Wrapper>> = {
   select_project_folder: () => selectProjectFolder(),
   open_project: (args) => openProject(args.selectionId as string),
+  reload_project: (args) => reloadProject(id.project(args)),
   create_project: (args) =>
     createProject(
       args.selectionId as string,

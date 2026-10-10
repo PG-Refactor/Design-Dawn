@@ -92,6 +92,75 @@
           }
         },
         {
+          "name": "reload_project: reads the open project again from disk",
+          "request": {
+            "command": "reload_project",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd"
+            }
+          },
+          "expected": {
+            "ok": {
+              "project": {
+                "schemaVersion": 2,
+                "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+                "name": "Basic Project",
+                "childOrder": ["01928f3a-6c7d-7e8f-a012-3456789abcde"]
+              },
+              "folders": [],
+              "documents": [
+                {
+                  "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+                  "parentFolderId": null,
+                  "name": "System Design",
+                  "state": "loaded"
+                }
+              ],
+              "issues": []
+            }
+          }
+        },
+        {
+          "name": "reload_project: another project id is refused",
+          "request": {
+            "command": "reload_project",
+            "args": {
+              "projectId": "01928f3a-ffff-7fff-bfff-ffffffffffff"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "projectNotOpen"
+            }
+          }
+        },
+        {
+          "name": "reload_project: malformed projectId",
+          "targets": ["rust"],
+          "request": {
+            "command": "reload_project",
+            "args": {
+              "projectId": "not-an-id"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidEntityId"
+            }
+          }
+        },
+        {
+          "name": "reload_project: missing projectId",
+          "targets": ["rust"],
+          "request": {
+            "command": "reload_project",
+            "args": {}
+          },
+          "expected": {
+            "tauriError": true
+          }
+        },
+        {
           "name": "load_document: document snapshot",
           "request": {
             "command": "load_document",
@@ -673,6 +742,20 @@
             "args": {
               "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
               "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "projectNotOpen"
+            }
+          }
+        },
+        {
+          "name": "reload_project: project not open",
+          "request": {
+            "command": "reload_project",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd"
             }
           },
           "expected": {

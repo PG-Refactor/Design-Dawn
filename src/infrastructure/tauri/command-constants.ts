@@ -6,6 +6,7 @@ export const COMMANDS = {
   selectProjectFolder: "select_project_folder",
   createProject: "create_project",
   openProject: "open_project",
+  reloadProject: "reload_project",
   saveProject: "save_project",
   createFolder: "create_folder",
   saveFolder: "save_folder",

@@ -86,3 +86,13 @@ export function InlineViewIcon() {
     </Icon>
   );
 }
+
+// A curved arrow turning back: undo the change of the file.
+export function DiscardIcon() {
+  return (
+    <Icon>
+      <path d="M6 3L3 6l3 3" />
+      <path d="M3 6h6.5a3.5 3.5 0 0 1 0 7H7" />
+    </Icon>
+  );
+}

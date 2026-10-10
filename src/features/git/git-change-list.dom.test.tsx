@@ -694,6 +694,8 @@ describe("inline actions", () => {
   it("is operable from the keyboard: Tab to the row's button, then Enter", async () => {
     const shell = await openChanges(...MIXED);
     rowOf("変更", "変更 c.md").focus();
+    // The discard button comes first (V-5); Stage is the next stop.
+    await shell.user.tab();
     await shell.user.tab();
     expect(document.activeElement).toBe(
       buttonIn(rowOf("変更", "変更 c.md"), GIT_MESSAGES.ja.stage),

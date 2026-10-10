@@ -18,6 +18,7 @@ import {
   openProject,
   openProjectInNewWindow,
   readBlockContent,
+  reloadProject,
   restoreBlockContent,
   saveDocument,
   saveFolder,
@@ -37,6 +38,7 @@ export function createTauriPersistenceGateway(): PersistenceGateway {
   return {
     selectProjectFolder,
     openProject,
+    reloadProject,
     openProjectInNewWindow,
     takeOpenRequest,
     closeProject: async () => mapOperationResult(await closeProject(), discard),

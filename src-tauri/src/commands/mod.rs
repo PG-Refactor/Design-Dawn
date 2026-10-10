@@ -44,7 +44,7 @@ use crate::application::snapshot::{
 };
 use crate::application::window_binding::{
     close_window_project, create_project_in_window, open_project_in_window, release_window_project,
-    WindowOpenError,
+    reload_project_in_window, WindowOpenError,
 };
 use crate::application::window_registry::WindowRegistry;
 use crate::domain::entity_id::ProjectId;
@@ -55,10 +55,11 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 46] = [
+pub const COMMAND_NAMES: [&str; 47] = [
     "select_project_folder",
     "create_project",
     "open_project",
+    "reload_project",
     "save_project",
     "create_folder",
     "save_folder",
@@ -337,6 +338,31 @@ pub fn open_project<R: Runtime>(
             &project_root,
         )
     };
+    settle_open(&window, outcome)
+}
+
+/// Reads the Project this window has open again from its own root on disk (after files
+/// changed underneath, e.g. a Git discard). The Frontend names the Project only by id; no
+/// path crosses IPC. Behaves like `open_project` of the same Project.
+#[tauri::command]
+pub fn reload_project<R: Runtime>(
+    window: Window<R>,
+    state: SessionState<'_>,
+    registry: State<'_, Mutex<WindowRegistry>>,
+    project_id: String,
+) -> Result<ProjectSnapshot, ApplicationError> {
+    let outcome = ProjectId::parse(&project_id)
+        .map_err(ApplicationError::from)
+        .map_err(WindowOpenError::from)
+        .and_then(|project_id| {
+            let mut sessions = state.lock().unwrap_or_else(PoisonError::into_inner);
+            reload_project_in_window(
+                &mut sessions,
+                &mut lock_registry(&registry),
+                window.label(),
+                &project_id,
+            )
+        });
     settle_open(&window, outcome)
 }
 

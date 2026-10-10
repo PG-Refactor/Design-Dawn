@@ -35,6 +35,7 @@ import {
   openDiffPreview,
   refreshDiffAfterStatusChange,
 } from "./git-diff-session";
+import { requestGitDiscard } from "./git-discard-flow";
 import {
   GIT_CHANGE_HEADING_ATTRIBUTE,
   GIT_CHANGE_LIST_ATTRIBUTE,
@@ -62,7 +63,10 @@ export function GitChangeList({ status }: { readonly status: GitStatus }) {
     [sections, collapsedSections],
   );
   const flatItems = useMemo(() => toFlatTreeItems(items), [items]);
+  const workspaceBusy = useUiState((ui) => ui.busy);
   const busy = operating || refreshing;
+  // Discarding also waits for the workspace: a Document must not be edited meanwhile.
+  const discardDisabled = busy || workspaceBusy;
   const headingId = useId();
   const heading = useRef<HTMLHeadingElement | null>(null);
   const itemElements = useRef(new Map<string, HTMLDivElement>());
@@ -154,6 +158,17 @@ export function GitChangeList({ status }: { readonly status: GitStatus }) {
     );
   }
 
+  // Untracked files are deleted by a discard, the others restored; the question says which.
+  function discard(entries: readonly GitChangeEntry[]): void {
+    void requestGitDiscard(
+      services,
+      entries.map((entry) => ({
+        path: entry.path,
+        untracked: entry.change === "untracked",
+      })),
+    );
+  }
+
   function navigate(event: KeyboardEvent<HTMLDivElement>, key: string): void {
     const index = items.findIndex((item) => item.key === key);
     const navigation = treeNavigation(event.key, flatItems, index);
@@ -217,6 +232,8 @@ export function GitChangeList({ status }: { readonly status: GitStatus }) {
                 isRoving={item.key === effectiveRovingKey}
                 onToggle={toggleSection}
                 onOperateAll={operateOnSection}
+                onDiscardAll={(target) => discard(target.entries)}
+                discardDisabled={discardDisabled}
                 {...itemProps}
               />
             ) : (
@@ -233,6 +250,8 @@ export function GitChangeList({ status }: { readonly status: GitStatus }) {
                 onSelect={selectRow}
                 onPin={pinRow}
                 onOperate={operateOnRow}
+                onDiscard={(target) => discard([target])}
+                discardDisabled={discardDisabled}
                 {...itemProps}
               />
             ),

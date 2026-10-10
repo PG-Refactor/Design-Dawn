@@ -224,6 +224,22 @@ export interface WorkspaceActions {
   // through the operation errors / save states, so nothing is recorded here.
   saveAll(): Promise<OperationResult<void>>;
 
+  // Building blocks of the Git discard flow (`features/git/git-discard-flow.ts`), which
+  // owns the order of the steps. Both are plain steps: neither asks a question nor sets the
+  // busy state; the caller has done that.
+  //
+  // Closes the open Document WITHOUT saving: its pending save and Markdown draft are
+  // dropped and its Undo history ends, so a later open reads the files from disk again. A
+  // failure is returned and recorded; the Document then stays open.
+  closeDocumentWithoutSaving(
+    documentId: DocumentId,
+  ): Promise<OperationResult<void>>;
+  // Reads the current Project from disk again (`Workspace.reloadProject`; it must have
+  // nothing unsaved, open Documents are saved and closed first). Resolves to whether the
+  // Project is open again. When reading fails the error is recorded and the Project is
+  // closed so that no stale tree stays.
+  reopenProject(): Promise<OperationResult<boolean>>;
+
   dismissOperationError(id: number): void;
   setNotificationsOpen(open: boolean): void;
   setLeftPanelMode(mode: LeftPanelMode): void;
@@ -579,6 +595,17 @@ export function createWorkspaceActions(
       if (!result.ok) record(operation, null, result.error);
       return result;
     }
+  }
+
+  async function reopenProjectNow(): Promise<OperationResult<boolean>> {
+    const reloaded = await workspace.reloadProject();
+    if (reloaded.ok) return operationOk(true);
+    // Not reloaded: the Documents were closed and the tree may be out of date, so the
+    // Project is closed instead of staying half alive. Nothing is unsaved by now.
+    const closed = await closeProjectNow(false);
+    // After the close, which resets the UI state (and with it the notifications).
+    record("openProject", null, reloaded.error);
+    return closed.ok ? operationOk(false) : closed;
   }
 
   function openOrCreateProject(
@@ -1172,6 +1199,10 @@ export function createWorkspaceActions(
       const saved = await workspace.saveAll();
       return drafts.ok ? saved : drafts;
     },
+
+    closeDocumentWithoutSaving: (documentId) =>
+      closeDocumentNow(documentId, true),
+    reopenProject: reopenProjectNow,
 
     dismissOperationError(id) {
       uiStateStore.setState((state) => dismissOperationError(state, id));

@@ -66,6 +66,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::select_project_folder,
             commands::create_project,
             commands::open_project,
+            commands::reload_project,
             commands::save_project,
             commands::create_folder,
             commands::save_folder,

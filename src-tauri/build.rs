@@ -5,6 +5,7 @@ const APP_COMMANDS: &[&str] = &[
     "select_project_folder",
     "create_project",
     "open_project",
+    "reload_project",
     "save_project",
     "create_folder",
     "save_folder",
