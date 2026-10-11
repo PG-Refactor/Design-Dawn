@@ -33,12 +33,6 @@ const CANVAS_MESSAGES_JA = {
     bottom: "下揃え",
   },
   dropHint: "ここに画像をドロップ",
-  placeholder: {
-    type: "種類",
-    id: "ID",
-    position: "位置",
-    size: "サイズ",
-  },
   resizeHandleLabel: (blockName: string): string =>
     `${blockName} のサイズを変更`,
 } as const;
@@ -71,12 +65,6 @@ const CANVAS_MESSAGES_EN: CanvasMessages = {
     bottom: "Align Bottom",
   },
   dropHint: "Drop images here",
-  placeholder: {
-    type: "Type",
-    id: "ID",
-    position: "Position",
-    size: "Size",
-  },
   resizeHandleLabel: (blockName) => `Resize ${blockName}`,
 };
 

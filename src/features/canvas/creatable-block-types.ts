@@ -1,6 +1,7 @@
 import type { TextBlockType } from "../../application/commands/command";
 import type { BlockType } from "../../domain/block/block-type";
 import { MARKDOWN_BLOCK_DEFAULTS } from "../markdown/markdown-block-defaults";
+import { MERMAID_BLOCK_DEFAULTS } from "../mermaid/mermaid-block-defaults";
 
 export interface CreatableBlockType {
   readonly blockType: TextBlockType;
@@ -20,6 +21,12 @@ export const CREATABLE_BLOCK_TYPES: readonly CreatableBlockType[] = [
     label: "Markdown",
     defaultSize: MARKDOWN_BLOCK_DEFAULTS.size,
     initialText: MARKDOWN_BLOCK_DEFAULTS.initialText,
+  },
+  {
+    blockType: "mermaid",
+    label: "Mermaid",
+    defaultSize: MERMAID_BLOCK_DEFAULTS.size,
+    initialText: MERMAID_BLOCK_DEFAULTS.initialText,
   },
 ];
 

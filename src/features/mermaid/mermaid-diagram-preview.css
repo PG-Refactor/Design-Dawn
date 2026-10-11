@@ -1,0 +1,77 @@
+/* Diagram preview. Colours come from tokens only. The image fills the block without
+   growing past its own size; the overlays sit over it. */
+.mermaid-preview {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: var(--space-2);
+  overflow: hidden;
+  color: var(--color-text);
+  cursor: default;
+}
+
+.mermaid-preview__image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+
+.mermaid-preview__image--stale {
+  opacity: 0.35;
+}
+
+.mermaid-preview__message {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.mermaid-preview__error {
+  box-sizing: border-box;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: auto;
+  padding: var(--space-2);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface);
+  user-select: text;
+}
+
+.mermaid-preview__error--over-image {
+  position: absolute;
+  right: var(--space-2);
+  bottom: var(--space-2);
+  left: var(--space-2);
+  max-height: 60%;
+}
+
+.mermaid-preview__error-title {
+  margin: 0 0 var(--space-1);
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.mermaid-preview__error-label {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.mermaid-preview__error-detail {
+  margin: 0;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.mermaid-preview__hint {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}

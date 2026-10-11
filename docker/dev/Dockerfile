@@ -70,4 +70,10 @@ RUN curl -fsSL --proto '=https' --tlsv1.2 https://sh.rustup.rs -o /tmp/rustup-in
     && rm /tmp/rustup-init.sh \
     && rustc --version && cargo --version
 
+# cargo-about generates the Rust half of THIRD_PARTY_NOTICES.md (docs/oss-policy.md 5.1).
+# Pinned exactly; `--features cli` is required to build the binary. Takes about a minute.
+ARG CARGO_ABOUT_VERSION=0.9.2
+RUN cargo install cargo-about --locked --version "${CARGO_ABOUT_VERSION}" --features cli \
+    && cargo about --version
+
 WORKDIR /workspace

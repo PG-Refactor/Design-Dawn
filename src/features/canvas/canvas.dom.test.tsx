@@ -106,7 +106,7 @@ describe("rendering", () => {
     expect(first.style.width).toBe("100px");
     expect(first.style.height).toBe("50px");
     expect(frameOf(blockOption(1)).style.left).toBe("300px");
-    // Markdown blocks show their rendered text (the placeholder is for other types).
+    // Markdown blocks show their rendered text.
     expect(
       within(blockOption(0)).getByRole("region", {
         name: "Markdownプレビュー（00000001）",

@@ -150,7 +150,7 @@ describe("createBlock", () => {
     const result = await harness.canvasActions.createBlock({
       documentId: DOCUMENT_A,
       sheetId: SHEET_A1,
-      blockType: "mermaid",
+      blockType: "image",
       viewportSize: VIEWPORT_SIZE,
     });
     expect(result.ok).toBe(false);

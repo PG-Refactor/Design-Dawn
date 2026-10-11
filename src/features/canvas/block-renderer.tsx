@@ -4,7 +4,7 @@ import type { BlockType } from "../../domain/block/block-type";
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
 import { ImageBlock } from "../image/image-block";
 import { MarkdownBlock } from "../markdown/markdown-block";
-import { BlockPlaceholder } from "./block-placeholder";
+import { MermaidBlock } from "../mermaid/mermaid-block";
 
 export interface BlockRendererProps {
   readonly documentId: DocumentId;
@@ -12,13 +12,12 @@ export interface BlockRendererProps {
   readonly block: Block;
 }
 
-// One renderer per block type. Types without a real renderer show the placeholder (later
-// phases replace the entries; the canvas itself has no block-type-specific code).
+// One renderer per block type; the canvas itself has no block-type-specific code.
 const BLOCK_RENDERERS: Readonly<
   Record<BlockType, ComponentType<BlockRendererProps>>
 > = {
   markdown: MarkdownBlock,
-  mermaid: BlockPlaceholder,
+  mermaid: MermaidBlock,
   image: ImageBlock,
 };
 

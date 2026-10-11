@@ -12,6 +12,10 @@ import {
   type MarkdownMessages,
 } from "../markdown/markdown-messages";
 import {
+  MERMAID_MESSAGES,
+  type MermaidMessages,
+} from "../mermaid/mermaid-messages";
+import {
   WORKSPACE_MESSAGES,
   type WorkspaceMessages,
 } from "./workspace-messages";
@@ -23,6 +27,7 @@ export interface Messages {
   readonly workspace: WorkspaceMessages;
   readonly canvas: CanvasMessages;
   readonly markdown: MarkdownMessages;
+  readonly mermaid: MermaidMessages;
   readonly image: ImageMessages;
   readonly git: GitMessages;
 }
@@ -32,6 +37,7 @@ function collectMessages(language: DisplayLanguage): Messages {
     workspace: WORKSPACE_MESSAGES[language],
     canvas: CANVAS_MESSAGES[language],
     markdown: MARKDOWN_MESSAGES[language],
+    mermaid: MERMAID_MESSAGES[language],
     image: IMAGE_MESSAGES[language],
     git: GIT_MESSAGES[language],
   };

@@ -14,6 +14,7 @@ import type { ActionsHarness } from "../../workspace/test-support/actions-harnes
 import {
   renderShell,
   type ShellHarness,
+  type ShellOptions,
 } from "../../workspace/test-support/shell-harness";
 
 export interface RenderedCanvas {
@@ -23,8 +24,10 @@ export interface RenderedCanvas {
 
 export async function renderOpenedCanvas(
   seed: (harness: ActionsHarness) => void = () => undefined,
+  options: Pick<ShellOptions, "mermaidRenderer"> = {},
 ): Promise<RenderedCanvas> {
   const shell = await renderShell({
+    ...options,
     seed: (harness) => {
       seedCanvasDisk(harness);
       seed(harness);

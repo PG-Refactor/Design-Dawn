@@ -1,0 +1,5 @@
+flowchart TD
+  Start([Alpha start]) --> Check{Bravo check}
+  Check -->|yes| Done[Charlie done]
+  Check -->|no| Retry[処理を再試行]
+  Retry --> Check

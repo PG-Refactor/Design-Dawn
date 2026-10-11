@@ -17,6 +17,9 @@ const productionSources = Object.entries(sources).filter(
 const INJECTION_FILE = "/src/features/markdown/markdown-preview.tsx";
 const RENDERER_FILE = "/src/features/markdown/render-markdown.ts";
 const SANITIZER_FILE = "/src/features/markdown/sanitize-html.ts";
+// The only other module that may use DOMPurify: the Mermaid SVG sanitiser, with its own
+// instance (docs/architecture.md §15.4). Its further rules are in mermaid-guard.test.ts.
+const SVG_SANITIZER_FILE = "/src/features/mermaid/sanitize-svg.ts";
 
 function filesMatching(pattern: RegExp): string[] {
   return productionSources
@@ -43,9 +46,11 @@ describe("markdown security guard", () => {
     ).toEqual([]);
   });
 
-  it("imports markdown-it only in render-markdown.ts and dompurify only in sanitize-html.ts", () => {
+  it("imports markdown-it only in render-markdown.ts and dompurify only in the two sanitisers", () => {
     expect(filesMatching(importOf("markdown-it"))).toEqual([RENDERER_FILE]);
-    expect(filesMatching(importOf("dompurify"))).toEqual([SANITIZER_FILE]);
+    expect(filesMatching(importOf("dompurify")).sort()).toEqual(
+      [SANITIZER_FILE, SVG_SANITIZER_FILE].sort(),
+    );
   });
 
   it("keeps the rendering libraries out of the domain and application layers", () => {

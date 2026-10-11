@@ -352,6 +352,50 @@ fn block_text_round_trips_and_follows_the_encoding_rules() {
 }
 
 #[test]
+fn mermaid_source_saves_through_the_same_text_rules() {
+    // Mermaid has no saving path of its own (docs/architecture.md §15.3): the shared text
+    // rules (LF on write, BOM dropped on read, nothing rewritten when unchanged) hold for `.mmd`.
+    let mut opened = open_copy();
+    load_document(&mut opened.sessions, PROJECT_ID, DOCUMENT_ID).unwrap();
+    let file = sheet_dir(&opened.root, "overview").join("blocks/mermaid-1.mmd");
+    let source = "flowchart TD\r\n  A[開始] --> B{判定}\r\n  B -->|yes| C";
+
+    let saved = write_block_content(
+        &mut opened.sessions,
+        PROJECT_ID,
+        DOCUMENT_ID,
+        OVERVIEW_MERMAID_PATH,
+        source,
+    )
+    .unwrap();
+    assert!(saved.written);
+    let expected = "flowchart TD\n  A[開始] --> B{判定}\n  B -->|yes| C";
+    assert_eq!(fs::read(&file).unwrap(), expected.as_bytes());
+    let key = format!("documents/system-design/{OVERVIEW_MERMAID_PATH}");
+    assert_eq!(ledger_hash(&opened.sessions, &key), Some(file_hash(&file)));
+
+    let again = write_block_content(
+        &mut opened.sessions,
+        PROJECT_ID,
+        DOCUMENT_ID,
+        OVERVIEW_MERMAID_PATH,
+        expected,
+    )
+    .unwrap();
+    assert!(!again.written);
+
+    fs::write(&file, b"\xEF\xBB\xBFsequenceDiagram\n  A->>B: hi").unwrap();
+    let text = read_block_content(
+        &mut opened.sessions,
+        PROJECT_ID,
+        DOCUMENT_ID,
+        OVERVIEW_MERMAID_PATH,
+    )
+    .unwrap();
+    assert_eq!(text, "sequenceDiagram\n  A->>B: hi");
+}
+
+#[test]
 fn writing_a_missing_content_file_fails_instead_of_creating_it() {
     let mut opened = open_copy();
     load_document(&mut opened.sessions, PROJECT_ID, DOCUMENT_ID).unwrap();

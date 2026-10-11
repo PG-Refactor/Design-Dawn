@@ -1,77 +1,31 @@
-import { useCallback, useMemo } from "react";
-import type { ApplicationState } from "../../application/state/application-state";
+import { useMemo } from "react";
 import type { BlockId } from "../../domain/shared/entity-id";
-import { useStoreSelector } from "../../shared/store/use-store-selector";
 import type { BlockRendererProps } from "../canvas/block-renderer";
 import { shortBlockId } from "../canvas/canvas-messages";
+import { TextBlockState } from "../text-block/text-block-state";
+import { useTextBlockContent } from "../text-block/use-text-block-content";
 import { useMessages } from "../workspace/use-messages";
-import { useUiState } from "../workspace/workspace-hooks";
-import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import { MarkdownEditor } from "./markdown-editor";
 import { MarkdownPreview } from "./markdown-preview";
 import { renderMarkdown } from "./render-markdown";
-import "./markdown-block.css";
 
 // The renderer of a Markdown block: loading / failed states, the rendered preview, or the
-// split editor while the block is being edited. The text comes from the application
-// state; which block is edited comes from UI state.
+// split editor while the block is being edited.
 export function MarkdownBlock({
   documentId,
   sheetId,
   block,
 }: BlockRendererProps) {
   const messages = useMessages().markdown;
-  const { applicationStore } = useWorkspaceServices();
   const { blockId } = block;
-  const status = useStoreSelector(
-    applicationStore,
-    useCallback(
-      (application: ApplicationState) =>
-        application.documents.get(documentId)?.contentStatus.get(blockId),
-      [documentId, blockId],
-    ),
-  );
-  const text = useStoreSelector(
-    applicationStore,
-    useCallback(
-      (application: ApplicationState) =>
-        application.documents.get(documentId)?.contents.get(blockId),
-      [documentId, blockId],
-    ),
-  );
-  const editing = useUiState(
-    useCallback(
-      (ui) =>
-        ui.editingBlock?.sheetId === sheetId &&
-        ui.editingBlock.blockId === blockId,
-      [sheetId, blockId],
-    ),
+  const { status, text, editing } = useTextBlockContent(
+    documentId,
+    sheetId,
+    blockId,
   );
 
-  if (status?.status === "failed") {
-    // Never an empty preview: an empty block would look like an empty file, and could
-    // invite an edit that overwrites the one that could not be read.
-    return (
-      <div className="markdown-block__state markdown-block__state--error">
-        <p className="markdown-block__headline">{messages.loadFailed}</p>
-        <p>{messages.loadFailedHint}</p>
-        <details>
-          <summary>{messages.errorDetails}</summary>
-          <dl className="markdown-block__details">
-            <dt>{messages.errorKind}</dt>
-            <dd>{status.error.kind}</dd>
-            <dd>{status.error.detail}</dd>
-          </dl>
-        </details>
-      </div>
-    );
-  }
   if (status?.status !== "loaded" || text === undefined) {
-    return (
-      <div className="markdown-block__state" role="status">
-        {messages.loading}
-      </div>
-    );
+    return <TextBlockState status={status} messages={messages} />;
   }
   if (editing) {
     return (
