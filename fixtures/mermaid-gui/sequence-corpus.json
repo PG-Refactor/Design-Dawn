@@ -1,0 +1,3486 @@
+{
+  "fixtureVersion": 1,
+  "subject": "sequenceCorpus",
+  "cases": [
+    {
+      "id": "SQ-hdr-1",
+      "group": "hdr",
+      "source": "sequenceDiagram\n",
+      "note": "minimal header only"
+    },
+    {
+      "id": "SQ-hdr-2",
+      "group": "hdr",
+      "source": "sequenceDiagram",
+      "note": "header no newline"
+    },
+    {
+      "id": "SQ-hdr-3",
+      "group": "hdr",
+      "source": "sequenceDiagram   \n  A->>B: x\n",
+      "note": "header + trailing spaces"
+    },
+    {
+      "id": "SQ-hdr-4",
+      "group": "hdr",
+      "source": "sequenceDiagram; A->>B: x\n",
+      "note": "header followed by ; and statement"
+    },
+    {
+      "id": "SQ-hdr-5",
+      "group": "hdr",
+      "source": "sequenceDiagram A->>B: x\n",
+      "note": "statement on header line without ;"
+    },
+    {
+      "id": "SQ-hdr-6",
+      "group": "hdr",
+      "source": "SequenceDiagram\n  A->>B: x\n",
+      "note": "capitalised keyword"
+    },
+    {
+      "id": "SQ-hdr-7",
+      "group": "hdr",
+      "source": "---\ntitle: T\nconfig:\n  sequence:\n    mirrorActors: false\n---\nsequenceDiagram\n  A->>B: x\n",
+      "note": "front matter title + config"
+    },
+    {
+      "id": "SQ-hdr-8",
+      "group": "hdr",
+      "source": "%%{init: {\"theme\":\"neutral\"}}%%\nsequenceDiagram\n  A->>B: x\n",
+      "note": "init directive before header"
+    },
+    {
+      "id": "SQ-hdr-9",
+      "group": "hdr",
+      "source": "sequenceDiagram\n%%{init: {\"theme\":\"neutral\"}}%%\n  A->>B: x\n",
+      "note": "init directive after header"
+    },
+    {
+      "id": "SQ-hdr-10",
+      "group": "hdr",
+      "source": "\n\n%% c\nsequenceDiagram\n  A->>B: x\n",
+      "note": "leading blank lines + comment"
+    },
+    {
+      "id": "SQ-hdr-11",
+      "group": "hdr",
+      "source": "sequenceDiagram\r\n  participant A\r\n  A->>B: hi\r\n",
+      "note": "CRLF"
+    },
+    {
+      "id": "SQ-hdr-12",
+      "group": "hdr",
+      "source": "﻿sequenceDiagram\n  A->>B: x\n",
+      "note": "BOM"
+    },
+    {
+      "id": "SQ-hdr-13",
+      "group": "hdr",
+      "source": "sequenceDiagram\n\tA->>B: x\n\tB->>A: y\n",
+      "note": "tab indent"
+    },
+    {
+      "id": "SQ-hdr-14",
+      "group": "hdr",
+      "source": "sequenceDiagram\nA->>B: x\n",
+      "note": "no indent"
+    },
+    {
+      "id": "SQ-hdr-15",
+      "group": "hdr",
+      "source": "sequenceDiagram\n  A->>B: x; B->>A: y\n",
+      "note": "statements separated by ;"
+    },
+    {
+      "id": "SQ-hdr-16",
+      "group": "hdr",
+      "source": "sequenceDiagram\n  A->>B: x;\n  B->>A: y;\n",
+      "note": "trailing ; on statement"
+    },
+    {
+      "id": "SQ-hdr-17",
+      "group": "hdr",
+      "source": "sequenceDiagram\n\n  A->>B: x\n\n\n  B->>A: y\n\n",
+      "note": "empty line between"
+    },
+    {
+      "id": "SQ-hdr-18",
+      "group": "hdr",
+      "source": "sequenceDiagram\n  A->>B: x\nsequenceDiagram\n  B->>A: y\n",
+      "note": "two headers"
+    },
+    {
+      "id": "SQ-hdr-19",
+      "group": "hdr",
+      "source": "sequenceDiagram\r  A->>B: x\r  B->>A: y\r",
+      "note": "lone CR separators"
+    },
+    {
+      "id": "SQ-hdr-20",
+      "group": "hdr",
+      "source": "sequenceDiagram\r\n  A->>B: x\n  B->>A: y\r\n",
+      "note": "mixed LF/CRLF"
+    },
+    {
+      "id": "SQ-cm-1",
+      "group": "cm",
+      "source": "sequenceDiagram\n%% comment\n  A->>B: x\n",
+      "note": "%% comment line"
+    },
+    {
+      "id": "SQ-cm-2",
+      "group": "cm",
+      "source": "sequenceDiagram\n    %% comment\n  A->>B: x\n",
+      "note": "indented %% comment"
+    },
+    {
+      "id": "SQ-cm-3",
+      "group": "cm",
+      "source": "sequenceDiagram\n# hash comment\n  A->>B: x\n",
+      "note": "# comment line"
+    },
+    {
+      "id": "SQ-cm-4",
+      "group": "cm",
+      "source": "sequenceDiagram\n   # hash comment\n  A->>B: x\n",
+      "note": "indented # comment"
+    },
+    {
+      "id": "SQ-cm-5",
+      "group": "cm",
+      "source": "sequenceDiagram\n  A->>B: x %% tail\n  B->>A: y\n",
+      "note": "trailing %% after message"
+    },
+    {
+      "id": "SQ-cm-6",
+      "group": "cm",
+      "source": "sequenceDiagram\n  A->>B: x # tail\n  B->>A: y\n",
+      "note": "trailing # after message"
+    },
+    {
+      "id": "SQ-cm-7",
+      "group": "cm",
+      "source": "sequenceDiagram\n  participant A %% tail\n  A->>B: y\n",
+      "note": "trailing %% after participant"
+    },
+    {
+      "id": "SQ-cm-8",
+      "group": "cm",
+      "source": "sequenceDiagram\n  participant A # tail\n  A->>B: y\n",
+      "note": "trailing # after participant"
+    },
+    {
+      "id": "SQ-cm-9",
+      "group": "cm",
+      "source": "sequenceDiagram\n  Note over A: a %% b\n  A->>B: y\n",
+      "note": "%% in note text"
+    },
+    {
+      "id": "SQ-cm-10",
+      "group": "cm",
+      "source": "sequenceDiagram\n  loop L\n  %% c\n  A->>B: x\n  end\n",
+      "note": "%% comment between block lines"
+    },
+    {
+      "id": "SQ-cm-11",
+      "group": "cm",
+      "source": "sequenceDiagram\n% single\n  A->>B: x\n",
+      "note": "% single percent line"
+    },
+    {
+      "id": "SQ-cm-12",
+      "group": "cm",
+      "source": "sequenceDiagram\n  A->>B: x %%{init: {\"theme\":\"dark\"}}%%\n  B->>A: y\n",
+      "note": "%%{ in message"
+    },
+    {
+      "id": "SQ-cm-13",
+      "group": "cm",
+      "source": "sequenceDiagram\n  A->>B: c#d\n",
+      "note": "# in message text immediately"
+    },
+    {
+      "id": "SQ-cm-14",
+      "group": "cm",
+      "source": "sequenceDiagram\n  loop a#b\n  A->>B: x\n  end\n",
+      "note": "# in loop text"
+    },
+    {
+      "id": "SQ-pt-1",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A\n  A->>B: x\n",
+      "note": "participant"
+    },
+    {
+      "id": "SQ-pt-2",
+      "group": "pt",
+      "source": "sequenceDiagram\n  actor A\n  A->>B: x\n",
+      "note": "actor"
+    },
+    {
+      "id": "SQ-pt-3",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A as Alice\n  A->>B: x\n",
+      "note": "participant alias"
+    },
+    {
+      "id": "SQ-pt-4",
+      "group": "pt",
+      "source": "sequenceDiagram\n  actor U as User\n  U->>B: x\n",
+      "note": "actor alias"
+    },
+    {
+      "id": "SQ-pt-5",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A as Alice the Great\n  A->>B: x\n",
+      "note": "alias with spaces"
+    },
+    {
+      "id": "SQ-pt-6",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A as \"Alice\"\n  A->>B: x\n",
+      "note": "alias quoted"
+    },
+    {
+      "id": "SQ-pt-7",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A as Al;ice\n  A->>B: x\n",
+      "note": "alias with semicolon"
+    },
+    {
+      "id": "SQ-pt-8",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A as Al#ice\n  A->>B: x\n",
+      "note": "alias with hash"
+    },
+    {
+      "id": "SQ-pt-9",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A as Al#59;ice\n  A->>B: x\n",
+      "note": "alias with entity #59;"
+    },
+    {
+      "id": "SQ-pt-10",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A as Al:ice\n  A->>B: x\n",
+      "note": "alias with colon"
+    },
+    {
+      "id": "SQ-pt-11",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A as Al%%ice\n  A->>B: x\n",
+      "note": "alias with %%"
+    },
+    {
+      "id": "SQ-pt-12",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A as Alice<br/>Smith\n  A->>B: x\n",
+      "note": "alias with <br/>"
+    },
+    {
+      "id": "SQ-pt-13",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A as <b>Alice</b>\n  A->>B: x\n",
+      "note": "alias with <b>"
+    },
+    {
+      "id": "SQ-pt-14",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A as 太郎\n  A->>B: x\n",
+      "note": "alias unicode"
+    },
+    {
+      "id": "SQ-pt-15",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A as\n  A->>B: x\n",
+      "note": "alias empty"
+    },
+    {
+      "id": "SQ-pt-16",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A as Alice (admin)\n  A->>B: x\n",
+      "note": "alias with parens"
+    },
+    {
+      "id": "SQ-pt-17",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A as wrap:Alice long text\n  A->>B: x\n",
+      "note": "alias with wrap prefix"
+    },
+    {
+      "id": "SQ-pt-18",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A as :wrap:Alice\n  A->>B: x\n",
+      "note": "alias :wrap: prefix"
+    },
+    {
+      "id": "SQ-pt-19",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A as nowrap:Alice\n  A->>B: x\n",
+      "note": "alias nowrap:"
+    },
+    {
+      "id": "SQ-pt-20",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant Alice Smith\n  Alice Smith->>B: x\n",
+      "note": "participant id with space"
+    },
+    {
+      "id": "SQ-pt-21",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant web-app\n  web-app->>B: x\n",
+      "note": "participant id with hyphen"
+    },
+    {
+      "id": "SQ-pt-22",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant a.b\n  a.b->>B: x\n",
+      "note": "participant id with dot"
+    },
+    {
+      "id": "SQ-pt-23",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant a_1\n  a_1->>B2: x\n",
+      "note": "participant id with underscore/digits"
+    },
+    {
+      "id": "SQ-pt-24",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant 太郎\n  太郎->>花子: こんにちは\n",
+      "note": "participant id unicode"
+    },
+    {
+      "id": "SQ-pt-25",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant 😀\n  😀->>B: x\n",
+      "note": "participant id with emoji"
+    },
+    {
+      "id": "SQ-pt-26",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant a/b\n",
+      "note": "participant id with slash"
+    },
+    {
+      "id": "SQ-pt-27",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant a(b)\n",
+      "note": "participant id with paren"
+    },
+    {
+      "id": "SQ-pt-28",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant a+b\n",
+      "note": "participant id with +"
+    },
+    {
+      "id": "SQ-pt-29",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant a<b\n",
+      "note": "participant id with <"
+    },
+    {
+      "id": "SQ-pt-30",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant a:b\n",
+      "note": "participant id with colon"
+    },
+    {
+      "id": "SQ-pt-31",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant \"a\"\n  \"a\"->>B: x\n",
+      "note": "participant id with quote"
+    },
+    {
+      "id": "SQ-pt-32",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant a,b\n",
+      "note": "participant id with comma"
+    },
+    {
+      "id": "SQ-pt-33",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant a@b\n",
+      "note": "participant id with @"
+    },
+    {
+      "id": "SQ-pt-34",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant a#b\n",
+      "note": "participant id with hash"
+    },
+    {
+      "id": "SQ-pt-35",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant max\n  max->>B: x\n",
+      "note": "participant id ending with x (arrow ambiguity)"
+    },
+    {
+      "id": "SQ-pt-36",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant a-\n  a-->>B: x\n",
+      "note": "participant id ending with - "
+    },
+    {
+      "id": "SQ-pt-37",
+      "group": "pt",
+      "source": "sequenceDiagram\n  loopback->>B: x\n  endpoint->>B: y\n  optional->>B: z\n  notes->>B: w\n  titled->>B: v\n  altitude->>B: u\n",
+      "note": "implicit id starting with keyword text"
+    },
+    {
+      "id": "SQ-pt-38",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant end\n",
+      "note": "id exactly 'end'"
+    },
+    {
+      "id": "SQ-pt-39",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant loop\n  loop->>B: x\n",
+      "note": "id exactly 'loop'"
+    },
+    {
+      "id": "SQ-pt-40",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant participant\n",
+      "note": "id exactly 'participant'"
+    },
+    {
+      "id": "SQ-pt-41",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant as\n  as->>B: x\n",
+      "note": "id exactly 'as'"
+    },
+    {
+      "id": "SQ-pt-42",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant note\n  note->>B: x\n",
+      "note": "id exactly 'note'"
+    },
+    {
+      "id": "SQ-pt-43",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant title\n  title->>B: x\n",
+      "note": "id exactly 'title'"
+    },
+    {
+      "id": "SQ-pt-44",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant activate\n  activate->>B: x\n",
+      "note": "id exactly 'activate'"
+    },
+    {
+      "id": "SQ-pt-45",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant autonumber\n  autonumber->>B: x\n",
+      "note": "id exactly 'autonumber'"
+    },
+    {
+      "id": "SQ-pt-46",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant box\n  box->>B: x\n",
+      "note": "id exactly 'box'"
+    },
+    {
+      "id": "SQ-pt-47",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant alt\n  alt->>B: x\n",
+      "note": "id exactly 'alt'"
+    },
+    {
+      "id": "SQ-pt-48",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant else\n  else->>B: x\n",
+      "note": "id exactly 'else'"
+    },
+    {
+      "id": "SQ-pt-49",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant opt\n  opt->>B: x\n",
+      "note": "id exactly 'opt'"
+    },
+    {
+      "id": "SQ-pt-50",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant par\n  par->>B: x\n",
+      "note": "id exactly 'par'"
+    },
+    {
+      "id": "SQ-pt-51",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant and\n  and->>B: x\n",
+      "note": "id exactly 'and'"
+    },
+    {
+      "id": "SQ-pt-52",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant rect\n  rect->>B: x\n",
+      "note": "id exactly 'rect'"
+    },
+    {
+      "id": "SQ-pt-53",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant critical\n  critical->>B: x\n",
+      "note": "id exactly 'critical'"
+    },
+    {
+      "id": "SQ-pt-54",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant break\n  break->>B: x\n",
+      "note": "id exactly 'break'"
+    },
+    {
+      "id": "SQ-pt-55",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant create\n  create->>B: x\n",
+      "note": "id exactly 'create'"
+    },
+    {
+      "id": "SQ-pt-56",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant destroy\n  destroy->>B: x\n",
+      "note": "id exactly 'destroy'"
+    },
+    {
+      "id": "SQ-pt-57",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant over\n  over->>B: x\n",
+      "note": "id exactly 'over'"
+    },
+    {
+      "id": "SQ-pt-58",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant left\n  left->>B: x\n",
+      "note": "id exactly 'left'"
+    },
+    {
+      "id": "SQ-pt-59",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant off\n  off->>B: x\n",
+      "note": "id exactly 'off'"
+    },
+    {
+      "id": "SQ-pt-60",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant link\n  link->>B: x\n",
+      "note": "id exactly 'link'"
+    },
+    {
+      "id": "SQ-pt-61",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant links\n  links->>B: x\n",
+      "note": "id exactly 'links'"
+    },
+    {
+      "id": "SQ-pt-62",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant properties\n  properties->>B: x\n",
+      "note": "id exactly 'properties'"
+    },
+    {
+      "id": "SQ-pt-63",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant details\n  details->>B: x\n",
+      "note": "id exactly 'details'"
+    },
+    {
+      "id": "SQ-pt-64",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant deactivate\n  deactivate->>B: x\n",
+      "note": "id exactly 'deactivate'"
+    },
+    {
+      "id": "SQ-pt-65",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant END\n  END->>B: x\n",
+      "note": "id upper-case END"
+    },
+    {
+      "id": "SQ-pt-66",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant LOOP\n",
+      "note": "id upper-case LOOP"
+    },
+    {
+      "id": "SQ-pt-67",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A\n  participant A\n  A->>B: x\n",
+      "note": "duplicate participant decl"
+    },
+    {
+      "id": "SQ-pt-68",
+      "group": "pt",
+      "source": "sequenceDiagram\n  A->>B: x\n  participant A as Alice\n",
+      "note": "redeclare with alias after use"
+    },
+    {
+      "id": "SQ-pt-69",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A as One\n  participant A as Two\n  A->>B: x\n",
+      "note": "alias twice"
+    },
+    {
+      "id": "SQ-pt-70",
+      "group": "pt",
+      "source": "sequenceDiagram\n  A->>B: x\n  participant C\n  participant B\n",
+      "note": "participant declared late reorder"
+    },
+    {
+      "id": "SQ-pt-71",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A@{ \"type\" : \"database\" }\n  A->>B: m\n",
+      "note": "participant with type @{} database"
+    },
+    {
+      "id": "SQ-pt-72",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A@{ \"type\": \"boundary\" }\n  participant B@{ \"type\": \"control\" }\n  participant C@{ \"type\": \"entity\" }\n  participant D@{ \"type\": \"collections\" }\n  participant E@{ \"type\": \"queue\" }\n  participant F@{ \"type\": \"actor\" }\n  A->>B: m\n",
+      "note": "participant @{} each type"
+    },
+    {
+      "id": "SQ-pt-73",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A@{ \"type\": \"nope\" }\n  A->>B: m\n",
+      "note": "participant @{} unknown type"
+    },
+    {
+      "id": "SQ-pt-74",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A@{ \"type\": \"database\", \"alias\": \"Store\" }\n  A->>B: m\n",
+      "note": "participant @{} alias"
+    },
+    {
+      "id": "SQ-pt-75",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A@{ \"type\": \"database\" } as Store\n  A->>B: m\n",
+      "note": "participant @{} + as"
+    },
+    {
+      "id": "SQ-pt-76",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A@{ type: database }\n  A->>B: m\n",
+      "note": "participant @{} unquoted yaml"
+    },
+    {
+      "id": "SQ-pt-77",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant A@{ type: [ }\n  A->>B: m\n",
+      "note": "participant @{} bad yaml"
+    },
+    {
+      "id": "SQ-pt-78",
+      "group": "pt",
+      "source": "sequenceDiagram\n  actor A@{ \"type\": \"queue\" }\n  A->>B: m\n",
+      "note": "actor @{}"
+    },
+    {
+      "id": "SQ-pt-79",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant a\n  participant b\n  a->>b: x\n",
+      "note": "participant 1 char names"
+    },
+    {
+      "id": "SQ-pt-80",
+      "group": "pt",
+      "source": "sequenceDiagram\n  participant xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx->>B: m\n",
+      "note": "very long participant id"
+    },
+    {
+      "id": "SQ-cd-1",
+      "group": "cd",
+      "source": "sequenceDiagram\n  A->>B: x\n  create participant C\n  B->>C: new\n",
+      "note": "create participant + message"
+    },
+    {
+      "id": "SQ-cd-2",
+      "group": "cd",
+      "source": "sequenceDiagram\n  A->>B: x\n  create actor C\n  B->>C: new\n",
+      "note": "create actor + message"
+    },
+    {
+      "id": "SQ-cd-3",
+      "group": "cd",
+      "source": "sequenceDiagram\n  A->>B: x\n  create participant C as Carl\n  B->>C: new\n",
+      "note": "create with alias"
+    },
+    {
+      "id": "SQ-cd-4",
+      "group": "cd",
+      "source": "sequenceDiagram\n  A->>B: x\n  create participant C\n",
+      "note": "create without message"
+    },
+    {
+      "id": "SQ-cd-5",
+      "group": "cd",
+      "source": "sequenceDiagram\n  A->>B: x\n  create participant C\n  A->>B: y\n",
+      "note": "create followed by wrong message"
+    },
+    {
+      "id": "SQ-cd-6",
+      "group": "cd",
+      "source": "sequenceDiagram\n  A->>B: x\n  create participant B\n  A->>B: y\n",
+      "note": "create existing id"
+    },
+    {
+      "id": "SQ-cd-7",
+      "group": "cd",
+      "source": "sequenceDiagram\n  A->>B: x\n  destroy B\n  B-->>A: bye\n",
+      "note": "destroy after message"
+    },
+    {
+      "id": "SQ-cd-8",
+      "group": "cd",
+      "source": "sequenceDiagram\n  A->>B: x\n  destroy B\n  A->>B: bye\n",
+      "note": "destroy before message from other"
+    },
+    {
+      "id": "SQ-cd-9",
+      "group": "cd",
+      "source": "sequenceDiagram\n  A->>B: x\n  destroy B\n",
+      "note": "destroy without message"
+    },
+    {
+      "id": "SQ-cd-10",
+      "group": "cd",
+      "source": "sequenceDiagram\n  A->>B: x\n  C->>A: z\n  destroy B\n  C->>A: y\n",
+      "note": "destroy wrong message"
+    },
+    {
+      "id": "SQ-cd-11",
+      "group": "cd",
+      "source": "sequenceDiagram\n  A->>B: x\n  create participant C\n  B->>C: new\n  destroy C\n  C-->>B: bye\n",
+      "note": "create then destroy"
+    },
+    {
+      "id": "SQ-cd-12",
+      "group": "cd",
+      "source": "sequenceDiagram\n  A->>B: x\n  destroy Z\n  Z->>A: y\n",
+      "note": "destroy unknown participant"
+    },
+    {
+      "id": "SQ-cd-13",
+      "group": "cd",
+      "source": "sequenceDiagram\n  box Purple Group\n    participant A\n    participant B\n  end\n  A->>B: hi\n",
+      "note": "box with color and title"
+    },
+    {
+      "id": "SQ-cd-14",
+      "group": "cd",
+      "source": "sequenceDiagram\n  box rgb(33,66,99) Team\n    participant A\n  end\n  A->>B: hi\n",
+      "note": "box with rgb"
+    },
+    {
+      "id": "SQ-cd-15",
+      "group": "cd",
+      "source": "sequenceDiagram\n  box rgba(33,66,99,0.5) Team\n    participant A\n  end\n  A->>B: hi\n",
+      "note": "box rgba"
+    },
+    {
+      "id": "SQ-cd-16",
+      "group": "cd",
+      "source": "sequenceDiagram\n  box Team\n    participant A\n  end\n  A->>B: hi\n",
+      "note": "box title only"
+    },
+    {
+      "id": "SQ-cd-17",
+      "group": "cd",
+      "source": "sequenceDiagram\n  box transparent Team\n    participant A\n  end\n  A->>B: hi\n",
+      "note": "box transparent"
+    },
+    {
+      "id": "SQ-cd-18",
+      "group": "cd",
+      "source": "sequenceDiagram\n  box\n    participant A\n  end\n  A->>B: hi\n",
+      "note": "box no title"
+    },
+    {
+      "id": "SQ-cd-19",
+      "group": "cd",
+      "source": "sequenceDiagram\n  box #f00 Team\n    participant A\n  end\n  A->>B: hi\n",
+      "note": "box hex color"
+    },
+    {
+      "id": "SQ-cd-20",
+      "group": "cd",
+      "source": "sequenceDiagram\n  box Team\n    participant A\n    A->>B: x\n  end\n",
+      "note": "box with message inside"
+    },
+    {
+      "id": "SQ-cd-21",
+      "group": "cd",
+      "source": "sequenceDiagram\n  box Team\n    participant A\n  A->>B: x\n",
+      "note": "box unclosed"
+    },
+    {
+      "id": "SQ-cd-22",
+      "group": "cd",
+      "source": "sequenceDiagram\n  box Team\n    box Inner\n    participant A\n    end\n  end\n",
+      "note": "box nested"
+    },
+    {
+      "id": "SQ-cd-23",
+      "group": "cd",
+      "source": "sequenceDiagram\n  box One\n    participant A\n  end\n  box Two\n    participant A\n  end\n",
+      "note": "participant in two boxes"
+    },
+    {
+      "id": "SQ-cd-24",
+      "group": "cd",
+      "source": "sequenceDiagram\n  box Team\n    participant A\n  end\n  A->>B: x\n  create participant C\n  A->>C: y\n",
+      "note": "box + create inside"
+    },
+    {
+      "id": "SQ-cd-25",
+      "group": "cd",
+      "source": "sequenceDiagram\n  box Team\n  end\n  A->>B: x\n",
+      "note": "box empty"
+    },
+    {
+      "id": "SQ-ar-1",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A -> B: t\n",
+      "note": "arrow -> (spaced)"
+    },
+    {
+      "id": "SQ-ar-2",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A --> B: t\n",
+      "note": "arrow --> (spaced)"
+    },
+    {
+      "id": "SQ-ar-3",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A ->> B: t\n",
+      "note": "arrow ->> (spaced)"
+    },
+    {
+      "id": "SQ-ar-4",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A -->> B: t\n",
+      "note": "arrow -->> (spaced)"
+    },
+    {
+      "id": "SQ-ar-5",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A <<->> B: t\n",
+      "note": "arrow <<->> (spaced)"
+    },
+    {
+      "id": "SQ-ar-6",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A <<-->> B: t\n",
+      "note": "arrow <<-->> (spaced)"
+    },
+    {
+      "id": "SQ-ar-7",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A -x B: t\n",
+      "note": "arrow -x (spaced)"
+    },
+    {
+      "id": "SQ-ar-8",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A --x B: t\n",
+      "note": "arrow --x (spaced)"
+    },
+    {
+      "id": "SQ-ar-9",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A -) B: t\n",
+      "note": "arrow -) (spaced)"
+    },
+    {
+      "id": "SQ-ar-10",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A --) B: t\n",
+      "note": "arrow --) (spaced)"
+    },
+    {
+      "id": "SQ-ar-11",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A -|\\ B: t\n",
+      "note": "arrow -|\\ (spaced)"
+    },
+    {
+      "id": "SQ-ar-12",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A --|\\ B: t\n",
+      "note": "arrow --|\\ (spaced)"
+    },
+    {
+      "id": "SQ-ar-13",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A -|/ B: t\n",
+      "note": "arrow -|/ (spaced)"
+    },
+    {
+      "id": "SQ-ar-14",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A --|/ B: t\n",
+      "note": "arrow --|/ (spaced)"
+    },
+    {
+      "id": "SQ-ar-15",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A -\\\\ B: t\n",
+      "note": "arrow -\\\\ (spaced)"
+    },
+    {
+      "id": "SQ-ar-16",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A --\\\\ B: t\n",
+      "note": "arrow --\\\\ (spaced)"
+    },
+    {
+      "id": "SQ-ar-17",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A -// B: t\n",
+      "note": "arrow -// (spaced)"
+    },
+    {
+      "id": "SQ-ar-18",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A --// B: t\n",
+      "note": "arrow --// (spaced)"
+    },
+    {
+      "id": "SQ-ar-19",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A /|- B: t\n",
+      "note": "arrow /|- (spaced)"
+    },
+    {
+      "id": "SQ-ar-20",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A /|-- B: t\n",
+      "note": "arrow /|-- (spaced)"
+    },
+    {
+      "id": "SQ-ar-21",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A \\|- B: t\n",
+      "note": "arrow \\|- (spaced)"
+    },
+    {
+      "id": "SQ-ar-22",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A \\|-- B: t\n",
+      "note": "arrow \\|-- (spaced)"
+    },
+    {
+      "id": "SQ-ar-23",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A //- B: t\n",
+      "note": "arrow //- (spaced)"
+    },
+    {
+      "id": "SQ-ar-24",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A //-- B: t\n",
+      "note": "arrow //-- (spaced)"
+    },
+    {
+      "id": "SQ-ar-25",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A \\\\- B: t\n",
+      "note": "arrow \\\\- (spaced)"
+    },
+    {
+      "id": "SQ-ar-26",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A \\\\-- B: t\n",
+      "note": "arrow \\\\-- (spaced)"
+    },
+    {
+      "id": "SQ-ar-27",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A->B: t\n",
+      "note": "arrow -> (tight)"
+    },
+    {
+      "id": "SQ-ar-28",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A-->B: t\n",
+      "note": "arrow --> (tight)"
+    },
+    {
+      "id": "SQ-ar-29",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A->>B: t\n",
+      "note": "arrow ->> (tight)"
+    },
+    {
+      "id": "SQ-ar-30",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A-->>B: t\n",
+      "note": "arrow -->> (tight)"
+    },
+    {
+      "id": "SQ-ar-31",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A<<->>B: t\n",
+      "note": "arrow <<->> (tight)"
+    },
+    {
+      "id": "SQ-ar-32",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A<<-->>B: t\n",
+      "note": "arrow <<-->> (tight)"
+    },
+    {
+      "id": "SQ-ar-33",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A-xB: t\n",
+      "note": "arrow -x (tight)"
+    },
+    {
+      "id": "SQ-ar-34",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A--xB: t\n",
+      "note": "arrow --x (tight)"
+    },
+    {
+      "id": "SQ-ar-35",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A-)B: t\n",
+      "note": "arrow -) (tight)"
+    },
+    {
+      "id": "SQ-ar-36",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A--)B: t\n",
+      "note": "arrow --) (tight)"
+    },
+    {
+      "id": "SQ-ar-37",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A-|\\B: t\n",
+      "note": "arrow -|\\ (tight)"
+    },
+    {
+      "id": "SQ-ar-38",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A--|\\B: t\n",
+      "note": "arrow --|\\ (tight)"
+    },
+    {
+      "id": "SQ-ar-39",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A-|/B: t\n",
+      "note": "arrow -|/ (tight)"
+    },
+    {
+      "id": "SQ-ar-40",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A--|/B: t\n",
+      "note": "arrow --|/ (tight)"
+    },
+    {
+      "id": "SQ-ar-41",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A-\\\\B: t\n",
+      "note": "arrow -\\\\ (tight)"
+    },
+    {
+      "id": "SQ-ar-42",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A--\\\\B: t\n",
+      "note": "arrow --\\\\ (tight)"
+    },
+    {
+      "id": "SQ-ar-43",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A-//B: t\n",
+      "note": "arrow -// (tight)"
+    },
+    {
+      "id": "SQ-ar-44",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A--//B: t\n",
+      "note": "arrow --// (tight)"
+    },
+    {
+      "id": "SQ-ar-45",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A/|-B: t\n",
+      "note": "arrow /|- (tight)"
+    },
+    {
+      "id": "SQ-ar-46",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A/|--B: t\n",
+      "note": "arrow /|-- (tight)"
+    },
+    {
+      "id": "SQ-ar-47",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A\\|-B: t\n",
+      "note": "arrow \\|- (tight)"
+    },
+    {
+      "id": "SQ-ar-48",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A\\|--B: t\n",
+      "note": "arrow \\|-- (tight)"
+    },
+    {
+      "id": "SQ-ar-49",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A//-B: t\n",
+      "note": "arrow //- (tight)"
+    },
+    {
+      "id": "SQ-ar-50",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A//--B: t\n",
+      "note": "arrow //-- (tight)"
+    },
+    {
+      "id": "SQ-ar-51",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A\\\\-B: t\n",
+      "note": "arrow \\\\- (tight)"
+    },
+    {
+      "id": "SQ-ar-52",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A\\\\--B: t\n",
+      "note": "arrow \\\\-- (tight)"
+    },
+    {
+      "id": "SQ-ar-53",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A->>+B: t\n  B->>-A: r\n",
+      "note": "activate + with ->>"
+    },
+    {
+      "id": "SQ-ar-54",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A-->>+B: t\n  B-->>-A: r\n",
+      "note": "activate + with -->>"
+    },
+    {
+      "id": "SQ-ar-55",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A-x+B: t\n  B-x-A: r\n",
+      "note": "activate + with -x"
+    },
+    {
+      "id": "SQ-ar-56",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A-)+B: t\n  B-)-A: r\n",
+      "note": "activate + with -)"
+    },
+    {
+      "id": "SQ-ar-57",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A->+B: t\n  B->-A: r\n",
+      "note": "activate + with ->"
+    },
+    {
+      "id": "SQ-ar-58",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A-->+B: t\n  B-->-A: r\n",
+      "note": "activate + with -->"
+    },
+    {
+      "id": "SQ-ar-59",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A->>()B: t\n",
+      "note": "central connection ()"
+    },
+    {
+      "id": "SQ-ar-60",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A()->>B: t\n",
+      "note": "central connection reverse"
+    },
+    {
+      "id": "SQ-ar-61",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A()->>()B: t\n",
+      "note": "central connection dual"
+    },
+    {
+      "id": "SQ-ar-62",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A- >B: t\n",
+      "note": "space inside arrow"
+    },
+    {
+      "id": "SQ-ar-63",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A->>>B: t\n",
+      "note": "bad arrow ->>>"
+    },
+    {
+      "id": "SQ-ar-64",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A->>: t\n",
+      "note": "arrow without target"
+    },
+    {
+      "id": "SQ-ar-65",
+      "group": "ar",
+      "source": "sequenceDiagram\n  ->>B: t\n",
+      "note": "arrow without source"
+    },
+    {
+      "id": "SQ-ar-66",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A->>B\n",
+      "note": "arrow without colon"
+    },
+    {
+      "id": "SQ-ar-67",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A->>B:\n",
+      "note": "arrow with empty text"
+    },
+    {
+      "id": "SQ-ar-68",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A->>B:  \n",
+      "note": "arrow with empty text + trailing space"
+    },
+    {
+      "id": "SQ-ar-69",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A->>A: self\n",
+      "note": "self message"
+    },
+    {
+      "id": "SQ-ar-70",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A->>+A: self\n  A-->>-A: done\n",
+      "note": "self message with activate"
+    },
+    {
+      "id": "SQ-ar-71",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A->>+B: 1\n  B->>+C: 2\n  C-->>-B: 3\n  B-->>-A: 4\n",
+      "note": "nested activations"
+    },
+    {
+      "id": "SQ-ar-72",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A->>B: x\n  B-->>-A: y\n",
+      "note": "deactivate without activation"
+    },
+    {
+      "id": "SQ-ar-73",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A->>+B: x\n  B->>A: y\n",
+      "note": "activate never closed"
+    },
+    {
+      "id": "SQ-ar-74",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A->>-B: x\n",
+      "note": "- on first message"
+    },
+    {
+      "id": "SQ-ar-75",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A->>+-B: x\n",
+      "note": "both + and -"
+    },
+    {
+      "id": "SQ-ar-76",
+      "group": "ar",
+      "source": "sequenceDiagram\n  A->>B->>C: x\n",
+      "note": "multiple arrows in one line"
+    },
+    {
+      "id": "SQ-tx-1",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: hello\n  B->>A: ok\n",
+      "note": "message text: plain"
+    },
+    {
+      "id": "SQ-tx-2",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: a: b: c\n  B->>A: ok\n",
+      "note": "message text: colons"
+    },
+    {
+      "id": "SQ-tx-3",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: a; b\n  B->>A: ok\n",
+      "note": "message text: semicolon"
+    },
+    {
+      "id": "SQ-tx-4",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: a#59; b\n  B->>A: ok\n",
+      "note": "message text: semicolon entity"
+    },
+    {
+      "id": "SQ-tx-5",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: a # b\n  B->>A: ok\n",
+      "note": "message text: hash"
+    },
+    {
+      "id": "SQ-tx-6",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: a#35;b\n  B->>A: ok\n",
+      "note": "message text: hash entity"
+    },
+    {
+      "id": "SQ-tx-7",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: 50% done\n  B->>A: ok\n",
+      "note": "message text: percent"
+    },
+    {
+      "id": "SQ-tx-8",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: a %% b\n  B->>A: ok\n",
+      "note": "message text: double percent"
+    },
+    {
+      "id": "SQ-tx-9",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: say \"hi\"\n  B->>A: ok\n",
+      "note": "message text: quote"
+    },
+    {
+      "id": "SQ-tx-10",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: say #quot;hi#quot;\n  B->>A: ok\n",
+      "note": "message text: quote entity"
+    },
+    {
+      "id": "SQ-tx-11",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: it's\n  B->>A: ok\n",
+      "note": "message text: single quote"
+    },
+    {
+      "id": "SQ-tx-12",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: l1<br/>l2\n  B->>A: ok\n",
+      "note": "message text: br"
+    },
+    {
+      "id": "SQ-tx-13",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: l1<br>l2\n  B->>A: ok\n",
+      "note": "message text: br no slash"
+    },
+    {
+      "id": "SQ-tx-14",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: l1<br />l2\n  B->>A: ok\n",
+      "note": "message text: br space"
+    },
+    {
+      "id": "SQ-tx-15",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: <b>x</b>\n  B->>A: ok\n",
+      "note": "message text: bold html"
+    },
+    {
+      "id": "SQ-tx-16",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: a < b\n  B->>A: ok\n",
+      "note": "message text: lt"
+    },
+    {
+      "id": "SQ-tx-17",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: a #lt; b\n  B->>A: ok\n",
+      "note": "message text: lt entity"
+    },
+    {
+      "id": "SQ-tx-18",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: a > b\n  B->>A: ok\n",
+      "note": "message text: gt"
+    },
+    {
+      "id": "SQ-tx-19",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: a #gt; b\n  B->>A: ok\n",
+      "note": "message text: gt entity"
+    },
+    {
+      "id": "SQ-tx-20",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: a & b\n  B->>A: ok\n",
+      "note": "message text: ampersand"
+    },
+    {
+      "id": "SQ-tx-21",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: a &amp; b\n  B->>A: ok\n",
+      "note": "message text: amp entity"
+    },
+    {
+      "id": "SQ-tx-22",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: こんにちは 😀\n  B->>A: ok\n",
+      "note": "message text: unicode"
+    },
+    {
+      "id": "SQ-tx-23",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B:    spaced   \n  B->>A: ok\n",
+      "note": "message text: leading spaces"
+    },
+    {
+      "id": "SQ-tx-24",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: a\\b\n  B->>A: ok\n",
+      "note": "message text: backslash"
+    },
+    {
+      "id": "SQ-tx-25",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: {a}\n  B->>A: ok\n",
+      "note": "message text: braces"
+    },
+    {
+      "id": "SQ-tx-26",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: [a]\n  B->>A: ok\n",
+      "note": "message text: brackets"
+    },
+    {
+      "id": "SQ-tx-27",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: (a)\n  B->>A: ok\n",
+      "note": "message text: parens"
+    },
+    {
+      "id": "SQ-tx-28",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: a->>b\n  B->>A: ok\n",
+      "note": "message text: arrow-like"
+    },
+    {
+      "id": "SQ-tx-29",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: +x -y\n  B->>A: ok\n",
+      "note": "message text: plus minus"
+    },
+    {
+      "id": "SQ-tx-30",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: wrap: long text\n  B->>A: ok\n",
+      "note": "message text: wrap prefix"
+    },
+    {
+      "id": "SQ-tx-31",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: nowrap: long text\n  B->>A: ok\n",
+      "note": "message text: nowrap prefix"
+    },
+    {
+      "id": "SQ-tx-32",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: :wrap:long\n  B->>A: ok\n",
+      "note": "message text: colon wrap"
+    },
+    {
+      "id": "SQ-tx-33",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: $$x^2$$\n  B->>A: ok\n",
+      "note": "message text: dollar katex"
+    },
+    {
+      "id": "SQ-tx-34",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: <script>alert(1)</script>\n  B->>A: ok\n",
+      "note": "message text: script"
+    },
+    {
+      "id": "SQ-tx-35",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: <img src=x onerror=alert(1)>\n  B->>A: ok\n",
+      "note": "message text: img onerror"
+    },
+    {
+      "id": "SQ-tx-36",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: x %%{init: {\"theme\":\"dark\"}}%%\n  B->>A: ok\n",
+      "note": "message text: init directive"
+    },
+    {
+      "id": "SQ-tx-37",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B:    \n  B->>A: ok\n",
+      "note": "message text: only spaces"
+    },
+    {
+      "id": "SQ-tx-38",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: a\tb\n  B->>A: ok\n",
+      "note": "message text: tab"
+    },
+    {
+      "id": "SQ-tx-39",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word \n  B->>A: ok\n",
+      "note": "message text: long"
+    },
+    {
+      "id": "SQ-tx-40",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: 😀\n  B->>A: ok\n",
+      "note": "message text: emoji only"
+    },
+    {
+      "id": "SQ-tx-41",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: 123\n  B->>A: ok\n",
+      "note": "message text: numeric"
+    },
+    {
+      "id": "SQ-tx-42",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: a=b\n  B->>A: ok\n",
+      "note": "message text: equals"
+    },
+    {
+      "id": "SQ-tx-43",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: @home\n  B->>A: ok\n",
+      "note": "message text: at sign"
+    },
+    {
+      "id": "SQ-tx-44",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: http://x.example/a?b=c#d\n  B->>A: ok\n",
+      "note": "message text: url"
+    },
+    {
+      "id": "SQ-tx-45",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B  :  t\n",
+      "note": "message text whitespace before colon"
+    },
+    {
+      "id": "SQ-tx-46",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: t\n  continued\n",
+      "note": "message text next line is not continuation"
+    },
+    {
+      "id": "SQ-tx-47",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: one; B->>A: two\n",
+      "note": "two messages same line via ;"
+    },
+    {
+      "id": "SQ-tx-48",
+      "group": "tx",
+      "source": "sequenceDiagram\n  A->>B: ping\n  A->>B: ping\n  B->>A: pong\n  A->>B: ping\n",
+      "note": "identical repeated messages"
+    },
+    {
+      "id": "SQ-nt-1",
+      "group": "nt",
+      "source": "sequenceDiagram\n  participant A\n  Note left of A: left\n",
+      "note": "note left of"
+    },
+    {
+      "id": "SQ-nt-2",
+      "group": "nt",
+      "source": "sequenceDiagram\n  participant A\n  Note right of A: right\n",
+      "note": "note right of"
+    },
+    {
+      "id": "SQ-nt-3",
+      "group": "nt",
+      "source": "sequenceDiagram\n  participant A\n  Note over A: over\n",
+      "note": "note over one"
+    },
+    {
+      "id": "SQ-nt-4",
+      "group": "nt",
+      "source": "sequenceDiagram\n  participant A\n  participant B\n  Note over A,B: both\n",
+      "note": "note over two"
+    },
+    {
+      "id": "SQ-nt-5",
+      "group": "nt",
+      "source": "sequenceDiagram\n  participant A\n  participant B\n  Note over A , B: both\n",
+      "note": "note over two with spaces"
+    },
+    {
+      "id": "SQ-nt-6",
+      "group": "nt",
+      "source": "sequenceDiagram\n  participant A\n  participant B\n  participant C\n  Note over A,B,C: three\n",
+      "note": "note over three"
+    },
+    {
+      "id": "SQ-nt-7",
+      "group": "nt",
+      "source": "sequenceDiagram\n  participant A\n  note over A: lower\n",
+      "note": "lowercase note"
+    },
+    {
+      "id": "SQ-nt-8",
+      "group": "nt",
+      "source": "sequenceDiagram\n  participant A\n  NOTE over A: upper\n",
+      "note": "uppercase NOTE"
+    },
+    {
+      "id": "SQ-nt-9",
+      "group": "nt",
+      "source": "sequenceDiagram\n  participant A\n  Note over A\n",
+      "note": "note without text"
+    },
+    {
+      "id": "SQ-nt-10",
+      "group": "nt",
+      "source": "sequenceDiagram\n  participant A\n  Note over A:\n",
+      "note": "note empty text"
+    },
+    {
+      "id": "SQ-nt-11",
+      "group": "nt",
+      "source": "sequenceDiagram\n  Note over Z: n\n  A->>B: x\n",
+      "note": "note unknown participant"
+    },
+    {
+      "id": "SQ-nt-12",
+      "group": "nt",
+      "source": "sequenceDiagram\n  participant A\n  Note over A: l1<br/>l2\n",
+      "note": "note with br"
+    },
+    {
+      "id": "SQ-nt-13",
+      "group": "nt",
+      "source": "sequenceDiagram\n  participant A\n  Note over A: a;b\n",
+      "note": "note with semicolon"
+    },
+    {
+      "id": "SQ-nt-14",
+      "group": "nt",
+      "source": "sequenceDiagram\n  participant A\n  Note over A: a#59;b #35; #quot;\n",
+      "note": "note with entity"
+    },
+    {
+      "id": "SQ-nt-15",
+      "group": "nt",
+      "source": "sequenceDiagram\n  participant A\n  Note over A: a: b\n",
+      "note": "note with colon text"
+    },
+    {
+      "id": "SQ-nt-16",
+      "group": "nt",
+      "source": "sequenceDiagram\n  Note left of Q: n\n  A->>Q: x\n",
+      "note": "note left of unknown id"
+    },
+    {
+      "id": "SQ-nt-17",
+      "group": "nt",
+      "source": "sequenceDiagram\n  A->>B: 1\n  Note over A,B: n\n  B->>A: 2\n",
+      "note": "note between messages"
+    },
+    {
+      "id": "SQ-nt-18",
+      "group": "nt",
+      "source": "sequenceDiagram\n  participant Big One\n  Note over Big One: n\n",
+      "note": "note with id containing space"
+    },
+    {
+      "id": "SQ-nt-19",
+      "group": "nt",
+      "source": "sequenceDiagram\n  participant A\n  Note over A,A: n\n",
+      "note": "note over same twice"
+    },
+    {
+      "id": "SQ-nt-20",
+      "group": "nt",
+      "source": "sequenceDiagram\n  participant A\n  participant B\n  Note over B,A: n\n",
+      "note": "note over reverse order"
+    },
+    {
+      "id": "SQ-nt-21",
+      "group": "nt",
+      "source": "sequenceDiagram\n  participant A\n  loop L\n  Note over A: n\n  end\n",
+      "note": "note in loop"
+    },
+    {
+      "id": "SQ-nt-22",
+      "group": "nt",
+      "source": "sequenceDiagram\n  participant A\n  Note left A: n\n",
+      "note": "note 'of' missing"
+    },
+    {
+      "id": "SQ-nt-23",
+      "group": "nt",
+      "source": "sequenceDiagram\n  participant A\n  Note left  of A: n\n",
+      "note": "note extra spaces 'left  of'"
+    },
+    {
+      "id": "SQ-bk-1",
+      "group": "bk",
+      "source": "sequenceDiagram\n  loop Every minute\n    A->>B: ping\n  end\n",
+      "note": "loop"
+    },
+    {
+      "id": "SQ-bk-2",
+      "group": "bk",
+      "source": "sequenceDiagram\n  loop\n    A->>B: ping\n  end\n",
+      "note": "loop-notext"
+    },
+    {
+      "id": "SQ-bk-3",
+      "group": "bk",
+      "source": "sequenceDiagram\n  alt ok\n    A->>B: y\n  else bad\n    A->>B: n\n  end\n",
+      "note": "alt-else"
+    },
+    {
+      "id": "SQ-bk-4",
+      "group": "bk",
+      "source": "sequenceDiagram\n  alt ok\n    A->>B: y\n  end\n",
+      "note": "alt-noelse"
+    },
+    {
+      "id": "SQ-bk-5",
+      "group": "bk",
+      "source": "sequenceDiagram\n  alt a\n    A->>B: 1\n  else b\n    A->>B: 2\n  else c\n    A->>B: 3\n  end\n",
+      "note": "alt-else-else"
+    },
+    {
+      "id": "SQ-bk-6",
+      "group": "bk",
+      "source": "sequenceDiagram\n  alt a\n    A->>B: 1\n  else\n    A->>B: 2\n  end\n",
+      "note": "else-no-text"
+    },
+    {
+      "id": "SQ-bk-7",
+      "group": "bk",
+      "source": "sequenceDiagram\n  opt maybe\n    A->>B: x\n  end\n",
+      "note": "opt"
+    },
+    {
+      "id": "SQ-bk-8",
+      "group": "bk",
+      "source": "sequenceDiagram\n  par one\n    A->>B: p1\n  and two\n    A->>C: p2\n  end\n",
+      "note": "par-and"
+    },
+    {
+      "id": "SQ-bk-9",
+      "group": "bk",
+      "source": "sequenceDiagram\n  par one\n    A->>B: p1\n  end\n",
+      "note": "par-noand"
+    },
+    {
+      "id": "SQ-bk-10",
+      "group": "bk",
+      "source": "sequenceDiagram\n  par_over one\n    A->>B: p1\n  and two\n    A->>C: p2\n  end\n",
+      "note": "par_over"
+    },
+    {
+      "id": "SQ-bk-11",
+      "group": "bk",
+      "source": "sequenceDiagram\n  critical c\n    A->>B: crit\n  option fail\n    A->>B: fb\n  end\n",
+      "note": "critical"
+    },
+    {
+      "id": "SQ-bk-12",
+      "group": "bk",
+      "source": "sequenceDiagram\n  critical c\n    A->>B: crit\n  end\n",
+      "note": "critical-noopt"
+    },
+    {
+      "id": "SQ-bk-13",
+      "group": "bk",
+      "source": "sequenceDiagram\n  break stop\n    A->>B: brk\n  end\n",
+      "note": "break"
+    },
+    {
+      "id": "SQ-bk-14",
+      "group": "bk",
+      "source": "sequenceDiagram\n  rect rgb(200,200,255)\n    A->>B: in rect\n  end\n",
+      "note": "rect-rgb"
+    },
+    {
+      "id": "SQ-bk-15",
+      "group": "bk",
+      "source": "sequenceDiagram\n  rect rgba(0, 0, 255, .1)\n    A->>B: in rect\n  end\n",
+      "note": "rect-rgba"
+    },
+    {
+      "id": "SQ-bk-16",
+      "group": "bk",
+      "source": "sequenceDiagram\n  rect #aaf\n    A->>B: in rect\n  end\n",
+      "note": "rect-hex"
+    },
+    {
+      "id": "SQ-bk-17",
+      "group": "bk",
+      "source": "sequenceDiagram\n  rect lightblue\n    A->>B: in rect\n  end\n",
+      "note": "rect-named"
+    },
+    {
+      "id": "SQ-bk-18",
+      "group": "bk",
+      "source": "sequenceDiagram\n  rect\n    A->>B: in rect\n  end\n",
+      "note": "rect-notext"
+    },
+    {
+      "id": "SQ-bk-19",
+      "group": "bk",
+      "source": "sequenceDiagram\n  loop a\n    alt b\n      A->>B: x\n    else c\n      A->>B: y\n    end\n  end\n",
+      "note": "nested"
+    },
+    {
+      "id": "SQ-bk-20",
+      "group": "bk",
+      "source": "sequenceDiagram\n  loop L\n  end\n  A->>B: x\n",
+      "note": "empty-loop"
+    },
+    {
+      "id": "SQ-bk-21",
+      "group": "bk",
+      "source": "sequenceDiagram\n  alt a\n  else b\n    A->>B: y\n  end\n",
+      "note": "empty-alt-branch"
+    },
+    {
+      "id": "SQ-bk-22",
+      "group": "bk",
+      "source": "sequenceDiagram\n  loop L\n    A->>B: x\n",
+      "note": "unclosed"
+    },
+    {
+      "id": "SQ-bk-23",
+      "group": "bk",
+      "source": "sequenceDiagram\n  A->>B: x\n  end\n",
+      "note": "extra-end"
+    },
+    {
+      "id": "SQ-bk-24",
+      "group": "bk",
+      "source": "sequenceDiagram\n  A->>B: x\n  else y\n",
+      "note": "else-outside"
+    },
+    {
+      "id": "SQ-bk-25",
+      "group": "bk",
+      "source": "sequenceDiagram\n  alt a\n    A->>B: x\n  and b\n    A->>B: y\n  end\n",
+      "note": "and-in-alt"
+    },
+    {
+      "id": "SQ-bk-26",
+      "group": "bk",
+      "source": "sequenceDiagram\n  loop a\n    A->>B: x\n  else b\n    A->>B: y\n  end\n",
+      "note": "else-in-loop"
+    },
+    {
+      "id": "SQ-bk-27",
+      "group": "bk",
+      "source": "sequenceDiagram\n  alt a\n    A->>B: x\n  option b\n    A->>B: y\n  end\n",
+      "note": "option-in-alt"
+    },
+    {
+      "id": "SQ-bk-28",
+      "group": "bk",
+      "source": "sequenceDiagram\n  loop a;b\n    A->>B: x\n  end\n",
+      "note": "text-with-semicolon"
+    },
+    {
+      "id": "SQ-bk-29",
+      "group": "bk",
+      "source": "sequenceDiagram\n  loop a: b\n    A->>B: x\n  end\n",
+      "note": "text-with-colon"
+    },
+    {
+      "id": "SQ-bk-30",
+      "group": "bk",
+      "source": "sequenceDiagram\n  loop a<br/>b\n    A->>B: x\n  end\n",
+      "note": "text-with-br"
+    },
+    {
+      "id": "SQ-bk-31",
+      "group": "bk",
+      "source": "sequenceDiagram\n  loop a#59;b#35;c\n    A->>B: x\n  end\n",
+      "note": "text-with-entity"
+    },
+    {
+      "id": "SQ-bk-32",
+      "group": "bk",
+      "source": "sequenceDiagram\n  loop L\n    A->>B: x\n  end trailing\n",
+      "note": "end-with-trailing-text"
+    },
+    {
+      "id": "SQ-bk-33",
+      "group": "bk",
+      "source": "sequenceDiagram\n  LOOP L\n    A->>B: x\n  END\n",
+      "note": "uppercase-LOOP"
+    },
+    {
+      "id": "SQ-bk-34",
+      "group": "bk",
+      "source": "sequenceDiagram\n  loop L; A->>B: x; end\n",
+      "note": "loop-one-line"
+    },
+    {
+      "id": "SQ-bk-35",
+      "group": "bk",
+      "source": "sequenceDiagram\n  loop L\n    A->>+B: x\n  end\n  B-->>-A: y\n",
+      "note": "activation-inside-loop"
+    },
+    {
+      "id": "SQ-bk-36",
+      "group": "bk",
+      "source": "sequenceDiagram\n  alt a\n    A->>+B: x\n  else b\n    A->>B: y\n  end\n  B-->>-A: z\n",
+      "note": "activation-spans-else"
+    },
+    {
+      "id": "SQ-bk-37",
+      "group": "bk",
+      "source": "sequenceDiagram\n  alt a\n    rect rgb(1,2,3)\n      A->>B: x\n    end\n  end\n",
+      "note": "rect-nested-in-alt"
+    },
+    {
+      "id": "SQ-bk-38",
+      "group": "bk",
+      "source": "sequenceDiagram\n  loop L\n    participant C\n    A->>C: x\n  end\n",
+      "note": "participant-inside-block"
+    },
+    {
+      "id": "SQ-bk-39",
+      "group": "bk",
+      "source": "sequenceDiagram\n  loop wrap: long text here\n    A->>B: x\n  end\n",
+      "note": "block-text-wrap"
+    },
+    {
+      "id": "SQ-bk-40",
+      "group": "bk",
+      "source": "sequenceDiagram\n  loop 1\n  loop 2\n  loop 3\n  loop 4\n  loop 5\n  A->>B: x\n  end\n  end\n  end\n  end\n  end\n",
+      "note": "deep-nesting-5"
+    },
+    {
+      "id": "SQ-ac-1",
+      "group": "ac",
+      "source": "sequenceDiagram\n  A->>B: x\n  activate B\n  B->>C: y\n  deactivate B\n",
+      "note": "activate/deactivate"
+    },
+    {
+      "id": "SQ-ac-2",
+      "group": "ac",
+      "source": "sequenceDiagram\n  A->>B: x\n  deactivate B\n",
+      "note": "deactivate without activate"
+    },
+    {
+      "id": "SQ-ac-3",
+      "group": "ac",
+      "source": "sequenceDiagram\n  activate Z\n  A->>B: x\n",
+      "note": "activate unknown id"
+    },
+    {
+      "id": "SQ-ac-4",
+      "group": "ac",
+      "source": "sequenceDiagram\n  A->>B: x\n  activate B;\n",
+      "note": "activate with semicolon"
+    },
+    {
+      "id": "SQ-ac-5",
+      "group": "ac",
+      "source": "sequenceDiagram\n  participant Big One\n  activate Big One\n  deactivate Big One\n",
+      "note": "activate id with space"
+    },
+    {
+      "id": "SQ-ac-6",
+      "group": "ac",
+      "source": "sequenceDiagram\n  activate B\n  A->>+B: x\n  deactivate B\n  deactivate B\n",
+      "note": "activate + inline +"
+    },
+    {
+      "id": "SQ-ac-7",
+      "group": "ac",
+      "source": "sequenceDiagram\n  autonumber\n  A->>B: x\n",
+      "note": "autonumber"
+    },
+    {
+      "id": "SQ-ac-8",
+      "group": "ac",
+      "source": "sequenceDiagram\n  autonumber 10\n  A->>B: x\n",
+      "note": "autonumber start"
+    },
+    {
+      "id": "SQ-ac-9",
+      "group": "ac",
+      "source": "sequenceDiagram\n  autonumber 10 5\n  A->>B: x\n",
+      "note": "autonumber start step"
+    },
+    {
+      "id": "SQ-ac-10",
+      "group": "ac",
+      "source": "sequenceDiagram\n  autonumber\n  A->>B: x\n  autonumber off\n  B->>A: y\n",
+      "note": "autonumber off"
+    },
+    {
+      "id": "SQ-ac-11",
+      "group": "ac",
+      "source": "sequenceDiagram\n  autonumber\n  A->>B: x\n  autonumber 100\n  B->>A: y\n",
+      "note": "autonumber twice"
+    },
+    {
+      "id": "SQ-ac-12",
+      "group": "ac",
+      "source": "sequenceDiagram\n  autonumber 1.5\n  A->>B: x\n",
+      "note": "autonumber decimals"
+    },
+    {
+      "id": "SQ-ac-13",
+      "group": "ac",
+      "source": "sequenceDiagram\n  autonumber abc\n  A->>B: x\n",
+      "note": "autonumber text after"
+    },
+    {
+      "id": "SQ-ac-14",
+      "group": "ac",
+      "source": "sequenceDiagram\n  A->>B: x\n  autonumber\n  B->>A: y\n",
+      "note": "autonumber after message"
+    },
+    {
+      "id": "SQ-ac-15",
+      "group": "ac",
+      "source": "sequenceDiagram\n  title My Title\n  A->>B: x\n",
+      "note": "title statement"
+    },
+    {
+      "id": "SQ-ac-16",
+      "group": "ac",
+      "source": "sequenceDiagram\n  title: My Title\n  A->>B: x\n",
+      "note": "title colon form"
+    },
+    {
+      "id": "SQ-ac-17",
+      "group": "ac",
+      "source": "sequenceDiagram\n  title a;b\n  A->>B: x\n",
+      "note": "title with semicolon"
+    },
+    {
+      "id": "SQ-ac-18",
+      "group": "ac",
+      "source": "sequenceDiagram\n  title One\n  title Two\n  A->>B: x\n",
+      "note": "title twice"
+    },
+    {
+      "id": "SQ-ac-19",
+      "group": "ac",
+      "source": "sequenceDiagram\n  accTitle: Acc Title\n  A->>B: x\n",
+      "note": "accTitle"
+    },
+    {
+      "id": "SQ-ac-20",
+      "group": "ac",
+      "source": "sequenceDiagram\n  accDescr: Acc Descr\n  A->>B: x\n",
+      "note": "accDescr"
+    },
+    {
+      "id": "SQ-ac-21",
+      "group": "ac",
+      "source": "sequenceDiagram\n  accDescr {\n  line one\n  line two\n  }\n  A->>B: x\n",
+      "note": "accDescr multiline"
+    },
+    {
+      "id": "SQ-ac-22",
+      "group": "ac",
+      "source": "sequenceDiagram\n  participant A\n  links A: {\"Dashboard\": \"https://x.invalid\"}\n  A->>B: x\n",
+      "note": "links JSON"
+    },
+    {
+      "id": "SQ-ac-23",
+      "group": "ac",
+      "source": "sequenceDiagram\n  participant A\n  link A: Dashboard @ https://x.invalid\n  A->>B: x\n",
+      "note": "link single"
+    },
+    {
+      "id": "SQ-ac-24",
+      "group": "ac",
+      "source": "sequenceDiagram\n  participant A\n  properties A: {\"class\": \"x\"}\n  A->>B: x\n",
+      "note": "properties"
+    },
+    {
+      "id": "SQ-ac-25",
+      "group": "ac",
+      "source": "sequenceDiagram\n  participant A\n  details A: someid\n  A->>B: x\n",
+      "note": "details"
+    },
+    {
+      "id": "SQ-ac-26",
+      "group": "ac",
+      "source": "sequenceDiagram\n  participant A\n  links A: {\"x\": \"javascript:alert(1)\"}\n  A->>B: x\n",
+      "note": "links javascript URL"
+    },
+    {
+      "id": "SQ-ac-27",
+      "group": "ac",
+      "source": "sequenceDiagram\n  participant A\n  links A: {oops\n  A->>B: x\n",
+      "note": "links bad JSON"
+    },
+    {
+      "id": "SQ-ac-28",
+      "group": "ac",
+      "source": "sequenceDiagram\n  link A: Dash @ https://x.invalid\n  A->>B: x\n",
+      "note": "link before participant"
+    },
+    {
+      "id": "SQ-ac-29",
+      "group": "ac",
+      "source": "sequenceDiagram\n  frobnicate\n  A->>B: x\n",
+      "note": "unknown statement"
+    },
+    {
+      "id": "SQ-ac-30",
+      "group": "ac",
+      "source": "sequenceDiagram\n  hello world\n",
+      "note": "text only line"
+    },
+    {
+      "id": "SQ-ac-31",
+      "group": "ac",
+      "source": "sequenceDiagram\n  participant\n",
+      "note": "participant only line"
+    },
+    {
+      "id": "SQ-ac-32",
+      "group": "ac",
+      "source": "sequenceDiagram\n  :\n",
+      "note": "lone colon"
+    },
+    {
+      "id": "SQ-ac-33",
+      "group": "ac",
+      "source": "sequenceDiagram\n  A->>😀: x\n",
+      "note": "emoji id message"
+    },
+    {
+      "id": "SQ-ac-34",
+      "group": "ac",
+      "source": "sequenceDiagram\n  participant P0\n  participant P1\n  participant P2\n  participant P3\n  participant P4\n  participant P5\n  participant P6\n  participant P7\n  participant P8\n  participant P9\n  participant P10\n  participant P11\n  P0->>P11: x\n",
+      "note": "many participants"
+    },
+    {
+      "id": "SQ-ac-35",
+      "group": "ac",
+      "source": "sequenceDiagram\n  autonumber\n  actor U as User\n  participant S as Server\n  participant D as DB\n  U->>+S: request\n  S->>+D: query\n  D-->>-S: rows\n  alt found\n    S-->>U: 200 OK\n  else missing\n    S--xU: 404\n  end\n  deactivate S\n  Note over U,S: done\n",
+      "note": "mixed realistic"
+    },
+    {
+      "id": "cand:SQE-P01:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-P01: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-P01:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant D as Dan\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-P01: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-P01:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    participant D as Dan\n",
+      "note": "scenario SQE-P01: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-P02:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye",
+      "note": "scenario SQE-P02: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-P02:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye    participant D as Dan\n",
+      "note": "scenario SQE-P02: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-P02:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    participant D as Dan",
+      "note": "scenario SQE-P02: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-P03:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-P03: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-P03:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    actor D as Dan\n",
+      "note": "scenario SQE-P03: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-P03:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    actor D as Dan\n",
+      "note": "scenario SQE-P03: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-P04:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-P04: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-P04:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    participant D as Ops;Team\n",
+      "note": "scenario SQE-P04: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-P04:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    participant D as Ops#59;Team\n",
+      "note": "scenario SQE-P04: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-P05:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-P05: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-P05:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    participant D as Dev#1\n",
+      "note": "scenario SQE-P05: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-P05:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    participant D as Dev#35;1\n",
+      "note": "scenario SQE-P05: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-P06:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-P06: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-P06:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    participant D as X%%{init: {\"theme\":\"dark\"}}%%Y\n",
+      "note": "scenario SQE-P06: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-P07:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello Alice\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-P07: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-P07:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alicia\n    participant B as Bob\n    A->>B: Hello Alicia\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-P07: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-P07:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alicia\n    participant B as Bob\n    A->>B: Hello Alice\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-P07: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-P08:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-P08: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-P08:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant Alicia\n    participant B\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-P08: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-P08:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alicia\n    participant B\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-P08: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-P09:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "note": "scenario SQE-P09: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-P09:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n    participant A as Alice\n",
+      "note": "scenario SQE-P09: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-P09:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "note": "scenario SQE-P09: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-P10:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: participant list\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-P10: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-P10:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    actor A as Alice\n    actor B as Bob\n    A->>B: actor list\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-P10: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-P10:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    actor A as Alice\n    participant B as Bob\n    A->>B: participant list\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-P10: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-P11:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A@{ \"type\": \"database\" }\n    A->>B: q\n",
+      "note": "scenario SQE-P11: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-P11:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Store@{ \"type\": \"database\" }\n    A->>B: q\n",
+      "note": "scenario SQE-P11: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-P11:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A@{ \"type\": \"database\" } as Store\n    A->>B: q\n",
+      "note": "scenario SQE-P11: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-P12:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-P12: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-P12:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-P12: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-P12:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n",
+      "note": "scenario SQE-P12: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-P13:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "note": "scenario SQE-P13: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-P13:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n",
+      "note": "scenario SQE-P13: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-P13:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant C\n",
+      "note": "scenario SQE-P13: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-P14:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    B->>C: new\n    C->>A: ping\n    destroy C\n    A-xC: kill\n",
+      "note": "scenario SQE-P14: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-P14:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    B->>C: new\n    C->>A: ping\n    destroy C\n    A-xC: kill\n",
+      "note": "scenario SQE-P14: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-P14:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n",
+      "note": "scenario SQE-P14: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-P15:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    box Team\n        participant A\n        participant B\n    end\n    A->>B: x\n    B->>A: y\n",
+      "note": "scenario SQE-P15: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-P15:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    box Team\n        participant B\n    end\n    A->>B: x\n    B->>A: y\n",
+      "note": "scenario SQE-P15: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-P15:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    box Team\n        participant B\n    end\n",
+      "note": "scenario SQE-P15: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-P16:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: x\n    activate B\n    Note left of B: n\n    deactivate B\n",
+      "note": "scenario SQE-P16: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-P16:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    activate B\n    Note left of B: n\n    deactivate B\n",
+      "note": "scenario SQE-P16: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-P16:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n",
+      "note": "scenario SQE-P16: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-P17:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-P17: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-P17:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant B as Bob\n    participant A as Alice\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-P17: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-P17:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant B as Bob\n    participant A as Alice\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-P17: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-P18:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>B: one\n    C->>D: two\n    A->>D: three\n",
+      "note": "scenario SQE-P18: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-P18:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>B: one\n    participant C\n    C->>D: two\n    A->>D: three\n",
+      "note": "scenario SQE-P18: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-P18:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant C\n    participant A\n    participant B\n    participant D\n    A->>B: one\n    C->>D: two\n    A->>D: three\n",
+      "note": "scenario SQE-P18: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-P19:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A %% tail\n    participant B\n    B->>B: x\n",
+      "note": "scenario SQE-P19: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-P19:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A %% tail as Alicia\n    participant B\n    B->>B: x\n",
+      "note": "scenario SQE-P19: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-P20:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A # keep\n    A->>B: x\n",
+      "note": "scenario SQE-P20: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-P20:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alicia # keep\n    A->>B: x\n",
+      "note": "scenario SQE-P20: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M01:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-M01: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M01:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    B-->>A: Later\n",
+      "note": "scenario SQE-M01: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M01:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    B-->>A: Later\n",
+      "note": "scenario SQE-M01: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M02:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye",
+      "note": "scenario SQE-M02: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M02:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye    B-->>A: Later\n",
+      "note": "scenario SQE-M02: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M02:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    B-->>A: Later",
+      "note": "scenario SQE-M02: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M03:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-M03: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M03:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    U->>S: ack\n    loop retry\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-M03: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M03:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n        U->>S: ack\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-M03: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M04:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-M04: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M04:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    B-->>A: a; b\n",
+      "note": "scenario SQE-M04: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M04:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    B-->>A: a#59; b\n",
+      "note": "scenario SQE-M04: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M05:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-M05: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M05:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    B-->>A: item #5\n",
+      "note": "scenario SQE-M05: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M05:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    B-->>A: item #35;5\n",
+      "note": "scenario SQE-M05: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M06:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-M06: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M06:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    B-->>A: wrap: now\n",
+      "note": "scenario SQE-M06: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M07:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-M07: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M07:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    B-->>A: l1\nl2\n",
+      "note": "scenario SQE-M07: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M07:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    B-->>A: l1<br/>l2\n",
+      "note": "scenario SQE-M07: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M08:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-M08: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M08:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    B-->>A: x<y>z\n",
+      "note": "scenario SQE-M08: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M08:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    B-->>A: x#lt;y#gt;z\n",
+      "note": "scenario SQE-M08: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M09:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    B->>C: new\n    C->>A: ping\n    destroy C\n    A-xC: kill\n",
+      "note": "scenario SQE-M09: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M09:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    A->>B: x\n    B->>C: new\n    C->>A: ping\n    destroy C\n    A-xC: kill\n",
+      "note": "scenario SQE-M09: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M10:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    B->>C: new\n    C->>A: ping\n    destroy C\n    A-xC: kill\n",
+      "note": "scenario SQE-M10: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M10:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    B->>C: new\n    C->>A: ping\n    destroy C\n    A->>C: z\n    A-xC: kill\n",
+      "note": "scenario SQE-M10: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M10:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    B->>C: new\n    C->>A: ping\n    A->>C: z\n    destroy C\n    A-xC: kill\n",
+      "note": "scenario SQE-M10: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M11:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "note": "scenario SQE-M11: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M11:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>B: call2\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "note": "scenario SQE-M11: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M11:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>+B: call2\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "note": "scenario SQE-M11: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M12:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>B: x # tail\n",
+      "note": "scenario SQE-M12: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M12:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>B: y\n",
+      "note": "scenario SQE-M12: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M12:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>B: y # tail\n",
+      "note": "scenario SQE-M12: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M13:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>B: x %% tail\n",
+      "note": "scenario SQE-M13: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M13:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>B: y %% tail\n",
+      "note": "scenario SQE-M13: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M13:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>B: y\n",
+      "note": "scenario SQE-M13: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M14:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>+B: call a->>b\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "note": "scenario SQE-M14: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M14:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A-->>+B: call a-->>b\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "note": "scenario SQE-M14: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M14:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A-->>+B: call a->>b\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "note": "scenario SQE-M14: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M15:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-M15: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M15:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A<<->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-M15: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M15:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A<<->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-M15: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M16:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>()B: t\n",
+      "note": "scenario SQE-M16: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M16:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A-->>()B: t\n",
+      "note": "scenario SQE-M16: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M17:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant Web\n    participant WebApp\n    Web->>WebApp: ping\n",
+      "note": "scenario SQE-M17: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M17:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant Web\n    participant WebApp\n    Web->>WebApp: ping\n",
+      "note": "scenario SQE-M17: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M17:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant Web\n    participant WebApp\n    WebApp->>Web: ping\n",
+      "note": "scenario SQE-M17: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M18:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "note": "scenario SQE-M18: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M18:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    B->>+A: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "note": "scenario SQE-M18: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M19:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-M19: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M19:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    A->>B: Bye\n",
+      "note": "scenario SQE-M19: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M19:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    A->>B: Bye\n",
+      "note": "scenario SQE-M19: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M20:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "note": "scenario SQE-M20: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M20:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "note": "scenario SQE-M20: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M20:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>A: r2\n    Note over A,B: done\n",
+      "note": "scenario SQE-M20: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M21:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "note": "scenario SQE-M21: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M21:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    Note over A,B: done\n",
+      "note": "scenario SQE-M21: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M21:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>B: call\n    B->>+C: inner\n    C-->>-B: r1\n    Note over A,B: done\n",
+      "note": "scenario SQE-M21: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M22:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye",
+      "note": "scenario SQE-M22: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M22:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n",
+      "note": "scenario SQE-M22: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M22:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n",
+      "note": "scenario SQE-M22: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M23:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>B: one\n    C->>D: two\n    A->>D: three\n",
+      "note": "scenario SQE-M23: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M23:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    C->>D: two\n    A->>D: three\n",
+      "note": "scenario SQE-M23: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M23:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    C->>D: two\n    A->>D: three\n",
+      "note": "scenario SQE-M23: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M24:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-M24: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M24:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    A->>B: Bye\n    B-->>A: Hi\n",
+      "note": "scenario SQE-M24: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M24:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    A->>B: Bye\n    B-->>A: Hi\n",
+      "note": "scenario SQE-M24: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M25:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>B: one\n    C->>D: two\n    A->>D: three\n",
+      "note": "scenario SQE-M25: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M25:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    C->>D: two\n    A->>B: one\n    A->>D: three\n",
+      "note": "scenario SQE-M25: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M25:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    participant C\n    participant D\n    C->>D: two\n    A->>B: one\n    A->>D: three\n",
+      "note": "scenario SQE-M25: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M26:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-M26: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M26:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    alt ok\n    U->>S: req\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-M26: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M27:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-M27: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M27:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n    end\n        U->>S: again\n",
+      "note": "scenario SQE-M27: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M28:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    B->>C: new\n    C->>A: ping\n    destroy C\n    A-xC: kill\n",
+      "note": "scenario SQE-M28: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M28:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    C->>A: ping\n    B->>C: new\n    destroy C\n    A-xC: kill\n",
+      "note": "scenario SQE-M28: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M29:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-M29: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M29:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-M29: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M29:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-M29: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M30:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    B->>C: new\n    C->>A: ping\n    destroy C\n    A-xC: kill\n",
+      "note": "scenario SQE-M30: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M30:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    C->>A: ping\n    destroy C\n    A-xC: kill\n",
+      "note": "scenario SQE-M30: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M31:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    B->>C: new\n    C->>A: ping\n    destroy C\n    A-xC: kill\n",
+      "note": "scenario SQE-M31: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M31:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    B->>C: new\n    C->>A: ping\n    destroy C\n",
+      "note": "scenario SQE-M31: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M31:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    B->>C: new\n    C->>A: ping\n",
+      "note": "scenario SQE-M31: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M32:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: one; B->>A: two\n    A->>B: three\n",
+      "note": "scenario SQE-M32: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M32:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: three\n",
+      "note": "scenario SQE-M32: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M32:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: one\n    A->>B: three\n",
+      "note": "scenario SQE-M32: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M33:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: one; B->>A: two\n",
+      "note": "scenario SQE-M33: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M33:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: uno\n",
+      "note": "scenario SQE-M33: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-M33:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: uno; B->>A: two\n",
+      "note": "scenario SQE-M33: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-M34:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-M34: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-M34:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    A->>Z: x\n",
+      "note": "scenario SQE-M34: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-N01:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-N01: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-N01:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    Note over A,B: n\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-N01: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-N01:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    Note over A,B: n\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-N01: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-N02:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-N02: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-N02:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    Note over A: a;b\n",
+      "note": "scenario SQE-N02: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-N02:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    Note over A: a#59;b\n",
+      "note": "scenario SQE-N02: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-N03:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "note": "scenario SQE-N03: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-N03:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: finished\n",
+      "note": "scenario SQE-N03: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-N03:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: finished\n",
+      "note": "scenario SQE-N03: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-N04:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "note": "scenario SQE-N04: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-N04:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note left of A,B: done\n",
+      "note": "scenario SQE-N04: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-N04:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note left of A: done\n",
+      "note": "scenario SQE-N04: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-N05:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    Note over Z: n\n    A->>A: x\n",
+      "note": "scenario SQE-N05: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-N05:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    A->>A: x\n",
+      "note": "scenario SQE-N05: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-N05:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant Z\n    A->>A: x\n",
+      "note": "scenario SQE-N05: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-N06:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-N06: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-N06:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    Note over Z: n\n",
+      "note": "scenario SQE-N06: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-N07:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant Big One\n    participant B\n    Big One->>B: x\n",
+      "note": "scenario SQE-N07: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-N07:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant Big One\n    participant B\n    Big One->>B: x\n    Note over Big One,B: n\n",
+      "note": "scenario SQE-N07: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-B01:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-B01: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-B01:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry 3x\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-B01: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-B01:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry 3x\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-B01: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-B02:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-B02: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-B02:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else:\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-B02: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-B02:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-B02: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-B03:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-B03: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-B03:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop a;b #1\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-B03: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-B03:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop a#59;b #35;1\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-B03: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-B04:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-B04: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-B04:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    loop retry\n    B-->>A: Hi\n    A->>B: Bye\n    end\n",
+      "note": "scenario SQE-B04: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-B04:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    loop retry\n    B-->>A: Hi\n    A->>B: Bye\n    end\n",
+      "note": "scenario SQE-B04: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-B05:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-B05: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-B05:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    loop x\n    alt ok\n        S-->>U: 200\n    end\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-B05: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-B06:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    B->>C: new\n    C->>A: ping\n    destroy C\n    A-xC: kill\n",
+      "note": "scenario SQE-B06: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-B06:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    loop x\n    create participant C\n    end\n    B->>C: new\n    C->>A: ping\n    destroy C\n    A-xC: kill\n",
+      "note": "scenario SQE-B06: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-B07:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-B07: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-B07:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-B07: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-B07:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n        U->>S: again\n",
+      "note": "scenario SQE-B07: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-B08:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-B08: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-B08:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    loop retry\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-B08: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-B09:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    loop L\n        A->>+B: x\n    end\n    B-->>-A: y\n",
+      "note": "scenario SQE-B09: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-B09:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    B-->>-A: y\n",
+      "note": "scenario SQE-B09: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-B09:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    B-->>A: y\n",
+      "note": "scenario SQE-B09: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-B10:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-B10: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-B10:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    else other\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-B10: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-B10:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    else other\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-B10: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-B11:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-B11: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-B11:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-B11: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-B11:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-B11: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-B12:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    box Team\n        participant A\n    end\n    A->>A: x\n",
+      "note": "scenario SQE-B12: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-B12:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    box Red Team\n        participant A\n    end\n    A->>A: x\n",
+      "note": "scenario SQE-B12: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-X01:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-X01: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-X01:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    autonumber\n",
+      "note": "scenario SQE-X01: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-X01:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    autonumber\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-X01: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-X02:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    autonumber\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-X02: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-X02:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-X02: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-X02:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-X02: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-X03:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    title Old\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-X03: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-X03:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    title New\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-X03: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-X03:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    title New\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "note": "scenario SQE-X03: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-X04:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\r\n    participant A as Alice\r\n    participant B as Bob\r\n    A->>B: Hello\r\n    B-->>A: Hi\r\n    A->>B: Bye\r\n",
+      "note": "scenario SQE-X04: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-X04:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\r\n    participant A as Alice\r\n    participant B as Bob\r\n    A->>B: Hello\r\n    B-->>A: Hi\r\n    A->>B: Bye\r\n    B-->>A: Later\n",
+      "note": "scenario SQE-X04: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-X04:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\r\n    participant A as Alice\r\n    participant B as Bob\r\n    A->>B: Hello\r\n    B-->>A: Hi\r\n    A->>B: Bye\r\n    B-->>A: Later\r\n",
+      "note": "scenario SQE-X04: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-X05:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n\tparticipant A as Alice\n\tparticipant B as Bob\n\tA->>B: Hello\n\tB-->>A: Hi\n\tA->>B: Bye\n",
+      "note": "scenario SQE-X05: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-X05:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n\tparticipant A as Alice\n\tparticipant B as Bob\n\tA->>B: Hello\n\tB-->>A: Hi\n\tA->>B: Bye\n    B-->>A: Later\n",
+      "note": "scenario SQE-X05: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-X05:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n\tparticipant A as Alice\n\tparticipant B as Bob\n\tA->>B: Hello\n\tB-->>A: Hi\n\tA->>B: Bye\n\tB-->>A: Later\n",
+      "note": "scenario SQE-X05: the text after the research safe edit"
+    },
+    {
+      "id": "cand:SQE-X06:before",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "note": "scenario SQE-X06: the text before the edit"
+    },
+    {
+      "id": "cand:SQE-X06:naive",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n    end\n",
+      "note": "scenario SQE-X06: the text after the research naive edit"
+    },
+    {
+      "id": "cand:SQE-X06:safe",
+      "group": "scenario",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n    end\n",
+      "note": "scenario SQE-X06: the text after the research safe edit"
+    }
+  ]
+}

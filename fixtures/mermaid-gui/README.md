@@ -35,3 +35,12 @@ The Tier 1 edit scenarios of the flowchart editor (`src/features/mermaid/flowcha
 - Project-authored research input: no third-party code is included.
 - Fields: `id` (the research id, e.g. `DE4-chain-naive`), `op` (the research's name for the operation), `source`, `naiveCandidate` (the text after the research's hand-made edit), `naiveGate` (how Mermaid and the research's comparison judged that text in 2026-10: `PASS`, `FAIL-parse`, `FAIL-render` or `FAIL-semantic`), `note` (the research's note).
 - The product's operation for each scenario is in the test, not here: the intent of the scenario written as a typed `FlowchartOperation`, and whether the editor plans it or refuses it (with the reason). Where `naiveGate` is not `PASS` and the editor plans the operation, the test asserts that the naive text really differs from the promised meaning in Mermaid 12.1.0.
+
+## sequence-corpus.json (Step S-1)
+
+Input of the differential test of the sequence reader (`src/features/mermaid/sequence-reader.real.dom.test.ts`, docs/architecture.md §16.16). 580 cases: the 361 syntax cases of the Step 9-7 research (`SQ-<group>-<n>`) and the text before and after each of its 79 hand-made edit scenarios (`cand:<scenario>:before|naive|safe`; the `safe` text exists only for the scenarios whose research plan was not a refusal).
+
+- Origin: the Step 9-7 research archive `~/design-dawn-archive/phase9-sequence-gantt/` (`sg96-research.tar.gz`, SHA-256 `6da7d62f6c487f521d60403604d8f506d9266bae54f1e193f15a980079ca0a64`; `src/seq-corpus.ts`, `src/seq-scenarios.ts`, `src/edit-lib.ts`). Generated once on 2026-10-30 by a throw-away script (not in the repository) that ran the corpus file and applied each scenario's hand-made edits.
+- Project-authored research input: no third-party code or corpus is included.
+- Fields: `id` (origin prefix kept), `group`, `source`, `note` (the corpus author's expectation in words, informal).
+- The expected results are not stored: Mermaid 12.1.0 is the reference and decides at test time. The test asserts recorded counts, so a change in Mermaid or in the reader shows up as a failure.
