@@ -26,3 +26,12 @@ Input of the differential test of the flowchart reader (`src/features/mermaid/fl
 - Project-authored research input: no third-party code or corpus is included.
 - Fields: `id` (origin prefix kept), `group`, `source`, `note` (the corpus author's expectation in words, informal).
 - The expected results are not stored: Mermaid 12.1.0 is the reference and decides at test time. The test asserts recorded counts, so a change in Mermaid or in the reader shows up as a failure.
+
+## flowchart-scenarios.json (Step 9-7)
+
+The Tier 1 edit scenarios of the flowchart editor (`src/features/mermaid/flowchart-operations.real.dom.test.ts`, docs/architecture.md §16.15.12). 91 scenarios: the ones of the 132 hand-made edit scenarios of the Step 9-5 research that concern a Tier 1 operation (label, shape, add node, add edge, delete edge, reconnect, edge kind / label, direction). The scenarios about subgraph edits, renaming ids, deleting nodes, reordering and `classDef` / `click` values (Tier 2 and later) are not included.
+
+- Origin: the Step 9-5 research archive `~/design-dawn-archive/phase9-step9-5/` (`fc95-step9-5.tar.gz`, SHA-256 `9fc52f57a3e9736f5e5562dcb58c0ecb228002e210697b59f2319f12a9a073b4`; `spike/scenarios.ts`, `spike/edit-lib.ts`, `out/edit-results.txt`). Generated once on 2026-10-30 by a throw-away script (not in the repository) that applied each scenario's hand-made edits.
+- Project-authored research input: no third-party code is included.
+- Fields: `id` (the research id, e.g. `DE4-chain-naive`), `op` (the research's name for the operation), `source`, `naiveCandidate` (the text after the research's hand-made edit), `naiveGate` (how Mermaid and the research's comparison judged that text in 2026-10: `PASS`, `FAIL-parse`, `FAIL-render` or `FAIL-semantic`), `note` (the research's note).
+- The product's operation for each scenario is in the test, not here: the intent of the scenario written as a typed `FlowchartOperation`, and whether the editor plans it or refuses it (with the reason). Where `naiveGate` is not `PASS` and the editor plans the operation, the test asserts that the naive text really differs from the promised meaning in Mermaid 12.1.0.
