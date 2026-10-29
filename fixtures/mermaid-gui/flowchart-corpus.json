@@ -1,0 +1,2839 @@
+{
+  "fixtureVersion": 1,
+  "subject": "flowchartCorpus",
+  "skippedScenarios": 0,
+  "cases": [
+    {
+      "id": "c1:h-graph-TD",
+      "group": "header",
+      "source": "graph TD\nA-->B\n",
+      "note": "dir TB"
+    },
+    {
+      "id": "c1:h-flowchart-LR",
+      "group": "header",
+      "source": "flowchart LR\nA-->B\n",
+      "note": "dir LR"
+    },
+    {
+      "id": "c1:h-flowchart-TB",
+      "group": "header",
+      "source": "flowchart TB\nA-->B\n",
+      "note": "dir TB"
+    },
+    {
+      "id": "c1:h-flowchart-BT",
+      "group": "header",
+      "source": "flowchart BT\nA-->B\n",
+      "note": "dir BT"
+    },
+    {
+      "id": "c1:h-flowchart-RL",
+      "group": "header",
+      "source": "flowchart RL\nA-->B\n",
+      "note": "dir RL"
+    },
+    {
+      "id": "c1:h-no-direction",
+      "group": "header",
+      "source": "flowchart\nA-->B\n",
+      "note": "default direction TB"
+    },
+    {
+      "id": "c1:h-graph-no-direction",
+      "group": "header",
+      "source": "graph\nA-->B\n",
+      "note": "parse ok"
+    },
+    {
+      "id": "c1:h-header-semicolon",
+      "group": "header",
+      "source": "graph TD;\nA-->B;\n",
+      "note": "ok"
+    },
+    {
+      "id": "c1:h-symbol-dirs",
+      "group": "header",
+      "source": "graph >\nA-->B\n",
+      "note": "`>` = LR"
+    },
+    {
+      "id": "c1:h-symbol-v",
+      "group": "header",
+      "source": "graph v\nA-->B\n",
+      "note": "`v` = TB"
+    },
+    {
+      "id": "c1:h-symbol-caret",
+      "group": "header",
+      "source": "graph ^\nA-->B\n",
+      "note": "`^` = BT"
+    },
+    {
+      "id": "c1:h-symbol-lt",
+      "group": "header",
+      "source": "graph <\nA-->B\n",
+      "note": "`<` = RL"
+    },
+    {
+      "id": "c1:h-lowercase-td",
+      "group": "header",
+      "source": "flowchart td\nA-->B\n",
+      "note": "likely invalid (case-sensitive)"
+    },
+    {
+      "id": "c1:h-capital-keyword",
+      "group": "header",
+      "source": "Flowchart TD\nA-->B\n",
+      "note": "likely not detected as flowchart"
+    },
+    {
+      "id": "c1:h-stmt-on-header-line",
+      "group": "header",
+      "source": "graph TD A-->B\n",
+      "note": "unknown; record"
+    },
+    {
+      "id": "c1:h-semicolon-stmt-header-line",
+      "group": "header",
+      "source": "graph TD; A-->B\n",
+      "note": "stmt on header line after `;`"
+    },
+    {
+      "id": "c1:h-flowchart-elk",
+      "group": "header",
+      "source": "flowchart-elk TD\nA-->B\n",
+      "note": "parses; render needs elk plugin (not bundled)"
+    },
+    {
+      "id": "c1:h-swimlane-beta",
+      "group": "header",
+      "source": "swimlane-beta TD\nA-->B\n",
+      "note": "recorded"
+    },
+    {
+      "id": "c1:h-trailing-spaces",
+      "group": "header",
+      "source": "flowchart TD   \nA-->B   \n",
+      "note": "ok"
+    },
+    {
+      "id": "c1:h-front-matter-layout-dagre",
+      "group": "header",
+      "source": "---\nconfig:\n  layout: dagre\n---\nflowchart TD\nA-->B\n",
+      "note": "ok"
+    },
+    {
+      "id": "c1:h-front-matter-title",
+      "group": "header",
+      "source": "---\ntitle: My Flow\n---\nflowchart TD\nA-->B\n",
+      "note": "title in db"
+    },
+    {
+      "id": "c1:h-init-directive",
+      "group": "header",
+      "source": "%%{init: {\"flowchart\": {\"curve\": \"linear\"}}}%%\nflowchart TD\nA-->B\n",
+      "note": "ok"
+    },
+    {
+      "id": "c1:h-comment-before-header",
+      "group": "header",
+      "source": "%% hello\nflowchart TD\nA-->B\n",
+      "note": "ok"
+    },
+    {
+      "id": "c1:id-alnum",
+      "group": "id",
+      "source": "flowchart TD\nA1-->b2\n",
+      "note": "ids A1,b2"
+    },
+    {
+      "id": "c1:id-hyphen",
+      "group": "id",
+      "source": "flowchart TD\na-b-->c-d\n",
+      "note": "ids a-b,c-d"
+    },
+    {
+      "id": "c1:id-unicode-ja",
+      "group": "id",
+      "source": "flowchart TD\n日本語-->開始\n",
+      "note": "unicode ids ok"
+    },
+    {
+      "id": "c1:id-emoji",
+      "group": "id",
+      "source": "flowchart TD\n🙂-->B\n",
+      "note": "emoji id: probably fails (not UNICODE_TEXT)"
+    },
+    {
+      "id": "c1:id-keyword-end",
+      "group": "id",
+      "source": "flowchart TD\nend-->B\n",
+      "note": "`end` as id fails"
+    },
+    {
+      "id": "c1:id-prefix-end",
+      "group": "id",
+      "source": "flowchart TD\nendA-->Bend\n",
+      "note": "ok"
+    },
+    {
+      "id": "c1:id-Capital-End",
+      "group": "id",
+      "source": "flowchart TD\nEnd-->B\n",
+      "note": "End ok"
+    },
+    {
+      "id": "c1:id-keyword-graph",
+      "group": "id",
+      "source": "flowchart TD\ngraph-->B\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:id-keyword-style-prefix",
+      "group": "id",
+      "source": "flowchart TD\nstyle1-->class1\nclassDef2-->B\n",
+      "note": "ok (prefix only)"
+    },
+    {
+      "id": "c1:id-keyword-subgraph-id",
+      "group": "id",
+      "source": "flowchart TD\nsubgraph-->B\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:id-keyword-default",
+      "group": "id",
+      "source": "flowchart TD\ndefault-->B\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:id-underscore-dot",
+      "group": "id",
+      "source": "flowchart TD\n_a.b-->c_d\n",
+      "note": "ok"
+    },
+    {
+      "id": "c1:id-numeric",
+      "group": "id",
+      "source": "flowchart TD\n1-->2\n",
+      "note": "numeric ids ok"
+    },
+    {
+      "id": "c1:id-o-prefix-ambiguity",
+      "group": "id",
+      "source": "flowchart TD\nA---oB\n",
+      "note": "circle edge to B (not node oB)"
+    },
+    {
+      "id": "c1:id-o-prefix-spaced",
+      "group": "id",
+      "source": "flowchart TD\nA --- oB\n",
+      "note": "open edge to node oB"
+    },
+    {
+      "id": "c1:id-x-prefix-ambiguity",
+      "group": "id",
+      "source": "flowchart TD\nA---xB\n",
+      "note": "cross edge to B"
+    },
+    {
+      "id": "c1:id-colon",
+      "group": "id",
+      "source": "flowchart TD\nA:B-->C\n",
+      "note": "colon not allowed in id"
+    },
+    {
+      "id": "c1:id-with-slash",
+      "group": "id",
+      "source": "flowchart TD\na/b-->c\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:id-with-ampersand-percent",
+      "group": "id",
+      "source": "flowchart TD\nA%B-->C\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:id-space",
+      "group": "id",
+      "source": "flowchart TD\nA B-->C\n",
+      "note": "record (space splits?)"
+    },
+    {
+      "id": "c1:sh-square",
+      "group": "shape",
+      "source": "flowchart TD\nA[txt]\n",
+      "note": "square"
+    },
+    {
+      "id": "c1:sh-round",
+      "group": "shape",
+      "source": "flowchart TD\nA(txt)\n",
+      "note": "round"
+    },
+    {
+      "id": "c1:sh-stadium",
+      "group": "shape",
+      "source": "flowchart TD\nA([txt])\n",
+      "note": "stadium"
+    },
+    {
+      "id": "c1:sh-subroutine",
+      "group": "shape",
+      "source": "flowchart TD\nA[[txt]]\n",
+      "note": "subroutine"
+    },
+    {
+      "id": "c1:sh-cylinder",
+      "group": "shape",
+      "source": "flowchart TD\nA[(txt)]\n",
+      "note": "cylinder"
+    },
+    {
+      "id": "c1:sh-circle",
+      "group": "shape",
+      "source": "flowchart TD\nA((txt))\n",
+      "note": "circle"
+    },
+    {
+      "id": "c1:sh-doublecircle",
+      "group": "shape",
+      "source": "flowchart TD\nA(((txt)))\n",
+      "note": "doublecircle"
+    },
+    {
+      "id": "c1:sh-odd",
+      "group": "shape",
+      "source": "flowchart TD\nA>txt]\n",
+      "note": "odd"
+    },
+    {
+      "id": "c1:sh-diamond",
+      "group": "shape",
+      "source": "flowchart TD\nA{txt}\n",
+      "note": "diamond"
+    },
+    {
+      "id": "c1:sh-hexagon",
+      "group": "shape",
+      "source": "flowchart TD\nA{{txt}}\n",
+      "note": "hexagon"
+    },
+    {
+      "id": "c1:sh-lean-right",
+      "group": "shape",
+      "source": "flowchart TD\nA[/txt/]\n",
+      "note": "lean_right"
+    },
+    {
+      "id": "c1:sh-lean-left",
+      "group": "shape",
+      "source": "flowchart TD\nA[\\txt\\]\n",
+      "note": "lean_left"
+    },
+    {
+      "id": "c1:sh-trapezoid",
+      "group": "shape",
+      "source": "flowchart TD\nA[/txt\\]\n",
+      "note": "trapezoid"
+    },
+    {
+      "id": "c1:sh-inv-trapezoid",
+      "group": "shape",
+      "source": "flowchart TD\nA[\\txt/]\n",
+      "note": "inv_trapezoid"
+    },
+    {
+      "id": "c1:sh-ellipse",
+      "group": "shape",
+      "source": "flowchart TD\nA(-txt-)\n",
+      "note": "ellipse"
+    },
+    {
+      "id": "c1:sh-props",
+      "group": "shape",
+      "source": "flowchart TD\nA[|borders:lt|txt]\n",
+      "note": "VERTEX_WITH_PROPS form"
+    },
+    {
+      "id": "c1:sh-at-rect",
+      "group": "shape",
+      "source": "flowchart TD\nA@{ shape: rect, label: \"Hello\" }\n",
+      "note": "type rect, text Hello"
+    },
+    {
+      "id": "c1:sh-at-multi-line",
+      "group": "shape",
+      "source": "flowchart TD\nA@{\n  shape: cyl\n  label: \"DB\"\n}\nA --> B\n",
+      "note": "multi-line @{} ok"
+    },
+    {
+      "id": "c1:sh-at-label-only",
+      "group": "shape",
+      "source": "flowchart TD\nA@{ label: \"only\" }\n",
+      "note": "label only, type undefined"
+    },
+    {
+      "id": "c1:sh-at-shape-only",
+      "group": "shape",
+      "source": "flowchart TD\nA@{ shape: diam }\n",
+      "note": "text defaults to id"
+    },
+    {
+      "id": "c1:sh-at-alias",
+      "group": "shape",
+      "source": "flowchart TD\nA@{ shape: decision }\n",
+      "note": "alias accepted"
+    },
+    {
+      "id": "c1:sh-at-bad-shape",
+      "group": "shape",
+      "source": "flowchart TD\nA@{ shape: nonsense }\n",
+      "note": "throws No such shape"
+    },
+    {
+      "id": "c1:sh-at-uppercase",
+      "group": "shape",
+      "source": "flowchart TD\nA@{ shape: Rect }\n",
+      "note": "throws lowercase"
+    },
+    {
+      "id": "c1:sh-at-then-bracket",
+      "group": "shape",
+      "source": "flowchart TD\nA@{ shape: cyl, label: \"X\" }\nA[Y]\n",
+      "note": "later bracket overrides type+text"
+    },
+    {
+      "id": "c1:sh-at-then-edge",
+      "group": "shape",
+      "source": "flowchart TD\nA@{ shape: cyl }\nB@{ shape: doc }\nA --> B\n",
+      "note": "edge keeps shapes"
+    },
+    {
+      "id": "c1:sh-at-in-edge",
+      "group": "shape",
+      "source": "flowchart TD\nA --> B@{ shape: doc, label: \"B!\" }\n",
+      "note": "inline @{} on edge target (case 45/47)"
+    },
+    {
+      "id": "c1:sh-at-in-chain",
+      "group": "shape",
+      "source": "flowchart TD\nA@{ shape: doc } --> B@{ shape: cyl }\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:sh-at-colon-in-id",
+      "group": "shape",
+      "source": "flowchart TD\nA@B --> C\n",
+      "note": "`@` inside id; record"
+    },
+    {
+      "id": "c1:lb-quoted-parens",
+      "group": "label",
+      "source": "flowchart TD\nA[\"a ( b ) [c] {d}\"]\n",
+      "note": "text kept"
+    },
+    {
+      "id": "c1:lb-unquoted-space",
+      "group": "label",
+      "source": "flowchart TD\nA[hello world]\n",
+      "note": "ok"
+    },
+    {
+      "id": "c1:lb-unquoted-paren-inside",
+      "group": "label",
+      "source": "flowchart TD\nA[a (b) c]\n",
+      "note": "fails unquoted"
+    },
+    {
+      "id": "c1:lb-br",
+      "group": "label",
+      "source": "flowchart TD\nA[\"l1<br/>l2\"]\n",
+      "note": "text has <br/>"
+    },
+    {
+      "id": "c1:lb-md",
+      "group": "label",
+      "source": "flowchart TD\nA[\"`**bold** x`\"]\n",
+      "note": "labelType markdown"
+    },
+    {
+      "id": "c1:lb-entity-quot",
+      "group": "label",
+      "source": "flowchart TD\nA[\"say #quot;hi#quot;\"]\n",
+      "note": "entity decoded at render only"
+    },
+    {
+      "id": "c1:lb-escaped-dq",
+      "group": "label",
+      "source": "flowchart TD\nA[\"say \\\"hi\\\"\"]\n",
+      "note": "backslash-quote is NOT an escape: fails or differs"
+    },
+    {
+      "id": "c1:lb-dq-in-unquoted",
+      "group": "label",
+      "source": "flowchart TD\nA[say \"hi\" now]\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:lb-ja-emoji",
+      "group": "label",
+      "source": "flowchart TD\nA[\"日本語 🙂 test\"]\n",
+      "note": "ok"
+    },
+    {
+      "id": "c1:lb-html-b",
+      "group": "label",
+      "source": "flowchart TD\nA[\"<b>x</b>\"]\n",
+      "note": "ok; html tags sanitised in strict"
+    },
+    {
+      "id": "c1:lb-script",
+      "group": "label",
+      "source": "flowchart TD\nA[\"<script>alert(1)</script>\"]\n",
+      "note": "ok; script removed by sanitize"
+    },
+    {
+      "id": "c1:lb-newline-in-quotes",
+      "group": "label",
+      "source": "flowchart TD\nA[\"line1\nline2\"]\nB-->A\n",
+      "note": "real newline inside quotes allowed"
+    },
+    {
+      "id": "c1:lb-percent-comment",
+      "group": "label",
+      "source": "flowchart TD\nA[\"50%% off\"]\n",
+      "note": "%% inside quoted label"
+    },
+    {
+      "id": "c1:lb-semicolon",
+      "group": "label",
+      "source": "flowchart TD\nA[\"a;b\"] --> B\n",
+      "note": "quoted ; ok"
+    },
+    {
+      "id": "c1:lb-semicolon-unquoted",
+      "group": "label",
+      "source": "flowchart TD\nA[a;b] --> B\n",
+      "note": "unquoted ; splits statement"
+    },
+    {
+      "id": "c1:lb-pipe-quoted",
+      "group": "label",
+      "source": "flowchart TD\nA[\"a|b\"] --> B\n",
+      "note": "ok"
+    },
+    {
+      "id": "c1:lb-hash-35",
+      "group": "label",
+      "source": "flowchart TD\nA[\"#35;x\"]\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:lb-empty-quoted",
+      "group": "label",
+      "source": "flowchart TD\nA[\"\"]\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:lb-empty-bracket",
+      "group": "label",
+      "source": "flowchart TD\nA[]\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:lb-spaces-only",
+      "group": "label",
+      "source": "flowchart TD\nA[\" \"]\n",
+      "note": "record (mermaid trims)"
+    },
+    {
+      "id": "c1:lb-init-in-label",
+      "group": "label",
+      "source": "flowchart TD\nA[\"%%{init: {\"theme\":\"dark\"}}%%\"]\n",
+      "note": "directive injection in label (documented in 9-1)"
+    },
+    {
+      "id": "c1:lb-lt-gt-entities",
+      "group": "label",
+      "source": "flowchart TD\nA[\"a #lt; b #gt; c\"]\n",
+      "note": "ok"
+    },
+    {
+      "id": "c1:lb-angle-raw",
+      "group": "label",
+      "source": "flowchart TD\nA[\"a < b > c\"]\n",
+      "note": "ok"
+    },
+    {
+      "id": "c1:lb-backtick-unquoted",
+      "group": "label",
+      "source": "flowchart TD\nA[`x`]\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:ed-arrow",
+      "group": "edge",
+      "source": "flowchart TD\nA-->B\n",
+      "note": "arrow_point/normal/1"
+    },
+    {
+      "id": "c1:ed-open",
+      "group": "edge",
+      "source": "flowchart TD\nA---B\n",
+      "note": "arrow_open"
+    },
+    {
+      "id": "c1:ed-dotted-arrow",
+      "group": "edge",
+      "source": "flowchart TD\nA-.->B\n",
+      "note": "dotted"
+    },
+    {
+      "id": "c1:ed-dotted-open",
+      "group": "edge",
+      "source": "flowchart TD\nA-.-B\n",
+      "note": "dotted open"
+    },
+    {
+      "id": "c1:ed-thick-arrow",
+      "group": "edge",
+      "source": "flowchart TD\nA==>B\n",
+      "note": "thick"
+    },
+    {
+      "id": "c1:ed-thick-open",
+      "group": "edge",
+      "source": "flowchart TD\nA===B\n",
+      "note": "thick open"
+    },
+    {
+      "id": "c1:ed-circle",
+      "group": "edge",
+      "source": "flowchart TD\nA--oB\n",
+      "note": "arrow_circle"
+    },
+    {
+      "id": "c1:ed-cross",
+      "group": "edge",
+      "source": "flowchart TD\nA--xB\n",
+      "note": "arrow_cross"
+    },
+    {
+      "id": "c1:ed-bidir",
+      "group": "edge",
+      "source": "flowchart TD\nA<-->B\n",
+      "note": "double_arrow_point"
+    },
+    {
+      "id": "c1:ed-bidir-dotted",
+      "group": "edge",
+      "source": "flowchart TD\nA<-.->B\n",
+      "note": "double dotted"
+    },
+    {
+      "id": "c1:ed-bidir-thick",
+      "group": "edge",
+      "source": "flowchart TD\nA<==>B\n",
+      "note": "double thick"
+    },
+    {
+      "id": "c1:ed-circle-circle",
+      "group": "edge",
+      "source": "flowchart TD\nA o--o B\n",
+      "note": "double_arrow_circle"
+    },
+    {
+      "id": "c1:ed-cross-cross",
+      "group": "edge",
+      "source": "flowchart TD\nA x--x B\n",
+      "note": "double_arrow_cross"
+    },
+    {
+      "id": "c1:ed-invisible",
+      "group": "edge",
+      "source": "flowchart TD\nA~~~B\n",
+      "note": "invisible"
+    },
+    {
+      "id": "c1:ed-long-3",
+      "group": "edge",
+      "source": "flowchart TD\nA--->B\n",
+      "note": "length 2"
+    },
+    {
+      "id": "c1:ed-long-5",
+      "group": "edge",
+      "source": "flowchart TD\nA------>B\n",
+      "note": "length 5"
+    },
+    {
+      "id": "c1:ed-long-dotted",
+      "group": "edge",
+      "source": "flowchart TD\nA-...->B\n",
+      "note": "dotted length 3"
+    },
+    {
+      "id": "c1:ed-long-thick",
+      "group": "edge",
+      "source": "flowchart TD\nA====>B\n",
+      "note": "thick length 3"
+    },
+    {
+      "id": "c1:ed-length-cap",
+      "group": "edge",
+      "source": "flowchart TD\nA----------------->B\n",
+      "note": "length capped at 10"
+    },
+    {
+      "id": "c1:ed-label-pipe",
+      "group": "edge",
+      "source": "flowchart TD\nA-->|yes|B\n",
+      "note": "text yes"
+    },
+    {
+      "id": "c1:ed-label-pipe-spaced",
+      "group": "edge",
+      "source": "flowchart TD\nA --> |yes no| B\n",
+      "note": "text 'yes no'"
+    },
+    {
+      "id": "c1:ed-label-inline",
+      "group": "edge",
+      "source": "flowchart TD\nA-- yes -->B\n",
+      "note": "text yes"
+    },
+    {
+      "id": "c1:ed-label-inline-open",
+      "group": "edge",
+      "source": "flowchart TD\nA-- yes ---B\n",
+      "note": "open with text"
+    },
+    {
+      "id": "c1:ed-label-dotted",
+      "group": "edge",
+      "source": "flowchart TD\nA-. yes .->B\n",
+      "note": "dotted with text"
+    },
+    {
+      "id": "c1:ed-label-thick",
+      "group": "edge",
+      "source": "flowchart TD\nA== yes ==>B\n",
+      "note": "thick with text"
+    },
+    {
+      "id": "c1:ed-label-quoted-pipe",
+      "group": "edge",
+      "source": "flowchart TD\nA-->|\"a | b (c)\"|B\n",
+      "note": "quoted label with pipe"
+    },
+    {
+      "id": "c1:ed-label-quoted-inline",
+      "group": "edge",
+      "source": "flowchart TD\nA-- \"a (b)\" -->B\n",
+      "note": "quoted inline label"
+    },
+    {
+      "id": "c1:ed-label-unquoted-paren",
+      "group": "edge",
+      "source": "flowchart TD\nA-->|a (b)|B\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:ed-label-ja-br",
+      "group": "edge",
+      "source": "flowchart TD\nA-->|\"日本<br/>語\"|B\n",
+      "note": "ok"
+    },
+    {
+      "id": "c1:ed-label-md",
+      "group": "edge",
+      "source": "flowchart TD\nA-->|\"`*it*`\"|B\n",
+      "note": "markdown edge label"
+    },
+    {
+      "id": "c1:ed-label-mismatch",
+      "group": "edge",
+      "source": "flowchart TD\nA-- t -.->B\n",
+      "note": "start/end type mismatch -> INVALID edge"
+    },
+    {
+      "id": "c1:ed-label-mismatch-solid-thick",
+      "group": "edge",
+      "source": "flowchart TD\nA-- t ==>B\n",
+      "note": "INVALID"
+    },
+    {
+      "id": "c1:ed-id",
+      "group": "edge",
+      "source": "flowchart TD\nA e1@--> B\n",
+      "note": "edge id e1"
+    },
+    {
+      "id": "c1:ed-id-nospace",
+      "group": "edge",
+      "source": "flowchart TD\nA e1@-->B\n",
+      "note": "edge id e1"
+    },
+    {
+      "id": "c1:ed-id-no-space-before",
+      "group": "edge",
+      "source": "flowchart TD\nAe1@-->B\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:ed-id-attr-animate",
+      "group": "edge",
+      "source": "flowchart TD\nA e1@--> B\ne1@{ animate: true }\n",
+      "note": "animate true on edge, no phantom vertex"
+    },
+    {
+      "id": "c1:ed-id-attr-curve",
+      "group": "edge",
+      "source": "flowchart TD\nA e1@--> B\ne1@{ curve: linear }\n",
+      "note": "interpolate linear"
+    },
+    {
+      "id": "c1:ed-id-attr-before-edge",
+      "group": "edge",
+      "source": "flowchart TD\ne1@{ animate: true }\nA e1@--> B\n",
+      "note": "attr before edge: becomes vertex e1 (phantom)"
+    },
+    {
+      "id": "c1:ed-id-duplicate",
+      "group": "edge",
+      "source": "flowchart TD\nA e1@--> B\nB e1@--> C\n",
+      "note": "dup id -> second gets auto id"
+    },
+    {
+      "id": "c1:ed-id-with-label",
+      "group": "edge",
+      "source": "flowchart TD\nA e1@-->|go| B\n",
+      "note": "id + pipe label"
+    },
+    {
+      "id": "c1:ed-id-with-inline-label",
+      "group": "edge",
+      "source": "flowchart TD\nA e1@-- go --> B\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:ed-auto-ids-dup",
+      "group": "edge",
+      "source": "flowchart TD\nA-->B\nA-->B\nA-->B\n",
+      "note": "auto ids L_A_B_0, L_A_B_2? record"
+    },
+    {
+      "id": "c1:ed-self-loop",
+      "group": "edge",
+      "source": "flowchart TD\nA-->A\n",
+      "note": "ok"
+    },
+    {
+      "id": "c1:ed-dangling-end",
+      "group": "edge",
+      "source": "flowchart TD\nA-->\n",
+      "note": "error"
+    },
+    {
+      "id": "c1:ed-dangling-start",
+      "group": "edge",
+      "source": "flowchart TD\n-->B\n",
+      "note": "error"
+    },
+    {
+      "id": "c1:ed-two-dash",
+      "group": "edge",
+      "source": "flowchart TD\nA--B\n",
+      "note": "error"
+    },
+    {
+      "id": "c1:ch-chain3",
+      "group": "chain",
+      "source": "flowchart TD\nA-->B-->C\n",
+      "note": "edges A>B, B>C"
+    },
+    {
+      "id": "c1:ch-amp-right",
+      "group": "chain",
+      "source": "flowchart TD\nA-->B & C\n",
+      "note": "A>B, A>C"
+    },
+    {
+      "id": "c1:ch-amp-both",
+      "group": "chain",
+      "source": "flowchart TD\nA & B --> C & D\n",
+      "note": "order: record"
+    },
+    {
+      "id": "c1:ch-amp-chain",
+      "group": "chain",
+      "source": "flowchart TD\nA --> B --> C & D\n",
+      "note": "A>B, B>C, B>D"
+    },
+    {
+      "id": "c1:ch-amp-left-chain",
+      "group": "chain",
+      "source": "flowchart TD\nA & B --> C --> D\n",
+      "note": "A>C,B>C,C>D"
+    },
+    {
+      "id": "c1:ch-semicolon-two",
+      "group": "chain",
+      "source": "flowchart TD\nA-->B; C-->D\n",
+      "note": "two statements one line"
+    },
+    {
+      "id": "c1:ch-semicolon-nospace",
+      "group": "chain",
+      "source": "flowchart TD\nA-->B;C-->D;\n",
+      "note": "ok"
+    },
+    {
+      "id": "c1:ch-space-two-nodes",
+      "group": "chain",
+      "source": "flowchart TD\nA B\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:ch-space-two-edges",
+      "group": "chain",
+      "source": "flowchart TD\nA-->B C-->D\n",
+      "note": "no separator: record"
+    },
+    {
+      "id": "c1:ch-mixed-types",
+      "group": "chain",
+      "source": "flowchart TD\nA --> B -.-> C ==> D --- E\n",
+      "note": "4 edges, types preserved"
+    },
+    {
+      "id": "c1:ch-labels-chain",
+      "group": "chain",
+      "source": "flowchart TD\nA -->|x| B -->|y| C\n",
+      "note": "labels x,y"
+    },
+    {
+      "id": "c1:ch-defs-then-edges",
+      "group": "chain",
+      "source": "flowchart TD\nA[One]-->B(Two)-->C{Three}\n",
+      "note": "shapes on nodes"
+    },
+    {
+      "id": "c1:ch-node-redefine",
+      "group": "chain",
+      "source": "flowchart TD\nA[One]\nA[Two]\n",
+      "note": "last wins"
+    },
+    {
+      "id": "c1:ch-node-label-after-edge",
+      "group": "chain",
+      "source": "flowchart TD\nA-->B\nB[Late label]\n",
+      "note": "label applies"
+    },
+    {
+      "id": "c1:ch-bare-after-labeled",
+      "group": "chain",
+      "source": "flowchart TD\nA[Label]\nA-->B\nA\n",
+      "note": "bare mention keeps label"
+    },
+    {
+      "id": "c1:ch-vertex-order",
+      "group": "chain",
+      "source": "flowchart TD\nC-->B\nA\nB-->D\n",
+      "note": "vertex order C,B,A,D"
+    },
+    {
+      "id": "c1:sg-basic",
+      "group": "subgraph",
+      "source": "flowchart TD\nsubgraph S\n  A\n  B\nend\nA-->B\n",
+      "note": "S:[A,B]"
+    },
+    {
+      "id": "c1:sg-title-bracket",
+      "group": "subgraph",
+      "source": "flowchart TD\nsubgraph S[My Title]\n  A\nend\n",
+      "note": "id S title My Title"
+    },
+    {
+      "id": "c1:sg-title-quoted",
+      "group": "subgraph",
+      "source": "flowchart TD\nsubgraph S [\"Quoted (title)\"]\n  A\nend\n",
+      "note": "title Quoted (title)"
+    },
+    {
+      "id": "c1:sg-title-only-quoted",
+      "group": "subgraph",
+      "source": "flowchart TD\nsubgraph \"Just title\"\n  A\nend\n",
+      "note": "generated id"
+    },
+    {
+      "id": "c1:sg-title-words",
+      "group": "subgraph",
+      "source": "flowchart TD\nsubgraph Title with spaces\n  A\nend\n",
+      "note": "generated id subGraph0"
+    },
+    {
+      "id": "c1:sg-direction",
+      "group": "subgraph",
+      "source": "flowchart TD\nsubgraph S\n  direction LR\n  A-->B\nend\n",
+      "note": "dir LR"
+    },
+    {
+      "id": "c1:sg-nested",
+      "group": "subgraph",
+      "source": "flowchart TD\nsubgraph O\n  subgraph I\n    A\n  end\n  B\nend\n",
+      "note": "I:[A] first, O:[I,B]"
+    },
+    {
+      "id": "c1:sg-empty",
+      "group": "subgraph",
+      "source": "flowchart TD\nsubgraph S\nend\nA-->B\n",
+      "note": "empty subgraph ok"
+    },
+    {
+      "id": "c1:sg-edge-to-subgraph",
+      "group": "subgraph",
+      "source": "flowchart TD\nsubgraph S\n  A\nend\nB-->S\n",
+      "note": "edge to subgraph id (no phantom vertex S?)"
+    },
+    {
+      "id": "c1:sg-edge-from-subgraph",
+      "group": "subgraph",
+      "source": "flowchart TD\nsubgraph S\n  A\nend\nS-->B\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:sg-first-def-wins",
+      "group": "subgraph",
+      "source": "flowchart TD\nsubgraph S1\n  A\nend\nsubgraph S2\n  A\n  B\nend\n",
+      "note": "A only in S1"
+    },
+    {
+      "id": "c1:sg-defined-before",
+      "group": "subgraph",
+      "source": "flowchart TD\nA-->B\nsubgraph S\n  A\nend\n",
+      "note": "membership by mention inside"
+    },
+    {
+      "id": "c1:sg-edge-inside-adds-both",
+      "group": "subgraph",
+      "source": "flowchart TD\nsubgraph S\n  A-->B\nend\n",
+      "note": "both members"
+    },
+    {
+      "id": "c1:sg-edge-outside-no-membership",
+      "group": "subgraph",
+      "source": "flowchart TD\nsubgraph S\n  A\nend\nA-->B\n",
+      "note": "B not in S"
+    },
+    {
+      "id": "c1:sg-duplicate-id-merge",
+      "group": "subgraph",
+      "source": "flowchart TD\nsubgraph S\n  A\nend\nsubgraph S\n  B\nend\n",
+      "note": "same id merges nodes"
+    },
+    {
+      "id": "c1:sg-unclosed",
+      "group": "subgraph",
+      "source": "flowchart TD\nsubgraph S\n  A\n",
+      "note": "error"
+    },
+    {
+      "id": "c1:sg-extra-end",
+      "group": "subgraph",
+      "source": "flowchart TD\nA\nend\n",
+      "note": "error"
+    },
+    {
+      "id": "c1:sg-end-inline",
+      "group": "subgraph",
+      "source": "flowchart TD\nsubgraph S\n  A end\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:sg-class-apply",
+      "group": "subgraph",
+      "source": "flowchart TD\nclassDef c fill:#f00\nsubgraph S\n  A\nend\nclass S c\n",
+      "note": "class on subgraph"
+    },
+    {
+      "id": "c1:sg-style-subgraph",
+      "group": "subgraph",
+      "source": "flowchart TD\nsubgraph S\n  A\nend\nstyle S fill:#ff0\n",
+      "note": "style on subgraph id creates phantom vertex S?"
+    },
+    {
+      "id": "c1:cl-classdef",
+      "group": "style",
+      "source": "flowchart TD\nclassDef c1 fill:#f9f,stroke:#333,stroke-width:4px\nA:::c1\n",
+      "note": "class c1 on A"
+    },
+    {
+      "id": "c1:cl-class-stmt",
+      "group": "style",
+      "source": "flowchart TD\nclassDef c1 fill:#f00\nA-->B\nclass A,B c1\n",
+      "note": "both"
+    },
+    {
+      "id": "c1:cl-class-before-node",
+      "group": "style",
+      "source": "flowchart TD\nclassDef c1 fill:#f00\nclass A c1\nA-->B\n",
+      "note": "class before node exists is IGNORED"
+    },
+    {
+      "id": "c1:cl-triple-colon-shape",
+      "group": "style",
+      "source": "flowchart TD\nA[Text]:::c1 --> B:::c2\n",
+      "note": "classes c1,c2"
+    },
+    {
+      "id": "c1:cl-triple-colon-two",
+      "group": "style",
+      "source": "flowchart TD\nA:::c1:::c2\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:cl-classdef-multi",
+      "group": "style",
+      "source": "flowchart TD\nclassDef a,b fill:#f00\nA:::a\n",
+      "note": "classes a and b defined"
+    },
+    {
+      "id": "c1:cl-classdef-default",
+      "group": "style",
+      "source": "flowchart TD\nclassDef default fill:#fff\nA-->B\n",
+      "note": "default class defined"
+    },
+    {
+      "id": "c1:cl-classdef-after-use",
+      "group": "style",
+      "source": "flowchart TD\nA:::c1\nclassDef c1 fill:#f00\n",
+      "note": "order independent"
+    },
+    {
+      "id": "c1:cl-undefined-class",
+      "group": "style",
+      "source": "flowchart TD\nA:::nope\n",
+      "note": "no error"
+    },
+    {
+      "id": "c1:cl-class-multi-names",
+      "group": "style",
+      "source": "flowchart TD\nclassDef a fill:#f00\nclassDef b stroke:#0f0\nA\nclass A a,b\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:cl-class-edge-id",
+      "group": "style",
+      "source": "flowchart TD\nclassDef c fill:#f00\nA e1@--> B\nclass e1 c\n",
+      "note": "class on edge"
+    },
+    {
+      "id": "c1:st-style",
+      "group": "style",
+      "source": "flowchart TD\nA-->B\nstyle A fill:#f9f,stroke:#333\n",
+      "note": "styles on A"
+    },
+    {
+      "id": "c1:st-style-unknown-node",
+      "group": "style",
+      "source": "flowchart TD\nA-->B\nstyle Z fill:#f9f\n",
+      "note": "creates vertex Z"
+    },
+    {
+      "id": "c1:st-style-multi",
+      "group": "style",
+      "source": "flowchart TD\nA-->B\nstyle A,B fill:#f9f\n",
+      "note": "record: comma list not allowed for style?"
+    },
+    {
+      "id": "c1:ls-index",
+      "group": "style",
+      "source": "flowchart TD\nA-->B\nB-->C\nlinkStyle 1 stroke:#f00,stroke-width:2px\n",
+      "note": "style on edge index 1"
+    },
+    {
+      "id": "c1:ls-list",
+      "group": "style",
+      "source": "flowchart TD\nA-->B\nB-->C\nC-->D\nlinkStyle 0,2 stroke:#f00\n",
+      "note": "edges 0 and 2"
+    },
+    {
+      "id": "c1:ls-default",
+      "group": "style",
+      "source": "flowchart TD\nA-->B\nB-->C\nlinkStyle default stroke:#0f0\n",
+      "note": "defaultStyle set; per-edge style undefined"
+    },
+    {
+      "id": "c1:ls-default-and-index",
+      "group": "style",
+      "source": "flowchart TD\nA-->B\nB-->C\nlinkStyle default stroke:#0f0\nlinkStyle 1 stroke:#f00\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:ls-oob",
+      "group": "style",
+      "source": "flowchart TD\nA-->B\nlinkStyle 3 stroke:#f00\n",
+      "note": "error out of bounds"
+    },
+    {
+      "id": "c1:ls-before-edges",
+      "group": "style",
+      "source": "flowchart TD\nlinkStyle 0 stroke:#f00\nA-->B\n",
+      "note": "error: no edges yet"
+    },
+    {
+      "id": "c1:ls-interpolate",
+      "group": "style",
+      "source": "flowchart TD\nA-->B\nlinkStyle 0 interpolate basis\n",
+      "note": "interpolate basis"
+    },
+    {
+      "id": "c1:ls-interpolate-style",
+      "group": "style",
+      "source": "flowchart TD\nA-->B\nlinkStyle 0 interpolate basis stroke:#f00\n",
+      "note": "both"
+    },
+    {
+      "id": "c1:ls-with-edge-ids",
+      "group": "style",
+      "source": "flowchart TD\nA e1@--> B\nlinkStyle 0 stroke:#f00\n",
+      "note": "index still works with edge ids"
+    },
+    {
+      "id": "c1:ls-edge-count-with-amp",
+      "group": "style",
+      "source": "flowchart TD\nA & B --> C & D\nlinkStyle 3 stroke:#f00\n",
+      "note": "4 edges from `&` statement"
+    },
+    {
+      "id": "c1:ls-chain-index",
+      "group": "style",
+      "source": "flowchart TD\nA-->B-->C\nlinkStyle 1 stroke:#f00\n",
+      "note": "second edge of chain"
+    },
+    {
+      "id": "c1:ck-href",
+      "group": "click",
+      "source": "flowchart TD\nA-->B\nclick A \"https://example.com\"\n",
+      "note": "link on A; class clickable"
+    },
+    {
+      "id": "c1:ck-href-tip-target",
+      "group": "click",
+      "source": "flowchart TD\nA-->B\nclick A href \"https://example.com\" \"tip\" _blank\n",
+      "note": "link, tooltip, target"
+    },
+    {
+      "id": "c1:ck-href-js",
+      "group": "click",
+      "source": "flowchart TD\nA-->B\nclick A href \"javascript:alert(1)\"\n",
+      "note": "formatUrl sanitises to about:blank in strict"
+    },
+    {
+      "id": "c1:ck-call",
+      "group": "click",
+      "source": "flowchart TD\nA-->B\nclick A call foo(1,2)\n",
+      "note": "callback ignored in strict (no haveCallback)"
+    },
+    {
+      "id": "c1:ck-callback-name",
+      "group": "click",
+      "source": "flowchart TD\nA-->B\nclick A foo\n",
+      "note": "ok; ignored in strict"
+    },
+    {
+      "id": "c1:ck-multi-ids",
+      "group": "click",
+      "source": "flowchart TD\nA-->B\nclick A,B \"https://example.com\"\n",
+      "note": "both"
+    },
+    {
+      "id": "c1:ck-unknown-node",
+      "group": "click",
+      "source": "flowchart TD\nA-->B\nclick Z \"https://example.com\"\n",
+      "note": "no vertex Z created"
+    },
+    {
+      "id": "c1:ck-click-before-node",
+      "group": "click",
+      "source": "flowchart TD\nclick A \"https://example.com\"\nA-->B\n",
+      "note": "click before node defined: ignored"
+    },
+    {
+      "id": "c1:cm-line",
+      "group": "comment",
+      "source": "flowchart TD\n%% comment\nA-->B\n",
+      "note": "ignored"
+    },
+    {
+      "id": "c1:cm-indented",
+      "group": "comment",
+      "source": "flowchart TD\n   %% comment\nA-->B\n",
+      "note": "ignored"
+    },
+    {
+      "id": "c1:cm-trailing",
+      "group": "comment",
+      "source": "flowchart TD\nA-->B %% trailing\nB-->C\n",
+      "note": "trailing comment: record"
+    },
+    {
+      "id": "c1:cm-trailing-label",
+      "group": "comment",
+      "source": "flowchart TD\nA[x] %% trailing\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:cm-between-chain-semicolon",
+      "group": "comment",
+      "source": "flowchart TD\nA-->B; %% c\nC-->D\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:cm-inline-directive",
+      "group": "comment",
+      "source": "flowchart TD\nA-->B\n%%{init: {\"flowchart\": {\"curve\": \"basis\"}} }%%\n",
+      "note": "directive mid-body"
+    },
+    {
+      "id": "c1:ac-title",
+      "group": "acc",
+      "source": "flowchart TD\naccTitle: My title\naccDescr: My descr\nA-->B\n",
+      "note": "acc set"
+    },
+    {
+      "id": "c1:ac-descr-multi",
+      "group": "acc",
+      "source": "flowchart TD\naccDescr {\n  line1\n  line2\n}\nA-->B\n",
+      "note": "multi"
+    },
+    {
+      "id": "c1:ws-crlf",
+      "group": "ws",
+      "source": "flowchart TD\r\nA-->B\r\nB-->C\r\n",
+      "note": "ok"
+    },
+    {
+      "id": "c1:ws-no-trailing-newline",
+      "group": "ws",
+      "source": "flowchart TD\nA-->B",
+      "note": "ok"
+    },
+    {
+      "id": "c1:ws-tab-indent",
+      "group": "ws",
+      "source": "flowchart TD\n\tA-->B\n\t\tB-->C\n",
+      "note": "ok"
+    },
+    {
+      "id": "c1:ws-blank-lines",
+      "group": "ws",
+      "source": "flowchart TD\n\n\nA-->B\n\n\n",
+      "note": "ok"
+    },
+    {
+      "id": "c1:ws-lone-cr",
+      "group": "ws",
+      "source": "flowchart TD\rA-->B\r",
+      "note": "record"
+    },
+    {
+      "id": "c1:ws-nbsp",
+      "group": "ws",
+      "source": "flowchart TD\nA-->B \n",
+      "note": "record"
+    },
+    {
+      "id": "c1:ws-bom",
+      "group": "ws",
+      "source": "﻿flowchart TD\nA-->B\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:inv-unclosed-bracket",
+      "group": "invalid",
+      "source": "flowchart TD\nA[x\nB\n",
+      "note": "error"
+    },
+    {
+      "id": "c1:inv-mismatched-bracket",
+      "group": "invalid",
+      "source": "flowchart TD\nA[x)\n",
+      "note": "error"
+    },
+    {
+      "id": "c1:inv-two-nodes-no-edge-spaced",
+      "group": "invalid",
+      "source": "flowchart TD\nA[x] B[y]\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:inv-garbage-line",
+      "group": "invalid",
+      "source": "flowchart TD\nA-->B\nthis is not mermaid\n",
+      "note": "record: parse may accept words as nodes"
+    },
+    {
+      "id": "c1:inv-empty-body",
+      "group": "invalid",
+      "source": "flowchart TD\n",
+      "note": "ok (empty)"
+    },
+    {
+      "id": "c1:inv-header-only-no-newline",
+      "group": "invalid",
+      "source": "flowchart TD",
+      "note": "ok"
+    },
+    {
+      "id": "c1:inv-edge-to-keyword-end",
+      "group": "invalid",
+      "source": "flowchart TD\nA-->end\n",
+      "note": "error (end keyword)"
+    },
+    {
+      "id": "c1:inv-shape-text-with-unmatched-quote",
+      "group": "invalid",
+      "source": "flowchart TD\nA[\"x]\n",
+      "note": "error"
+    },
+    {
+      "id": "c1:inv-direction-in-body",
+      "group": "invalid",
+      "source": "flowchart TD\ndirection LR\nA-->B\n",
+      "note": "direction outside subgraph: record"
+    },
+    {
+      "id": "c1:inv-double-header",
+      "group": "invalid",
+      "source": "flowchart TD\nflowchart LR\nA-->B\n",
+      "note": "error"
+    },
+    {
+      "id": "c1:inv-semicolon-only",
+      "group": "invalid",
+      "source": "flowchart TD\n;\nA-->B\n",
+      "note": "record"
+    },
+    {
+      "id": "c1:inv-amp-dangling",
+      "group": "invalid",
+      "source": "flowchart TD\nA & --> B\n",
+      "note": "error"
+    },
+    {
+      "id": "c2:at-label-colon",
+      "group": "at",
+      "source": "flowchart TD\nA@{ label: \"x: y\" }\n",
+      "note": "quoted colon ok"
+    },
+    {
+      "id": "c2:at-label-single",
+      "group": "at",
+      "source": "flowchart TD\nA@{ label: 'single' }\n",
+      "note": "single quotes ok"
+    },
+    {
+      "id": "c2:at-label-unquoted",
+      "group": "at",
+      "source": "flowchart TD\nA@{ label: x y }\n",
+      "note": "unquoted yaml scalar"
+    },
+    {
+      "id": "c2:at-label-brace-in-string",
+      "group": "at",
+      "source": "flowchart TD\nA@{ shape: rect, label: \"with } brace\" }\n",
+      "note": "brace inside quotes"
+    },
+    {
+      "id": "c2:at-no-spaces",
+      "group": "at",
+      "source": "flowchart TD\nA@{shape: rect}\n",
+      "note": "ok"
+    },
+    {
+      "id": "c2:at-merge-two",
+      "group": "at",
+      "source": "flowchart TD\nA@{ shape: rect }\nA@{ label: \"new\" }\n",
+      "note": "merges"
+    },
+    {
+      "id": "c2:at-icon",
+      "group": "at",
+      "source": "flowchart TD\nA@{ icon: \"fa:user\", form: \"square\", label: \"u\" }\n",
+      "note": "parse ok; render may need icon pack"
+    },
+    {
+      "id": "c2:at-img",
+      "group": "at",
+      "source": "flowchart TD\nA@{ img: \"https://example.com/y.png\", w: 10, h: 10, label: \"i\" }\n",
+      "note": "parse ok; external image"
+    },
+    {
+      "id": "c2:at-pos-constraint",
+      "group": "at",
+      "source": "flowchart TD\nA@{ pos: \"t\", constraint: \"on\" }\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:at-unknown-key",
+      "group": "at",
+      "source": "flowchart TD\nA@{ unknown: 1 }\n",
+      "note": "ignored"
+    },
+    {
+      "id": "c2:at-duplicate-key",
+      "group": "at",
+      "source": "flowchart TD\nA@{ shape: rect, shape: cyl }\n",
+      "note": "yaml dup key: error or last"
+    },
+    {
+      "id": "c2:at-label-newline-escape",
+      "group": "at",
+      "source": "flowchart TD\nA@{ label: \"a\\nb\" }\n",
+      "note": "yaml escape"
+    },
+    {
+      "id": "c2:at-label-br",
+      "group": "at",
+      "source": "flowchart TD\nA@{ label: \"l1<br/>l2\" }\n",
+      "note": "br"
+    },
+    {
+      "id": "c2:at-label-md-default",
+      "group": "at",
+      "source": "flowchart TD\nA@{ label: \"**b**\" }\n",
+      "note": "labelType markdown by default"
+    },
+    {
+      "id": "c2:at-label-with-labelType",
+      "group": "at",
+      "source": "flowchart TD\nA@{ label: \"**b**\", labelType: text }\n",
+      "note": "labelType text"
+    },
+    {
+      "id": "c2:at-unterminated",
+      "group": "at",
+      "source": "flowchart TD\nA@{ shape: rect\n",
+      "note": "error"
+    },
+    {
+      "id": "c2:at-empty",
+      "group": "at",
+      "source": "flowchart TD\nA@{ }\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:at-bad-yaml",
+      "group": "at",
+      "source": "flowchart TD\nA@{ shape rect }\n",
+      "note": "error or ignored"
+    },
+    {
+      "id": "c2:at-crlf-multiline",
+      "group": "at",
+      "source": "flowchart TD\r\nA@{\r\n  shape: cyl\r\n  label: \"DB\"\r\n}\r\nA --> B\r\n",
+      "note": "CRLF in multi-line @{}"
+    },
+    {
+      "id": "c2:at-label-with-quote-escape",
+      "group": "at",
+      "source": "flowchart TD\nA@{ label: \"say \\\"hi\\\"\" }\n",
+      "note": "yaml allows \\\" so the label CAN contain double quotes via @{}"
+    },
+    {
+      "id": "c2:at-label-with-single-in-double",
+      "group": "at",
+      "source": "flowchart TD\nA@{ label: 'say \"hi\"' }\n",
+      "note": "dq inside single quotes"
+    },
+    {
+      "id": "c2:at-id-with-hyphen",
+      "group": "at",
+      "source": "flowchart TD\nmy-node@{ shape: rect }\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:at-in-subgraph",
+      "group": "at",
+      "source": "flowchart TD\nsubgraph S\n  A@{ shape: cyl }\nend\n",
+      "note": "membership"
+    },
+    {
+      "id": "c2:at-style-line",
+      "group": "at",
+      "source": "flowchart TD\nA@{ shape: rect }\nstyle A fill:#f00\nclass A c\n",
+      "note": "style on @{} node"
+    },
+    {
+      "id": "c2:at-with-class-suffix",
+      "group": "at",
+      "source": "flowchart TD\nA@{ shape: rect }:::c\n",
+      "note": "record: suffix after @{}"
+    },
+    {
+      "id": "c2:ea-animation-fast",
+      "group": "edge-attr",
+      "source": "flowchart TD\nA e1@--> B\ne1@{ animation: fast }\n",
+      "note": "animation fast"
+    },
+    {
+      "id": "c2:ea-animate-and-anim",
+      "group": "edge-attr",
+      "source": "flowchart TD\nA e1@--> B\ne1@{ animate: true, animation: slow, curve: basis }\n",
+      "note": "all three"
+    },
+    {
+      "id": "c2:ea-unknown-edge",
+      "group": "edge-attr",
+      "source": "flowchart TD\nA --> B\ne9@{ animate: true }\n",
+      "note": "creates vertex e9"
+    },
+    {
+      "id": "c2:ea-on-subgraph",
+      "group": "edge-attr",
+      "source": "flowchart TD\nsubgraph S\n  A\nend\nS@{ label: \"x\" }\n",
+      "note": "metadata on subgraph"
+    },
+    {
+      "id": "c2:ea-id-then-chain",
+      "group": "edge-attr",
+      "source": "flowchart TD\nA e1@--> B e2@--> C\n",
+      "note": "ids in chains"
+    },
+    {
+      "id": "c2:ea-id-amp",
+      "group": "edge-attr",
+      "source": "flowchart TD\nA & B e1@--> C & D\n",
+      "note": "id attaches to which edge of &?"
+    },
+    {
+      "id": "c2:ea-id-thick-dotted",
+      "group": "edge-attr",
+      "source": "flowchart TD\nA e1@==> B\nB e2@-.-> C\nC e3@~~~ D\nD e4@<--> E\n",
+      "note": "all link types accept id"
+    },
+    {
+      "id": "c2:ea-id-hyphen",
+      "group": "edge-attr",
+      "source": "flowchart TD\nA e-1@--> B\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:ea-id-clash-vertex",
+      "group": "edge-attr",
+      "source": "flowchart TD\nA --> B\nA e@--> B\nA e@--> B\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:md-node",
+      "group": "md",
+      "source": "flowchart TD\nA[\"`**b** and *i*`\"] --> B\n",
+      "note": "markdown"
+    },
+    {
+      "id": "c2:md-edge",
+      "group": "md",
+      "source": "flowchart TD\nA -->|\"`*i*`\"| B\n",
+      "note": "markdown edge"
+    },
+    {
+      "id": "c2:md-subgraph",
+      "group": "md",
+      "source": "flowchart TD\nsubgraph S [\"`**t**`\"]\n  A\nend\n",
+      "note": "markdown title"
+    },
+    {
+      "id": "c2:md-newline",
+      "group": "md",
+      "source": "flowchart TD\nA[\"`line1\nline2`\"] --> B\n",
+      "note": "newline in markdown string"
+    },
+    {
+      "id": "c2:md-backtick-inside",
+      "group": "md",
+      "source": "flowchart TD\nA[\"`a ` b`\"]\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:ls-space-after-comma",
+      "group": "style2",
+      "source": "flowchart TD\nA-->B\nB-->C\nlinkStyle 0, 1 stroke:red\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:ls-trailing-semicolon",
+      "group": "style2",
+      "source": "flowchart TD\nA-->B\nlinkStyle 0 stroke:red;\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:ls-space-in-style",
+      "group": "style2",
+      "source": "flowchart TD\nA-->B\nlinkStyle 0 stroke:red, stroke-width:2px\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:ls-multiple-lines-same-edge",
+      "group": "style2",
+      "source": "flowchart TD\nA-->B\nlinkStyle 0 stroke:red\nlinkStyle 0 stroke-width:4px\n",
+      "note": "second REPLACES first"
+    },
+    {
+      "id": "c2:ls-default-after",
+      "group": "style2",
+      "source": "flowchart TD\nA-->B\nlinkStyle default stroke:red\nC-->D\n",
+      "note": "default applies to later edges too"
+    },
+    {
+      "id": "c2:ls-edges-after-linkstyle",
+      "group": "style2",
+      "source": "flowchart TD\nA-->B\nlinkStyle 0 stroke:red\nC-->D\nlinkStyle 1 stroke:blue\n",
+      "note": "linkStyle may interleave with edges"
+    },
+    {
+      "id": "c2:st-semicolon",
+      "group": "style2",
+      "source": "flowchart TD\nA\nstyle A fill:#f00;\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:st-after-use-later-label",
+      "group": "style2",
+      "source": "flowchart TD\nstyle A fill:#f00\nA[Label]\n",
+      "note": "style then label"
+    },
+    {
+      "id": "c2:st-comma-in-value",
+      "group": "style2",
+      "source": "flowchart TD\nA\nstyle A fill:#f00,stroke-dasharray: 5 5\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:cd-semicolon-value",
+      "group": "style2",
+      "source": "flowchart TD\nclassDef c fill:#f00;\nA:::c\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:cd-escaped-comma",
+      "group": "style2",
+      "source": "flowchart TD\nclassDef c font-family:Arial\\, sans-serif,fill:#f00\nA:::c\n",
+      "note": "escaped comma"
+    },
+    {
+      "id": "c2:cd-redefine",
+      "group": "style2",
+      "source": "flowchart TD\nclassDef c fill:#f00\nclassDef c stroke:#000\nA:::c\n",
+      "note": "second APPENDS"
+    },
+    {
+      "id": "c2:cl-class-on-subgraph-colon",
+      "group": "style2",
+      "source": "flowchart TD\nclassDef c fill:#f00\nsubgraph S:::c\n  A\nend\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:cl-amp-classes",
+      "group": "style2",
+      "source": "flowchart TD\nclassDef c fill:#f00\nA:::c & B:::c --> C\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:ck-forms-1",
+      "group": "click2",
+      "source": "flowchart TD\nA-->B\nclick A \"https://example.com\" _blank\n",
+      "note": "url + target w/o tooltip"
+    },
+    {
+      "id": "c2:ck-forms-2",
+      "group": "click2",
+      "source": "flowchart TD\nA-->B\nclick A href \"https://example.com\" _self\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:ck-forms-3",
+      "group": "click2",
+      "source": "flowchart TD\nA-->B\nclick A call callback() \"tip\"\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:ck-forms-4",
+      "group": "click2",
+      "source": "flowchart TD\nA-->B\nclick A callback \"tip\"\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:ck-on-subgraph",
+      "group": "click2",
+      "source": "flowchart TD\nsubgraph S\n  A\nend\nclick S \"https://example.com\"\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:ck-mailto",
+      "group": "click2",
+      "source": "flowchart TD\nA\nclick A \"mailto:a@b.c\"\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:ck-relative",
+      "group": "click2",
+      "source": "flowchart TD\nA\nclick A \"../doc.md\"\n",
+      "note": "record: relative link"
+    },
+    {
+      "id": "c2:kw-end-label",
+      "group": "kwlabel",
+      "source": "flowchart TD\nA[end] --> B\n",
+      "note": "unquoted `end` in label"
+    },
+    {
+      "id": "c2:kw-end-label-round",
+      "group": "kwlabel",
+      "source": "flowchart TD\nA(end) --> B\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:kw-end-label-quoted",
+      "group": "kwlabel",
+      "source": "flowchart TD\nA[\"end\"] --> B\n",
+      "note": "quoted ok"
+    },
+    {
+      "id": "c2:kw-end-edge-label",
+      "group": "kwlabel",
+      "source": "flowchart TD\nA -->|end| B\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:kw-end-sub-title",
+      "group": "kwlabel",
+      "source": "flowchart TD\nsubgraph S [end]\n  A\nend\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:kw-class-label",
+      "group": "kwlabel",
+      "source": "flowchart TD\nA[class x] --> B[style y] --> C[graph TD]\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:sep-trailing-semi-space",
+      "group": "sep",
+      "source": "flowchart TD\nA --> B ;\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:sep-double-semi",
+      "group": "sep",
+      "source": "flowchart TD\nA --> B;;\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:sep-leading-semi",
+      "group": "sep",
+      "source": "flowchart TD\n;A --> B\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:sep-tabs",
+      "group": "sep",
+      "source": "flowchart TD\nA\t-->\tB\n",
+      "note": "tabs between tokens"
+    },
+    {
+      "id": "c2:sep-multiple-spaces",
+      "group": "sep",
+      "source": "flowchart TD\nA     -->     B\n",
+      "note": "ok"
+    },
+    {
+      "id": "c2:sep-no-spaces-chain",
+      "group": "sep",
+      "source": "flowchart TD\nA-->B-->C-->D\n",
+      "note": "3 edges"
+    },
+    {
+      "id": "c2:sep-semi-between-amp",
+      "group": "sep",
+      "source": "flowchart TD\nA & B; C\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:sep-stmt-after-semicolon-comment-line",
+      "group": "sep",
+      "source": "flowchart TD\nA --> B;\n%% comment\nC\n",
+      "note": "ok"
+    },
+    {
+      "id": "c2:sep-amp-only",
+      "group": "sep",
+      "source": "flowchart TD\nA & B & C\n",
+      "note": "bare & statement declares 3 nodes"
+    },
+    {
+      "id": "c2:sep-bare-semicolon-statement-after-link",
+      "group": "sep",
+      "source": "flowchart TD\nA; B\n",
+      "note": "my link->';' trick base"
+    },
+    {
+      "id": "c2:el-arrow-in-text",
+      "group": "edgelabel",
+      "source": "flowchart TD\nA -->|a->b| B\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:el-arrow-in-inline-text",
+      "group": "edgelabel",
+      "source": "flowchart TD\nA -- a->b --> B\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:el-dashes-in-inline-text",
+      "group": "edgelabel",
+      "source": "flowchart TD\nA -- a --b --> B\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:el-inline-quoted-dashes",
+      "group": "edgelabel",
+      "source": "flowchart TD\nA -- \"a --> b\" --> B\n",
+      "note": "quoted protects --> ?"
+    },
+    {
+      "id": "c2:el-pipe-quoted-arrow",
+      "group": "edgelabel",
+      "source": "flowchart TD\nA -->|\"a --> b\"| B\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:el-empty-pipes",
+      "group": "edgelabel",
+      "source": "flowchart TD\nA -->|| B\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:el-pipe-after-dotted",
+      "group": "edgelabel",
+      "source": "flowchart TD\nA -.->|t| B\nA ==>|t| C\nA ~~~|t| D\n",
+      "note": "record (invisible with text)"
+    },
+    {
+      "id": "c2:el-long-pipe",
+      "group": "edgelabel",
+      "source": "flowchart TD\nA --->|t| B\nA ---->|t| C\n",
+      "note": "length with label"
+    },
+    {
+      "id": "c2:sgx-nested-ref-ancestor",
+      "group": "subgraph2",
+      "source": "flowchart TD\nsubgraph O\n  subgraph I\n    A\n  end\n  A --> B\nend\n",
+      "note": "A stays in I; B in O"
+    },
+    {
+      "id": "c2:sgx-subgraph-in-subgraph-list",
+      "group": "subgraph2",
+      "source": "flowchart TD\nsubgraph O\n  I\n  subgraph I\n    A\n  end\nend\n",
+      "note": "forward reference I as node"
+    },
+    {
+      "id": "c2:sgx-direction-opposite",
+      "group": "subgraph2",
+      "source": "flowchart LR\nsubgraph S\n  direction TB\n  A --> B\nend\nS --> C\n",
+      "note": "dir with external link to subgraph"
+    },
+    {
+      "id": "c2:sgx-linked-inside-and-out",
+      "group": "subgraph2",
+      "source": "flowchart TD\nsubgraph S\n  direction LR\n  A\nend\nA --> B\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:sgx-id-with-hyphen",
+      "group": "subgraph2",
+      "source": "flowchart TD\nsubgraph my-sub [Title]\n  A\nend\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:sgx-id-ja",
+      "group": "subgraph2",
+      "source": "flowchart TD\nsubgraph 前段 [前段処理]\n  A\nend\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:sgx-same-id-as-node",
+      "group": "subgraph2",
+      "source": "flowchart TD\nA --> B\nsubgraph A\n  C\nend\n",
+      "note": "subgraph id equal to an existing node id"
+    },
+    {
+      "id": "c2:sgx-title-bracket-no-id",
+      "group": "subgraph2",
+      "source": "flowchart TD\nsubgraph [Only Title]\n  A\nend\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:sgx-end-on-same-line",
+      "group": "subgraph2",
+      "source": "flowchart TD\nsubgraph S; A; end\n",
+      "note": "record: one-line subgraph"
+    },
+    {
+      "id": "c2:sgx-crlf",
+      "group": "subgraph2",
+      "source": "flowchart TD\r\nsubgraph S\r\n  A --> B\r\nend\r\n",
+      "note": "ok"
+    },
+    {
+      "id": "c2:p91-edge-attr-phantom",
+      "group": "p91",
+      "source": "flowchart TD\nA e1@--> B\ne1@{ animate: true }\nC --> B\n",
+      "note": "no phantom"
+    },
+    {
+      "id": "c2:p91-at-in-chain-with-edge-id",
+      "group": "p91",
+      "source": "flowchart TD\nA@{ shape: cyl, label: \"S\" } e1@--> B@{ shape: doc, label: \"D\" }\n",
+      "note": "record"
+    },
+    {
+      "id": "c2:p91-subgraph-endpoint",
+      "group": "p91",
+      "source": "flowchart TD\nsubgraph S\n  A\nend\nS --> S2\nsubgraph S2\n  B\nend\n",
+      "note": "cluster-to-cluster edge"
+    },
+    {
+      "id": "R:R1",
+      "group": "reference",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "note": "reference diagram R1"
+    },
+    {
+      "id": "R:R2",
+      "group": "reference",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": "reference diagram R2"
+    },
+    {
+      "id": "R:R3",
+      "group": "reference",
+      "source": "flowchart TD\n    A --> B --> C\n    D & E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 5,7 stroke:#f00\n",
+      "note": "reference diagram R3"
+    },
+    {
+      "id": "R:R4",
+      "group": "reference",
+      "source": "flowchart TD\n    A@{ shape: cyl, label: \"Store\" }\n    B@{ shape: doc, label: \"Report\" }\n    A e1@--> B\n    B e2@==> C\n    e1@{ animate: true }\n    e2@{ curve: linear }\n",
+      "note": "reference diagram R4"
+    },
+    {
+      "id": "R:R5",
+      "group": "reference",
+      "source": "flowchart TD\n    A --> B\n    B --> C\n    C --> D\n",
+      "note": "reference diagram R5"
+    },
+    {
+      "id": "R:R6",
+      "group": "reference",
+      "source": "flowchart TD\n    subgraph S1\n        A[Alpha]\n    end\n    subgraph S2\n        A\n        B[Beta]\n    end\n    A --> B\n",
+      "note": "reference diagram R6"
+    },
+    {
+      "id": "cand:LR1",
+      "group": "renameLabel",
+      "source": "flowchart TD\n    A[Begin] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "note": "label inside existing [ ]"
+    },
+    {
+      "id": "cand:LR2-naive",
+      "group": "renameLabel",
+      "source": "flowchart TD\n    A[Begin (v2)] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "note": "unquoted special chars: parse fails"
+    },
+    {
+      "id": "cand:LR2-quoted",
+      "group": "renameLabel",
+      "source": "flowchart TD\n    A[\"Begin (v2)\"] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "note": "generator always quotes"
+    },
+    {
+      "id": "cand:LR3-implicit",
+      "group": "renameLabel(add label to implicit node)",
+      "source": "flowchart TD\n    A --> B[\"Bee\"]\n    B --> C\n    C --> D\n",
+      "note": "insert after first mention"
+    },
+    {
+      "id": "cand:LR4-redefined-first",
+      "group": "renameLabel",
+      "source": "flowchart TD\n    A[New]\n    A[Two]\n    A --> B\n",
+      "note": "last definition wins: editing the first has no effect"
+    },
+    {
+      "id": "cand:LR4-redefined-last",
+      "group": "renameLabel",
+      "source": "flowchart TD\n    A[One]\n    A[New]\n    A --> B\n",
+      "note": "editing the last definition works but first stays stale"
+    },
+    {
+      "id": "cand:LR5-at-label",
+      "group": "renameLabel",
+      "source": "flowchart TD\n    A@{ shape: cyl, label: \"Warehouse\" }\n    B@{ shape: doc, label: \"Report\" }\n    A e1@--> B\n    B e2@==> C\n    e1@{ animate: true }\n    e2@{ curve: linear }\n",
+      "note": "label inside @{ } quotes"
+    },
+    {
+      "id": "cand:LR6-with-class",
+      "group": "renameLabel",
+      "source": "flowchart TD\n    classDef c fill:#f00\n    A[Other]:::c --> B\n",
+      "note": ":::c suffix untouched"
+    },
+    {
+      "id": "cand:LR7-in-subgraph",
+      "group": "renameLabel",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[Interface] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": "node inside subgraph with click/class"
+    },
+    {
+      "id": "cand:LR8-br",
+      "group": "renameLabel",
+      "source": "flowchart TD\n    A[\"a<br/>b\"] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "note": "multi-line label via <br/>"
+    },
+    {
+      "id": "cand:LR9-init-injection",
+      "group": "renameLabel",
+      "source": "flowchart TD\n    A[\"%%{init: {'theme':'dark'}}%%\"] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "note": "db unchanged by directive; render config changes (see injection experiment)"
+    },
+    {
+      "id": "cand:LR10-dq",
+      "group": "renameLabel",
+      "source": "flowchart TD\n    A[\"say \"hi\"\"] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "note": "double quote in label cannot be written"
+    },
+    {
+      "id": "cand:LR11-newline",
+      "group": "renameLabel",
+      "source": "flowchart TD\n    A[\"l1\nl2\"] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "note": "raw newline in quoted label is accepted by mermaid, but injects lines for a line-based parser"
+    },
+    {
+      "id": "cand:LR12-newline-statement",
+      "group": "renameLabel",
+      "source": "flowchart TD\n    A[x\"]\n    click A href \"https://evil.example\" \"t\"\n    A[\"y] --> B\n",
+      "note": "label with newline+quote that closes the string and injects a click statement"
+    },
+    {
+      "id": "cand:AN1-append",
+      "group": "addNode",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n    E[\"New node\"]\n",
+      "note": ""
+    },
+    {
+      "id": "cand:AN2-in-subgraph",
+      "group": "addNode(in subgraph)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n        Fresh[\"Fresh\"]\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": ""
+    },
+    {
+      "id": "cand:AN3-id-is-subgraph",
+      "group": "addNode(id = subgraph id)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n    Back[\"Z\"]\n",
+      "note": "id collides with subgraph id"
+    },
+    {
+      "id": "cand:AN4-id-is-edge-id",
+      "group": "addNode(id = edge id)",
+      "source": "flowchart TD\n    A@{ shape: cyl, label: \"Store\" }\n    B@{ shape: doc, label: \"Report\" }\n    A e1@--> B\n    B e2@==> C\n    e1@{ animate: true }\n    e2@{ curve: linear }\n    e1[\"X\"]\n",
+      "note": "id collides with user edge id"
+    },
+    {
+      "id": "cand:AN5-id-is-existing-node",
+      "group": "addNode(id = existing node)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n    A[\"Dup\"]\n",
+      "note": "duplicate id silently redefines the existing node (must be refused before editing)"
+    },
+    {
+      "id": "cand:AN6-id-end",
+      "group": "addNode(id=end)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n    end[\"X\"]\n",
+      "note": ""
+    },
+    {
+      "id": "cand:AN7-id-with-hyphen-ja",
+      "group": "addNode(id with - and ja)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n    my-node[\"X\"]\n    日本語[\"Y\"]\n",
+      "note": ""
+    },
+    {
+      "id": "cand:AN8-after-linkstyle",
+      "group": "addNode(append after style/click lines)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n    Z[\"Z\"]\n",
+      "note": ""
+    },
+    {
+      "id": "cand:AN9-no-trailing-newline",
+      "group": "addNode(file w/o final newline)",
+      "source": "flowchart TD\n    A --> B\n    Z[\"Z\"]",
+      "note": ""
+    },
+    {
+      "id": "cand:AE1-append",
+      "group": "addEdge",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n    C --> A\n",
+      "note": ""
+    },
+    {
+      "id": "cand:AE2-middle-no-linkstyle",
+      "group": "addEdge(insert mid, no linkStyle)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    A --> C\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "note": "edge order changes; safe only if nothing is index-keyed"
+    },
+    {
+      "id": "cand:AE3-before-indexed-edge",
+      "group": "addEdge(insert before linkStyle-indexed edge)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    UI --> DB\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": "linkStyle 2 now hits a different edge"
+    },
+    {
+      "id": "cand:AE3b-append-end",
+      "group": "addEdge(append at EOF)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n    UI --> DB\n",
+      "note": "append after all edges: no index shift"
+    },
+    {
+      "id": "cand:AE3c-after-last-edge-before-style",
+      "group": "addEdge(after last edge stmt, before style/linkStyle)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    UI --> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": ""
+    },
+    {
+      "id": "cand:AE4-in-subgraph",
+      "group": "addEdge(inside subgraph block)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n        UI --> DB\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": "membership of DB may move from Back to Front"
+    },
+    {
+      "id": "cand:AE5-new-implicit-node",
+      "group": "addEdge(new implicit endpoint)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n    C --> Brand\n",
+      "note": ""
+    },
+    {
+      "id": "cand:AE6-label-and-type",
+      "group": "addEdge(dotted + label)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n    A -.->|\"note (x)\"| C\n",
+      "note": ""
+    },
+    {
+      "id": "cand:AE7-endpoint-is-subgraph",
+      "group": "addEdge(endpoint = subgraph id)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n    Cache --> Front\n",
+      "note": "mermaid also creates a vertex named Front"
+    },
+    {
+      "id": "cand:AE8-after-edge-with-amp",
+      "group": "addEdge(insert after & stmt before indexed)",
+      "source": "flowchart TD\n    A --> B --> C\n    D & E --> F & G\n    A --> J\n    H -->|x| I -.-> J\n    linkStyle 5,7 stroke:#f00\n",
+      "note": ""
+    },
+    {
+      "id": "cand:AE9-pipe-label-quote",
+      "group": "addEdge(label with |)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n    A -->|\"a | b\"| C\n",
+      "note": ""
+    },
+    {
+      "id": "cand:AE10-between-existing-before-class",
+      "group": "addEdge(duplicate of existing endpoints)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n    A --> B\n",
+      "note": "parallel edge; auto id L_A_B_2"
+    },
+    {
+      "id": "cand:DE1-line-both-defined-elsewhere",
+      "group": "deleteEdge(delete line)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n",
+      "note": ""
+    },
+    {
+      "id": "cand:DE2-line-loses-label",
+      "group": "deleteEdge(delete line holding D[Retry])",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    D --> A\n",
+      "note": "label definition of D lived on the deleted line"
+    },
+    {
+      "id": "cand:DE2b-link-to-semicolon",
+      "group": "deleteEdge(link -> ';')",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B; D[Retry]\n    D --> A\n",
+      "note": "only the link token bytes change"
+    },
+    {
+      "id": "cand:DE3-last-edge-implicit-node",
+      "group": "deleteEdge(delete line, implicit node)",
+      "source": "flowchart TD\n    A --> B\n    B --> C\n",
+      "note": "D existed only through this edge"
+    },
+    {
+      "id": "cand:DE3b-link-to-semicolon",
+      "group": "deleteEdge(link -> ';', implicit node)",
+      "source": "flowchart TD\n    A --> B\n    B --> C\n    C; D\n",
+      "note": ""
+    },
+    {
+      "id": "cand:DE4-chain-naive",
+      "group": "deleteEdge(chain, link->';', linkStyle untouched)",
+      "source": "flowchart TD\n    A --> B; C\n    D & E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 5,7 stroke:#f00\n",
+      "note": "edges after #1 shift down; linkStyle 5,7 now off by one"
+    },
+    {
+      "id": "cand:DE4b-chain-renumber",
+      "group": "deleteEdge(chain, link->';', linkStyle renumbered)",
+      "source": "flowchart TD\n    A --> B; C\n    D & E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 4,6 stroke:#f00\n",
+      "note": ""
+    },
+    {
+      "id": "cand:DE4c-chain-first",
+      "group": "deleteEdge(chain first link)",
+      "source": "flowchart TD\n    A; B --> C\n    D & E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 4,6 stroke:#f00\n",
+      "note": ""
+    },
+    {
+      "id": "cand:DE5-amp-rewrite",
+      "group": "deleteEdge(& statement, rewrite)",
+      "source": "flowchart TD\n    A --> B --> C\n    D & E; D --> G; E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 4,6 stroke:#f00\n",
+      "note": "removes D>F; vertex order may change"
+    },
+    {
+      "id": "cand:DE5b-amp-rewrite-no-renumber",
+      "group": "deleteEdge(& statement, rewrite, linkStyle forgotten)",
+      "source": "flowchart TD\n    A --> B --> C\n    D & E; D --> G; E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 5,7 stroke:#f00\n",
+      "note": ""
+    },
+    {
+      "id": "cand:DE6-edge-id-attr-dangling",
+      "group": "deleteEdge(edge with id, attr line kept)",
+      "source": "flowchart TD\n    A@{ shape: cyl, label: \"Store\" }\n    B@{ shape: doc, label: \"Report\" }\n    A; B\n    B e2@==> C\n    e1@{ animate: true }\n    e2@{ curve: linear }\n",
+      "note": "e1@{ animate } now defines a vertex e1"
+    },
+    {
+      "id": "cand:DE6b-edge-id-attr-removed",
+      "group": "deleteEdge(edge with id, attr line removed)",
+      "source": "flowchart TD\n    A@{ shape: cyl, label: \"Store\" }\n    B@{ shape: doc, label: \"Report\" }\n    A; B\n    B e2@==> C\n    e2@{ curve: linear }\n",
+      "note": ""
+    },
+    {
+      "id": "cand:DE7-subgraph-membership",
+      "group": "deleteEdge(delete line inside subgraph)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 1 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": "UI-->API was the only statement putting UI and API into Front"
+    },
+    {
+      "id": "cand:DE7b-link-to-semicolon",
+      "group": "deleteEdge(link->';' inside subgraph)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI]; API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 1 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": "membership kept by mentions"
+    },
+    {
+      "id": "cand:DE8-linkstyle-shift-naive",
+      "group": "deleteEdge(delete line, linkStyle untouched)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": "linkStyle 2 now selects Cache>DB"
+    },
+    {
+      "id": "cand:DE8b-linkstyle-renumbered",
+      "group": "deleteEdge(link->';', linkStyle renumbered)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API]; DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 1 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": ""
+    },
+    {
+      "id": "cand:DE9-linkstyle-on-deleted",
+      "group": "deleteEdge(edge that has linkStyle)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI]; API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": "linkStyle 0 still points to index 0 = next edge"
+    },
+    {
+      "id": "cand:DE10-parallel-edges",
+      "group": "deleteEdge(parallel edge #0)",
+      "source": "flowchart TD\n    A; B\n    A --> B\n    linkStyle 0 stroke:#f00\n",
+      "note": ""
+    },
+    {
+      "id": "cand:DE11-chain-labeled-first",
+      "group": "deleteEdge(chain, labeled first link)",
+      "source": "flowchart TD\n    A --> B --> C\n    D & E --> F & G\n    H; I -.-> J\n    linkStyle 5,6 stroke:#f00\n",
+      "note": ""
+    },
+    {
+      "id": "cand:DE11b-chain-last",
+      "group": "deleteEdge(chain last link, indexed)",
+      "source": "flowchart TD\n    A --> B --> C\n    D & E --> F & G\n    H -->|x| I; J\n    linkStyle 5 stroke:#f00\n",
+      "note": "linkStyle index 7 belonged to the deleted edge"
+    },
+    {
+      "id": "cand:CT1",
+      "group": "changeEdgeTarget",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> C\n",
+      "note": ""
+    },
+    {
+      "id": "cand:CT2-implicit-vanishes",
+      "group": "changeEdgeTarget(old target implicit)",
+      "source": "flowchart TD\n    A --> B\n    B --> C\n    C --> A\n",
+      "note": "D disappears (existed only here)"
+    },
+    {
+      "id": "cand:CT2b-keep-node",
+      "group": "changeEdgeTarget(keep old node as bare mention)",
+      "source": "flowchart TD\n    A --> B\n    B --> C\n    C --> A; D\n",
+      "note": ""
+    },
+    {
+      "id": "cand:CT3-chain-middle",
+      "group": "changeEdgeTarget(chain, token shared by 2 edges)",
+      "source": "flowchart TD\n    A --> X --> C\n    D & E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 5,7 stroke:#f00\n",
+      "note": "B>C also changes to X>C"
+    },
+    {
+      "id": "cand:CT4-amp-token",
+      "group": "changeEdgeTarget(& list token shared by 2 edges)",
+      "source": "flowchart TD\n    A --> B --> C\n    D & E --> F & X\n    H -->|x| I -.-> J\n    linkStyle 5,7 stroke:#f00\n",
+      "note": "D>G changes too"
+    },
+    {
+      "id": "cand:CT5-chain-last",
+      "group": "changeEdgeTarget(last node of chain)",
+      "source": "flowchart TD\n    A --> B --> C\n    D & E --> F & G\n    H -->|x| I -.-> K\n    linkStyle 5,7 stroke:#f00\n",
+      "note": "J vanishes (implicit)"
+    },
+    {
+      "id": "cand:CT5b-chain-last-keep",
+      "group": "changeEdgeTarget(last node of chain, keep old node)",
+      "source": "flowchart TD\n    A --> B --> C\n    D & E --> F & G\n    H -->|x| I -.-> K; J\n    linkStyle 5,7 stroke:#f00\n",
+      "note": ""
+    },
+    {
+      "id": "cand:CT6-edge-id",
+      "group": "changeEdgeTarget(edge with id)",
+      "source": "flowchart TD\n    A@{ shape: cyl, label: \"Store\" }\n    B@{ shape: doc, label: \"Report\" }\n    A e1@--> B\n    B e2@==> A\n    e1@{ animate: true }\n    e2@{ curve: linear }\n",
+      "note": "C vanishes"
+    },
+    {
+      "id": "cand:CT7-source",
+      "group": "changeEdgeSource",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    C --> A\n",
+      "note": ""
+    },
+    {
+      "id": "cand:CT8-to-subgraph-id",
+      "group": "changeEdgeTarget(to subgraph id)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> Front\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": ""
+    },
+    {
+      "id": "cand:CS1-diamond-to-round",
+      "group": "changeShape",
+      "source": "flowchart TD\n    A[Start] --> B(Check)\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "note": ""
+    },
+    {
+      "id": "cand:CS2-square-to-circle",
+      "group": "changeShape",
+      "source": "flowchart TD\n    A((Start)) --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "note": ""
+    },
+    {
+      "id": "cand:CS3-implicit-to-shape",
+      "group": "changeShape(implicit node)",
+      "source": "flowchart TD\n    A{A} --> B\n    B --> C\n    C --> D\n",
+      "note": ""
+    },
+    {
+      "id": "cand:CS4-at-shape",
+      "group": "changeShape(@{ shape })",
+      "source": "flowchart TD\n    A@{ shape: hex, label: \"Store\" }\n    B@{ shape: doc, label: \"Report\" }\n    A e1@--> B\n    B e2@==> C\n    e1@{ animate: true }\n    e2@{ curve: linear }\n",
+      "note": ""
+    },
+    {
+      "id": "cand:CS5-ellipse-render-fails",
+      "group": "changeShape(to (- -))",
+      "source": "flowchart TD\n    A[Start] --> B(-Check-)\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "note": "parses; render throws No such shape: ellipse"
+    },
+    {
+      "id": "cand:CS6-redefined-first",
+      "group": "changeShape(node defined twice, edit first)",
+      "source": "flowchart TD\n    A{One}\n    A[Two]\n    A --> B\n",
+      "note": "last definition wins"
+    },
+    {
+      "id": "cand:CS7-label-with-slash-to-lean",
+      "group": "changeShape(unquoted label containing /)",
+      "source": "flowchart TD\n    A[/x/y/] --> B\n",
+      "note": ""
+    },
+    {
+      "id": "cand:CS7b-quoted",
+      "group": "changeShape(quote label, then lean)",
+      "source": "flowchart TD\n    A[/\"x/y\"/] --> B\n",
+      "note": ""
+    },
+    {
+      "id": "cand:CS8-cylinder-in-subgraph",
+      "group": "changeShape(in subgraph, with style line)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB{DB}\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": ""
+    },
+    {
+      "id": "cand:CS9-at-invalid",
+      "group": "changeShape(@{ } invalid)",
+      "source": "flowchart TD\n    A@{ shape: Cyl, label: \"Store\" }\n    B@{ shape: doc, label: \"Report\" }\n    A e1@--> B\n    B e2@==> C\n    e1@{ animate: true }\n    e2@{ curve: linear }\n",
+      "note": ""
+    },
+    {
+      "id": "cand:CS10-bracket-to-at",
+      "group": "changeShape(to @{ shape: doc } syntax)",
+      "source": "flowchart TD\n    A@{ shape: doc, label: \"Start\" } --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "note": ""
+    },
+    {
+      "id": "cand:RO1-swap-edges-no-style",
+      "group": "reorder(swap edge lines)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|no| D[Retry]\n    B -->|yes| C[Done]\n    D --> A\n",
+      "note": "vertex order C/D swaps too"
+    },
+    {
+      "id": "cand:RO2-swap-edges-with-linkstyle",
+      "group": "reorder(swap edge lines, linkStyle present)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    Cache ==> DB\n    API -.-> Cache\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": "styles should travel with their edge; they do not"
+    },
+    {
+      "id": "cand:RO3-swap-subgraphs",
+      "group": "reorder(swap subgraph blocks)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": "first definition of API decides membership"
+    },
+    {
+      "id": "cand:RO4-class-before-node",
+      "group": "reorder(move `class` line up)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    class Cache hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n",
+      "note": "class applied before node exists is ignored"
+    },
+    {
+      "id": "cand:RO5-swap-classdef-and-style",
+      "group": "reorder(swap two style lines)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    linkStyle 0 stroke:#f00\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": ""
+    },
+    {
+      "id": "cand:RO6-move-linkstyle-before-edges",
+      "group": "reorder(linkStyle above edges)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    linkStyle 0 stroke:#f00\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": "linkStyle before edges exist: parse error"
+    },
+    {
+      "id": "cand:RO7-move-edge-into-subgraph",
+      "group": "reorder(move top-level edge line into subgraph)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n        API -.-> Cache\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": "membership of Cache changes and edge index changes"
+    },
+    {
+      "id": "cand:DN1-R1-all-mentions",
+      "group": "deleteNode(all mentions)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n",
+      "note": ""
+    },
+    {
+      "id": "cand:DN1-naive-first-line-only",
+      "group": "deleteNode(only the line with the label)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    D --> A\n",
+      "note": "D survives through D --> A with label lost"
+    },
+    {
+      "id": "cand:DN2-R2-DB-naive",
+      "group": "deleteNode(DB: edge lines removed, style line kept)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API]\n    end\n    UI:::hot\n    API -.-> Cache\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 1 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": "style DB recreates the node"
+    },
+    {
+      "id": "cand:DN2b-R2-DB-full",
+      "group": "deleteNode(DB incl. style line)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API]\n    end\n    UI:::hot\n    API -.-> Cache\n    linkStyle 0 stroke:#f00\n    linkStyle 1 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": ""
+    },
+    {
+      "id": "cand:DN2c-R2-DB-linkstyle-forgotten",
+      "group": "deleteNode(DB incl. style, linkStyle untouched)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API]\n    end\n    UI:::hot\n    API -.-> Cache\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": "linkStyle 2 is out of range after 2 edges are gone -> parse error"
+    },
+    {
+      "id": "cand:DN3-R2-UI-line-deleted",
+      "group": "deleteNode(UI: whole edge line removed, + click/:::hot lines)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 1 stroke:#0a0,stroke-width:3px\n    class Cache hot\n",
+      "note": "API loses its Front membership"
+    },
+    {
+      "id": "cand:DN3b-R2-UI-token-only",
+      "group": "deleteNode(UI: remove node token + adjoining link)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 1 stroke:#0a0,stroke-width:3px\n    class Cache hot\n",
+      "note": "keeps API mention inside Front"
+    },
+    {
+      "id": "cand:DN4-R2-Cache",
+      "group": "deleteNode(Cache; class line kept)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n        click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": "dangling `class Cache hot` is ignored by mermaid"
+    },
+    {
+      "id": "cand:DN5-chain-middle",
+      "group": "deleteNode(middle of chain)",
+      "source": "flowchart TD\n    A; C\n    D & E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 3,5 stroke:#f00\n",
+      "note": ""
+    },
+    {
+      "id": "cand:DN5b-chain-middle-naive-join",
+      "group": "deleteNode(middle of chain, join neighbours)",
+      "source": "flowchart TD\n    A --> C\n    D & E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 4,6 stroke:#f00\n",
+      "note": "creates a new edge A>C that never existed"
+    },
+    {
+      "id": "cand:DN6-amp-member",
+      "group": "deleteNode(member of & list)",
+      "source": "flowchart TD\n    A --> B --> C\n    D --> F & G\n    H -->|x| I -.-> J\n    linkStyle 5 stroke:#f00\n",
+      "note": ""
+    },
+    {
+      "id": "cand:DN6b-amp-target",
+      "group": "deleteNode(target in & list)",
+      "source": "flowchart TD\n    A --> B --> C\n    D & E --> G\n    H -->|x| I -.-> J\n    linkStyle 3,5 stroke:#f00\n",
+      "note": ""
+    },
+    {
+      "id": "cand:DN7-sub-first-def-naive",
+      "group": "deleteNode(first definition only)",
+      "source": "flowchart TD\n    subgraph S1\n    end\n    subgraph S2\n        A\n        B[Beta]\n    end\n    A --> B\n",
+      "note": "A still exists in S2 and A --> B"
+    },
+    {
+      "id": "cand:DN7b-sub-first-def-only-keep-rest",
+      "group": "deleteNode(delete A[Alpha] only — intent: remove from S1 but keep node)",
+      "source": "flowchart TD\n    subgraph S1\n    end\n    subgraph S2\n        A\n        B[Beta]\n    end\n    A --> B\n",
+      "note": "mermaid hands A to S2"
+    },
+    {
+      "id": "cand:DN7c-sub-all",
+      "group": "deleteNode(all mentions)",
+      "source": "flowchart TD\n    subgraph S1\n    end\n    subgraph S2\n        B[Beta]\n    end\n",
+      "note": ""
+    },
+    {
+      "id": "cand:DN8-at-node",
+      "group": "deleteNode(@{} node with edge id attrs)",
+      "source": "flowchart TD\n    B@{ shape: doc, label: \"Report\" }\n    B\n    B e2@==> C\n    e2@{ curve: linear }\n",
+      "note": ""
+    },
+    {
+      "id": "cand:DN8b-at-node-dangling",
+      "group": "deleteNode(@{} node, edge-id attr left)",
+      "source": "flowchart TD\n    B@{ shape: doc, label: \"Report\" }\n    B\n    B e2@==> C\n    e1@{ animate: true }\n    e2@{ curve: linear }\n",
+      "note": ""
+    },
+    {
+      "id": "cand:DN9-implicit-leaf",
+      "group": "deleteNode(implicit leaf)",
+      "source": "flowchart TD\n    A --> B\n    B --> C\n    C\n",
+      "note": ""
+    },
+    {
+      "id": "cand:RI1-R1",
+      "group": "renameId(all tokens)",
+      "source": "flowchart TD\n    Z[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> Z\n",
+      "note": ""
+    },
+    {
+      "id": "cand:RI2-R2-DB-naive-missing-style",
+      "group": "renameId(DB: statements only)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> Data[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> Data\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": "style DB line left behind -> phantom DB vertex; vertex styles lost"
+    },
+    {
+      "id": "cand:RI2b-R2-DB-full",
+      "group": "renameId(DB incl. style)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> Data[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> Data\n    style Data fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": ""
+    },
+    {
+      "id": "cand:ST1-classdef-value",
+      "group": "editClassDef value",
+      "source": "flowchart LR\n    classDef hot fill:#69f,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": ""
+    },
+    {
+      "id": "cand:ST2-click-url",
+      "group": "edit click URL",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.org\" \"tip\"\n    class Cache hot\n",
+      "note": ""
+    },
+    {
+      "id": "cand:SG1-move-free-node-into-subgraph",
+      "group": "moveNodeIntoSubgraph(free node)",
+      "source": "flowchart TD\n    subgraph S1\n        A[Alpha]\n    end\n    subgraph S2\n        B[Beta]\n        C\n    end\n    C[Gamma]\n    A --> B\n",
+      "note": "bare mention inside the block"
+    },
+    {
+      "id": "cand:SG2-move-member-into-other-subgraph",
+      "group": "moveNodeIntoSubgraph(already member of earlier subgraph)",
+      "source": "flowchart TD\n    subgraph S1\n        A[Alpha]\n    end\n    subgraph S2\n        B[Beta]\n        A\n    end\n    C[Gamma]\n    A --> B\n",
+      "note": "first definition wins: nothing happens"
+    },
+    {
+      "id": "cand:SG3-move-from-earlier-to-later-by-reorder",
+      "group": "moveNodeIntoSubgraph(delete mention in S1 and add to S2)",
+      "source": "flowchart TD\n    subgraph S1\n    end\n    subgraph S2\n        B[Beta]\n        A[Alpha]\n    end\n    C[Gamma]\n    A --> B\n",
+      "note": "relocating the defining mention"
+    },
+    {
+      "id": "cand:SG4-remove-from-subgraph-free-node",
+      "group": "removeNodeFromSubgraph(node mentioned only there)",
+      "source": "flowchart TD\n    subgraph S1\n        A[Alpha]\n    end\n    subgraph S2\n    end\n    C[Gamma]\n    B[Beta]\n    A --> B\n",
+      "note": "move the node line out of the block, keeping its definition"
+    },
+    {
+      "id": "cand:SG5-rename-subgraph-title",
+      "group": "renameSubgraphTitle",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [\"Front end (v2)\"]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": ""
+    },
+    {
+      "id": "cand:SG6-set-subgraph-direction",
+      "group": "setSubgraphDirection",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction RL\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": ""
+    },
+    {
+      "id": "cand:SG7-set-diagram-direction",
+      "group": "setDirection",
+      "source": "flowchart TB\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "note": ""
+    },
+    {
+      "id": "cand:SG8-delete-subgraph-keep-nodes",
+      "group": "deleteSubgraph(unwrap)",
+      "source": "flowchart TD\n        A[Alpha]\n    subgraph S2\n        B[Beta]\n    end\n    C[Gamma]\n    A --> B\n",
+      "note": "remove header+end lines, keep the children"
+    },
+    {
+      "id": "cand:SG9-wrap-nodes-in-new-subgraph",
+      "group": "createSubgraph(wrap existing lines)",
+      "source": "flowchart TD\n    A --> B\n    subgraph G [\"Group\"]\n    B --> C\n    end\n    C --> D\n",
+      "note": ""
+    },
+    {
+      "id": "cand:ET1-arrow-to-dotted",
+      "group": "setEdgeType",
+      "source": "flowchart TD\n    A[Start] -.-> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "note": ""
+    },
+    {
+      "id": "cand:ET2-arrow-to-open",
+      "group": "setEdgeType(to ---)",
+      "source": "flowchart TD\n    A[Start] --- B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "note": ""
+    },
+    {
+      "id": "cand:ET3-keep-pipe-label",
+      "group": "setEdgeType(pipe label kept)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B ==>|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "note": ""
+    },
+    {
+      "id": "cand:ET4-add-label",
+      "group": "setEdgeLabel(add)",
+      "source": "flowchart TD\n    A[Start] -->|\"go (now)\"| B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "note": ""
+    },
+    {
+      "id": "cand:ET5-change-label",
+      "group": "setEdgeLabel(change)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|\"y e s\"| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "note": ""
+    },
+    {
+      "id": "cand:ET6-remove-label",
+      "group": "setEdgeLabel(remove)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B --> C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "note": ""
+    },
+    {
+      "id": "cand:ET7-inline-label-change-text",
+      "group": "setEdgeLabel(inline form, text only)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -- perhaps --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "note": ""
+    },
+    {
+      "id": "cand:ET7b-inline-label-change-type-one-side",
+      "group": "setEdgeType(inline form, only one side changed)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe ==> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "note": "start and end must agree"
+    },
+    {
+      "id": "cand:ET7c-inline-label-change-type-both",
+      "group": "setEdgeType(inline form, both sides)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B == maybe ==> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "note": ""
+    },
+    {
+      "id": "cand:ET7d-inline-to-pipe",
+      "group": "setEdgeLabel(convert inline to pipe form)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|maybe| D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "note": ""
+    },
+    {
+      "id": "cand:ET8-edge-id-kept",
+      "group": "setEdgeType(edge with id)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@-.-> A\n    E & F --> G\n",
+      "note": ""
+    },
+    {
+      "id": "cand:ET9-amp-shared-link",
+      "group": "setEdgeType(link shared by & statement)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F -.-> G\n",
+      "note": "changes both E>G and F>G"
+    },
+    {
+      "id": "cand:ET10-length",
+      "group": "setEdgeLength",
+      "source": "flowchart TD\n    A[Start] ---> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "note": ""
+    },
+    {
+      "id": "cand:ET11-bidirectional",
+      "group": "setEdgeType(<-->)",
+      "source": "flowchart TD\n    A[Start] <--> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "note": ""
+    },
+    {
+      "id": "cand:ET12-no-space-link",
+      "group": "setEdgeType(link glued to ids)",
+      "source": "flowchart TD\n    A-.->B\n",
+      "note": ""
+    },
+    {
+      "id": "cand:ET13-o-prefixed-id-glue",
+      "group": "setEdgeType(generated glue next to o-id)",
+      "source": "flowchart TD\n    A --- oB\n",
+      "note": ""
+    },
+    {
+      "id": "cand:ET14-o-prefixed-id-glue-naive",
+      "group": "setEdgeType(NAIVE glue without spaces)",
+      "source": "flowchart TD\n    A---oB\n",
+      "note": "---oB is a circle-end edge to B"
+    }
+  ]
+}
