@@ -47,6 +47,13 @@ export interface SaveCoordinator {
   getState(): SaveState;
   // Marks dirty, restarts the debounce timer (only while auto-save is enabled), and notifies.
   markDirty(change: DirtyChange): void;
+  // Stops saving while the files changed outside the app (docs/architecture.md §14.7): the
+  // debounce timer does not run, and `saveDirty` fails with `error` without writing anything
+  // while something is dirty. Dirty state is kept; an error is shown only when there is
+  // something that cannot be saved. Does notify.
+  suspendSaving(error: OperationError): void;
+  // Undoes `suspendSaving`: clears its error and starts the timer again if anything is dirty.
+  resumeSaving(): void;
   // For when auto-save is switched back on: starts the debounce timer if anything is dirty.
   resumeAutoSave(): void;
   // Forgets dirty texts of blocks that are gone (their file is deleted or the sheet was
@@ -69,6 +76,8 @@ export function createSaveCoordinator(
   let lastError: OperationError | null = null;
   let cancelTimer: (() => void) | null = null;
   let disposed = false;
+  // Set while saving is stopped; the error `saveDirty` fails with.
+  let suspension: OperationError | null = null;
 
   function stopTimer(): void {
     cancelTimer?.();
@@ -77,7 +86,7 @@ export function createSaveCoordinator(
 
   function startTimer(): void {
     stopTimer();
-    if (!options.autoSavePolicy.isEnabled()) return;
+    if (suspension !== null || !options.autoSavePolicy.isEnabled()) return;
     cancelTimer = options.scheduler.schedule(options.autoSaveDelayMs, () => {
       cancelTimer = null;
       // Checked again because the setting may have been switched off while waiting.
@@ -167,6 +176,11 @@ export function createSaveCoordinator(
     // write into a document that is being deleted.
     if (disposed) return operationOk(undefined);
     if (!hasDirtyState()) return operationOk(undefined);
+    if (suspension !== null) {
+      lastError = suspension;
+      options.onChange();
+      return { ok: false, error: suspension };
+    }
     saving = true;
     options.onChange();
     const data = options.getData();
@@ -201,11 +215,27 @@ export function createSaveCoordinator(
         ]);
       }
       documentDirty = documentDirty || change.documentChanged;
+      // Changes made while saving is stopped are the ones that cannot be saved.
+      if (suspension !== null) lastError = suspension;
       startTimer();
       options.onChange();
     },
+    suspendSaving(error) {
+      if (disposed) return;
+      suspension = error;
+      stopTimer();
+      if (hasDirtyState()) lastError = error;
+      options.onChange();
+    },
+    resumeSaving() {
+      if (disposed || suspension === null) return;
+      if (lastError === suspension) lastError = null;
+      suspension = null;
+      if (hasDirtyState()) startTimer();
+      options.onChange();
+    },
     resumeAutoSave() {
-      if (disposed || saving || !hasDirtyState()) return;
+      if (disposed || saving || suspension !== null || !hasDirtyState()) return;
       startTimer();
     },
     retainContentBlocks(liveBlockIds) {

@@ -36,6 +36,7 @@ import type { SheetEntry } from "../state/application-state";
 
 export interface ValidProjectSnapshot {
   readonly project: Project;
+  readonly sessionGeneration: number;
   readonly folders: readonly FolderEntry[];
   readonly documents: readonly DocumentEntry[];
   readonly issues: readonly LoadIssue[];
@@ -102,6 +103,7 @@ export function validateProjectSnapshot(
   if (!tree.ok) return tree;
   return operationOk({
     project: project.value,
+    sessionGeneration: snapshot.sessionGeneration,
     folders: snapshot.folders,
     documents: snapshot.documents,
     issues: snapshot.issues,

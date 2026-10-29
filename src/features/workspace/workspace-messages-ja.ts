@@ -86,6 +86,8 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
   fileNotFound: "ファイルが見つかりません。",
   alreadyExists: "同じ名前のものが既に存在します。",
   ioError: "ファイルの読み書きに失敗しました。",
+  externalConflict:
+    "ファイルがアプリの外で変更されました。どうするか決めるまで保存を停止しています。",
   externallyModified:
     "ファイルがアプリの外で変更されたため、保存しませんでした。",
   notWritable: "このDocumentは既に閉じられているため操作できません。",

@@ -84,6 +84,8 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
   fileNotFound: "The file was not found.",
   alreadyExists: "Something with the same name already exists.",
   ioError: "Reading or writing the file failed.",
+  externalConflict:
+    "The files changed outside the app. Saving is stopped until you decide how to proceed.",
   externallyModified:
     "The file was changed outside the app, so it was not saved.",
   notWritable:
