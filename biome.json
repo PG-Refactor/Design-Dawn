@@ -9,7 +9,8 @@
       "!**/coverage",
       "!**/src-tauri/target",
       "!**/src-tauri/gen",
-      "!**/fixtures/projects"
+      "!**/fixtures/projects",
+      "!**/.claude/worktrees"
     ]
   },
   "formatter": {
