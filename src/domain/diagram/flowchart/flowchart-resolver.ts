@@ -10,6 +10,7 @@ import {
   FLOWCHART_LINK_STYLE_FILL_PREFIX,
   type FlowchartDirection,
 } from "./flowchart-config";
+import { autoEdgeId } from "./flowchart-edge-id";
 import type {
   FlowchartEdgeMeaning,
   FlowchartFirstMentionOrigin,
@@ -305,7 +306,7 @@ export function resolveFlowchart(
           const same = edges.filter(
             (edge) => edge.start === start.id.text && edge.end === end.id.text,
           ).length;
-          id = `L_${start.id.text}_${end.id.text}_${same === 0 ? 0 : same + 1}`;
+          id = autoEdgeId(start.id.text, end.id.text, same);
         }
         const edge: MutableEdge = {
           id,

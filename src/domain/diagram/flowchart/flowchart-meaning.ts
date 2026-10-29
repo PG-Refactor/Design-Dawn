@@ -1,9 +1,12 @@
+import { type DomainResult, err, ok } from "../../shared/domain-result";
 import type {
   FlowchartDirection,
   FlowchartDirectionToken,
   FlowchartLinkStroke,
   FlowchartLinkType,
 } from "./flowchart-config";
+import { flowchartEditability } from "./flowchart-editability";
+import type { FlowchartReading } from "./flowchart-reader";
 import type {
   FlowchartEdgeLabelForm,
   FlowchartLabelType,
@@ -101,4 +104,125 @@ export interface FlowchartMeaning {
     readonly style: readonly string[] | null;
     readonly interpolate: string | null;
   };
+}
+
+// What is compared, and what is not. Compared: everything Mermaid itself holds (the fields of
+// the comparison shape in test-support/flowchart-meaning-comparison.ts), nodes and edges IN
+// ORDER (the order of the nodes is the order of their first mention, which the layout may
+// follow, and the order of the edges is the `linkStyle` index), and subgraph members as a
+// SET (their order is the order of mention, which no edit is promised to keep). Texts are
+// compared exactly as the reader stores them. Not compared, because they describe where
+// something is written and every edit moves them: `statementIndex`, `linkIndex`,
+// `firstMention`, `sharedByAmpersand`, `labelForm` and `explicitLabel`.
+function describeDifferences(
+  actual: FlowchartMeaning,
+  expected: FlowchartMeaning,
+): readonly string[] {
+  const differences: string[] = [];
+  const compare = (what: string, got: unknown, want: unknown) => {
+    const gotText = JSON.stringify(got);
+    const wantText = JSON.stringify(want);
+    if (gotText !== wantText) {
+      differences.push(
+        `${what}: expected ${wantText.slice(0, DIFFERENCE_TEXT_LIMIT)}, got ${gotText.slice(0, DIFFERENCE_TEXT_LIMIT)}`,
+      );
+    }
+  };
+  compare("direction", actual.direction, expected.direction);
+  compare("node count", actual.nodes.length, expected.nodes.length);
+  const sharedNodes = Math.min(actual.nodes.length, expected.nodes.length);
+  for (let index = 0; index < sharedNodes; index += 1) {
+    const got = actual.nodes[index] as FlowchartNodeMeaning;
+    const want = expected.nodes[index] as FlowchartNodeMeaning;
+    compare(`node ${index}`, comparableNode(got), comparableNode(want));
+  }
+  compare("edge count", actual.edges.length, expected.edges.length);
+  const sharedEdges = Math.min(actual.edges.length, expected.edges.length);
+  for (let index = 0; index < sharedEdges; index += 1) {
+    const got = actual.edges[index] as FlowchartEdgeMeaning;
+    const want = expected.edges[index] as FlowchartEdgeMeaning;
+    compare(`edge ${index}`, comparableEdge(got), comparableEdge(want));
+  }
+  compare(
+    "subgraphs",
+    actual.subgraphs.map(comparableSubgraph),
+    expected.subgraphs.map(comparableSubgraph),
+  );
+  compare("classDefs", actual.classDefs, expected.classDefs);
+  compare("edgeDefaults", actual.edgeDefaults, expected.edgeDefaults);
+  return differences;
+}
+
+const DIFFERENCE_TEXT_LIMIT = 300;
+
+function comparableNode(node: FlowchartNodeMeaning) {
+  return {
+    id: node.id,
+    text: node.text,
+    labelType: node.labelType,
+    shape: node.shape,
+    classes: node.classes,
+    styles: node.styles,
+    hasLink: node.hasLink,
+    hasTooltip: node.hasTooltip,
+  };
+}
+
+function comparableEdge(edge: FlowchartEdgeMeaning) {
+  return {
+    id: edge.id,
+    userDefinedId: edge.userDefinedId,
+    start: edge.start,
+    end: edge.end,
+    type: edge.type,
+    stroke: edge.stroke,
+    length: edge.length,
+    text: edge.text,
+    labelType: edge.labelType,
+    style: edge.style,
+    interpolate: edge.interpolate,
+    classes: edge.classes,
+    animate: edge.animate,
+    animation: edge.animation,
+  };
+}
+
+function comparableSubgraph(subgraph: FlowchartSubgraphMeaning) {
+  return {
+    id: subgraph.id,
+    title: subgraph.title,
+    labelType: subgraph.labelType,
+    members: [...subgraph.members].sort(),
+    direction: subgraph.direction,
+    classes: subgraph.classes,
+  };
+}
+
+// Compares the meaning of a candidate with what the operation promised. A candidate that is
+// not editable (it has a statement the reader cannot read, a phantom node, more than 500
+// edges or 50000 characters ...) is rejected first: an unreadable line might mean anything.
+export function checkFlowchartMeaning(
+  candidate: FlowchartReading,
+  expected: FlowchartMeaning,
+): DomainResult<void> {
+  const editability = flowchartEditability(candidate);
+  if (!editability.editable) {
+    return err(
+      "diagramNotEditable",
+      `candidate ${editability.reason}: ${editability.detail}`,
+    );
+  }
+  if (candidate.meaning === null) {
+    return err(
+      "diagramNotEditable",
+      "candidate meaning: the meaning of the text could not be established",
+    );
+  }
+  const differences = describeDifferences(candidate.meaning, expected);
+  return differences.length === 0
+    ? ok(undefined)
+    : err(
+        "diagramMeaningMismatch",
+        `meaningMismatch: ${differences.join("; ")}`,
+      );
 }
