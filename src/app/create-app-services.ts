@@ -2,6 +2,7 @@
 // layer. No React here; `main.tsx` hands the returned services to the UI.
 
 import { createInMemoryClipboard } from "../application/clipboard/clipboard";
+import type { ExternalChangeController } from "../application/external-change/external-change-controller";
 import {
   createGitController,
   type GitController,
@@ -55,6 +56,7 @@ import {
   createViewportPersistence,
   type ViewportPersistence,
 } from "../features/canvas/viewport-persistence";
+import { createAppExternalChangeController } from "../features/external-change/create-external-change-controller";
 import {
   createDraftRegistry,
   type DraftRegistry,
@@ -114,6 +116,8 @@ export interface AppServices {
   // Told after every write of Project files; the Git panel refreshes itself from it.
   readonly projectWriteSignal: ProjectWriteSignal;
   readonly gitRefreshScheduler: Scheduler;
+  // Files changed outside the app: decides between reading again and asking the user.
+  readonly externalChangeController: ExternalChangeController;
   // Detaches the workspace -> UI state connector.
   readonly disconnectUiState: () => void;
 }
@@ -178,6 +182,14 @@ export function createAppServices(): AppServices {
         addOperationError(state, operation, null, error),
       ),
   });
+  const externalChangeController = createAppExternalChangeController({
+    gateway,
+    workspace,
+    applicationStore,
+    uiStateStore,
+    actions,
+    draftRegistry,
+  });
   const disconnectUiState = connectWorkspaceToUiState(workspace, uiStateStore);
   const themeController = createThemeController({
     gateway: settingsGateway,
@@ -216,6 +228,7 @@ export function createAppServices(): AppServices {
     gitController,
     projectWriteSignal,
     gitRefreshScheduler: createTimeoutScheduler(),
+    externalChangeController,
     disconnectUiState,
   };
 }

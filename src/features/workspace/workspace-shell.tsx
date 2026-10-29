@@ -1,4 +1,7 @@
 import { useFileDrop } from "../canvas/use-file-drop";
+import { ProjectBanner } from "../external-change/external-change-banner";
+import { ExternalChangeDialog } from "../external-change/external-change-dialog";
+import { useExternalChangeWatching } from "../external-change/use-external-change-watching";
 import { useGitAutoRefresh } from "../git/use-git-auto-refresh";
 import { LoadStatus, TransientNotice } from "./notifications";
 import { TopBar } from "./top-bar";
@@ -20,13 +23,16 @@ export function WorkspaceShell() {
   const closeStatus = useWindowCloseSave();
   useAppRequests(closeStatus);
   useGitAutoRefresh();
+  useExternalChangeWatching();
   return (
     <div className="workspace-shell">
       <TopBar />
       <LoadStatus />
       <TransientNotice />
+      <ProjectBanner />
       <WorkspaceBody />
       <WorkspaceDialogs />
+      <ExternalChangeDialog />
     </div>
   );
 }

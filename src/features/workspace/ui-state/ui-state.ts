@@ -228,6 +228,8 @@ export const OPERATION_LABELS = [
   "stageGitFiles",
   "unstageGitFiles",
   "discardGitChanges",
+  "reloadExternalChange",
+  "checkExternalChange",
   "loadGitDiff",
   "commitGitChanges",
   "undoGitCommit",
@@ -246,6 +248,8 @@ export const NOTICE_KINDS = [
   "documentAlreadyOpen",
   "projectOpenInOtherWindow",
   "projectOpenInThisWindow",
+  "externalReloaded",
+  "externalWatchUnavailable",
 ] as const;
 
 export type NoticeKind = (typeof NOTICE_KINDS)[number];

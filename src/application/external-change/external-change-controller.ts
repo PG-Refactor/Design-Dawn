@@ -95,11 +95,14 @@ export interface ExternalChangeControllerOptions {
   // True while something else rewrites or reloads files (a Git Pull / Discard, a reload).
   // Changes that arrive meanwhile are compared again once it ends (`resume`).
   readonly isBlocked: () => boolean;
-  readonly onEvent: (event: ExternalChangeEvent) => void;
+  // Optional: the UI usually listens through `subscribeEvents`.
+  readonly onEvent?: (event: ExternalChangeEvent) => void;
 }
 
 export interface ExternalChangeController {
   readonly store: Store<ExternalChangeState>;
+  // Events for the UI (notifications, Git status refresh). Returns the unsubscribe function.
+  subscribeEvents(listener: (event: ExternalChangeEvent) => void): () => void;
   // The full comparison with the disk; what the window does when it regains focus.
   check(): Promise<void>;
   // A change notice that Rust pushed.
@@ -142,6 +145,12 @@ export function createExternalChangeController(
   let recheckPending = false;
   let trackedRead: string | null = null;
   let watchUnavailableReported = false;
+  const eventListeners = new Set<(event: ExternalChangeEvent) => void>();
+
+  function emit(event: ExternalChangeEvent): void {
+    options.onEvent?.(event);
+    for (const listener of [...eventListeners]) listener(event);
+  }
 
   function enqueue<T>(task: () => Promise<T>): Promise<T> {
     const result = queueTail.then(task);
@@ -218,9 +227,9 @@ export function createExternalChangeController(
     const reloaded = await options.reload.document(documentId);
     if (reloaded.ok) {
       removeDocumentConflict(documentId);
-      options.onEvent({ type: "reloaded", target });
+      emit({ type: "reloaded", target });
     } else {
-      options.onEvent({ type: "reloadFailed", target, error: reloaded.error });
+      emit({ type: "reloadFailed", target, error: reloaded.error });
     }
     return reloaded;
   }
@@ -230,9 +239,9 @@ export function createExternalChangeController(
     const reloaded = await options.reload.project();
     if (reloaded.ok) {
       // The reload replaced the read of the Project; the state was reset with it.
-      options.onEvent({ type: "reloaded", target });
+      emit({ type: "reloaded", target });
     } else {
-      options.onEvent({ type: "reloadFailed", target, error: reloaded.error });
+      emit({ type: "reloadFailed", target, error: reloaded.error });
     }
     return reloaded;
   }
@@ -252,9 +261,15 @@ export function createExternalChangeController(
     if (changes.sessionGeneration !== project.sessionGeneration) return;
     if (!changes.watching && !watchUnavailableReported) {
       watchUnavailableReported = true;
-      options.onEvent({ type: "watchUnavailable" });
+      emit({ type: "watchUnavailable" });
     }
-    options.onEvent({ type: "projectFilesActivity" });
+    // A full comparison with nothing in it (window focus) says nothing about Git; the Git
+    // panel refreshes on focus by itself.
+    const hasChanges =
+      changes.project.structure ||
+      changes.project.files.length > 0 ||
+      changes.documents.length > 0;
+    if (!changes.rescan || hasChanges) emit({ type: "projectFilesActivity" });
     if (options.isBlocked()) {
       recheckPending = true;
       return;
@@ -331,7 +346,7 @@ export function createExternalChangeController(
     recheckPending = false;
     const checked = await gateway.checkExternalChanges(project.projectId);
     if (!checked.ok) {
-      options.onEvent({ type: "checkFailed", error: checked.error });
+      emit({ type: "checkFailed", error: checked.error });
       return;
     }
     await process(checked.value);
@@ -403,6 +418,12 @@ export function createExternalChangeController(
 
   return {
     store,
+    subscribeEvents(listener) {
+      eventListeners.add(listener);
+      return () => {
+        eventListeners.delete(listener);
+      };
+    },
     check: () => enqueue(checkNow),
     handleNotice: (notice) =>
       enqueue(async () => {

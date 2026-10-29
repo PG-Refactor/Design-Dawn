@@ -1,5 +1,7 @@
 import type { ApplicationState } from "../../application/state/application-state";
+import type { DocumentId } from "../../domain/shared/entity-id";
 import { CanvasPanel } from "../canvas/canvas-panel";
+import { ActiveDocumentBanner } from "../external-change/external-change-banner";
 import { SheetTabs } from "./sheet-tabs";
 import { documentPanelId, documentTabId } from "./tab-ids";
 import type { UiState } from "./ui-state/ui-state";
@@ -9,7 +11,7 @@ import { useWorkspaceModel } from "./workspace-hooks";
 type PanelModel =
   | {
       readonly kind: "document";
-      readonly documentId: string;
+      readonly documentId: DocumentId;
       readonly tabId: string;
       readonly panelId: string;
     }
@@ -51,6 +53,7 @@ export function DocumentPanel() {
       aria-labelledby={panel.tabId}
       className="document-panel"
     >
+      <ActiveDocumentBanner documentId={panel.documentId} />
       <SheetTabs />
       <CanvasPanel />
     </div>

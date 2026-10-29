@@ -1,19 +1,19 @@
-// Putting the workspace view back after a Git operation rewrote files the open Documents
-// are read from (Discard, Pull; docs/git-development.md §11.16). The operation closes the
-// affected Documents WITHOUT saving, runs, then opens them again from disk; these helpers
-// capture and restore what the user was looking at.
+// Putting the workspace view back after files the open Documents are read from were rewritten
+// (a Git Discard or Pull, docs/git-development.md §11.16; a change made outside the app,
+// docs/architecture.md §14.8). The affected Documents are closed WITHOUT saving and opened
+// again from disk; these helpers capture and restore what the user was looking at.
 
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
-import { restoreMainTab } from "../workspace/ui-state/diff-tabs";
-import type { DiffTab, MainTabRef } from "../workspace/ui-state/ui-state";
-import type { WorkspaceServices } from "../workspace/workspace-services-context";
+import { restoreMainTab } from "./ui-state/diff-tabs";
+import type { DiffTab, MainTabRef } from "./ui-state/ui-state";
+import type { WorkspaceServices } from "./workspace-services-context";
 
 export type ViewServices = Pick<
   WorkspaceServices,
   "uiStateStore" | "applicationStore" | "actions"
 >;
 
-// The view as it was before a Git operation that rewrites files, to put back afterwards.
+// The view as it was before files were rewritten, to put back afterwards.
 export interface ViewSnapshot {
   // Open Documents in tab order.
   readonly openDocumentIds: readonly DocumentId[];
