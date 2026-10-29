@@ -9,13 +9,14 @@
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
+use std::sync::{Mutex, PoisonError};
 
 use serde::Serialize;
 
 use super::error::ApplicationResult;
 use super::session::{document_base_path, ProjectSession, ProjectSessions};
 use crate::domain::constants::PATH_SEPARATOR;
-use crate::domain::entity_id::DocumentId;
+use crate::domain::entity_id::{DocumentId, ProjectId};
 use crate::infrastructure::error::PersistenceErrorKind;
 use crate::infrastructure::file_format::constants::{
     DOCUMENTS_DIRECTORY_NAME, DOCUMENT_FILE_NAME, FOLDER_FILE_NAME, PROJECT_FILE_NAME,
@@ -25,6 +26,7 @@ use crate::infrastructure::filesystem::directory::{list_directory, EntryKind};
 use crate::infrastructure::filesystem::hashing::sha256_hex;
 use crate::infrastructure::filesystem::path_resolution::resolve_existing;
 use crate::infrastructure::filesystem::text_content::decode_text;
+use crate::infrastructure::watcher::WatchBatch;
 
 /// File extension of the metadata files, which are checked for being valid JSON.
 const JSON_EXTENSION: &str = ".json";
@@ -84,6 +86,9 @@ impl ProjectChanges {
 #[serde(rename_all = "camelCase")]
 pub struct ExternalChanges {
     pub session_generation: u64,
+    /// The file watcher runs for this Project. When it does not (it could not start), changes
+    /// are only found by the checks the Frontend asks for, which it tells the user once.
+    pub watching: bool,
     /// The result covers everything (a full comparison), not just the files an event named.
     pub rescan: bool,
     pub project: ProjectChanges,
@@ -315,6 +320,7 @@ pub fn detect(session: &ProjectSession, scope: &Scope<'_>, rescan: bool) -> Exte
     project.structure = structure_changed(session);
     ExternalChanges {
         session_generation: session.generation(),
+        watching: session.is_watched(),
         rescan,
         project,
         documents,
@@ -329,6 +335,52 @@ pub fn is_document_file(session: &ProjectSession, document_id: &DocumentId, path
 /// Whether a recorded path is a Project-level file (`project.json`, a `folder.json`).
 pub fn is_project_file(session: &ProjectSession, path: &str) -> bool {
     matches!(owner_of(session, path), Owner::Project)
+}
+
+/// What the watcher thread does with a batch of events.
+#[derive(Debug, PartialEq, Eq)]
+pub enum BatchOutcome {
+    /// The session this watcher was started for is gone or replaced: the watcher ends.
+    Stop,
+    /// Tell the window. Sent when the comparison found changes, and also when events named
+    /// files the app does not track (an added asset, a new file) or may have been lost: no
+    /// content to reload, but the Git status behind the window is stale.
+    Report(ExternalChanges),
+    /// The events were the app's own saves or timestamp noise.
+    Quiet,
+}
+
+/// Decides, under the sessions lock (so it is serialized with the app's own writes), what a
+/// batch of file system events amounts to (docs/architecture.md §14.4 step 3).
+pub fn confirm_batch(
+    sessions: &Mutex<ProjectSessions>,
+    project_id: &ProjectId,
+    generation: u64,
+    batch: &WatchBatch,
+) -> BatchOutcome {
+    // A poisoned lock holds no broken invariant: the session data is rechecked against the disk.
+    let guard = sessions.lock().unwrap_or_else(PoisonError::into_inner);
+    let Ok(session) = guard.get(project_id) else {
+        return BatchOutcome::Stop;
+    };
+    if session.generation() != generation {
+        return BatchOutcome::Stop;
+    }
+    let scope = if batch.rescan {
+        Scope::All
+    } else {
+        Scope::Paths(&batch.paths)
+    };
+    let changes = detect(session, &scope, batch.rescan);
+    let touches_untracked_file = batch
+        .paths
+        .iter()
+        .any(|path| session.ledger().hash_of(path).is_none());
+    if changes.is_empty() && !batch.rescan && !touches_untracked_file {
+        BatchOutcome::Quiet
+    } else {
+        BatchOutcome::Report(changes)
+    }
 }
 
 /// `check_external_changes`: a full comparison of the Project (docs/architecture.md §14.4).

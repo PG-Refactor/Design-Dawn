@@ -153,6 +153,8 @@ pub fn run() {
                 local_data_dir: app.path().app_local_data_dir()?,
             };
             app.manage(LocalState::new(directories));
+            // Real file watching only in the running app: tests start no watcher threads.
+            commands::install_external_change_watching(app.handle());
             app.state::<Mutex<WindowRegistry>>()
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)

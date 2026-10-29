@@ -611,6 +611,7 @@ export function createFakeGateway(
         operationOk(
           scriptedExternalChanges ?? {
             sessionGeneration,
+            watching: true,
             rescan: true,
             project: { structure: false, files: [] },
             documents: [],

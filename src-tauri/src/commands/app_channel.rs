@@ -17,9 +17,11 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 use serde::Serialize;
 use tauri::ipc::Channel;
 
+use crate::application::external_change::ExternalChanges;
 use crate::application::local_state::language::LanguagePreference;
 use crate::application::local_state::theme::ThemePreference;
 use crate::application::open_routing::{SentOpenRequest, UnacknowledgedRequests};
+use crate::domain::entity_id::ProjectId;
 
 /// What the Frontend receives: `{ "kind": "openDocument", "requestId": string,
 /// "documentId": string }` or `{ "kind": "settingsChanged", "themePreference": string,
@@ -37,6 +39,15 @@ pub enum AppNotification {
         theme_preference: ThemePreference,
         language_preference: LanguagePreference,
         auto_save: bool,
+    },
+    /// Files of the window's Project changed behind the app's back (docs/architecture.md
+    /// §14.4): `{ "kind": "projectFilesChanged", "projectId", "sessionGeneration",
+    /// "watching", "rescan", "project", "documents" }`. Paths are relative; none is absolute.
+    #[serde(rename_all = "camelCase")]
+    ProjectFilesChanged {
+        project_id: String,
+        #[serde(flatten)]
+        changes: ExternalChanges,
     },
 }
 
@@ -153,6 +164,32 @@ impl<S: AppNotificationSink> AppRequestHub<S> {
         sent_to
     }
 
+    /// Tells one window that files of its Project changed. Fire and forget: a window that
+    /// misses it compares everything when it regains focus. Returns whether it was sent.
+    pub fn send_project_files_changed(
+        &self,
+        window_label: &str,
+        project_id: &ProjectId,
+        changes: ExternalChanges,
+    ) -> bool {
+        // Cloned so the lock is not held while the message is sent.
+        let sink = self.subscriptions().get(window_label).cloned();
+        let Some(sink) = sink else {
+            return false;
+        };
+        let notification = AppNotification::ProjectFilesChanged {
+            project_id: project_id.to_string(),
+            changes,
+        };
+        match sink.send_notification(notification) {
+            Ok(()) => true,
+            Err(error) => {
+                eprintln!("failed to send a file change notice to window {window_label}: {error}");
+                false
+            }
+        }
+    }
+
     /// Records the request as unacknowledged first, then tries to send it: a missing
     /// subscription or a failed send keeps it recorded. Returns whether it was sent.
     pub fn send_open_document(&self, window_label: &str, sent: SentOpenRequest) -> bool {
@@ -246,6 +283,82 @@ mod tests {
                 "autoSave": false
             })
         );
+    }
+
+    fn sample_changes() -> ExternalChanges {
+        use crate::application::external_change::{
+            ChangedFile, DocumentChanges, FileChange, ProjectChanges,
+        };
+        ExternalChanges {
+            session_generation: 3,
+            watching: true,
+            rescan: false,
+            project: ProjectChanges {
+                structure: false,
+                files: Vec::new(),
+            },
+            documents: vec![DocumentChanges {
+                document_id: "01928f3a-6c7d-7e8f-a012-3456789abcde".to_owned(),
+                files: vec![ChangedFile {
+                    path: "sheets/overview/blocks/markdown-1.md".to_owned(),
+                    change: FileChange::Modified,
+                    readable: true,
+                }],
+            }],
+        }
+    }
+
+    #[test]
+    fn the_files_changed_notification_is_flat_and_carries_relative_paths_only() {
+        let project_id = ProjectId::parse("01928f3a-5b6c-7d8e-9f01-23456789abcd").unwrap();
+        let value = serde_json::to_value(AppNotification::ProjectFilesChanged {
+            project_id: project_id.to_string(),
+            changes: sample_changes(),
+        })
+        .unwrap();
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "kind": "projectFilesChanged",
+                "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+                "sessionGeneration": 3,
+                "watching": true,
+                "rescan": false,
+                "project": { "structure": false, "files": [] },
+                "documents": [{
+                    "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+                    "files": [{
+                        "path": "sheets/overview/blocks/markdown-1.md",
+                        "change": "modified",
+                        "readable": true
+                    }]
+                }]
+            })
+        );
+    }
+
+    #[test]
+    fn a_files_changed_notice_goes_to_the_named_window_only() {
+        let project_id = ProjectId::parse("01928f3a-5b6c-7d8e-9f01-23456789abcd").unwrap();
+        let hub = AppRequestHub::<FakeSink>::default();
+        let owner = FakeSink::default();
+        let other = FakeSink::default();
+        hub.subscribe("window-1", owner.clone());
+        hub.subscribe("main", other.clone());
+        assert!(hub.send_project_files_changed("window-1", &project_id, sample_changes()));
+        assert_eq!(received(&owner).len(), 1);
+        assert!(received(&other).is_empty());
+        // No subscription, or a failing channel: only reported as not sent, nothing queued.
+        assert!(!hub.send_project_files_changed("window-9", &project_id, sample_changes()));
+        hub.subscribe(
+            "window-2",
+            FakeSink {
+                fail: true,
+                ..FakeSink::default()
+            },
+        );
+        assert!(!hub.send_project_files_changed("window-2", &project_id, sample_changes()));
+        assert!(hub.discard_window("window-9").is_empty());
     }
 
     #[test]

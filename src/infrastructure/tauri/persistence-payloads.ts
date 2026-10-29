@@ -412,6 +412,7 @@ const decodeChangedFile = objectOf<ChangedFile>({
 });
 interface RawExternalChanges {
   readonly sessionGeneration: number;
+  readonly watching: boolean;
   readonly rescan: boolean;
   readonly project: {
     readonly structure: boolean;
@@ -424,6 +425,7 @@ interface RawExternalChanges {
 }
 const rawExternalChanges = objectOf<RawExternalChanges>({
   sessionGeneration: decodeNumber,
+  watching: decodeBoolean,
   rescan: decodeBoolean,
   project: objectOf<RawExternalChanges["project"]>({
     structure: decodeBoolean,
@@ -452,6 +454,7 @@ export function toExternalChanges(
   if (!documents.ok) return documents;
   return commandOk({
     sessionGeneration: raw.value.sessionGeneration,
+    watching: raw.value.watching,
     rescan: raw.value.rescan,
     project: raw.value.project,
     documents: documents.value,

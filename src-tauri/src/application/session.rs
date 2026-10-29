@@ -150,6 +150,23 @@ pub struct DocumentRecord {
 static NEXT_SESSION_GENERATION: AtomicU64 = AtomicU64::new(FIRST_SESSION_GENERATION);
 const FIRST_SESSION_GENERATION: u64 = 1;
 
+/// Keeps a Project's file watcher alive for exactly as long as its session: dropping the
+/// session (closed, replaced by a reload, window destroyed) stops the watcher. The session
+/// does not know what it holds.
+pub struct WatchGuard(#[allow(dead_code)] Box<dyn Send>);
+
+impl WatchGuard {
+    pub fn new(watcher: impl Send + 'static) -> Self {
+        Self(Box::new(watcher))
+    }
+}
+
+impl std::fmt::Debug for WatchGuard {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("WatchGuard").finish_non_exhaustive()
+    }
+}
+
 #[derive(Debug)]
 pub struct ProjectSession {
     root: PathBuf,
@@ -158,6 +175,9 @@ pub struct ProjectSession {
     /// (docs/architecture.md §14.4): a notification made for an earlier session of the same
     /// Project describes files the Frontend has since read again.
     generation: u64,
+    /// Present while the file watcher runs. Without it (it could not start, or none is
+    /// installed) changes are found by the checks the Frontend asks for.
+    watch_guard: Option<WatchGuard>,
     documents: BTreeMap<DocumentId, DocumentRecord>,
     folders: BTreeMap<FolderId, FolderRecord>,
     ledger: HashLedger,
@@ -208,6 +228,7 @@ impl ProjectSession {
             root,
             project_id,
             generation: NEXT_SESSION_GENERATION.fetch_add(1, Ordering::Relaxed),
+            watch_guard: None,
             documents: BTreeMap::new(),
             folders: BTreeMap::new(),
             ledger,
@@ -225,6 +246,15 @@ impl ProjectSession {
 
     pub fn generation(&self) -> u64 {
         self.generation
+    }
+
+    pub fn set_watch_guard(&mut self, guard: Option<WatchGuard>) {
+        self.watch_guard = guard;
+    }
+
+    /// Whether the file watcher is running for this session.
+    pub fn is_watched(&self) -> bool {
+        self.watch_guard.is_some()
     }
 
     pub fn ledger(&self) -> &HashLedger {
@@ -685,15 +715,38 @@ pub fn split_entry_path(relative_path: &str) -> (String, &str) {
     }
 }
 
+/// Runs on every session as it is registered; the app uses it to start the file watcher.
+pub type SessionHook = Box<dyn Fn(&mut ProjectSession) + Send>;
+
 /// All opened Projects, keyed by ID. Held as Tauri managed state behind a `Mutex`.
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct ProjectSessions {
     sessions: HashMap<ProjectId, ProjectSession>,
+    on_insert: Option<SessionHook>,
+}
+
+impl std::fmt::Debug for ProjectSessions {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ProjectSessions")
+            .field("sessions", &self.sessions)
+            .finish_non_exhaustive()
+    }
 }
 
 impl ProjectSessions {
-    /// Reopening a Project replaces its session, so stale writability flags cannot survive.
-    pub fn insert(&mut self, session: ProjectSession) {
+    /// Installs the hook `insert` runs on each new session. Sessions already registered are
+    /// not touched.
+    pub fn set_insert_hook(&mut self, hook: SessionHook) {
+        self.on_insert = Some(hook);
+    }
+
+    /// Reopening a Project replaces its session, so stale writability flags cannot survive
+    /// (and the old session's watcher stops with it).
+    pub fn insert(&mut self, mut session: ProjectSession) {
+        if let Some(hook) = &self.on_insert {
+            hook(&mut session);
+        }
         self.sessions.insert(*session.project_id(), session);
     }
 

@@ -135,6 +135,9 @@ export interface ProjectFileChanges {
 // notification. Only open Documents are listed.
 export interface ExternalChanges {
   readonly sessionGeneration: number;
+  // The file watcher runs for this Project. When it does not, changes are only found by the
+  // checks the app asks for (window focus), which the user is told once.
+  readonly watching: boolean;
   // The report covers everything (a full comparison) and not just the files an event named.
   readonly rescan: boolean;
   readonly project: ProjectFileChanges;

@@ -175,6 +175,7 @@
           "expected": {
             "ok": {
               "sessionGeneration": 1,
+              "watching": false,
               "rescan": true,
               "project": { "structure": false, "files": [] },
               "documents": []

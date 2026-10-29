@@ -6,6 +6,7 @@
 mod app_channel;
 mod asset_protocol;
 mod drag_drop;
+mod external_watch;
 mod folder_picker;
 mod open_dispatch;
 mod window_close;
@@ -118,6 +119,7 @@ pub const COMMAND_NAMES: [&str; 55] = [
 pub use app_channel::{AppNotification, AppNotificationSink, AppRequestHub, AppRequestSubscriber};
 pub use asset_protocol::{respond_to_asset_request, ASSET_URL_SCHEME};
 pub use drag_drop::{DropNotification, DropSubscriber};
+pub use external_watch::install_external_change_watching;
 pub use folder_picker::DialogFolderPicker;
 pub use open_dispatch::{
     dispatch_in_background, handle_second_launch, placement_following, reroute_unacknowledged,

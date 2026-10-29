@@ -4,6 +4,7 @@
 import type {
   AppRequestSource,
   OpenDocumentRequest,
+  ProjectFilesNotice,
   SettingsChange,
 } from "../ports/app-request-source";
 import { type OperationResult, operationOk } from "../ports/operation-error";
@@ -11,6 +12,8 @@ import { type OperationResult, operationOk } from "../ports/operation-error";
 export interface FakeAppRequestSource extends AppRequestSource {
   emit(request: OpenDocumentRequest): void;
   emitSettings(change: SettingsChange): void;
+  emitProjectFiles(notice: ProjectFilesNotice): void;
+  projectFilesListenerCount(): number;
   settingsListenerCount(): number;
   // Request ids passed to `acknowledgeOpenRequest`, in call order.
   readonly acknowledgedIds: string[];
@@ -21,6 +24,7 @@ export interface FakeAppRequestSource extends AppRequestSource {
 export function createFakeAppRequestSource(): FakeAppRequestSource {
   const listeners = new Set<(request: OpenDocumentRequest) => void>();
   const settingsListeners = new Set<(change: SettingsChange) => void>();
+  const projectFilesListeners = new Set<(notice: ProjectFilesNotice) => void>();
   const acknowledgedIds: string[] = [];
   let acknowledgeResult: OperationResult<void> = operationOk(undefined);
   return {
@@ -32,6 +36,14 @@ export function createFakeAppRequestSource(): FakeAppRequestSource {
       settingsListeners.add(listener);
       return () => settingsListeners.delete(listener);
     },
+    subscribeProjectFiles(listener) {
+      projectFilesListeners.add(listener);
+      return () => projectFilesListeners.delete(listener);
+    },
+    emitProjectFiles(notice) {
+      for (const listener of [...projectFilesListeners]) listener(notice);
+    },
+    projectFilesListenerCount: () => projectFilesListeners.size,
     emitSettings(change) {
       for (const listener of [...settingsListeners]) listener(change);
     },

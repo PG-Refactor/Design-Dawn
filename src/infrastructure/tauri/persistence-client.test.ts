@@ -229,6 +229,7 @@ describe("open_project_in_new_window payloads", () => {
 describe("external change commands", () => {
   const rawChanges = {
     sessionGeneration: SESSION_GENERATION,
+    watching: true,
     rescan: true,
     project: {
       structure: false,
