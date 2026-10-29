@@ -67,6 +67,41 @@ describe("createTauriAppRequestSource", () => {
     });
   });
 
+  it("hands decoded project file notices to their listeners only", () => {
+    const source = createTauriAppRequestSource();
+    const listener = vi.fn();
+    const openListener = vi.fn();
+    source.subscribeProjectFiles(listener);
+    source.subscribe(openListener);
+    const notice = {
+      kind: "projectFilesChanged",
+      projectId: "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+      sessionGeneration: 4,
+      watching: true,
+      rescan: false,
+      project: { structure: false, files: [] },
+      documents: [
+        {
+          documentId: DOCUMENT_ID,
+          files: [{ path: "sheet.json", change: "modified", readable: true }],
+        },
+      ],
+    };
+    send(notice);
+    send({ ...notice, projectId: "not-an-id" });
+    send({ ...notice, documents: "nope" });
+    send({ ...notice, kind: "somethingElse" });
+    expect(openListener).not.toHaveBeenCalled();
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener.mock.calls[0]?.[0]).toMatchObject({
+      projectId: "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+      changes: { sessionGeneration: 4, watching: true, rescan: false },
+    });
+    expect(listener.mock.calls[0]?.[0].changes.documents[0].files[0].path).toBe(
+      "sheet.json",
+    );
+  });
+
   it("stops delivering after unsubscribing", () => {
     const source = createTauriAppRequestSource();
     const listener = vi.fn();

@@ -52,7 +52,8 @@ impl FakeSink {
             .iter()
             .filter_map(|notification| match notification {
                 AppNotification::OpenDocument { document_id, .. } => Some(document_id.clone()),
-                AppNotification::SettingsChanged { .. } => None,
+                AppNotification::SettingsChanged { .. }
+                | AppNotification::ProjectFilesChanged { .. } => None,
             })
             .collect()
     }

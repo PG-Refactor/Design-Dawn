@@ -2,7 +2,10 @@
 // `UiState` like the rest of the UI state; each returns the same state object when nothing
 // changes. The tabs are not saved and end with the Project.
 
+import type { DocumentId } from "../../../domain/shared/entity-id";
 import {
+  COMPARE_MAIN_TAB,
+  type CompareContent,
   type DiffTab,
   DOCUMENT_MAIN_TAB,
   type GitSelection,
@@ -134,9 +137,55 @@ export function replaceDiffTabs(
   };
 }
 
+// Opens the compare tab (replacing an earlier one) and shows it.
+export function openCompareTab(
+  state: UiState,
+  documentId: DocumentId,
+  path: string,
+  content: CompareContent,
+): UiState {
+  return {
+    ...state,
+    compareTab: { documentId, path, content },
+    activeMainTab: COMPARE_MAIN_TAB,
+  };
+}
+
+// Sets what the compare tab shows, only while it is still the same comparison.
+export function setCompareContent(
+  state: UiState,
+  documentId: DocumentId,
+  path: string,
+  content: CompareContent,
+): UiState {
+  const tab = state.compareTab;
+  if (tab === null || tab.documentId !== documentId || tab.path !== path) {
+    return state;
+  }
+  return { ...state, compareTab: { ...tab, content } };
+}
+
+export function activateCompareTab(state: UiState): UiState {
+  return state.compareTab === null || state.activeMainTab.kind === "compare"
+    ? state
+    : { ...state, activeMainTab: COMPARE_MAIN_TAB };
+}
+
+export function closeCompareTab(state: UiState): UiState {
+  if (state.compareTab === null) return state;
+  return {
+    ...state,
+    compareTab: null,
+    activeMainTab:
+      state.activeMainTab.kind === "compare"
+        ? DOCUMENT_MAIN_TAB
+        : state.activeMainTab,
+  };
+}
+
 // Puts back a main tab remembered earlier, if it still exists.
 export function restoreMainTab(state: UiState, tab: MainTabRef): UiState {
-  return tab.kind === "diff"
-    ? activateDiffTab(state, tab)
-    : showDocumentTab(state);
+  if (tab.kind === "diff") return activateDiffTab(state, tab);
+  if (tab.kind === "compare") return activateCompareTab(state);
+  return showDocumentTab(state);
 }

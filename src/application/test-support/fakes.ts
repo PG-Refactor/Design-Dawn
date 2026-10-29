@@ -47,8 +47,10 @@ import {
 } from "../ports/operation-error";
 import type { PersistenceGateway } from "../ports/persistence-gateway";
 import {
+  type BlockContentComparison,
   type DocumentSnapshot,
   type EntityState,
+  type ExternalChanges,
   type FolderSelection,
   type LoadIssue,
   OPEN_IN_NEW_WINDOW_STATUS,
@@ -255,6 +257,18 @@ export interface FakeGateway extends PersistenceGateway {
   queueProjectFolderRequest(): void;
   // The result of the next `openProjectInNewWindow` call (default: a new window).
   setOpenInNewWindowResult(result: OpenInNewWindowResult): void;
+  // Session generation of the latest project snapshot handed out (each open / reload /
+  // create is a new read, like a new Rust session).
+  readonly sessionGeneration: () => number;
+  // What the next `checkExternalChanges` calls return (until replaced); by default nothing
+  // changed, reported for the current session generation.
+  setExternalChanges(changes: ExternalChanges): void;
+  // What `compareBlockContent` returns until replaced (default: identical).
+  setComparison(comparison: BlockContentComparison): void;
+  // The text arguments `compareBlockContent` was called with, in order.
+  readonly comparedTexts: string[];
+  // Document ids (null = Project level) `acceptDiskState` was called for, in order.
+  readonly acceptedDiskStates: (DocumentId | null)[];
   // Method names in call order, optionally narrowed to some methods.
   methods(...only: readonly string[]): string[];
   // Content files that currently exist: contentPath -> text.
@@ -299,6 +313,11 @@ export function createFakeGateway(
   let nextSelection: FolderSelection = DEFAULT_SELECTION;
   const snapshotOverrides = new Map<string, ProjectSnapshot>();
   let pendingOpenRequest: DocumentId | "projectFolder" | null = null;
+  let sessionGeneration = 0;
+  let scriptedExternalChanges: ExternalChanges | null = null;
+  const acceptedDiskStates: (DocumentId | null)[] = [];
+  let scriptedComparison: BlockContentComparison = { outcome: "identical" };
+  const comparedTexts: string[] = [];
   let openInNewWindowResult: OpenInNewWindowResult = {
     status: OPEN_IN_NEW_WINDOW_STATUS.openedInNewWindow,
   };
@@ -399,8 +418,10 @@ export function createFakeGateway(
         ];
       },
     );
+    sessionGeneration += 1;
     return {
       project: projectOf(disk.projectName, disk.childOrder),
+      sessionGeneration,
       folders: [...disk.folders.entries()].map(([folderId, entry]) => ({
         folderId,
         name: entry.state === "loaded" ? entry.folder.name : null,
@@ -539,6 +560,15 @@ export function createFakeGateway(
     overrideProjectSnapshot(selectionId, snapshot) {
       snapshotOverrides.set(selectionId, snapshot);
     },
+    sessionGeneration: () => sessionGeneration,
+    setExternalChanges(changes) {
+      scriptedExternalChanges = changes;
+    },
+    acceptedDiskStates,
+    setComparison(comparison) {
+      scriptedComparison = comparison;
+    },
+    comparedTexts,
     queueOpenRequest(documentId) {
       pendingOpenRequest = documentId;
     },
@@ -587,6 +617,28 @@ export function createFakeGateway(
       }),
     reloadProject: (projectId) =>
       enter("reloadProject", projectId, () => operationOk(projectSnapshot())),
+    checkExternalChanges: (projectId) =>
+      enter("checkExternalChanges", projectId, () =>
+        operationOk(
+          scriptedExternalChanges ?? {
+            sessionGeneration,
+            watching: true,
+            rescan: true,
+            project: { structure: false, files: [] },
+            documents: [],
+          },
+        ),
+      ),
+    compareBlockContent: (_projectId, _documentId, contentPath, text) =>
+      enter("compareBlockContent", contentPath, () => {
+        comparedTexts.push(text);
+        return operationOk(scriptedComparison);
+      }),
+    acceptDiskState: (_projectId, documentId) =>
+      enter("acceptDiskState", documentId ?? "project", () => {
+        acceptedDiskStates.push(documentId);
+        return operationOk(undefined);
+      }),
     createProject: (selectionId, name) =>
       enter("createProject", `${selectionId}:${name}`, () => {
         if (selectionId !== DEFAULT_SELECTION_ID) {

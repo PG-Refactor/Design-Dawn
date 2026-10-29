@@ -437,6 +437,7 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
       installProject({
         projectId: valid.value.project.projectId,
         project: valid.value.project,
+        sessionGeneration: valid.value.sessionGeneration,
         folders: valid.value.folders.map((entry) => ({
           folderId: entry.folderId,
           name: entry.name,

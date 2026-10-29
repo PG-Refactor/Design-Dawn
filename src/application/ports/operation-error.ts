@@ -17,6 +17,9 @@ export const PERSISTENCE_ERROR_KINDS = [
   "fileNotFound",
   "alreadyExists",
   "ioError",
+  // The file changed (or was removed) outside the app since the app last read or wrote it,
+  // so a save would discard that change (docs/architecture.md §14.6).
+  "externallyModified",
 ] as const;
 
 // `entityNotFound` is already part of the domain kinds in TypeScript.
@@ -88,6 +91,11 @@ export const RUST_ONLY_DOMAIN_ERROR_KINDS = [
   "invalidContentExtension",
 ] as const;
 
+// The app itself refuses to save a Document whose files changed outside the app until the
+// user decides what to do (docs/architecture.md §14.7). Produced by the application layer,
+// never by Rust (Rust's own last-line refusal is `externallyModified`).
+export const EXTERNAL_CHANGE_ERROR_KINDS = ["externalConflict"] as const;
+
 // Produced by the client, never by Rust.
 export const CLIENT_ERROR_KINDS = [
   // The command succeeded but its payload does not have the documented shape.
@@ -107,6 +115,7 @@ export type OperationErrorKind =
   | (typeof FOLDER_ERROR_KINDS)[number]
   | (typeof GIT_ERROR_KINDS)[number]
   | (typeof LOCAL_STATE_ERROR_KINDS)[number]
+  | (typeof EXTERNAL_CHANGE_ERROR_KINDS)[number]
   | (typeof CLIENT_ERROR_KINDS)[number];
 
 export interface OperationError {

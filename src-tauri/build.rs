@@ -55,6 +55,9 @@ const APP_COMMANDS: &[&str] = &[
     "git_push",
     "git_publish",
     "git_remotes",
+    "check_external_changes",
+    "accept_disk_state",
+    "compare_block_content",
 ];
 
 fn main() {

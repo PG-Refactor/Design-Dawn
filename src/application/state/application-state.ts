@@ -87,6 +87,9 @@ export interface ProjectSaveState {
 export interface OpenProjectState {
   readonly projectId: ProjectId;
   readonly project: Project;
+  // Which read of the Project this is (Rust's session generation). External change
+  // notices for another read are stale and dropped (docs/architecture.md §14.4).
+  readonly sessionGeneration: number;
   // Every Folder of the Project, flat; the tree follows `parentFolderId` and `childOrder`.
   readonly folders: readonly OpenProjectFolderEntry[];
   // Every Document of the Project, including those inside Folders.

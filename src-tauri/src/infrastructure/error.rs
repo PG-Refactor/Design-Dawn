@@ -12,6 +12,9 @@ pub enum PersistenceErrorKind {
     FileNotFound,
     AlreadyExists,
     IoError,
+    /// The file on disk is not what this session last read or wrote (changed, replaced or
+    /// removed by something else), so a write would silently discard that change.
+    ExternallyModified,
 }
 
 impl PersistenceErrorKind {
@@ -24,6 +27,7 @@ impl PersistenceErrorKind {
             Self::FileNotFound => "fileNotFound",
             Self::AlreadyExists => "alreadyExists",
             Self::IoError => "ioError",
+            Self::ExternallyModified => "externallyModified",
         }
     }
 
@@ -38,6 +42,7 @@ impl PersistenceErrorKind {
             Self::FileNotFound => "the requested content does not exist",
             Self::AlreadyExists => "the content already exists",
             Self::IoError => "the file could not be read or written",
+            Self::ExternallyModified => "the file was changed outside the application",
         }
     }
 }

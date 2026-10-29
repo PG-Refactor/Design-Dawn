@@ -54,6 +54,8 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   stageGitFiles: "Could not stage the files",
   unstageGitFiles: "Could not unstage the files",
   discardGitChanges: "Could not discard changes",
+  reloadExternalChange: "Could not read the externally changed files again",
+  checkExternalChange: "Could not check for external changes",
   loadGitDiff: "Could not get the diff",
   commitGitChanges: "Could not commit",
   undoGitCommit: "Could not undo the commit",
@@ -84,6 +86,10 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
   fileNotFound: "The file was not found.",
   alreadyExists: "Something with the same name already exists.",
   ioError: "Reading or writing the file failed.",
+  externalConflict:
+    "The files changed outside the app. Saving is stopped until you decide how to proceed.",
+  externallyModified:
+    "The file was changed outside the app, so it was not saved.",
   notWritable:
     "This Document has already been closed, so it cannot be changed.",
   projectNotOpen: "No Project is open.",
@@ -173,6 +179,9 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     documentAlreadyOpen: "Already open",
     projectOpenInOtherWindow: "This Project is open in another window",
     projectOpenInThisWindow: "Open in this window",
+    externalReloaded: "Reloaded after a change made outside the app",
+    externalWatchUnavailable:
+      "External changes cannot be detected automatically. They are checked when you return to the window",
   },
   tree: {
     openProjectInNewWindow: "Open Project in New Window",
@@ -252,6 +261,50 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
       entityId: "ID",
       detail: "Details",
     },
+  },
+  externalChange: {
+    documentTitle: (name) => `${quoted(name)} was changed outside the app`,
+    projectTitle: "The Project was changed outside the app",
+    unsavedBody: "There are unsaved changes.",
+    unreadableBody:
+      "The changed content cannot be read, so it is not reloaded automatically.",
+    structureBody: "The set of Documents / Folders has changed.",
+    filesLabel: "Changed files",
+    changeLabels: { modified: "Modified", removed: "Removed" },
+    unreadableMark: "unreadable",
+    compare: "Compare",
+    compareFile: "Compare",
+    compareTabTitle: (fileName) => `Compare: ${fileName}`,
+    compareTabDescription: (name, path) =>
+      `${quoted(name)} ${path}: disk (left) against the current content (right)`,
+    compareHeading: (path) => `${path}: disk against the current content`,
+    compareLegend: "Left: disk, right: current content",
+    compareDraftNotice:
+      "Compared with the committed content. Text that is still being typed and not committed yet is not included.",
+    compareIdentical: "The content on disk is the same as the current content.",
+    compareRemovedOnDisk: "It has been deleted on disk.",
+    compareNotUtf8:
+      "The file on disk is not UTF-8 text, so it cannot be compared.",
+    compareTooLarge: "The file is too large to compare.",
+    compareUnavailable: "Cannot compare (the text is not loaded).",
+    compareLoading: "Comparing…",
+    compareClose: "Close comparison",
+    compareJsonUnsupported: "Lines cannot be compared",
+    compareRemovedFile: "Deleted on disk",
+    keepCurrent: "Keep current",
+    reload: "Reload",
+    overwrite: "Overwrite…",
+    reloadConfirmTitle: "Reload?",
+    reloadConfirmBody: "Unsaved changes will be lost.",
+    reloadConfirm: "Reload",
+    overwriteConfirmTitle: "Overwrite?",
+    overwriteConfirmBody:
+      "The changes on disk will be overwritten with the current content. Continue?",
+    overwriteConfirm: "Overwrite",
+    keptBanner: "Differs from the content on disk. Saving is stopped",
+    bannerLabel: "External change",
+    projectBannerSource: "Project",
+    cancel: "Cancel",
   },
   dialogs: {
     cancel: "Cancel",

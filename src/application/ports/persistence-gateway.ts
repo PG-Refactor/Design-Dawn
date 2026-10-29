@@ -15,7 +15,9 @@ import type { Sheet } from "../../domain/sheet/sheet";
 import type { CopiedAsset, DropImportResult } from "./asset-types";
 import type { OperationResult } from "./operation-error";
 import type {
+  BlockContentComparison,
   DocumentSnapshot,
+  ExternalChanges,
   FolderSelection,
   FolderSnapshot,
   OpenInNewWindowResult,
@@ -36,6 +38,18 @@ export interface PersistenceGateway {
   reloadProject(
     projectId: ProjectId,
   ): Promise<OperationResult<ProjectSnapshot>>;
+  // Compares the Project's files with what the app last read or wrote and reports what
+  // changed behind its back. Read-only; nothing is re-recorded (docs/architecture.md §14.4).
+  checkExternalChanges(
+    projectId: ProjectId,
+  ): Promise<OperationResult<ExternalChanges>>;
+  // The user chose to overwrite what is on disk: the Document's files (or, with `null`, the
+  // Project-level files) are taken as the new baseline so the next save is allowed
+  // (docs/architecture.md §14.6).
+  acceptDiskState(
+    projectId: ProjectId,
+    documentId: DocumentId | null,
+  ): Promise<OperationResult<void>>;
   // Opens the selected folder's Project in a new window, or brings forward the window that
   // has it. This window's own Project is not touched.
   openProjectInNewWindow(
@@ -144,6 +158,14 @@ export interface PersistenceGateway {
     contentPath: ContentPath,
     text: string,
   ): Promise<OperationResult<void>>;
+  // Compares `text` (the committed content; drafts are not part of it) with the file on disk.
+  // Read-only: the file still counts as changed afterwards.
+  compareBlockContent(
+    projectId: ProjectId,
+    documentId: DocumentId,
+    contentPath: ContentPath,
+    text: string,
+  ): Promise<OperationResult<BlockContentComparison>>;
   deleteBlockContent(
     projectId: ProjectId,
     documentId: DocumentId,

@@ -56,6 +56,8 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   stageGitFiles: "ステージできませんでした",
   unstageGitFiles: "ステージを解除できませんでした",
   discardGitChanges: "変更を破棄できませんでした",
+  reloadExternalChange: "外部の変更を読み直せませんでした",
+  checkExternalChange: "外部の変更を確認できませんでした",
   loadGitDiff: "差分を取得できませんでした",
   commitGitChanges: "コミットできませんでした",
   undoGitCommit: "コミットを元に戻せませんでした",
@@ -86,6 +88,10 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
   fileNotFound: "ファイルが見つかりません。",
   alreadyExists: "同じ名前のものが既に存在します。",
   ioError: "ファイルの読み書きに失敗しました。",
+  externalConflict:
+    "ファイルがアプリの外で変更されました。どうするか決めるまで保存を停止しています。",
+  externallyModified:
+    "ファイルがアプリの外で変更されたため、保存しませんでした。",
   notWritable: "このDocumentは既に閉じられているため操作できません。",
   projectNotOpen: "Projectが開かれていません。",
   projectOpenInOtherWindow: "このProjectは別のウィンドウで開いています",
@@ -175,6 +181,9 @@ export const WORKSPACE_MESSAGES_JA = {
     documentAlreadyOpen: "既に開いています",
     projectOpenInOtherWindow: "このProjectは別のウィンドウで開いています",
     projectOpenInThisWindow: "このウィンドウで開いています",
+    externalReloaded: "外部の変更を読み直しました",
+    externalWatchUnavailable:
+      "外部の変更を自動で検知できません。ウィンドウに戻ったときに確認します",
   },
   tree: {
     openProjectInNewWindow: "新しいウィンドウでProjectを開く",
@@ -254,6 +263,52 @@ export const WORKSPACE_MESSAGES_JA = {
       entityId: "ID",
       detail: "詳細",
     },
+  },
+  externalChange: {
+    // The conflict question (docs/ui-design.md §14).
+    documentTitle: (name: string): string =>
+      `${quoted(name)}がアプリの外で変更されました`,
+    projectTitle: "Projectがアプリの外で変更されました",
+    unsavedBody: "保存していない変更があります。",
+    unreadableBody:
+      "変更された内容を読み込めないため、自動では読み直しません。",
+    structureBody: "Document / Folderの構成が変わりました。",
+    filesLabel: "変更されたファイル",
+    changeLabels: { modified: "変更", removed: "削除" },
+    unreadableMark: "読めません",
+    compare: "比較",
+    compareFile: "比較",
+    compareTabTitle: (fileName: string): string => `比較: ${fileName}`,
+    compareTabDescription: (name: string, path: string): string =>
+      `${quoted(name)}の${path}: ディスク（左）と今の内容（右）の比較`,
+    compareHeading: (path: string): string => `${path}: ディスクと今の内容`,
+    compareLegend: "左: ディスク、右: 今の内容",
+    compareDraftNotice:
+      "確定済みの内容と比べています。入力中でまだ確定していない下書きは含まれません。",
+    compareIdentical: "ディスク上の内容と今の内容は同じです。",
+    compareRemovedOnDisk: "ディスク上では削除されています。",
+    compareNotUtf8:
+      "ディスク上のファイルはUTF-8として読めないため、比較できません。",
+    compareTooLarge: "ファイルが大きすぎるため、比較できません。",
+    compareUnavailable: "比較できません（本文を読み込めていません）。",
+    compareLoading: "比較しています…",
+    compareClose: "比較を閉じる",
+    compareJsonUnsupported: "行の比較はできません",
+    compareRemovedFile: "ディスク上では削除されています",
+    keepCurrent: "今の内容を維持",
+    reload: "再読み込み",
+    overwrite: "上書き保存…",
+    reloadConfirmTitle: "再読み込みしますか?",
+    reloadConfirmBody: "保存していない変更は失われます。",
+    reloadConfirm: "再読み込み",
+    overwriteConfirmTitle: "上書き保存しますか?",
+    overwriteConfirmBody:
+      "ディスク上の変更を、今の内容で上書きします。よろしいですか?",
+    overwriteConfirm: "上書き保存",
+    keptBanner: "ディスク上の内容と異なります。保存は停止しています",
+    bannerLabel: "外部の変更",
+    projectBannerSource: "Project",
+    cancel: "キャンセル",
   },
   dialogs: {
     cancel: "キャンセル",

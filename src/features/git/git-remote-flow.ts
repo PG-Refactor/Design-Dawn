@@ -9,17 +9,11 @@
 
 import type { OperationResult } from "../../application/ports/operation-error";
 import { hasUnsavedProjectChanges } from "../../application/state/unsaved-changes";
+import { reloadProjectFromDisk } from "../workspace/reload-from-disk";
 import { setBusy } from "../workspace/ui-state/shell-ui-state";
 import type { WorkspaceServices } from "../workspace/workspace-services-context";
 import { refreshDiffAfterStatusChange } from "./git-diff-session";
 import { reloadHistoryIfShown } from "./git-view-refresh";
-import {
-  captureView,
-  reopenDocuments,
-  restoreActive,
-  restoreDiffTabs,
-  restoreTabOrder,
-} from "./git-view-restore";
 
 export type GitFlowServices = Pick<
   WorkspaceServices,
@@ -85,41 +79,11 @@ async function saveBeforePull(services: GitFlowServices): Promise<boolean> {
   return (await actions.saveAll()).ok;
 }
 
-// Closes every open Document unsaved, reads the Project again and brings the Documents and
-// the view back. Nothing is unsaved by now (saved before the pull), and nothing is written
-// here: the Project reload saves only what is dirty, and no Document is open any more.
+// After the pull rewrote files: every Document is read again from disk (`reloadProjectFromDisk`)
+// and the history shown follows HEAD. A failure is already reported where it happened.
 async function reloadAfterPull(services: GitFlowServices): Promise<void> {
-  const { actions } = services;
-  const { uiStateStore } = services;
-  const view = captureView(services);
-  // Reopening the Project resets the UI state with its notifications, which would wipe the
-  // pull failure (a conflict!) the user has to see. They are put back afterwards.
-  const { operationErrors, nextOperationErrorId } = uiStateStore.getState();
-  for (const documentId of view.openDocumentIds) {
-    const closed = await actions.closeDocumentWithoutSaving(documentId);
-    // Reloading with a Document still open could write it over git's files.
-    if (!closed.ok) return;
-  }
-  const reopened = await actions.reopenProject();
-  // Not reopened: the Project is closed, so there is nothing to bring back.
-  if (reopened.ok && !reopened.value) return;
-  restoreDiffTabs(services, view);
-  uiStateStore.setState((state) => ({
-    ...state,
-    // Ids stay unique: whatever the reopen itself reported follows the earlier ones.
-    operationErrors: [
-      ...operationErrors,
-      ...state.operationErrors.map((entry) => ({
-        ...entry,
-        id: entry.id + nextOperationErrorId,
-      })),
-    ],
-    nextOperationErrorId: state.nextOperationErrorId + nextOperationErrorId,
-  }));
-  await reopenDocuments(services, view.openDocumentIds, view);
-  restoreTabOrder(services, view);
-  await restoreActive(services, view);
-  reloadHistoryIfShown(services);
+  const reloaded = await reloadProjectFromDisk(services);
+  if (reloaded.ok) reloadHistoryIfShown(services);
 }
 
 // The pull with its safety steps; the caller holds the busy state.

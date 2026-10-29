@@ -4,17 +4,20 @@ import { parseThemePreference } from "../../application/local-state/theme";
 import type {
   AppRequestSource,
   OpenDocumentRequest,
+  ProjectFilesNotice,
   SettingsChange,
 } from "../../application/ports/app-request-source";
-import { parseDocumentId } from "../../domain/shared/entity-id";
+import { parseDocumentId, parseProjectId } from "../../domain/shared/entity-id";
 import { COMMANDS } from "./command-constants";
 import { commandOk } from "./command-error";
 import { call } from "./invoke-command";
+import { toExternalChanges } from "./persistence-payloads";
 
 // `kind` of the notification Rust sends; it must match `AppNotification` in
 // `src-tauri/src/commands/app_channel.rs`.
 const OPEN_DOCUMENT_KIND = "openDocument";
 const SETTINGS_CHANGED_KIND = "settingsChanged";
+const PROJECT_FILES_CHANGED_KIND = "projectFilesChanged";
 
 function toOpenDocumentRequest(message: unknown): OpenDocumentRequest | null {
   if (typeof message !== "object" || message === null) return null;
@@ -53,11 +56,25 @@ function toSettingsChange(message: unknown): SettingsChange | null {
     : null;
 }
 
+function toProjectFilesNotice(message: unknown): ProjectFilesNotice | null {
+  if (typeof message !== "object" || message === null) return null;
+  const { kind, projectId } = message as Record<string, unknown>;
+  if (kind !== PROJECT_FILES_CHANGED_KIND || typeof projectId !== "string") {
+    return null;
+  }
+  const parsedProjectId = parseProjectId(projectId);
+  const changes = toExternalChanges(message);
+  return parsedProjectId.ok && changes.ok
+    ? { projectId: parsedProjectId.value, changes: changes.value }
+    : null;
+}
+
 // Requests arrive on an IPC channel for the same reason as close requests: listening to
 // events would need a `core:*` permission, which the capability does not grant.
 export function createTauriAppRequestSource(): AppRequestSource {
   const listeners = new Set<(request: OpenDocumentRequest) => void>();
   const settingsListeners = new Set<(change: SettingsChange) => void>();
+  const projectFilesListeners = new Set<(notice: ProjectFilesNotice) => void>();
   let channel: Channel<unknown> | null = null;
 
   // A malformed message can only come from a bug on the Rust side. It stays
@@ -69,8 +86,13 @@ export function createTauriAppRequestSource(): AppRequestSource {
       return;
     }
     const change = toSettingsChange(message);
-    if (change === null) return;
-    for (const listener of [...settingsListeners]) listener(change);
+    if (change !== null) {
+      for (const listener of [...settingsListeners]) listener(change);
+      return;
+    }
+    const notice = toProjectFilesNotice(message);
+    if (notice === null) return;
+    for (const listener of [...projectFilesListeners]) listener(notice);
   }
 
   // One channel per source, created on the first subscription: Rust keeps only the latest
@@ -102,6 +124,13 @@ export function createTauriAppRequestSource(): AppRequestSource {
       settingsListeners.add(listener);
       return () => {
         settingsListeners.delete(listener);
+      };
+    },
+    subscribeProjectFiles(listener) {
+      ensureSubscribed();
+      projectFilesListeners.add(listener);
+      return () => {
+        projectFilesListeners.delete(listener);
       };
     },
     acknowledgeOpenRequest(requestId) {

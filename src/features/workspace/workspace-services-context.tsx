@@ -1,4 +1,5 @@
 import { createContext, type ReactNode, useContext } from "react";
+import type { ExternalChangeController } from "../../application/external-change/external-change-controller";
 import type { GitController } from "../../application/git/git-controller";
 import type { ProjectWriteSignal } from "../../application/git/project-write-signal";
 import type { LanguageController } from "../../application/language/language-controller";
@@ -65,6 +66,9 @@ export interface WorkspaceServices {
   // it triggers (see `useGitAutoRefresh`).
   readonly projectWriteSignal: ProjectWriteSignal;
   readonly gitRefreshScheduler: Scheduler;
+  // Files changed outside the app (docs/architecture.md §14); the UI shows its state and
+  // forwards the user's choices.
+  readonly externalChangeController: ExternalChangeController;
 }
 
 const WorkspaceServicesContext = createContext<WorkspaceServices | null>(null);

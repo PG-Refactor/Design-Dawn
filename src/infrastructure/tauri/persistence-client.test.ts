@@ -17,8 +17,11 @@ import { parseSheet } from "../../domain/sheet/sheet";
 import { COMMANDS } from "./command-constants";
 import type { CommandResult } from "./command-error";
 import {
+  acceptDiskState,
+  checkExternalChanges,
   closeDocument,
   closeProject,
+  compareBlockContent,
   createBlockContent,
   createDocument,
   createFolder,
@@ -85,8 +88,10 @@ const rawIssue = {
   entityId: null,
   detail: "no block references this file",
 };
+const SESSION_GENERATION = 7;
 const rawProjectSnapshot = {
   project: rawProject,
+  sessionGeneration: SESSION_GENERATION,
   folders: [],
   documents: [
     {
@@ -222,6 +227,127 @@ describe("open_project_in_new_window payloads", () => {
   });
 });
 
+describe("external change commands", () => {
+  const rawChanges = {
+    sessionGeneration: SESSION_GENERATION,
+    watching: true,
+    rescan: true,
+    project: {
+      structure: false,
+      files: [{ path: "project.json", change: "modified", readable: true }],
+    },
+    documents: [
+      {
+        documentId: DOCUMENT_ID,
+        files: [
+          {
+            path: "sheets/overview/blocks/markdown-1.md",
+            change: "removed",
+            readable: false,
+          },
+        ],
+      },
+    ],
+  };
+
+  it("sends only the project id and converts the report", async () => {
+    invokeMock.mockResolvedValue(rawChanges);
+    const result = await checkExternalChanges(projectId);
+    expect(invokeMock).toHaveBeenCalledWith(COMMANDS.checkExternalChanges, {
+      projectId: PROJECT_ID,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.sessionGeneration).toBe(SESSION_GENERATION);
+    expect(result.value.documents[0]?.documentId).toBe(DOCUMENT_ID);
+    expect(result.value.documents[0]?.files[0]?.change).toBe("removed");
+    expect(result.value.project.files[0]?.readable).toBe(true);
+  });
+
+  it("rejects an unknown change kind or a malformed document id", async () => {
+    invokeMock.mockResolvedValue({
+      ...rawChanges,
+      project: {
+        structure: false,
+        files: [{ path: "project.json", change: "renamed", readable: true }],
+      },
+    });
+    expectFailure(
+      await checkExternalChanges(projectId),
+      "invalidCommandResponse",
+    );
+    invokeMock.mockResolvedValue({
+      ...rawChanges,
+      documents: [{ documentId: "not-an-id", files: [] }],
+    });
+    expectFailure(await checkExternalChanges(projectId), "invalidEntityId");
+  });
+
+  it("sends the document id, or null for the Project level, for accept_disk_state", async () => {
+    invokeMock.mockResolvedValue(null);
+    expect((await acceptDiskState(projectId, documentId)).ok).toBe(true);
+    expect(invokeMock).toHaveBeenLastCalledWith(COMMANDS.acceptDiskState, {
+      projectId: PROJECT_ID,
+      documentId: DOCUMENT_ID,
+    });
+    await acceptDiskState(projectId, null);
+    expect(invokeMock).toHaveBeenLastCalledWith(COMMANDS.acceptDiskState, {
+      projectId: PROJECT_ID,
+      documentId: null,
+    });
+  });
+});
+
+describe("compare_block_content", () => {
+  it("sends the committed text and decodes every outcome", async () => {
+    invokeMock.mockResolvedValue({ outcome: "text", diff: "--- disk\n" });
+    const result = await compareBlockContent(
+      projectId,
+      documentId,
+      contentPath,
+      "memory text",
+    );
+    expect(invokeMock).toHaveBeenCalledWith(COMMANDS.compareBlockContent, {
+      projectId: PROJECT_ID,
+      documentId: DOCUMENT_ID,
+      contentPath: CONTENT_PATH,
+      text: "memory text",
+    });
+    expect(result.ok && result.value).toEqual({
+      outcome: "text",
+      diff: "--- disk\n",
+    });
+    for (const payload of [
+      { outcome: "identical" },
+      { outcome: "removedOnDisk" },
+      { outcome: "notUtf8" },
+      { outcome: "tooLarge", limitBytes: 1024 },
+    ]) {
+      invokeMock.mockResolvedValue(payload);
+      const decoded = await compareBlockContent(
+        projectId,
+        documentId,
+        contentPath,
+        "",
+      );
+      expect(decoded.ok && decoded.value).toEqual(payload);
+    }
+  });
+
+  it("rejects an unknown outcome and a text outcome without its diff", async () => {
+    invokeMock.mockResolvedValue({ outcome: "somethingNew" });
+    expectFailure(
+      await compareBlockContent(projectId, documentId, contentPath, ""),
+      "invalidCommandResponse",
+    );
+    invokeMock.mockResolvedValue({ outcome: "text" });
+    expectFailure(
+      await compareBlockContent(projectId, documentId, contentPath, ""),
+      "invalidCommandResponse",
+    );
+  });
+});
+
 describe("successful conversion", () => {
   it("sends only the project id for reload_project and converts the snapshot", async () => {
     invokeMock.mockResolvedValue(rawProjectSnapshot);
@@ -230,6 +356,9 @@ describe("successful conversion", () => {
       projectId: PROJECT_ID,
     });
     expect(result.ok && result.value.project.projectId).toBe(PROJECT_ID);
+    expect(result.ok && result.value.sessionGeneration).toBe(
+      SESSION_GENERATION,
+    );
   });
 
   it("turns an open_project payload into domain values", async () => {
@@ -408,6 +537,7 @@ const CHILD_FOLDER_ID = "01928f3a-2000-7000-8000-000000000002";
 
 const rawFolderTreeSnapshot = {
   project: { ...rawProject, childOrder: [FOLDER_ID] },
+  sessionGeneration: SESSION_GENERATION,
   folders: [
     {
       folderId: FOLDER_ID,

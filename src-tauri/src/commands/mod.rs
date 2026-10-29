@@ -6,6 +6,7 @@
 mod app_channel;
 mod asset_protocol;
 mod drag_drop;
+mod external_watch;
 mod folder_picker;
 mod open_dispatch;
 mod window_close;
@@ -21,10 +22,11 @@ use crate::application::asset_import::{
     copy_asset_to_document as copy_asset, import_dropped_images as import_dropped, CopiedAsset,
     DropImportResult,
 };
-use crate::application::block_content_operations as block_content;
+use crate::application::block_content_operations::{self as block_content, BlockContentComparison};
 use crate::application::document_operations as documents;
 use crate::application::dropped_files::DroppedFilesState;
 use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
+use crate::application::external_change::{self, ExternalChanges};
 use crate::application::folder_operations as folders;
 use crate::application::folder_selection::{
     resolve_selection, select_project_folder as select_folder, FolderPicker, FolderSelection,
@@ -56,7 +58,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 53] = [
+pub const COMMAND_NAMES: [&str; 56] = [
     "select_project_folder",
     "create_project",
     "open_project",
@@ -110,11 +112,15 @@ pub const COMMAND_NAMES: [&str; 53] = [
     "git_push",
     "git_publish",
     "git_remotes",
+    "check_external_changes",
+    "accept_disk_state",
+    "compare_block_content",
 ];
 
 pub use app_channel::{AppNotification, AppNotificationSink, AppRequestHub, AppRequestSubscriber};
 pub use asset_protocol::{respond_to_asset_request, ASSET_URL_SCHEME};
 pub use drag_drop::{DropNotification, DropSubscriber};
+pub use external_watch::install_external_change_watching;
 pub use folder_picker::DialogFolderPicker;
 pub use open_dispatch::{
     dispatch_in_background, handle_second_launch, placement_following, reroute_unacknowledged,
@@ -600,6 +606,29 @@ pub fn write_block_content<R: Runtime>(
     })
 }
 
+/// Compares a Block's committed text (sent by the Frontend; drafts are not part of it) with
+/// the file on disk, for the "compare" choice of an external change (docs/architecture.md
+/// §14.9). Read-only.
+#[tauri::command]
+pub fn compare_block_content<R: Runtime>(
+    window: Window<R>,
+    state: SessionState<'_>,
+    project_id: String,
+    document_id: String,
+    content_path: String,
+    text: String,
+) -> Result<BlockContentComparison, ApplicationError> {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
+        block_content::compare_block_content(
+            sessions,
+            &project_id,
+            &document_id,
+            &content_path,
+            &text,
+        )
+    })
+}
+
 #[tauri::command]
 pub fn delete_block_content<R: Runtime>(
     window: Window<R>,
@@ -632,6 +661,33 @@ pub fn restore_block_content<R: Runtime>(
             &content_path,
             &text,
         )
+    })
+}
+
+/// Compares the Project's recorded files with the disk and reports what changed behind the
+/// app's back (docs/architecture.md §14.4). Read-only: nothing is saved or re-recorded.
+#[tauri::command]
+pub fn check_external_changes<R: Runtime>(
+    window: Window<R>,
+    state: SessionState<'_>,
+    project_id: String,
+) -> Result<ExternalChanges, ApplicationError> {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
+        external_change::check_external_changes(sessions, &project_id)
+    })
+}
+
+/// The user chose to overwrite the files that changed on disk: records their current state
+/// so the next save is allowed. `document_id` absent means the Project-level files.
+#[tauri::command]
+pub fn accept_disk_state<R: Runtime>(
+    window: Window<R>,
+    state: SessionState<'_>,
+    project_id: String,
+    document_id: Option<String>,
+) -> Result<(), ApplicationError> {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
+        external_change::accept_disk_state(sessions, &project_id, document_id.as_deref())
     })
 }
 

@@ -10,6 +10,7 @@ import {
   deleteBlocksCommand,
 } from "../../../application/commands/file-backed-commands";
 import { renameSheetCommand } from "../../../application/commands/naming-commands";
+import type { ExternalChangeController } from "../../../application/external-change/external-change-controller";
 import {
   createGitController,
   type GitController,
@@ -85,6 +86,7 @@ import {
   createViewportPersistence,
   type ViewportPersistence,
 } from "../../canvas/viewport-persistence";
+import { createAppExternalChangeController } from "../../external-change/create-external-change-controller";
 import { createDraftRegistry, type DraftRegistry } from "../draft-registry";
 import { addOperationError } from "../ui-state/shell-ui-state";
 import { createUiStateStore, type UiStateStore } from "../ui-state/ui-state";
@@ -116,6 +118,7 @@ export interface ActionsHarness extends WorkspaceHarness {
   // its saves without touching the theme / auto-save ones.
   readonly languageController: LanguageController;
   readonly languageGateway: FakeAppSettingsGateway;
+  readonly externalChangeController: ExternalChangeController;
   readonly services: WorkspaceServices;
 }
 
@@ -183,8 +186,17 @@ export function createActionsHarness(
         addOperationError(state, operation, null, error),
       ),
   });
+  const externalChangeController = createAppExternalChangeController({
+    gateway: base.signalingGateway,
+    workspace: base.workspace,
+    applicationStore: base.store,
+    uiStateStore,
+    actions,
+    draftRegistry,
+  });
   return {
     ...base,
+    externalChangeController,
     gitGateway,
     gitController,
     gitRefreshScheduler,
@@ -219,6 +231,7 @@ export function createActionsHarness(
       gitController,
       projectWriteSignal: base.writeSignal,
       gitRefreshScheduler,
+      externalChangeController,
     },
   };
 }

@@ -20,8 +20,10 @@ import { COMMANDS } from "./command-constants";
 import type { CommandResult } from "./command-error";
 import { call } from "./invoke-command";
 import {
+  toBlockContentComparison,
   toContentPathResult,
   toDocumentSnapshotResult,
+  toExternalChanges,
   toFolderSelectionResult,
   toFolderSnapshotResult,
   toOpenInNewWindowResult,
@@ -33,7 +35,9 @@ import {
   toVoidResult,
 } from "./persistence-payloads";
 import type {
+  BlockContentComparison,
   DocumentSnapshot,
+  ExternalChanges,
   FolderSelection,
   FolderSnapshot,
   OpenInNewWindowResult,
@@ -73,6 +77,40 @@ export function reloadProject(
   projectId: ProjectId,
 ): Promise<CommandResult<ProjectSnapshot>> {
   return call(COMMANDS.reloadProject, { projectId }, toProjectSnapshotResult);
+}
+
+// Full comparison of the Project's files with what the app last read or wrote. Read-only.
+export function checkExternalChanges(
+  projectId: ProjectId,
+): Promise<CommandResult<ExternalChanges>> {
+  return call(COMMANDS.checkExternalChanges, { projectId }, toExternalChanges);
+}
+
+// The user chose to overwrite the files that changed on disk; `documentId` null means the
+// Project-level files. Records their current state as the baseline for the next save.
+export function acceptDiskState(
+  projectId: ProjectId,
+  documentId: DocumentId | null,
+): Promise<CommandResult<null>> {
+  return call(
+    COMMANDS.acceptDiskState,
+    { projectId, documentId },
+    toVoidResult,
+  );
+}
+
+// Compares the committed text of a Block with its file on disk. Read-only.
+export function compareBlockContent(
+  projectId: ProjectId,
+  documentId: DocumentId,
+  contentPath: ContentPath,
+  text: string,
+): Promise<CommandResult<BlockContentComparison>> {
+  return call(
+    COMMANDS.compareBlockContent,
+    { projectId, documentId, contentPath, text },
+    toBlockContentComparison,
+  );
 }
 
 // The request a launch argument left for this window (consumed once; null when none). It

@@ -25,9 +25,11 @@ import {
   type Sheet,
 } from "../../domain/sheet/sheet";
 import {
+  BLOCK_COMPARISON_OUTCOMES,
   ENTITY_STATES,
   ENTRY_POINT_RESOLUTIONS,
   type EntityState,
+  FILE_CHANGE_KINDS,
   FOLDER_SELECTION_STATUS,
   LOAD_ISSUE_KINDS,
   OPEN_IN_NEW_WINDOW_STATUS,
@@ -45,8 +47,11 @@ import {
   oneOf,
 } from "./payload-decoder";
 import type {
+  BlockContentComparison,
+  ChangedFile,
   DocumentEntry,
   DocumentSnapshot,
+  ExternalChanges,
   FolderEntry,
   FolderSelection,
   FolderSnapshot,
@@ -117,6 +122,7 @@ interface RawFolderEntry {
 }
 interface RawProjectSnapshot {
   readonly project: RawProject;
+  readonly sessionGeneration: number;
   readonly folders: readonly RawFolderEntry[];
   readonly documents: readonly RawDocumentEntry[];
   readonly issues: readonly LoadIssue[];
@@ -142,6 +148,7 @@ const rawFolderEntry = objectOf<RawFolderEntry>({
 });
 const rawProjectSnapshot = objectOf<RawProjectSnapshot>({
   project: rawProject,
+  sessionGeneration: decodeNumber,
   folders: arrayOf(rawFolderEntry),
   documents: arrayOf(
     objectOf<RawDocumentEntry>({
@@ -247,6 +254,7 @@ function toProjectSnapshot(
   if (!documents.ok) return documents;
   return commandOk({
     project: project.value,
+    sessionGeneration: raw.sessionGeneration,
     folders: folders.value,
     documents: documents.value,
     issues: raw.issues,
@@ -397,6 +405,104 @@ export function toSheetSnapshotResult(
 ): CommandResult<SheetSnapshot> {
   const raw = decodePayload(rawSheetSnapshot, payload);
   return raw.ok ? toSheetSnapshot(raw.value) : raw;
+}
+
+const decodeChangedFile = objectOf<ChangedFile>({
+  path: decodeString,
+  change: oneOf(FILE_CHANGE_KINDS),
+  readable: decodeBoolean,
+});
+interface RawExternalChanges {
+  readonly sessionGeneration: number;
+  readonly watching: boolean;
+  readonly rescan: boolean;
+  readonly project: {
+    readonly structure: boolean;
+    readonly files: readonly ChangedFile[];
+  };
+  readonly documents: readonly {
+    readonly documentId: string;
+    readonly files: readonly ChangedFile[];
+  }[];
+}
+const rawExternalChanges = objectOf<RawExternalChanges>({
+  sessionGeneration: decodeNumber,
+  watching: decodeBoolean,
+  rescan: decodeBoolean,
+  project: objectOf<RawExternalChanges["project"]>({
+    structure: decodeBoolean,
+    files: arrayOf(decodeChangedFile),
+  }),
+  documents: arrayOf(
+    objectOf<RawExternalChanges["documents"][number]>({
+      documentId: decodeString,
+      files: arrayOf(decodeChangedFile),
+    }),
+  ),
+});
+
+// Shared by the `check_external_changes` result and the `projectFilesChanged` notification.
+export function toExternalChanges(
+  payload: unknown,
+): CommandResult<ExternalChanges> {
+  const raw = decodePayload(rawExternalChanges, payload);
+  if (!raw.ok) return raw;
+  const documents = mapAll(raw.value.documents, (entry) => {
+    const documentId = fromDomain(parseDocumentId(entry.documentId));
+    return documentId.ok
+      ? commandOk({ documentId: documentId.value, files: entry.files })
+      : documentId;
+  });
+  if (!documents.ok) return documents;
+  return commandOk({
+    sessionGeneration: raw.value.sessionGeneration,
+    watching: raw.value.watching,
+    rescan: raw.value.rescan,
+    project: raw.value.project,
+    documents: documents.value,
+  });
+}
+
+interface RawBlockContentComparison {
+  readonly outcome: BlockContentComparison["outcome"];
+  readonly diff?: string;
+  readonly limitBytes?: number;
+}
+
+export function toBlockContentComparison(
+  payload: unknown,
+): CommandResult<BlockContentComparison> {
+  const head = decodePayload(
+    objectOf<{ readonly outcome: RawBlockContentComparison["outcome"] }>({
+      outcome: oneOf(BLOCK_COMPARISON_OUTCOMES),
+    }),
+    payload,
+  );
+  if (!head.ok) return head;
+  switch (head.value.outcome) {
+    case "text": {
+      const text = decodePayload(
+        objectOf<{ readonly diff: string }>({ diff: decodeString }),
+        payload,
+      );
+      return text.ok
+        ? commandOk({ outcome: "text", diff: text.value.diff })
+        : text;
+    }
+    case "tooLarge": {
+      const large = decodePayload(
+        objectOf<{ readonly limitBytes: number }>({ limitBytes: decodeNumber }),
+        payload,
+      );
+      return large.ok
+        ? commandOk({ outcome: "tooLarge", limitBytes: large.value.limitBytes })
+        : large;
+    }
+    case "identical":
+    case "removedOnDisk":
+    case "notUtf8":
+      return commandOk({ outcome: head.value.outcome });
+  }
 }
 
 export function toSaveResult(payload: unknown): CommandResult<SaveResult> {

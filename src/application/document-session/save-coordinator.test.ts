@@ -277,3 +277,85 @@ describe("auto-save switched off", () => {
     expect(session.getState().save.dirtySheetIds.size).toBe(0);
   });
 });
+
+describe("saving suspended by an external change", () => {
+  const conflict = {
+    kind: "externalConflict",
+    detail: "changed outside",
+  } as const;
+
+  it("starts no timer and writes nothing while suspended, and keeps the changes dirty", async () => {
+    const { session, gateway, scheduler } = openSession();
+    session.suspendSaving(conflict);
+    await session.execute(moveFirst(1));
+    expect(scheduler.pendingCount()).toBe(0);
+    scheduler.advance(TEST_AUTO_SAVE_DELAY_MS * 2);
+    await settle();
+    expect(gateway.methods()).toEqual([]);
+    expect(session.getState().save.dirtySheetIds.has(SHEET_ID)).toBe(true);
+    expect(session.getState().save.lastError?.kind).toBe("externalConflict");
+  });
+
+  it("makes flush fail with externalConflict instead of saving", async () => {
+    const { session, gateway } = openSession();
+    await session.execute(moveFirst(1));
+    session.suspendSaving(conflict);
+    const flushed = await session.flush();
+    expect(flushed.ok).toBe(false);
+    if (!flushed.ok) expect(flushed.error.kind).toBe("externalConflict");
+    expect(gateway.methods()).toEqual([]);
+  });
+
+  it("shows no error and lets flush succeed while nothing is unsaved", async () => {
+    const { session } = openSession();
+    session.suspendSaving(conflict);
+    expect(session.getState().save.lastError).toBeNull();
+    expect((await session.flush()).ok).toBe(true);
+  });
+
+  it("saves again after resuming, restarting the timer for what is dirty", async () => {
+    const { session, gateway, scheduler } = openSession();
+    session.suspendSaving(conflict);
+    await session.execute(moveFirst(1));
+    session.resumeSaving();
+    expect(session.getState().save.lastError).toBeNull();
+    expect(scheduler.pendingCount()).toBe(1);
+    scheduler.advance(TEST_AUTO_SAVE_DELAY_MS);
+    await settle();
+    expect(gateway.methods()).toEqual(["saveSheet"]);
+  });
+
+  it("does not hide a different save error when it resumes", async () => {
+    const { session, gateway, scheduler } = openSession();
+    gateway.failOn("saveSheet", "ioError");
+    await session.execute(moveFirst(1));
+    scheduler.advance(TEST_AUTO_SAVE_DELAY_MS);
+    await settle();
+    session.suspendSaving(conflict);
+    await session.flush();
+    session.resumeSaving();
+    // The conflict error is gone, but the sheet is still dirty and can be retried.
+    expect(session.getState().save.dirtySheetIds.has(SHEET_ID)).toBe(true);
+    expect((await session.flush()).ok).toBe(true);
+  });
+
+  it("stops a file-backed command, which saves what is pending first", async () => {
+    const { session, gateway } = openSession();
+    await session.execute(moveFirst(1));
+    session.suspendSaving(conflict);
+    gateway.clearCalls();
+    const created = await session.execute(
+      createBlocksCommand(SHEET_ID, [
+        {
+          blockId: blockIdOf(10),
+          blockType: "markdown",
+          position: position(1, 1),
+          size: size(100, 80),
+          text: "alpha",
+        },
+      ]),
+    );
+    expect(created.ok).toBe(false);
+    expect(gateway.methods("createBlockContent", "saveSheet")).toEqual([]);
+  });
+});

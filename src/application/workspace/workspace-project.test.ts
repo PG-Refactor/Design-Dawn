@@ -102,6 +102,7 @@ describe("openProject", () => {
     );
     gateway.overrideProjectSnapshot("selection-bad", {
       project: { ...base, childOrder: [DOCUMENT_A, DOCUMENT_A] },
+      sessionGeneration: 1,
       folders: [],
       documents: [],
       issues: [],

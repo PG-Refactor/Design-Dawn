@@ -19,15 +19,15 @@ import type {
   DialogState,
   DiscardTarget,
 } from "../workspace/ui-state/ui-state";
-import type { WorkspaceServices } from "../workspace/workspace-services-context";
-import { refreshDiffAfterStatusChange } from "./git-diff-session";
 import {
   captureView,
   reopenDocuments,
   restoreActive,
   restoreDiffTabs,
   restoreTabOrder,
-} from "./git-view-restore";
+} from "../workspace/view-restore";
+import type { WorkspaceServices } from "../workspace/workspace-services-context";
+import { refreshDiffAfterStatusChange } from "./git-diff-session";
 
 export type GitDiscardServices = Pick<
   WorkspaceServices,

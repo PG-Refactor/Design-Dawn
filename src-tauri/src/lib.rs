@@ -116,6 +116,9 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::git_push,
             commands::git_publish,
             commands::git_remotes,
+            commands::check_external_changes,
+            commands::accept_disk_state,
+            commands::compare_block_content,
         ])
 }
 
@@ -151,6 +154,8 @@ pub fn run() {
                 local_data_dir: app.path().app_local_data_dir()?,
             };
             app.manage(LocalState::new(directories));
+            // Real file watching only in the running app: tests start no watcher threads.
+            commands::install_external_change_watching(app.handle());
             app.state::<Mutex<WindowRegistry>>()
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)

@@ -59,6 +59,7 @@ import {
 import {
   failWith,
   fromDomainResult,
+  type OperationError,
   type OperationResult,
   operationErr,
   operationOk,
@@ -129,6 +130,11 @@ export interface DocumentSession {
   flush(): Promise<OperationResult<void>>;
   // Called when auto-save is switched back on: pending changes get their debounce timer.
   resumeAutoSave(): void;
+  // The Document's files changed outside the app: stops every save (timer, flush, Ctrl/Cmd+S)
+  // with `error` while something is unsaved. The session stays open and editable
+  // (docs/architecture.md §14.7). `resumeSaving` lifts it.
+  suspendSaving(error: OperationError): void;
+  resumeSaving(): void;
   // For when a sheet is deleted: no history entry may reference it any more.
   clearHistory(): void;
   // Runs `task` on the serial queue, so it cannot interleave with commands or
@@ -550,6 +556,8 @@ export function createDocumentSession(
       ),
     flush: () => queued(() => coordinator.saveDirty()),
     resumeAutoSave: () => coordinator.resumeAutoSave(),
+    suspendSaving: (error) => coordinator.suspendSaving(error),
+    resumeSaving: () => coordinator.resumeSaving(),
     clearHistory() {
       undoStack = [];
       redoStack = [];

@@ -32,3 +32,6 @@ export function diffTabId(path: string, side: string): string {
 }
 
 export const DIFF_PANEL_ID = "diff-panel";
+
+export const COMPARE_TAB_ID = "compare-tab";
+export const COMPARE_PANEL_ID = "compare-panel";

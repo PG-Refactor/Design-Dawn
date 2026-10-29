@@ -5,6 +5,7 @@
 import type { DocumentId, SheetId } from "../../../domain/shared/entity-id";
 import {
   createInitialUiState,
+  DOCUMENT_MAIN_TAB,
   type Interaction,
   type UiState,
 } from "./ui-state";
@@ -86,6 +87,17 @@ export function removeDocumentReferences(
   }
   if (next.activeDocumentId === documentId) {
     next = { ...next, activeDocumentId: null };
+  }
+  // A comparison of that Document's file ends with it.
+  if (next.compareTab?.documentId === documentId) {
+    next = {
+      ...next,
+      compareTab: null,
+      activeMainTab:
+        next.activeMainTab.kind === "compare"
+          ? DOCUMENT_MAIN_TAB
+          : next.activeMainTab,
+    };
   }
   // Document and sheet renames of that document end with it.
   if (
