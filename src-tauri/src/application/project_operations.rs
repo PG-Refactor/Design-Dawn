@@ -112,9 +112,11 @@ pub fn create_project(
         Err(error) if error.kind == PersistenceErrorKind::AlreadyExists => {}
         Err(error) => return Err(error.into()),
     }
+    let session_generation = session.generation();
     sessions.insert(session);
     Ok(ProjectSnapshot {
         project: dto,
+        session_generation,
         folders: Vec::new(),
         documents: Vec::new(),
         issues: Vec::new(),
@@ -225,13 +227,14 @@ pub fn load_project(project_root: &Path) -> ApplicationResult<LoadedProject> {
     project_dto.child_order = tree.child_order;
     session.replace_tree(document_records, folder_records);
     Ok(LoadedProject {
-        session,
         snapshot: ProjectSnapshot {
             project: project_dto,
+            session_generation: session.generation(),
             folders,
             documents,
             issues,
         },
+        session,
     })
 }
 

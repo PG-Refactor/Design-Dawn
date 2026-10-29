@@ -54,6 +54,8 @@ import {
   setThemePreference,
 } from "./local-state-client";
 import {
+  acceptDiskState,
+  checkExternalChanges,
   closeDocument,
   createBlockContent,
   createDocument,
@@ -122,6 +124,10 @@ type Wrapper = (args: Args) => Promise<CommandResult<unknown>>;
 const id = {
   project: (args: Args) => unwrap(parseProjectId(args.projectId as string)),
   document: (args: Args) => unwrap(parseDocumentId(args.documentId as string)),
+  optionalDocument: (args: Args) =>
+    args.documentId === null || args.documentId === undefined
+      ? null
+      : unwrap(parseDocumentId(args.documentId as string)),
   sheet: (args: Args) => unwrap(parseSheetId(args.sheetId as string)),
   contentPath: (args: Args) =>
     unwrap(parseContentPath(args.contentPath as string)),
@@ -159,6 +165,9 @@ const WRAPPERS: Readonly<Record<string, Wrapper>> = {
   select_project_folder: () => selectProjectFolder(),
   open_project: (args) => openProject(args.selectionId as string),
   reload_project: (args) => reloadProject(id.project(args)),
+  check_external_changes: (args) => checkExternalChanges(id.project(args)),
+  accept_disk_state: (args) =>
+    acceptDiskState(id.project(args), id.optionalDocument(args)),
   create_project: (args) =>
     createProject(
       args.selectionId as string,

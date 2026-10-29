@@ -56,6 +56,8 @@ export const COMMANDS = {
   gitPush: "git_push",
   gitPublish: "git_publish",
   gitRemotes: "git_remotes",
+  checkExternalChanges: "check_external_changes",
+  acceptDiskState: "accept_disk_state",
 } as const;
 
 export type CommandName = (typeof COMMANDS)[keyof typeof COMMANDS];
@@ -79,6 +81,7 @@ export {
   ENTITY_STATES,
   ENTRY_POINT_RESOLUTIONS,
   type EntityState,
+  FILE_CHANGE_KINDS,
   FOLDER_SELECTION_STATUS,
   LOAD_ISSUE_KINDS,
   type LoadIssueKind,

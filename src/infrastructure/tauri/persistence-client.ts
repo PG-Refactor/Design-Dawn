@@ -22,6 +22,7 @@ import { call } from "./invoke-command";
 import {
   toContentPathResult,
   toDocumentSnapshotResult,
+  toExternalChanges,
   toFolderSelectionResult,
   toFolderSnapshotResult,
   toOpenInNewWindowResult,
@@ -34,6 +35,7 @@ import {
 } from "./persistence-payloads";
 import type {
   DocumentSnapshot,
+  ExternalChanges,
   FolderSelection,
   FolderSnapshot,
   OpenInNewWindowResult,
@@ -73,6 +75,26 @@ export function reloadProject(
   projectId: ProjectId,
 ): Promise<CommandResult<ProjectSnapshot>> {
   return call(COMMANDS.reloadProject, { projectId }, toProjectSnapshotResult);
+}
+
+// Full comparison of the Project's files with what the app last read or wrote. Read-only.
+export function checkExternalChanges(
+  projectId: ProjectId,
+): Promise<CommandResult<ExternalChanges>> {
+  return call(COMMANDS.checkExternalChanges, { projectId }, toExternalChanges);
+}
+
+// The user chose to overwrite the files that changed on disk; `documentId` null means the
+// Project-level files. Records their current state as the baseline for the next save.
+export function acceptDiskState(
+  projectId: ProjectId,
+  documentId: DocumentId | null,
+): Promise<CommandResult<null>> {
+  return call(
+    COMMANDS.acceptDiskState,
+    { projectId, documentId },
+    toVoidResult,
+  );
 }
 
 // The request a launch argument left for this window (consumed once; null when none). It

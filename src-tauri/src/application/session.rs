@@ -5,6 +5,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde_json::Value;
 
@@ -51,6 +52,20 @@ impl HashLedger {
 
     pub fn len(&self) -> usize {
         self.hashes.len()
+    }
+
+    /// Every recorded `(path, hash)`, in path order.
+    pub fn entries(&self) -> impl Iterator<Item = (&str, &str)> {
+        self.hashes
+            .iter()
+            .map(|(path, hash)| (path.as_str(), hash.as_str()))
+    }
+
+    /// Whether `bytes` are exactly what was last recorded for the path. `None` when the path
+    /// was never read or written, so there is nothing to compare with.
+    pub fn matches(&self, relative_path: &str, bytes: &[u8]) -> Option<bool> {
+        self.hash_of(relative_path)
+            .map(|recorded| recorded == sha256_hex(bytes))
     }
 
     pub fn is_empty(&self) -> bool {
@@ -130,10 +145,19 @@ pub struct DocumentRecord {
     pub sheets: BTreeMap<SheetId, SheetRecord>,
 }
 
+/// Source of `ProjectSession::generation`. Process-wide so that a session opened again for the
+/// same Project (reload, reopen) always has a number no earlier session had.
+static NEXT_SESSION_GENERATION: AtomicU64 = AtomicU64::new(FIRST_SESSION_GENERATION);
+const FIRST_SESSION_GENERATION: u64 = 1;
+
 #[derive(Debug)]
 pub struct ProjectSession {
     root: PathBuf,
     project_id: ProjectId,
+    /// Tells the Frontend which read of the Project a notification belongs to
+    /// (docs/architecture.md §14.4): a notification made for an earlier session of the same
+    /// Project describes files the Frontend has since read again.
+    generation: u64,
     documents: BTreeMap<DocumentId, DocumentRecord>,
     folders: BTreeMap<FolderId, FolderRecord>,
     ledger: HashLedger,
@@ -183,6 +207,7 @@ impl ProjectSession {
         Self {
             root,
             project_id,
+            generation: NEXT_SESSION_GENERATION.fetch_add(1, Ordering::Relaxed),
             documents: BTreeMap::new(),
             folders: BTreeMap::new(),
             ledger,
@@ -196,6 +221,10 @@ impl ProjectSession {
 
     pub fn project_id(&self) -> &ProjectId {
         &self.project_id
+    }
+
+    pub fn generation(&self) -> u64 {
+        self.generation
     }
 
     pub fn ledger(&self) -> &HashLedger {
@@ -278,7 +307,45 @@ impl ProjectSession {
         read_json_value(&self.root, &mut self.ledger, base_relative, relative)
     }
 
-    /// Atomic overwrite (or recreation of a file removed externally).
+    /// Whether the session has read or written this file, so an external removal of it is a
+    /// change (and not a file that was never there to begin with).
+    pub fn has_record(&self, base_relative: &str, relative: &str) -> bool {
+        self.ledger
+            .hash_of(&join_key(base_relative, relative))
+            .is_some()
+    }
+
+    /// Fails with `externallyModified` when the file this session has read or written is no
+    /// longer what it recorded (changed, replaced or removed outside the app, docs/architecture.md
+    /// §14.6): the write would discard that change. A path the session never read or wrote
+    /// has nothing to compare with and passes.
+    fn ensure_unchanged_since_recorded(
+        &self,
+        key: &str,
+        path: &Path,
+    ) -> Result<(), PersistenceError> {
+        if self.ledger.hash_of(key).is_none() {
+            return Ok(());
+        }
+        match fs::read(path) {
+            Ok(bytes) if self.ledger.matches(key, &bytes) == Some(true) => Ok(()),
+            Ok(_) => Err(PersistenceError::new(
+                PersistenceErrorKind::ExternallyModified,
+                format!("{key:?} changed on disk since it was last read or written"),
+            )),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                Err(PersistenceError::new(
+                    PersistenceErrorKind::ExternallyModified,
+                    format!("{key:?} was removed from disk since it was last read or written"),
+                ))
+            }
+            Err(error) => Err(PersistenceError::from_io(format!("read {key:?}"), &error)),
+        }
+    }
+
+    /// Atomic overwrite. Refuses (`externallyModified`) when the file changed or disappeared
+    /// outside the app since the session last read or wrote it, so an external edit is never
+    /// overwritten silently; `accept_disk_state` is the explicit way past that.
     pub fn write_file(
         &mut self,
         base_relative: &str,
@@ -287,6 +354,7 @@ impl ProjectSession {
     ) -> Result<WriteOutcome, PersistenceError> {
         let base = resolve_existing(&self.root, base_relative)?;
         let path = resolve_for_write(&base, relative)?;
+        self.ensure_unchanged_since_recorded(&join_key(base_relative, relative), &path)?;
         let outcome = write_atomic(&path, bytes)?;
         self.ledger
             .record(&join_key(base_relative, relative), bytes);
@@ -395,6 +463,33 @@ impl ProjectSession {
             document != document_id
                 || sheet_directory.is_some_and(|forgotten| forgotten != directory)
         });
+    }
+
+    /// The user chose to overwrite what is on disk (docs/architecture.md §14.6, §14.9):
+    /// every recorded file under `scope_prefix` is recorded again as it is now, and a file that
+    /// is gone is forgotten so a save can create it again. Files outside the scope keep their
+    /// record. A file that cannot be read for another reason keeps its record, so a later
+    /// save still refuses it.
+    pub fn accept_disk_state(&mut self, in_scope: impl Fn(&str) -> bool) {
+        let paths: Vec<String> = self
+            .ledger
+            .entries()
+            .map(|(path, _)| path.to_owned())
+            .filter(|path| in_scope(path))
+            .collect();
+        for path in paths {
+            match resolve_existing(&self.root, &path) {
+                Ok(resolved) => {
+                    if let Ok(bytes) = fs::read(resolved) {
+                        self.ledger.record(&path, &bytes);
+                    }
+                }
+                Err(error) if error.kind == PersistenceErrorKind::FileNotFound => {
+                    self.ledger.forget(&path);
+                }
+                Err(_) => {}
+            }
+        }
     }
 
     pub fn forget_ledger_under(&mut self, directory_relative: &str) {
@@ -565,9 +660,10 @@ impl ProjectSession {
         // Containment is proven on the resolved target, but the entry itself is removed:
         // if it is a symlink, deleting the resolved target would destroy another file
         // (for example a different Block's content) instead of this Block's link.
-        self.resolve_existing_path(base_relative, relative)?;
+        let target = self.resolve_existing_path(base_relative, relative)?;
         let base = resolve_existing(&self.root, base_relative)?;
         let path = resolve_for_create(&base, relative)?;
+        self.ensure_unchanged_since_recorded(&join_key(base_relative, relative), &target)?;
         fs::remove_file(&path)
             .map_err(|error| PersistenceError::from_io(format!("remove {relative:?}"), &error))?;
         self.ledger.forget(&join_key(base_relative, relative));

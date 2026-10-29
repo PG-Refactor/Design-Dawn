@@ -116,6 +116,8 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::git_push,
             commands::git_publish,
             commands::git_remotes,
+            commands::check_external_changes,
+            commands::accept_disk_state,
         ])
 }
 

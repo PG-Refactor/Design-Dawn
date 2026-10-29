@@ -186,7 +186,16 @@ pub fn write_block_content(
     let base = session.document_base(&document_id)?;
     // Saving never creates content: a missing file (a `missingContent` issue) stays an error
     // until the user restores it, instead of silently starting an empty replacement.
-    session.resolve_existing_path(&base, content_path)?;
+    // A file this session read or wrote that is gone now was removed outside the app: that
+    // is reported by `write_file` as `externallyModified`, not as an ordinary missing file.
+    match session.resolve_existing_path(&base, content_path) {
+        Err(error)
+            if error.kind == PersistenceErrorKind::FileNotFound
+                && session.has_record(&base, content_path) => {}
+        other => {
+            other?;
+        }
+    }
     let outcome = session.write_file(&base, content_path, &encode_text(text))?;
     Ok(SaveResult {
         written: outcome == WriteOutcome::Written,

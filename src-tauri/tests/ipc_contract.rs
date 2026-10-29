@@ -139,9 +139,16 @@ struct Comparison<'a> {
 impl Comparison<'_> {
     fn compare(&mut self, path: &str, expected: &Value, actual: &Value) {
         if self.string_only_paths.contains(&path) {
-            if !matches!(actual, Value::String(text) if !text.is_empty()) {
-                self.mismatches
-                    .push(format!("{path}: expected a non-empty string, got {actual}"));
+            // Ids and counters issued by Rust differ on every run: only their kind is pinned.
+            let is_issued_value = match actual {
+                Value::String(text) => !text.is_empty(),
+                Value::Number(number) => number.as_u64().is_some_and(|value| value >= 1),
+                _ => false,
+            };
+            if !is_issued_value {
+                self.mismatches.push(format!(
+                    "{path}: expected a non-empty string or a positive integer, got {actual}"
+                ));
             }
             return;
         }

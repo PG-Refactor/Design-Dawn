@@ -70,6 +70,10 @@ export interface DocumentEntry {
 // `project.childOrder` is the effective order (unlisted appended, missing dropped).
 export interface ProjectSnapshot {
   readonly project: Project;
+  // Which read of the Project this is. Change notifications carry the same number, so one
+  // made for an earlier read (before a reload or reopen) is recognized and dropped
+  // (docs/architecture.md §14.4).
+  readonly sessionGeneration: number;
   readonly folders: readonly FolderEntry[];
   readonly documents: readonly DocumentEntry[];
   readonly issues: readonly LoadIssue[];
@@ -98,6 +102,43 @@ export interface DocumentSnapshot {
   readonly document: Document;
   readonly sheets: readonly SheetSnapshot[];
   readonly issues: readonly LoadIssue[];
+}
+
+// --- External changes (docs/architecture.md §14.4) ---
+
+export const FILE_CHANGE_KINDS = ["modified", "removed"] as const;
+export type FileChangeKind = (typeof FILE_CHANGE_KINDS)[number];
+
+// One file that no longer matches what the app last read or wrote. `path` is relative to the
+// Document root (for a Document) or to the Project root (for the Project level), never absolute.
+export interface ChangedFile {
+  readonly path: string;
+  readonly change: FileChangeKind;
+  // The new content can be read back (valid UTF-8, valid JSON for metadata). A removed file
+  // is not readable. A reload happens by itself only when everything that changed is.
+  readonly readable: boolean;
+}
+
+export interface DocumentFileChanges {
+  readonly documentId: DocumentId;
+  readonly files: readonly ChangedFile[];
+}
+
+// `project.json`, `folder.json` files, and whether the set of Documents / Folders on disk
+// differs from what the app knows.
+export interface ProjectFileChanges {
+  readonly structure: boolean;
+  readonly files: readonly ChangedFile[];
+}
+
+// The result of `checkExternalChanges` and the payload of the `projectFilesChanged`
+// notification. Only open Documents are listed.
+export interface ExternalChanges {
+  readonly sessionGeneration: number;
+  // The report covers everything (a full comparison) and not just the files an event named.
+  readonly rescan: boolean;
+  readonly project: ProjectFileChanges;
+  readonly documents: readonly DocumentFileChanges[];
 }
 
 export const ENTRY_POINT_RESOLUTIONS = ["path", "idScan"] as const;

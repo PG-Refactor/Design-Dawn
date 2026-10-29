@@ -17,6 +17,9 @@ export const PERSISTENCE_ERROR_KINDS = [
   "fileNotFound",
   "alreadyExists",
   "ioError",
+  // The file changed (or was removed) outside the app since the app last read or wrote it,
+  // so a save would discard that change (docs/architecture.md §14.6).
+  "externallyModified",
 ] as const;
 
 // `entityNotFound` is already part of the domain kinds in TypeScript.

@@ -51,6 +51,9 @@ pub struct DocumentEntry {
 #[serde(rename_all = "camelCase")]
 pub struct ProjectSnapshot {
     pub project: ProjectDto,
+    /// Which read of the Project this is; notifications carry the same number
+    /// (docs/architecture.md §14.4).
+    pub session_generation: u64,
     pub folders: Vec<FolderEntry>,
     pub documents: Vec<DocumentEntry>,
     pub issues: Vec<LoadIssue>,

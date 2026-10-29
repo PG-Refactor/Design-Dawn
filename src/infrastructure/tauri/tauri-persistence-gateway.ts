@@ -2,6 +2,8 @@ import { mapOperationResult } from "../../application/ports/operation-error";
 import type { PersistenceGateway } from "../../application/ports/persistence-gateway";
 import { copyAssetToDocument, importDroppedImages } from "./asset-client";
 import {
+  acceptDiskState,
+  checkExternalChanges,
   closeDocument,
   closeProject,
   createBlockContent,
@@ -39,6 +41,9 @@ export function createTauriPersistenceGateway(): PersistenceGateway {
     selectProjectFolder,
     openProject,
     reloadProject,
+    checkExternalChanges,
+    acceptDiskState: async (projectId, documentId) =>
+      mapOperationResult(await acceptDiskState(projectId, documentId), discard),
     openProjectInNewWindow,
     takeOpenRequest,
     closeProject: async () => mapOperationResult(await closeProject(), discard),

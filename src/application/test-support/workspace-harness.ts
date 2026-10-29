@@ -176,6 +176,7 @@ export function folderTreeSnapshot(): ProjectSnapshot {
         childOrder: [FOLDER_1, DOCUMENT_A, DOCUMENT_B],
       }),
     ),
+    sessionGeneration: 1,
     folders: [
       {
         folderId: FOLDER_1,

@@ -28,6 +28,7 @@ import {
   ENTITY_STATES,
   ENTRY_POINT_RESOLUTIONS,
   type EntityState,
+  FILE_CHANGE_KINDS,
   FOLDER_SELECTION_STATUS,
   LOAD_ISSUE_KINDS,
   OPEN_IN_NEW_WINDOW_STATUS,
@@ -45,8 +46,10 @@ import {
   oneOf,
 } from "./payload-decoder";
 import type {
+  ChangedFile,
   DocumentEntry,
   DocumentSnapshot,
+  ExternalChanges,
   FolderEntry,
   FolderSelection,
   FolderSnapshot,
@@ -117,6 +120,7 @@ interface RawFolderEntry {
 }
 interface RawProjectSnapshot {
   readonly project: RawProject;
+  readonly sessionGeneration: number;
   readonly folders: readonly RawFolderEntry[];
   readonly documents: readonly RawDocumentEntry[];
   readonly issues: readonly LoadIssue[];
@@ -142,6 +146,7 @@ const rawFolderEntry = objectOf<RawFolderEntry>({
 });
 const rawProjectSnapshot = objectOf<RawProjectSnapshot>({
   project: rawProject,
+  sessionGeneration: decodeNumber,
   folders: arrayOf(rawFolderEntry),
   documents: arrayOf(
     objectOf<RawDocumentEntry>({
@@ -247,6 +252,7 @@ function toProjectSnapshot(
   if (!documents.ok) return documents;
   return commandOk({
     project: project.value,
+    sessionGeneration: raw.sessionGeneration,
     folders: folders.value,
     documents: documents.value,
     issues: raw.issues,
@@ -397,6 +403,59 @@ export function toSheetSnapshotResult(
 ): CommandResult<SheetSnapshot> {
   const raw = decodePayload(rawSheetSnapshot, payload);
   return raw.ok ? toSheetSnapshot(raw.value) : raw;
+}
+
+const decodeChangedFile = objectOf<ChangedFile>({
+  path: decodeString,
+  change: oneOf(FILE_CHANGE_KINDS),
+  readable: decodeBoolean,
+});
+interface RawExternalChanges {
+  readonly sessionGeneration: number;
+  readonly rescan: boolean;
+  readonly project: {
+    readonly structure: boolean;
+    readonly files: readonly ChangedFile[];
+  };
+  readonly documents: readonly {
+    readonly documentId: string;
+    readonly files: readonly ChangedFile[];
+  }[];
+}
+const rawExternalChanges = objectOf<RawExternalChanges>({
+  sessionGeneration: decodeNumber,
+  rescan: decodeBoolean,
+  project: objectOf<RawExternalChanges["project"]>({
+    structure: decodeBoolean,
+    files: arrayOf(decodeChangedFile),
+  }),
+  documents: arrayOf(
+    objectOf<RawExternalChanges["documents"][number]>({
+      documentId: decodeString,
+      files: arrayOf(decodeChangedFile),
+    }),
+  ),
+});
+
+// Shared by the `check_external_changes` result and the `projectFilesChanged` notification.
+export function toExternalChanges(
+  payload: unknown,
+): CommandResult<ExternalChanges> {
+  const raw = decodePayload(rawExternalChanges, payload);
+  if (!raw.ok) return raw;
+  const documents = mapAll(raw.value.documents, (entry) => {
+    const documentId = fromDomain(parseDocumentId(entry.documentId));
+    return documentId.ok
+      ? commandOk({ documentId: documentId.value, files: entry.files })
+      : documentId;
+  });
+  if (!documents.ok) return documents;
+  return commandOk({
+    sessionGeneration: raw.value.sessionGeneration,
+    rescan: raw.value.rescan,
+    project: raw.value.project,
+    documents: documents.value,
+  });
 }
 
 export function toSaveResult(payload: unknown): CommandResult<SaveResult> {

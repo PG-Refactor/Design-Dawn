@@ -51,6 +51,8 @@ export const GATEWAY_METHOD_KINDS = {
   selectProjectFolder: "read",
   openProject: "read",
   reloadProject: "read",
+  checkExternalChanges: "read",
+  acceptDiskState: "read",
   openProjectInNewWindow: "read",
   takeOpenRequest: "read",
   closeProject: "read",

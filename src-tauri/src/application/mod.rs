@@ -7,6 +7,7 @@ pub mod document_operations;
 pub mod dropped_files;
 pub mod entity_id_generator;
 pub mod error;
+pub mod external_change;
 pub mod folder_operations;
 pub mod folder_selection;
 pub mod git_commit;
