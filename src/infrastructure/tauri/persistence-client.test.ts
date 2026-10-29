@@ -21,6 +21,7 @@ import {
   checkExternalChanges,
   closeDocument,
   closeProject,
+  compareBlockContent,
   createBlockContent,
   createDocument,
   createFolder,
@@ -294,6 +295,56 @@ describe("external change commands", () => {
       projectId: PROJECT_ID,
       documentId: null,
     });
+  });
+});
+
+describe("compare_block_content", () => {
+  it("sends the committed text and decodes every outcome", async () => {
+    invokeMock.mockResolvedValue({ outcome: "text", diff: "--- disk\n" });
+    const result = await compareBlockContent(
+      projectId,
+      documentId,
+      contentPath,
+      "memory text",
+    );
+    expect(invokeMock).toHaveBeenCalledWith(COMMANDS.compareBlockContent, {
+      projectId: PROJECT_ID,
+      documentId: DOCUMENT_ID,
+      contentPath: CONTENT_PATH,
+      text: "memory text",
+    });
+    expect(result.ok && result.value).toEqual({
+      outcome: "text",
+      diff: "--- disk\n",
+    });
+    for (const payload of [
+      { outcome: "identical" },
+      { outcome: "removedOnDisk" },
+      { outcome: "notUtf8" },
+      { outcome: "tooLarge", limitBytes: 1024 },
+    ]) {
+      invokeMock.mockResolvedValue(payload);
+      const decoded = await compareBlockContent(
+        projectId,
+        documentId,
+        contentPath,
+        "",
+      );
+      expect(decoded.ok && decoded.value).toEqual(payload);
+    }
+  });
+
+  it("rejects an unknown outcome and a text outcome without its diff", async () => {
+    invokeMock.mockResolvedValue({ outcome: "somethingNew" });
+    expectFailure(
+      await compareBlockContent(projectId, documentId, contentPath, ""),
+      "invalidCommandResponse",
+    );
+    invokeMock.mockResolvedValue({ outcome: "text" });
+    expectFailure(
+      await compareBlockContent(projectId, documentId, contentPath, ""),
+      "invalidCommandResponse",
+    );
   });
 });
 

@@ -118,6 +118,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::git_remotes,
             commands::check_external_changes,
             commands::accept_disk_state,
+            commands::compare_block_content,
         ])
 }
 

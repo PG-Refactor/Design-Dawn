@@ -1,10 +1,12 @@
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import type { DocumentId } from "../../domain/shared/entity-id";
+import { ExternalCompareTabItem } from "../external-change/external-compare-tab";
 import { activateDiff, closeDiff, pinDiff } from "../git/git-diff-session";
 import { GitDiffTabItem } from "../git/git-diff-tab";
 import { focusFallbackElement } from "./focus-utils";
 import { documentPanelId, documentTabId } from "./tab-ids";
-import type { DiffTab, GitSelection } from "./ui-state/ui-state";
+import { activateCompareTab, closeCompareTab } from "./ui-state/diff-tabs";
+import type { CompareTab, DiffTab, GitSelection } from "./ui-state/ui-state";
 import { useMessages } from "./use-messages";
 import { useTabDrag } from "./use-tab-drag";
 import {
@@ -47,11 +49,15 @@ function diffKey(target: GitSelection): string {
   return `diff:${target.side}:${target.path}`;
 }
 
+const COMPARE_KEY = "compare";
+
 type StripEntry =
   | { readonly kind: "document"; readonly tab: DocumentTab }
-  | { readonly kind: "diff"; readonly tab: DiffTab };
+  | { readonly kind: "diff"; readonly tab: DiffTab }
+  | { readonly kind: "compare"; readonly tab: CompareTab };
 
 function keyOf(entry: StripEntry): string {
+  if (entry.kind === "compare") return COMPARE_KEY;
   return entry.kind === "document"
     ? documentKey(entry.tab.documentId)
     : diffKey(entry.tab);
@@ -67,6 +73,7 @@ export function DocumentTabs() {
   const tabs = useWorkspaceModel(selectDocumentTabs);
   const diffTabs = useUiState((ui) => ui.diffTabs);
   const activeMainTab = useUiState((ui) => ui.activeMainTab);
+  const compareTab = useUiState((ui) => ui.compareTab);
   const tabElements = useRef(new Map<string, HTMLButtonElement>());
   // Set after a tab was closed (the neighbour that became active gets focus, because the
   // focused close button no longer exists) or moved (it keeps focus).
@@ -105,20 +112,27 @@ export function DocumentTabs() {
   const entries: readonly StripEntry[] = [
     ...tabs.map((tab): StripEntry => ({ kind: "document", tab })),
     ...diffTabs.map((tab): StripEntry => ({ kind: "diff", tab })),
+    ...(compareTab === null
+      ? []
+      : [{ kind: "compare", tab: compareTab } satisfies StripEntry]),
   ];
   if (entries.length === 0) return null;
 
   const activeIndex = entries.findIndex((entry) =>
-    entry.kind === "document"
-      ? entry.tab.isActive
-      : activeMainTab.kind === "diff" &&
-        activeMainTab.path === entry.tab.path &&
-        activeMainTab.side === entry.tab.side,
+    entry.kind === "compare"
+      ? activeMainTab.kind === "compare"
+      : entry.kind === "document"
+        ? entry.tab.isActive
+        : activeMainTab.kind === "diff" &&
+          activeMainTab.path === entry.tab.path &&
+          activeMainTab.side === entry.tab.side,
   );
 
   function activate(entry: StripEntry): void {
     if (entry.kind === "document")
       void actions.openDocument(entry.tab.documentId);
+    else if (entry.kind === "compare")
+      uiStateStore.setState((state) => activateCompareTab(state));
     else activateDiff(services, entry.tab);
   }
 
@@ -168,6 +182,8 @@ export function DocumentTabs() {
     const state = uiStateStore.getState();
     if (state.activeMainTab.kind === "diff") {
       setFocusRequest(diffKey(state.activeMainTab));
+    } else if (state.activeMainTab.kind === "compare") {
+      setFocusRequest(COMPARE_KEY);
     } else if (state.activeDocumentId !== null) {
       setFocusRequest(documentKey(state.activeDocumentId));
     } else {
@@ -178,6 +194,11 @@ export function DocumentTabs() {
   async function handleClose(tab: DocumentTab): Promise<void> {
     const result = await actions.closeDocument(tab.documentId);
     if (!result.ok) return;
+    focusActiveTabOrFallback();
+  }
+
+  function handleCloseCompare(): void {
+    uiStateStore.setState((state) => closeCompareTab(state));
     focusActiveTabOrFallback();
   }
 
@@ -195,6 +216,20 @@ export function DocumentTabs() {
       {entries.map((entry, index) => {
         // Only the active tab (or the first one when none is active) is a tab stop.
         const isTabStop = activeIndex < 0 ? index === 0 : index === activeIndex;
+        if (entry.kind === "compare") {
+          return (
+            <ExternalCompareTabItem
+              key={COMPARE_KEY}
+              tab={entry.tab}
+              isActive={index === activeIndex}
+              isTabStop={isTabStop}
+              register={registerElement(COMPARE_KEY)}
+              onActivate={() => activate(entry)}
+              onClose={handleCloseCompare}
+              onKeyDown={(event) => handleKeyDown(event, index)}
+            />
+          );
+        }
         if (entry.kind === "diff") {
           const { tab } = entry;
           return (

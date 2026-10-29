@@ -15,6 +15,7 @@ import type { Sheet } from "../../domain/sheet/sheet";
 import type { CopiedAsset, DropImportResult } from "./asset-types";
 import type { OperationResult } from "./operation-error";
 import type {
+  BlockContentComparison,
   DocumentSnapshot,
   ExternalChanges,
   FolderSelection,
@@ -157,6 +158,14 @@ export interface PersistenceGateway {
     contentPath: ContentPath,
     text: string,
   ): Promise<OperationResult<void>>;
+  // Compares `text` (the committed content; drafts are not part of it) with the file on disk.
+  // Read-only: the file still counts as changed afterwards.
+  compareBlockContent(
+    projectId: ProjectId,
+    documentId: DocumentId,
+    contentPath: ContentPath,
+    text: string,
+  ): Promise<OperationResult<BlockContentComparison>>;
   deleteBlockContent(
     projectId: ProjectId,
     documentId: DocumentId,

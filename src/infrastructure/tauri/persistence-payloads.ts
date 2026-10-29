@@ -25,6 +25,7 @@ import {
   type Sheet,
 } from "../../domain/sheet/sheet";
 import {
+  BLOCK_COMPARISON_OUTCOMES,
   ENTITY_STATES,
   ENTRY_POINT_RESOLUTIONS,
   type EntityState,
@@ -46,6 +47,7 @@ import {
   oneOf,
 } from "./payload-decoder";
 import type {
+  BlockContentComparison,
   ChangedFile,
   DocumentEntry,
   DocumentSnapshot,
@@ -459,6 +461,48 @@ export function toExternalChanges(
     project: raw.value.project,
     documents: documents.value,
   });
+}
+
+interface RawBlockContentComparison {
+  readonly outcome: BlockContentComparison["outcome"];
+  readonly diff?: string;
+  readonly limitBytes?: number;
+}
+
+export function toBlockContentComparison(
+  payload: unknown,
+): CommandResult<BlockContentComparison> {
+  const head = decodePayload(
+    objectOf<{ readonly outcome: RawBlockContentComparison["outcome"] }>({
+      outcome: oneOf(BLOCK_COMPARISON_OUTCOMES),
+    }),
+    payload,
+  );
+  if (!head.ok) return head;
+  switch (head.value.outcome) {
+    case "text": {
+      const text = decodePayload(
+        objectOf<{ readonly diff: string }>({ diff: decodeString }),
+        payload,
+      );
+      return text.ok
+        ? commandOk({ outcome: "text", diff: text.value.diff })
+        : text;
+    }
+    case "tooLarge": {
+      const large = decodePayload(
+        objectOf<{ readonly limitBytes: number }>({ limitBytes: decodeNumber }),
+        payload,
+      );
+      return large.ok
+        ? commandOk({ outcome: "tooLarge", limitBytes: large.value.limitBytes })
+        : large;
+    }
+    case "identical":
+    case "removedOnDisk":
+    case "notUtf8":
+      return commandOk({ outcome: head.value.outcome });
+  }
 }
 
 export function toSaveResult(payload: unknown): CommandResult<SaveResult> {

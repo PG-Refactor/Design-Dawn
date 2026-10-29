@@ -1,6 +1,9 @@
 //! Text Block content files (`.md` / `.mmd`). Images are Assets and go through `asset_import`.
 
+use serde::Serialize;
+
 use super::error::{ApplicationError, ApplicationResult};
+use super::line_diff::{unified_diff, LineDiff};
 use super::session::{ProjectSession, ProjectSessions};
 use super::snapshot::SaveResult;
 use crate::domain::block_type::{BlockType, ContentLocation, BLOCK_TYPE_DEFINITIONS};
@@ -8,7 +11,7 @@ use crate::domain::constants::{BLOCKS_DIRECTORY_NAME, PATH_SEPARATOR, SHEETS_DIR
 use crate::domain::content_path::ContentPath;
 use crate::domain::entity_id::{DocumentId, SheetId};
 use crate::domain::error::{DomainError, DomainErrorKind};
-use crate::infrastructure::error::PersistenceErrorKind;
+use crate::infrastructure::error::{PersistenceError, PersistenceErrorKind};
 use crate::infrastructure::file_format::naming::{block_content_file_name, block_content_number};
 use crate::infrastructure::filesystem::atomic_write::WriteOutcome;
 use crate::infrastructure::filesystem::text_content::{decode_text, encode_text};
@@ -170,6 +173,75 @@ pub fn read_block_content(
     let base = session.document_base(&document_id)?;
     let bytes = session.read_file(&base, content_path)?;
     Ok(decode_text(&bytes)?)
+}
+
+/// The disk side of a comparison is refused above this size (Block text files are small).
+pub const COMPARE_MAX_BYTES: u64 = 1024 * 1024;
+/// Names of the two sides in the diff header.
+const COMPARE_DISK_LABEL: &str = "disk";
+const COMPARE_MEMORY_LABEL: &str = "memory";
+
+/// How a Block's text in memory differs from its file on disk (docs/architecture.md §14.9).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "outcome", rename_all = "camelCase")]
+pub enum BlockContentComparison {
+    Identical,
+    /// A unified diff, the disk as the old side and `text` (memory) as the new side.
+    Text {
+        diff: String,
+    },
+    /// The file no longer exists on disk.
+    RemovedOnDisk,
+    NotUtf8,
+    #[serde(rename_all = "camelCase")]
+    TooLarge {
+        limit_bytes: u64,
+    },
+}
+
+/// Compares `text` (the caller's committed content; drafts are not part of it) with the file
+/// on disk. Read-only: the session's record of the file is not touched, so the file still counts
+/// as changed afterwards.
+pub fn compare_block_content(
+    sessions: &mut ProjectSessions,
+    project_id: &str,
+    document_id: &str,
+    content_path: &str,
+    text: &str,
+) -> ApplicationResult<BlockContentComparison> {
+    let session = sessions.session_mut(project_id)?;
+    let document_id = DocumentId::parse(document_id)?;
+    parse_text_content_path(content_path)?;
+    let base = session.document_base(&document_id)?;
+    let path = match session.resolve_existing_path(&base, content_path) {
+        Ok(path) => path,
+        Err(error) if error.kind == PersistenceErrorKind::FileNotFound => {
+            return Ok(BlockContentComparison::RemovedOnDisk);
+        }
+        Err(error) => return Err(error.into()),
+    };
+    let size = std::fs::metadata(&path)
+        .map_err(|error| PersistenceError::from_io(format!("stat {content_path:?}"), &error))?
+        .len();
+    if size > COMPARE_MAX_BYTES {
+        return Ok(BlockContentComparison::TooLarge {
+            limit_bytes: COMPARE_MAX_BYTES,
+        });
+    }
+    let bytes = std::fs::read(&path)
+        .map_err(|error| PersistenceError::from_io(format!("read {content_path:?}"), &error))?;
+    let Ok(on_disk) = decode_text(&bytes) else {
+        return Ok(BlockContentComparison::NotUtf8);
+    };
+    Ok(
+        match unified_diff(&on_disk, text, COMPARE_DISK_LABEL, COMPARE_MEMORY_LABEL) {
+            LineDiff::Identical => BlockContentComparison::Identical,
+            LineDiff::Text(diff) => BlockContentComparison::Text { diff },
+            LineDiff::TooLarge => BlockContentComparison::TooLarge {
+                limit_bytes: COMPARE_MAX_BYTES,
+            },
+        },
+    )
 }
 
 pub fn write_block_content(

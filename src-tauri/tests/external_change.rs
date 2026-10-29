@@ -403,3 +403,122 @@ fn the_result_never_contains_an_absolute_path() {
     assert!(!serialized.contains(&root), "{serialized}");
     assert!(!serialized.contains(&opened.temp.path().to_string_lossy().into_owned()));
 }
+
+// ---- compare_block_content ----
+
+use design_dawn_lib::application::block_content_operations::{
+    compare_block_content, BlockContentComparison, COMPARE_MAX_BYTES,
+};
+
+fn compare(opened: &mut OpenedProject, text: &str) -> BlockContentComparison {
+    compare_block_content(
+        &mut opened.sessions,
+        PROJECT_ID,
+        DOCUMENT_ID,
+        OVERVIEW_MARKDOWN_PATH,
+        text,
+    )
+    .expect("compare")
+}
+
+#[test]
+fn comparing_equal_text_is_identical() {
+    let mut opened = opened_with_document();
+    let disk = read_text(&markdown_file(&opened));
+    assert_eq!(
+        compare(&mut opened, &disk),
+        BlockContentComparison::Identical
+    );
+}
+
+#[test]
+fn comparing_memory_with_an_externally_edited_file_gives_a_diff_from_disk_to_memory() {
+    let mut opened = opened_with_document();
+    write_text(&markdown_file(&opened), "# edited elsewhere\nsecond\n");
+
+    let BlockContentComparison::Text { diff } = compare(&mut opened, "# in memory\nsecond\n")
+    else {
+        panic!("expected a text diff");
+    };
+
+    assert!(diff.starts_with("--- disk\n+++ memory\n@@ "), "{diff}");
+    assert!(diff.contains("-# edited elsewhere\n"));
+    assert!(diff.contains("+# in memory\n"));
+    assert!(diff.contains(" second\n"));
+}
+
+#[test]
+fn comparing_never_touches_the_record_so_the_change_stays_reported_and_saves_stay_refused() {
+    let mut opened = opened_with_document();
+    write_text(&markdown_file(&opened), EXTERNAL_TEXT);
+    compare(&mut opened, "# in memory\n");
+
+    assert_eq!(check(&mut opened).documents[0].files.len(), 1);
+    let error = write_block_content(
+        &mut opened.sessions,
+        PROJECT_ID,
+        DOCUMENT_ID,
+        OVERVIEW_MARKDOWN_PATH,
+        "# in memory\n",
+    )
+    .unwrap_err();
+    assert!(externally_modified(error));
+    assert_eq!(read_text(&markdown_file(&opened)), EXTERNAL_TEXT);
+}
+
+#[test]
+fn a_file_removed_from_disk_is_reported_as_such() {
+    let mut opened = opened_with_document();
+    fs::remove_file(markdown_file(&opened)).unwrap();
+    assert_eq!(
+        compare(&mut opened, "# in memory\n"),
+        BlockContentComparison::RemovedOnDisk
+    );
+}
+
+#[test]
+fn a_file_that_is_not_utf8_or_too_large_has_its_own_outcome() {
+    let mut opened = opened_with_document();
+    fs::write(markdown_file(&opened), [0xFF, 0xFE, 0x41]).unwrap();
+    assert_eq!(compare(&mut opened, "x"), BlockContentComparison::NotUtf8);
+
+    let oversized = vec![b'a'; usize::try_from(COMPARE_MAX_BYTES).unwrap() + 1];
+    fs::write(markdown_file(&opened), oversized).unwrap();
+    assert_eq!(
+        compare(&mut opened, "x"),
+        BlockContentComparison::TooLarge {
+            limit_bytes: COMPARE_MAX_BYTES
+        }
+    );
+}
+
+#[test]
+fn comparison_rejects_paths_that_are_not_text_content_of_the_document() {
+    let mut opened = opened_with_document();
+    for path in [
+        "../../project.json",
+        "assets/pixel.png",
+        "sheets/overview/sheet.json",
+    ] {
+        let result =
+            compare_block_content(&mut opened.sessions, PROJECT_ID, DOCUMENT_ID, path, "x");
+        assert!(result.is_err(), "{path} must be refused");
+    }
+    let unknown = compare_block_content(
+        &mut opened.sessions,
+        PROJECT_ID,
+        UNKNOWN_ID,
+        OVERVIEW_MARKDOWN_PATH,
+        "x",
+    )
+    .unwrap_err();
+    assert_eq!(unknown.kind, ErrorKind::EntityNotFound);
+}
+
+#[test]
+fn the_comparison_result_contains_no_absolute_path() {
+    let mut opened = opened_with_document();
+    write_text(&markdown_file(&opened), EXTERNAL_TEXT);
+    let serialized = serde_json::to_string(&compare(&mut opened, "x")).unwrap();
+    assert!(!serialized.contains(&opened.root.to_string_lossy().into_owned()));
+}

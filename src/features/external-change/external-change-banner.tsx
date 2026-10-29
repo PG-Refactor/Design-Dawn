@@ -48,6 +48,16 @@ export function ExternalChangeBanner({
           {subject.kind === "project" ? `${texts.projectBannerSource}: ` : ""}
           {texts.keptBanner}
         </span>
+        {subject.conflict.status === "conflict" ? (
+          <button
+            type="button"
+            className="button button--primary"
+            disabled={busy}
+            onClick={() => externalChangeController.keepCurrent(target)}
+          >
+            {texts.keepCurrent}
+          </button>
+        ) : null}
         <button
           type="button"
           className="button"
@@ -94,12 +104,16 @@ export function ExternalChangeBanner({
 // The banner of the Document in the active tab, if its conflict was kept.
 export function ActiveDocumentBanner({
   documentId,
+  always = false,
 }: {
   readonly documentId: DocumentId;
+  // Also for a conflict that still waits for the user's answer (the compare tab).
+  readonly always?: boolean;
 }) {
   const state = useExternalChangeState();
   const conflict = state.conflicts.find(
-    (entry) => entry.documentId === documentId && entry.status === "kept",
+    (entry) =>
+      entry.documentId === documentId && (always || entry.status === "kept"),
   );
   if (conflict === undefined) return null;
   return (

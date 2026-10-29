@@ -586,6 +586,77 @@
           }
         },
         {
+          "name": "compare_block_content: identical text",
+          "request": {
+            "command": "compare_block_content",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "contentPath": "sheets/overview/blocks/markdown-1.md",
+              "text": "# Overview\n\nThis is the **basic** sample project.\n\n- first\n- second\n"
+            }
+          },
+          "expected": { "ok": { "outcome": "identical" } }
+        },
+        {
+          "name": "compare_block_content: unified diff from disk to memory",
+          "request": {
+            "command": "compare_block_content",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "contentPath": "sheets/overview/blocks/markdown-1.md",
+              "text": "# Overview\n\nchanged\n"
+            }
+          },
+          "expected": {
+            "ok": {
+              "outcome": "text",
+              "diff": "--- disk\n+++ memory\n@@ -1,6 +1,3 @@\n # Overview\n \n-This is the **basic** sample project.\n-\n-- first\n-- second\n+changed\n"
+            }
+          }
+        },
+        {
+          "name": "compare_block_content: traversal contentPath",
+          "targets": ["rust"],
+          "request": {
+            "command": "compare_block_content",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "contentPath": "sheets/../../project.json",
+              "text": "x"
+            }
+          },
+          "expected": { "error": { "kind": "invalidContentPath" } }
+        },
+        {
+          "name": "compare_block_content: unknown documentId",
+          "request": {
+            "command": "compare_block_content",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-ffff-7fff-bfff-ffffffffffff",
+              "contentPath": "sheets/overview/blocks/markdown-1.md",
+              "text": "x"
+            }
+          },
+          "expected": { "error": { "kind": "entityNotFound" } }
+        },
+        {
+          "name": "compare_block_content: missing text",
+          "targets": ["rust"],
+          "request": {
+            "command": "compare_block_content",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "contentPath": "sheets/overview/blocks/markdown-1.md"
+            }
+          },
+          "expected": { "tauriError": true }
+        },
+        {
           "name": "read_block_content: traversal contentPath",
           "targets": ["rust"],
           "request": {

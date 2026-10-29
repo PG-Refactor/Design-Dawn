@@ -47,6 +47,7 @@ import {
 } from "../ports/operation-error";
 import type { PersistenceGateway } from "../ports/persistence-gateway";
 import {
+  type BlockContentComparison,
   type DocumentSnapshot,
   type EntityState,
   type ExternalChanges,
@@ -262,6 +263,10 @@ export interface FakeGateway extends PersistenceGateway {
   // What the next `checkExternalChanges` calls return (until replaced); by default nothing
   // changed, reported for the current session generation.
   setExternalChanges(changes: ExternalChanges): void;
+  // What `compareBlockContent` returns until replaced (default: identical).
+  setComparison(comparison: BlockContentComparison): void;
+  // The text arguments `compareBlockContent` was called with, in order.
+  readonly comparedTexts: string[];
   // Document ids (null = Project level) `acceptDiskState` was called for, in order.
   readonly acceptedDiskStates: (DocumentId | null)[];
   // Method names in call order, optionally narrowed to some methods.
@@ -311,6 +316,8 @@ export function createFakeGateway(
   let sessionGeneration = 0;
   let scriptedExternalChanges: ExternalChanges | null = null;
   const acceptedDiskStates: (DocumentId | null)[] = [];
+  let scriptedComparison: BlockContentComparison = { outcome: "identical" };
+  const comparedTexts: string[] = [];
   let openInNewWindowResult: OpenInNewWindowResult = {
     status: OPEN_IN_NEW_WINDOW_STATUS.openedInNewWindow,
   };
@@ -558,6 +565,10 @@ export function createFakeGateway(
       scriptedExternalChanges = changes;
     },
     acceptedDiskStates,
+    setComparison(comparison) {
+      scriptedComparison = comparison;
+    },
+    comparedTexts,
     queueOpenRequest(documentId) {
       pendingOpenRequest = documentId;
     },
@@ -618,6 +629,11 @@ export function createFakeGateway(
           },
         ),
       ),
+    compareBlockContent: (_projectId, _documentId, contentPath, text) =>
+      enter("compareBlockContent", contentPath, () => {
+        comparedTexts.push(text);
+        return operationOk(scriptedComparison);
+      }),
     acceptDiskState: (_projectId, documentId) =>
       enter("acceptDiskState", documentId ?? "project", () => {
         acceptedDiskStates.push(documentId);

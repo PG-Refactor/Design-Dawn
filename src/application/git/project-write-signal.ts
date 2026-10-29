@@ -53,6 +53,7 @@ export const GATEWAY_METHOD_KINDS = {
   reloadProject: "read",
   checkExternalChanges: "read",
   acceptDiskState: "read",
+  compareBlockContent: "read",
   openProjectInNewWindow: "read",
   takeOpenRequest: "read",
   closeProject: "read",

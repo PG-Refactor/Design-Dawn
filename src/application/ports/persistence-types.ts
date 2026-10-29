@@ -106,6 +106,24 @@ export interface DocumentSnapshot {
 
 // --- External changes (docs/architecture.md §14.4) ---
 
+export const BLOCK_COMPARISON_OUTCOMES = [
+  "identical",
+  "text",
+  "removedOnDisk",
+  "notUtf8",
+  "tooLarge",
+] as const;
+
+// How a Block's text in memory differs from its file on disk. `diff` is a unified diff with
+// the disk as the old side ("---") and the memory as the new side ("+++"), the shape the Git
+// diff view reads.
+export type BlockContentComparison =
+  | { readonly outcome: "identical" }
+  | { readonly outcome: "text"; readonly diff: string }
+  | { readonly outcome: "removedOnDisk" }
+  | { readonly outcome: "notUtf8" }
+  | { readonly outcome: "tooLarge"; readonly limitBytes: number };
+
 export const FILE_CHANGE_KINDS = ["modified", "removed"] as const;
 export type FileChangeKind = (typeof FILE_CHANGE_KINDS)[number];
 

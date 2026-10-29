@@ -18,7 +18,11 @@ import {
   operationOk,
 } from "../ports/operation-error";
 import type { PersistenceGateway } from "../ports/persistence-gateway";
-import type { ChangedFile, ExternalChanges } from "../ports/persistence-types";
+import type {
+  BlockContentComparison,
+  ChangedFile,
+  ExternalChanges,
+} from "../ports/persistence-types";
 import type { ApplicationStore } from "../state/application-state";
 import {
   hasUnsavedDocumentChanges,
@@ -81,7 +85,10 @@ export interface ExternalChangeReloader {
 export interface ExternalChangeControllerOptions {
   readonly gateway: Pick<
     PersistenceGateway,
-    "checkExternalChanges" | "acceptDiskState" | "restoreBlockContent"
+    | "checkExternalChanges"
+    | "acceptDiskState"
+    | "restoreBlockContent"
+    | "compareBlockContent"
   >;
   readonly applicationStore: ApplicationStore;
   readonly getDocumentSession: (
@@ -109,6 +116,13 @@ export interface ExternalChangeController {
   handleNotice(notice: ProjectFilesNotice): Promise<void>;
   // Called when whatever blocked ends: compares again if something arrived meanwhile.
   resume(): Promise<void>;
+  // Compares the committed text of the Block that owns `path` (Document-root-relative) with
+  // the file on disk. Drafts are not part of it. `entityNotFound` when the Document or a loaded
+  // text Block for that path is not there. Read-only; the conflict state does not change.
+  compare(
+    documentId: DocumentId,
+    path: string,
+  ): Promise<OperationResult<BlockContentComparison>>;
   // Keep what is in memory; saving stays stopped.
   keepCurrent(target: ConflictTarget): void;
   // Take the disk's content in. The caller has already asked about unsaved changes.
@@ -435,6 +449,33 @@ export function createExternalChangeController(
       enqueue(async () => {
         if (recheckPending && !options.isBlocked()) await checkNow();
       }),
+    async compare(documentId, path) {
+      const project = currentProject();
+      const documentState = applicationStore
+        .getState()
+        .documents.get(documentId);
+      if (project === null || documentState === undefined) {
+        return operationErr("entityNotFound", "the Document is not open");
+      }
+      for (const sheet of documentState.sheets.values()) {
+        for (const block of sheet.blocks) {
+          if (block.contentPath !== path || !isTextBlockType(block.blockType)) {
+            continue;
+          }
+          const text = documentState.contents.get(block.blockId);
+          if (text === undefined) {
+            return operationErr("entityNotFound", "the text is not loaded");
+          }
+          return gateway.compareBlockContent(
+            project.projectId,
+            documentId,
+            block.contentPath,
+            text,
+          );
+        }
+      }
+      return operationErr("entityNotFound", "no text Block uses this file");
+    },
     keepCurrent(target) {
       if (target.kind === "project") {
         store.setState((state) =>

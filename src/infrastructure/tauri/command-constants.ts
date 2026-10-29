@@ -58,6 +58,7 @@ export const COMMANDS = {
   gitRemotes: "git_remotes",
   checkExternalChanges: "check_external_changes",
   acceptDiskState: "accept_disk_state",
+  compareBlockContent: "compare_block_content",
 } as const;
 
 export type CommandName = (typeof COMMANDS)[keyof typeof COMMANDS];
@@ -78,6 +79,7 @@ export {
 // Snapshot-related constants are defined next to the snapshot types in the application
 // layer (its port names them); re-exported so the contract tests keep one import point.
 export {
+  BLOCK_COMPARISON_OUTCOMES,
   ENTITY_STATES,
   ENTRY_POINT_RESOLUTIONS,
   type EntityState,

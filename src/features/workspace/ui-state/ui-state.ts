@@ -8,6 +8,7 @@
 
 import type { Viewport } from "../../../application/local-state/viewport";
 import type { OperationError } from "../../../application/ports/operation-error";
+import type { BlockContentComparison } from "../../../application/ports/persistence-types";
 import type {
   BlockId,
   DocumentId,
@@ -341,6 +342,8 @@ export interface UiState {
   // What the main area shows: the active Document (`activeDocumentId`, application state)
   // or one of the diff tabs. Always names an existing diff tab when it is `diff`.
   readonly activeMainTab: MainTabRef;
+  // The compare tab after the diff tabs, if one is open.
+  readonly compareTab: CompareTab | null;
   // The commit message typed in the Git panel. UI state so it survives switching between
   // the Project and Git views; dropped with the Project and never saved.
   readonly gitCommitMessage: string;
@@ -380,11 +383,29 @@ export interface DiffTab extends GitSelection {
   readonly preview: boolean;
 }
 
+// Where the comparison of an externally changed Block text stands (docs/architecture.md §14.9).
+export type CompareContent =
+  | { readonly status: "loading" }
+  | { readonly status: "loaded"; readonly comparison: BlockContentComparison }
+  // The text in memory is not loaded, or the comparison failed (the failure is reported).
+  | { readonly status: "unavailable" };
+
+// The compare tab: a Block text file of an open Document, disk against memory. At most one;
+// a new comparison replaces it. A view only: ends with the Project or the Document.
+export interface CompareTab {
+  readonly documentId: DocumentId;
+  // Document-root-relative content path.
+  readonly path: string;
+  readonly content: CompareContent;
+}
+
 export type MainTabRef =
   | { readonly kind: "document" }
-  | ({ readonly kind: "diff" } & GitSelection);
+  | ({ readonly kind: "diff" } & GitSelection)
+  | { readonly kind: "compare" };
 
 export const DOCUMENT_MAIN_TAB: MainTabRef = { kind: "document" };
+export const COMPARE_MAIN_TAB: MainTabRef = { kind: "compare" };
 
 export type UiStateStore = Store<UiState>;
 
@@ -415,6 +436,7 @@ export function createInitialUiState(): UiState {
     diffViewMode: DEFAULT_DIFF_VIEW_MODE,
     diffTabs: [],
     activeMainTab: DOCUMENT_MAIN_TAB,
+    compareTab: null,
     gitCommitMessage: "",
     gitHistoryExpanded: false,
     gitCollapsedSections: new Set(),

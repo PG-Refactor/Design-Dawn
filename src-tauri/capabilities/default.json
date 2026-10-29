@@ -58,6 +58,7 @@
     "allow-git-publish",
     "allow-git-remotes",
     "allow-check-external-changes",
-    "allow-accept-disk-state"
+    "allow-accept-disk-state",
+    "allow-compare-block-content"
   ]
 }

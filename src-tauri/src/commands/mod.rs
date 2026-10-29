@@ -22,7 +22,7 @@ use crate::application::asset_import::{
     copy_asset_to_document as copy_asset, import_dropped_images as import_dropped, CopiedAsset,
     DropImportResult,
 };
-use crate::application::block_content_operations as block_content;
+use crate::application::block_content_operations::{self as block_content, BlockContentComparison};
 use crate::application::document_operations as documents;
 use crate::application::dropped_files::DroppedFilesState;
 use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
@@ -58,7 +58,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 55] = [
+pub const COMMAND_NAMES: [&str; 56] = [
     "select_project_folder",
     "create_project",
     "open_project",
@@ -114,6 +114,7 @@ pub const COMMAND_NAMES: [&str; 55] = [
     "git_remotes",
     "check_external_changes",
     "accept_disk_state",
+    "compare_block_content",
 ];
 
 pub use app_channel::{AppNotification, AppNotificationSink, AppRequestHub, AppRequestSubscriber};
@@ -596,6 +597,29 @@ pub fn write_block_content<R: Runtime>(
 ) -> Result<SaveResult, ApplicationError> {
     with_project_sessions(&window, &state, &project_id, |sessions| {
         block_content::write_block_content(
+            sessions,
+            &project_id,
+            &document_id,
+            &content_path,
+            &text,
+        )
+    })
+}
+
+/// Compares a Block's committed text (sent by the Frontend; drafts are not part of it) with
+/// the file on disk, for the "compare" choice of an external change (docs/architecture.md
+/// §14.9). Read-only.
+#[tauri::command]
+pub fn compare_block_content<R: Runtime>(
+    window: Window<R>,
+    state: SessionState<'_>,
+    project_id: String,
+    document_id: String,
+    content_path: String,
+    text: String,
+) -> Result<BlockContentComparison, ApplicationError> {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
+        block_content::compare_block_content(
             sessions,
             &project_id,
             &document_id,

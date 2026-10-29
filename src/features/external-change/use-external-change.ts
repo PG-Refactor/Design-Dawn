@@ -9,6 +9,7 @@ import {
   hasUnsavedDocumentChanges,
   hasUnsavedProjectChanges,
 } from "../../application/state/unsaved-changes";
+import { isTextBlockType } from "../../domain/block/block-type";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 
@@ -67,4 +68,25 @@ export function documentNameOf(
 export function useAppState() {
   const { applicationStore } = useWorkspaceServices();
   return useStoreSelector(applicationStore, identity);
+}
+
+// The changed files of a Document that can be compared: those that are the text file of a
+// Block of the open Document.
+export function useTextContentPaths(
+  documentId: string | null,
+): ReadonlySet<string> {
+  const application = useAppState();
+  return useMemo(() => {
+    const paths = new Set<string>();
+    if (documentId === null) return paths;
+    for (const state of application.documents.values()) {
+      if (state.document.documentId !== documentId) continue;
+      for (const sheet of state.sheets.values()) {
+        for (const block of sheet.blocks) {
+          if (isTextBlockType(block.blockType)) paths.add(block.contentPath);
+        }
+      }
+    }
+    return paths;
+  }, [application, documentId]);
 }

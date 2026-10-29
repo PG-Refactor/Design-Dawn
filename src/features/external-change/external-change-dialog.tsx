@@ -4,13 +4,15 @@ import { Modal } from "../workspace/modal";
 import { useMessages } from "../workspace/use-messages";
 import { useUiState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
-import { ChangedFileList } from "./external-change-files";
+import { ChangedFileList, type FileComparison } from "./external-change-files";
+import { openExternalCompare } from "./open-external-compare";
 import {
   type ConflictSubject,
   documentNameOf,
   targetOf,
   useAppState,
   useExternalChangeState,
+  useTextContentPaths,
   useWouldLoseWork,
 } from "./use-external-change";
 import "./external-change.css";
@@ -41,7 +43,9 @@ function useAskedSubject(): ConflictSubject | null {
 export function ExternalChangeDialog() {
   const subject = useAskedSubject();
   const otherDialog = useUiState(selectDialogKind);
-  if (subject === null || otherDialog !== "none") return null;
+  const comparing = useUiState((ui) => ui.activeMainTab.kind === "compare");
+  // The compare tab carries the way to decide itself; the question returns when it is closed.
+  if (subject === null || otherDialog !== "none" || comparing) return null;
   return <ConflictQuestion subject={subject} />;
 }
 
@@ -55,7 +59,23 @@ function ConflictQuestion({ subject }: { readonly subject: ConflictSubject }) {
   const titleId = useId();
   const descriptionId = useId();
   const keepRef = useRef<HTMLButtonElement>(null);
+  const compareRef = useRef<HTMLButtonElement>(null);
   const target = targetOf(subject);
+  const services = useWorkspaceServices();
+  const documentId =
+    subject.kind === "document" ? subject.conflict.documentId : null;
+  const textPaths = useTextContentPaths(documentId);
+  const comparison: FileComparison | undefined =
+    documentId === null
+      ? undefined
+      : {
+          isComparable: (file) => textPaths.has(file.path),
+          onCompare: (file) =>
+            void openExternalCompare(services, documentId, file.path),
+        };
+  const firstComparable = subject.conflict.files.find((file) =>
+    comparison?.isComparable(file),
+  );
   const subjectKey =
     subject.kind === "document" ? subject.conflict.documentId : "project";
   // biome-ignore lint/correctness/useExhaustiveDependencies: a different question starts unconfirmed
@@ -101,7 +121,7 @@ function ConflictQuestion({ subject }: { readonly subject: ConflictSubject }) {
       titleId={titleId}
       descriptionId={descriptionId}
       onCancel={keep}
-      initialFocusRef={keepRef}
+      initialFocusRef={firstComparable === undefined ? keepRef : compareRef}
       busy={busy}
     >
       <h2 id={titleId} className="modal__title">
@@ -111,9 +131,29 @@ function ConflictQuestion({ subject }: { readonly subject: ConflictSubject }) {
         {reasons.map((reason) => (
           <p key={reason}>{reason}</p>
         ))}
-        <ChangedFileList files={subject.conflict.files} />
+        <ChangedFileList
+          files={subject.conflict.files}
+          comparison={comparison}
+        />
       </div>
       <div className="modal__actions">
+        {firstComparable === undefined || documentId === null ? null : (
+          <button
+            ref={compareRef}
+            type="button"
+            className="button"
+            disabled={busy}
+            onClick={() =>
+              void openExternalCompare(
+                services,
+                documentId,
+                firstComparable.path,
+              )
+            }
+          >
+            {texts.compare}
+          </button>
+        )}
         <button
           ref={keepRef}
           type="button"

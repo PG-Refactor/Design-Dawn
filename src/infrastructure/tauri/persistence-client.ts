@@ -20,6 +20,7 @@ import { COMMANDS } from "./command-constants";
 import type { CommandResult } from "./command-error";
 import { call } from "./invoke-command";
 import {
+  toBlockContentComparison,
   toContentPathResult,
   toDocumentSnapshotResult,
   toExternalChanges,
@@ -34,6 +35,7 @@ import {
   toVoidResult,
 } from "./persistence-payloads";
 import type {
+  BlockContentComparison,
   DocumentSnapshot,
   ExternalChanges,
   FolderSelection,
@@ -94,6 +96,20 @@ export function acceptDiskState(
     COMMANDS.acceptDiskState,
     { projectId, documentId },
     toVoidResult,
+  );
+}
+
+// Compares the committed text of a Block with its file on disk. Read-only.
+export function compareBlockContent(
+  projectId: ProjectId,
+  documentId: DocumentId,
+  contentPath: ContentPath,
+  text: string,
+): Promise<CommandResult<BlockContentComparison>> {
+  return call(
+    COMMANDS.compareBlockContent,
+    { projectId, documentId, contentPath, text },
+    toBlockContentComparison,
   );
 }
 

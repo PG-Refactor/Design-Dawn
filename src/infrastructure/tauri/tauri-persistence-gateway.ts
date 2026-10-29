@@ -6,6 +6,7 @@ import {
   checkExternalChanges,
   closeDocument,
   closeProject,
+  compareBlockContent,
   createBlockContent,
   createDocument,
   createFolder,
@@ -42,6 +43,7 @@ export function createTauriPersistenceGateway(): PersistenceGateway {
     openProject,
     reloadProject,
     checkExternalChanges,
+    compareBlockContent,
     acceptDiskState: async (projectId, documentId) =>
       mapOperationResult(await acceptDiskState(projectId, documentId), discard),
     openProjectInNewWindow,

@@ -57,6 +57,7 @@ import {
   acceptDiskState,
   checkExternalChanges,
   closeDocument,
+  compareBlockContent,
   createBlockContent,
   createDocument,
   createFolder,
@@ -166,6 +167,13 @@ const WRAPPERS: Readonly<Record<string, Wrapper>> = {
   open_project: (args) => openProject(args.selectionId as string),
   reload_project: (args) => reloadProject(id.project(args)),
   check_external_changes: (args) => checkExternalChanges(id.project(args)),
+  compare_block_content: (args) =>
+    compareBlockContent(
+      id.project(args),
+      id.document(args),
+      id.contentPath(args),
+      args.text as string,
+    ),
   accept_disk_state: (args) =>
     acceptDiskState(id.project(args), id.optionalDocument(args)),
   create_project: (args) =>
