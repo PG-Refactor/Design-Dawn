@@ -23,6 +23,7 @@ import {
 } from "./gantt-config";
 import { asGanttDateFormat } from "./gantt-date";
 import { parseTaskData } from "./gantt-task-parser";
+import { hasCommentMarkWord, hasUnusualCharacter } from "./gantt-text";
 import type {
   GanttClick,
   GanttLine,
@@ -47,43 +48,14 @@ import type {
 const BLANK_PATTERN = /^[\t ]*$/;
 // Any whitespace or control character other than a blank and a tab: Mermaid's lexer treats
 // several of them as separators, so the line cannot be read reliably.
-const UNUSUAL_WHITESPACE_PATTERN = /[^\S \t]/;
-const TAB_CODE = 0x09;
-const C0_CONTROL_MAX = 0x1f;
-const DELETE_CODE = 0x7f;
-const C1_CONTROL_MAX = 0x9f;
 const VALUE_FORBIDDEN_PATTERN = /[#;]/;
 const COMMENT_START = "%";
 const TASK_SEPARATOR = ":";
-const TOKEN_SEPARATOR_PATTERN = /[\t ]+/;
 
 type MutableLine = { -readonly [Key in keyof GanttLine]: GanttLine[Key] };
 
-function hasUnusualCharacter(text: string): boolean {
-  if (UNUSUAL_WHITESPACE_PATTERN.test(text)) return true;
-  for (let index = 0; index < text.length; index += 1) {
-    const code = text.charCodeAt(index);
-    if (
-      (code <= C0_CONTROL_MAX && code !== TAB_CODE) ||
-      (code >= DELETE_CODE && code <= C1_CONTROL_MAX)
-    ) {
-      return true;
-    }
-  }
-  return false;
-}
-
 function leadingBlanks(text: string): number {
   return text.length - text.trimStart().length;
-}
-
-// `%` as the first or second character of a word makes Mermaid's lexer treat the rest of the
-// line as a comment (`5% rule` and `é%` lose their task; `ab%c` is fine).
-function hasCommentMarkWord(text: string): boolean {
-  return text
-    .trim()
-    .split(TOKEN_SEPARATOR_PATTERN)
-    .some((word) => word[0] === COMMENT_START || word[1] === COMMENT_START);
 }
 
 function findDateFormat(lines: readonly ClassifiedLine[]): {

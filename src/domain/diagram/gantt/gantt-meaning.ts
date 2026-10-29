@@ -170,6 +170,89 @@ export function resolveGanttSchedule(
   return Array.from({ length: count }, (_, index) => resolve(index));
 }
 
+export interface MeaningProblem {
+  readonly code:
+    | "duplicateTaskIds"
+    | "duplicateSectionNames"
+    | "danglingReference"
+    | "cyclicReference"
+    | "firstTaskImplicitStart";
+  readonly detail: string;
+}
+
+function referencedIds(task: GanttTaskMeaning): readonly string[] {
+  return [
+    ...(task.start.kind === "after" ? task.start.ids : []),
+    ...(task.end.kind === "until" ? task.end.ids : []),
+  ];
+}
+
+// The structural rules ganttEditability applies to a parse, applied to a meaning: an
+// operation builds the meaning it promises and refuses before writing anything when that
+// meaning could not be edited again.
+export function findMeaningProblem(
+  meaning: GanttMeaning,
+): MeaningProblem | null {
+  const ids = meaning.tasks.flatMap((task) =>
+    task.id === null ? [] : [task.id],
+  );
+  if (new Set(ids).size !== ids.length) {
+    return {
+      code: "duplicateTaskIds",
+      detail: "two tasks would have the same id",
+    };
+  }
+  if (new Set(meaning.sections).size !== meaning.sections.length) {
+    return {
+      code: "duplicateSectionNames",
+      detail: "two sections would have the same name",
+    };
+  }
+  const known = new Set(ids);
+  if (
+    meaning.tasks.some((task) =>
+      referencedIds(task).some((id) => !known.has(id)),
+    )
+  ) {
+    return {
+      code: "danglingReference",
+      detail: "a reference would name a task that does not exist",
+    };
+  }
+  if (meaning.tasks[0]?.start.kind === "implicit") {
+    return {
+      code: "firstTaskImplicitStart",
+      detail: "the first task would have no start",
+    };
+  }
+  const indexOfId = new Map(
+    meaning.tasks.flatMap((task, index) =>
+      task.id === null ? [] : [[task.id, index] as const],
+    ),
+  );
+  const state = new Array<0 | 1 | 2>(meaning.tasks.length).fill(0);
+  const visit = (index: number): boolean => {
+    if (state[index] === 1) return true;
+    if (state[index] === 2) return false;
+    state[index] = 1;
+    const task = meaning.tasks[index] as GanttTaskMeaning;
+    const targets = referencedIds(task).map(
+      (id) => indexOfId.get(id) as number,
+    );
+    if (task.start.kind === "implicit" && index > 0) targets.push(index - 1);
+    for (const target of targets) if (visit(target)) return true;
+    state[index] = 2;
+    return false;
+  };
+  if (meaning.tasks.some((_, index) => visit(index))) {
+    return {
+      code: "cyclicReference",
+      detail: "tasks would refer to each other in a circle",
+    };
+  }
+  return null;
+}
+
 function same<T>(left: T, right: T): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
