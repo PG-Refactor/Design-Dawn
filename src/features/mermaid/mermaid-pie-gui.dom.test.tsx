@@ -704,7 +704,11 @@ describe("a source the GUI cannot edit", () => {
     ["duplicate labels", 'pie\n  "A" : 1\n  "A" : 2\n', "duplicateLabels"],
     ["an unknown line", 'pie\n  "A" : 1\n  what is this\n', "unsupportedLines"],
     ["an inline directive", 'pie\n  "A%%{x}%%" : 1\n', "inlineDirective"],
-    ["another diagram type", "flowchart LR\n  A --> B\n", "noEditorForType"],
+    [
+      "another diagram type",
+      "sequenceDiagram\n  A->>B: hi\n",
+      "noEditorForType",
+    ],
     ["an empty source", "", "empty"],
     ["an unknown type", "nonsense\n", "unknownType"],
   ] as const)("explains %s and offers Source", async (_name, source, code) => {

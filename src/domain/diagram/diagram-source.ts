@@ -1,5 +1,6 @@
 import type { DiagramType } from "./diagram-type";
 import { type DiagramTypeDetection, detectDiagramType } from "./diagram-type";
+import { FLOWCHART_EDITOR } from "./flowchart/flowchart-editor";
 import { PIE_EDITOR } from "./pie/pie-editor";
 import {
   type ClassifiedLine,
@@ -28,7 +29,7 @@ export interface DiagramEditorEntry {
 
 // Later steps add one entry per type here. A type without an entry is never editable.
 export const DIAGRAM_EDITORS: Partial<Record<DiagramType, DiagramEditorEntry>> =
-  { pie: PIE_EDITOR };
+  { pie: PIE_EDITOR, flowchart: FLOWCHART_EDITOR };
 
 export type NotEditableReason =
   | "empty"
