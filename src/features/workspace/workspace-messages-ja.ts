@@ -47,6 +47,7 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   importImagesWithoutSheet: "画像を追加するにはSheetを開いてください",
   editBlockContent:
     "Blockの本文の編集を確定できませんでした（編集内容は画面に残っています）",
+  editDiagram: "図の編集を適用できませんでした（ソースは変更されていません）",
   loadBlockContents: "Blockの本文を読み込めませんでした",
   undo: "元に戻せませんでした",
   redo: "やり直せませんでした",
@@ -78,6 +79,16 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
   duplicateId: "IDが重複しています。",
   entityNotFound: "対象が見つかりません。",
   invalidBlockIndex: "Blockの順序が正しくありません。",
+  invalidTextEdit: "図の編集を適用できません。",
+  overlappingTextEdits: "図の編集が重なっています。",
+  ambiguousTextEdits: "図の編集の順序が一意に決まりません。",
+  staleContent: "Blockが編集の途中で変更されました。もう一度お試しください。",
+  diagramNotEditable: "この図はGUIで編集できません。",
+  invalidDiagramOperation: "この図の操作は実行できません。",
+  diagramMeaningMismatch:
+    "意図した以外の内容も変わるため、編集を適用しませんでした。",
+  diagramRenderRejected:
+    "結果をMermaidが描画できないため、編集を適用しませんでした。",
   invalidContentExtension: "本文ファイルの拡張子が正しくありません。",
   invalidJson: "ファイルの内容（JSON）が正しくありません。",
   invalidFileStructure: "ファイルまたはフォルダの構成が正しくありません。",

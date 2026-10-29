@@ -219,6 +219,7 @@ export const OPERATION_LABELS = [
   "importImages",
   "importImagesWithoutSheet",
   "editBlockContent",
+  "editDiagram",
   "loadBlockContents",
   "undo",
   "redo",

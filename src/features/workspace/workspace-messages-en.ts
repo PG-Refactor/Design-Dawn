@@ -45,6 +45,8 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   importImagesWithoutSheet: "Open a Sheet to add images",
   editBlockContent:
     "Could not commit the edit of the block text (your edit is still on the screen)",
+  editDiagram:
+    "The diagram edit could not be applied (the source is unchanged).",
   loadBlockContents: "Could not load the block text",
   undo: "Could not undo",
   redo: "Could not redo",
@@ -76,6 +78,16 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
   duplicateId: "An ID is duplicated.",
   entityNotFound: "The target was not found.",
   invalidBlockIndex: "The block order is invalid.",
+  invalidTextEdit: "The diagram edit cannot be applied.",
+  overlappingTextEdits: "The diagram edits overlap.",
+  ambiguousTextEdits: "The order of the diagram edits is ambiguous.",
+  staleContent: "The block changed in the meantime. Try again.",
+  diagramNotEditable: "This diagram cannot be edited with the GUI.",
+  invalidDiagramOperation: "This diagram operation is not allowed.",
+  diagramMeaningMismatch:
+    "The edit would change more than intended, so it was not applied.",
+  diagramRenderRejected:
+    "Mermaid cannot draw the result, so the edit was not applied.",
   invalidContentExtension: "The extension of the text file is invalid.",
   invalidJson: "The file content (JSON) is invalid.",
   invalidFileStructure: "The file or folder structure is invalid.",

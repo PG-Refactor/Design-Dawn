@@ -34,11 +34,15 @@ import {
   deleteBlocksCommand,
 } from "../../application/commands/file-backed-commands";
 import { commitPosition, commitSize } from "../../application/commit-geometry";
+import type { ApplyDiagramEditsOutcome } from "../../application/diagram/apply-diagram-edits";
+import { applyValidatedDiagramOperation } from "../../application/diagram/apply-validated-diagram-operation";
+import type { DiagramRenderCheck } from "../../application/diagram/diagram-render-check";
 import type { IdGenerator } from "../../application/id-generator";
 import {
   failWith,
   fromDomainResult,
   type OperationError,
+  type OperationErrorKind,
   type OperationResult,
   operationErr,
   operationOk,
@@ -49,6 +53,7 @@ import type { Workspace } from "../../application/workspace/workspace";
 import { PASTE_OFFSET } from "../../config/canvas-config";
 import type { Block } from "../../domain/block/block";
 import type { BlockType } from "../../domain/block/block-type";
+import type { DiagramOperation } from "../../domain/diagram/diagram-operation";
 import type {
   BlockId,
   DocumentId,
@@ -112,6 +117,15 @@ export interface CommitContentEditInput {
   readonly sheetId: SheetId;
   readonly blockId: BlockId;
   readonly text: string;
+}
+
+export interface ApplyDiagramOperationInput {
+  readonly documentId: DocumentId;
+  readonly sheetId: SheetId;
+  readonly blockId: BlockId;
+  readonly operation: DiagramOperation;
+  // Asks Mermaid whether the candidate text draws; built by the caller from its renderer.
+  readonly renderCheck: DiagramRenderCheck;
 }
 
 export interface BeginBlockEditInput {
@@ -196,6 +210,15 @@ export interface CanvasActions {
   commitContentEdit(
     input: CommitContentEditInput,
   ): Promise<OperationResult<void>>;
+  // One GUI operation on a Mermaid diagram: validated, drawn by the render check, then
+  // committed as ONE content edit (one history entry; none when the text does not change).
+  // A refusal of the operation itself (DIAGRAM_REFUSAL_KINDS) is returned for the GUI to
+  // show next to the input and is NOT added to the operation notifications; any other
+  // failure (document not open, block gone, content not loaded, a failed command) is
+  // returned and recorded like every other action's.
+  applyDiagramOperation(
+    input: ApplyDiagramOperationInput,
+  ): Promise<OperationResult<ApplyDiagramEditsOutcome>>;
   undo(documentId: DocumentId): Promise<OperationResult<void>>;
   redo(documentId: DocumentId): Promise<OperationResult<void>>;
 }
@@ -214,6 +237,16 @@ export interface CanvasActionsDependencies {
 }
 
 const NOTHING_TO_DO = operationOk(undefined);
+
+// Outcomes of a GUI operation that are the user's input or a concurrent change, not a
+// malfunction: the GUI explains them inline, so a notification would say it twice.
+const DIAGRAM_REFUSAL_KINDS: readonly OperationErrorKind[] = [
+  "invalidDiagramOperation",
+  "diagramNotEditable",
+  "diagramMeaningMismatch",
+  "diagramRenderRejected",
+  "staleContent",
+];
 
 export function createCanvasActions(
   dependencies: CanvasActionsDependencies,
@@ -844,6 +877,31 @@ export function createCanvasActions(
         documentId,
         editBlockContentCommand({ sheetId, blockId, text }),
       ),
+
+    async applyDiagramOperation({
+      documentId,
+      sheetId,
+      blockId,
+      operation,
+      renderCheck,
+    }) {
+      const session = workspace.getDocumentSession(documentId);
+      if (session === null) {
+        return record(
+          "editDiagram",
+          operationErr("notWritable", `document is not open: ${documentId}`),
+        );
+      }
+      const result = await applyValidatedDiagramOperation(
+        session,
+        { documentId, sheetId, blockId, operation },
+        renderCheck,
+      );
+      if (!result.ok && DIAGRAM_REFUSAL_KINDS.includes(result.error.kind)) {
+        return result;
+      }
+      return record("editDiagram", result);
+    },
 
     undo: (documentId) => history("undo", documentId),
     redo: (documentId) => history("redo", documentId),

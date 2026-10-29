@@ -1,5 +1,6 @@
 import {
   type FocusEvent,
+  type MutableRefObject,
   type ReactNode,
   useCallback,
   useEffect,
@@ -10,6 +11,7 @@ import {
   type OperationResult,
   operationOk,
 } from "../../application/ports/operation-error";
+import type { TextBlockEditorView } from "../../config/mermaid-gui-config";
 import type {
   BlockId,
   DocumentId,
@@ -30,6 +32,29 @@ export interface TextBlockEditorLabels {
   readonly done: string;
 }
 
+// An optional second view next to the Source textarea (the Mermaid diagram GUI). The editor
+// owns only the switch and the draft hand-over; what the GUI shows and does is the slot's.
+export type GuiLeaveCheck = () => Promise<OperationResult<void>>;
+
+export interface TextBlockGuiView {
+  readonly labels: {
+    // aria-label of the switch and the text of its two buttons.
+    readonly modeGroup: string;
+    readonly gui: string;
+    readonly source: string;
+  };
+  readonly initialView: TextBlockEditorView;
+  // The block's text in the application state. The GUI works on this, never on the draft.
+  readonly committedText: string;
+  readonly render: (context: {
+    readonly committedText: string;
+    readonly showSource: () => void;
+    // The GUI fills it with what must succeed before the Source view is shown (applying its
+    // own uncommitted input). A failure keeps the GUI. Null: nothing to do.
+    readonly leaveRef: MutableRefObject<GuiLeaveCheck | null>;
+  }) => ReactNode;
+}
+
 export interface TextBlockEditorProps {
   readonly documentId: DocumentId;
   readonly sheetId: SheetId;
@@ -39,7 +64,11 @@ export interface TextBlockEditorProps {
   readonly labels: TextBlockEditorLabels;
   // What the right-hand side shows for the current draft. A slot, so this editor knows
   // nothing about the block type (Markdown renders HTML, Mermaid shows a placeholder).
-  readonly renderPreview: (draft: string) => ReactNode;
+  readonly renderPreview: (
+    text: string,
+    view: TextBlockEditorView,
+  ) => ReactNode;
+  readonly guiView?: TextBlockGuiView;
 }
 
 // Split view shared by the text block types: source on the left, live preview on the right.
@@ -60,10 +89,15 @@ export function TextBlockEditor({
   initialText,
   labels,
   renderPreview,
+  guiView,
 }: TextBlockEditorProps) {
   const services = useWorkspaceServices();
-  const { canvasActions, uiStateStore } = services;
+  const { canvasActions, uiStateStore, applicationStore } = services;
   const [draft, setDraft] = useState(initialText);
+  const [view, setView] = useState<TextBlockEditorView>(
+    guiView?.initialView ?? "source",
+  );
+  const guiCommittedText = guiView?.committedText;
   // Latest values for async callbacks and the unmount cleanup, which must not see stale
   // closures.
   const draftRef = useRef(initialText);
@@ -75,10 +109,23 @@ export function TextBlockEditor({
   const discardedRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const guiLeaveRef = useRef<GuiLeaveCheck | null>(null);
 
+  // On mount, and again when the Source view comes back from the GUI.
   useEffect(() => {
-    textareaRef.current?.focus({ preventScroll: true });
-  }, []);
+    if (view === "source") textareaRef.current?.focus({ preventScroll: true });
+  }, [view]);
+
+  // In the GUI view the application state is the only text there is: operations, undo and
+  // redo change it, so the draft and the "last committed" text follow it. Without this the
+  // draft would still hold the text from before the GUI's edits, and leaving the editor
+  // would commit it over them.
+  useEffect(() => {
+    if (view !== "gui" || guiCommittedText === undefined) return;
+    draftRef.current = guiCommittedText;
+    committedTextRef.current = guiCommittedText;
+    setDraft(guiCommittedText);
+  }, [view, guiCommittedText]);
 
   // Applies the draft as ONE command without ending the edit or touching the textarea.
   // Shared by every commit path (focus out, 完了, unmount, save-all), so two of them never
@@ -160,6 +207,36 @@ export function TextBlockEditor({
     [commit],
   );
 
+  // Source -> GUI commits the draft first (one history entry when it changed), so the GUI
+  // starts from the text that is really stored. A failed commit stays in Source.
+  async function showGui(): Promise<void> {
+    if (view === "gui" || !(await commit())) return;
+    setView("gui");
+  }
+
+  // GUI -> Source asks the GUI to apply its own uncommitted input (only that: it does not
+  // commit other drafts of the document, and the GUI decides what is a request to apply and
+  // what is not). A refusal stays in the GUI, where the error is shown. Source then starts
+  // from the text the store has NOW, read here, because the draft that follows the store
+  // while the GUI is shown depends on a render that may not have happened yet.
+  async function showSource(): Promise<void> {
+    if (view === "source") return;
+    if (view === "gui") {
+      const left = (await guiLeaveRef.current?.()) ?? operationOk(undefined);
+      if (!left.ok) return;
+      const latest = applicationStore
+        .getState()
+        .documents.get(documentId)
+        ?.contents.get(blockId);
+      if (latest !== undefined) {
+        draftRef.current = latest;
+        committedTextRef.current = latest;
+        setDraft(latest);
+      }
+    }
+    setView("source");
+  }
+
   function onBlur(event: FocusEvent<HTMLDivElement>) {
     const next = event.relatedTarget;
     // Focus moving inside the editor (source -> preview -> 完了) is not leaving it. The
@@ -181,22 +258,64 @@ export function TextBlockEditor({
       aria-label={labels.editor}
       // Programmatic / click focus only (see onBlur).
       tabIndex={-1}
-      className="text-block-editor"
+      className={
+        view === "gui"
+          ? "text-block-editor text-block-editor--gui"
+          : "text-block-editor"
+      }
       {...{ [BLOCK_EDITOR_ATTRIBUTE]: "" }}
       onBlur={onBlur}
     >
-      <textarea
-        ref={textareaRef}
-        className="text-block-editor__source"
-        aria-label={labels.source}
-        spellCheck={false}
-        value={draft}
-        onChange={(event) => {
-          draftRef.current = event.target.value;
-          setDraft(event.target.value);
-        }}
-      />
+      {view === "gui" && guiView !== undefined ? (
+        <div className="text-block-editor__body">
+          <div className="text-block-editor__gui">
+            {guiView.render({
+              committedText: guiView.committedText,
+              showSource: () => void showSource(),
+              leaveRef: guiLeaveRef,
+            })}
+          </div>
+          <div className="text-block-editor__preview">
+            {renderPreview(guiView.committedText, view)}
+          </div>
+        </div>
+      ) : (
+        <textarea
+          ref={textareaRef}
+          className="text-block-editor__source"
+          aria-label={labels.source}
+          spellCheck={false}
+          value={draft}
+          onChange={(event) => {
+            draftRef.current = event.target.value;
+            setDraft(event.target.value);
+          }}
+        />
+      )}
       <div className="text-block-editor__bar">
+        {guiView !== undefined && (
+          <fieldset
+            className="text-block-editor__modes"
+            aria-label={guiView.labels.modeGroup}
+          >
+            <button
+              type="button"
+              className="button"
+              aria-pressed={view === "gui"}
+              onClick={() => void showGui()}
+            >
+              {guiView.labels.gui}
+            </button>
+            <button
+              type="button"
+              className="button"
+              aria-pressed={view === "source"}
+              onClick={() => void showSource()}
+            >
+              {guiView.labels.source}
+            </button>
+          </fieldset>
+        )}
         <button
           type="button"
           className="button"
@@ -205,7 +324,11 @@ export function TextBlockEditor({
           {labels.done}
         </button>
       </div>
-      <div className="text-block-editor__preview">{renderPreview(draft)}</div>
+      {view === "source" && (
+        <div className="text-block-editor__preview">
+          {renderPreview(draft, view)}
+        </div>
+      )}
     </div>
   );
 }
