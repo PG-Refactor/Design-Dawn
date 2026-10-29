@@ -35,3 +35,12 @@ The Tier 1 edit scenarios of the flowchart editor (`src/features/mermaid/flowcha
 - Project-authored research input: no third-party code is included.
 - Fields: `id` (the research id, e.g. `DE4-chain-naive`), `op` (the research's name for the operation), `source`, `naiveCandidate` (the text after the research's hand-made edit), `naiveGate` (how Mermaid and the research's comparison judged that text in 2026-10: `PASS`, `FAIL-parse`, `FAIL-render` or `FAIL-semantic`), `note` (the research's note).
 - The product's operation for each scenario is in the test, not here: the intent of the scenario written as a typed `FlowchartOperation`, and whether the editor plans it or refuses it (with the reason). Where `naiveGate` is not `PASS` and the editor plans the operation, the test asserts that the naive text really differs from the promised meaning in Mermaid 12.1.0.
+
+## gantt-corpus.json (gantt reader, Step G-1)
+
+Input of the differential test of the gantt reader (`src/features/mermaid/gantt-reader.real.dom.test.ts`, docs/architecture.md §16.17). 417 cases: the 281 syntax inputs of the gantt research (`GT-<group>-<n>`), and for each of its 68 hand-made edit scenarios the text before the edit (`GTE-...:before`, group `scenarioBefore`) and after the research's naive edit (`GTE-...:naive`, group `scenarioNaive`; none of the edits failed to apply).
+
+- Origin: the gantt research of the Phase 9 sequence / gantt step (archive `~/design-dawn-archive/phase9-sequence-gantt/`, `sg96-research.tar.gz`; `src/gantt-corpus.ts`, `src/gantt-scenarios.ts`, `src/edit-lib.ts`). Generated once on 2026-10-30 by a throw-away script (not in the repository). The archive's SHA-256 values are in its `sg96-manifest.sha256`.
+- Project-authored research input: no third-party code or corpus is included.
+- Fields: `id`, `group` (`scenarioBefore`, `scenarioNaive`, or the syntax group such as `hdr`, `cm`, `df`, `tk`, `ck`), `source`, `note` (the research's description in words, informal).
+- The expected results are not stored: Mermaid 12.1.0 is the reference and decides at test time. The test asserts recorded counts per input set, so a change in Mermaid or in the reader shows up as a failure.
