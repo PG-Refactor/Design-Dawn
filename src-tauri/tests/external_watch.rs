@@ -283,3 +283,108 @@ fn the_session_hook_starts_a_watcher_that_stops_with_the_session() {
         }
     }
 }
+
+// ---- the whole path: watcher -> confirmation -> window notification ----
+
+use design_dawn_lib::application::external_change::ExternalChanges;
+use design_dawn_lib::commands::{AppNotification, AppNotificationSink, AppRequestHub};
+
+#[derive(Clone, Default)]
+struct RecordingSink {
+    received: Arc<Mutex<Vec<AppNotification>>>,
+}
+
+impl AppNotificationSink for RecordingSink {
+    fn send_notification(&self, notification: AppNotification) -> Result<(), String> {
+        self.received.lock().unwrap().push(notification);
+        Ok(())
+    }
+}
+
+fn wait_for_notification(
+    sink: &RecordingSink,
+    matches: impl Fn(&ExternalChanges) -> bool,
+) -> Option<ExternalChanges> {
+    let deadline = Instant::now() + BATCH_WAIT;
+    while Instant::now() < deadline {
+        let found =
+            sink.received
+                .lock()
+                .unwrap()
+                .iter()
+                .find_map(|notification| match notification {
+                    AppNotification::ProjectFilesChanged { changes, .. } if matches(changes) => {
+                        Some(changes.clone())
+                    }
+                    _ => None,
+                });
+        if found.is_some() {
+            return found;
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    None
+}
+
+#[test]
+fn an_external_edit_reaches_the_window_and_the_apps_own_save_does_not() {
+    let (_temp, root) = project_copy();
+    let sessions = Arc::new(Mutex::new(ProjectSessions::default()));
+    let sink = RecordingSink::default();
+    let hub = Arc::new(AppRequestHub::<RecordingSink>::default());
+    hub.subscribe("main", sink.clone());
+    let project_id = ProjectId::parse(PROJECT_ID).unwrap();
+
+    {
+        let sessions_for_watcher = Arc::clone(&sessions);
+        let hub_for_watcher = Arc::clone(&hub);
+        sessions
+            .lock()
+            .unwrap()
+            .set_insert_hook(Box::new(move |session| {
+                let generation = session.generation();
+                let sessions = Arc::clone(&sessions_for_watcher);
+                let hub = Arc::clone(&hub_for_watcher);
+                let watcher = ProjectWatcher::start(session.root().to_path_buf(), move |batch| {
+                    match confirm_batch(&sessions, &project_id, generation, &batch) {
+                        BatchOutcome::Stop => ControlFlow::Break(()),
+                        BatchOutcome::Quiet => ControlFlow::Continue(()),
+                        BatchOutcome::Report(changes) => {
+                            hub.send_project_files_changed("main", &project_id, changes);
+                            ControlFlow::Continue(())
+                        }
+                    }
+                })
+                .expect("watcher starts");
+                session.set_watch_guard(Some(WatchGuard::new(watcher)));
+            }));
+    }
+    {
+        let mut guard = sessions.lock().unwrap();
+        open_project(&mut guard, &root).unwrap();
+        load_document(&mut guard, PROJECT_ID, DOCUMENT_ID).unwrap();
+        read_block_content(&mut guard, PROJECT_ID, DOCUMENT_ID, OVERVIEW_MARKDOWN_PATH).unwrap();
+        // The app's own save: no notification may come of it.
+        write_block_content(
+            &mut guard,
+            PROJECT_ID,
+            DOCUMENT_ID,
+            OVERVIEW_MARKDOWN_PATH,
+            "# saved by the app\n",
+        )
+        .unwrap();
+    }
+    std::thread::sleep(SILENCE_WAIT);
+    assert!(sink.received.lock().unwrap().is_empty());
+
+    let file = root.join(format!("documents/system-design/{OVERVIEW_MARKDOWN_PATH}"));
+    write_text(&file, "# external\n");
+
+    let changes = wait_for_notification(&sink, |changes| !changes.documents.is_empty())
+        .expect("the edit is reported");
+    assert!(changes.watching);
+    assert_eq!(changes.documents[0].document_id, DOCUMENT_ID);
+    assert_eq!(changes.documents[0].files[0].path, OVERVIEW_MARKDOWN_PATH);
+    let serialized = serde_json::to_string(&changes).unwrap();
+    assert!(!serialized.contains(&root.to_string_lossy().into_owned()));
+}
