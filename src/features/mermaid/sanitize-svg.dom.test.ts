@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { sanitizeSvg } from "./sanitize-svg";
+import { isSafeTransform, sanitizeSvg } from "./sanitize-svg";
 
 const SVG_START =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100">';
@@ -306,5 +306,157 @@ describe("sanitizeSvg output", () => {
       'href="https://example.com/"',
     );
     expect(clean("<text>again</text>")).toContain("again");
+  });
+});
+
+// Mermaid draws a `click` node as <a transform="translate(x, y)"><g class="node">…</g></a>:
+// the position is on the link (docs/architecture.md §16.15.8). These are structural checks
+// on crafted input; render-mermaid.real.dom.test.ts runs the same case through Mermaid.
+describe("sanitizeSvg keeps the position of a removed link", () => {
+  const nodeInLink = (linkAttributes: string, id = "node-A") =>
+    `<a ${linkAttributes}><g class="node clickable" id="${id}"><rect width="10" height="10"/><text>Alpha</text></g></a>`;
+
+  function nodeParent(result: string, id = "node-A"): Element | null {
+    return parse(result).getElementById(id)?.parentElement ?? null;
+  }
+
+  it("moves the link's transform onto a <g> around its children", () => {
+    const result = clean(
+      `<g class="nodes">${nodeInLink('href="https://example.invalid/" transform="translate(32, 20)"')}</g>`,
+    );
+    const wrapper = nodeParent(result);
+    expect(wrapper?.localName).toBe("g");
+    expect(wrapper?.getAttribute("transform")).toBe("translate(32, 20)");
+    expect(wrapper?.parentElement?.getAttribute("class")).toBe("nodes");
+    expect(result).not.toContain("<a");
+    expect(result).toContain("<rect");
+    expect(result).toContain("Alpha");
+  });
+
+  it("copies nothing but the transform: no href, event handler, data-*, class or style", () => {
+    const xlink = 'xmlns:xlink="http://www.w3.org/1999/xlink"';
+    const result = clean(
+      nodeInLink(
+        `${xlink} href="javascript:alert(1)" xlink:href="https://example.invalid/" ` +
+          'target="_blank" onclick="alert(2)" onmouseover="alert(3)" data-look="neo" ' +
+          'class="link" style="fill:url(https://example.invalid/x)" id="the-link" ' +
+          'transform="translate(5,6)"',
+      ),
+    );
+    const wrapper = nodeParent(result);
+    expect(wrapper?.getAttributeNames()).toEqual(["transform"]);
+    expect(result).not.toContain("example.invalid");
+    expect(result).not.toContain("javascript");
+    expect(result).not.toContain("alert");
+    expect(result).not.toContain("the-link");
+    expect(result).not.toMatch(/\bon[a-z]+=/);
+  });
+
+  it("still sanitises what was inside the link", () => {
+    const result = clean(
+      '<a transform="translate(1, 2)"><script>alert(1)</script>' +
+        '<rect onclick="alert(2)" fill="url(https://example.invalid/x)" width="1" height="1"/>' +
+        '<foreignObject><div xmlns="http://www.w3.org/1999/xhtml">html</div></foreignObject>' +
+        '<a href="https://example.invalid/inner" transform="translate(3, 4)"><text>inner</text></a></a>',
+    );
+    expect(result).not.toContain("script");
+    expect(result).not.toContain("alert");
+    expect(result).not.toContain("example.invalid");
+    expect(result.toLowerCase()).not.toContain("foreignobject");
+    expect(result).not.toContain("<a");
+    // Nested links each keep their own position.
+    expect(result).toContain('transform="translate(1, 2)"');
+    expect(result).toContain('transform="translate(3, 4)"');
+    expect(result).toContain("inner");
+  });
+
+  it("keeps several link-wrapped nodes at their own positions", () => {
+    const result = clean(
+      nodeInLink('href="#" transform="translate(10, 20)"', "node-A") +
+        nodeInLink('href="#" transform="translate(110, 20)"', "node-B") +
+        nodeInLink('href="#" transform="translate(10, 80)"', "node-C"),
+    );
+    const transforms = ["node-A", "node-B", "node-C"].map((id) =>
+      nodeParent(result, id)?.getAttribute("transform"),
+    );
+    expect(transforms).toEqual([
+      "translate(10, 20)",
+      "translate(110, 20)",
+      "translate(10, 80)",
+    ]);
+  });
+
+  it("does not carry over a transform that is not plain transform functions and numbers", () => {
+    for (const transform of [
+      "translate(var(--x), 0)",
+      "translate(1px, 2px)",
+      "url(https://example.invalid/x)",
+      "translate(1, 2) expression(alert(1))",
+      "translate(1, 2)); fill: url(https://example.invalid/x",
+      "javascript:alert(1)",
+      "",
+    ]) {
+      const result = clean(
+        nodeInLink(`transform="${transform.replaceAll('"', "&quot;")}"`),
+      );
+      // The children are hoisted without a wrapper, as for a link with no transform.
+      expect(nodeParent(result)?.localName).toBe("svg");
+      expect(result).not.toContain("example.invalid");
+      expect(result).not.toContain("alert");
+    }
+  });
+
+  it("hoists the children unchanged when the link has no transform", () => {
+    const result = clean(nodeInLink('href="https://example.invalid/"'));
+    expect(nodeParent(result)?.localName).toBe("svg");
+    expect(result).toContain("Alpha");
+  });
+
+  it("leaves output without links unchanged", () => {
+    const inner =
+      '<g class="nodes"><g class="node" id="node-B" transform="translate(40, 50)"><rect width="10" height="10"/></g></g>';
+    const result = clean(inner);
+    expect(result).toContain(inner);
+  });
+});
+
+describe("isSafeTransform", () => {
+  it("accepts SVG transform functions with plain numbers", () => {
+    for (const value of [
+      "translate(32, 20)",
+      "translate(-76.5,-20)",
+      "translate(10)",
+      "scale(1.5) translate(1e2 -3E-1)",
+      "matrix(1 0 0 1 10 20)",
+      "rotate(45, 10, 10), skewX(5) skewY(-5)",
+      "  translate(.5, +2.)  ",
+    ]) {
+      expect(isSafeTransform(value), value).toBe(true);
+    }
+  });
+
+  it("rejects everything else", () => {
+    for (const value of [
+      "",
+      "   ",
+      "translate()",
+      "translate(1, 2, 3)",
+      "rotate(1, 2)",
+      "matrix(1 0 0 1 10)",
+      "translate(1,)",
+      "translate(1px)",
+      "translate(NaN)",
+      "translate(Infinity)",
+      "translate(calc(1 + 2))",
+      "translate(var(--x))",
+      "perspective(10)",
+      "toString(1)",
+      "constructor(1)",
+      "url(#a)",
+      "translate(1, 2) x",
+      "translate(1, 2);",
+    ]) {
+      expect(isSafeTransform(value), value).toBe(false);
+    }
   });
 });
