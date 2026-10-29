@@ -52,7 +52,12 @@ export interface GuiTextFieldProps {
   readonly busy: boolean;
   readonly invalid?: boolean;
   readonly describedBy?: string;
-  readonly inputRef?: Ref<HTMLInputElement>;
+  readonly inputRef?: Ref<HTMLInputElement | HTMLTextAreaElement>;
+  // A label that may hold line breaks (Shift+Enter inserts one; Enter still applies).
+  readonly multiline?: boolean;
+  // Shown instead of an editable field's behaviour when the value cannot be changed from
+  // the GUI: the field stays focusable and readable, but typing is ignored.
+  readonly readOnly?: boolean;
 }
 
 export function GuiTextField({
@@ -65,35 +70,103 @@ export function GuiTextField({
   invalid = false,
   describedBy,
   inputRef,
+  multiline = false,
+  readOnly = false,
 }: GuiTextFieldProps) {
   const inputId = useId();
-  function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+  function onKeyDown(event: KeyboardEvent<HTMLElement>) {
     // Enter that confirms an IME composition is not a request to apply.
     if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+    // Shift+Enter in a multiline field is a line break, not a request to apply.
+    if (multiline && event.shiftKey) return;
     event.preventDefault();
     if (onEnter !== undefined) onEnter();
     else void onCommit("explicit");
   }
+  const common = {
+    id: inputId,
+    className: "diagram-gui__input",
+    spellCheck: false,
+    autoComplete: "off",
+    value,
+    readOnly,
+    "aria-busy": busy,
+    "aria-invalid": invalid,
+    "aria-describedby": describedBy,
+    onKeyDown,
+    onBlur: () => void onCommit("implicit"),
+  } as const;
   return (
     <div className="diagram-gui__field">
       <label className="diagram-gui__field-label" htmlFor={inputId}>
         {label}
       </label>
-      <input
-        id={inputId}
-        ref={inputRef}
+      {multiline ? (
+        <textarea
+          {...common}
+          ref={inputRef as Ref<HTMLTextAreaElement>}
+          rows={1}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      ) : (
+        <input
+          {...common}
+          ref={inputRef as Ref<HTMLInputElement>}
+          type="text"
+          onChange={(event) => onChange(event.target.value)}
+        />
+      )}
+    </div>
+  );
+}
+
+export interface GuiSelectOption {
+  readonly value: string;
+  readonly label: string;
+}
+
+export interface GuiSelectProps {
+  readonly label: string;
+  readonly value: string;
+  readonly options: readonly GuiSelectOption[];
+  readonly onChange: (value: string) => void;
+  // Not `disabled`: a disabled control that holds focus drops it (see above). A change is
+  // ignored while unavailable and the control keeps showing its value.
+  readonly disabled: boolean;
+  // Id of the visible text that says why the control is unavailable.
+  readonly reasonId?: string;
+}
+
+export function GuiSelect({
+  label,
+  value,
+  options,
+  onChange,
+  disabled,
+  reasonId,
+}: GuiSelectProps) {
+  const selectId = useId();
+  return (
+    <div className="diagram-gui__field">
+      <label className="diagram-gui__field-label" htmlFor={selectId}>
+        {label}
+      </label>
+      <select
+        id={selectId}
         className="diagram-gui__input"
-        type="text"
-        spellCheck={false}
-        autoComplete="off"
         value={value}
-        aria-busy={busy}
-        aria-invalid={invalid}
-        aria-describedby={describedBy}
-        onChange={(event) => onChange(event.target.value)}
-        onKeyDown={onKeyDown}
-        onBlur={() => void onCommit("implicit")}
-      />
+        aria-disabled={disabled}
+        aria-describedby={disabled ? reasonId : undefined}
+        onChange={(event) => {
+          if (!disabled) onChange(event.target.value);
+        }}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

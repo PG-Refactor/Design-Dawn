@@ -9,6 +9,7 @@
 }
 
 .diagram-gui__pie,
+.diagram-gui__flowchart,
 .diagram-gui__not-editable {
   display: flex;
   flex-direction: column;
@@ -166,4 +167,19 @@
   overflow: auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.diagram-gui__subgraphs {
+  margin: 0;
+  padding-left: var(--space-4);
+  color: var(--color-text-muted);
+}
+
+.diagram-gui__input[aria-disabled="true"],
+.diagram-gui__input[readonly] {
+  color: var(--color-text-muted);
+}
+
+.diagram-gui select.diagram-gui__input[aria-disabled="true"] {
+  cursor: not-allowed;
 }

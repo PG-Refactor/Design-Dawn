@@ -75,3 +75,13 @@ export function describeRefusal(
     gui.refusalFallback;
   return { message, mermaidMessage };
 }
+
+// Why an element's control is unavailable: the same sentence the refused operation would
+// give for the restriction code (the first word of its reason).
+export function describeRestriction(
+  gui: GuiMessages,
+  code: string | null,
+): string | null {
+  if (code === null) return null;
+  return lookup(gui.refusalReasons, code) ?? gui.refusalFallback;
+}

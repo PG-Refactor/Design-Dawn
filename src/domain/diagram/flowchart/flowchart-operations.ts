@@ -216,6 +216,19 @@ function writingOfNode(
   return ok({ definition, first });
 }
 
+// The reason code (the first word of the refusal) that stops setNodeLabel / setNodeShape on
+// this node, or null when they are allowed. Lets a view show a control as unavailable with
+// the very reason the operation would give, without planning the operation.
+export function nodeEditRestriction(
+  prepared: PreparedFlowchart,
+  nodeId: string,
+): string | null {
+  const writing = writingOfNode(prepared, nodeId);
+  return writing.ok
+    ? null
+    : (writing.error.detail.split(":")[0]?.trim() ?? null);
+}
+
 function findNode(
   prepared: PreparedFlowchart,
   nodeId: string,
