@@ -245,3 +245,60 @@ export function replaceStatementEdit(
     text: texts.join(SEQUENCE_INLINE_SEPARATOR),
   };
 }
+
+// The whitespace one level of nesting adds in this file: the first statement that stands
+// inside a block shows it. A file with no block yet uses its own top-level indentation.
+export function indentUnitOf(reading: SequenceReading): string {
+  const headerIndents: string[] = [];
+  for (const statement of reading.statements) {
+    if (statement.kind === "blockEnd") {
+      headerIndents.pop();
+      continue;
+    }
+    const indent = indentOfLine(reading, statement.lineIndex);
+    const parent = headerIndents[headerIndents.length - 1];
+    if (
+      statement.kind !== "branch" &&
+      parent !== undefined &&
+      indent.length > parent.length &&
+      indent.startsWith(parent)
+    ) {
+      return indent.slice(parent.length);
+    }
+    if (statement.kind === "blockStart") headerIndents.push(indent);
+  }
+  const top = topLevelIndent(reading);
+  return top === "" ? SEQUENCE_DEFAULT_INDENT : top;
+}
+
+export function leadingWhitespaceLength(text: string): number {
+  return text.length - text.trimStart().length;
+}
+
+// True when no other statement stands in front of this one on its line.
+export function isFirstOnLine(
+  reading: SequenceReading,
+  statement: SequenceStatement,
+): boolean {
+  return (
+    statementsOnLine(reading, statement.lineIndex)[0]?.index === statement.index
+  );
+}
+
+// Insertions gathered by offset: two insertions at one offset are one edit (the order is the
+// order they were added in).
+export class InsertionSet {
+  private readonly byOffset = new Map<number, string>();
+
+  add(offset: number, text: string): void {
+    this.byOffset.set(offset, (this.byOffset.get(offset) ?? "") + text);
+  }
+
+  edits(): readonly TextEdit[] {
+    return [...this.byOffset].map(([offset, text]) => ({
+      start: offset,
+      end: offset,
+      text,
+    }));
+  }
+}

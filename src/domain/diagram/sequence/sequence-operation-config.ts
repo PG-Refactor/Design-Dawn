@@ -64,3 +64,21 @@ export const SEQUENCE_MESSAGE_COLON = ":";
 export const SEQUENCE_INLINE_SEPARATOR = "; ";
 export const SEQUENCE_UNKNOWN_STATEMENT_INDEX = -1;
 export const SEQUENCE_NOTE_ID_SEPARATOR = ",";
+
+// Tier 2 (docs/architecture.md §16.16.9).
+// The blocks the GUI can wrap statements in. `rect` takes a colour as its text and `par_over`
+// is rare, so neither is offered; both are still read and kept.
+export const SEQUENCE_WRAP_BLOCKS = [
+  "loop",
+  "opt",
+  "alt",
+  "par",
+  "critical",
+  "break",
+] as const;
+export type SequenceWrapBlock = (typeof SEQUENCE_WRAP_BLOCKS)[number];
+// How a text is joined to the keyword of a block header or branch (`loop retry`).
+export const SEQUENCE_KEYWORD_TEXT_SEPARATOR = " ";
+// The indentation unit used when nothing in the file shows one.
+export const SEQUENCE_TAB_INDENT = "\t";
+export const SEQUENCE_COPY_COLON = ": ";
