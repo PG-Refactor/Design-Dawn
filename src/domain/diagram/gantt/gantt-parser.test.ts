@@ -330,10 +330,75 @@ describe("resolveGanttSchedule", () => {
     const excluded = ganttMeaningOf(
       parsed(`    excludes weekends\n${base}`),
     ) as NonNullable<ReturnType<typeof ganttMeaningOf>>;
-    expect(resolveGanttSchedule(excluded)).toEqual([null, null, null]);
+    // `excludes` is modelled: C ends on a day that is not excluded, A and B are still unknown.
+    expect(resolveGanttSchedule(excluded)).toEqual([
+      null,
+      null,
+      { start: day("2024-01-01"), end: day("2024-01-02") },
+    ]);
+    const included = ganttMeaningOf(
+      parsed(`    includes 2024-01-06\n${base}`),
+    ) as NonNullable<ReturnType<typeof ganttMeaningOf>>;
+    expect(resolveGanttSchedule(included)).toEqual([null, null, null]);
     const inclusive = ganttMeaningOf(
       parsed(`    inclusiveEndDates\n${base}`),
     ) as NonNullable<ReturnType<typeof ganttMeaningOf>>;
     expect(resolveGanttSchedule(inclusive)).toEqual([null, null, null]);
+  });
+});
+
+describe("resolveGanttSchedule with excludes", () => {
+  const day = (iso: string) => Date.parse(`${iso}T00:00:00Z`);
+  const scheduleOf = (lines: string) => {
+    const meaning = ganttMeaningOf(parsed(lines)) as NonNullable<
+      ReturnType<typeof ganttMeaningOf>
+    >;
+    return resolveGanttSchedule(meaning);
+  };
+
+  it("pushes the end past excluded weekend days, and the next task follows", () => {
+    // 2024-01-05 is a Friday: 3d would end on Monday the 8th, the weekend adds two days.
+    const schedule = scheduleOf(
+      "    excludes weekends\n    A :a1, 2024-01-05, 3d\n    B :b1, after a1, 1d\n",
+    );
+    expect(schedule[0]).toEqual({
+      start: day("2024-01-05"),
+      end: day("2024-01-10"),
+    });
+    expect(schedule[1]).toEqual({
+      start: day("2024-01-10"),
+      end: day("2024-01-11"),
+    });
+  });
+
+  it("does not move a final end date, or a task that crosses no excluded day", () => {
+    const schedule = scheduleOf(
+      "    excludes saturday, sunday\n    A :a1, 2024-01-05, 2024-01-09\n    B :b1, 2024-01-01, 2d\n",
+    );
+    expect(schedule[0]?.end).toBe(day("2024-01-09"));
+    expect(schedule[1]?.end).toBe(day("2024-01-03"));
+  });
+
+  it("reads weekday names, a weekend that starts on Friday and date tokens", () => {
+    expect(
+      scheduleOf("    excludes monday\n    A :a1, 2024-01-05, 4d\n")[0]?.end,
+    ).toBe(day("2024-01-10"));
+    expect(
+      scheduleOf(
+        "    weekend friday\n    excludes weekends\n    A :a1, 2024-01-04, 2d\n",
+      )[0]?.end,
+    ).toBe(day("2024-01-08"));
+    expect(
+      scheduleOf("    excludes 2024-01-02\n    A :a1, 2024-01-01, 3d\n")[0]
+        ?.end,
+    ).toBe(day("2024-01-05"));
+  });
+
+  it("is unknown for a chart that excludes every day", () => {
+    expect(
+      scheduleOf(
+        "    excludes monday tuesday wednesday thursday friday saturday sunday\n    A :a1, 2024-01-01, 2d\n",
+      ),
+    ).toEqual([null]);
   });
 });

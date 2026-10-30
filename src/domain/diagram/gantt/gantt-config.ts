@@ -109,3 +109,37 @@ export const GANTT_DIRECTIVE_MARK = "%%{";
 
 export const GANTT_DEFAULT_INDENT = "    ";
 export const GANTT_DEFAULT_LINE_ENDING = "\n";
+
+// ---- Tier 2 (docs/architecture.md §16.17.2) ----
+
+export const GANTT_AXIS_FORMAT_KEYWORD = "axisFormat";
+export const GANTT_EXCLUDES_KEYWORD = "excludes";
+export const GANTT_WEEKEND_KEYWORD = "weekend";
+export const GANTT_EXCLUDE_TOKEN_SEPARATOR = ", ";
+export const GANTT_EXCLUDE_TOKEN_PATTERN = /[\s,]+/;
+// An `excludes` date token: Mermaid compares it with `YYYY-MM-DD` of each day, whatever the
+// chart's dateFormat is.
+export const GANTT_EXCLUDE_DATE_FORMAT: GanttDateFormat = "YYYY-MM-DD";
+// ISO weekday numbers (Monday = 1) of the day a `weekend` statement starts on; the weekend is
+// that day and the next. Mermaid's default weekend starts on Saturday.
+export const GANTT_WEEKEND_START_DAYS = { friday: 5, saturday: 6 } as const;
+export const GANTT_DEFAULT_WEEKEND_START_DAY =
+  GANTT_WEEKEND_START_DAYS.saturday;
+// Mermaid stops moving an end date past excluded days after this many days.
+export const GANTT_MAX_EXCLUDE_DAYS = 10_000;
+// The conversions of d3-time-format (what `axisFormat` is handed to), each written `%` plus an
+// optional padding modifier plus one of these letters. `%%` is not accepted (the reader treats
+// `%%` as a comment mark).
+export const GANTT_AXIS_CONVERSIONS = "aAbBcdefgGHIjLmMpqQsSuUVwWxXyYZ";
+export const GANTT_AXIS_PAD_MODIFIERS = "-_0";
+export const GANTT_AXIS_FORMAT_MAX_LENGTH = 100;
+export const GANTT_AXIS_CONVERSION_MARK = "%";
+// A link target: `http(s)://` and then characters that need no escaping in the quoted
+// `click` form. `#`, `;` and `%` end or change what Mermaid's lexer reads, so they are not
+// accepted (the reader refuses such a line).
+export const GANTT_LINK_URL_PATTERN = /^https?:\/\/[^"\s#;%]+$/;
+export const GANTT_LINK_URL_MAX_LENGTH = 2000;
+export const GANTT_LINK_KEYWORD = "href";
+// Mermaid treats an end that is a date written as `YYYY-MM-DD` as final: `excludes` does not
+// push it later, whatever the chart's dateFormat is.
+export const GANTT_END_DATE_MANUAL_FORMAT: GanttDateFormat = "YYYY-MM-DD";

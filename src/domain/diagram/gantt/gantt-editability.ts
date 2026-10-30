@@ -1,5 +1,10 @@
 import type { LineRef } from "../source-lines";
-import { GANTT_WEEKDAY_NAMES, GANTT_WEEKENDS_TOKEN } from "./gantt-config";
+import { GANTT_WEEKDAY_NAMES } from "./gantt-config";
+import {
+  excludedWeekdayNames,
+  excludeTokensOf,
+  weekendStartDayOf,
+} from "./gantt-excludes";
 import type {
   GanttSourceIssueCode,
   GanttTaskEntry,
@@ -96,28 +101,6 @@ function hasCycle(parsed: ParsedGantt): boolean {
   return parsed.tasks.some((_, index) => visit(index));
 }
 
-// The days `excludes` removes. Mermaid cannot place a task when all seven are removed.
-function excludedWeekdays(parsed: ParsedGantt): ReadonlySet<string> {
-  const weekend = parsed.settings.find(
-    (setting) => setting.keyword === "weekend",
-  );
-  const weekendDays =
-    weekend?.value === "friday"
-      ? ["friday", "saturday"]
-      : ["saturday", "sunday"];
-  const days = new Set<string>();
-  for (const setting of parsed.settings) {
-    if (setting.keyword !== "excludes") continue;
-    for (const token of setting.value.toLowerCase().split(/[\s,]+/)) {
-      if (token === GANTT_WEEKENDS_TOKEN)
-        for (const day of weekendDays) days.add(day);
-      else if ((GANTT_WEEKDAY_NAMES as readonly string[]).includes(token))
-        days.add(token);
-    }
-  }
-  return days;
-}
-
 export function ganttEditability(parsed: ParsedGantt): GanttEditability {
   const fail = (
     reason: GanttNotEditableReason,
@@ -208,7 +191,12 @@ export function ganttEditability(parsed: ParsedGantt): GanttEditability {
   if (hasCycle(parsed)) {
     return fail("cyclicReference", "tasks refer to each other in a circle");
   }
-  if (excludedWeekdays(parsed).size === GANTT_WEEKDAY_NAMES.length) {
+  if (
+    excludedWeekdayNames(
+      excludeTokensOf(parsed.settings),
+      weekendStartDayOf(parsed.settings),
+    ).size === GANTT_WEEKDAY_NAMES.length
+  ) {
     return fail("allDaysExcluded", "excludes removes all seven days");
   }
   const first = parsed.tasks[0];
