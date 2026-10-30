@@ -384,6 +384,95 @@ function themeValuesOf(themeId: string): MermaidThemeValues {
   return values;
 }
 
+// Mermaid puts the position of a `click` node on the <a> around it (docs/architecture.md
+// §16.15.8). jsdom layout values are fake, so these check that each node keeps the
+// transform Mermaid gave it, not where it ends up on screen.
+describe("real Mermaid: a clickable node keeps its position after the link is removed", () => {
+  const nodeId = /-flowchart-([^-]+)-\d+$/;
+
+  // The transform that places each node, keyed by node id: the node's own transform, or
+  // that of the element directly around it (the <a> in raw output, its <g> after sanitising).
+  function nodePositions(svg: string): Map<string, string | null> {
+    const positions = new Map<string, string | null>();
+    for (const node of parseSvg(svg).querySelectorAll("g.node")) {
+      const id = nodeId.exec(node.getAttribute("id") ?? "")?.[1];
+      if (id === undefined) continue;
+      const parent = node.parentElement;
+      const parentPlacesNode =
+        parent !== null && !parent.classList.contains("nodes");
+      positions.set(
+        id,
+        node.getAttribute("transform") ??
+          (parentPlacesNode ? parent.getAttribute("transform") : null),
+      );
+    }
+    return positions;
+  }
+
+  it("keeps the transform the link carried, with the shape and label inside", async () => {
+    const { raw, clean } = await renderRawAndClean(
+      `flowchart TD\n  A[Alpha] --> B[Beta]\n  click A "https://example.invalid/page" "tip"`,
+    );
+    const rawLink = parseSvg(raw).querySelector("a");
+    expect(rawLink?.getAttribute("transform")).toMatch(/^translate\(/);
+
+    const document = parseSvg(clean);
+    expect(document.querySelectorAll("a")).toHaveLength(0);
+    expect(clean.includes("example.invalid")).toBe(false);
+    const node = document.querySelector('g.node[id$="-flowchart-A-0"]');
+    const wrapper = node?.parentElement;
+    expect(wrapper?.localName).toBe("g");
+    expect(wrapper?.getAttributeNames()).toEqual(["transform"]);
+    expect(wrapper?.getAttribute("transform")).toBe(
+      rawLink?.getAttribute("transform"),
+    );
+    expect(wrapper?.parentElement?.classList.contains("nodes")).toBe(true);
+    expect(node?.querySelector("rect")).not.toBeNull();
+    expect(node?.textContent).toContain("Alpha");
+    expect(nodePositions(clean)).toEqual(nodePositions(raw));
+  });
+
+  it("keeps several clickable nodes at their own, different positions", async () => {
+    const { raw, clean } = await renderRawAndClean(
+      [
+        "flowchart LR",
+        "  A[Alpha] --> B(Beta) --> C{Gamma}",
+        "  A --> D[(Delta)]",
+        '  click A "https://example.invalid/a"',
+        '  click B href "https://example.invalid/b" "tip"',
+        "  click C callbackName",
+        '  click D "javascript:alert(1)"',
+      ].join("\n"),
+    );
+    const positions = nodePositions(clean);
+    expect(positions).toEqual(nodePositions(raw));
+    const values = [...positions.values()];
+    expect(values).toHaveLength(4);
+    expect(values.every((value) => value !== null)).toBe(true);
+    expect(new Set(values).size).toBe(values.length);
+    const document = parseSvg(clean);
+    expect(document.querySelectorAll("a")).toHaveLength(0);
+    expect(clean).not.toMatch(/example\.invalid|javascript|alert/);
+    expect(clean).not.toMatch(/\son[a-z]+=/i);
+    for (const label of ["Alpha", "Beta", "Gamma", "Delta"]) {
+      expect(clean).toContain(label);
+    }
+  });
+
+  it("leaves a flowchart without click exactly as before (no wrapper is added)", async () => {
+    const { raw, clean } = await renderRawAndClean(
+      "flowchart TD\n  A[Alpha] --> B[Beta] --> C[Gamma]",
+    );
+    expect(/<a[ >]/.test(raw)).toBe(false);
+    const countGroups = (svg: string) =>
+      parseSvg(svg).querySelectorAll("g").length;
+    expect(countGroups(clean)).toBe(countGroups(raw));
+    const positions = nodePositions(clean);
+    expect(positions).toEqual(nodePositions(raw));
+    expect([...positions.values()].every((value) => value !== null)).toBe(true);
+  });
+});
+
 describe("real Mermaid with the app's theme token values", () => {
   it.each(["light", "dark"])(
     "renders with the %s theme and uses its colours",

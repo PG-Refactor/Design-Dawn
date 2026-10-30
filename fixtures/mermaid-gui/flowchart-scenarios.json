@@ -1,0 +1,734 @@
+{
+  "fixtureVersion": 1,
+  "subject": "Tier 1 edit scenarios of the flowchart editor (Step 9-7)",
+  "scenarios": [
+    {
+      "id": "LR1",
+      "op": "renameLabel",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A[Begin] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveGate": "PASS",
+      "note": "label inside existing [ ]"
+    },
+    {
+      "id": "LR2-naive",
+      "op": "renameLabel",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A[Begin (v2)] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveGate": "FAIL-parse",
+      "note": "unquoted special chars: parse fails"
+    },
+    {
+      "id": "LR2-quoted",
+      "op": "renameLabel",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A[\"Begin (v2)\"] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveGate": "PASS",
+      "note": "generator always quotes"
+    },
+    {
+      "id": "LR3-implicit",
+      "op": "renameLabel(add label to implicit node)",
+      "source": "flowchart TD\n    A --> B\n    B --> C\n    C --> D\n",
+      "naiveCandidate": "flowchart TD\n    A --> B[\"Bee\"]\n    B --> C\n    C --> D\n",
+      "naiveGate": "PASS",
+      "note": "insert after first mention"
+    },
+    {
+      "id": "LR4-redefined-first",
+      "op": "renameLabel",
+      "source": "flowchart TD\n    A[One]\n    A[Two]\n    A --> B\n",
+      "naiveCandidate": "flowchart TD\n    A[New]\n    A[Two]\n    A --> B\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "last definition wins: editing the first has no effect"
+    },
+    {
+      "id": "LR4-redefined-last",
+      "op": "renameLabel",
+      "source": "flowchart TD\n    A[One]\n    A[Two]\n    A --> B\n",
+      "naiveCandidate": "flowchart TD\n    A[One]\n    A[New]\n    A --> B\n",
+      "naiveGate": "PASS",
+      "note": "editing the last definition works but first stays stale"
+    },
+    {
+      "id": "LR5-at-label",
+      "op": "renameLabel",
+      "source": "flowchart TD\n    A@{ shape: cyl, label: \"Store\" }\n    B@{ shape: doc, label: \"Report\" }\n    A e1@--> B\n    B e2@==> C\n    e1@{ animate: true }\n    e2@{ curve: linear }\n",
+      "naiveCandidate": "flowchart TD\n    A@{ shape: cyl, label: \"Warehouse\" }\n    B@{ shape: doc, label: \"Report\" }\n    A e1@--> B\n    B e2@==> C\n    e1@{ animate: true }\n    e2@{ curve: linear }\n",
+      "naiveGate": "PASS",
+      "note": "label inside @{ } quotes"
+    },
+    {
+      "id": "LR6-with-class",
+      "op": "renameLabel",
+      "source": "flowchart TD\n    classDef c fill:#f00\n    A[Text]:::c --> B\n",
+      "naiveCandidate": "flowchart TD\n    classDef c fill:#f00\n    A[Other]:::c --> B\n",
+      "naiveGate": "PASS",
+      "note": ":::c suffix untouched"
+    },
+    {
+      "id": "LR7-in-subgraph",
+      "op": "renameLabel",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveCandidate": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[Interface] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveGate": "PASS",
+      "note": "node inside subgraph with click/class"
+    },
+    {
+      "id": "LR8-br",
+      "op": "renameLabel",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A[\"a<br/>b\"] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveGate": "PASS",
+      "note": "multi-line label via <br/>"
+    },
+    {
+      "id": "LR9-init-injection",
+      "op": "renameLabel",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A[\"%%{init: {'theme':'dark'}}%%\"] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveGate": "FAIL-parse",
+      "note": "db unchanged by directive; render config changes (see injection experiment)"
+    },
+    {
+      "id": "LR10-dq",
+      "op": "renameLabel",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A[\"say \"hi\"\"] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "double quote in label cannot be written"
+    },
+    {
+      "id": "LR11-newline",
+      "op": "renameLabel",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A[\"l1\nl2\"] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveGate": "PASS",
+      "note": "raw newline in quoted label is accepted by mermaid, but injects lines for a line-based parser"
+    },
+    {
+      "id": "LR12-newline-statement",
+      "op": "renameLabel",
+      "source": "flowchart TD\n    A[Start] --> B\n",
+      "naiveCandidate": "flowchart TD\n    A[x\"]\n    click A href \"https://evil.example\" \"t\"\n    A[\"y] --> B\n",
+      "naiveGate": "FAIL-parse",
+      "note": "label with newline+quote that closes the string and injects a click statement"
+    },
+    {
+      "id": "AN1-append",
+      "op": "addNode",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n    E[\"New node\"]\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "AN3-id-is-subgraph",
+      "op": "addNode(id = subgraph id)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveCandidate": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n    Back[\"Z\"]\n",
+      "naiveGate": "PASS",
+      "note": "id collides with subgraph id"
+    },
+    {
+      "id": "AN4-id-is-edge-id",
+      "op": "addNode(id = edge id)",
+      "source": "flowchart TD\n    A@{ shape: cyl, label: \"Store\" }\n    B@{ shape: doc, label: \"Report\" }\n    A e1@--> B\n    B e2@==> C\n    e1@{ animate: true }\n    e2@{ curve: linear }\n",
+      "naiveCandidate": "flowchart TD\n    A@{ shape: cyl, label: \"Store\" }\n    B@{ shape: doc, label: \"Report\" }\n    A e1@--> B\n    B e2@==> C\n    e1@{ animate: true }\n    e2@{ curve: linear }\n    e1[\"X\"]\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "id collides with user edge id"
+    },
+    {
+      "id": "AN5-id-is-existing-node",
+      "op": "addNode(id = existing node)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n    A[\"Dup\"]\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "duplicate id silently redefines the existing node (must be refused before editing)"
+    },
+    {
+      "id": "AN6-id-end",
+      "op": "addNode(id=end)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n    end[\"X\"]\n",
+      "naiveGate": "FAIL-parse",
+      "note": ""
+    },
+    {
+      "id": "AN7-id-with-hyphen-ja",
+      "op": "addNode(id with - and ja)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n    my-node[\"X\"]\n    日本語[\"Y\"]\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "AN8-after-linkstyle",
+      "op": "addNode(append after style/click lines)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveCandidate": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n    Z[\"Z\"]\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "AN9-no-trailing-newline",
+      "op": "addNode(file w/o final newline)",
+      "source": "flowchart TD\n    A --> B",
+      "naiveCandidate": "flowchart TD\n    A --> B\n    Z[\"Z\"]",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "AE1-append",
+      "op": "addEdge",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n    C --> A\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "AE2-middle-no-linkstyle",
+      "op": "addEdge(insert mid, no linkStyle)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B{Check}\n    A --> C\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveGate": "PASS",
+      "note": "edge order changes; safe only if nothing is index-keyed"
+    },
+    {
+      "id": "AE3-before-indexed-edge",
+      "op": "addEdge(insert before linkStyle-indexed edge)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveCandidate": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    UI --> DB\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "linkStyle 2 now hits a different edge"
+    },
+    {
+      "id": "AE3b-append-end",
+      "op": "addEdge(append at EOF)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveCandidate": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n    UI --> DB\n",
+      "naiveGate": "PASS",
+      "note": "append after all edges: no index shift"
+    },
+    {
+      "id": "AE3c-after-last-edge-before-style",
+      "op": "addEdge(after last edge stmt, before style/linkStyle)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveCandidate": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    UI --> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "AE4-in-subgraph",
+      "op": "addEdge(inside subgraph block)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveCandidate": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n        UI --> DB\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "membership of DB may move from Back to Front"
+    },
+    {
+      "id": "AE5-new-implicit-node",
+      "op": "addEdge(new implicit endpoint)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n    C --> Brand\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "AE6-label-and-type",
+      "op": "addEdge(dotted + label)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n    A -.->|\"note (x)\"| C\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "AE7-endpoint-is-subgraph",
+      "op": "addEdge(endpoint = subgraph id)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveCandidate": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n    Cache --> Front\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "mermaid also creates a vertex named Front"
+    },
+    {
+      "id": "AE8-after-edge-with-amp",
+      "op": "addEdge(insert after & stmt before indexed)",
+      "source": "flowchart TD\n    A --> B --> C\n    D & E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 5,7 stroke:#f00\n",
+      "naiveCandidate": "flowchart TD\n    A --> B --> C\n    D & E --> F & G\n    A --> J\n    H -->|x| I -.-> J\n    linkStyle 5,7 stroke:#f00\n",
+      "naiveGate": "FAIL-semantic",
+      "note": ""
+    },
+    {
+      "id": "AE9-pipe-label-quote",
+      "op": "addEdge(label with |)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n    A -->|\"a | b\"| C\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "AE10-between-existing-before-class",
+      "op": "addEdge(duplicate of existing endpoints)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n    A --> B\n",
+      "naiveGate": "PASS",
+      "note": "parallel edge; auto id L_A_B_2"
+    },
+    {
+      "id": "DE1-line-both-defined-elsewhere",
+      "op": "deleteEdge(delete line)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "DE2-line-loses-label",
+      "op": "deleteEdge(delete line holding D[Retry])",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    D --> A\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "label definition of D lived on the deleted line"
+    },
+    {
+      "id": "DE2b-link-to-semicolon",
+      "op": "deleteEdge(link -> ';')",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B; D[Retry]\n    D --> A\n",
+      "naiveGate": "PASS",
+      "note": "only the link token bytes change"
+    },
+    {
+      "id": "DE3-last-edge-implicit-node",
+      "op": "deleteEdge(delete line, implicit node)",
+      "source": "flowchart TD\n    A --> B\n    B --> C\n    C --> D\n",
+      "naiveCandidate": "flowchart TD\n    A --> B\n    B --> C\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "D existed only through this edge"
+    },
+    {
+      "id": "DE3b-link-to-semicolon",
+      "op": "deleteEdge(link -> ';', implicit node)",
+      "source": "flowchart TD\n    A --> B\n    B --> C\n    C --> D\n",
+      "naiveCandidate": "flowchart TD\n    A --> B\n    B --> C\n    C; D\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "DE4-chain-naive",
+      "op": "deleteEdge(chain, link->';', linkStyle untouched)",
+      "source": "flowchart TD\n    A --> B --> C\n    D & E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 5,7 stroke:#f00\n",
+      "naiveCandidate": "flowchart TD\n    A --> B; C\n    D & E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 5,7 stroke:#f00\n",
+      "naiveGate": "FAIL-parse",
+      "note": "edges after #1 shift down; linkStyle 5,7 now off by one"
+    },
+    {
+      "id": "DE4b-chain-renumber",
+      "op": "deleteEdge(chain, link->';', linkStyle renumbered)",
+      "source": "flowchart TD\n    A --> B --> C\n    D & E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 5,7 stroke:#f00\n",
+      "naiveCandidate": "flowchart TD\n    A --> B; C\n    D & E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 4,6 stroke:#f00\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "DE4c-chain-first",
+      "op": "deleteEdge(chain first link)",
+      "source": "flowchart TD\n    A --> B --> C\n    D & E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 5,7 stroke:#f00\n",
+      "naiveCandidate": "flowchart TD\n    A; B --> C\n    D & E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 4,6 stroke:#f00\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "DE5-amp-rewrite",
+      "op": "deleteEdge(& statement, rewrite)",
+      "source": "flowchart TD\n    A --> B --> C\n    D & E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 5,7 stroke:#f00\n",
+      "naiveCandidate": "flowchart TD\n    A --> B --> C\n    D & E; D --> G; E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 4,6 stroke:#f00\n",
+      "naiveGate": "PASS",
+      "note": "removes D>F; vertex order may change"
+    },
+    {
+      "id": "DE5b-amp-rewrite-no-renumber",
+      "op": "deleteEdge(& statement, rewrite, linkStyle forgotten)",
+      "source": "flowchart TD\n    A --> B --> C\n    D & E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 5,7 stroke:#f00\n",
+      "naiveCandidate": "flowchart TD\n    A --> B --> C\n    D & E; D --> G; E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 5,7 stroke:#f00\n",
+      "naiveGate": "FAIL-parse",
+      "note": ""
+    },
+    {
+      "id": "DE6-edge-id-attr-dangling",
+      "op": "deleteEdge(edge with id, attr line kept)",
+      "source": "flowchart TD\n    A@{ shape: cyl, label: \"Store\" }\n    B@{ shape: doc, label: \"Report\" }\n    A e1@--> B\n    B e2@==> C\n    e1@{ animate: true }\n    e2@{ curve: linear }\n",
+      "naiveCandidate": "flowchart TD\n    A@{ shape: cyl, label: \"Store\" }\n    B@{ shape: doc, label: \"Report\" }\n    A; B\n    B e2@==> C\n    e1@{ animate: true }\n    e2@{ curve: linear }\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "e1@{ animate } now defines a vertex e1"
+    },
+    {
+      "id": "DE6b-edge-id-attr-removed",
+      "op": "deleteEdge(edge with id, attr line removed)",
+      "source": "flowchart TD\n    A@{ shape: cyl, label: \"Store\" }\n    B@{ shape: doc, label: \"Report\" }\n    A e1@--> B\n    B e2@==> C\n    e1@{ animate: true }\n    e2@{ curve: linear }\n",
+      "naiveCandidate": "flowchart TD\n    A@{ shape: cyl, label: \"Store\" }\n    B@{ shape: doc, label: \"Report\" }\n    A; B\n    B e2@==> C\n    e2@{ curve: linear }\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "DE7-subgraph-membership",
+      "op": "deleteEdge(delete line inside subgraph)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveCandidate": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 1 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "UI-->API was the only statement putting UI and API into Front"
+    },
+    {
+      "id": "DE7b-link-to-semicolon",
+      "op": "deleteEdge(link->';' inside subgraph)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveCandidate": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI]; API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 1 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveGate": "PASS",
+      "note": "membership kept by mentions"
+    },
+    {
+      "id": "DE8-linkstyle-shift-naive",
+      "op": "deleteEdge(delete line, linkStyle untouched)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveCandidate": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "linkStyle 2 now selects Cache>DB"
+    },
+    {
+      "id": "DE8b-linkstyle-renumbered",
+      "op": "deleteEdge(link->';', linkStyle renumbered)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveCandidate": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API]; DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 1 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "DE9-linkstyle-on-deleted",
+      "op": "deleteEdge(edge that has linkStyle)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveCandidate": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI]; API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "linkStyle 0 still points to index 0 = next edge"
+    },
+    {
+      "id": "DE10-parallel-edges",
+      "op": "deleteEdge(parallel edge #0)",
+      "source": "flowchart TD\n    A --> B\n    A --> B\n    linkStyle 1 stroke:#f00\n",
+      "naiveCandidate": "flowchart TD\n    A; B\n    A --> B\n    linkStyle 0 stroke:#f00\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "DE11-chain-labeled-first",
+      "op": "deleteEdge(chain, labeled first link)",
+      "source": "flowchart TD\n    A --> B --> C\n    D & E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 5,7 stroke:#f00\n",
+      "naiveCandidate": "flowchart TD\n    A --> B --> C\n    D & E --> F & G\n    H; I -.-> J\n    linkStyle 5,6 stroke:#f00\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "DE11b-chain-last",
+      "op": "deleteEdge(chain last link, indexed)",
+      "source": "flowchart TD\n    A --> B --> C\n    D & E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 5,7 stroke:#f00\n",
+      "naiveCandidate": "flowchart TD\n    A --> B --> C\n    D & E --> F & G\n    H -->|x| I; J\n    linkStyle 5 stroke:#f00\n",
+      "naiveGate": "PASS",
+      "note": "linkStyle index 7 belonged to the deleted edge"
+    },
+    {
+      "id": "CT1",
+      "op": "changeEdgeTarget",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> C\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "CT2-implicit-vanishes",
+      "op": "changeEdgeTarget(old target implicit)",
+      "source": "flowchart TD\n    A --> B\n    B --> C\n    C --> D\n",
+      "naiveCandidate": "flowchart TD\n    A --> B\n    B --> C\n    C --> A\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "D disappears (existed only here)"
+    },
+    {
+      "id": "CT2b-keep-node",
+      "op": "changeEdgeTarget(keep old node as bare mention)",
+      "source": "flowchart TD\n    A --> B\n    B --> C\n    C --> D\n",
+      "naiveCandidate": "flowchart TD\n    A --> B\n    B --> C\n    C --> A; D\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "CT3-chain-middle",
+      "op": "changeEdgeTarget(chain, token shared by 2 edges)",
+      "source": "flowchart TD\n    A --> B --> C\n    D & E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 5,7 stroke:#f00\n",
+      "naiveCandidate": "flowchart TD\n    A --> X --> C\n    D & E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 5,7 stroke:#f00\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "B>C also changes to X>C"
+    },
+    {
+      "id": "CT4-amp-token",
+      "op": "changeEdgeTarget(& list token shared by 2 edges)",
+      "source": "flowchart TD\n    A --> B --> C\n    D & E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 5,7 stroke:#f00\n",
+      "naiveCandidate": "flowchart TD\n    A --> B --> C\n    D & E --> F & X\n    H -->|x| I -.-> J\n    linkStyle 5,7 stroke:#f00\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "D>G changes too"
+    },
+    {
+      "id": "CT5-chain-last",
+      "op": "changeEdgeTarget(last node of chain)",
+      "source": "flowchart TD\n    A --> B --> C\n    D & E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 5,7 stroke:#f00\n",
+      "naiveCandidate": "flowchart TD\n    A --> B --> C\n    D & E --> F & G\n    H -->|x| I -.-> K\n    linkStyle 5,7 stroke:#f00\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "J vanishes (implicit)"
+    },
+    {
+      "id": "CT5b-chain-last-keep",
+      "op": "changeEdgeTarget(last node of chain, keep old node)",
+      "source": "flowchart TD\n    A --> B --> C\n    D & E --> F & G\n    H -->|x| I -.-> J\n    linkStyle 5,7 stroke:#f00\n",
+      "naiveCandidate": "flowchart TD\n    A --> B --> C\n    D & E --> F & G\n    H -->|x| I -.-> K; J\n    linkStyle 5,7 stroke:#f00\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "CT6-edge-id",
+      "op": "changeEdgeTarget(edge with id)",
+      "source": "flowchart TD\n    A@{ shape: cyl, label: \"Store\" }\n    B@{ shape: doc, label: \"Report\" }\n    A e1@--> B\n    B e2@==> C\n    e1@{ animate: true }\n    e2@{ curve: linear }\n",
+      "naiveCandidate": "flowchart TD\n    A@{ shape: cyl, label: \"Store\" }\n    B@{ shape: doc, label: \"Report\" }\n    A e1@--> B\n    B e2@==> A\n    e1@{ animate: true }\n    e2@{ curve: linear }\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "C vanishes"
+    },
+    {
+      "id": "CT7-source",
+      "op": "changeEdgeSource",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    C --> A\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "CT8-to-subgraph-id",
+      "op": "changeEdgeTarget(to subgraph id)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveCandidate": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> Front\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveGate": "FAIL-semantic",
+      "note": ""
+    },
+    {
+      "id": "CS1-diamond-to-round",
+      "op": "changeShape",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B(Check)\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "CS2-square-to-circle",
+      "op": "changeShape",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A((Start)) --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "CS3-implicit-to-shape",
+      "op": "changeShape(implicit node)",
+      "source": "flowchart TD\n    A --> B\n    B --> C\n    C --> D\n",
+      "naiveCandidate": "flowchart TD\n    A{A} --> B\n    B --> C\n    C --> D\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "CS4-at-shape",
+      "op": "changeShape(@{ shape })",
+      "source": "flowchart TD\n    A@{ shape: cyl, label: \"Store\" }\n    B@{ shape: doc, label: \"Report\" }\n    A e1@--> B\n    B e2@==> C\n    e1@{ animate: true }\n    e2@{ curve: linear }\n",
+      "naiveCandidate": "flowchart TD\n    A@{ shape: hex, label: \"Store\" }\n    B@{ shape: doc, label: \"Report\" }\n    A e1@--> B\n    B e2@==> C\n    e1@{ animate: true }\n    e2@{ curve: linear }\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "CS5-ellipse-render-fails",
+      "op": "changeShape(to (- -))",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B(-Check-)\n    B -->|yes| C[Done]\n    B -->|no| D[Retry]\n    D --> A\n",
+      "naiveGate": "FAIL-render",
+      "note": "parses; render throws No such shape: ellipse"
+    },
+    {
+      "id": "CS6-redefined-first",
+      "op": "changeShape(node defined twice, edit first)",
+      "source": "flowchart TD\n    A[One]\n    A[Two]\n    A --> B\n",
+      "naiveCandidate": "flowchart TD\n    A{One}\n    A[Two]\n    A --> B\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "last definition wins"
+    },
+    {
+      "id": "CS7-label-with-slash-to-lean",
+      "op": "changeShape(unquoted label containing /)",
+      "source": "flowchart TD\n    A[x/y] --> B\n",
+      "naiveCandidate": "flowchart TD\n    A[/x/y/] --> B\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "CS7b-quoted",
+      "op": "changeShape(quote label, then lean)",
+      "source": "flowchart TD\n    A[x/y] --> B\n",
+      "naiveCandidate": "flowchart TD\n    A[/\"x/y\"/] --> B\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "CS8-cylinder-in-subgraph",
+      "op": "changeShape(in subgraph, with style line)",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveCandidate": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB{DB}\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "SG7-set-diagram-direction",
+      "op": "setDirection",
+      "source": "flowchart LR\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveCandidate": "flowchart TB\n    classDef hot fill:#f96,stroke:#333\n    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n    subgraph Back\n        API[API] --> DB[(DB)]\n    end\n    UI:::hot\n    API -.-> Cache\n    Cache ==> DB\n    style DB fill:#bbf\n    linkStyle 0 stroke:#f00\n    linkStyle 2 stroke:#0a0,stroke-width:3px\n    click UI \"https://example.com\" \"tip\"\n    class Cache hot\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "ET1-arrow-to-dotted",
+      "op": "setEdgeType",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] -.-> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "ET2-arrow-to-open",
+      "op": "setEdgeType(to ---)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --- B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "ET3-keep-pipe-label",
+      "op": "setEdgeType(pipe label kept)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B{Check}\n    B ==>|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "ET4-add-label",
+      "op": "setEdgeLabel(add)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] -->|\"go (now)\"| B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "ET5-change-label",
+      "op": "setEdgeLabel(change)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|\"y e s\"| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "ET6-remove-label",
+      "op": "setEdgeLabel(remove)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B{Check}\n    B --> C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "ET7-inline-label-change-text",
+      "op": "setEdgeLabel(inline form, text only)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -- perhaps --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "ET7b-inline-label-change-type-one-side",
+      "op": "setEdgeType(inline form, only one side changed)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe ==> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "start and end must agree"
+    },
+    {
+      "id": "ET7c-inline-label-change-type-both",
+      "op": "setEdgeType(inline form, both sides)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B == maybe ==> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "ET7d-inline-to-pipe",
+      "op": "setEdgeLabel(convert inline to pipe form)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -->|maybe| D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "ET8-edge-id-kept",
+      "op": "setEdgeType(edge with id)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@-.-> A\n    E & F --> G\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "ET9-amp-shared-link",
+      "op": "setEdgeType(link shared by & statement)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F -.-> G\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "changes both E>G and F>G"
+    },
+    {
+      "id": "ET10-length",
+      "op": "setEdgeLength",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] ---> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "ET11-bidirectional",
+      "op": "setEdgeType(<-->)",
+      "source": "flowchart TD\n    A[Start] --> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveCandidate": "flowchart TD\n    A[Start] <--> B{Check}\n    B -->|yes| C[Done]\n    B -- maybe --> D[Retry]\n    D e1@==> A\n    E & F --> G\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "ET12-no-space-link",
+      "op": "setEdgeType(link glued to ids)",
+      "source": "flowchart TD\n    A-->B\n",
+      "naiveCandidate": "flowchart TD\n    A-.->B\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "ET13-o-prefixed-id-glue",
+      "op": "setEdgeType(generated glue next to o-id)",
+      "source": "flowchart TD\n    A --> oB\n",
+      "naiveCandidate": "flowchart TD\n    A --- oB\n",
+      "naiveGate": "PASS",
+      "note": ""
+    },
+    {
+      "id": "ET14-o-prefixed-id-glue-naive",
+      "op": "setEdgeType(NAIVE glue without spaces)",
+      "source": "flowchart TD\n    A --> oB\n",
+      "naiveCandidate": "flowchart TD\n    A---oB\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "---oB is a circle-end edge to B"
+    }
+  ]
+}

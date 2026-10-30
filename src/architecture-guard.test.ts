@@ -56,6 +56,55 @@ describe("architecture guard", () => {
   });
 });
 
+// The diagram model is pure text processing: it must stay usable by Node tests and by
+// every layer, so it may not reach upward or pull in the Mermaid library (docs/architecture.md §16.6).
+describe("diagram domain guard", () => {
+  const diagramFiles = Object.entries(sources).filter(([file]) =>
+    file.startsWith("./domain/diagram/"),
+  );
+  const DIAGRAM_FORBIDDEN_PATH_PARTS = [
+    "/application/",
+    "/features/",
+    "/infrastructure/",
+  ];
+
+  function diagramViolation(specifier: string): string | null {
+    if (specifier === "mermaid" || specifier.startsWith("mermaid/")) {
+      return "package mermaid";
+    }
+    const forbiddenPath = DIAGRAM_FORBIDDEN_PATH_PARTS.find((part) =>
+      `/${specifier}/`.includes(part),
+    );
+    return forbiddenPath === undefined ? null : `path ${forbiddenPath}`;
+  }
+
+  it("scans the diagram domain sources", () => {
+    expect(diagramFiles.length).toBeGreaterThan(3);
+  });
+
+  it("imports nothing from application, features, infrastructure or mermaid", () => {
+    const violations: string[] = [];
+    for (const [file, source] of diagramFiles) {
+      for (const match of source.matchAll(IMPORT_SPECIFIER_PATTERN)) {
+        const reason = diagramViolation(match[1] ?? "");
+        if (reason !== null)
+          violations.push(`${file} imports ${match[1]} (${reason})`);
+      }
+    }
+    expect(violations).toEqual([]);
+  });
+
+  it("detects forbidden specifiers", () => {
+    expect(diagramViolation("mermaid")).not.toBeNull();
+    expect(
+      diagramViolation("../../application/commands/command"),
+    ).not.toBeNull();
+    expect(diagramViolation("../../features/mermaid/x")).not.toBeNull();
+    expect(diagramViolation("./source-lines")).toBeNull();
+    expect(diagramViolation("../shared/domain-result")).toBeNull();
+  });
+});
+
 // UI code (features and the app's React components) reaches the application layer only;
 // the infrastructure is wired in exactly one place, the composition root. main.tsx sits
 // outside these folders and imports no infrastructure either.

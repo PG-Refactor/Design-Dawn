@@ -1,0 +1,273 @@
+{
+  "fixtureVersion": 1,
+  "subject": "mermaidGuiSources",
+  "cases": [
+    {
+      "id": "corpus-f3",
+      "group": "edgeCase",
+      "diagram": "flowchart",
+      "source": "%% top comment\nflowchart TD\n\n    %% c1\n  A --> B   %% trailing comment?\n\t\tB --> C\n\n  %% c2\n  C --> D\n",
+      "mermaidParses": false,
+      "note": "comments, blank lines, mixed indentation"
+    },
+    {
+      "id": "corpus-f4",
+      "group": "edgeCase",
+      "diagram": "flowchart",
+      "source": "---\ntitle: T\nconfig:\n  theme: forest\n---\n%%{init: {\"flowchart\": {\"curve\": \"linear\"}}}%%\nflowchart TD\n  A[One] --> B[Two]\n",
+      "mermaidParses": true,
+      "note": "front matter + init directive"
+    },
+    {
+      "id": "corpus-f5",
+      "group": "edgeCase",
+      "diagram": "flowchart",
+      "source": "flowchart TD\r\n  A[Start] --> B{Ok?}\r\n  B -->|yes| C[Done]\r\n",
+      "mermaidParses": true,
+      "note": "CRLF line endings"
+    },
+    {
+      "id": "corpus-f6",
+      "group": "edgeCase",
+      "diagram": "flowchart",
+      "source": "flowchart TD;\n\tA[Start]   ;\n\tA-->B;   \n  B --> C; C --> D\n",
+      "mermaidParses": true,
+      "note": "tabs, trailing spaces, semicolons, one-line multi statements"
+    },
+    {
+      "id": "corpus-f15",
+      "group": "edgeCase",
+      "diagram": "flowchart",
+      "source": "graph\n  A --> B\n  B --> C",
+      "mermaidParses": true,
+      "note": "legacy graph keyword w/ no direction"
+    },
+    {
+      "id": "corpus-f16",
+      "group": "edgeCase",
+      "diagram": "flowchart",
+      "source": "flowchart TD\n  A --> --> ((\n  B[ok]",
+      "mermaidParses": false,
+      "note": "UNPARSABLE for mermaid"
+    },
+    {
+      "id": "corpus-f17",
+      "group": "edgeCase",
+      "diagram": "flowchart",
+      "source": "flowchart TD\n  node-1[a] --> node_2[b]\n  日本 --> 語\n  A1[\"a;b\"] --> B1[\"c%%d\"]",
+      "mermaidParses": true,
+      "note": "node text with special chars unquoted/ids w/ hyphen & unicode"
+    },
+    {
+      "id": "corpus-s2",
+      "group": "edgeCase",
+      "diagram": "sequence",
+      "source": "sequenceDiagram\n  actor U as ユーザー\n  participant S as \"Server (main)\"\n  U->>S: こんにちは\n  S->>DB: query; with semicolon?\n  DB-->>S: rows",
+      "mermaidParses": false,
+      "note": "actors/aliases, implicit participants, unicode"
+    },
+    {
+      "id": "corpus-s8",
+      "group": "edgeCase",
+      "diagram": "sequence",
+      "source": "---\nconfig:\n  sequence:\n    mirrorActors: false\n---\n%%{init: {\"theme\":\"neutral\"}}%%\nsequenceDiagram\n%% c\n    participant A\n\t  participant B\n\n  A->>B: x   %% trailing\n    B->>A: y\n",
+      "mermaidParses": true,
+      "note": "comments, frontmatter, init, CRLF-less irregular indent"
+    },
+    {
+      "id": "corpus-s9",
+      "group": "edgeCase",
+      "diagram": "sequence",
+      "source": "sequenceDiagram\r\n  participant A\r\n  participant B\r\n  A->>B: hi\r\n  B-->>A: yo\r\n",
+      "mermaidParses": true,
+      "note": "CRLF"
+    },
+    {
+      "id": "corpus-s12",
+      "group": "edgeCase",
+      "diagram": "sequence",
+      "source": "sequenceDiagram\n  A->>: no target\n  loop\n  A->>B: x",
+      "mermaidParses": false,
+      "note": "UNPARSABLE for mermaid"
+    },
+    {
+      "id": "corpus-p1",
+      "group": "edgeCase",
+      "diagram": "pie",
+      "source": "pie\n  \"Dogs\" : 386\n  \"Cats\" : 85\n  \"Rats\" : 15",
+      "mermaidParses": true,
+      "note": "simple"
+    },
+    {
+      "id": "corpus-p3",
+      "group": "edgeCase",
+      "diagram": "pie",
+      "source": "pie\n  title 好きなペット\n  \"犬 (いぬ)\" : 40\n  \"cat: #quot;neko#quot;\" : 30\n  \"[brackets] & <b>html</b>\" : 30",
+      "mermaidParses": true,
+      "note": "title on own line, unicode/special labels"
+    },
+    {
+      "id": "corpus-p4",
+      "group": "edgeCase",
+      "diagram": "pie",
+      "source": "---\ntitle: Pets chart\nconfig:\n  pie:\n    textPosition: 0.5\n---\n%%{init: {\"theme\":\"forest\"}}%%\npie showData\n  %% a comment\n  \"A\" : 1\n\n  %% another\n  \"B\" : 2\n",
+      "mermaidParses": true,
+      "note": "comments + front matter + init"
+    },
+    {
+      "id": "corpus-p5",
+      "group": "edgeCase",
+      "diagram": "pie",
+      "source": "pie\r\n\t\"A\"   :   1\r\n   \"B\":2\r\n\"C\" :3.0\r\n",
+      "mermaidParses": true,
+      "note": "irregular whitespace, tabs, CRLF"
+    },
+    {
+      "id": "corpus-p8",
+      "group": "edgeCase",
+      "diagram": "pie",
+      "source": "pie\n  \"A\" : -5\n  \"B\" : 3",
+      "mermaidParses": false,
+      "note": "UNPARSABLE: negative value"
+    },
+    {
+      "id": "corpus-g3",
+      "group": "edgeCase",
+      "diagram": "gantt",
+      "source": "gantt\n  title 計画 (v2)\n  dateFormat YYYY-MM-DD\n  section 設計\n  仕様作成 :s1, 2024-01-01, 3d\n  \"レビュー\" & check :after s1, 2d\n  section 実装\n  <b>code</b> :c1, after s1, 4d",
+      "mermaidParses": true,
+      "note": "unicode names, quoted-ish, special chars"
+    },
+    {
+      "id": "corpus-g4",
+      "group": "edgeCase",
+      "diagram": "gantt",
+      "source": "---\ntitle: Gantt FM\nconfig:\n  gantt:\n    barHeight: 30\n---\n%%{init: {\"theme\":\"forest\"}}%%\ngantt\n  %% c\n  dateFormat YYYY-MM-DD\n  section S\n  %% inside\n  T1 :t1, 2024-01-01, 2d\n\n  T2 :t2, after t1, 1d\n",
+      "mermaidParses": true,
+      "note": "comments, frontmatter, init"
+    },
+    {
+      "id": "corpus-g5",
+      "group": "edgeCase",
+      "diagram": "gantt",
+      "source": "gantt\r\n  dateFormat YYYY-MM-DD\r\n\tsection S\r\n  T1   :   t1,2024-01-01,2d\r\n    T2:after t1,1d\r\n",
+      "mermaidParses": true,
+      "note": "irregular whitespace + CRLF"
+    },
+    {
+      "id": "own-flowchart-emoji",
+      "group": "edgeCase",
+      "diagram": "flowchart",
+      "source": "flowchart TD\n  A[\"日本語😀 start\"] --> B[\"end 👍🏽\"]\n",
+      "mermaidParses": true,
+      "note": "Japanese and emoji (astral code points, a ZWJ-free skin tone sequence) before later text: offsets must be UTF-16 code units"
+    },
+    {
+      "id": "own-pie-emoji",
+      "group": "edgeCase",
+      "diagram": "pie",
+      "source": "pie\n  \"🐶 犬\" : 3\n  \"🐱 猫\" : 2\n",
+      "mermaidParses": true,
+      "note": "Emoji and Japanese in pie labels"
+    },
+    {
+      "id": "fail-flowchart-edge-id-attribute",
+      "group": "knownFailure",
+      "diagram": "flowchart",
+      "source": "flowchart LR\n  A e1@--> B\n  e1@{ animate: true }\n",
+      "mermaidParses": true,
+      "note": "`e1@{ ... }` is an edge attribute line, not a node",
+      "futureBehaviour": "Treat the line as opaque or recognised edge metadata; never create a node `e1`; refuse edits that connect to it"
+    },
+    {
+      "id": "fail-flowchart-node-shape-attribute",
+      "group": "knownFailure",
+      "diagram": "flowchart",
+      "source": "flowchart TD\n  A@{ shape: rounded, label: \"x\" } --> B\n",
+      "mermaidParses": true,
+      "note": "`A@{ shape, label }`: the label lives in the attribute block",
+      "futureBehaviour": "Rename / delete must edit or keep the attribute block together with the node; otherwise refuse"
+    },
+    {
+      "id": "fail-flowchart-linkstyle-opaque-edge",
+      "group": "knownFailure",
+      "diagram": "flowchart",
+      "source": "flowchart TD\n  A --> B; C --> D\n  B --> E\n  linkStyle 2 stroke:red\n",
+      "mermaidParses": true,
+      "note": "A line holding two statements is opaque, yet it contains an edge, so the `linkStyle` index depends on it",
+      "futureBehaviour": "Refuse any edit that adds, removes or reorders edges while an opaque line contains an edge and `linkStyle` exists"
+    },
+    {
+      "id": "fail-flowchart-subgraph-endpoint",
+      "group": "knownFailure",
+      "diagram": "flowchart",
+      "source": "flowchart TB\n  subgraph one\n    A --> B\n  end\n  one --> C\n",
+      "mermaidParses": true,
+      "note": "A subgraph id used as an edge endpoint is not a node",
+      "futureBehaviour": "Never report `one` as a node; keep the edge intact"
+    },
+    {
+      "id": "fail-flowchart-subgraph-membership",
+      "group": "knownFailure",
+      "diagram": "flowchart",
+      "source": "flowchart TB\n  subgraph one\n    A --> B\n  end\n  B --> C\n",
+      "mermaidParses": true,
+      "note": "Deleting node `A` must not change which subgraph `B` belongs to",
+      "futureBehaviour": "Semantic check: subgraph membership of untouched nodes is identical before and after"
+    },
+    {
+      "id": "fail-sequence-bidirectional-arrow",
+      "group": "knownFailure",
+      "diagram": "sequence",
+      "source": "sequenceDiagram\n  participant A\n  participant B\n  A<<->>B: two\n  A<<-->>B: three\n",
+      "mermaidParses": true,
+      "note": "`<<->>` / `<<-->>` are arrows, not participants named `A<<`",
+      "futureBehaviour": "Recognise as messages or keep opaque; never create a phantom participant"
+    },
+    {
+      "id": "fail-sequence-activation-shorthand",
+      "group": "knownFailure",
+      "diagram": "sequence",
+      "source": "sequenceDiagram\n  A->>+B: call\n  B-->>-A: ret\n",
+      "mermaidParses": true,
+      "note": "`+` / `-` activate and deactivate; moving or deleting one side breaks rendering (inactive participant)",
+      "futureBehaviour": "Treat activation pairs as one unit or refuse edits that touch either message"
+    },
+    {
+      "id": "fail-sequence-delete-participant-no-trailing-newline",
+      "group": "knownFailure",
+      "diagram": "sequence",
+      "source": "sequenceDiagram\n  participant A\n  participant B\n  A->>B: hi\n  B-->>A: yo",
+      "mermaidParses": true,
+      "note": "The last line has no terminator; a delete reaching the end of the text produced overlapping edits in the reference tool",
+      "futureBehaviour": "Edits that remove the last line must still apply (or be refused with a reason), never throw"
+    },
+    {
+      "id": "fail-gantt-click-line",
+      "group": "knownFailure",
+      "diagram": "gantt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  T :t1, 2024-01-01, 2d\n  click t1 href \"https://example.com\"\n",
+      "mermaidParses": true,
+      "note": "`click` is an interaction line, not a task",
+      "futureBehaviour": "Keep the line opaque; never count it as a task"
+    },
+    {
+      "id": "fail-gantt-implicit-dependency",
+      "group": "knownFailure",
+      "diagram": "gantt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  A :a1, 2024-01-01, 2d\n  B :2d\n",
+      "mermaidParses": true,
+      "note": "`B` has no start and implicitly follows `A`; deleting `A` changes B's date",
+      "futureBehaviour": "Refuse the delete, or make the dependency explicit as a visible, confirmed edit"
+    },
+    {
+      "id": "fail-gantt-invalid-date-passes-parse",
+      "group": "knownFailure",
+      "diagram": "gantt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  T :t1, notadate, 3d\n",
+      "mermaidParses": true,
+      "note": "mermaid.parse accepts it, but rendering fails",
+      "futureBehaviour": "Validity is decided by rendering (Step 9-3 gate), never by parse alone"
+    }
+  ]
+}
