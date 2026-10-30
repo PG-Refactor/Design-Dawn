@@ -706,7 +706,7 @@ describe("a source the GUI cannot edit", () => {
     ["an inline directive", 'pie\n  "A%%{x}%%" : 1\n', "inlineDirective"],
     [
       "another diagram type",
-      "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  T :a1, 2024-01-01, 1d\n",
+      "timeline\n  title History\n  2024 : launch\n",
       "noEditorForType",
     ],
     ["an empty source", "", "empty"],

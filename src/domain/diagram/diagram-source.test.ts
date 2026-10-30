@@ -4,11 +4,12 @@ import { DIAGRAM_KEYWORDS } from "./diagram-type";
 import { loadMermaidGuiFixtures } from "./test-fixtures";
 
 describe("analyzeDiagramSource", () => {
-  it("has the pie, flowchart and sequence editors registered and no other", () => {
+  it("has the pie, flowchart, sequence and gantt editors registered and no other", () => {
     expect(Object.keys(DIAGRAM_EDITORS)).toEqual([
       "pie",
       "flowchart",
       "sequence",
+      "gantt",
     ]);
   });
 
@@ -47,7 +48,11 @@ describe("analyzeDiagramSource", () => {
           editable: false,
           reason: "editorRefused",
         });
-      } else if (type === "flowchart" || type === "sequence") {
+      } else if (
+        type === "flowchart" ||
+        type === "sequence" ||
+        type === "gantt"
+      ) {
         // The keyword alone may be a header the type's editor refuses (e.g. an
         // unsupported variant); either way the editor, not the common layer, decides.
         expect(
@@ -126,7 +131,7 @@ describe("analyzeDiagramSource", () => {
   });
 
   it("reports every statement line after the header as unsupported", () => {
-    const source = '%% c\ngantt\n  "A" : 1\n\n  "B" : 2\r\n';
+    const source = '%% c\ntimeline\n  "A" : 1\n\n  "B" : 2\r\n';
     const analysis = analyzeDiagramSource(source);
     expect(analysis.unsupported.map((line) => line.index)).toEqual([2, 4]);
     for (const line of analysis.unsupported) {
@@ -151,9 +156,10 @@ describe("analyzeDiagramSource", () => {
       if (
         fixture.diagram === "pie" ||
         fixture.diagram === "flowchart" ||
-        fixture.diagram === "sequence"
+        fixture.diagram === "sequence" ||
+        fixture.diagram === "gantt"
       ) {
-        // Pie, flowchart and sequence have an editor: whatever it calls editable must be a chart Mermaid reads.
+        // Pie, flowchart, sequence and gantt have an editor: whatever it calls editable must be a chart Mermaid reads.
         if (analysis.editability.editable) {
           expect(fixture.mermaidParses, fixture.id).toBe(true);
           expect(analysis.unsupported, fixture.id).toEqual([]);

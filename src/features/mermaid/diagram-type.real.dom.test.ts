@@ -125,7 +125,7 @@ describe("the mermaid-gui fixtures against Mermaid 12.1.0", () => {
       }
       const analysis = analyzeDiagramSource(fixture.source);
       // Detection is about the header only, so it may know the type of a source whose
-      // body Mermaid rejects; an editor (pie, flowchart, sequence) must refuse sources Mermaid rejects,
+      // body Mermaid rejects; an editor (pie, flowchart, sequence, gantt) must refuse sources Mermaid rejects,
       // and a type without an editor is never editable.
       expect(analysis.detection).toMatchObject({
         kind: "known",
@@ -134,7 +134,8 @@ describe("the mermaid-gui fixtures against Mermaid 12.1.0", () => {
       if (
         fixture.diagram === "pie" ||
         fixture.diagram === "flowchart" ||
-        fixture.diagram === "sequence"
+        fixture.diagram === "sequence" ||
+        fixture.diagram === "gantt"
       ) {
         if (analysis.editability.editable) {
           expect(fixture.mermaidParses).toBe(true);

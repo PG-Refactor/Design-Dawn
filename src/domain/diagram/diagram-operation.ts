@@ -5,6 +5,11 @@ import {
   verifyFlowchartCandidate,
 } from "./flowchart/flowchart-operations";
 import {
+  type GanttOperation,
+  planGanttOperation,
+  verifyGanttCandidate,
+} from "./gantt/gantt-operations";
+import {
   type PieOperation,
   planPieOperation,
   verifyPieCandidate,
@@ -30,6 +35,10 @@ export type DiagramOperation =
   | {
       readonly diagram: "sequence";
       readonly operation: SequenceOperation;
+    }
+  | {
+      readonly diagram: "gantt";
+      readonly operation: GanttOperation;
     };
 
 export interface DiagramOperationPlan {
@@ -67,6 +76,19 @@ export function planDiagramOperation(
           edits,
           verify: (candidateSource) =>
             verifyFlowchartCandidate(candidateSource, expected),
+        },
+      };
+    }
+    case "gantt": {
+      const plan = planGanttOperation(source, request.operation);
+      if (!plan.ok) return plan;
+      const { edits, expected } = plan.value;
+      return {
+        ok: true,
+        value: {
+          edits,
+          verify: (candidateSource) =>
+            verifyGanttCandidate(candidateSource, expected),
         },
       };
     }
