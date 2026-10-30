@@ -4,6 +4,7 @@ import {
   useEffect,
   useId,
   useRef,
+  useState,
 } from "react";
 import type { ApplyDiagramEditsOutcome } from "../../application/diagram/apply-diagram-edits";
 import {
@@ -15,13 +16,18 @@ import {
   ganttEndInputOf,
   ganttStartInputOf,
 } from "../../domain/diagram/gantt/gantt-input";
+import type { GanttMoveDirection } from "../../domain/diagram/gantt/gantt-move-operations";
 import type { GanttOperation } from "../../domain/diagram/gantt/gantt-operations";
-import type { GanttTaskView } from "../../domain/diagram/gantt/gantt-view";
+import type {
+  GanttMoveTargetView,
+  GanttTaskView,
+} from "../../domain/diagram/gantt/gantt-view";
 import type { BlockId, DocumentId } from "../../domain/shared/entity-id";
 import { useMessages } from "../workspace/use-messages";
 import { describeRestriction } from "./diagram-gui-text";
+import { GanttActionButton } from "./gantt-action-button";
 import { taskKey } from "./gantt-task-text";
-import { GuiButton, GuiCheckbox } from "./gui-controls";
+import { GuiButton, GuiCheckbox, GuiSelect } from "./gui-controls";
 import { GuiDraftLabelField } from "./gui-draft-label-field";
 import type { GuiDraftCommit } from "./use-gui-field-draft";
 
@@ -37,6 +43,11 @@ export interface GanttTaskEditorProps {
   ) => Promise<OperationResult<ApplyDiagramEditsOutcome>>;
   readonly onInvalidInput: (message: string) => void;
   readonly onDelete: (task: GanttTaskView) => void;
+  readonly onMove: (task: GanttTaskView, direction: GanttMoveDirection) => void;
+  readonly onMoveToSection: (task: GanttTaskView, sectionIndex: number) => void;
+  readonly onDuplicate: (task: GanttTaskView) => void;
+  // The sections the task could move to, with whether each move is possible.
+  readonly moveTargets: readonly GanttMoveTargetView[];
   readonly nameInputRef: Ref<HTMLInputElement | HTMLTextAreaElement>;
   readonly commitPendingRef: MutableRefObject<GuiDraftCommit | null>;
 }
@@ -53,6 +64,10 @@ export function GanttTaskEditor({
   runDraft,
   onInvalidInput,
   onDelete,
+  onMove,
+  onMoveToSection,
+  onDuplicate,
+  moveTargets,
   nameInputRef,
   commitPendingRef,
 }: GanttTaskEditorProps) {
@@ -68,6 +83,8 @@ export function GanttTaskEditor({
   const startCommitRef = useRef<GuiDraftCommit | null>(null);
   const endCommitRef = useRef<GuiDraftCommit | null>(null);
   const nameCommitRef = useRef<GuiDraftCommit | null>(null);
+  const linkCommitRef = useRef<GuiDraftCommit | null>(null);
+  const [destination, setDestination] = useState("");
   // Every render: the ref is also restored after the simulated unmount of StrictMode.
   useEffect(() => {
     commitPendingRef.current = async () => {
@@ -75,6 +92,7 @@ export function GanttTaskEditor({
         idCommitRef,
         startCommitRef,
         endCommitRef,
+        linkCommitRef,
         nameCommitRef,
       ]) {
         const result = await commit.current?.();
@@ -105,7 +123,15 @@ export function GanttTaskEditor({
     shown.deleteRestriction,
     text.refusalReasons,
   );
+  const linkRestriction = describeRestriction(
+    gui,
+    shown.addLinkRestriction === "noTaskId" ? "noTaskId" : null,
+    text.refusalReasons,
+  );
   const unavailable = busy || task === undefined;
+  const chosen = moveTargets.find(
+    (candidate) => String(candidate.sectionIndex) === destination,
+  );
   const field = (
     label: string,
     committed: string,
@@ -187,6 +213,20 @@ export function GanttTaskEditor({
         { commit: endCommitRef },
         { hint: text.endHint(dateFormat) },
       )}
+      {field(
+        text.linkField,
+        shown.link,
+        (target, value): GanttOperation =>
+          value.trim() === ""
+            ? { kind: "removeLink", target: target.target }
+            : { kind: "addLink", target: target.target, url: value.trim() },
+        { commit: linkCommitRef },
+        {
+          hint: text.linkHint,
+          restriction:
+            shown.addLinkRestriction === "noTaskId" ? linkRestriction : null,
+        },
+      )}
       <fieldset className="diagram-gui__checks">
         <legend className="diagram-gui__field-label">{text.tagsGroup}</legend>
         {GANTT_TAGS.map((tag) => (
@@ -208,6 +248,69 @@ export function GanttTaskEditor({
           />
         ))}
       </fieldset>
+      <div className="diagram-gui__actions">
+        <GanttActionButton
+          label={text.moveTaskUp}
+          restriction={task?.moveUp.restriction ?? null}
+          unavailable={task === undefined}
+          freezes={task?.moveUp.freezes}
+          busy={busy}
+          onPress={() => {
+            if (task !== undefined) onMove(task, "up");
+          }}
+        />
+        <GanttActionButton
+          label={text.moveTaskDown}
+          restriction={task?.moveDown.restriction ?? null}
+          unavailable={task === undefined}
+          freezes={task?.moveDown.freezes}
+          busy={busy}
+          onPress={() => {
+            if (task !== undefined) onMove(task, "down");
+          }}
+        />
+        <GanttActionButton
+          label={text.duplicateTask}
+          restriction={task?.duplicateRestriction ?? null}
+          unavailable={task === undefined}
+          busy={busy}
+          onPress={() => {
+            if (task !== undefined) onDuplicate(task);
+          }}
+        />
+      </div>
+      {moveTargets.length > 0 && (
+        <>
+          <GuiSelect
+            label={text.moveToSectionField}
+            value={destination}
+            options={[
+              { value: "", label: text.moveToSectionNone },
+              ...moveTargets.map((candidate) => ({
+                value: String(candidate.sectionIndex),
+                label: candidate.name,
+                disabled: candidate.restriction !== null,
+              })),
+            ]}
+            onChange={setDestination}
+            disabled={unavailable}
+          />
+          <div className="diagram-gui__actions">
+            <GanttActionButton
+              label={text.moveToSection}
+              restriction={chosen?.restriction ?? null}
+              unavailable={chosen === undefined || task === undefined}
+              freezes={chosen?.freezes}
+              busy={busy}
+              onPress={() => {
+                if (task !== undefined && chosen !== undefined) {
+                  onMoveToSection(task, chosen.sectionIndex);
+                }
+              }}
+            />
+          </div>
+        </>
+      )}
       <div className="diagram-gui__actions">
         <GuiButton
           label={text.deleteTask}

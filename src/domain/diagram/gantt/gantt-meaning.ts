@@ -4,9 +4,18 @@ import type {
   GanttSettingKeyword,
   GanttTag,
 } from "./gantt-config";
-import { GANTT_TAGS } from "./gantt-config";
-import { ganttDurationMs, parseGanttDate } from "./gantt-date";
+import {
+  GANTT_END_DATE_MANUAL_FORMAT,
+  GANTT_MAX_EXCLUDE_DAYS,
+  GANTT_TAGS,
+} from "./gantt-config";
+import { ganttDurationMs, MS_PER_DAY, parseGanttDate } from "./gantt-date";
 import { ganttEditability } from "./gantt-editability";
+import {
+  type ExcludeRules,
+  excludeRulesOf,
+  isExcludedDay,
+} from "./gantt-excludes";
 import type { GanttEnd, GanttStart, ParsedGantt } from "./gantt-types";
 
 // What Mermaid 12.1.0 holds after reading a gantt chart, derived from the parse: the title,
@@ -45,6 +54,10 @@ export interface GanttMeaning {
   // Every setting line in source order. No operation changes one, so a candidate must hold
   // exactly the settings the source had.
   readonly settings: readonly GanttSettingMeaning[];
+  // Set by an operation that promises where every task lands (a move, a change of
+  // `excludes`): the dates `resolveGanttSchedule` must give for the candidate, task by task.
+  // `ganttMeaningOf` never sets it; when it is absent nothing about dates is checked.
+  readonly schedule?: readonly (ResolvedDates | null)[];
 }
 
 export function orderGanttTags(tags: readonly GanttTag[]): readonly GanttTag[] {
@@ -94,22 +107,22 @@ export interface ResolvedDates {
 
 // Where the editor can predict it, the dates Mermaid computes: an explicit date, `after`
 // (the latest end of the named tasks), `until` (the earliest start), an implicit start (the
-// end of the task above in the source), and a duration of whole days, weeks, hours, minutes,
-// seconds or milliseconds. Null for a task whose dates depend on something the editor does
-// not model: `excludes` / `includes` move dates over skipped days, `inclusiveEndDates` adds
-// a day to an end date, and months, years and fractions have no fixed length. A time zone
-// with daylight saving may shift an hour-based duration in Mermaid by an hour.
+// end of the task above in the source), a duration of whole days, weeks, hours or minutes, and
+// the days `excludes` removes (an end that falls on or passes an excluded day moves later,
+// day by day, as Mermaid does it). Null for a task whose dates depend on something the editor
+// does not model: `includes` and `inclusiveEndDates`, and months, years, fractions, seconds
+// and milliseconds (`s` and `ms` are measurably ignored by Mermaid, §16.17). A time zone with
+// daylight saving may shift an hour-based duration in Mermaid by an hour.
 export function resolveGanttSchedule(
   meaning: GanttMeaning,
 ): readonly (ResolvedDates | null)[] {
   const unmodelled = meaning.settings.some(
     (setting) =>
-      setting.keyword === "excludes" ||
-      setting.keyword === "includes" ||
-      setting.keyword === "inclusiveenddates",
+      setting.keyword === "includes" || setting.keyword === "inclusiveenddates",
   );
   const count = meaning.tasks.length;
   if (unmodelled) return meaning.tasks.map(() => null);
+  const rules = excludeRulesOf(meaning.settings, meaning.dateFormat);
   const indexOfId = new Map<string, number>();
   meaning.tasks.forEach((task, index) => {
     if (task.id !== null) indexOfId.set(task.id, index);
@@ -165,9 +178,34 @@ export function resolveGanttSchedule(
         break;
       }
     }
-    return end === null ? null : { start, end };
+    if (end === null) return null;
+    const isManualEnd =
+      task.end.kind === "date" &&
+      parseGanttDate(GANTT_END_DATE_MANUAL_FORMAT, task.end.text) !== null;
+    if (rules.tokens.size > 0 && !isManualEnd) {
+      end = moveEndPastExcludedDays(rules, start, end);
+      if (end === null) return null;
+    }
+    return { start, end };
   };
   return Array.from({ length: count }, (_, index) => resolve(index));
+}
+
+// Mermaid's `fixTaskDates`: walks the days after the start up to the end, and every excluded
+// day found pushes the end one day later (so the walk goes on over the days it added).
+function moveEndPastExcludedDays(
+  rules: ExcludeRules,
+  start: number,
+  end: number,
+): number | null {
+  const limit = end + GANTT_MAX_EXCLUDE_DAYS * MS_PER_DAY;
+  let moved = end;
+  for (let day = start + MS_PER_DAY; day <= moved; day += MS_PER_DAY) {
+    if (!isExcludedDay(rules, day)) continue;
+    moved += MS_PER_DAY;
+    if (moved > limit) return null;
+  }
+  return moved;
 }
 
 export interface MeaningProblem {
@@ -294,6 +332,14 @@ function describeDifferences(
     differences.push(
       `links: expected ${JSON.stringify(expected.links)}, got ${JSON.stringify(actual.links)}`,
     );
+  }
+  if (expected.schedule !== undefined) {
+    const schedule = resolveGanttSchedule(actual);
+    if (!same(schedule, expected.schedule)) {
+      differences.push(
+        `schedule: expected ${JSON.stringify(expected.schedule)}, got ${JSON.stringify(schedule)}`,
+      );
+    }
   }
   if (!same(actual.settings, expected.settings)) {
     differences.push(

@@ -1,14 +1,12 @@
-import { type DomainResult, err, ok } from "../../shared/domain-result";
+import { type DomainResult, ok } from "../../shared/domain-result";
 import type { TextEdit } from "../text-edit";
 import {
   GANTT_AFTER_KEYWORD,
   GANTT_FIELD_SEPARATOR,
-  GANTT_GENERATED_ID_PREFIX,
   GANTT_SECTION_KEYWORD,
   GANTT_TAGS,
   GANTT_TITLE_KEYWORD,
   GANTT_UNTIL_KEYWORD,
-  type GanttDateFormat,
   type GanttTag,
 } from "./gantt-config";
 import {
@@ -16,16 +14,44 @@ import {
   indentOf,
   insertLineAfter,
 } from "./gantt-edit-lines";
-import { ganttEditability } from "./gantt-editability";
+import { addLink, removeLink } from "./gantt-link-operations";
 import {
   checkGanttMeaning,
-  findMeaningProblem,
   type GanttMeaning,
   type GanttTaskMeaning,
-  ganttMeaningOf,
   orderGanttTags,
 } from "./gantt-meaning";
+import {
+  duplicateTask,
+  type GanttMoveDirection,
+  moveSection,
+  moveTask,
+  moveTaskToSection,
+} from "./gantt-move-operations";
+import {
+  existingIds,
+  finish,
+  type GanttOperationPlan,
+  type GanttSectionTarget,
+  type GanttTaskTarget,
+  headerLineIndex,
+  NON_CONTENT_KINDS,
+  nextGeneratedId,
+  type PreparedGantt,
+  prepare,
+  refuse,
+  regionEnd,
+  replaceTask,
+  resolveSectionTarget,
+  resolveTask,
+  taskIndentNear,
+} from "./gantt-operation-support";
 import { parseGantt } from "./gantt-parser";
+import {
+  clearExcludes,
+  setAxisFormat,
+  setExcludes,
+} from "./gantt-setting-operations";
 import {
   validateGanttDateText,
   validateGanttDurationText,
@@ -36,12 +62,16 @@ import {
 } from "./gantt-text";
 import type {
   GanttEnd,
-  GanttLine,
   GanttReference,
   GanttStart,
   GanttTaskEntry,
-  ParsedGantt,
 } from "./gantt-types";
+
+export type {
+  GanttOperationPlan,
+  GanttSectionTarget,
+  GanttTaskTarget,
+} from "./gantt-operation-support";
 
 // Gantt operations: pure functions from the current source to a minimal set of TextEdits plus
 // the meaning the result must have. They replace one field of one line, or insert / delete
@@ -52,18 +82,6 @@ import type {
 // position IS its dependency. Operations never move such a task, never insert a task in front
 // of one, and never delete the task above one: they refuse instead of silently shifting dates
 // (the editor has no "freeze the start" rewrite in this version).
-
-export interface GanttTaskTarget {
-  // Position among the tasks in source order, plus the name the caller believes it has.
-  // Both must agree, so a stale index cannot silently change another task.
-  readonly index: number;
-  readonly name: string;
-}
-
-export interface GanttSectionTarget {
-  readonly index: number;
-  readonly name: string;
-}
 
 export type GanttStartInput =
   | { readonly kind: "date"; readonly text: string }
@@ -132,108 +150,35 @@ export type GanttOperation =
       readonly target: GanttTaskTarget;
       readonly tags: readonly GanttTag[];
     }
-  | { readonly kind: "deleteTask"; readonly target: GanttTaskTarget };
-
-export interface GanttOperationPlan {
-  readonly edits: readonly TextEdit[];
-  readonly expected: GanttMeaning;
-}
-
-interface PreparedGantt {
-  readonly parsed: ParsedGantt;
-  readonly meaning: GanttMeaning;
-  readonly format: GanttDateFormat;
-}
-
-function refuse<T>(reason: string, detail: string): DomainResult<T> {
-  return err("invalidDiagramOperation", `${reason}: ${detail}`);
-}
-
-function prepare(source: string): DomainResult<PreparedGantt> {
-  const parsed = parseGantt(source);
-  const editability = ganttEditability(parsed);
-  if (!editability.editable) {
-    return err(
-      "diagramNotEditable",
-      `${editability.reason}: ${editability.detail}`,
-    );
-  }
-  const meaning = ganttMeaningOf(parsed);
-  if (meaning === null || parsed.dateFormat === null) {
-    return err(
-      "diagramNotEditable",
-      "noMeaning: the chart has no meaning to edit",
-    );
-  }
-  return ok({ parsed, meaning, format: parsed.dateFormat });
-}
-
-function resolveTask(
-  parsed: ParsedGantt,
-  target: GanttTaskTarget,
-): DomainResult<GanttTaskEntry> {
-  const task = Number.isInteger(target.index)
-    ? parsed.tasks[target.index]
-    : undefined;
-  if (task === undefined) {
-    return refuse("targetNotFound", `no task at index ${target.index}`);
-  }
-  if (task.name !== target.name) {
-    return refuse(
-      "targetMismatch",
-      `task ${target.index} is ${JSON.stringify(task.name)}, not ${JSON.stringify(target.name)}`,
-    );
-  }
-  return ok(task);
-}
-
-function resolveSectionTarget(
-  parsed: ParsedGantt,
-  target: GanttSectionTarget,
-): DomainResult<number> {
-  const section = Number.isInteger(target.index)
-    ? parsed.sections[target.index]
-    : undefined;
-  if (section === undefined) {
-    return refuse("targetNotFound", `no section at index ${target.index}`);
-  }
-  if (section.name !== target.name) {
-    return refuse(
-      "targetMismatch",
-      `section ${target.index} is ${JSON.stringify(section.name)}, not ${JSON.stringify(target.name)}`,
-    );
-  }
-  return ok(target.index);
-}
-
-function replaceTask(
-  meaning: GanttMeaning,
-  index: number,
-  change: Partial<GanttTaskMeaning>,
-): GanttMeaning {
-  return {
-    ...meaning,
-    tasks: meaning.tasks.map((task, position) =>
-      position === index ? { ...task, ...change } : task,
-    ),
-  };
-}
-
-// The last chance to refuse: the meaning the operation promises must itself be editable.
-function finish(
-  edits: readonly TextEdit[],
-  expected: GanttMeaning,
-): DomainResult<GanttOperationPlan> {
-  const problem = findMeaningProblem(expected);
-  if (problem !== null) return refuse(problem.code, problem.detail);
-  return ok({ edits, expected });
-}
-
-function existingIds(meaning: GanttMeaning): ReadonlySet<string> {
-  return new Set(
-    meaning.tasks.flatMap((task) => (task.id === null ? [] : [task.id])),
-  );
-}
+  | { readonly kind: "deleteTask"; readonly target: GanttTaskTarget }
+  // Tier 2 (docs/architecture.md §16.17.2). The moves keep every task's resolved dates: an
+  // implicit start that would get another predecessor is written as the explicit date it has.
+  | {
+      readonly kind: "moveTask";
+      readonly target: GanttTaskTarget;
+      readonly direction: GanttMoveDirection;
+    }
+  | {
+      // Appends the task to the end of another section.
+      readonly kind: "moveTaskToSection";
+      readonly target: GanttTaskTarget;
+      readonly sectionIndex: number;
+    }
+  | {
+      readonly kind: "moveSection";
+      readonly target: GanttSectionTarget;
+      readonly direction: GanttMoveDirection;
+    }
+  | { readonly kind: "duplicateTask"; readonly target: GanttTaskTarget }
+  | { readonly kind: "setAxisFormat"; readonly format: string }
+  | { readonly kind: "setExcludes"; readonly tokens: readonly string[] }
+  | { readonly kind: "clearExcludes" }
+  | {
+      readonly kind: "addLink";
+      readonly target: GanttTaskTarget;
+      readonly url: string;
+    }
+  | { readonly kind: "removeLink"; readonly target: GanttTaskTarget };
 
 function idListText(
   keyword: string,
@@ -316,65 +261,6 @@ function checkTags(
 
 function tagPrefix(tags: readonly GanttTag[]): string {
   return tags.map((tag) => `${tag}${GANTT_FIELD_SEPARATOR}`).join("");
-}
-
-// ---- lines ----
-
-type ContentKind = GanttLine["kind"];
-const NON_CONTENT_KINDS: ReadonlySet<ContentKind> = new Set([
-  "blank",
-  "comment",
-  "directive",
-  "frontMatter",
-]);
-
-// The last line, in [from, before), that holds a statement: the place after which a new line
-// is neither inside nor in front of anything else.
-function lastContentLine(
-  parsed: ParsedGantt,
-  from: number,
-  before: number,
-): number {
-  for (let index = before - 1; index > from; index -= 1) {
-    const line = parsed.lines[index] as GanttLine;
-    if (!NON_CONTENT_KINDS.has(line.kind)) return index;
-  }
-  return from;
-}
-
-function headerLineIndex(parsed: ParsedGantt): number {
-  return parsed.lines.findIndex((line) => line.kind === "header");
-}
-
-// The line after which new text for `sectionIndex` goes: the end of that section's region.
-// Without a section, the end of the chart.
-function regionEnd(
-  parsed: ParsedGantt,
-  sectionIndex: number | undefined,
-): number {
-  if (sectionIndex === undefined) {
-    return lastContentLine(
-      parsed,
-      headerLineIndex(parsed),
-      parsed.lines.length,
-    );
-  }
-  const section = parsed.sections[sectionIndex] as { lineIndex: number };
-  const next = parsed.sections[sectionIndex + 1];
-  return lastContentLine(
-    parsed,
-    section.lineIndex,
-    next?.lineIndex ?? parsed.lines.length,
-  );
-}
-
-function taskIndentNear(parsed: ParsedGantt, lineIndex: number): string {
-  const task = [...parsed.tasks]
-    .reverse()
-    .find((entry) => entry.lineIndex <= lineIndex);
-  return indentOf(
-    parsed.lines[(task ?? parsed.tasks[0])?.lineIndex ?? lineIndex],
-  );
 }
 
 // ---- title ----
@@ -583,13 +469,6 @@ export function deleteSection(
 }
 
 // ---- tasks ----
-
-function nextGeneratedId(known: ReadonlySet<string>): string {
-  for (let number = 1; ; number += 1) {
-    const candidate = `${GANTT_GENERATED_ID_PREFIX}${number}`;
-    if (!known.has(candidate)) return candidate;
-  }
-}
 
 export function addTask(
   source: string,
@@ -879,6 +758,28 @@ export function planGanttOperation(
       return setStatusTags(source, operation.target, operation.tags);
     case "deleteTask":
       return deleteTask(source, operation.target);
+    case "moveTask":
+      return moveTask(source, operation.target, operation.direction);
+    case "moveTaskToSection":
+      return moveTaskToSection(
+        source,
+        operation.target,
+        operation.sectionIndex,
+      );
+    case "moveSection":
+      return moveSection(source, operation.target, operation.direction);
+    case "duplicateTask":
+      return duplicateTask(source, operation.target);
+    case "setAxisFormat":
+      return setAxisFormat(source, operation.format);
+    case "setExcludes":
+      return setExcludes(source, operation.tokens);
+    case "clearExcludes":
+      return clearExcludes(source);
+    case "addLink":
+      return addLink(source, operation.target, operation.url);
+    case "removeLink":
+      return removeLink(source, operation.target);
   }
 }
 

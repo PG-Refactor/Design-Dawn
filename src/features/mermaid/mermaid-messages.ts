@@ -555,6 +555,28 @@ const MERMAID_MESSAGES_JA = {
         "選択した項目がソース側で変わったため、入力は適用していません。入力はそのまま残してあります。もう一度適用するか、「入力を戻す」で破棄してください。",
       itemGone:
         "編集していた項目が見つかりません。入力した内容は未適用のまま残っています。",
+      settingsHeading: "チャートの設定",
+      axisFormatField: "軸の日付形式（axisFormat）",
+      axisFormatHint:
+        "d3 の日付書式です（例：%m/%d、%Y-%m-%d、%b %d）。使えるのは %Y %m %d %b %H などの変換だけです。",
+      excludesField: "除外する日（excludes。空にすると削除）",
+      excludesHint:
+        "weekends、曜日名（monday など）、日付（YYYY-MM-DD）を , か空白で区切ります。除外した日をまたぐタスクの終了日は後ろへずれます。",
+      moveUp: "上へ",
+      moveDown: "下へ",
+      moveSectionUp: "セクションを上へ",
+      moveSectionDown: "セクションを下へ",
+      moveTaskUp: "タスクを上へ",
+      moveTaskDown: "タスクを下へ",
+      duplicateTask: "タスクを複製",
+      moveToSectionField: "移動先のセクション",
+      moveToSectionNone: "（選択してください）",
+      moveToSection: "選んだセクションの末尾へ移動",
+      linkField: "リンク（http / https。空にすると削除）",
+      linkHint:
+        "タスクの下に click 行として書きます。変更するときは、いったん空にして適用してから新しいURLを入力してください。",
+      freezeNote: (count: number): string =>
+        `この操作は、直前のタスクの終了後に始まる ${count} 件のタスクの開始を、現在の日付に固定して書き込みます（日付が動かないようにするため）。`,
       refusalReasons: {
         emptyText: "入力が空です。",
         untrimmedText: "前後に空白を付けることはできません。",
@@ -582,12 +604,41 @@ const MERMAID_MESSAGES_JA = {
         firstTaskImplicitStart: "最初のタスクには開始日が必要です。",
         implicitStart:
           "このタスクは直前のタスクの終了後に始まるため、日付がずれてしまう操作はできません。先に開始日を指定してください。",
-        clickLink: "click 行が参照しているため、GUIでは変更できません。",
+        clickLink:
+          "click 行がこのタスクを参照しており、動かすとタスクの上に来てしまう（または削除・変更される）ため、GUIでは行えません。",
         noReference: "タスクIDを1つ以上指定してください。",
         unknownReference: "存在しないタスクIDが指定されています。",
         duplicateReference: "同じタスクIDが重複しています。",
         unknownTag: "未知の状態です。",
         duplicateTag: "状態が重複しています。",
+        atBoundary: "これ以上動かせません。",
+        sameSection: "すでにそのセクションにあります。",
+        blockContent:
+          "入れ替えるセクションの中に設定・タイトル・指令の行があるため、GUIでは動かせません。",
+        cannotFreeze:
+          "日付がずれないよう開始日を固定する必要がありますが、その日付を計算できないため、動かせません。",
+        datesWouldChange: "日付が変わってしまうため、適用できません。",
+        unreadableResult:
+          "結果をこのエディタが読み取れないため、適用できません。",
+        invalidEdits: "編集を適用できません。",
+        noTaskId: "先にタスクIDを付けてください。",
+        alreadyLinked: "すでにリンクがあります。先に削除してください。",
+        noLink: "リンクがありません。",
+        unsupportedScheme: "http:// または https:// のリンクだけ使えます。",
+        invalidUrl:
+          "リンクは空白・引用符・# ; % \\ を含まない、ASCII文字のURLにしてください。",
+        tooLong: "長すぎます。",
+        comment: "%% は使えません（コメントになるため）。",
+        unknownConversion:
+          "d3 の日付書式にない変換です（%Y %m %d %b %H など）。",
+        noExcludeTokens: "除外する日を指定するか、空にして削除してください。",
+        unknownExcludeToken:
+          "weekends、曜日名、または YYYY-MM-DD の実在する日付だけ指定できます。",
+        duplicateExcludeToken: "同じ日が重複しています。",
+        allDaysExcluded: "7日すべてを除外するとMermaidが描画できません。",
+        unknownDates:
+          "除外でタスクの日付がどう動くかを、このエディタが計算できないため変更できません（月・年・includes などを使っています）。",
+        noExcludes: "除外の設定がありません。",
       },
     },
   },
@@ -1144,6 +1195,28 @@ const MERMAID_MESSAGES_EN: MermaidMessages = {
         'The selected item changed in the source, so your input was not applied. It is kept as it is: apply it again, or discard it with "Revert".',
       itemGone:
         "The item you were editing cannot be found. What you typed is kept and not applied.",
+      settingsHeading: "Chart settings",
+      axisFormatField: "Axis date format (axisFormat)",
+      axisFormatHint:
+        "A d3 time format (for example %m/%d, %Y-%m-%d, %b %d). Only conversions such as %Y %m %d %b %H are accepted.",
+      excludesField: "Excluded days (excludes; empty removes it)",
+      excludesHint:
+        "weekends, weekday names (monday and so on) and dates (YYYY-MM-DD), separated by commas or blanks. A task that spans an excluded day ends later.",
+      moveUp: "Up",
+      moveDown: "Down",
+      moveSectionUp: "Move section up",
+      moveSectionDown: "Move section down",
+      moveTaskUp: "Move task up",
+      moveTaskDown: "Move task down",
+      duplicateTask: "Duplicate task",
+      moveToSectionField: "Section to move to",
+      moveToSectionNone: "(choose one)",
+      moveToSection: "Move to the end of the chosen section",
+      linkField: "Link (http / https; empty removes it)",
+      linkHint:
+        "Written as a click line below the task. To change it, empty the field and apply, then enter the new URL.",
+      freezeNote: (count: number): string =>
+        `This writes the start of ${count} ${count === 1 ? "task" : "tasks"} that start after the task above as the date ${count === 1 ? "it has" : "they have"} now, so that no date moves.`,
       refusalReasons: {
         emptyText: "The text is empty.",
         untrimmedText: "It cannot start or end with blanks.",
@@ -1173,12 +1246,42 @@ const MERMAID_MESSAGES_EN: MermaidMessages = {
         implicitStart:
           "This task starts after the task above it, so this would silently move dates. Give it a start date first.",
         clickLink:
-          "A click line refers to it, so it cannot be changed from the GUI.",
+          "A click line refers to the task and would end up above it (or be deleted or changed), so this cannot be done from the GUI.",
         noReference: "Give at least one task ID.",
         unknownReference: "A task ID that does not exist was given.",
         duplicateReference: "A task ID is given twice.",
         unknownTag: "Unknown status.",
         duplicateTag: "A status is given twice.",
+        atBoundary: "It cannot move any further.",
+        sameSection: "It is already in that section.",
+        blockContent:
+          "The sections to swap hold a setting, title or directive line, so they cannot be moved from the GUI.",
+        cannotFreeze:
+          "A start would have to be fixed to a date so that no date moves, and the editor cannot compute that date.",
+        datesWouldChange: "That would change a date, so it was not applied.",
+        unreadableResult:
+          "The editor cannot read the result, so it was not applied.",
+        invalidEdits: "The edits cannot be applied.",
+        noTaskId: "Give the task an ID first.",
+        alreadyLinked: "The task already has a link. Remove it first.",
+        noLink: "The task has no link.",
+        unsupportedScheme: "Only http:// and https:// links are accepted.",
+        invalidUrl:
+          "A link is a URL in ASCII characters without blanks, quotes, # ; % or \\.",
+        tooLong: "It is too long.",
+        comment: "%% is not allowed (it is a comment mark).",
+        unknownConversion:
+          "That is not a conversion of the d3 time format (for example %Y %m %d %b %H).",
+        noExcludeTokens:
+          "Name the days to exclude, or empty the field to remove it.",
+        unknownExcludeToken:
+          "Only weekends, weekday names and real dates written as YYYY-MM-DD are accepted.",
+        duplicateExcludeToken: "A day is named twice.",
+        allDaysExcluded:
+          "Mermaid cannot draw a chart that excludes all seven days.",
+        unknownDates:
+          "The editor cannot compute how excludes moves the dates of the tasks (the chart uses months, years, includes or the like), so it cannot change it.",
+        noExcludes: "The chart has no excludes statement.",
       },
     },
   },

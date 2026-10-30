@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readGanttView } from "./gantt-view";
+import { readGanttMoveTargets, readGanttView } from "./gantt-view";
 
 const SOURCE = `gantt
     title Release plan
@@ -93,5 +93,68 @@ describe("readGanttView", () => {
       "gantt\n    title A\n    title B\n    dateFormat YYYY-MM-DD\n    T :t1, 2024-01-01, 1d\n",
     );
     expect(view?.titleRestriction).toBe("multipleTitles");
+  });
+});
+
+describe("readGanttView, Tier 2 controls", () => {
+  const CHART = `gantt
+    dateFormat YYYY-MM-DD
+    axisFormat %m/%d
+    excludes weekends, 2024-01-10
+    section A
+    One :a1, 2024-01-01, 2d
+    click a1 href "https://one.example/"
+    Two :3d
+    section B
+    Three :b1, 2024-02-01, 2d
+`;
+
+  it("shows the axis format, the excluded days, the link and why a control is off", () => {
+    const view = readGanttView(CHART);
+    expect(view?.axisFormat).toBe("%m/%d");
+    expect(view?.excludes).toBe("weekends, 2024-01-10");
+    expect(view?.axisFormatRestriction).toBeNull();
+    expect(view?.excludesRestriction).toBeNull();
+    expect(view?.tasks.map((task) => task.link)).toEqual([
+      "https://one.example/",
+      "",
+      "",
+    ]);
+    // Two has no id; One already has a link; Three has neither problem.
+    expect(view?.tasks[1]?.addLinkRestriction).toBe("noTaskId");
+    expect(view?.tasks[0]?.addLinkRestriction).toBe("alreadyLinked");
+    expect(view?.tasks[2]?.addLinkRestriction).toBeNull();
+    expect(view?.tasks[2]?.removeLinkRestriction).toBe("noLink");
+    expect(view?.tasks[0]?.removeLinkRestriction).toBeNull();
+    // Two follows One and is the last of its section: it cannot go down, going up freezes it.
+    expect(view?.tasks[1]?.moveDown.restriction).toBe("atBoundary");
+    expect(view?.tasks[1]?.moveUp).toEqual({ restriction: null, freezes: 1 });
+    expect(view?.tasks[0]?.moveDown.freezes).toBe(1);
+    expect(view?.tasks[1]?.duplicateRestriction).toBeNull();
+    expect(view?.sections[0]?.moveUp.restriction).toBe("atBoundary");
+    expect(view?.sections[0]?.moveDown).toEqual({
+      restriction: null,
+      freezes: 0,
+    });
+  });
+
+  it("says which sections a task can move to, and what that would freeze", () => {
+    const targets = readGanttMoveTargets(CHART, { index: 1, name: "Two" });
+    expect(targets).toEqual([
+      { sectionIndex: 0, name: "A", restriction: "sameSection", freezes: 0 },
+      { sectionIndex: 1, name: "B", restriction: null, freezes: 1 },
+    ]);
+    expect(
+      readGanttMoveTargets("gantt\n    topAxis\n", { index: 0, name: "x" }),
+    ).toEqual([]);
+  });
+
+  it("restricts excludes when the editor cannot compute the dates", () => {
+    const view = readGanttView(
+      "gantt\n    dateFormat YYYY-MM-DD\n    A :a1, 2024-01-01, 1M\n",
+    );
+    expect(view?.excludesRestriction).toBe("unknownDates");
+    expect(view?.excludes).toBe("");
+    expect(view?.axisFormat).toBe("");
   });
 });

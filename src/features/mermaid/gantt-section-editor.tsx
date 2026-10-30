@@ -1,11 +1,13 @@
 import { type MutableRefObject, type Ref, useId, useRef } from "react";
 import type { ApplyDiagramEditsOutcome } from "../../application/diagram/apply-diagram-edits";
 import type { OperationResult } from "../../application/ports/operation-error";
+import type { GanttMoveDirection } from "../../domain/diagram/gantt/gantt-move-operations";
 import type { GanttOperation } from "../../domain/diagram/gantt/gantt-operations";
 import type { GanttSectionView } from "../../domain/diagram/gantt/gantt-view";
 import type { BlockId, DocumentId } from "../../domain/shared/entity-id";
 import { useMessages } from "../workspace/use-messages";
 import { describeRestriction } from "./diagram-gui-text";
+import { GanttActionButton } from "./gantt-action-button";
 import { sectionKey } from "./gantt-task-text";
 import { GuiButton } from "./gui-controls";
 import { GuiDraftLabelField } from "./gui-draft-label-field";
@@ -21,6 +23,10 @@ export interface GanttSectionEditorProps {
   ) => Promise<OperationResult<ApplyDiagramEditsOutcome>>;
   readonly onInvalidInput: (message: string) => void;
   readonly onDelete: (section: GanttSectionView) => void;
+  readonly onMove: (
+    section: GanttSectionView,
+    direction: GanttMoveDirection,
+  ) => void;
   readonly nameInputRef: Ref<HTMLInputElement | HTMLTextAreaElement>;
   readonly commitPendingRef: MutableRefObject<GuiDraftCommit | null>;
 }
@@ -33,6 +39,7 @@ export function GanttSectionEditor({
   runDraft,
   onInvalidInput,
   onDelete,
+  onMove,
   nameInputRef,
   commitPendingRef,
 }: GanttSectionEditorProps) {
@@ -77,6 +84,26 @@ export function GanttSectionEditor({
         commitPendingRef={commitPendingRef}
       />
       <div className="diagram-gui__actions">
+        <GanttActionButton
+          label={text.moveSectionUp}
+          restriction={section?.moveUp.restriction ?? null}
+          unavailable={section === undefined}
+          freezes={section?.moveUp.freezes}
+          busy={busy}
+          onPress={() => {
+            if (section !== undefined) onMove(section, "up");
+          }}
+        />
+        <GanttActionButton
+          label={text.moveSectionDown}
+          restriction={section?.moveDown.restriction ?? null}
+          unavailable={section === undefined}
+          freezes={section?.moveDown.freezes}
+          busy={busy}
+          onPress={() => {
+            if (section !== undefined) onMove(section, "down");
+          }}
+        />
         <GuiButton
           label={text.deleteSection}
           variant="danger"

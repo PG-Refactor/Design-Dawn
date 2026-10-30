@@ -2,11 +2,19 @@ import { type DomainResult, err, ok } from "../../shared/domain-result";
 import { hasMarkupRewrite } from "../pie/pie-text";
 import {
   GANTT_AUTO_ID_PATTERN,
+  GANTT_AXIS_CONVERSION_MARK,
+  GANTT_AXIS_CONVERSIONS,
+  GANTT_AXIS_FORMAT_MAX_LENGTH,
+  GANTT_AXIS_PAD_MODIFIERS,
   GANTT_BARE_KEYWORD_PATTERN,
   GANTT_COMMENT_MARK,
   GANTT_DIRECTIVE_MARK,
   GANTT_ID_PATTERN,
   GANTT_KEYWORD_LED_PATTERN,
+  GANTT_LINK_ASCII_PATTERN,
+  GANTT_LINK_SCHEME_PATTERN,
+  GANTT_LINK_URL_MAX_LENGTH,
+  GANTT_LINK_URL_PATTERN,
   GANTT_OTHER_CLICK_PATTERN,
   GANTT_TAGS,
   type GanttDateFormat,
@@ -163,4 +171,86 @@ export function validateGanttDurationText(text: string): DomainResult<string> {
         "invalidDuration",
         "use digits and one unit of ms, s, m, h, d, w, M, y (for example 3d or 1.5h)",
       );
+}
+
+// An `axisFormat` value is handed to d3's time format: each `%` must start a conversion d3
+// knows (optionally with a padding modifier), because Mermaid draws anything else as
+// whatever d3 makes of it. `%%` is not accepted: the reader treats it as a comment mark.
+export function validateGanttAxisFormat(format: string): DomainResult<string> {
+  if (format.trim() === "")
+    return refuse("emptyText", "an axis format must not be empty");
+  if (format !== format.trim()) {
+    return refuse(
+      "untrimmedText",
+      "an axis format must not start or end with a blank",
+    );
+  }
+  if (format.length > GANTT_AXIS_FORMAT_MAX_LENGTH) {
+    return refuse(
+      "tooLong",
+      `an axis format is at most ${GANTT_AXIS_FORMAT_MAX_LENGTH} characters`,
+    );
+  }
+  if (hasUnusualCharacter(format) || format.includes("\t")) {
+    return refuse(
+      "controlCharacter",
+      "an axis format cannot hold a line break, tab or control character",
+    );
+  }
+  if (FORBIDDEN_CHARACTER_PATTERN.test(format)) {
+    return refuse(
+      "specialCharacter",
+      "an axis format cannot hold # or ; (a comment or a statement break)",
+    );
+  }
+  if (hasMarkupRewrite(format)) {
+    return refuse("markup", "Mermaid rewrites the quotes of markup-like text");
+  }
+  for (let index = 0; index < format.length; index += 1) {
+    if (format[index] !== GANTT_AXIS_CONVERSION_MARK) continue;
+    let letterAt = index + 1;
+    if (GANTT_AXIS_PAD_MODIFIERS.includes(format[letterAt] ?? "\n")) {
+      letterAt += 1;
+    }
+    const letter = format[letterAt];
+    if (letter === GANTT_AXIS_CONVERSION_MARK) {
+      return refuse("comment", "%% is a comment mark");
+    }
+    if (letter === undefined || !GANTT_AXIS_CONVERSIONS.includes(letter)) {
+      return refuse(
+        "unknownConversion",
+        `% at position ${index + 1} does not start a conversion of d3-time-format (for example %Y, %m, %d, %b, %H)`,
+      );
+    }
+    index = letterAt;
+  }
+  return ok(format);
+}
+
+// A link target of a `click` line: an absolute http(s) URL in printable ASCII with a host.
+export function validateGanttLinkUrl(url: string): DomainResult<string> {
+  if (url.length > GANTT_LINK_URL_MAX_LENGTH) {
+    return refuse(
+      "tooLong",
+      `a link is at most ${GANTT_LINK_URL_MAX_LENGTH} characters`,
+    );
+  }
+  if (!GANTT_LINK_SCHEME_PATTERN.test(url)) {
+    return refuse("unsupportedScheme", "only http:// and https:// links");
+  }
+  if (
+    !GANTT_LINK_ASCII_PATTERN.test(url) ||
+    !GANTT_LINK_URL_PATTERN.test(url)
+  ) {
+    return refuse(
+      "invalidUrl",
+      "a link is printable ASCII without blanks, quotes, #, ;, % or \\",
+    );
+  }
+  try {
+    if (new URL(url).hostname === "") throw new Error("no host");
+  } catch {
+    return refuse("invalidUrl", "the link has no readable host");
+  }
+  return ok(url);
 }
