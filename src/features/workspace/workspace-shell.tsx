@@ -3,6 +3,7 @@ import { ProjectBanner } from "../external-change/external-change-banner";
 import { ExternalChangeDialog } from "../external-change/external-change-dialog";
 import { useExternalChangeWatching } from "../external-change/use-external-change-watching";
 import { useGitAutoRefresh } from "../git/use-git-auto-refresh";
+import { LoadIssueRepairDialog } from "../load-issue-repair/load-issue-repair-dialog";
 import { LoadStatus, TransientNotice } from "./notifications";
 import { TopBar } from "./top-bar";
 import { useAppRequests } from "./use-app-requests";
@@ -33,6 +34,7 @@ export function WorkspaceShell() {
       <WorkspaceBody />
       <WorkspaceDialogs />
       <ExternalChangeDialog />
+      <LoadIssueRepairDialog />
     </div>
   );
 }

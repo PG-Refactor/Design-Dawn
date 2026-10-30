@@ -64,12 +64,14 @@ function runRetry(
 
 function NotificationEntry({ item }: { readonly item: NotificationItem }) {
   const messages = useMessages().workspace;
-  const { actions } = useWorkspaceServices();
+  const { actions, loadIssueRepairController } = useWorkspaceServices();
   const severityLabel =
     item.severity === "error"
       ? messages.notifications.errorSeverity
       : messages.notifications.warningSeverity;
-  const { retry, dismissId, sheetDeletion } = item;
+  const { retry, dismissId, sheetDeletion, repair, reload, formatUpdate } =
+    item;
+  const repairTexts = messages.loadIssueRepair;
   return (
     <li className={`notification notification--${item.severity}`}>
       <div className="notification__head">
@@ -120,6 +122,44 @@ function NotificationEntry({ item }: { readonly item: NotificationItem }) {
             {messages.notifications.deleteSheet}
           </button>
         )}
+        {repair?.actions.map((action) => (
+          <button
+            key={action}
+            type="button"
+            className="button"
+            onClick={() =>
+              void loadIssueRepairController.request(
+                repair.target,
+                repair.issue,
+                action,
+              )
+            }
+          >
+            {repairTexts.actions[action]}
+          </button>
+        ))}
+        {reload === null ? null : (
+          <button
+            type="button"
+            className="button"
+            onClick={() => loadIssueRepairController.requestReload(reload)}
+          >
+            {repairTexts.reload}
+          </button>
+        )}
+        {formatUpdate ? (
+          <button
+            type="button"
+            className="button"
+            onClick={() =>
+              loadIssueRepairController.requestFormatUpdate(
+                item.details.map((detail) => detail.value),
+              )
+            }
+          >
+            {repairTexts.updateFormat}
+          </button>
+        ) : null}
         {dismissId === null ? null : (
           <button
             type="button"
