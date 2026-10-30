@@ -1,5 +1,6 @@
 import { type DomainResult, err, ok } from "../../shared/domain-result";
 import { applyTextEdits, type TextEdit } from "../text-edit";
+import type { SequenceParticipantKind } from "./sequence-config";
 import { sequenceEditability } from "./sequence-editability";
 import {
   describeSequenceDifferences,
@@ -7,6 +8,7 @@ import {
   type SequenceMeaning,
   type SequenceParticipantMeaning,
 } from "./sequence-meaning";
+import { SEQUENCE_ALIAS_LEAD } from "./sequence-operation-config";
 import { readSequence, type SequenceReading } from "./sequence-reader";
 import type { SequenceStatement } from "./sequence-types";
 
@@ -204,4 +206,35 @@ export function confirmEdits(
   const candidate = candidateOf(source, edits, expected);
   if (candidate.ok) return ok(undefined);
   return refuse("planUnverified", candidate.error.detail);
+}
+
+// ---------------------------------------------------------------------------------------
+// What every operation hands out
+
+export interface SequenceOperationPlan {
+  readonly edits: readonly TextEdit[];
+  readonly expected: SequenceMeaning;
+}
+
+export type Planned = DomainResult<SequenceOperationPlan>;
+
+export const NO_EDITS: readonly TextEdit[] = [];
+
+// A plan is only handed out after it proved itself (`confirmEdits`).
+export function planned(
+  source: string,
+  edits: readonly TextEdit[],
+  expected: SequenceMeaning,
+): Planned {
+  const confirmed = confirmEdits(source, edits, expected);
+  if (!confirmed.ok) return confirmed;
+  return ok({ edits, expected });
+}
+
+export function declarationText(
+  kind: SequenceParticipantKind,
+  id: string,
+  alias: string | null,
+): string {
+  return `${kind} ${id}${alias === null ? "" : `${SEQUENCE_ALIAS_LEAD}${alias}`}`;
 }

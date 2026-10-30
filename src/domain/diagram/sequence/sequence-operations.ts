@@ -1,6 +1,16 @@
 import { type DomainResult, ok } from "../../shared/domain-result";
 import type { TextEdit } from "../text-edit";
 import {
+  type AddBranchOperation,
+  type DeleteBranchOperation,
+  planAddBranch,
+  planDeleteBranch,
+  planUnwrapBlock,
+  planWrapInBlock,
+  type UnwrapBlockOperation,
+  type WrapInBlockOperation,
+} from "./sequence-block-operations";
+import {
   isSequenceArrow,
   SEQUENCE_AUTONUMBER_KEYWORD,
   SEQUENCE_COLOUR_BLOCK,
@@ -40,6 +50,12 @@ import {
   withTitle,
 } from "./sequence-meaning-edit";
 import {
+  type DuplicateMessageOperation,
+  planDuplicateMessage,
+  planSetMessageActivation,
+  type SetMessageActivationOperation,
+} from "./sequence-message-operations";
+import {
   SEQUENCE_ALIAS_LEAD,
   SEQUENCE_MESSAGE_COLON,
   SEQUENCE_MESSAGE_TEXT_LEAD,
@@ -50,16 +66,26 @@ import {
 } from "./sequence-operation-config";
 import {
   checkSequenceMeaning,
-  confirmEdits,
+  declarationText,
   lastItemIndexOf,
+  NO_EDITS,
+  type Planned,
   type PreparedSequence,
   participantOf,
   participantsCreatedBy,
+  planned,
   prepareSequence,
   refuse,
   resolveItem,
   type SequenceItemTarget,
+  type SequenceOperationPlan,
 } from "./sequence-operation-support";
+import {
+  type DeleteParticipantOperation,
+  planDeleteParticipant,
+  planReorderParticipants,
+  type ReorderParticipantsOperation,
+} from "./sequence-participant-operations";
 import { readSequence } from "./sequence-reader";
 import {
   encodeSequenceText,
@@ -151,26 +177,18 @@ export type SequenceOperation =
       readonly kind: "setTitle";
       // Empty removes the title.
       readonly title: string;
-    };
+    }
+  // Tier 2 (docs/architecture.md §16.16.9).
+  | DeleteParticipantOperation
+  | ReorderParticipantsOperation
+  | WrapInBlockOperation
+  | UnwrapBlockOperation
+  | AddBranchOperation
+  | DeleteBranchOperation
+  | SetMessageActivationOperation
+  | DuplicateMessageOperation;
 
-export interface SequenceOperationPlan {
-  readonly edits: readonly TextEdit[];
-  readonly expected: SequenceMeaning;
-}
-
-type Planned = DomainResult<SequenceOperationPlan>;
-
-function planned(
-  source: string,
-  edits: readonly TextEdit[],
-  expected: SequenceMeaning,
-): Planned {
-  const confirmed = confirmEdits(source, edits, expected);
-  if (!confirmed.ok) return confirmed;
-  return ok({ edits, expected });
-}
-
-const NO_EDITS: readonly TextEdit[] = [];
+export type { SequenceOperationPlan };
 
 // A text token is replaced by the encoded text; a token that is empty (`loop`, `else`, an
 // empty message) has no text to replace, so the new text goes there with a blank in front.
@@ -193,14 +211,6 @@ function entityRestriction(written: string): Planned | null {
         restriction,
         "the written text holds entity-like text that Mermaid decodes when it draws",
       );
-}
-
-function declarationText(
-  kind: SequenceParticipantKind,
-  id: string,
-  alias: string | null,
-): string {
-  return `${kind} ${id}${alias === null ? "" : `${SEQUENCE_ALIAS_LEAD}${alias}`}`;
 }
 
 function participantStatement(
@@ -1015,6 +1025,22 @@ export function planSequenceOperation(
       return planSetAutonumber(source, state, operation.enabled);
     case "setTitle":
       return planSetTitle(source, state, operation.title);
+    case "deleteParticipant":
+      return planDeleteParticipant(source, state, operation);
+    case "reorderParticipants":
+      return planReorderParticipants(source, state, operation);
+    case "wrapInBlock":
+      return planWrapInBlock(source, state, operation);
+    case "unwrapBlock":
+      return planUnwrapBlock(source, state, operation);
+    case "addBranch":
+      return planAddBranch(source, state, operation);
+    case "deleteBranch":
+      return planDeleteBranch(source, state, operation);
+    case "setMessageActivation":
+      return planSetMessageActivation(source, state, operation);
+    case "duplicateMessage":
+      return planDuplicateMessage(source, state, operation);
   }
 }
 

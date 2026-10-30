@@ -6,7 +6,10 @@ import {
   SEQUENCE_NOTE_PLACEMENTS,
 } from "../../domain/diagram/sequence/sequence-config";
 import type { SequenceOperation } from "../../domain/diagram/sequence/sequence-operations";
-import type { SequenceEntryView } from "../../domain/diagram/sequence/sequence-view";
+import type {
+  SequenceActivationChoice,
+  SequenceEntryView,
+} from "../../domain/diagram/sequence/sequence-view";
 import type { BlockId, DocumentId } from "../../domain/shared/entity-id";
 import { useMessages } from "../workspace/use-messages";
 import { describeRestriction } from "./diagram-gui-text";
@@ -25,9 +28,23 @@ export interface SequenceEntryEditorProps {
     operation: SequenceOperation,
   ) => Promise<OperationResult<ApplyDiagramEditsOutcome>>;
   readonly onInvalidInput: (message: string) => void;
-  readonly onDelete: (entry: SequenceEntryView) => void;
+  // Runs an operation that makes the selected entry go away (delete, unwrap); the selection
+  // is cleared when it was applied.
+  readonly onRemove: (operation: SequenceOperation) => void;
   readonly labelInputRef: Ref<HTMLInputElement | HTMLTextAreaElement>;
   readonly commitPendingRef: MutableRefObject<GuiDraftCommit | null>;
+}
+
+const ACTIVATION_CHOICES: readonly SequenceActivationChoice[] = [
+  "none",
+  "+",
+  "-",
+];
+
+function currentActivation(
+  activation: "+" | "-" | null,
+): SequenceActivationChoice {
+  return activation ?? "none";
 }
 
 export function SequenceEntryEditor({
@@ -38,7 +55,7 @@ export function SequenceEntryEditor({
   run,
   runDraft,
   onInvalidInput,
-  onDelete,
+  onRemove,
   labelInputRef,
   commitPendingRef,
 }: SequenceEntryEditorProps) {
@@ -81,8 +98,24 @@ export function SequenceEntryEditor({
       describeRestriction(gui, shown.moveUpRestriction),
       describeRestriction(gui, shown.moveDownRestriction),
       describeRestriction(gui, shown.deleteRestriction),
+      describeRestriction(gui, shown.duplicateRestriction),
     );
+    // Only the choices other than the current one can be refused.
+    for (const choice of ACTIVATION_CHOICES) {
+      if (choice === currentActivation(shown.activation)) continue;
+      const reason = describeRestriction(
+        gui,
+        shown.activationRestrictions[choice],
+      );
+      if (reason !== null) {
+        reasons.push(`${text.activationChoices[choice]}: ${reason}`);
+      }
+    }
   } else if (shown.kind === "note") {
+    reasons.push(describeRestriction(gui, shown.deleteRestriction));
+  } else if (shown.kind === "blockStart") {
+    reasons.push(describeRestriction(gui, shown.unwrapRestriction));
+  } else {
     reasons.push(describeRestriction(gui, shown.deleteRestriction));
   }
   const shownReasons = [
@@ -174,6 +207,40 @@ export function SequenceEntryEditor({
               }}
             />
           </div>
+          <GuiSelect
+            label={text.activationField}
+            value={currentActivation(shown.activation)}
+            options={ACTIVATION_CHOICES.map((choice) => ({
+              value: choice,
+              label: text.activationChoices[choice],
+            }))}
+            disabled={unavailable}
+            reasonId={hintId}
+            onChange={(value) => {
+              const choice = ACTIVATION_CHOICES.find(
+                (candidate) => candidate === value,
+              );
+              if (choice === undefined || entry?.kind !== "message") return;
+              // A refused choice stays unavailable; the reason is shown under the controls.
+              if (entry.activationRestrictions[choice] !== null) return;
+              void runDraft({
+                kind: "setMessageActivation",
+                target: entry.target,
+                sign: choice === "none" ? null : choice,
+              });
+            }}
+          />
+          <div className="diagram-gui__actions">
+            <GuiButton
+              label={text.duplicateMessage}
+              disabled={unavailable || shown.duplicateRestriction !== null}
+              reasonId={hintId}
+              onPress={() => {
+                if (entry?.kind !== "message") return;
+                void run({ kind: "duplicateMessage", target: entry.target });
+              }}
+            />
+          </div>
         </>
       )}
       {shown.kind === "note" && (
@@ -217,7 +284,39 @@ export function SequenceEntryEditor({
             disabled={unavailable || shown.deleteRestriction !== null}
             reasonId={hintId}
             onPress={() => {
-              if (entry !== undefined) onDelete(entry);
+              if (entry === undefined) return;
+              onRemove(
+                entry.kind === "message"
+                  ? { kind: "deleteMessage", target: entry.target }
+                  : { kind: "deleteNote", target: entry.target },
+              );
+            }}
+          />
+        </div>
+      )}
+      {shown.kind === "blockStart" && (
+        <div className="diagram-gui__actions">
+          <GuiButton
+            label={text.unwrapBlock}
+            disabled={unavailable || shown.unwrapRestriction !== null}
+            reasonId={hintId}
+            onPress={() => {
+              if (entry?.kind !== "blockStart") return;
+              onRemove({ kind: "unwrapBlock", target: entry.target });
+            }}
+          />
+        </div>
+      )}
+      {shown.kind === "branch" && (
+        <div className="diagram-gui__actions">
+          <GuiButton
+            label={text.deleteBranch}
+            variant="danger"
+            disabled={unavailable || shown.deleteRestriction !== null}
+            reasonId={hintId}
+            onPress={() => {
+              if (entry?.kind !== "branch") return;
+              onRemove({ kind: "deleteBranch", target: entry.target });
             }}
           />
         </div>
