@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -13,6 +14,7 @@ import {
   PROJECT_ISSUE,
   produceOrphanContentWarning,
 } from "./test-support/actions-harness";
+import { chooseMenuItem } from "./test-support/menu-helpers";
 import {
   applyOutsideUi,
   chooseRowMenuItem,
@@ -230,9 +232,7 @@ describe("load issues and warnings", () => {
   it("reports a failed operation, lets it be dismissed, and never blocks the UI", async () => {
     const harness = await renderShell();
     harness.gateway.failOn("openProject", "ioError");
-    await harness.user.click(
-      screen.getByRole("button", { name: "Projectを開く" }),
-    );
+    await chooseMenuItem(harness.user, "ファイル", "Projectを開く…");
 
     const panel = await screen.findByRole("region", { name: "通知" });
     expect(within(panel).getByText(/Projectを開けませんでした/)).toBeTruthy();

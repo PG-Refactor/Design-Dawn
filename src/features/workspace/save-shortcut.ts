@@ -24,3 +24,13 @@ export function isSaveShortcut(event: SaveShortcutEventLike): boolean {
     !event.isComposing
   );
 }
+
+const MAC_PLATFORM_PATTERN = /mac|iphone|ipad/i;
+const SAVE_HINT_MAC = "⌘S";
+const SAVE_HINT_OTHER = "Ctrl+S";
+
+// The text shown next to "Save" in the File menu; follows the key `isSaveShortcut` accepts
+// on the platform in use.
+export function saveShortcutHint(platform: string): string {
+  return MAC_PLATFORM_PATTERN.test(platform) ? SAVE_HINT_MAC : SAVE_HINT_OTHER;
+}

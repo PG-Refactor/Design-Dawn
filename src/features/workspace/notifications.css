@@ -2,6 +2,29 @@
   position: relative;
 }
 
+.notifications__summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+}
+
+.notifications__badge {
+  min-width: 1.25em;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-medium);
+  background: var(--color-warning);
+  color: var(--color-surface);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.notifications__summary--error .notifications__badge {
+  background: var(--color-danger);
+  color: var(--color-danger-contrast);
+}
+
 .notifications__summary--error {
   border-color: var(--color-danger);
   color: var(--color-danger);

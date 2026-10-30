@@ -1,0 +1,224 @@
+// @vitest-environment jsdom
+import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+import { DOCUMENT_A } from "../../application/test-support/workspace-harness";
+import { makeDocumentADirty } from "./test-support/actions-harness";
+import {
+  chooseMenuItem,
+  menuItem,
+  openMenu,
+} from "./test-support/menu-helpers";
+import { renderShell } from "./test-support/shell-harness";
+import { addOperationError } from "./ui-state/shell-ui-state";
+import { WORKSPACE_MESSAGES } from "./workspace-messages";
+
+afterEach(cleanup);
+
+const JA = WORKSPACE_MESSAGES.ja.topBar;
+const EN = WORKSPACE_MESSAGES.en.topBar;
+
+describe("top bar as a menu bar", () => {
+  it("is one row with the app name, the File / View menus and the Project name", async () => {
+    const shell = await renderShell();
+    const bar = screen.getByRole("banner");
+    const menubar = within(bar).getByRole("menubar", { name: JA.menubarLabel });
+    expect(
+      within(menubar)
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent),
+    ).toEqual([JA.fileMenu, JA.viewMenu]);
+    expect(within(bar).queryAllByRole("button")).toHaveLength(1);
+    expect(within(bar).getByText(JA.noProject)).toBeTruthy();
+    await shell.openProjectInUi();
+    expect(within(bar).getByText("Project")).toBeTruthy();
+  });
+});
+
+describe("File menu", () => {
+  it("lists the items in order, with Save showing the shortcut and Auto Save a checkbox", async () => {
+    const shell = await renderShell({ systemLanguages: ["en"] });
+    await shell.openProjectInUi();
+    const menu = await openMenu(shell.user, EN.fileMenu);
+    expect(
+      [...menu.querySelectorAll('[role^="menuitem"]')].map((item) => [
+        item.getAttribute("role"),
+        item.textContent?.trim(),
+      ]),
+    ).toEqual([
+      ["menuitem", EN.createProject],
+      ["menuitem", EN.openProject],
+      ["menuitem", EN.openProjectInNewWindow],
+      ["menuitem", `${EN.save}Ctrl+S`],
+      ["menuitemcheckbox", EN.autoSave],
+      ["menuitem", EN.closeProject],
+    ]);
+    expect(within(menu).getAllByRole("separator")).toHaveLength(2);
+  });
+
+  it("opens the project via its item and shows the tree", async () => {
+    const shell = await renderShell();
+    await shell.openProjectInUi();
+    expect(screen.getByRole("tree")).toBeTruthy();
+  });
+
+  it("closes the Project via its item", async () => {
+    const shell = await renderShell();
+    await shell.openProjectInUi();
+    await chooseMenuItem(shell.user, JA.fileMenu, JA.closeProject);
+    await waitFor(() => expect(screen.queryByRole("tree")).toBeNull());
+    expect(screen.getByText(JA.noProject)).toBeTruthy();
+  });
+
+  it("disables Save and Close Project without a Project, enables them with one", async () => {
+    const shell = await renderShell();
+    for (const name of [JA.save, JA.closeProject]) {
+      const item = await menuItem(shell.user, JA.fileMenu, name);
+      expect(item.getAttribute("aria-disabled")).toBe("true");
+    }
+    const open = await menuItem(shell.user, JA.fileMenu, JA.openProject);
+    expect(open.getAttribute("aria-disabled")).toBeNull();
+    await shell.openProjectInUi();
+    for (const name of [JA.save, JA.closeProject]) {
+      const item = await menuItem(shell.user, JA.fileMenu, name);
+      expect(item.getAttribute("aria-disabled")).toBeNull();
+    }
+  });
+
+  it("disables the Project items while an operation is running", async () => {
+    const shell = await renderShell();
+    act(() => {
+      shell.uiStateStore.setState((state) => ({ ...state, busy: true }));
+    });
+    for (const name of [
+      JA.createProject,
+      JA.openProject,
+      JA.openProjectInNewWindow,
+    ]) {
+      const item = await menuItem(shell.user, JA.fileMenu, name);
+      expect(item.getAttribute("aria-disabled")).toBe("true");
+    }
+  });
+
+  it("saves everything with the Save item", async () => {
+    const shell = await renderShell();
+    await shell.openProjectInUi();
+    await act(async () => {
+      await shell.actions.openDocument(DOCUMENT_A);
+      await shell.autoSaveController.initialize();
+      await shell.autoSaveController.setEnabled(false);
+    });
+    await makeDocumentADirty(shell);
+    shell.gateway.clearCalls();
+    await chooseMenuItem(shell.user, JA.fileMenu, JA.save);
+    await waitFor(() =>
+      expect(
+        shell.gateway.methods("saveProject", "saveDocument", "saveSheet")
+          .length,
+      ).toBeGreaterThan(0),
+    );
+    expect(document.activeElement).toBe(
+      screen.getByRole("menuitem", { name: JA.fileMenu }),
+    );
+  });
+
+  it("reflects the Auto Save state in aria-checked", async () => {
+    const shell = await renderShell();
+    await act(async () => {
+      await shell.autoSaveController.initialize();
+    });
+    const item = await menuItem(
+      shell.user,
+      JA.fileMenu,
+      JA.autoSave,
+      "menuitemcheckbox",
+    );
+    expect(item.getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("creates a Project from the New Project item", async () => {
+    const shell = await renderShell({ systemLanguages: ["en"] });
+    await chooseMenuItem(shell.user, EN.fileMenu, EN.createProject);
+    expect(await screen.findByRole("dialog")).toBeTruthy();
+  });
+});
+
+describe("View menu", () => {
+  it("offers the theme and language radios with the current choice checked", async () => {
+    const shell = await renderShell();
+    const menu = await openMenu(shell.user, JA.viewMenu);
+    const theme = within(menu).getByRole("group", { name: JA.themeLegend });
+    expect(
+      within(theme)
+        .getAllByRole("menuitemradio")
+        .map((item) => item.textContent),
+    ).toEqual([JA.systemOption, JA.themeLight, JA.themeDark]);
+    const language = within(menu).getByRole("group", {
+      name: JA.languageLegend,
+    });
+    expect(
+      within(language)
+        .getAllByRole("menuitemradio")
+        .map((item) => item.textContent),
+    ).toEqual([JA.systemOption, "English", "日本語"]);
+  });
+
+  it("saves and applies the theme chosen in the menu, one radio checked", async () => {
+    const shell = await renderShell();
+    await act(async () => {
+      await shell.themeController.initialize();
+    });
+    const menu = await openMenu(shell.user, JA.viewMenu);
+    const theme = within(menu).getByRole("group", { name: JA.themeLegend });
+    expect(
+      within(theme)
+        .getByRole("menuitemradio", { name: JA.systemOption })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
+    await shell.user.click(
+      within(theme).getByRole("menuitemradio", { name: JA.themeDark }),
+    );
+    await waitFor(() =>
+      expect(shell.themeController.store.getState().preference).toBe("dark"),
+    );
+    const reopened = within(await openMenu(shell.user, JA.viewMenu)).getByRole(
+      "group",
+      { name: JA.themeLegend },
+    );
+    const checked = within(reopened)
+      .getAllByRole("menuitemradio")
+      .filter((item) => item.getAttribute("aria-checked") === "true");
+    expect(checked.map((item) => item.textContent)).toEqual([JA.themeDark]);
+  });
+
+  it("disables the radios until the settings are loaded", async () => {
+    const shell = await renderShell();
+    const item = await menuItem(
+      shell.user,
+      JA.viewMenu,
+      JA.themeDark,
+      "menuitemradio",
+    );
+    expect(item.getAttribute("aria-disabled")).toBe("true");
+  });
+});
+
+describe("notifications button", () => {
+  it("shows an icon, a count badge and the count in its accessible name", async () => {
+    const shell = await renderShell();
+    const quiet = screen.getByRole("button", { name: "通知なし" });
+    expect(quiet.querySelector(".notifications__badge")).toBeNull();
+    act(() => {
+      shell.uiStateStore.setState((state) =>
+        addOperationError(state, "openDocument", "Document A", {
+          kind: "ioError",
+          detail: "disk",
+        }),
+      );
+    });
+    const button = screen.getByRole("button", { name: "エラー 1件" });
+    expect(button.querySelector("svg")).toBeTruthy();
+    expect(button.querySelector(".notifications__badge")?.textContent).toBe(
+      "1",
+    );
+  });
+});
