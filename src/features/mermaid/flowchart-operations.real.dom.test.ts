@@ -11,7 +11,6 @@
 //      showed that a naive edit breaks the diagram, a check that the naive text really differs;
 //   2. seeded random operation sequences on every editable input of the corpus.
 import { beforeAll, describe, expect, it } from "vitest";
-import { flowchartEditability } from "../../domain/diagram/flowchart/flowchart-editability";
 import type { FlowchartMeaning } from "../../domain/diagram/flowchart/flowchart-meaning";
 import {
   type FlowchartOperation,
@@ -20,62 +19,24 @@ import {
 } from "../../domain/diagram/flowchart/flowchart-operations";
 import { readFlowchart } from "../../domain/diagram/flowchart/flowchart-reader";
 import { applyTextEdits } from "../../domain/diagram/text-edit";
-import { createDiagramRenderCheck } from "./diagram-render-check";
-import { mermaidRenderer } from "./render-mermaid";
 import {
-  type FlowchartCorpusCase,
-  loadAppFlowchartCases,
-  loadFlowchartCorpus,
-  loadGuiFlowchartCases,
-} from "./test-support/flowchart-corpus";
-import {
-  generateProgram,
   type RandomSource,
   seededRandom,
 } from "./test-support/flowchart-generator";
 import {
-  comparableOf,
-  firstDifference,
-} from "./test-support/flowchart-meaning-comparison";
+  editableInputs,
+  mermaidAgrees,
+  RENDER_FAILURE_PREFIX,
+  renderCheck,
+  TEST_TIMEOUT_MS,
+} from "./test-support/flowchart-operation-harness";
 import {
   loadFlowchartScenarios,
   type ScenarioCase,
 } from "./test-support/flowchart-scenarios";
 import { installFakeSvgMeasurement } from "./test-support/mermaid-dom-setup";
-import { readFlowchartWithMermaid } from "./test-support/mermaid-flowchart-db";
 
 beforeAll(installFakeSvgMeasurement);
-
-const renderCheck = createDiagramRenderCheck(mermaidRenderer);
-const TEST_TIMEOUT_MS = 300_000;
-const RENDER_FAILURE_PREFIX = "render fails: ";
-
-interface Agreement {
-  readonly agrees: boolean;
-  readonly detail: string;
-}
-
-// Does Mermaid read, draw and mean exactly what `expected` says?
-async function mermaidAgrees(
-  candidate: string,
-  expected: FlowchartMeaning,
-): Promise<Agreement> {
-  const reading = await readFlowchartWithMermaid(candidate);
-  if (!reading.accepted) {
-    return { agrees: false, detail: `mermaid rejects: ${reading.message}` };
-  }
-  const rendered = await renderCheck(candidate);
-  if (!rendered.ok) {
-    return {
-      agrees: false,
-      detail: `${RENDER_FAILURE_PREFIX}${rendered.message}`,
-    };
-  }
-  const difference = firstDifference(comparableOf(expected), reading.meaning);
-  return difference === null
-    ? { agrees: true, detail: "" }
-    : { agrees: false, detail: `meaning differs: ${difference}` };
-}
 
 const edge = (index: number, id: string) => ({ index, id });
 const R1_EDGES = {
@@ -378,7 +339,6 @@ describe("the research scenarios against mermaid 12.1.0", () => {
 
 const SEQUENCE_SEED = 20261030;
 const SEQUENCE_LENGTH = 3;
-const GENERATED_INPUT_COUNT = 60;
 
 const RANDOM_LABELS = [
   "New",
@@ -525,42 +485,11 @@ interface SequenceCounts {
   readonly undrawableInputs: number;
 }
 
-async function editableInputs(): Promise<readonly FlowchartCorpusCase[]> {
-  const corpus = loadFlowchartCorpus();
-  const random = seededRandom(SEQUENCE_SEED);
-  const countEdges = async (program: string): Promise<number> => {
-    const reading = await readFlowchartWithMermaid(program);
-    return reading.accepted ? reading.meaning.edges.length : 0;
-  };
-  const generated: FlowchartCorpusCase[] = [];
-  for (let index = 0; index < GENERATED_INPUT_COUNT; index += 1) {
-    generated.push({
-      id: `generated:${index}`,
-      group: "random",
-      source: await generateProgram(random, countEdges),
-      note: `seed ${SEQUENCE_SEED}`,
-    });
-  }
-  const all = [
-    ...corpus.cases,
-    ...loadGuiFlowchartCases(),
-    ...loadAppFlowchartCases(),
-    ...generated,
-  ];
-  const usable: FlowchartCorpusCase[] = [];
-  for (const input of all) {
-    if (flowchartEditability(readFlowchart(input.source)).editable) {
-      usable.push(input);
-    }
-  }
-  return usable;
-}
-
 describe("random operation sequences", () => {
   it(
     "every plan is refused or reads back, in mermaid, exactly as promised",
     async () => {
-      const inputs = await editableInputs();
+      const inputs = await editableInputs(SEQUENCE_SEED);
       const random = seededRandom(SEQUENCE_SEED + 1);
       const refusals = new Map<string, number>();
       const kinds = new Map<string, number>();
