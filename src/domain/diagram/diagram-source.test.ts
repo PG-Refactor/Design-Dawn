@@ -4,8 +4,12 @@ import { DIAGRAM_KEYWORDS } from "./diagram-type";
 import { loadMermaidGuiFixtures } from "./test-fixtures";
 
 describe("analyzeDiagramSource", () => {
-  it("has the pie and flowchart editors registered and no other", () => {
-    expect(Object.keys(DIAGRAM_EDITORS)).toEqual(["pie", "flowchart"]);
+  it("has the pie, flowchart and sequence editors registered and no other", () => {
+    expect(Object.keys(DIAGRAM_EDITORS)).toEqual([
+      "pie",
+      "flowchart",
+      "sequence",
+    ]);
   });
 
   it("is not editable for an empty source", () => {
@@ -43,8 +47,8 @@ describe("analyzeDiagramSource", () => {
           editable: false,
           reason: "editorRefused",
         });
-      } else if (type === "flowchart") {
-        // The keyword alone may be a header the flowchart editor refuses (e.g. an
+      } else if (type === "flowchart" || type === "sequence") {
+        // The keyword alone may be a header the type's editor refuses (e.g. an
         // unsupported variant); either way the editor, not the common layer, decides.
         expect(
           analysis.editability.editable === true ||
@@ -68,6 +72,27 @@ describe("analyzeDiagramSource", () => {
     expect(editable.unsupported).toEqual([]);
 
     const refused = analyzeDiagramSource("flowchart LR\n  A --> B\n  ???\n");
+    expect(refused.editability).toMatchObject({
+      editable: false,
+      reason: "editorRefused",
+    });
+    expect(
+      refused.editability.editable === false && refused.editability.detail,
+    ).toContain("unsupportedStatements");
+    expect(refused.unsupported.map((line) => line.index)).toEqual([2]);
+  });
+
+  it("reports a sequence diagram as editable, or with the editor's own reason", () => {
+    const editable = analyzeDiagramSource("sequenceDiagram\n  A->>B: hi\n");
+    expect(editable.editability).toEqual({
+      editable: true,
+      type: "sequence",
+    });
+    expect(editable.unsupported).toEqual([]);
+
+    const refused = analyzeDiagramSource(
+      "sequenceDiagram\n  A->>B: hi\n  A->>()B: x\n",
+    );
     expect(refused.editability).toMatchObject({
       editable: false,
       reason: "editorRefused",
@@ -123,8 +148,12 @@ describe("analyzeDiagramSource", () => {
       const statements = analysis.lines.filter(
         (line) => line.kind === "statement",
       );
-      if (fixture.diagram === "pie" || fixture.diagram === "flowchart") {
-        // Pie and flowchart have an editor: whatever it calls editable must be a chart Mermaid reads.
+      if (
+        fixture.diagram === "pie" ||
+        fixture.diagram === "flowchart" ||
+        fixture.diagram === "sequence"
+      ) {
+        // Pie, flowchart and sequence have an editor: whatever it calls editable must be a chart Mermaid reads.
         if (analysis.editability.editable) {
           expect(fixture.mermaidParses, fixture.id).toBe(true);
           expect(analysis.unsupported, fixture.id).toEqual([]);

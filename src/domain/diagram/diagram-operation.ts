@@ -9,6 +9,11 @@ import {
   planPieOperation,
   verifyPieCandidate,
 } from "./pie/pie-operations";
+import {
+  planSequenceOperation,
+  type SequenceOperation,
+  verifySequenceCandidate,
+} from "./sequence/sequence-operations";
 import type { TextEdit } from "./text-edit";
 
 // One GUI operation on a diagram, named by the type it belongs to. Each later editor adds
@@ -21,6 +26,10 @@ export type DiagramOperation =
   | {
       readonly diagram: "flowchart";
       readonly operation: FlowchartOperation;
+    }
+  | {
+      readonly diagram: "sequence";
+      readonly operation: SequenceOperation;
     };
 
 export interface DiagramOperationPlan {
@@ -58,6 +67,19 @@ export function planDiagramOperation(
           edits,
           verify: (candidateSource) =>
             verifyFlowchartCandidate(candidateSource, expected),
+        },
+      };
+    }
+    case "sequence": {
+      const plan = planSequenceOperation(source, request.operation);
+      if (!plan.ok) return plan;
+      const { edits, expected } = plan.value;
+      return {
+        ok: true,
+        value: {
+          edits,
+          verify: (candidateSource) =>
+            verifySequenceCandidate(candidateSource, expected),
         },
       };
     }
