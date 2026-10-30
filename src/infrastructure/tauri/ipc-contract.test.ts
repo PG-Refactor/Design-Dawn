@@ -69,11 +69,14 @@ import {
   openProject,
   readBlockContent,
   reloadProject,
+  repairLoadIssue,
   restoreBlockContent,
   saveFolder,
   saveSheet,
   selectProjectFolder,
+  updateOutdatedFiles,
 } from "./persistence-client";
+import type { LoadIssueRef, RepairAction } from "./persistence-types";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 const invokeMock = vi.mocked(invoke);
@@ -176,6 +179,15 @@ const WRAPPERS: Readonly<Record<string, Wrapper>> = {
     ),
   accept_disk_state: (args) =>
     acceptDiskState(id.project(args), id.optionalDocument(args)),
+  repair_load_issue: (args) =>
+    repairLoadIssue(
+      id.project(args),
+      id.optionalDocument(args),
+      args.issue as LoadIssueRef,
+      args.action as RepairAction,
+      args.dryRun as boolean,
+    ),
+  update_outdated_files: (args) => updateOutdatedFiles(id.project(args)),
   create_project: (args) =>
     createProject(
       args.selectionId as string,

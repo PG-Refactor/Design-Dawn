@@ -58,6 +58,7 @@ export const DOCUMENT_A_ISSUE: LoadIssue = {
   path: "documents/a/sheets/s/blocks/stray.md",
   entityId: null,
   detail: "not referenced",
+  reason: null,
 };
 
 export interface WorkspaceHarness {

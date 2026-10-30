@@ -161,6 +161,8 @@ const LOAD_ISSUES: Record<LoadIssueKind, string> = {
   orphanContent: "どのBlockからも参照されていない本文ファイルがあります。",
   leftoverTempFile: "保存途中の一時ファイルが残っています。",
   unrecognizedDirectory: "認識できないフォルダがあります。",
+  outdatedFormat:
+    "古いファイル形式のファイルがあります（保存するときに更新されます）。",
 };
 
 export const WORKSPACE_MESSAGES_JA = {

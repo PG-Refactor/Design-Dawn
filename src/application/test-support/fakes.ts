@@ -52,11 +52,15 @@ import {
   type EntityState,
   type ExternalChanges,
   type FolderSelection,
+  type FormatUpdateResult,
   type LoadIssue,
+  type LoadIssueRef,
   OPEN_IN_NEW_WINDOW_STATUS,
   type OpenInNewWindowResult,
   type OpenRequestResult,
   type ProjectSnapshot,
+  type RepairAction,
+  type RepairOutcome,
   type SheetSnapshot,
 } from "../ports/persistence-types";
 import type { Scheduler } from "../ports/scheduler";
@@ -269,6 +273,18 @@ export interface FakeGateway extends PersistenceGateway {
   readonly comparedTexts: string[];
   // Document ids (null = Project level) `acceptDiskState` was called for, in order.
   readonly acceptedDiskStates: (DocumentId | null)[];
+  // What `repairLoadIssue` returns until replaced (default: applied, no file, no issue).
+  setRepairOutcome(outcome: RepairOutcome): void;
+  // The arguments `repairLoadIssue` was called with, in order.
+  readonly repairRequests: {
+    readonly documentId: DocumentId | null;
+    readonly issue: LoadIssueRef;
+    readonly action: RepairAction;
+    readonly dryRun: boolean;
+  }[];
+  // What `updateOutdatedFiles` returns until replaced, and how often it was called.
+  setFormatUpdate(result: FormatUpdateResult): void;
+  formatUpdateCalls: number;
   // Method names in call order, optionally narrowed to some methods.
   methods(...only: readonly string[]): string[];
   // Content files that currently exist: contentPath -> text.
@@ -318,6 +334,14 @@ export function createFakeGateway(
   const acceptedDiskStates: (DocumentId | null)[] = [];
   let scriptedComparison: BlockContentComparison = { outcome: "identical" };
   const comparedTexts: string[] = [];
+  let scriptedRepair: RepairOutcome = {
+    applied: true,
+    files: [],
+    unavailable: null,
+    issues: [],
+  };
+  const repairRequests: FakeGateway["repairRequests"] = [];
+  let scriptedFormatUpdate: FormatUpdateResult = { updated: [] };
   let openInNewWindowResult: OpenInNewWindowResult = {
     status: OPEN_IN_NEW_WINDOW_STATUS.openedInNewWindow,
   };
@@ -569,6 +593,14 @@ export function createFakeGateway(
       scriptedComparison = comparison;
     },
     comparedTexts,
+    setRepairOutcome(outcome) {
+      scriptedRepair = outcome;
+    },
+    repairRequests,
+    setFormatUpdate(result) {
+      scriptedFormatUpdate = result;
+    },
+    formatUpdateCalls: 0,
     queueOpenRequest(documentId) {
       pendingOpenRequest = documentId;
     },
@@ -633,6 +665,16 @@ export function createFakeGateway(
       enter("compareBlockContent", contentPath, () => {
         comparedTexts.push(text);
         return operationOk(scriptedComparison);
+      }),
+    repairLoadIssue: (_projectId, documentId, issue, action, dryRun) =>
+      enter("repairLoadIssue", `${action}:${dryRun ? "plan" : "apply"}`, () => {
+        repairRequests.push({ documentId, issue, action, dryRun });
+        return operationOk({ ...scriptedRepair, applied: !dryRun });
+      }),
+    updateOutdatedFiles: () =>
+      enter("updateOutdatedFiles", "", () => {
+        gateway.formatUpdateCalls += 1;
+        return operationOk(scriptedFormatUpdate);
       }),
     acceptDiskState: (_projectId, documentId) =>
       enter("acceptDiskState", documentId ?? "project", () => {

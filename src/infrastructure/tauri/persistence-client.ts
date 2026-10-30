@@ -26,9 +26,11 @@ import {
   toExternalChanges,
   toFolderSelectionResult,
   toFolderSnapshotResult,
+  toFormatUpdateResult,
   toOpenInNewWindowResult,
   toOpenRequestResult,
   toProjectSnapshotResult,
+  toRepairOutcome,
   toSaveResult,
   toSheetSnapshotResult,
   toTextResult,
@@ -40,9 +42,13 @@ import type {
   ExternalChanges,
   FolderSelection,
   FolderSnapshot,
+  FormatUpdateResult,
+  LoadIssueRef,
   OpenInNewWindowResult,
   OpenRequestResult,
   ProjectSnapshot,
+  RepairAction,
+  RepairOutcome,
   SaveResult,
   SheetSnapshot,
 } from "./persistence-types";
@@ -110,6 +116,33 @@ export function compareBlockContent(
     COMMANDS.compareBlockContent,
     { projectId, documentId, contentPath, text },
     toBlockContentComparison,
+  );
+}
+
+// Plans (`dryRun`) or applies one repair of a Load Issue the user confirmed. `documentId` is the
+// Document whose load reported the issue, null for an issue of the Project's own load.
+export function repairLoadIssue(
+  projectId: ProjectId,
+  documentId: DocumentId | null,
+  issue: LoadIssueRef,
+  action: RepairAction,
+  dryRun: boolean,
+): Promise<CommandResult<RepairOutcome>> {
+  return call(
+    COMMANDS.repairLoadIssue,
+    { projectId, documentId, issue, action, dryRun },
+    toRepairOutcome,
+  );
+}
+
+// "Update all now": writes every file that was read in an older format in the current one.
+export function updateOutdatedFiles(
+  projectId: ProjectId,
+): Promise<CommandResult<FormatUpdateResult>> {
+  return call(
+    COMMANDS.updateOutdatedFiles,
+    { projectId },
+    toFormatUpdateResult,
   );
 }
 

@@ -161,6 +161,8 @@ const LOAD_ISSUES: Record<LoadIssueKind, string> = {
   orphanContent: "There is a text file that no block refers to.",
   leftoverTempFile: "A temporary file from an interrupted save remains.",
   unrecognizedDirectory: "There is an unrecognized folder.",
+  outdatedFormat:
+    "A file uses an older file format (it is updated when it is saved).",
 };
 
 export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {

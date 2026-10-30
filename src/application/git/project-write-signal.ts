@@ -54,6 +54,8 @@ export const GATEWAY_METHOD_KINDS = {
   checkExternalChanges: "read",
   acceptDiskState: "read",
   compareBlockContent: "read",
+  repairLoadIssue: "write",
+  updateOutdatedFiles: "write",
   openProjectInNewWindow: "read",
   takeOpenRequest: "read",
   closeProject: "read",

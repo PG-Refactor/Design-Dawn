@@ -22,6 +22,7 @@ import {
   openProjectInNewWindow,
   readBlockContent,
   reloadProject,
+  repairLoadIssue,
   restoreBlockContent,
   saveDocument,
   saveFolder,
@@ -29,6 +30,7 @@ import {
   saveSheet,
   selectProjectFolder,
   takeOpenRequest,
+  updateOutdatedFiles,
   writeBlockContent,
 } from "./persistence-client";
 
@@ -44,6 +46,8 @@ export function createTauriPersistenceGateway(): PersistenceGateway {
     reloadProject,
     checkExternalChanges,
     compareBlockContent,
+    repairLoadIssue,
+    updateOutdatedFiles,
     acceptDiskState: async (projectId, documentId) =>
       mapOperationResult(await acceptDiskState(projectId, documentId), discard),
     openProjectInNewWindow,

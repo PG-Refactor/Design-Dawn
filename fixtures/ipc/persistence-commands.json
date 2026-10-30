@@ -1790,6 +1790,432 @@
           }
         }
       ]
+    },
+    {
+      "name": "repair-load-issues",
+      "description": "A project with an unlisted Document and an orphan text file: the dry run lists what a repair would change, applying it writes only that and returns the remaining issues, a stale or unsuitable request changes nothing, and nothing in a result is a path outside the Project.",
+      "project": "issues",
+      "folderPicker": ["projectCopy"],
+      "cases": [
+        {
+          "name": "select folder: selected",
+          "request": {
+            "command": "select_project_folder",
+            "args": {}
+          },
+          "expected": {
+            "ok": {
+              "status": "selected",
+              "selectionId": "$selectionId",
+              "displayPath": ""
+            }
+          },
+          "ignoreValuePaths": ["displayPath"]
+        },
+        {
+          "name": "open_project: an unlisted Document is reported and listed in the effective order",
+          "request": {
+            "command": "open_project",
+            "args": {
+              "selectionId": "$selectionId"
+            }
+          },
+          "expected": {
+            "ok": {
+              "project": {
+                "schemaVersion": 2,
+                "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+                "name": "Issues Project",
+                "childOrder": ["01928f3a-6c7d-7e8f-a012-3456789abcde"]
+              },
+              "sessionGeneration": 1,
+              "folders": [],
+              "documents": [
+                {
+                  "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+                  "parentFolderId": null,
+                  "name": "System Design",
+                  "state": "loaded"
+                }
+              ],
+              "issues": [
+                {
+                  "kind": "unlistedEntity",
+                  "path": "documents/system-design",
+                  "entityId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+                  "detail": "the item exists on disk but is not listed by its parent",
+                  "reason": null
+                }
+              ]
+            }
+          },
+          "ignoreValuePaths": ["sessionGeneration"]
+        },
+        {
+          "name": "repair_load_issue: a dry run lists the file it would change and writes nothing",
+          "request": {
+            "command": "repair_load_issue",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": null,
+              "issue": {
+                "kind": "unlistedEntity",
+                "path": "documents/system-design",
+                "entityId": "01928f3a-6c7d-7e8f-a012-3456789abcde"
+              },
+              "action": "addToList",
+              "dryRun": true
+            }
+          },
+          "expected": {
+            "ok": {
+              "applied": false,
+              "files": ["project.json"],
+              "unavailable": null,
+              "issues": [
+                {
+                  "kind": "unlistedEntity",
+                  "path": "documents/system-design",
+                  "entityId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+                  "detail": "the item exists on disk but is not listed by its parent",
+                  "reason": null
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "repair_load_issue: an action that does not fit the issue is unavailable",
+          "request": {
+            "command": "repair_load_issue",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": null,
+              "issue": {
+                "kind": "unlistedEntity",
+                "path": "documents/system-design",
+                "entityId": "01928f3a-6c7d-7e8f-a012-3456789abcde"
+              },
+              "action": "deleteFile",
+              "dryRun": false
+            }
+          },
+          "expected": {
+            "ok": {
+              "applied": false,
+              "files": [],
+              "unavailable": "notApplicable",
+              "issues": [
+                {
+                  "kind": "unlistedEntity",
+                  "path": "documents/system-design",
+                  "entityId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+                  "detail": "the item exists on disk but is not listed by its parent",
+                  "reason": null
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "repair_load_issue: addToList writes the order and returns the issues that remain",
+          "request": {
+            "command": "repair_load_issue",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": null,
+              "issue": {
+                "kind": "unlistedEntity",
+                "path": "documents/system-design",
+                "entityId": "01928f3a-6c7d-7e8f-a012-3456789abcde"
+              },
+              "action": "addToList",
+              "dryRun": false
+            }
+          },
+          "expected": {
+            "ok": {
+              "applied": true,
+              "files": ["project.json"],
+              "unavailable": null,
+              "issues": []
+            }
+          }
+        },
+        {
+          "name": "repair_load_issue: an issue that is gone changes nothing",
+          "request": {
+            "command": "repair_load_issue",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": null,
+              "issue": {
+                "kind": "unlistedEntity",
+                "path": "documents/system-design",
+                "entityId": "01928f3a-6c7d-7e8f-a012-3456789abcde"
+              },
+              "action": "addToList",
+              "dryRun": false
+            }
+          },
+          "expected": {
+            "ok": {
+              "applied": false,
+              "files": [],
+              "unavailable": "issueGone",
+              "issues": []
+            }
+          }
+        },
+        {
+          "name": "load_document: the orphan text file is reported",
+          "request": {
+            "command": "load_document",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde"
+            }
+          },
+          "expected": {
+            "ok": {
+              "document": {
+                "schemaVersion": 1,
+                "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+                "name": "System Design",
+                "sheetOrder": [
+                  "01928f3a-7d8e-7f90-b123-456789abcdef",
+                  "01928f3a-7d8f-7f90-b123-456789abcdef"
+                ]
+              },
+              "sheets": [
+                {
+                  "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef",
+                  "name": "Overview",
+                  "state": "loaded",
+                  "sheet": {
+                    "schemaVersion": 1,
+                    "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef",
+                    "name": "Overview",
+                    "blocks": [
+                      {
+                        "blockId": "01928f3a-8e9f-7a01-8234-56789abcdef0",
+                        "blockType": "markdown",
+                        "position": {
+                          "x": 100,
+                          "y": 200
+                        },
+                        "size": {
+                          "width": 480,
+                          "height": 320
+                        },
+                        "contentPath": "sheets/overview/blocks/markdown-1.md"
+                      },
+                      {
+                        "blockId": "01928f3a-a0b1-7c23-a456-789abcdef012",
+                        "blockType": "mermaid",
+                        "position": {
+                          "x": -640,
+                          "y": -120
+                        },
+                        "size": {
+                          "width": 400,
+                          "height": 300
+                        },
+                        "contentPath": "sheets/overview/blocks/mermaid-1.mmd"
+                      },
+                      {
+                        "blockId": "01928f3a-9fa0-7b12-9345-6789abcdef01",
+                        "blockType": "image",
+                        "position": {
+                          "x": 640,
+                          "y": 200
+                        },
+                        "size": {
+                          "width": 1,
+                          "height": 1
+                        },
+                        "contentPath": "assets/pixel.png"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "sheetId": "01928f3a-7d8f-7f90-b123-456789abcdef",
+                  "name": "Details",
+                  "state": "loaded",
+                  "sheet": {
+                    "schemaVersion": 1,
+                    "sheetId": "01928f3a-7d8f-7f90-b123-456789abcdef",
+                    "name": "Details",
+                    "blocks": [
+                      {
+                        "blockId": "01928f3a-b1c2-7d34-b567-89abcdef0123",
+                        "blockType": "markdown",
+                        "position": {
+                          "x": 0,
+                          "y": 0
+                        },
+                        "size": {
+                          "width": 320,
+                          "height": 240
+                        },
+                        "contentPath": "sheets/details/blocks/markdown-1.md"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "issues": [
+                {
+                  "kind": "orphanContent",
+                  "path": "documents/system-design/sheets/overview/blocks/notes.md",
+                  "entityId": null,
+                  "detail": "a content file is not used by any block",
+                  "reason": null
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "repair_load_issue: a Document-scoped dry run lists the file to delete",
+          "request": {
+            "command": "repair_load_issue",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "issue": {
+                "kind": "orphanContent",
+                "path": "documents/system-design/sheets/overview/blocks/notes.md",
+                "entityId": null
+              },
+              "action": "deleteFile",
+              "dryRun": true
+            }
+          },
+          "expected": {
+            "ok": {
+              "applied": false,
+              "files": [
+                "documents/system-design/sheets/overview/blocks/notes.md"
+              ],
+              "unavailable": null,
+              "issues": [
+                {
+                  "kind": "orphanContent",
+                  "path": "documents/system-design/sheets/overview/blocks/notes.md",
+                  "entityId": null,
+                  "detail": "a content file is not used by any block",
+                  "reason": null
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "repair_load_issue: addAsBlock changes the Sheet and the issue disappears",
+          "request": {
+            "command": "repair_load_issue",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "issue": {
+                "kind": "orphanContent",
+                "path": "documents/system-design/sheets/overview/blocks/notes.md",
+                "entityId": null
+              },
+              "action": "addAsBlock",
+              "dryRun": false
+            }
+          },
+          "expected": {
+            "ok": {
+              "applied": true,
+              "files": ["documents/system-design/sheets/overview/sheet.json"],
+              "unavailable": null,
+              "issues": []
+            }
+          }
+        },
+        {
+          "name": "repair_load_issue: unknown documentId",
+          "request": {
+            "command": "repair_load_issue",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-ffff-7fff-bfff-ffffffffffff",
+              "issue": {
+                "kind": "orphanContent",
+                "path": "documents/system-design/sheets/overview/blocks/notes.md",
+                "entityId": null
+              },
+              "action": "deleteFile",
+              "dryRun": false
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "entityNotFound"
+            }
+          }
+        },
+        {
+          "name": "repair_load_issue: unknown action",
+          "request": {
+            "command": "repair_load_issue",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "issue": {
+                "kind": "orphanContent",
+                "path": "documents/system-design/sheets/overview/blocks/notes.md",
+                "entityId": null
+              },
+              "action": "formatDisk",
+              "dryRun": false
+            }
+          },
+          "expected": {
+            "tauriError": true
+          },
+          "targets": ["rust"]
+        },
+        {
+          "name": "repair_load_issue: unknown issue kind",
+          "request": {
+            "command": "repair_load_issue",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
+              "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
+              "issue": {
+                "kind": "somethingNew",
+                "path": null,
+                "entityId": null
+              },
+              "action": "deleteFile",
+              "dryRun": false
+            }
+          },
+          "expected": {
+            "tauriError": true
+          },
+          "targets": ["rust"]
+        },
+        {
+          "name": "update_outdated_files: nothing is outdated",
+          "request": {
+            "command": "update_outdated_files",
+            "args": {
+              "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd"
+            }
+          },
+          "expected": {
+            "ok": {
+              "updated": []
+            }
+          }
+        }
+      ]
     }
   ]
 }

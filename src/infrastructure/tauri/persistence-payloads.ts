@@ -33,6 +33,7 @@ import {
   FOLDER_SELECTION_STATUS,
   LOAD_ISSUE_KINDS,
   OPEN_IN_NEW_WINDOW_STATUS,
+  REPAIR_UNAVAILABLE_REASONS,
 } from "./command-constants";
 import { type CommandResult, commandErr, commandOk } from "./command-error";
 import {
@@ -55,10 +56,12 @@ import type {
   FolderEntry,
   FolderSelection,
   FolderSnapshot,
+  FormatUpdateResult,
   LoadIssue,
   OpenInNewWindowResult,
   OpenRequestResult,
   ProjectSnapshot,
+  RepairOutcome,
   SaveResult,
   SheetSnapshot,
 } from "./persistence-types";
@@ -105,6 +108,7 @@ const decodeLoadIssue = objectOf<LoadIssue>({
   path: nullable(decodeString),
   entityId: nullable(decodeString),
   detail: decodeString,
+  reason: nullable(decodeString),
 });
 
 interface RawDocumentEntry {
@@ -503,6 +507,29 @@ export function toBlockContentComparison(
     case "notUtf8":
       return commandOk({ outcome: head.value.outcome });
   }
+}
+
+const rawRepairOutcome = objectOf<RepairOutcome>({
+  applied: decodeBoolean,
+  files: arrayOf(decodeString),
+  unavailable: nullable(oneOf(REPAIR_UNAVAILABLE_REASONS)),
+  issues: arrayOf(decodeLoadIssue),
+});
+
+export function toRepairOutcome(
+  payload: unknown,
+): CommandResult<RepairOutcome> {
+  return decodePayload(rawRepairOutcome, payload);
+}
+
+const rawFormatUpdateResult = objectOf<FormatUpdateResult>({
+  updated: arrayOf(decodeString),
+});
+
+export function toFormatUpdateResult(
+  payload: unknown,
+): CommandResult<FormatUpdateResult> {
+  return decodePayload(rawFormatUpdateResult, payload);
 }
 
 export function toSaveResult(payload: unknown): CommandResult<SaveResult> {

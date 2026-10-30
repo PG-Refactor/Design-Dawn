@@ -20,9 +20,13 @@ import type {
   ExternalChanges,
   FolderSelection,
   FolderSnapshot,
+  FormatUpdateResult,
+  LoadIssueRef,
   OpenInNewWindowResult,
   OpenRequestResult,
   ProjectSnapshot,
+  RepairAction,
+  RepairOutcome,
   SheetSnapshot,
 } from "./persistence-types";
 
@@ -50,6 +54,21 @@ export interface PersistenceGateway {
     projectId: ProjectId,
     documentId: DocumentId | null,
   ): Promise<OperationResult<void>>;
+  // Plans (`dryRun`: nothing is written) or applies one explicit repair of a Load Issue
+  // (docs/architecture.md §14.15). `documentId` is the Document whose load reported the issue,
+  // `null` for one of the Project's own load. The caller has asked the user and reads the
+  // affected files again afterwards.
+  repairLoadIssue(
+    projectId: ProjectId,
+    documentId: DocumentId | null,
+    issue: LoadIssueRef,
+    action: RepairAction,
+    dryRun: boolean,
+  ): Promise<OperationResult<RepairOutcome>>;
+  // "Update all now": every file read in an older format is written in the current one.
+  updateOutdatedFiles(
+    projectId: ProjectId,
+  ): Promise<OperationResult<FormatUpdateResult>>;
   // Opens the selected folder's Project in a new window, or brings forward the window that
   // has it. This window's own Project is not touched.
   openProjectInNewWindow(

@@ -28,6 +28,7 @@ export const LOAD_ISSUE_KINDS = [
   "orphanContent",
   "leftoverTempFile",
   "unrecognizedDirectory",
+  "outdatedFormat",
 ] as const;
 
 export type LoadIssueKind = (typeof LOAD_ISSUE_KINDS)[number];
@@ -42,6 +43,9 @@ export interface LoadIssue {
   readonly path: string | null;
   readonly entityId: string | null;
   readonly detail: string;
+  // For `entityLoadFailed`: the error kind that stopped the load (`unsupportedSchemaVersion`
+  // means the item is newer than this app understands and is read-only); null otherwise.
+  readonly reason: string | null;
 }
 
 // A Folder of the Project. Folders and Documents are listed flat; the tree is rebuilt from
@@ -102,6 +106,59 @@ export interface DocumentSnapshot {
   readonly document: Document;
   readonly sheets: readonly SheetSnapshot[];
   readonly issues: readonly LoadIssue[];
+}
+
+// --- Load Issue repair and format update (docs/architecture.md §14.15) ---
+
+export const REPAIR_ACTIONS = [
+  "addToList",
+  "removeFromList",
+  "giveNewId",
+  "removeBlock",
+  "createEmptyContent",
+  "deleteFile",
+  "addAsBlock",
+  "deleteTempFile",
+] as const;
+export type RepairAction = (typeof REPAIR_ACTIONS)[number];
+
+// Why a repair is not offered or not done. Mirrors `RepairUnavailable` in Rust.
+export const REPAIR_UNAVAILABLE_REASONS = [
+  "issueGone",
+  "notApplicable",
+  "entityUnreadable",
+  "notWritable",
+  "referencedElsewhere",
+  "sheetsNotLoaded",
+  "unsupportedContentType",
+  "pathOccupied",
+  "ambiguousReference",
+  "targetNotFound",
+] as const;
+export type RepairUnavailableReason =
+  (typeof REPAIR_UNAVAILABLE_REASONS)[number];
+
+// Names the issue to repair as the Frontend received it. Rust matches it against a fresh
+// read of the files and uses nothing from it as a path before that.
+export interface LoadIssueRef {
+  readonly kind: LoadIssueKind;
+  readonly path: string | null;
+  readonly entityId: string | null;
+}
+
+export interface RepairOutcome {
+  // False for a dry run and for an unavailable repair.
+  readonly applied: boolean;
+  // Project-root-relative paths the repair changes (or would change).
+  readonly files: readonly string[];
+  readonly unavailable: RepairUnavailableReason | null;
+  // The issues of the same scope (the Project or the Document) as they are now.
+  readonly issues: readonly LoadIssue[];
+}
+
+export interface FormatUpdateResult {
+  // Project-root-relative paths written in the current version.
+  readonly updated: readonly string[];
 }
 
 // --- External changes (docs/architecture.md §14.4) ---
