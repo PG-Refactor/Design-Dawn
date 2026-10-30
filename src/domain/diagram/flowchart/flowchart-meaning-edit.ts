@@ -1,9 +1,13 @@
-import type { FlowchartDirection } from "./flowchart-config";
+import type {
+  FlowchartDirection,
+  FlowchartDirectionToken,
+} from "./flowchart-config";
 import { renumberAutoEdgeIds } from "./flowchart-edge-id";
 import type {
   FlowchartEdgeMeaning,
   FlowchartMeaning,
   FlowchartNodeMeaning,
+  FlowchartSubgraphMeaning,
 } from "./flowchart-meaning";
 
 // "Meaning before + what the operation meant": the expected meaning of an edit, built
@@ -102,4 +106,112 @@ export function withNodesReordered(
   }
   const rest = meaning.nodes.filter((node) => !placed.has(node.id));
   return { ...meaning, nodes: [...before, ...inStatement, ...rest] };
+}
+
+// Deleting a node takes every edge that starts or ends at it, the node from the members of
+// every subgraph, and the ids of the edges that had an id of their own (an `id@{ ... }` line
+// inside a block makes the id a member, and the line goes with the edge).
+export function withoutNode(
+  meaning: FlowchartMeaning,
+  nodeId: string,
+): FlowchartMeaning {
+  const gone = meaning.edges.filter(
+    (edge) => edge.start === nodeId || edge.end === nodeId,
+  );
+  const goneIds = new Set(
+    gone.filter((edge) => edge.userDefinedId).map((edge) => edge.id),
+  );
+  return {
+    ...meaning,
+    nodes: meaning.nodes.filter((node) => node.id !== nodeId),
+    edges: renumberAutoEdgeIds(
+      meaning.edges.filter((edge) => !gone.includes(edge)),
+    ),
+    subgraphs: meaning.subgraphs.map((subgraph) => ({
+      ...subgraph,
+      members: subgraph.members.filter(
+        (member) => member !== nodeId && !goneIds.has(member),
+      ),
+    })),
+  };
+}
+
+export function withSubgraph(
+  meaning: FlowchartMeaning,
+  subgraphId: string,
+  patch: Partial<FlowchartSubgraphMeaning>,
+): FlowchartMeaning {
+  return {
+    ...meaning,
+    subgraphs: meaning.subgraphs.map((subgraph) =>
+      subgraph.id === subgraphId ? { ...subgraph, ...patch } : subgraph,
+    ),
+  };
+}
+
+export function withSubgraphDirection(
+  meaning: FlowchartMeaning,
+  subgraphId: string,
+  direction: FlowchartDirectionToken | null,
+): FlowchartMeaning {
+  return withSubgraph(meaning, subgraphId, { direction });
+}
+
+// Replaces the members of every subgraph by the ones the membership rule gives.
+export function withMembers(
+  meaning: FlowchartMeaning,
+  members: ReadonlyMap<string, readonly string[]>,
+): FlowchartMeaning {
+  return {
+    ...meaning,
+    subgraphs: meaning.subgraphs.map((subgraph) => ({
+      ...subgraph,
+      members: members.get(subgraph.id) ?? subgraph.members,
+    })),
+  };
+}
+
+export function withAppendedSubgraph(
+  meaning: FlowchartMeaning,
+  subgraph: FlowchartSubgraphMeaning,
+): FlowchartMeaning {
+  return { ...meaning, subgraphs: [...meaning.subgraphs, subgraph] };
+}
+
+export function withoutSubgraph(
+  meaning: FlowchartMeaning,
+  subgraphId: string,
+): FlowchartMeaning {
+  return {
+    ...meaning,
+    subgraphs: meaning.subgraphs.filter(
+      (subgraph) => subgraph.id !== subgraphId,
+    ),
+  };
+}
+
+// Nodes are listed in the order of their first mention. When an edit moves the first mention
+// of a node (to `position`, a statement number in the old numbering; a half number lies
+// between two statements), the node moves with it. Returns null when another node was first
+// mentioned in the same statement: the order inside one statement is not modelled.
+export function withNodeFirstMention(
+  meaning: FlowchartMeaning,
+  nodeId: string,
+  position: number,
+): FlowchartMeaning | null {
+  const node = meaning.nodes.find((candidate) => candidate.id === nodeId);
+  if (node === undefined) return meaning;
+  if (node.firstMention.statementIndex === position) return meaning;
+  const others = meaning.nodes.filter((candidate) => candidate.id !== nodeId);
+  if (others.some((other) => other.firstMention.statementIndex === position)) {
+    return null;
+  }
+  const at = others.findIndex(
+    (other) => other.firstMention.statementIndex > position,
+  );
+  const nodes =
+    at === -1
+      ? [...others, node]
+      : [...others.slice(0, at), node, ...others.slice(at)];
+  return { ...meaning, nodes };
 }

@@ -111,3 +111,39 @@ export function deleteLinesEdits(
   }
   return edits;
 }
+
+// A new line directly before the given line (its first character). Used to put a statement
+// in front of a subgraph's `end`, which keeps it inside the block.
+export function insertLineBeforeEdit(
+  reading: FlowchartReading,
+  lineIndex: number,
+  content: string,
+): TextEdit {
+  const line = reading.lines[lineIndex];
+  const at = line === undefined ? 0 : line.start;
+  return { start: at, end: at, text: content + dominantLineEnding(reading) };
+}
+
+// A new line directly after the given line. When that line is the last one and has no line
+// break, the break goes before the new line instead, so the file keeps ending the way it did.
+export function insertLineAfterEdit(
+  reading: FlowchartReading,
+  lineIndex: number,
+  content: string,
+): TextEdit {
+  const line = reading.lines[lineIndex];
+  if (line === undefined) return appendLineEdit(reading, content);
+  const ending = dominantLineEnding(reading);
+  if (line.terminator === "") {
+    return { start: line.end, end: line.end, text: ending + content };
+  }
+  const at = line.end + line.terminator.length;
+  return { start: at, end: at, text: content + ending };
+}
+
+// The leading blanks of a line.
+export function indentOfLine(reading: FlowchartReading, lineIndex: number) {
+  const line = reading.lines[lineIndex];
+  if (line === undefined) return "";
+  return line.text.slice(0, line.text.length - line.text.trimStart().length);
+}
