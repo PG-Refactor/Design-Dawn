@@ -46,7 +46,7 @@ export function GitPanel() {
             aria-label={messages.refresh}
             title={messages.refresh}
             // Status first, then the open diff follows it (reload / switch / close) and an
-            // expanded history is reloaded from its first page (docs/ui-design.md §13.3).
+            // expanded history is reloaded from its first page.
             onClick={() => void refresh()}
           >
             <RefreshIcon />

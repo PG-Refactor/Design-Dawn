@@ -1,7 +1,7 @@
 //! One tool call's view of the Project. It is read afresh for every call instead of being
 //! kept: the app or a Git operation may have changed the files in between, and a session
 //! opened just before the write is exactly what makes the hash ledger refuse a write over
-//! a change made after the read (docs/architecture.md §14.6, §17.5).
+//! a change made after the read.
 
 use std::path::Path;
 

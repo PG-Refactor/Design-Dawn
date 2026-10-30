@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-// The Mermaid rules of docs/architecture.md §15.4 and docs/security.md §7 as source checks.
+// The Mermaid usage and security rules as source checks.
 // Like the Markdown guard this reads source text, so it cannot see indirect use (a string
 // built at run time); tests and test support files are excluded because they name the
 // patterns. The HTML injection rules are in markdown-guard.test.ts and cover Mermaid too.

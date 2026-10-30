@@ -1,4 +1,4 @@
-// Width of the Project Tree panel in CSS pixels (docs/architecture.md §6.2.2). Same rule as
+// Width of the Project Tree panel in CSS pixels. Same rule as
 // Rust (`application/local_state/layout.rs`): an integer within the configured limits.
 
 import { LAYOUT_CONFIG } from "../../config/layout-config";

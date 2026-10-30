@@ -1,4 +1,4 @@
-//! Window drag & drop (docs/architecture.md §6.2.2). The native event carries absolute paths,
+//! Window drag & drop. The native event carries absolute paths,
 //! which stay in Rust (`DroppedFilesState`); the Frontend is told only a `dropId` and a count,
 //! and activity changes for feedback. This handler stays thin: the state logic is in
 //! `application::dropped_files`.

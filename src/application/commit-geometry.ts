@@ -1,5 +1,5 @@
 // Converts fractional UI values (drag / resize previews) into validated domain values at
-// commit time (docs/architecture.md §11.1). The UI never builds Position / Size by casting.
+// commit time. The UI never builds Position / Size by casting.
 
 import type { DomainResult } from "../domain/shared/domain-result";
 import {

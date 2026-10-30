@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The pie operations against the real mermaid 12.1.0 (docs/architecture.md §16.13): every
+// The pie operations against the real mermaid 12.1.0: every
 // candidate an operation produces must be drawn by the real renderer (through the same
 // render check the app uses), and mermaid's own pie db must hold exactly the meaning the
 // operation promised. The db is read through an internal API and only here, in tests.

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The flowchart Tier 2 operations (docs/architecture.md §16.15.14) against the real mermaid
+// The flowchart Tier 2 operations against the real mermaid
 // 12.1.0: every candidate a plan produces must be accepted by Mermaid, drawn by the same
 // render check the app uses, and Mermaid's own flow db must hold exactly the meaning the
 // operation promised (node order, members of every subgraph, edge order and ids, linkStyle

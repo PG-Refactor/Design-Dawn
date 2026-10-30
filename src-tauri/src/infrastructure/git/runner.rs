@@ -1,4 +1,4 @@
-//! The one place that starts `git` (docs/git-development.md §11.6): the absolute executable
+//! The one place that starts `git`: the absolute executable
 //! path, arguments passed one by one (no shell), a fixed environment, a time limit, bounded
 //! output capture and no console window on Windows.
 

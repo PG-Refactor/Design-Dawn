@@ -1,4 +1,4 @@
-//! Project folder selection (docs/architecture.md §6.2.2). The native dialog is abstracted
+//! Project folder selection. The native dialog is abstracted
 //! behind `FolderPicker` so this layer stays free of Tauri and testable without a dialog.
 //! Rust keeps the picked path; the Frontend only ever sees an opaque `selectionId`.
 

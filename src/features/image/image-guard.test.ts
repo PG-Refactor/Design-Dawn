@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-// Security rules for image assets (docs/security.md §8) as source checks. Like the other
+// Security rules for image assets as source checks. Like the other
 // guards this reads source text, so it cannot see indirect use; tests and test support are
 // excluded because they name the patterns.
 const sources = import.meta.glob("/src/features/image/**/*.{ts,tsx}", {

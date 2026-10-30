@@ -2,7 +2,7 @@
 // can hand the UI a fake and nothing outside render-mermaid.ts depends on the library.
 
 // Theme token values resolved from the CSS variables at render time. Mermaid cannot read
-// CSS variables, so the resolved colours and font are passed in (docs/architecture.md §15.4).
+// CSS variables, so the resolved colours and font are passed in.
 // A key is missing when its token could not be resolved; Mermaid then keeps its default.
 export interface MermaidThemeValues {
   readonly background?: string;

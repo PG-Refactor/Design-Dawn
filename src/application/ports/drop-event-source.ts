@@ -1,5 +1,5 @@
 // Port for files dropped on the app window. Rust keeps the dropped paths and announces only
-// an opaque `dropId` and a count (docs/architecture.md §6.2.2); the Frontend never sees a
+// an opaque `dropId` and a count; the Frontend never sees a
 // path.
 
 export interface FilesDroppedEvent {

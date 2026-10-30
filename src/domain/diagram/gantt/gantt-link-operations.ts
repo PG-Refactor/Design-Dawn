@@ -18,7 +18,7 @@ import {
 import { validateGanttLinkUrl } from "./gantt-text";
 import type { GanttClick, GanttLine } from "./gantt-types";
 
-// Links on tasks (Tier 2, docs/architecture.md §16.17.2): `click <id> href "<url>"` written
+// Links on tasks (Tier 2): `click <id> href "<url>"` written
 // below the task (Mermaid ignores a click that comes before its task). Only http(s) URLs.
 // `click ... call ...` and several ids on one line are read-only text that the reader keeps
 // (a list `click a,b href "..."` is edited by id).

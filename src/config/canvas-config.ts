@@ -1,4 +1,4 @@
-// Canvas configuration (docs/architecture.md §6.2.2). The viewport limits are validated by
+// Canvas configuration. The viewport limits are validated by
 // the local state parser and by Rust (`application/local_state/constants.rs`); the canvas
 // implementation in a later step must clamp to the same values. Shared fixtures
 // (fixtures/app-state/) keep the two languages in sync.

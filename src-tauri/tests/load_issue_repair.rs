@@ -1,4 +1,4 @@
-//! The explicit repair of Load Issues (docs/architecture.md §14.15): each kind's actions, the
+//! The explicit repair of Load Issues: each kind's actions, the
 //! dry run that writes nothing, the refusals (stale issue, wrong action, external change,
 //! unsafe reference), and that no result contains an absolute path.
 

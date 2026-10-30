@@ -1,5 +1,4 @@
-// Commit, Commit & Push / Sync and Undo Last Commit as flows (docs/git-development.md
-// §11.16, R-3). The commit form and its menus (R-4) only collect the answers (amend?
+// Commit, Commit & Push / Sync and Undo Last Commit as flows. The commit form and its menus only collect the answers (amend?
 // stage everything? then what?) and call these.
 
 import { setGitCommitMessage } from "../workspace/ui-state/shell-ui-state";

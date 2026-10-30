@@ -1,4 +1,4 @@
-// Discarding Git changes (docs/ui-design.md §13.5, V-5): ask, close what is affected, discard,
+// Discarding Git changes: ask, close what is affected, discard,
 // bring everything back. The steps and their order live here, in one place, because they
 // span the Git controller, the workspace actions and the UI state; components only call
 // `requestGitDiscard` and `confirmGitDiscard`.

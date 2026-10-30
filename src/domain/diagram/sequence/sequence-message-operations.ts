@@ -28,7 +28,7 @@ import {
   type SequenceItemTarget,
 } from "./sequence-operation-support";
 
-// Tier 2 operations on single messages (docs/architecture.md §16.16.9).
+// Tier 2 operations on single messages.
 
 export type SequenceActivationSign = "+" | "-" | null;
 

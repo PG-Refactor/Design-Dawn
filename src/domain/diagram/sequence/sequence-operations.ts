@@ -95,7 +95,8 @@ import {
 } from "./sequence-text";
 import type { SequenceStatement, SequenceToken } from "./sequence-types";
 
-// Tier 1 operations of the sequence GUI editor (docs/architecture.md §16.16.5). Pure
+// Tier 1 operations of the sequence GUI editor ("Tier 1" is the basic set of edits, "Tier 2" the
+// later, more structural ones on participants, messages and blocks). Pure
 // functions from the current source to a set of TextEdits plus the meaning the result must
 // have: "meaning before + what the operation meant". They change only the bytes the
 // operation is about (a token, a text, one inserted or removed line), so every other byte
@@ -178,7 +179,7 @@ export type SequenceOperation =
       // Empty removes the title.
       readonly title: string;
     }
-  // Tier 2 (docs/architecture.md §16.16.9).
+  // Tier 2.
   | DeleteParticipantOperation
   | ReorderParticipantsOperation
   | WrapInBlockOperation

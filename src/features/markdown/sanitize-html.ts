@@ -1,4 +1,4 @@
-// The second stage of the Markdown pipeline (docs/security.md §3): whatever HTML comes in,
+// The second stage of the Markdown pipeline: whatever HTML comes in,
 // only an explicit allow list comes out. It does not trust markdown-it's output.
 
 import createDOMPurify, { type Config, type DOMPurify } from "dompurify";

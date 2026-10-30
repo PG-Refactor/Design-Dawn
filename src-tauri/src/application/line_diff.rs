@@ -1,5 +1,5 @@
-//! A small line diff for comparing a Block's text in memory with the file on disk
-//! (docs/architecture.md §14.9, §14.12). The inputs are Block text files, so an LCS table over
+//! A small line diff for comparing a Block's text in memory with the file on disk.
+//! The inputs are Block text files, so an LCS table over
 //! the lines is enough; no diff library is used. The output is a unified diff, the shape the
 //! Frontend's existing diff view reads (hunks of `+` / `-` / context lines).
 

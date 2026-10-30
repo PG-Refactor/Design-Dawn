@@ -1,4 +1,4 @@
-// What the app does when Project files changed outside it (docs/architecture.md §14.7–§14.9).
+// What the app does when Project files changed outside it.
 // Rust reports what changed (a pushed notice, or the full comparison `check`); this decides
 // per Document: read it again by itself when nothing is unsaved and everything that changed
 // can be read, otherwise stop saving that Document and let the user choose (reload / keep

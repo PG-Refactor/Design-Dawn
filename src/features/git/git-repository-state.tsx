@@ -8,7 +8,7 @@ import { GitCommitBox } from "./git-commit-box";
 import { GitHistorySection } from "./git-history-section";
 import { refreshGitView } from "./git-view-refresh";
 
-// What the panel knows, decided from the Git state only (docs/ui-design.md §13.2).
+// What the panel knows, decided from the Git state only.
 type RepositoryView =
   | { readonly kind: "noProject" }
   | { readonly kind: "loading" }

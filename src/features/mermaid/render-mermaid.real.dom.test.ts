@@ -2,7 +2,7 @@
 // The real Mermaid library with the real sanitiser, in jsdom. jsdom cannot measure text,
 // so the measuring APIs are faked below and every layout value is meaningless: these tests
 // check structure (what survives sanitising), never how a diagram looks. Whether the
-// diagrams look right in the WebView is a manual check (docs/testing.md §28).
+// diagrams look right in the WebView is a manual check.
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   buildMermaidConfig,
@@ -97,7 +97,7 @@ function externalUrlReferences(document: Document): string[] {
 }
 
 describe("the Mermaid fixtures", () => {
-  it("cover every diagram type of docs/architecture.md §15.0", () => {
+  it("cover every supported diagram type", () => {
     expect(fixtures.map((fixture) => fixture.name).sort()).toEqual(
       Object.keys(EXPECTED_LABELS).sort(),
     );
@@ -388,8 +388,7 @@ function themeValuesOf(themeId: string): MermaidThemeValues {
   return withNonTokenValues(values, themeId === "dark");
 }
 
-// Mermaid puts the position of a `click` node on the <a> around it (docs/architecture.md
-// §16.15.8). jsdom layout values are fake, so these check that each node keeps the
+// Mermaid puts the position of a `click` node on the <a> around it. jsdom layout values are fake, so these check that each node keeps the
 // transform Mermaid gave it, not where it ends up on screen.
 describe("real Mermaid: a clickable node keeps its position after the link is removed", () => {
   const nodeId = /-flowchart-([^-]+)-\d+$/;

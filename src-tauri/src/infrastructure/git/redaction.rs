@@ -1,4 +1,4 @@
-//! Removes credentials from text that is logged (docs/git-development.md §11.8): git's
+//! Removes credentials from text that is logged: git's
 //! stderr can quote a remote URL such as `https://user:token@host/repo.git`.
 
 use super::constants::REDACTED_USER_INFORMATION;

@@ -1,4 +1,4 @@
-// Semantic token names (docs/architecture.md §13.3). The values live only in
+// Semantic token names. The values live only in
 // `src/styles/theme-tokens.css`; each theme must define exactly these names.
 
 // The categorical palette of diagram previews (Mermaid pie slices, gantt bars).

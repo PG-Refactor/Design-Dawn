@@ -1,5 +1,5 @@
 //! Payloads returned by Application operations and Commands. Entity payloads use the same
-//! DTO shapes as the files on disk (docs/architecture.md §6.2).
+//! DTO shapes as the files on disk.
 
 use serde::Serialize;
 
@@ -51,8 +51,7 @@ pub struct DocumentEntry {
 #[serde(rename_all = "camelCase")]
 pub struct ProjectSnapshot {
     pub project: ProjectDto,
-    /// Which read of the Project this is; notifications carry the same number
-    /// (docs/architecture.md §14.4).
+    /// Which read of the Project this is; notifications carry the same number.
     pub session_generation: u64,
     pub folders: Vec<FolderEntry>,
     pub documents: Vec<DocumentEntry>,

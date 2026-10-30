@@ -3,7 +3,7 @@ import { AUTO_REFRESH_DELAY_MS } from "../../config/git-config";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import { refreshDiffAfterStatusChange } from "./git-diff-session";
 
-// Keeps the Git status current without the refresh button, as VS Code does: after the app
+// Keeps the Git status current without the refresh button, as source-control views commonly do: after the app
 // wrote Project files, and when the window regains focus (edits made in another editor or
 // by git itself). Registered once for the shell. Bursts collapse into one read through the
 // debounce. The read is silent and the open diff tabs follow it; the history is left alone,

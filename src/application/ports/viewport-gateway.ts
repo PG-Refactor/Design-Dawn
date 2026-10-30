@@ -1,5 +1,4 @@
-// Port for the per-sheet viewport kept as application local state (docs/architecture.md
-// §6.2.2): outside the Project, never part of undo history or Domain values.
+// Port for the per-sheet viewport kept as application local state: outside the Project, never part of undo history or Domain values.
 
 import type {
   DocumentId,

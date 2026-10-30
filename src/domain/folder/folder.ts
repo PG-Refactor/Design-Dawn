@@ -11,7 +11,7 @@ import {
   type SchemaVersion,
 } from "../shared/schema-version";
 
-// A directory under `documents/` that groups Folders and Documents (data-model.md §2.1).
+// A directory under `documents/` that groups Folders and Documents.
 export interface Folder {
   readonly schemaVersion: SchemaVersion;
   readonly folderId: FolderId;

@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "subject": "entity",
-  "description": "Whole-entity validation in file-format.md §3 shape. The first error in key order is reported (docs/data-model.md §11.8).",
+  "description": "Whole-entity validation of the on-disk entity shape. The first error in key order is reported.",
   "cases": [
     {
       "name": "project schema 1 valid",
@@ -168,7 +168,7 @@
         "result": "reject",
         "errorKind": "invalidSchemaVersion"
       },
-      "note": "docs/data-model.md §11.8: first error in key order."
+      "note": "first error in key order."
     },
     {
       "name": "project element error reported before duplicate",
@@ -767,7 +767,7 @@
         "result": "reject",
         "errorKind": "unsupportedBlockType"
       },
-      "note": "docs/data-model.md §11.8."
+      "note": "the entity is rejected as a whole."
     },
     {
       "name": "folder valid",
@@ -916,7 +916,7 @@
         "result": "reject",
         "errorKind": "invalidSchemaVersion"
       },
-      "note": "docs/data-model.md §11.8: first error in key order."
+      "note": "first error in key order."
     },
     {
       "name": "folder element error reported before duplicate",

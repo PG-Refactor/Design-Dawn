@@ -1,4 +1,4 @@
-// Display language values (docs/requirements.md §18). Mirrors `LANGUAGE_IDS` in Rust
+// Display language values. Mirrors `LANGUAGE_IDS` in Rust
 // (`application/local_state/constants.rs`); adding a language means adding it in both.
 
 // Language definition table: the languages the UI has text for.

@@ -1,4 +1,4 @@
-//! Load-time reconciliation of the filesystem with the order arrays (docs/data-model.md §7).
+//! Load-time reconciliation of the filesystem with the order arrays.
 //! Nothing in this module writes to disk: inconsistencies are reported as Load Issues and
 //! normalized only in the returned values, to be persisted by a later explicit save.
 
@@ -77,7 +77,7 @@ pub(super) fn recover_identity<Id>(
 }
 
 /// Drops order entries that are not valid IDs or repeat an earlier entry. The domain only
-/// validates values that already passed this normalization (data-model.md §11.7).
+/// validates values that already passed this normalization.
 pub(super) fn normalize_order<Id>(
     raw: &[String],
     parse: fn(&str) -> Result<Id, DomainError>,
@@ -302,7 +302,7 @@ pub(super) fn migrate_metadata(target: MigrationTarget, value: Value) -> (Value,
     (original, migrated)
 }
 
-/// Reports a file that was read in an older format (docs/data-model.md §7).
+/// Reports a file that was read in an older format.
 pub(super) fn report_outdated_format(
     path: &str,
     migrated_from: Option<u32>,
@@ -460,8 +460,8 @@ struct TreeScan<'a> {
     seen: HashMap<Uuid, String>,
 }
 
-/// Scans `documents/` recursively for Folders and Documents and applies each parent's order
-/// (data-model.md §7). A directory with both `folder.json` and `document.json`, or neither,
+/// Scans `documents/` recursively for Folders and Documents and applies each parent's order.
+/// A directory with both `folder.json` and `document.json`, or neither,
 /// is reported and not entered. A Folder that fails to load is listed but not entered: its
 /// children cannot be ordered or attributed to it. Order issues inside each
 /// `document.json` are reported by `load_document` when that Document is opened.

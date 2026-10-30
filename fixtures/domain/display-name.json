@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "subject": "displayName",
-  "description": "Display names: reject empty, whitespace-only (Unicode White_Space), control characters (U+0000-U+001F, U+007F-U+009F, U+2028, U+2029) and more than 200 code points. Leading/trailing whitespace is not trimmed by the domain. See docs/data-model.md §11.2.",
+  "description": "Display names: reject empty, whitespace-only (Unicode White_Space), control characters (U+0000-U+001F, U+007F-U+009F, U+2028, U+2029) and more than 200 code points. Leading/trailing whitespace is not trimmed by the domain.",
   "cases": [
     {
       "name": "ascii",

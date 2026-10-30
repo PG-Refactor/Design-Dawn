@@ -67,11 +67,11 @@ export interface WorkspaceServices {
   // it triggers (see `useGitAutoRefresh`).
   readonly projectWriteSignal: ProjectWriteSignal;
   readonly gitRefreshScheduler: Scheduler;
-  // Files changed outside the app (docs/architecture.md §14); the UI shows its state and
+  // Files changed outside the app; the UI shows its state and
   // forwards the user's choices.
   readonly externalChangeController: ExternalChangeController;
   // Confirming and running the repair of a Load Issue, reading files again, and "update all
-  // now" for older file formats (docs/architecture.md §14.15).
+  // now" for older file formats.
   readonly loadIssueRepairController: LoadIssueRepairController;
 }
 

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Builds throwaway Git projects for the Phase 6 manual check (docs/testing.md §26).
+# Builds throwaway Git projects for the manual Git check.
 # Run inside the dev container: `docker compose exec -T dev sh scripts/make-manual-git-fixtures.sh`.
 # The output lives in the container home, outside the repository, so Biome and Git never see
 # it; it is lost when the container is recreated (run the script again).
@@ -90,7 +90,7 @@ gc "$C" commit -qam "main"
 gc "$C" merge other >/dev/null 2>&1 || true
 printf 'unrelated change\n' > "$C/free.txt"
 
-# 6. Remote scenarios (docs/testing.md §26, R): local bare remotes, no network.
+# 6. Remote scenarios: local bare remotes, no network.
 #    sync:          1 commit behind and 1 ahead of origin/main (Sync merges), plus the
 #                   branch feature/unpublished with no upstream and two remotes (Publish asks).
 #    pull-conflict: local and remote changed the same line (Pull stops on a conflict).

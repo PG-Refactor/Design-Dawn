@@ -20,7 +20,7 @@ use crate::infrastructure::file_format::image_validation::ImageContentError;
 /// before a command runs (bad arguments, ACL) are NOT this shape: they are plain strings, and
 /// the client maps them to `unexpectedCommandError`. `fixtures/ipc/` pins both cases.
 ///
-/// The complete set of error identifiers a Command can return (docs/architecture.md §6.3):
+/// The complete set of error identifiers a Command can return:
 /// domain kinds, persistence kinds, and the session-level kinds defined here.
 /// Each identifier is defined exactly once, in its own enum's `as_str`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -56,7 +56,7 @@ pub enum ErrorKind {
     InvalidViewport,
     /// A Project Tree width that is not an integer within the allowed range.
     InvalidProjectTreeWidth,
-    /// The Project is already open in another window (docs/architecture.md §11.0.1).
+    /// The Project is already open in another window.
     ProjectOpenInOtherWindow,
     /// A git process failed in a way that is not a repository state (non-zero exit of a
     /// ready repository, unreadable output, the process could not be started).

@@ -1,4 +1,4 @@
-//! Block content numbering ("largest number + 1", docs/file-format.md §9.3),
+//! Block content numbering ("largest number + 1"),
 //! `restore_block_content`, `delete_sheet` and `delete_document`.
 
 mod support;
@@ -196,7 +196,7 @@ fn names_outside_the_pattern_do_not_affect_numbering() {
 
 #[test]
 fn a_fresh_session_may_reuse_a_deleted_highest_number() {
-    // Documented limit (file-format.md §9.3): the high-water mark lives in the session only.
+    // Documented limit: the high-water mark lives in the session only.
     let mut opened = opened_and_loaded();
     let created = create(&mut opened, OVERVIEW_SHEET_ID, "markdown");
     assert_eq!(created, format!("{BLOCKS}/markdown-2.md"));

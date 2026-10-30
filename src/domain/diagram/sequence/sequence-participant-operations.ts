@@ -15,7 +15,7 @@ import {
 } from "./sequence-operation-support";
 import { planStatementRemoval } from "./sequence-removal";
 
-// Tier 2 operations on participants (docs/architecture.md §16.16.9).
+// Tier 2 operations on participants.
 
 export interface DeleteParticipantOperation {
   readonly kind: "deleteParticipant";

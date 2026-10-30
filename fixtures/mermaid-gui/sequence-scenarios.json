@@ -1,6 +1,6 @@
 {
   "fixtureVersion": 1,
-  "subject": "Tier 1 edit scenarios of the sequence editor (Step S-2)",
+  "subject": "Tier 1 edit scenarios of the sequence editor",
   "scenarios": [
     {
       "id": "SQE-P01",
@@ -280,7 +280,7 @@
       "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
       "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A<<->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
       "naiveGate": "PASS",
-      "note": "-> to <<->> (Step 9-1: Visimer mis-parsed it; mermaid is fine)"
+      "note": "-> to <<->> (a naive parser can mis-read it; mermaid is fine)"
     },
     {
       "id": "SQE-M16",

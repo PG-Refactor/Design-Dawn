@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The Tier 2 sequence operations (docs/architecture.md §16.16.9) against the real Mermaid
+// The Tier 2 sequence operations against the real Mermaid
 // library (12.1.0): fixed cases for every operation, the arrow / sign grid of the activation
 // toggle, and seeded random operation sequences that mix Tier 1 and Tier 2 operations. For
 // every plan that is handed out, Mermaid itself must accept the new text, read it as the
@@ -514,7 +514,7 @@ describe("sequence Tier 2 operations: the activation toggle for every arrow", ()
   );
 });
 
-// ---- the Tier 2 scenarios of the Step 9-7 research
+// ---- the Tier 2 scenarios of the earlier research
 
 type Outcome =
   | { readonly kind: "plan"; readonly operation: SequenceOperation }

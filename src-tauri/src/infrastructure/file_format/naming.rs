@@ -1,4 +1,4 @@
-//! Directory and file name generation (docs/file-format.md §5, §9.3).
+//! Directory and file name generation.
 //! Names are generated once at creation and never renamed afterwards.
 
 use std::collections::HashSet;
@@ -98,7 +98,7 @@ fn text_content_extension(block_type: BlockType) -> Result<&'static str, DomainE
 
 /// The `<n>` of a `<blockType>-<n>.<ext>` file name, or `None` if the name does not follow
 /// that pattern for this block type. The identifier and extension are compared
-/// case-insensitively because collisions are (file-format.md §9.3); leading zeros are
+/// case-insensitively because collisions are; leading zeros are
 /// accepted and a number that does not fit `u64` is treated as no match.
 pub fn block_content_number(block_type: BlockType, file_name: &str) -> Option<u64> {
     let (stem, extension) = file_name.rsplit_once(EXTENSION_SEPARATOR)?;
@@ -129,7 +129,7 @@ pub fn highest_block_content_number(
 }
 
 /// `<blockType>-<n>.<extension>` with `n` = largest known number + 1, so a deleted number is
-/// never handed out again (file-format.md §9.3). The largest known number is the larger of
+/// never handed out again. The largest known number is the larger of
 /// the files on disk and `session_high_water` (what this Project Session has already
 /// issued, restored or deleted). A name that is nevertheless taken is skipped.
 pub fn block_content_file_name(
@@ -381,7 +381,7 @@ mod tests {
         }
     }
 
-    // ---- Windows-problematic names (file-format.md §5, §6, §9.3) ----
+    // ---- Windows-problematic names ----
 
     fn assert_safe_directory_name(name: &str) {
         assert!(!name.is_empty());

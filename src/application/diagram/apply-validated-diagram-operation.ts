@@ -30,7 +30,7 @@ export interface ApplyValidatedDiagramOperationRequest {
   readonly operation: DiagramOperation;
 }
 
-// One GUI operation, committed only if every gate passes (docs/architecture.md §16.13):
+// One GUI operation, committed only if every gate passes:
 //   1. snapshot the loaded text of the block
 //   2. plan the operation against the snapshot (refuses what it cannot do safely)
 //   3. apply the edits to get the candidate; re-read it and check its meaning against what

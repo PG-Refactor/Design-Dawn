@@ -13,7 +13,7 @@ import type {
 } from "./flowchart-types";
 
 // What Mermaid 12.1.0 holds after reading a flowchart (its flow db), derived from the
-// recognised statements by replaying Mermaid's own rules (docs/architecture.md §16.15.2).
+// recognised statements by replaying Mermaid's own rules.
 // It is built only when the whole text was understood: never a partial meaning.
 // Texts are compared with Mermaid's own only when they contain none of `<>&#`, backticks or
 // backslashes, because Mermaid rewrites those (flowchart-reader.real.dom.test.ts).

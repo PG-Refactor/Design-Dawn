@@ -9,7 +9,7 @@ import type { SequenceReading } from "./sequence-reader";
 // again after it already existed (that breaks the column chain Mermaid lays out by). Things
 // the reader recognises but the operations do not touch (`activate` / `deactivate`, the
 // `rect` colour, an `autonumber` with arguments, comments, directives, front matter) never
-// block here (docs/architecture.md §16.16.4).
+// block here.
 
 export type SequenceNotEditableReason =
   | "notSequence"

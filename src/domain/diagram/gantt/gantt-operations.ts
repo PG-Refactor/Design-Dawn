@@ -73,7 +73,8 @@ export type {
   GanttTaskTarget,
 } from "./gantt-operation-support";
 
-// Gantt operations: pure functions from the current source to a minimal set of TextEdits plus
+// Gantt operations ("Tier 1" is the basic set of edits, "Tier 2" the later moves, duplicates,
+// settings and links): pure functions from the current source to a minimal set of TextEdits plus
 // the meaning the result must have. They replace one field of one line, or insert / delete
 // whole lines, so every byte outside the edits stays as it was. The caller applies the edits,
 // then proves the candidate with `verifyGanttCandidate`.
@@ -151,7 +152,7 @@ export type GanttOperation =
       readonly tags: readonly GanttTag[];
     }
   | { readonly kind: "deleteTask"; readonly target: GanttTaskTarget }
-  // Tier 2 (docs/architecture.md §16.17.2). The moves keep every task's resolved dates: an
+  // Tier 2. The moves keep every task's resolved dates: an
   // implicit start that would get another predecessor is written as the explicit date it has.
   | {
       readonly kind: "moveTask";

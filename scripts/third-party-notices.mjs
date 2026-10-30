@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Generates / verifies THIRD_PARTY_NOTICES.md (docs/oss-policy.md section 5.1).
+// Generates / verifies THIRD_PARTY_NOTICES.md.
 //
 //   node scripts/third-party-notices.mjs generate   write THIRD_PARTY_NOTICES.md
 //   node scripts/third-party-notices.mjs check      fail if the tracked file is stale

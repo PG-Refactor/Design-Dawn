@@ -1,13 +1,13 @@
-// Project-scoped Git state (docs/git-development.md §11.4, docs/architecture.md §11.0.2):
+// Project-scoped Git state:
 // runtime only, never saved in the Project's files (Git is the source of truth). It follows
 // the open Project: the state is reset when the Project changes and refreshed once the new
 // one is installed. Refreshing only reads; Git never saves or changes the Project. Stage /
 // Unstage change the index only: they never save the workspace and are not part of the
-// document Undo history (docs/git-development.md §11); Commit is the same. Discard changes working tree files (a Document
+// document Undo history; Commit is the same. Discard changes working tree files (a Document
 // on screen can then be stale: the UI reloads it from `discardImpact`) but is no Undo step
 // either. Loading a Diff
 // or the history only reads. A successful commit does not reload the history: the UI decides
-// when (docs/git-development.md §11.12).
+// when.
 
 import { HISTORY_PAGE_SIZE } from "../../config/git-config";
 import type { ProjectId } from "../../domain/shared/entity-id";
@@ -87,11 +87,11 @@ export interface GitState {
   // can disable its buttons.
   readonly operating: boolean;
   // Which Commit / Remote operation runs right now (null otherwise and after a Project
-  // change), so a UI can say what is going on (docs/git-development.md §11.16).
+  // change), so a UI can say what is going on.
   readonly runningOperation: GitRunningOperation | null;
   // Null when no Diff was requested, after `clearDiff`, after a failed load and after a
   // Project change. Stage / Unstage leave it as is even when the shown side changed: the
-  // UI reloads it (docs/git-development.md §11.10).
+  // UI reloads it.
   readonly diff: GitDiffState | null;
   // Independent of `status`. Null before a load, after `clearHistory`, after a failed first
   // load and after a Project change. A failed load restores the last loaded state.
@@ -179,7 +179,7 @@ export interface GitController {
   // `undoGitCommit` and the status is read again. When the project changed meanwhile the
   // message is not returned (the commit belonged to the previous Project).
   undoLastCommit(): Promise<OperationResult<GitUndoOutcome>>;
-  // Remote operations (docs/git-development.md §11.16), on the same queue / epoch /
+  // Remote operations, on the same queue / epoch /
   // `operating` as Commit. Success replaces the status; failure is reported as `fetchGit`
   // / `pullGit` / `pushGit` / `publishGit` and the status is read again. The failure is
   // returned too, so a flow can tell a conflicted pull (`gitPullConflicts`) from the rest.

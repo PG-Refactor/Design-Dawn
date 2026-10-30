@@ -1,6 +1,5 @@
 //! Image assets: importing dropped files, copying an asset between Documents, and reading
-//! an asset for the `dawn-asset` protocol (docs/architecture.md §6, docs/file-format.md §6,
-//! docs/security.md §8).
+//! an asset for the `dawn-asset` protocol.
 //!
 //! Every path that creates a file validates first (regular file, extension, size, content,
 //! natural size) and only then copies, so a rejected file leaves no trace. Assets are only

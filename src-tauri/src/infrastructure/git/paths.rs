@@ -1,5 +1,5 @@
-//! Validation of Project-relative paths that cross the IPC boundary or come from git
-//! (docs/git-development.md §11.7). Nothing is normalised: a path is accepted exactly as
+//! Validation of Project-relative paths that cross the IPC boundary or come from git.
+//! Nothing is normalised: a path is accepted exactly as
 //! given or rejected.
 
 use super::constants::PATHSPEC_SEPARATOR;

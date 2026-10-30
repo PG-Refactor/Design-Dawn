@@ -1,4 +1,4 @@
-// TEST ONLY. A seeded generator of Tier 2 gantt operations (docs/architecture.md §16.17.2),
+// TEST ONLY. A seeded generator of Tier 2 gantt operations,
 // mixed with the Tier 1 generator. It builds operations from the real tasks and sections of
 // the current chart plus a fixed share of noise (stale targets, odd tokens, odd links).
 import { ganttEditability } from "../../../domain/diagram/gantt/gantt-editability";

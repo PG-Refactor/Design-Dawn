@@ -1,5 +1,5 @@
 //! Starts a file watcher for every Project session and forwards what it finds to the window
-//! that has the Project (docs/architecture.md §14.4). The watcher lives in the session
+//! that has the Project. The watcher lives in the session
 //! (`WatchGuard`), so closing, replacing or dropping the session stops it. All decisions are in
 //! `application::external_change`; this only wires them to Tauri state.
 

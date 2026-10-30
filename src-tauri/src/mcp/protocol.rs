@@ -76,7 +76,7 @@ pub fn message_too_large_response() -> String {
     error_response(&Value::Null, INVALID_REQUEST, "the message is too large")
 }
 
-/// An `id` is a string or a number (JSON-RPC 2.0 §4); `null` is allowed by JSON-RPC but
+/// An `id` is a string or a number (JSON-RPC 2.0); `null` is allowed by JSON-RPC but
 /// refused by MCP.
 fn is_valid_id(id: &Value) -> bool {
     id.is_string() || id.is_number()

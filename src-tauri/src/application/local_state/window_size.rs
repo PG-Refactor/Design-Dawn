@@ -1,4 +1,4 @@
-//! The window size kept between runs (docs/architecture.md §11.0.1). Logical pixels, no
+//! The window size kept between runs. Logical pixels, no
 //! position. Pure: reading the real window and applying the size is `commands::window_size`.
 
 use serde_json::Number;
@@ -8,7 +8,7 @@ use crate::application::error::{ApplicationError, ApplicationResult};
 use crate::infrastructure::error::PersistenceErrorKind;
 
 /// A recorded window size. `maximized` windows keep the size they had when closed, which is
-/// the maximized size (the size before maximizing is not tracked, see §11.0.1).
+/// the maximized size (the size before maximizing is not tracked).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct WindowSize {
     pub width: u32,

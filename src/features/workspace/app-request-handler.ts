@@ -29,7 +29,7 @@ export interface AppRequestHandler {
 }
 
 // Processes `openDocument` requests from Rust one at a time and acknowledges each, which is
-// what tells Rust not to route it again (docs/architecture.md §11.0.1). While the window is
+// what tells Rust not to route it again. While the window is
 // closing nothing is handled or acknowledged: the request waits in the queue, and if the
 // window is destroyed instead, Rust routes the unacknowledged request to a new window.
 export function createAppRequestHandler(

@@ -1,4 +1,4 @@
-// The diff tabs of the main tab strip (docs/ui-design.md §13.5). Pure functions on
+// The diff tabs of the main tab strip. Pure functions on
 // `UiState` like the rest of the UI state; each returns the same state object when nothing
 // changes. The tabs are not saved and end with the Project.
 

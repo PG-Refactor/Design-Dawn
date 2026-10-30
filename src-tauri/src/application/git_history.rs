@@ -1,4 +1,4 @@
-//! Commit history, one page at a time (docs/git-development.md §11.12). Read-only. Pages
+//! Commit history, one page at a time. Read-only. Pages
 //! are cut from a fixed start commit (`<commitId>:<offset>` cursor), so a HEAD that moves
 //! between two pages cannot duplicate or skip entries. Author name, email and subject are
 //! untrusted repository data and are never logged.

@@ -108,7 +108,7 @@ pub fn save_sheet(
 }
 
 /// Deletes a Sheet directory. Destructive and not undoable; the caller has already confirmed
-/// with the user and saved the Document without this Sheet (file-format.md §9), but nothing
+/// with the user and saved the Document without this Sheet, but nothing
 /// here relies on that. `document.json` is deliberately left alone: a stale order entry is
 /// reported as `missingEntity` by the loader. A Sheet that failed to load can be deleted too.
 pub fn delete_sheet(

@@ -15,8 +15,8 @@ import "./tabs.css";
 
 const selectLeftPanelMode = (ui: UiState) => ui.leftPanelMode;
 
-// The sidebar content: a Project | Git switch above the Project Tree or the Git panel
-// (docs/ui-design.md §13.1). The mode is window-local UI state.
+// The sidebar content: a Project | Git switch above the Project Tree or the Git panel.
+// The mode is window-local UI state.
 export function Sidebar() {
   const messages = useMessages().workspace;
   const modeLabels: Record<LeftPanelMode, string> = {

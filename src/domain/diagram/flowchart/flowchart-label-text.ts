@@ -25,7 +25,7 @@ import {
 
 // Text rules of the flowchart editor. A label is only safe to write if Mermaid reads back
 // exactly what was written, so everything that would be rewritten, interpreted or would
-// break out of the line is refused instead of altered (docs/architecture.md §16.15.6).
+// break out of the line is refused instead of altered.
 
 const LESS_THAN = "<";
 const GREATER_THAN = ">";

@@ -169,7 +169,7 @@ const FIXED_UNIT_MS: Readonly<Record<string, number>> = {
 // The length in milliseconds of a duration that is a whole number of weeks, days, hours or
 // minutes. Months and years vary in length, Mermaid rounds fractional days and weeks to whole
 // ones, and it measurably ignores seconds and milliseconds (`10s` and `500ms` end where the
-// task starts, §16.17); the editor does not predict those and returns null.
+// task starts); the editor does not predict those and returns null.
 export function ganttDurationMs(text: string): number | null {
   const match = GANTT_DURATION_PATTERN.exec(text);
   if (match === null) return null;

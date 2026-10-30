@@ -38,7 +38,7 @@ import type {
 // Replays the recognised statements in order the way Mermaid's flow db does, to (a) refuse
 // what depends on context the single-statement parsers cannot see (an edge id that already
 // exists, a subgraph that is not closed, a linkStyle index past the last edge ...) and
-// (b) build the meaning. The rules are the ones measured in docs/architecture.md §16.15.2.
+// (b) build the meaning. The rules are the ones measured against Mermaid itself.
 
 export interface ResolverRefusal {
   readonly pending: PendingStatement | StraySeparator;

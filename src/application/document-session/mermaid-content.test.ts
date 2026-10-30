@@ -23,7 +23,7 @@ import {
   TEST_AUTO_SAVE_DELAY_MS,
 } from "../test-support/session-harness";
 
-// Mermaid blocks have no application code of their own (docs/architecture.md §15.2-15.3):
+// Mermaid blocks have no application code of their own:
 // these run the shared text block paths with the `mermaid` type to show that nothing in
 // them is Markdown-only. File names and extensions are Rust's (tests/persistence_*.rs).
 

@@ -1,5 +1,5 @@
-//! The read-only `dawn-asset` URL scheme through which the UI displays image assets
-//! (docs/security.md §8). The handler only turns a URL into an Application call
+//! The read-only `dawn-asset` URL scheme through which the UI displays image assets.
+//! The handler only turns a URL into an Application call
 //! (`read_asset_for_url`) and the result into an HTTP response; all path validation lives in
 //! the Application layer.
 //!

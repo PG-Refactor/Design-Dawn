@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize, Serializer};
 
 use super::error::ApplicationError;
 
-/// Load Issue kinds from docs/data-model.md §7.
+/// Load Issue kinds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum LoadIssueKind {

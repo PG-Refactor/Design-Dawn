@@ -1,4 +1,4 @@
-//! External change detection and the write-before-check guard (docs/architecture.md §14.2–§14.6):
+//! External change detection and the write-before-check guard:
 //! `check_external_changes` compares the files with what the session last read or wrote, and a
 //! save refuses to overwrite a file that changed behind the app's back.
 

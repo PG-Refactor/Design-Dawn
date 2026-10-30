@@ -1,5 +1,4 @@
-// The one place that fixes the security-relevant Mermaid settings (docs/architecture.md
-// §15.4, docs/security.md §7). Only the theme values vary. `maxTextSize` and `maxEdges` are
+// The one place that fixes the security-relevant Mermaid settings. Only the theme values vary. `maxTextSize` and `maxEdges` are
 // deliberately not set: the upstream defaults are the limits.
 
 import type { MermaidThemeValues } from "./mermaid-renderer-types";

@@ -1,6 +1,6 @@
 //! Image import (drop flow), validation limits, cross-document copy and the `dawn-asset`
 //! protocol response, all at the Application / response level (no Tauri window needed).
-//! docs/testing.md covers the real IPC path in `ipc_contract.rs`.
+//! `ipc_contract.rs` covers the real IPC path.
 
 mod support;
 

@@ -1,5 +1,5 @@
 //! Resolves stored relative paths against a root and proves the result stays inside it
-//! after symlinks are followed (docs/security.md §5).
+//! after symlinks are followed.
 
 use std::fs;
 use std::path::{Component, Path, PathBuf};

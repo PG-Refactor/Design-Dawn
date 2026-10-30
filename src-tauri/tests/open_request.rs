@@ -1,4 +1,4 @@
-//! Launch-argument open requests (docs/architecture.md §11.0.1, Step B): the application
+//! Launch-argument open requests: the application
 //! function against real files, and `take_open_request` through the real IPC pipeline.
 
 mod support;

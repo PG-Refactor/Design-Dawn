@@ -1,4 +1,4 @@
-// Restores and saves the per-sheet viewport (docs/architecture.md §6.2.2). Framework-free:
+// Restores and saves the per-sheet viewport. Framework-free:
 // it watches the UI state store, so it needs no component and cannot miss a change.
 //
 // The viewport stays UI state. This controller only copies it to / from the viewport

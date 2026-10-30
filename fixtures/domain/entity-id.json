@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "subject": "entityId",
-  "description": "Entity ID must be a canonical (lowercase, hyphenated) UUIDv7 with RFC 9562 variant. Non-canonical forms are rejected, never normalized. See docs/data-model.md §11.1.",
+  "description": "Entity ID must be a canonical (lowercase, hyphenated) UUIDv7 with RFC 9562 variant. Non-canonical forms are rejected, never normalized.",
   "cases": [
     {
       "name": "canonical v7 (variant 9)",

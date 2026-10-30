@@ -1,4 +1,4 @@
-// Whether metadata changes are saved automatically (docs/architecture.md §10.1). A port so
+// Whether metadata changes are saved automatically. A port so
 // the document sessions never depend on where the app setting is stored.
 
 export interface AutoSavePolicy {

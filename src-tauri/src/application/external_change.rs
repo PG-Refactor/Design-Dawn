@@ -1,4 +1,4 @@
-//! Finding out what changed on disk behind the app's back (docs/architecture.md §14.3–§14.5).
+//! Finding out what changed on disk behind the app's back.
 //!
 //! A change is never taken from a file system event: it is decided by comparing the file
 //! as it is now with the hash the session recorded when it last read or wrote it
@@ -351,7 +351,7 @@ pub enum BatchOutcome {
 }
 
 /// Decides, under the sessions lock (so it is serialized with the app's own writes), what a
-/// batch of file system events amounts to (docs/architecture.md §14.4 step 3).
+/// batch of file system events amounts to.
 pub fn confirm_batch(
     sessions: &Mutex<ProjectSessions>,
     project_id: &ProjectId,
@@ -383,7 +383,7 @@ pub fn confirm_batch(
     }
 }
 
-/// `check_external_changes`: a full comparison of the Project (docs/architecture.md §14.4).
+/// `check_external_changes`: a full comparison of the Project.
 /// The frontend asks when its window regains focus, after the watcher reported lost events or
 /// could not start, and after a Git operation that rewrote files.
 pub fn check_external_changes(

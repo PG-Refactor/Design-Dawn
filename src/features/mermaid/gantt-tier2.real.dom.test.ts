@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The Tier 2 gantt operations (docs/architecture.md §16.17.2) against the real Mermaid 12.1.0:
+// The Tier 2 gantt operations against the real Mermaid 12.1.0:
 // fixed cases for every operation, and seeded random operation sequences that mix Tier 1 and
 // Tier 2 operations on every editable chart of the corpus. For every plan that is handed out
 // Mermaid itself must accept the new text, read it as the promised meaning, compute the dates

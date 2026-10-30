@@ -25,7 +25,7 @@ import { parseGantt } from "./gantt-parser";
 
 // What a control would do, found by planning the operation: why it is unavailable (the first
 // word of the refusal) or null, and how many implicit starts it would write as explicit dates
-// to keep every date where it is (docs/architecture.md §16.17.2).
+// to keep every date where it is.
 export interface GanttMoveView {
   readonly restriction: string | null;
   readonly freezes: number;

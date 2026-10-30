@@ -34,7 +34,7 @@ import type {
 // adapter in infrastructure; faked in tests. Expected failures are results, never throws.
 export interface PersistenceGateway {
   // The OS folder dialog runs in Rust; cancelling is an ok result. The Frontend never
-  // handles a path: `selectionId` is the only handle (docs/architecture.md §6.2.2).
+  // handles a path: `selectionId` is the only handle.
   selectProjectFolder(): Promise<OperationResult<FolderSelection>>;
   openProject(selectionId: string): Promise<OperationResult<ProjectSnapshot>>;
   // Reads the Project this window has open again from disk, as a fresh open of it (Rust
@@ -43,19 +43,18 @@ export interface PersistenceGateway {
     projectId: ProjectId,
   ): Promise<OperationResult<ProjectSnapshot>>;
   // Compares the Project's files with what the app last read or wrote and reports what
-  // changed behind its back. Read-only; nothing is re-recorded (docs/architecture.md §14.4).
+  // changed behind its back. Read-only; nothing is re-recorded.
   checkExternalChanges(
     projectId: ProjectId,
   ): Promise<OperationResult<ExternalChanges>>;
   // The user chose to overwrite what is on disk: the Document's files (or, with `null`, the
-  // Project-level files) are taken as the new baseline so the next save is allowed
-  // (docs/architecture.md §14.6).
+  // Project-level files) are taken as the new baseline so the next save is allowed.
   acceptDiskState(
     projectId: ProjectId,
     documentId: DocumentId | null,
   ): Promise<OperationResult<void>>;
-  // Plans (`dryRun`: nothing is written) or applies one explicit repair of a Load Issue
-  // (docs/architecture.md §14.15). `documentId` is the Document whose load reported the issue,
+  // Plans (`dryRun`: nothing is written) or applies one explicit repair of a Load Issue.
+  // `documentId` is the Document whose load reported the issue,
   // `null` for one of the Project's own load. The caller has asked the user and reads the
   // affected files again afterwards.
   repairLoadIssue(
@@ -96,7 +95,7 @@ export interface PersistenceGateway {
     parentFolderId?: FolderId | null,
   ): Promise<OperationResult<DocumentSnapshot>>;
   // Creates the directory and `folder.json` (never overwriting). The caller saves the
-  // parent's order afterwards (docs/architecture.md §6.2.4).
+  // parent's order afterwards.
   createFolder(
     projectId: ProjectId,
     parentFolderId: FolderId | null,
@@ -138,7 +137,7 @@ export interface PersistenceGateway {
     name: DisplayName,
   ): Promise<OperationResult<SheetSnapshot>>;
   // Destructive; the caller has to have saved the parent's order without the entity
-  // first (docs/file-format.md §9).
+  // first.
   deleteSheet(
     projectId: ProjectId,
     documentId: DocumentId,

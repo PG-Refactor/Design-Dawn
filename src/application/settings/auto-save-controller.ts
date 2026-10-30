@@ -1,4 +1,4 @@
-// Owns the "auto-save on/off" app setting (docs/architecture.md §10.1) and is the
+// Owns the "auto-save on/off" app setting and is the
 // `AutoSavePolicy` the document sessions read. Framework-free and, like the theme, outside
 // the application store, document sessions and undo history: it is not Project data.
 

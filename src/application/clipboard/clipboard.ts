@@ -1,4 +1,4 @@
-// In-app clipboard (docs/architecture.md §9.5). The port is the single boundary where an
+// In-app clipboard. The port is the single boundary where an
 // OS clipboard could be attached later; nothing here touches browser or OS APIs.
 
 import type { ContentPath } from "../../domain/block/content-path";
@@ -29,8 +29,7 @@ export interface AssetClipboardBlock extends ClipboardBlockBase {
 
 export type ClipboardBlock = TextClipboardBlock | AssetClipboardBlock;
 
-// Where the content was copied from; decides how a paste is placed (docs/architecture.md
-// §9.5): next to the originals on the same sheet, centred in the view anywhere else.
+// Where the content was copied from; decides how a paste is placed: next to the originals on the same sheet, centred in the view anywhere else.
 export interface ClipboardSource {
   readonly documentId: DocumentId;
   readonly sheetId: SheetId;

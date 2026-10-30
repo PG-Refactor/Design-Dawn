@@ -1,4 +1,4 @@
-//! Parser for `git diff --numstat -z` (docs/git-development.md §11.10). Only one question
+//! Parser for `git diff --numstat -z`. Only one question
 //! is asked of it: does git treat any listed file as binary?
 //!
 //! ```text

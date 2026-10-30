@@ -33,9 +33,9 @@ logs/
 .env.*
 !.env.example
 
-# ---- Claude Code: personal/local settings only (shared settings stay tracked) ----
+# ---- Assistant tooling: personal/local settings only (shared settings stay tracked) ----
 .claude/settings.local.json
-# Git worktrees for parallel work (Claude Code creates them here)
+# Git worktrees for parallel work (development tooling creates them here)
 .claude/worktrees/
 
 # ---- IDE ----

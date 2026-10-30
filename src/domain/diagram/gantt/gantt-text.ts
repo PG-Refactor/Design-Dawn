@@ -22,7 +22,7 @@ import {
 import { isGanttDuration, parseGanttDate } from "./gantt-date";
 
 // Text rules of the gantt editor. They mirror what Mermaid 12.1.0 does to a line before and
-// while it reads it (docs/architecture.md §16.17), because a name, title or id is only safe to
+// while it reads it, because a name, title or id is only safe to
 // write if Mermaid reads back exactly what was written.
 
 const UNUSUAL_WHITESPACE_PATTERN = /[^\S \t]/;

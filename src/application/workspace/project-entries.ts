@@ -1,5 +1,5 @@
-// Pure queries and updates on the Project's folder tree as the application state holds it
-// (docs/architecture.md §6.2.4). "Parent" is a Folder id, or null for the Project itself;
+// Pure queries and updates on the Project's folder tree as the application state holds it.
+// "Parent" is a Folder id, or null for the Project itself;
 // both own a `childOrder` and a save state, so one set of functions serves both.
 
 import { CURRENT_SCHEMA_VERSIONS } from "../../domain/domain-constants";

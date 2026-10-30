@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The Tier 2 controls of the sequence GUI (docs/architecture.md §16.16.9): moving and deleting
+// The Tier 2 controls of the sequence GUI: moving and deleting
 // participants, wrapping and unwrapping blocks, adding and deleting branches, the activation
 // choice and duplicating a message. Each goes through the Application gate (one undo each).
 import {

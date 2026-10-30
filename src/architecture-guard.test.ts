@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-// Dependency direction (docs/architecture.md §2, CLAUDE.md §14): domain and application
+// Dependency direction: domain and application
 // know nothing about React, Tauri, infrastructure or features.
 const sources = import.meta.glob(
   ["./domain/**/*.ts", "./application/**/*.ts"],
@@ -57,7 +57,7 @@ describe("architecture guard", () => {
 });
 
 // The diagram model is pure text processing: it must stay usable by Node tests and by
-// every layer, so it may not reach upward or pull in the Mermaid library (docs/architecture.md §16.6).
+// every layer, so it may not reach upward or pull in the Mermaid library.
 describe("diagram domain guard", () => {
   const diagramFiles = Object.entries(sources).filter(([file]) =>
     file.startsWith("./domain/diagram/"),

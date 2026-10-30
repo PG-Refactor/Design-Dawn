@@ -1,5 +1,5 @@
-// Single place for the Tauri command contract: command names (docs/architecture.md §6.2)
-// and the error identifiers (§6.3). Rust owns the identifiers; `commands-contract.test.ts`
+// Single place for the Tauri command contract: command names
+// and the error identifiers. Rust owns the identifiers; `commands-contract.test.ts`
 // checks the command names against `src-tauri/src/commands/mod.rs`.
 
 export const COMMANDS = {

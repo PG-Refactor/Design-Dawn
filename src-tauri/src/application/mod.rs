@@ -1,5 +1,5 @@
 //! Entity-level operations (open / load / save / create / delete). Independent of Tauri and
-//! of the UI, so a future MCP server can call them directly (docs/architecture.md §5).
+//! of the UI, so a future MCP server can call them directly.
 
 pub mod asset_import;
 pub mod authoring;

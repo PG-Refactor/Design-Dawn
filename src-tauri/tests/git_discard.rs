@@ -1,5 +1,5 @@
 //! `discard_paths`, `git_discard_impact` and the untracked-file guard against the system
-//! `git` in temporary repositories (docs/testing.md §26, docs/git-development.md §11.14).
+//! `git` in temporary repositories.
 //! Every git process runs with a hermetic configuration (no user or system config, a
 //! throwaway HOME). Tests are skipped, with a message, when no `git` is installed.
 

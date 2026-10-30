@@ -181,7 +181,7 @@ pub const COMPARE_MAX_BYTES: u64 = 1024 * 1024;
 const COMPARE_DISK_LABEL: &str = "disk";
 const COMPARE_MEMORY_LABEL: &str = "memory";
 
-/// How a Block's text in memory differs from its file on disk (docs/architecture.md §14.9).
+/// How a Block's text in memory differs from its file on disk.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "outcome", rename_all = "camelCase")]
 pub enum BlockContentComparison {

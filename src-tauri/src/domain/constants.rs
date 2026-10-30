@@ -10,7 +10,7 @@ pub const SIZE_MIN: i64 = 1;
 pub const SIZE_MAX: i64 = 2_147_483_647;
 
 pub const MIN_SCHEMA_VERSION: i64 = 1;
-/// 2 replaced `documentOrder` with `childOrder` (docs/file-format.md §3.5); 1 is still read
+/// 2 replaced `documentOrder` with `childOrder`; 1 is still read
 /// through the migration registry (`infrastructure/file_format/migration.rs`).
 pub const CURRENT_PROJECT_SCHEMA_VERSION: u32 = 2;
 pub const CURRENT_FOLDER_SCHEMA_VERSION: u32 = 1;
@@ -39,7 +39,7 @@ pub const ENTITY_ID_VERSION_CHARACTER: u8 = b'7';
 pub const ENTITY_ID_VARIANT_POSITION: usize = 19;
 pub const ENTITY_ID_VARIANT_CHARACTERS: [u8; 4] = *b"89ab";
 
-// File layout names (docs/file-format.md §2, §6).
+// File layout names.
 pub const SHEETS_DIRECTORY_NAME: &str = "sheets";
 pub const BLOCKS_DIRECTORY_NAME: &str = "blocks";
 pub const ASSETS_DIRECTORY_NAME: &str = "assets";

@@ -1,4 +1,4 @@
-//! File system watching for external changes (docs/architecture.md §14.3, §14.4).
+//! File system watching for external changes.
 //!
 //! `notify` is wrapped thinly: an event is only a hint that "something under the Project may
 //! have changed". Filtering and aggregation are plain logic with injected time so they are

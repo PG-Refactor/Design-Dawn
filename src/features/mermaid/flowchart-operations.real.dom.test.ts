@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 // The flowchart Tier 1 operations (src/domain/diagram/flowchart/flowchart-operations.ts)
-// against the real mermaid 12.1.0 (docs/architecture.md §16.15.12): every candidate a plan
+// against the real mermaid 12.1.0: every candidate a plan
 // produces must be accepted by Mermaid, drawn by the same render check the app uses, and
 // Mermaid's own flow db must hold exactly the meaning the operation promised. The db is read
 // through an internal API and only here, in tests.
 //
 // Two sets of inputs:
-//   1. the 91 Tier 1 scenarios of the Step 9-5 research (fixtures/mermaid-gui/
+//   1. the 91 Tier 1 scenarios of the project's earlier research (fixtures/mermaid-gui/
 //      flowchart-scenarios.json), each with the product's operation and, where the research
 //      showed that a naive edit breaks the diagram, a check that the naive text really differs;
 //   2. seeded random operation sequences on every editable input of the corpus.

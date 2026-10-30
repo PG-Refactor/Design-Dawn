@@ -12,10 +12,10 @@ const WATCH_POLLING_ENV_NAME = "DAWN_WATCH_POLLING";
 
 // Machine input for scripts/third-party-notices.mjs. Vite lists exactly the node_modules
 // packages that ended up in the production bundle. A dotted path keeps it out of the
-// way of the app's own assets; the script reads it from here (docs/oss-policy.md 5.1).
+// way of the app's own assets; the script reads it from here.
 const LICENSE_REPORT_FILE_NAME = ".vite/license.json";
 
-// Git worktrees for parallel work (Claude Code puts them here); never part of this checkout.
+// Git worktrees for parallel work (development tooling creates them here); never part of this checkout.
 const WORKTREES_GLOB = "**/.claude/worktrees/**";
 
 export default defineConfig(({ mode }) => {

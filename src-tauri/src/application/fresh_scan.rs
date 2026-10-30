@@ -1,6 +1,6 @@
 //! A second, throwaway read of a Project, used to check what is on disk right now without
 //! touching the open session. Reading through the open session would refresh its hash ledger
-//! and so hide an external change from the write-before-check (docs/architecture.md §14.6);
+//! and so hide an external change from the write-before-check;
 //! a repair or a format update therefore reads here and writes through the open session.
 
 use std::path::Path;

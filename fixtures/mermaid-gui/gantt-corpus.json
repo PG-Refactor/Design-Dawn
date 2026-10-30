@@ -1,6 +1,6 @@
 {
   "fixtureVersion": 1,
-  "subject": "gantt reader differential (Step G-1)",
+  "subject": "gantt reader differential",
   "cases": [
     {
       "id": "GT-hdr-1",
@@ -2352,13 +2352,13 @@
       "id": "GTE-K48:before",
       "group": "scenarioBefore",
       "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
-      "note": "month 13: mermaid.parse passes, rendering throws (Step 9-1 'invalid date' failure) -> render gate + validation"
+      "note": "month 13: mermaid.parse passes, rendering throws (the known 'invalid date' failure) -> render gate + validation"
     },
     {
       "id": "GTE-K48:naive",
       "group": "scenarioNaive",
       "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-13-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
-      "note": "setStart(date): month 13: mermaid.parse passes, rendering throws (Step 9-1 'invalid date' failure) -> render gate + validation"
+      "note": "setStart(date): month 13: mermaid.parse passes, rendering throws (the known 'invalid date' failure) -> render gate + validation"
     },
     {
       "id": "GTE-K49:before",

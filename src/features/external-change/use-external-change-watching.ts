@@ -10,7 +10,7 @@ import {
   type WorkspaceServices,
 } from "../workspace/workspace-services-context";
 
-// What an event of the controller means for the screen (docs/ui-design.md §14).
+// What an event of the controller means for the screen.
 function applyEvent(
   services: WorkspaceServices,
   event: ExternalChangeEvent,

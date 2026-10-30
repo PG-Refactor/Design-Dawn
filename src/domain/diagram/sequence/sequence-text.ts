@@ -31,7 +31,7 @@ import {
 
 // Text rules of the sequence editor. A text is only safe to write if Mermaid reads back
 // exactly what was written, so everything that would be rewritten, interpreted or would break
-// out of the line is refused instead of altered (docs/architecture.md §16.16.6).
+// out of the line is refused instead of altered.
 
 function refuse<T>(reason: string, detail: string): DomainResult<T> {
   return err("invalidDiagramOperation", `${reason}: ${detail}`);

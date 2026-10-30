@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The gantt GUI path end to end below the UI (docs/architecture.md §16.17): a Mermaid
+// The gantt GUI path end to end below the UI: a Mermaid
 // block's source, edited by GUI operations through the Application gate with the real render
 // check, saved through the normal auto-save, reloaded from the stored file, and undone /
 // redone. The stored file is compared line by line with the original, which is what a Git
@@ -192,7 +192,7 @@ describe("gantt GUI operations, save, reload, undo", {
       duration: "4d",
     });
     expect(outcome.ok).toBe(true);
-    // The command stores LF (docs/file-format.md §9.2); apart from that only the duration of
+    // The command stores LF; apart from that only the duration of
     // the last task changed, and the comment, the setting and the blank line stayed.
     expect(contentOf(harness)).toBe(
       handWritten.replaceAll("\r\n", "\n").replace("3d", "4d"),

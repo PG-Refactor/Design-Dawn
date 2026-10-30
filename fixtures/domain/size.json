@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "subject": "size",
-  "description": "size.width / size.height must be integers from 1 to 2147483647. Block-type minimum sizes are UI constraints, not domain invariants. See docs/data-model.md §11.3.",
+  "description": "size.width / size.height must be integers from 1 to 2147483647. Block-type minimum sizes are UI constraints, not domain invariants.",
   "cases": [
     {
       "name": "typical",

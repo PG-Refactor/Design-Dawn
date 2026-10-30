@@ -242,8 +242,8 @@ export interface FlowchartHeader {
   readonly terminator: FlowchartToken | null;
 }
 
-// Why a statement was not understood. Each code is one distinct, documented construct
-// (docs/architecture.md §16.15.11); an opaque statement makes the whole diagram read-only.
+// Why a statement was not understood. Each code is one distinct, documented construct;
+// an opaque statement makes the whole diagram read-only.
 export const FLOWCHART_OPAQUE_REASONS = [
   "unsupportedHeader",
   "topLevelDirection",

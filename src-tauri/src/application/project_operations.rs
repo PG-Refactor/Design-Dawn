@@ -35,7 +35,7 @@ use crate::infrastructure::filesystem::path_resolution::{
 };
 use crate::infrastructure::filesystem::text_content::decode_text;
 
-/// How `open_entry_point` located the Document (docs/file-format.md §7).
+/// How `open_entry_point` located the Document.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum EntryPointResolution {
@@ -135,7 +135,7 @@ fn parse_project_file(value: Value) -> ApplicationResult<(ProjectDto, Option<u32
 
 /// A Project that was read but is not yet in `ProjectSessions`. Splitting "read" from
 /// "register" lets a window check that no other window has the Project before anything is
-/// replaced (docs/architecture.md §11.0.1).
+/// replaced.
 #[derive(Debug)]
 pub struct LoadedProject {
     pub session: ProjectSession,

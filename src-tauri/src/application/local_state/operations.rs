@@ -1,6 +1,6 @@
 //! Reading and writing the local state. Loading problems never fail a read: the caller
 //! gets defaults plus a `loadIssue`, so a broken local file cannot make the app unusable
-//! and the problem is still reported (docs/architecture.md §6.2.2). Write failures are
+//! and the problem is still reported. Write failures are
 //! errors.
 
 use std::path::PathBuf;

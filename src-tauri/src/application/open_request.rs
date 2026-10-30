@@ -1,4 +1,4 @@
-//! Open requests from outside the app (docs/architecture.md §11.0.1). The path of a `.dawn`
+//! Open requests from outside the app. The path of a `.dawn`
 //! stays in Rust: the Frontend asks for "the request of my window" and only ever receives
 //! the opened Project's snapshot and a Document ID, never a path (same idea as `selectionId`).
 

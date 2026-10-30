@@ -1,5 +1,4 @@
-// Which repair actions the UI offers for each kind of Load Issue (docs/architecture.md
-// §14.15). The list only decides which buttons appear; Rust refuses an action that does not
+// Which repair actions the UI offers for each kind of Load Issue. The list only decides which buttons appear; Rust refuses an action that does not
 // fit the issue, and says why one that fits cannot be done safely.
 
 import type { LoadIssueKind, RepairAction } from "../ports/persistence-types";

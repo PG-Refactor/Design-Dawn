@@ -1,5 +1,4 @@
-// Port for the application settings stored outside any project (docs/architecture.md
-// §6.2.2). Separate from the persistence gateway: settings never touch project data.
+// Port for the application settings stored outside any project. Separate from the persistence gateway: settings never touch project data.
 
 import type { LanguagePreference } from "../../config/language-config";
 import type { ThemePreference } from "../local-state/theme";

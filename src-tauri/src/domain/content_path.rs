@@ -8,7 +8,7 @@ use super::constants::{
 use super::error::{DomainError, DomainErrorKind};
 
 /// Path relative to the Document root. Validated lexically only: no filesystem access,
-/// canonicalization or symlink handling (Phase 2).
+/// canonicalization or symlink handling.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContentPath(String);
 
@@ -68,7 +68,7 @@ fn check_syntax(path: &str) -> Result<Vec<&str>, DomainError> {
     Ok(segments)
 }
 
-/// Lexical rules of file-format.md §6 shared by every stored relative path (contentPath and
+/// Lexical rules shared by every stored relative path (contentPath and
 /// the `.dawn` `path`); placement and extension rules are contentPath-specific.
 pub fn validate_relative_path(path: &str) -> Result<Vec<&str>, DomainError> {
     if path.is_empty() {

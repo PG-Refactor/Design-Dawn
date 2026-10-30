@@ -1,6 +1,6 @@
 // TEST ONLY. The edit scenarios of fixtures/mermaid-gui/flowchart-scenarios.json (see its
 // README section): the source, the text a naive hand-made edit produced, and what that naive
-// edit did to the diagram in the Step 9-5 research.
+// edit did to the diagram in the earlier research.
 import type { FlowchartOperation } from "../../../domain/diagram/flowchart/flowchart-operations";
 
 export type NaiveGate = "PASS" | "FAIL-parse" | "FAIL-render" | "FAIL-semantic";

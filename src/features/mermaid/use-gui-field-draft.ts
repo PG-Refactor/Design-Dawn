@@ -84,8 +84,8 @@ function unappliedDetail(
 }
 
 // Registers a group of GUI input fields in the DraftRegistry while it is mounted, so save-all
-// and the unsaved-close check see its uncommitted values like a Source draft
-// (`docs/architecture.md` §16.14). The same rules as `TextBlockEditor`: committing is one
+// and the unsaved-close check see its uncommitted values like a Source draft.
+// The same rules as `TextBlockEditor`: committing is one
 // application command, "close without saving" discards, and leaving the editor commits what
 // is still pending unless it was discarded (the add form excepted, see `onUnmount`).
 export function useGuiFieldDraft(options: GuiFieldDraftOptions): GuiFieldDraft {

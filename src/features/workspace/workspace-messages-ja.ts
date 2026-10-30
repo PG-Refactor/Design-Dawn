@@ -1,5 +1,5 @@
 // Japanese catalog of the workspace shell (entity terms such as Project / Document / Sheet
-// stay in English, as in the docs). Error kinds are mapped to short user-facing sentences in
+// stay in English, as in the English UI). Error kinds are mapped to short user-facing sentences in
 // one place; the developer `detail` is only shown in the expandable details of a
 // notification, never as the headline.
 
@@ -373,7 +373,7 @@ export const WORKSPACE_MESSAGES_JA = {
     },
   },
   externalChange: {
-    // The conflict question (docs/ui-design.md §14).
+    // The conflict question.
     documentTitle: (name: string): string =>
       `${quoted(name)}がアプリの外で変更されました`,
     projectTitle: "Projectがアプリの外で変更されました",

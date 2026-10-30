@@ -8,7 +8,7 @@ import {
   type FlowchartLinkType,
 } from "./flowchart-config";
 
-// Values of the Tier 1 operations (docs/architecture.md §16.15.12). The reader's syntax
+// Values of the Tier 1 operations. The reader's syntax
 // values stay in flowchart-config.ts; what is only needed to WRITE text lives here.
 
 // Fallbacks for a source that gives no hint (no statement line to copy the indentation from,
@@ -82,7 +82,7 @@ export const FLOWCHART_DIRECTION_WRITE_TOKENS: Readonly<
   LR: "LR",
 };
 
-// Labels (docs/architecture.md §16.15.6). A label is always written between double quotes.
+// Labels. A label is always written between double quotes.
 export const FLOWCHART_LABEL_QUOTE = '"';
 export const FLOWCHART_LABEL_LINE_BREAK_TAG = "<br/>";
 export const FLOWCHART_LABEL_LESS_THAN_ENTITY = "#lt;";

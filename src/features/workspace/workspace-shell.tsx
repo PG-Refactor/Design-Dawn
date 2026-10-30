@@ -15,7 +15,7 @@ import { WorkspaceDialogs } from "./workspace-dialogs";
 import "./buttons.css";
 import "./workspace-shell.css";
 
-// Layout of docs/ui-design.md §1: top bar, Project Tree on the left, Document Tabs /
+// Layout: top bar, Project Tree on the left, Document Tabs /
 // Sheet Tabs / sheet area on the right. Dialogs render into a portal of their own.
 export function WorkspaceShell() {
   useFileDrop();

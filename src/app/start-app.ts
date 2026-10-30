@@ -1,4 +1,4 @@
-// Start-up order (docs/ui-design.md §11.1): the OS theme is applied before anything is
+// Start-up order: the OS theme is applied before anything is
 // painted, the saved preference is loaded, and only then is the UI rendered, so content is
 // never shown in the wrong theme. Dependencies are parameters to keep this testable.
 

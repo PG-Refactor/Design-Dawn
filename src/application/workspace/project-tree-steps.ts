@@ -1,8 +1,7 @@
 // Project-level operations on Folders and on where entries sit in the tree: create /
 // rename / reorder / move / delete a Folder, and saving the files that hold an order
 // (`project.json`, `folder.json`). Every step is NOT undoable and runs on the workspace's
-// lifecycle queue (the caller wraps it); the order of gateway calls is the one in
-// docs/architecture.md §6.2.4.
+// lifecycle queue (the caller wraps it); the gateway calls are made in a fixed order.
 //
 // Failure rule (same as the rest of the workspace): memory never claims something that is
 // not true on disk. When a step fails AFTER something changed on disk, the affected parent

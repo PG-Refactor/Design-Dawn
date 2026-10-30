@@ -1,5 +1,5 @@
-// Runs the shared fixtures in fixtures/app-state/ against the TypeScript validators
-// (docs/testing.md §8, §12). The Rust runner is src-tauri/tests/app_state_fixtures.rs.
+// Runs the shared fixtures in fixtures/app-state/ against the TypeScript validators.
+// The Rust runner is src-tauri/tests/app_state_fixtures.rs.
 
 import { describe, expect, it } from "vitest";
 import { parseLanguagePreference } from "./language";
@@ -24,7 +24,7 @@ interface FixtureFile {
   readonly cases: readonly FixtureCase[];
 }
 
-// The casts only select the per-subject input shape documented in docs/testing.md §8.
+// The casts only select the per-subject input shape of each fixture file.
 type SubjectRunner = (input: unknown) => LocalStateResult<unknown>;
 
 const SUBJECT_RUNNERS: Readonly<Record<string, SubjectRunner>> = {

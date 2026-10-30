@@ -1,6 +1,5 @@
 // Putting the workspace view back after files the open Documents are read from were rewritten
-// (a Git Discard or Pull, docs/git-development.md §11.16; a change made outside the app,
-// docs/architecture.md §14.8). The affected Documents are closed WITHOUT saving and opened
+// (a Git Discard or Pull; a change made outside the app). The affected Documents are closed WITHOUT saving and opened
 // again from disk; these helpers capture and restore what the user was looking at.
 
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";

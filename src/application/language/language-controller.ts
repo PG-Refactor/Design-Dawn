@@ -1,5 +1,5 @@
-// Owns the display language state: the saved preference and the derived language
-// (docs/architecture.md §13.4). Framework-free; applying the language to the UI is done by
+// Owns the display language state: the saved preference and the derived language.
+// Framework-free; applying the language to the UI is done by
 // the caller. Like the theme, it is outside the application store, document sessions and
 // undo history, and never uses the project persistence gateway.
 

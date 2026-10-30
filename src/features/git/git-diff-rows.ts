@@ -1,5 +1,5 @@
 // Pure model of the diff body: the unified diff is cut into hunks and laid out as rows for
-// the inline view and the side-by-side view (docs/ui-design.md §13.5 "V-4"). Only the hunks
+// the inline view and the side-by-side view. Only the hunks
 // are used (changed lines +- context); the full file contents are never fetched. Nothing
 // here touches the DOM and nothing throws: a header that cannot be read just loses its
 // line numbers.
@@ -151,8 +151,7 @@ function metaOnlyRows<Row>(
   return parsed.metaLines.map((text, key) => makeRow(key, text));
 }
 
-// File headers before a hunk are not shown (VS Code does not show them either); the path
-// is in the view header.
+// File headers before a hunk are not shown (the view header already shows it).
 export function buildInlineRows(diff: string): readonly InlineRow[] {
   const parsed = parseDiff(diff);
   if (parsed.hunks.length === 0) {

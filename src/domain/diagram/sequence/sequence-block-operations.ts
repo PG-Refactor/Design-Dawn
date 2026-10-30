@@ -40,7 +40,7 @@ import {
 import { encodeSequenceText } from "./sequence-text";
 import type { SequenceStatement } from "./sequence-types";
 
-// Tier 2 operations on blocks (docs/architecture.md §16.16.9). A block is changed only as a
+// Tier 2 operations on blocks. A block is changed only as a
 // whole: its header and its `end` are written or removed together, branches are added or
 // removed with their text, and a range that would cut a block or a branch in two is refused.
 

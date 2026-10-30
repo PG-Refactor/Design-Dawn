@@ -1,4 +1,4 @@
-//! Files dropped onto the window (docs/architecture.md §6.2.2, same pattern as folder
+//! Files dropped onto the window (same pattern as folder
 //! selection). Rust keeps the dropped paths; the Frontend only ever sees an opaque `dropId`
 //! and a file count, so an absolute path never crosses the IPC boundary.
 

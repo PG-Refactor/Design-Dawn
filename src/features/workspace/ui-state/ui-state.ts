@@ -1,4 +1,4 @@
-// UI State (docs/architecture.md §8.1): selection, hover, in-progress drag / resize
+// UI State: selection, hover, in-progress drag / resize
 // values, viewport and the active tab / sheet. Never saved with the Project, never part
 // of undo history, never put into Domain values. A drag or resize lives here until it
 // ends; only then does the UI hand ONE application command the committed values.
@@ -150,7 +150,7 @@ export type DialogState =
       readonly sheetId: SheetId;
       readonly name: EntityName;
     }
-  // Asked before Git changes are discarded (docs/ui-design.md §13.5 V-5). Carries what the
+  // Asked before Git changes are discarded. Carries what the
   // question needs, as it was when the user asked; document names are looked up at render.
   | {
       readonly kind: "confirmDiscardGitChanges";
@@ -159,7 +159,7 @@ export type DialogState =
       readonly documentIds: readonly DocumentId[];
       readonly projectFilesAffected: boolean;
     }
-  // Smart commit (docs/ui-design.md §13.6): nothing is staged but there are changes; asked
+  // Smart commit: nothing is staged but there are changes; asked
   // before they are all staged. Carries what the commit continues with after the answer.
   | {
       readonly kind: "confirmGitStageAll";
@@ -297,7 +297,7 @@ export type RenamingTarget =
       readonly sheetId: SheetId;
     };
 
-// What the left panel shows (docs/ui-design.md §13.1). Window-local, never saved.
+// What the left panel shows. Window-local, never saved.
 export const LEFT_PANEL_MODES = ["project", "git"] as const;
 
 export type LeftPanelMode = (typeof LEFT_PANEL_MODES)[number];
@@ -361,7 +361,7 @@ export interface UiState {
   readonly gitCollapsedSections: ReadonlySet<GitChangeSectionId>;
 }
 
-// The sections of the Git change list in display order (docs/ui-design.md §13.5). Defined
+// The sections of the Git change list in display order. Defined
 // here because the UI state records which of them are collapsed.
 export const GIT_CHANGE_SECTION_IDS = [
   "conflicts",
@@ -385,11 +385,11 @@ export interface GitSelection {
 }
 
 export interface DiffTab extends GitSelection {
-  // A preview tab is replaced by the next preview; pinning keeps it (docs/ui-design.md §13.5).
+  // A preview tab is replaced by the next preview; pinning keeps it.
   readonly preview: boolean;
 }
 
-// Where the comparison of an externally changed Block text stands (docs/architecture.md §14.9).
+// Where the comparison of an externally changed Block text stands.
 export type CompareContent =
   | { readonly status: "loading" }
   | { readonly status: "loaded"; readonly comparison: BlockContentComparison }

@@ -11,7 +11,7 @@
 // changes the first task of a later chart. Before every measurement this file re-registers
 // every id seen so far at a position no test chart reaches and overwrites that key. The app
 // has no such isolation, which is why the editor refuses dangling references and a first
-// task without a start (docs/architecture.md §16.17).
+// task without a start.
 import mermaid from "mermaid";
 import { buildMermaidConfig } from "../mermaid-config";
 import { decodeMermaidMarkers } from "./mermaid-pie-db";

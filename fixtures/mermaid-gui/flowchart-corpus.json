@@ -553,7 +553,7 @@
       "id": "c1:lb-init-in-label",
       "group": "label",
       "source": "flowchart TD\nA[\"%%{init: {\"theme\":\"dark\"}}%%\"]\n",
-      "note": "directive injection in label (documented in 9-1)"
+      "note": "directive injection in label"
     },
     {
       "id": "c1:lb-lt-gt-entities",

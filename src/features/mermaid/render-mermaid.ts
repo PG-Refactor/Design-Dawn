@@ -1,4 +1,4 @@
-// The only module that imports "mermaid" (docs/architecture.md §15.4). The library is
+// The only module that imports "mermaid". The library is
 // loaded on first use, so it stays out of the main bundle and out of start-up.
 
 import { MERMAID_ERROR_MESSAGE_MAX_LENGTH } from "../../config/mermaid-preview-config";

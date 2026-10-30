@@ -1,5 +1,4 @@
-// The ONE place that orders block content files against sheet metadata
-// (docs/architecture.md §9.4, file-format.md §9):
+// The ONE place that orders block content files against sheet metadata:
 //
 //   add     content file(s) first, then sheet metadata
 //   remove  sheet metadata first, then content file(s)
@@ -42,7 +41,7 @@ import { type BlockSpec, isAssetBlockSpec } from "./command";
 // A block together with what is needed to bring it back: its z-order index and its text.
 // `text` is null when the block has no text file of its own: an image block (its asset
 // is never touched by add / remove / restore), or a text block whose content file did
-// not exist when it was removed (docs/data-model.md §7). Such a block has no file to
+// not exist when it was removed. Such a block has no file to
 // delete and none to restore: undoing brings back the same state (an image block whose
 // asset has since gone simply shows its load error).
 export interface CapturedBlock {

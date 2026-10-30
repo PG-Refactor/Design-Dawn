@@ -1,5 +1,5 @@
 // Pure helpers of the diff view: how the lines of a unified diff are told apart, and how
-// the size limit is written (docs/ui-design.md §13). Nothing here touches the DOM.
+// the size limit is written. Nothing here touches the DOM.
 
 export const DIFF_LINE_KINDS = [
   "add",

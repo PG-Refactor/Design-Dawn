@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "targetsNote": "Same format and `targets` rules as persistence-commands.json. `rust` marks requests the typed TypeScript client cannot produce (a theme or viewport its parsers reject, a malformed id) or that bypass the client (missing arguments). Rust runs every scenario against fresh temporary local state directories.",
-  "description": "Representative command-boundary cases for the Application Local State commands (docs/architecture.md §6.2.2). File behaviour (broken files, limits, locking) is covered by src-tauri/tests/local_state.rs, not repeated here.",
+  "description": "Representative command-boundary cases for the Application Local State commands. File behaviour (broken files, limits, locking) is covered by src-tauri/tests/local_state.rs, not repeated here.",
   "selectionIdPlaceholder": "$selectionId",
   "scenarios": [
     {

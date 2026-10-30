@@ -1,4 +1,4 @@
-//! Thin Tauri commands (docs/architecture.md §6.2). Each one parses its arguments, locks the
+//! Thin Tauri commands. Each one parses its arguments, locks the
 //! session state and calls the Application layer; no logic lives here. `import_asset` is
 //! not a command: images enter through `import_dropped_images` (the dropped paths never
 //! reach the Frontend) or `copy_asset_to_document`.
@@ -611,8 +611,7 @@ pub fn write_block_content<R: Runtime>(
 }
 
 /// Compares a Block's committed text (sent by the Frontend; drafts are not part of it) with
-/// the file on disk, for the "compare" choice of an external change (docs/architecture.md
-/// §14.9). Read-only.
+/// the file on disk, for the "compare" choice of an external change. Read-only.
 #[tauri::command]
 pub fn compare_block_content<R: Runtime>(
     window: Window<R>,
@@ -669,7 +668,7 @@ pub fn restore_block_content<R: Runtime>(
 }
 
 /// Compares the Project's recorded files with the disk and reports what changed behind the
-/// app's back (docs/architecture.md §14.4). Read-only: nothing is saved or re-recorded.
+/// app's back. Read-only: nothing is saved or re-recorded.
 #[tauri::command]
 pub fn check_external_changes<R: Runtime>(
     window: Window<R>,
@@ -695,8 +694,8 @@ pub fn accept_disk_state<R: Runtime>(
     })
 }
 
-/// Plans (`dry_run`) or applies one explicit repair of a Load Issue the user confirmed
-/// (docs/architecture.md §14.15). `document_id` is the Document whose load reported it.
+/// Plans (`dry_run`) or applies one explicit repair of a Load Issue the user confirmed.
+/// `document_id` is the Document whose load reported it.
 #[tauri::command]
 pub fn repair_load_issue<R: Runtime>(
     window: Window<R>,
@@ -778,7 +777,7 @@ pub fn get_app_settings<R: Runtime>(app: AppHandle<R>) -> Result<AppSettings, Ap
 
 /// Tells every other window with an app channel about the new theme, language and auto-save values.
 /// The caller already updated itself from the command result. Not sent for the Project Tree
-/// width: that is a per-window state (docs/architecture.md §11.0.1).
+/// width: that is a per-window state.
 fn broadcast_settings<R: Runtime>(window: &Window<R>, settings: &AppSettings) {
     if let Some(hub) = window.try_state::<AppRequestSubscriber>() {
         hub.broadcast_settings_changed(
@@ -925,8 +924,8 @@ pub async fn copy_asset_to_document<R: Runtime>(
     .await
 }
 
-/// Repository state and changed files of the calling window's Project
-/// (docs/git-development.md §11). `async` + the blocking pool: git can take seconds, and the
+/// Repository state and changed files of the calling window's Project.
+/// `async` + the blocking pool: git can take seconds, and the
 /// sessions lock is held only to copy the Project root out.
 #[tauri::command]
 pub async fn git_status<R: Runtime>(
@@ -943,7 +942,7 @@ pub async fn git_status<R: Runtime>(
 }
 
 /// Stages changed files of the calling window's Project and returns the status read after
-/// it (docs/git-development.md §11.6). Not an Undo step and never saves.
+/// it. Not an Undo step and never saves.
 #[tauri::command]
 pub async fn git_stage<R: Runtime>(
     app: AppHandle<R>,
@@ -959,8 +958,8 @@ pub async fn git_stage<R: Runtime>(
     .await
 }
 
-/// Unstages files of the calling window's Project and returns the status read after it
-/// (docs/git-development.md §11.6). Not an Undo step and never saves.
+/// Unstages files of the calling window's Project and returns the status read after it.
+/// Not an Undo step and never saves.
 #[tauri::command]
 pub async fn git_unstage<R: Runtime>(
     app: AppHandle<R>,
@@ -977,7 +976,7 @@ pub async fn git_unstage<R: Runtime>(
 }
 
 /// Which Documents and Project files of the calling window's Project the given paths belong
-/// to (docs/git-development.md §11.14). Read-only: no git process, no absolute paths.
+/// to. Read-only: no git process, no absolute paths.
 #[tauri::command]
 pub async fn git_discard_impact<R: Runtime>(
     app: AppHandle<R>,
@@ -994,8 +993,7 @@ pub async fn git_discard_impact<R: Runtime>(
 }
 
 /// Discards working tree changes of the calling window's Project (restores tracked files,
-/// deletes untracked ones) and returns the status read after it (docs/git-development.md
-/// §11.14). Not an Undo step and never saves; the UI must have asked for confirmation.
+/// deletes untracked ones) and returns the status read after it. Not an Undo step and never saves; the UI must have asked for confirmation.
 #[tauri::command]
 pub async fn git_discard<R: Runtime>(
     app: AppHandle<R>,
@@ -1011,7 +1009,7 @@ pub async fn git_discard<R: Runtime>(
     .await
 }
 
-/// Diff of one changed file of the calling window's Project (docs/git-development.md §11.10).
+/// Diff of one changed file of the calling window's Project.
 /// Read-only: never saves, not an Undo step. `side` must be `unstaged` or `staged`.
 #[tauri::command]
 pub async fn git_diff<R: Runtime>(
@@ -1029,8 +1027,7 @@ pub async fn git_diff<R: Runtime>(
     .await
 }
 
-/// Commits the staged changes of the calling window's Project (docs/git-development.md
-/// §11.11). Not an Undo step and never saves. The message is user text: it is passed on
+/// Commits the staged changes of the calling window's Project. Not an Undo step and never saves. The message is user text: it is passed on
 /// to the application layer only and is never logged or echoed here.
 #[tauri::command]
 pub async fn git_commit<R: Runtime>(
@@ -1049,7 +1046,7 @@ pub async fn git_commit<R: Runtime>(
 }
 
 /// Takes the last commit of the calling window's Project back, keeping the index and the
-/// working tree (docs/git-development.md §11.16). Not an Undo step and never saves. The
+/// working tree. Not an Undo step and never saves. The
 /// returned message is user text and is never logged here.
 #[tauri::command]
 pub async fn git_undo_last_commit<R: Runtime>(
@@ -1065,7 +1062,7 @@ pub async fn git_undo_last_commit<R: Runtime>(
     .await
 }
 
-/// Fetches the calling window's Project (docs/git-development.md §11.16). Network access with the user's own git credentials; never saves and is not an Undo step.
+/// Fetches the calling window's Project. Network access with the user's own git credentials; never saves and is not an Undo step.
 #[tauri::command]
 pub async fn git_fetch<R: Runtime>(
     app: AppHandle<R>,
@@ -1080,7 +1077,7 @@ pub async fn git_fetch<R: Runtime>(
     .await
 }
 
-/// Pulls (merge, never rebase) the calling window's Project (§11.16). Rewrites working tree files: the caller saves first and reloads afterwards. Not an Undo step.
+/// Pulls (merge, never rebase) the calling window's Project. Rewrites working tree files: the caller saves first and reloads afterwards. Not an Undo step.
 #[tauri::command]
 pub async fn git_pull<R: Runtime>(
     app: AppHandle<R>,
@@ -1095,7 +1092,7 @@ pub async fn git_pull<R: Runtime>(
     .await
 }
 
-/// Pushes the current branch of the calling window's Project to its upstream (§11.16). Never forces.
+/// Pushes the current branch of the calling window's Project to its upstream. Never forces.
 #[tauri::command]
 pub async fn git_push<R: Runtime>(
     app: AppHandle<R>,
@@ -1110,7 +1107,7 @@ pub async fn git_push<R: Runtime>(
     .await
 }
 
-/// Pushes the current branch to `remote` and sets it as upstream (§11.16). `remote` is user text: the core accepts only a name `git remote` lists.
+/// Pushes the current branch to `remote` and sets it as upstream. `remote` is user text: the core accepts only a name `git remote` lists.
 #[tauri::command]
 pub async fn git_publish<R: Runtime>(
     app: AppHandle<R>,
@@ -1126,7 +1123,7 @@ pub async fn git_publish<R: Runtime>(
     .await
 }
 
-/// Names of the remotes of the calling window's Project (§11.16). Names only, never URLs.
+/// Names of the remotes of the calling window's Project. Names only, never URLs.
 #[tauri::command]
 pub async fn git_remotes<R: Runtime>(
     app: AppHandle<R>,
@@ -1141,8 +1138,7 @@ pub async fn git_remotes<R: Runtime>(
     .await
 }
 
-/// One page of the commit history of the calling window's Project (docs/git-development.md
-/// §11.12). Read-only: never saves, not an Undo step. `limit` is taken as a signed 64 bit
+/// One page of the commit history of the calling window's Project. Read-only: never saves, not an Undo step. `limit` is taken as a signed 64 bit
 /// integer, so a negative number is not an argument error but an out-of-range page size
 /// that the core refuses as `invalidHistoryRequest`; a non-integer or beyond-i64 value is
 /// rejected by Tauri's argument deserialization. The cursor is opaque; the core checks it.
@@ -1176,8 +1172,7 @@ pub fn subscribe_drop_notifications<R: Runtime>(
     subscriber.replace(window.label(), channel);
 }
 
-/// Registers the channel for close requests and returns the token the notifications carry
-/// (docs/architecture.md §10.1).
+/// Registers the channel for close requests and returns the token the notifications carry.
 #[tauri::command]
 pub fn subscribe_close_requests<R: Runtime>(
     window: Window<R>,

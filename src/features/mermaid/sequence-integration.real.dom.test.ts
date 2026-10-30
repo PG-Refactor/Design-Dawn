@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The sequence GUI path end to end below the UI (docs/architecture.md §16.16.7): a Mermaid
+// The sequence GUI path end to end below the UI: a Mermaid
 // block's source, edited by GUI operations through the Application gate with the real render
 // check, saved through the normal auto-save, reloaded from the stored file, and undone /
 // redone. The stored file is compared line by line with the original, which is what a Git
@@ -204,7 +204,7 @@ describe("sequence GUI operations, save, reload, undo", {
       text: "Goodbye",
     });
     expect(outcome.ok).toBe(true);
-    // The command stores LF (docs/file-format.md §9.2); apart from that only the text of the
+    // The command stores LF; apart from that only the text of the
     // last message changed, and the comment, the blank line and the `;` stayed.
     expect(contentOf(harness)).toBe(
       handWritten.replaceAll("\r\n", "\n").replace("Bye", "Goodbye"),

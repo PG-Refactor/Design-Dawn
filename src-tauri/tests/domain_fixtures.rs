@@ -1,4 +1,4 @@
-//! Runs the shared fixtures in `fixtures/domain/` against the Rust domain (docs/testing.md §8).
+//! Runs the shared fixtures in `fixtures/domain/` against the Rust domain.
 
 use design_dawn_lib::domain::block_type::BlockType;
 use design_dawn_lib::domain::content_path::ContentPath;

@@ -1,5 +1,5 @@
 // TEST ONLY. A seeded generator of random gantt programs for the differential test
-// (gantt-reader.real.dom.test.ts): a typed rewrite of the generator of the Step 9-7 research
+// (gantt-reader.real.dom.test.ts): a typed rewrite of the generator of the earlier research
 // (project-authored). It mixes valid and invalid dates, durations, references, tags, field
 // counts, comments, clicks and awkward names; whether Mermaid accepts one is decided by
 // Mermaid at test time, not by the generator.

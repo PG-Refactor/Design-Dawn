@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The Tier 2 controls of the gantt GUI (docs/architecture.md §16.17.2): chart settings,
+// The Tier 2 controls of the gantt GUI: chart settings,
 // moving, duplicating, linking. Each control is shown or disabled from planning its
 // operation, and each applied operation is one undo step.
 import {

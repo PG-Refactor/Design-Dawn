@@ -1,4 +1,4 @@
-//! Single source of truth for on-disk file format values (docs/file-format.md).
+//! Single source of truth for on-disk file format values.
 //! Layout names shared with the domain's path rules (`sheets`, `blocks`, `assets`)
 //! live in `crate::domain::constants`.
 
@@ -9,20 +9,20 @@ pub const SHEET_FILE_NAME: &str = "sheet.json";
 pub const DOCUMENTS_DIRECTORY_NAME: &str = "documents";
 
 pub const GITATTRIBUTES_FILE_NAME: &str = ".gitattributes";
-/// Generated once at project creation; never overwritten (file-format.md §8).
+/// Generated once at project creation; never overwritten.
 pub const GITATTRIBUTES_CONTENT: &str =
     "* text=auto eol=lf\n*.png binary\n*.jpg binary\n*.jpeg binary\n*.webp binary\n*.gif binary\n";
 
 /// `.dawn` has no `SchemaEntityKind` in the domain, so its supported version lives here.
 pub const CURRENT_ENTRY_POINT_SCHEMA_VERSION: u32 = 1;
 
-/// Extension of the `.dawn` entry point file, without the dot (file-format.md §7).
+/// Extension of the `.dawn` entry point file, without the dot.
 pub const ENTRY_POINT_EXTENSION: &str = "dawn";
 /// A `.dawn` is a few lines of JSON; anything larger is not one, and is refused before it is
 /// read so a launch argument cannot make the app load an arbitrary huge file.
 pub const ENTRY_POINT_MAX_BYTES: u64 = 64 * 1024;
 
-/// Atomic Save temp file: `.<file-name>.dawn-tmp` next to the target (file-format.md §9).
+/// Atomic Save temp file: `.<file-name>.dawn-tmp` next to the target.
 pub const TEMP_FILE_PREFIX: &str = ".";
 pub const TEMP_FILE_SUFFIX: &str = ".dawn-tmp";
 
@@ -31,7 +31,7 @@ pub const CRLF: &str = "\r\n";
 pub const LF: &str = "\n";
 pub const JSON_TRAILING_NEWLINE: &str = "\n";
 
-// Naming (file-format.md §9.3).
+// Naming.
 pub const SLUG_MAX_LENGTH: usize = 64;
 pub const SLUG_SEPARATOR: char = '-';
 pub const FOLDER_NAME_BASE: &str = "folder";
@@ -46,7 +46,7 @@ pub const COLLISION_FIRST_SUFFIX: u32 = 2;
 pub const BLOCK_CONTENT_FIRST_NUMBER: u64 = 1;
 pub const BLOCK_CONTENT_NUMBER_SEPARATOR: char = '-';
 
-// Image assets (file-format.md §6, security.md §8).
+// Image assets.
 const BYTES_PER_MEBIBYTE: u64 = 1024 * 1024;
 const ASSET_MAX_MEBIBYTES: u64 = 20;
 /// Larger files are refused before they are read, for imports and for the asset protocol alike.

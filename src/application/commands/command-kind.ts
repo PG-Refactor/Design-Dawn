@@ -1,4 +1,4 @@
-// Identifiers of the Application Commands (docs/architecture.md §9). Used as undo / redo
+// Identifiers of the Application Commands. Used as undo / redo
 // labels. Paste and duplicate are `createBlocks` instances, not kinds of their own.
 export const COMMAND_KINDS = {
   moveBlocks: "moveBlocks",

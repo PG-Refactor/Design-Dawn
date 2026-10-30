@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The sequence operations (src/domain/diagram/sequence/sequence-operations.ts) against the
-// real Mermaid library (12.1.0): the Tier 1 scenarios of the Step 9-7 research (what a naive
+// real Mermaid library (12.1.0): the Tier 1 scenarios of the earlier research (what a naive
 // hand-made edit did, and what the editor does instead) and seeded random operation
 // sequences. For every plan that is handed out, Mermaid itself must accept the new text,
 // read it as the meaning the operation promised, and the app must be able to draw it; the

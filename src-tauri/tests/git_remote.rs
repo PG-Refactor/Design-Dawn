@@ -1,6 +1,5 @@
 //! Fetch, pull, push, publish and the remote list against the system `git` in temporary
-//! repositories with a local bare remote (a file path: no network), docs/git-development.md
-//! §11.16. Every git process runs with a hermetic configuration (no user or system config,
+//! repositories with a local bare remote (a file path: no network). Every git process runs with a hermetic configuration (no user or system config,
 //! a throwaway HOME, identity only from each repository's own config). Tests are skipped,
 //! with a message, when no `git` is installed.
 

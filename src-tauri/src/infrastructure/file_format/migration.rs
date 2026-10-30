@@ -1,4 +1,4 @@
-//! Schema migration registry (docs/file-format.md §11, docs/architecture.md §14.15).
+//! Schema migration registry.
 //!
 //! Every metadata file carries a `schemaVersion`. Reading an older file runs the registered
 //! steps `vN -> vN+1` over its JSON, in order, before the DTO is parsed, so the rest of the
@@ -107,7 +107,7 @@ struct Registered {
 
 const NO_STEPS: &[Registered] = &[];
 
-/// `documentOrder` became `childOrder` when Folders were introduced (file-format.md §3.5).
+/// `documentOrder` became `childOrder` when Folders were introduced.
 const PROJECT_STEPS: &[Registered] = &[Registered {
     from: 1,
     step: project_v1_to_v2,

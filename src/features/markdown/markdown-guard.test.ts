@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-// The security rules of docs/security.md §3 as source checks: the one place that may
+// The security rules for rendering Markdown as source checks: the one place that may
 // inject HTML, and the two modules that may touch the libraries. Like the other guards
 // this reads source text, so it cannot see indirect use (for example a string built at
 // run time); tests and test support files are excluded because they name the patterns.
@@ -18,7 +18,7 @@ const INJECTION_FILE = "/src/features/markdown/markdown-preview.tsx";
 const RENDERER_FILE = "/src/features/markdown/render-markdown.ts";
 const SANITIZER_FILE = "/src/features/markdown/sanitize-html.ts";
 // The only other module that may use DOMPurify: the Mermaid SVG sanitiser, with its own
-// instance (docs/architecture.md §15.4). Its further rules are in mermaid-guard.test.ts.
+// instance. Its further rules are in mermaid-guard.test.ts.
 const SVG_SANITIZER_FILE = "/src/features/mermaid/sanitize-svg.ts";
 
 function filesMatching(pattern: RegExp): string[] {

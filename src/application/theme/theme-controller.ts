@@ -1,5 +1,5 @@
-// Owns the theme state: the saved preference, the OS theme and the derived applied theme
-// (docs/architecture.md §13). Framework-free; applying the theme to the UI is done by the
+// Owns the theme state: the saved preference, the OS theme and the derived applied theme.
+// Framework-free; applying the theme to the UI is done by the
 // caller. Theme is deliberately outside the application store, document sessions and
 // undo history, and never uses the project persistence gateway.
 

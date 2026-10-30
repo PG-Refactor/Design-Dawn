@@ -1,5 +1,5 @@
 // The items of the commit split menu and of the header "More Actions" menu, with the rules
-// that disable them (docs/ui-design.md §13.6). Pure: what an item does is passed in. Rust
+// that disable them. Pure: what an item does is passed in. Rust
 // checks every rule again; these only keep the user from asking for the impossible and say
 // why.
 

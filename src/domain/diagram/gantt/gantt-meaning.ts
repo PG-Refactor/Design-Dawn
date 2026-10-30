@@ -111,7 +111,7 @@ export interface ResolvedDates {
 // the days `excludes` removes (an end that falls on or passes an excluded day moves later,
 // day by day, as Mermaid does it). Null for a task whose dates depend on something the editor
 // does not model: `includes` and `inclusiveEndDates`, and months, years, fractions, seconds
-// and milliseconds (`s` and `ms` are measurably ignored by Mermaid, §16.17). A time zone with
+// and milliseconds (`s` and `ms` are measurably ignored by Mermaid). A time zone with
 // daylight saving may shift an hour-based duration in Mermaid by an hour.
 export function resolveGanttSchedule(
   meaning: GanttMeaning,

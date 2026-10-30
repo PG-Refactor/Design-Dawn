@@ -1,5 +1,5 @@
 // "The app wrote Project files": lets the Git panel read the status again without being
-// asked (docs/git-development.md §11.15). The signal carries no data: what changed is
+// asked. The signal carries no data: what changed is
 // Git's to say, not ours.
 
 import type { PersistenceGateway } from "../ports/persistence-gateway";

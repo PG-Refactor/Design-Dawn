@@ -1,4 +1,4 @@
-// Mermaid preview settings (docs/architecture.md §15.4). Tunable values, not spec. The
+// Mermaid preview settings. Tunable values, not spec. The
 // security-relevant renderer settings live in features/mermaid/mermaid-config.ts instead.
 
 // Quiet time after the last keystroke before the editor preview is drawn again. Layout runs

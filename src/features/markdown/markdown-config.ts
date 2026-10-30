@@ -1,5 +1,5 @@
-// Single place for everything that decides what rendered Markdown may contain
-// (docs/security.md §3). markdown-it and DOMPurify both read it, so the two stages cannot
+// Single place for everything that decides what rendered Markdown may contain.
+// markdown-it and DOMPurify both read it, so the two stages cannot
 // drift apart.
 
 // Only these URL schemes become links. Relative links, fragments (`#top`) and every other

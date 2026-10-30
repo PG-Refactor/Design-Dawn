@@ -13,7 +13,7 @@ import {
 } from "./sequence-operations";
 import { readSequence } from "./sequence-reader";
 
-// Tier 2 operations (docs/architecture.md §16.16.9): exact results, every refusal, the inverse
+// Tier 2 operations: exact results, every refusal, the inverse
 // edits and the bytes that must stay as they were.
 
 const SR1 = `sequenceDiagram

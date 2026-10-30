@@ -1,4 +1,4 @@
-// The fake gateway has to apply the same folder rules as Rust (docs/architecture.md §6.2.4)
+// The fake gateway has to apply the same folder rules as Rust
 // at a basic level, so Workspace tests can rely on it.
 
 import { describe, expect, it } from "vitest";

@@ -18,7 +18,7 @@ pub const MOVE_BLOCK: &str = "moveBlock";
 pub const DELETE_BLOCK: &str = "deleteBlock";
 
 /// Block types a tool can create from text. Images are not offered: they would need the
-/// server to read an arbitrary file (docs/architecture.md §17.1).
+/// server to read an arbitrary file.
 pub const CREATABLE_BLOCK_TYPES: [&str; 2] = ["markdown", "mermaid"];
 
 #[derive(Debug, Clone)]

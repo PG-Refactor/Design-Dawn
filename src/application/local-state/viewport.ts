@@ -1,4 +1,4 @@
-// Per-sheet viewport (docs/architecture.md §6.2.2). Same rules as Rust
+// Per-sheet viewport. Same rules as Rust
 // (`application/local_state/viewport.rs`); fractions are allowed (UI state).
 
 import { CANVAS_CONFIG } from "../../config/canvas-config";

@@ -67,8 +67,8 @@ export function readMermaidBlockSource(
 // content path: exactly one `editBlockContentCommand`, so one undo step and the normal
 // auto-save. There is no separate save path here.
 //
-// Known constraint: `editBlockContentCommand` normalises CRLF to LF for the whole text
-// (docs/file-format.md §9.2), so a GUI edit on text that still holds CRLF also rewrites
+// Known constraint: `editBlockContentCommand` normalises CRLF to LF for the whole text,
+// so a GUI edit on text that still holds CRLF also rewrites
 // the untouched line endings. Rust writes LF but returns an externally created CRLF file
 // as it is, so this happens on the first GUI edit of such a file (existing behaviour).
 //

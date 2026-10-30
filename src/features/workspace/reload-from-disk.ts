@@ -1,5 +1,5 @@
-// Reading Documents or the whole Project again from disk and putting the view back
-// (docs/architecture.md §14.8). One implementation for everything that rewrites files under
+// Reading Documents or the whole Project again from disk and putting the view back.
+// One implementation for everything that rewrites files under
 // open Documents: a Git Pull, and a change made outside the app. The Documents are closed
 // WITHOUT saving (a save would write the old in-memory state over what is on disk) and
 // opened again, which reads the files fresh. Callers have already dealt with unsaved changes

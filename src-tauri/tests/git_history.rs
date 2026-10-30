@@ -1,5 +1,4 @@
-//! `read_history` against the system `git` in temporary repositories (docs/testing.md §26,
-//! docs/git-development.md §11.12). Every git process runs with a hermetic configuration
+//! `read_history` against the system `git` in temporary repositories. Every git process runs with a hermetic configuration
 //! (no user or system config, a throwaway HOME, identity only from the repository's own
 //! config); commit dates are set per commit through the environment. Tests are skipped,
 //! with a message, when no `git` is installed.

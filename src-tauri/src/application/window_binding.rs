@@ -1,4 +1,4 @@
-//! Opening and closing a Project on behalf of one window (docs/architecture.md §11.0.1):
+//! Opening and closing a Project on behalf of one window:
 //! a Project is open in at most one window, and a window has at most one Project. The
 //! registry holds the relation and `ProjectSessions` the data; the two always change together
 //! here. Callers lock `ProjectSessions` first and the registry second, never the reverse.

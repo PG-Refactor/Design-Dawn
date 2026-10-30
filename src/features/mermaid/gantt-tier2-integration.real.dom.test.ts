@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The Tier 2 gantt operations end to end below the UI (docs/architecture.md §16.17.2): edited
+// The Tier 2 gantt operations end to end below the UI: edited
 // through the Application gate with the real render check, saved through the normal
 // auto-save, reloaded from the stored file, and undone / redone, one undo step per operation.
 // The stored text is compared with what a Git diff of the `.mmd` file would show.

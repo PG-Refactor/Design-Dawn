@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-// Colours belong in theme-tokens.css only (CLAUDE.md §52). Limits of this guard: it
+// Colours belong in theme-tokens.css only. Limits of this guard: it
 // reads source text, so it cannot see colours built at run time or named colours inside
 // TypeScript style objects; named colours are only checked in CSS declarations and only
 // from the list below.

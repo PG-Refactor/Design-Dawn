@@ -1,4 +1,4 @@
-//! Finds the `git` executable (docs/git-development.md §11.6): only through the PATH
+//! Finds the `git` executable: only through the PATH
 //! entries, as an absolute path. The working directory and the Project directory are never
 //! searched, so a `git` file inside a Project that someone else created cannot be run.
 

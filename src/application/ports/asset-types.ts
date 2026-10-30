@@ -1,4 +1,4 @@
-// Results of the asset operations of the persistence port (docs/architecture.md §6.2).
+// Results of the asset operations of the persistence port.
 // They live here so the application layer can name them without importing infrastructure;
 // `infrastructure/tauri/asset-types.ts` re-exports them unchanged.
 
