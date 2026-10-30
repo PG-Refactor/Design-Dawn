@@ -157,3 +157,112 @@ describe("flowchart GUI operations, save, reload, undo", () => {
     );
   });
 });
+
+const TIER_TWO_ORIGINAL = [
+  "flowchart TD",
+  "  A[Start] --> B[Mid]",
+  "  B --> C[End]",
+  "  linkStyle 1 stroke:#f00",
+  "",
+].join("\n");
+const TIER_TWO_STEPS: readonly (readonly [FlowchartOperation, string])[] = [
+  [
+    { kind: "createSubgraph", title: "Core", id: "G1", memberId: "B" },
+    `${TIER_TWO_ORIGINAL}  subgraph G1["Core"]\n    B\n  end\n`,
+  ],
+  [
+    { kind: "setSubgraphDirection", subgraphId: "G1", direction: "LR" },
+    `${TIER_TWO_ORIGINAL}  subgraph G1["Core"]\n    direction LR\n    B\n  end\n`,
+  ],
+  [
+    { kind: "setSubgraphTitle", subgraphId: "G1", title: "Core part" },
+    `${TIER_TWO_ORIGINAL}  subgraph G1["Core part"]\n    direction LR\n    B\n  end\n`,
+  ],
+  [
+    { kind: "moveNodeToSubgraph", nodeId: "A", subgraphId: "G1" },
+    `${TIER_TWO_ORIGINAL}  subgraph G1["Core part"]\n    direction LR\n    B\n    A\n  end\n`,
+  ],
+  [
+    { kind: "deleteNode", nodeId: "C" },
+    'flowchart TD\n  A[Start] --> B[Mid]\n  subgraph G1["Core part"]\n    direction LR\n    B\n    A\n  end\n',
+  ],
+  [
+    { kind: "removeNodeFromSubgraph", nodeId: "A", subgraphId: "G1" },
+    'flowchart TD\n  A[Start] --> B[Mid]\n  subgraph G1["Core part"]\n    direction LR\n    B\n  end\n',
+  ],
+  [
+    { kind: "dissolveSubgraph", subgraphId: "G1" },
+    "flowchart TD\n  A[Start] --> B[Mid]\n  B\n",
+  ],
+];
+
+async function applyAll(
+  harness: ReturnType<typeof openSession>,
+  operations: readonly FlowchartOperation[],
+) {
+  for (const operation of operations) {
+    const outcome = await applyValidatedDiagramOperation(
+      harness.session,
+      {
+        documentId: DOCUMENT_ID,
+        sheetId: SHEET_ID,
+        blockId: BLOCK.blockId,
+        operation: { diagram: "flowchart", operation },
+      },
+      renderCheck,
+    );
+    expect(outcome, JSON.stringify(operation)).toEqual({
+      ok: true,
+      value: { changed: true },
+    });
+  }
+}
+
+describe("flowchart Tier 2 operations, save, reload, undo", () => {
+  it("edits, saves, reloads and undoes one operation at a time", async () => {
+    const harness = openSession([BLOCK]);
+    harness.gateway.files.set(BLOCK.contentPath, TIER_TWO_ORIGINAL);
+    await harness.session.loadSheetContents(SHEET_ID);
+
+    // Each operation is one undo step and produces exactly the expected text.
+    const texts = [TIER_TWO_ORIGINAL];
+    for (const [operation, expected] of TIER_TWO_STEPS) {
+      await applyAll(harness, [operation]);
+      expect(contentOf(harness), operation.kind).toBe(expected);
+      texts.push(expected);
+    }
+    const final = texts[texts.length - 1] as string;
+
+    // The normal auto-save writes the block once; nothing else is written.
+    harness.gateway.clearCalls();
+    harness.scheduler.advance(TEST_AUTO_SAVE_DELAY_MS);
+    await harness.session.flush();
+    expect(harness.gateway.files.get(BLOCK.contentPath)).toBe(final);
+    expect(harness.gateway.methods()).toEqual(["writeBlockContent"]);
+
+    // Reload: a new session over the stored file reads the same, editable flowchart.
+    const reloaded = openSession([BLOCK]);
+    reloaded.gateway.files.set(
+      BLOCK.contentPath,
+      harness.gateway.files.get(BLOCK.contentPath) ?? "",
+    );
+    await reloaded.session.loadSheetContents(SHEET_ID);
+    expect(contentOf(reloaded)).toBe(final);
+    expect(analyzeDiagramSource(final).editability).toEqual({
+      editable: true,
+      type: "flowchart",
+    });
+
+    // One undo per operation walks back through every text, then redo walks forward.
+    for (let step = TIER_TWO_STEPS.length; step > 0; step -= 1) {
+      await harness.session.undo();
+      expect(contentOf(harness)).toBe(texts[step - 1]);
+    }
+    expect(harness.session.getState().history.canUndo).toBe(false);
+    for (let step = 1; step <= TIER_TWO_STEPS.length; step += 1) {
+      await harness.session.redo();
+      expect(contentOf(harness)).toBe(texts[step]);
+    }
+    expect(harness.session.getState().history.canRedo).toBe(false);
+  });
+});

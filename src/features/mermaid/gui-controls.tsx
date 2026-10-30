@@ -123,6 +123,8 @@ export function GuiTextField({
 export interface GuiSelectOption {
   readonly value: string;
   readonly label: string;
+  // A choice that cannot be made now (its label says why); the current value stays selectable.
+  readonly disabled?: boolean;
 }
 
 export interface GuiSelectProps {
@@ -162,7 +164,11 @@ export function GuiSelect({
         }}
       >
         {options.map((option) => (
-          <option key={option.value} value={option.value}>
+          <option
+            key={option.value}
+            value={option.value}
+            disabled={option.disabled === true}
+          >
             {option.label}
           </option>
         ))}

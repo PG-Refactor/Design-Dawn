@@ -369,11 +369,56 @@ export function planDissolveSubgraph(
   const removal = removeStatements(reading, removed);
   if (!removal.ok) return removal;
   const expected = withMembers(withoutSubgraph(meaning, subgraphId), members);
+  const removing = [
+    ...deleteLinesEdits(reading, removal.value.lines),
+    ...removal.value.edits,
+  ];
   return planned(
     source,
-    [...deleteLinesEdits(reading, removal.value.lines), ...removal.value.edits],
+    [...removing, ...dedentEdits(prepared, block, removing)],
     expected,
   );
+}
+
+// The lines of the dissolved block move one level out: their extra indentation (the block
+// content's indent beyond the header's) goes, where a line has it and no other edit touches
+// the line. Leading blanks mean nothing to Mermaid, and the candidate is checked anyway.
+function dedentEdits(
+  prepared: PreparedFlowchart,
+  block: SubgraphBlock,
+  other: readonly TextEdit[],
+): readonly TextEdit[] {
+  const { reading } = prepared;
+  const first = block.statements[0];
+  if (first === undefined) return [];
+  const headerIndent = indentOfLine(reading, block.start.lineIndex);
+  const contentIndent = indentOfLine(reading, first.lineIndex);
+  if (
+    !contentIndent.startsWith(headerIndent) ||
+    contentIndent.length === headerIndent.length
+  ) {
+    return [];
+  }
+  const edits: TextEdit[] = [];
+  for (
+    let lineIndex = block.start.lineIndex + 1;
+    lineIndex < block.end.lineIndex;
+    lineIndex += 1
+  ) {
+    const line = reading.lines[lineIndex];
+    if (line === undefined || !line.text.startsWith(contentIndent)) continue;
+    const touched = other.some(
+      (edit) =>
+        edit.start < line.end + line.terminator.length && edit.end > line.start,
+    );
+    if (touched) continue;
+    edits.push({
+      start: line.start + headerIndent.length,
+      end: line.start + contentIndent.length,
+      text: "",
+    });
+  }
+  return edits;
 }
 
 // ---------------------------------------------------------------------------------------

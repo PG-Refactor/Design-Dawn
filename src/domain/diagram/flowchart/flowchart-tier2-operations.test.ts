@@ -561,15 +561,24 @@ describe("createSubgraph", () => {
 });
 
 describe("dissolveSubgraph", () => {
-  it("removes the header, `end` and direction lines and keeps what was inside", () => {
+  it("removes the header, `end` and direction lines, keeps what was inside and moves it out one level", () => {
     expect(runOperation(FRONT_BACK, dissolve("Front"))).toBe(
       FRONT_BACK.replace(
-        "    subgraph Front [Frontend]\n        direction TB\n",
-        "",
-      ).replace(
-        "        UI[UI] --> API\n    end\n",
-        "        UI[UI] --> API\n",
+        "    subgraph Front [Frontend]\n        direction TB\n        UI[UI] --> API\n    end\n",
+        "    UI[UI] --> API\n",
       ),
+    );
+  });
+
+  it("moves the lines of a nested block out, however deep, and leaves other lines alone", () => {
+    const result = runOperation(NESTED, dissolve("Inner"));
+    expect(result).toContain(
+      "        direction LR\n        C[Cee]\n        D\n        E\n        C --> E\n",
+    );
+    const source =
+      "flowchart TD\n    subgraph S\n  %% odd\n        A\n\tB\n    end\n";
+    expect(runOperation(source, dissolve("S"))).toBe(
+      "flowchart TD\n  %% odd\n    A\n\tB\n",
     );
   });
 

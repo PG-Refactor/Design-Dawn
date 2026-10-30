@@ -3,9 +3,15 @@ import type {
   FlowchartLinkStroke,
   FlowchartLinkType,
 } from "./flowchart-config";
+import { normalizeFlowchartDirection } from "./flowchart-config";
 import { decodeFlowchartLabel } from "./flowchart-label-text";
 import { prepareFlowchart, resolveEdge } from "./flowchart-operation-support";
-import { nodeEditRestriction } from "./flowchart-operations";
+import {
+  type FlowchartOperation,
+  nodeEditRestriction,
+  planFlowchartOperation,
+} from "./flowchart-operations";
+import { ownerOf } from "./flowchart-subgraph-model";
 
 // What the flowchart GUI shows of an editable flowchart. Read-only and derived from the
 // source on every call, so the GUI never holds a model of its own that could drift from the
@@ -22,6 +28,9 @@ export interface FlowchartNodeView {
   // The db shape name, or null for a node that was never given one (drawn as a rectangle).
   readonly shape: string | null;
   readonly restriction: string | null;
+  // The subgraph the node is a member of (the one that closes first among those that write
+  // it), or null.
+  readonly ownerId: string | null;
 }
 
 export interface FlowchartEdgeView {
@@ -50,6 +59,23 @@ export interface FlowchartSubgraphView {
   readonly id: string;
   readonly title: string;
   readonly memberLabels: readonly string[];
+  // The direction line of the block, or null when it has none.
+  readonly direction: FlowchartDirection | null;
+  // Why the block cannot be dissolved (the reason code the operation would give), or null.
+  readonly dissolveRestriction: string | null;
+}
+
+// What can be done with one node beyond editing its text. Computed by planning each
+// operation, so a control is marked unavailable for exactly the reason the operation gives.
+export interface FlowchartNodeActions {
+  readonly ownerId: string | null;
+  // Edges that start or end at the node: they go with it when it is deleted.
+  readonly edgeCount: number;
+  readonly deleteRestriction: string | null;
+  // By subgraph id: null when the node can be put there (or already is).
+  readonly moveRestrictions: Readonly<Record<string, string | null>>;
+  // Taking the node out of the subgraph that owns it; null when it has none.
+  readonly removeRestriction: string | null;
 }
 
 export interface FlowchartView {
@@ -61,6 +87,15 @@ export interface FlowchartView {
 
 const MARKDOWN_LABEL_RESTRICTION = "markdownLabel";
 
+// The reason code of the refusal an operation would get, or null when it would be planned.
+function restrictionOf(
+  source: string,
+  operation: FlowchartOperation,
+): string | null {
+  const plan = planFlowchartOperation(source, operation);
+  return plan.ok ? null : (plan.error.detail.split(":")[0]?.trim() ?? null);
+}
+
 // Null when the text is not an editable flowchart (the GUI shows the reason instead).
 export function readFlowchartView(source: string): FlowchartView | null {
   const prepared = prepareFlowchart(source);
@@ -70,6 +105,9 @@ export function readFlowchartView(source: string): FlowchartView | null {
     meaning.nodes.map((node) => [node.id, decodeFlowchartLabel(node.text)]),
   );
   const displayOf = (id: string): string => labelOf.get(id) ?? id;
+  const members = new Map(
+    meaning.subgraphs.map((subgraph) => [subgraph.id, subgraph.members]),
+  );
   return {
     direction: meaning.direction,
     nodes: meaning.nodes.map((node) => ({
@@ -77,6 +115,7 @@ export function readFlowchartView(source: string): FlowchartView | null {
       displayLabel: displayOf(node.id),
       shape: node.shape,
       restriction: nodeEditRestriction(prepared.value, node.id),
+      ownerId: ownerOf(members, node.id),
     })),
     edges: meaning.edges.map((edge, index) => {
       const resolved = resolveEdge(prepared.value, { index, id: edge.id });
@@ -116,6 +155,56 @@ export function readFlowchartView(source: string): FlowchartView | null {
       id: subgraph.id,
       title: decodeFlowchartLabel(subgraph.title),
       memberLabels: subgraph.members.map(displayOf),
+      direction:
+        subgraph.direction === null
+          ? null
+          : normalizeFlowchartDirection(subgraph.direction),
+      dissolveRestriction: restrictionOf(source, {
+        kind: "dissolveSubgraph",
+        subgraphId: subgraph.id,
+      }),
     })),
+  };
+}
+
+// Null when the text is not an editable flowchart or has no such node.
+export function readFlowchartNodeActions(
+  source: string,
+  nodeId: string,
+): FlowchartNodeActions | null {
+  const prepared = prepareFlowchart(source);
+  if (!prepared.ok) return null;
+  const { meaning } = prepared.value;
+  if (!meaning.nodes.some((node) => node.id === nodeId)) return null;
+  const ownerId = ownerOf(
+    new Map(
+      meaning.subgraphs.map((subgraph) => [subgraph.id, subgraph.members]),
+    ),
+    nodeId,
+  );
+  return {
+    ownerId,
+    edgeCount: meaning.edges.filter(
+      (edge) => edge.start === nodeId || edge.end === nodeId,
+    ).length,
+    deleteRestriction: restrictionOf(source, { kind: "deleteNode", nodeId }),
+    moveRestrictions: Object.fromEntries(
+      meaning.subgraphs.map((subgraph) => [
+        subgraph.id,
+        restrictionOf(source, {
+          kind: "moveNodeToSubgraph",
+          nodeId,
+          subgraphId: subgraph.id,
+        }),
+      ]),
+    ),
+    removeRestriction:
+      ownerId === null
+        ? null
+        : restrictionOf(source, {
+            kind: "removeNodeFromSubgraph",
+            nodeId,
+            subgraphId: ownerId,
+          }),
   };
 }

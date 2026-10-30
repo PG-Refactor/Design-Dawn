@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { planFlowchartOperation } from "./flowchart-operations";
-import { readFlowchartView } from "./flowchart-view";
+import { readFlowchartNodeActions, readFlowchartView } from "./flowchart-view";
 
 const SOURCE = [
   "flowchart TD",
@@ -42,7 +42,13 @@ describe("readFlowchartView", () => {
       ["L_C_E_0", ""],
     ]);
     expect(view?.subgraphs).toEqual([
-      { id: "S1", title: "Group", memberLabels: ["H"] },
+      {
+        id: "S1",
+        title: "Group",
+        memberLabels: ["H"],
+        direction: null,
+        dissolveRestriction: null,
+      },
     ]);
   });
 
@@ -88,5 +94,86 @@ describe("readFlowchartView", () => {
       [true, false],
       [false, true],
     ]);
+  });
+});
+
+const TIER_TWO = [
+  "flowchart TD",
+  "  A --> B",
+  "  subgraph One",
+  "    direction LR",
+  "    C",
+  "    D --> E",
+  "  end",
+  "  subgraph Two",
+  "    D",
+  "  end",
+  "  class One hot",
+  "",
+].join("\n");
+
+describe("subgraphs and node actions of the view", () => {
+  it("shows the direction, the owner and why a block cannot be dissolved", () => {
+    const view = readFlowchartView(TIER_TWO);
+    expect(
+      view?.subgraphs.map((subgraph) => [
+        subgraph.id,
+        subgraph.direction,
+        subgraph.dissolveRestriction,
+      ]),
+    ).toEqual([
+      ["One", "LR", "subgraphReferenced"],
+      ["Two", null, null],
+    ]);
+    expect(view?.nodes.map((node) => [node.id, node.ownerId])).toEqual([
+      ["A", null],
+      ["B", null],
+      ["C", "One"],
+      ["D", "One"],
+      ["E", "One"],
+    ]);
+  });
+
+  it("gives, for a node, the reason each action would be refused with", () => {
+    expect(readFlowchartNodeActions(TIER_TWO, "A")).toEqual({
+      ownerId: null,
+      edgeCount: 1,
+      deleteRestriction: null,
+      moveRestrictions: { One: null, Two: null },
+      removeRestriction: null,
+    });
+    expect(readFlowchartNodeActions(TIER_TWO, "D")).toEqual({
+      ownerId: "One",
+      edgeCount: 1,
+      deleteRestriction: null,
+      moveRestrictions: { One: null, Two: "firstDefinitionWins" },
+      removeRestriction: "mentionedInStatement",
+    });
+    expect(readFlowchartNodeActions(TIER_TWO, "C")?.removeRestriction).toBe(
+      null,
+    );
+  });
+
+  it("agrees with the operations: the reason is the one the plan gives", () => {
+    for (const nodeId of ["A", "B", "C", "D", "E"]) {
+      const actions = readFlowchartNodeActions(TIER_TWO, nodeId);
+      for (const [subgraphId, restriction] of Object.entries(
+        actions?.moveRestrictions ?? {},
+      )) {
+        const plan = planFlowchartOperation(TIER_TWO, {
+          kind: "moveNodeToSubgraph",
+          nodeId,
+          subgraphId,
+        });
+        expect(restriction, `${nodeId} -> ${subgraphId}`).toBe(
+          plan.ok ? null : plan.error.detail.split(":")[0],
+        );
+      }
+    }
+  });
+
+  it("returns null for an unknown node and for a source that cannot be edited", () => {
+    expect(readFlowchartNodeActions(TIER_TWO, "Nope")).toBeNull();
+    expect(readFlowchartNodeActions("flowchart LR\n  ???\n", "A")).toBeNull();
   });
 });

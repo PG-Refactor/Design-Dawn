@@ -13,15 +13,21 @@ import {
 } from "../../application/ports/operation-error";
 import type { FlowchartDirection } from "../../domain/diagram/flowchart/flowchart-config";
 import type { FlowchartOperation } from "../../domain/diagram/flowchart/flowchart-operations";
-import { readFlowchartView } from "../../domain/diagram/flowchart/flowchart-view";
+import {
+  readFlowchartNodeActions,
+  readFlowchartView,
+} from "../../domain/diagram/flowchart/flowchart-view";
 import { useMessages } from "../workspace/use-messages";
 import { describeRefusal } from "./diagram-gui-text";
 import { FlowchartAddEdge } from "./flowchart-add-edge";
 import { FlowchartAddNode } from "./flowchart-add-node";
+import { FlowchartAddSubgraph } from "./flowchart-add-subgraph";
 import { FlowchartEdgeEditor } from "./flowchart-edge-editor";
 import { FlowchartEdgeList } from "./flowchart-edge-list";
 import { FlowchartNodeEditor } from "./flowchart-node-editor";
-import { FlowchartNodeList, oneLine } from "./flowchart-node-list";
+import { FlowchartNodeList } from "./flowchart-node-list";
+import { FlowchartSubgraphEditor } from "./flowchart-subgraph-editor";
+import { FlowchartSubgraphList } from "./flowchart-subgraph-list";
 import { GuiSelect } from "./gui-controls";
 import {
   type DiagramOperationOutcome,
@@ -40,10 +46,11 @@ export interface FlowchartGuiPanelProps {
   readonly leaveRef: MutableRefObject<GuiDraftCommit | null>;
 }
 
-// Which element is selected: a node by id, an edge by position and id. Component state,
-// separate from the canvas's block selection.
+// Which element is selected: a node or a subgraph by id, an edge by position and id.
+// Component state, separate from the canvas's block selection.
 type FlowchartSelection =
   | { readonly kind: "node"; readonly id: string }
+  | { readonly kind: "subgraph"; readonly id: string }
   | { readonly kind: "edge"; readonly index: number; readonly id: string };
 
 const DIRECTIONS: readonly FlowchartDirection[] = ["TB", "BT", "LR", "RL"];
@@ -65,11 +72,16 @@ export function FlowchartGuiPanel({
   const [inputError, setInputError] = useState<string | null>(null);
   const nodeListRef = useRef<HTMLDivElement>(null);
   const edgeListRef = useRef<HTMLDivElement>(null);
+  const subgraphListRef = useRef<HTMLDivElement>(null);
   const editorLabelRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const addNodeLabelRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+  const addSubgraphTitleRef = useRef<HTMLInputElement | HTMLTextAreaElement>(
+    null,
+  );
   const commitPendingRef = useRef<GuiDraftCommit | null>(null);
   const addNodeInputRef = useRef<(() => boolean) | null>(null);
   const addEdgeInputRef = useRef<(() => boolean) | null>(null);
+  const addSubgraphInputRef = useRef<(() => boolean) | null>(null);
   const { documentId, blockId } = target;
 
   // The selection is resolved against the committed text each time, so an undo, a redo or
@@ -78,6 +90,18 @@ export function FlowchartGuiPanel({
     selection?.kind === "node"
       ? view?.nodes.find((node) => node.id === selection.id)
       : undefined;
+  const selectedSubgraph =
+    selection?.kind === "subgraph"
+      ? view?.subgraphs.find((subgraph) => subgraph.id === selection.id)
+      : undefined;
+  // Planned once per text and node, not on every render.
+  const nodeActions = useMemo(
+    () =>
+      selection?.kind === "node"
+        ? readFlowchartNodeActions(source, selection.id)
+        : null,
+    [selection, source],
+  );
   const selectedEdge = useMemo(() => {
     if (selection?.kind !== "edge" || view === null) return undefined;
     const atIndex = view.edges[selection.index];
@@ -124,7 +148,8 @@ export function FlowchartGuiPanel({
   async function leaveGui(): Promise<OperationResult<void>> {
     if (
       addNodeInputRef.current?.() === true ||
-      addEdgeInputRef.current?.() === true
+      addEdgeInputRef.current?.() === true ||
+      addSubgraphInputRef.current?.() === true
     ) {
       setInputError(gui.addInputPending);
       return operationErr(
@@ -154,6 +179,33 @@ export function FlowchartGuiPanel({
     const outcome = await run({
       kind: "deleteEdge",
       target: { index: selectedEdge.index, id: selectedEdge.id },
+    });
+    if (outcome !== "applied") return;
+    setSelectionKey((key) => key + 1);
+    setSelection(null);
+  }
+
+  async function deleteSelectedNode(): Promise<void> {
+    if (selectedNode === undefined || view === null) return;
+    (view.nodes.length > 1
+      ? nodeListRef.current
+      : addNodeLabelRef.current
+    )?.focus();
+    const outcome = await run({ kind: "deleteNode", nodeId: selectedNode.id });
+    if (outcome !== "applied") return;
+    setSelectionKey((key) => key + 1);
+    setSelection(null);
+  }
+
+  async function dissolveSelectedSubgraph(): Promise<void> {
+    if (selectedSubgraph === undefined || view === null) return;
+    (view.subgraphs.length > 1
+      ? subgraphListRef.current
+      : addSubgraphTitleRef.current
+    )?.focus();
+    const outcome = await run({
+      kind: "dissolveSubgraph",
+      subgraphId: selectedSubgraph.id,
     });
     if (outcome !== "applied") return;
     setSelectionKey((key) => key + 1);
@@ -230,7 +282,9 @@ export function FlowchartGuiPanel({
         listRef={edgeListRef}
       />
       {selection === null &&
-        (view.nodes.length > 0 || view.edges.length > 0) && (
+        (view.nodes.length > 0 ||
+          view.edges.length > 0 ||
+          view.subgraphs.length > 0) && (
           <p className="diagram-gui__hint">{text.noSelection}</p>
         )}
       {selection?.kind === "node" && (
@@ -239,9 +293,12 @@ export function FlowchartGuiPanel({
           documentId={documentId}
           blockId={blockId}
           node={selectedNode}
+          actions={nodeActions}
+          subgraphs={view.subgraphs}
           busy={busy}
           runDraft={runDraft}
           onInvalidInput={setInputError}
+          onDelete={deleteSelectedNode}
           labelInputRef={editorLabelRef}
           commitPendingRef={commitPendingRef}
         />
@@ -286,28 +343,40 @@ export function FlowchartGuiPanel({
         hasInputRef={addEdgeInputRef}
       />
       <h4 className="diagram-gui__heading">{text.subgraphsHeading}</h4>
-      {view.subgraphs.length === 0 ? (
-        <p className="diagram-gui__empty">{text.emptySubgraphs}</p>
-      ) : (
-        <ul
-          className="diagram-gui__subgraphs"
-          aria-label={text.subgraphListLabel(shortId)}
-        >
-          {view.subgraphs.map((subgraph) => (
-            <li key={subgraph.id}>
-              {text.subgraphOption(
-                oneLine(subgraph.title),
-                subgraph.id,
-                subgraph.memberLabels.length === 0
-                  ? text.noMembers
-                  : subgraph.memberLabels
-                      .map(oneLine)
-                      .join(text.memberSeparator),
-              )}
-            </li>
-          ))}
-        </ul>
+      <FlowchartSubgraphList
+        shortId={shortId}
+        subgraphs={view.subgraphs}
+        selectedId={
+          selection?.kind === "subgraph" ? (selectedSubgraph?.id ?? null) : null
+        }
+        onSelect={(id) => void select({ kind: "subgraph", id })}
+        onEnter={() => editorLabelRef.current?.focus()}
+        listRef={subgraphListRef}
+      />
+      {selection?.kind === "subgraph" && (
+        <FlowchartSubgraphEditor
+          key={selectionKey}
+          documentId={documentId}
+          blockId={blockId}
+          subgraph={selectedSubgraph}
+          busy={busy}
+          runDraft={runDraft}
+          onInvalidInput={setInputError}
+          onDissolve={dissolveSelectedSubgraph}
+          labelInputRef={editorLabelRef}
+          commitPendingRef={commitPendingRef}
+        />
       )}
+      <FlowchartAddSubgraph
+        documentId={documentId}
+        blockId={blockId}
+        nodes={view.nodes}
+        busy={busy}
+        runDraft={runDraft}
+        onInvalidInput={setInputError}
+        titleInputRef={addSubgraphTitleRef}
+        hasInputRef={addSubgraphInputRef}
+      />
     </div>
   );
 }
