@@ -49,4 +49,13 @@ describe("the Mermaid configuration", () => {
     });
     expect(config.securityLevel).toBe(MERMAID_FIXED_CONFIG.securityLevel);
   });
+
+  it("keeps a boolean darkMode, including false", () => {
+    expect(buildMermaidConfig({ darkMode: true }).themeVariables).toEqual({
+      darkMode: true,
+    });
+    expect(buildMermaidConfig({ darkMode: false }).themeVariables).toEqual({
+      darkMode: false,
+    });
+  });
 });

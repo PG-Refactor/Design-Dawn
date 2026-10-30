@@ -10,7 +10,11 @@ import {
 } from "./mermaid-config";
 import type { MermaidThemeValues } from "./mermaid-renderer-types";
 import { mermaidRenderer } from "./render-mermaid";
-import { THEME_TOKENS } from "./resolve-mermaid-theme";
+import {
+  THEME_TOKENS,
+  type ThemeVariable,
+  withNonTokenValues,
+} from "./resolve-mermaid-theme";
 import { sanitizeSvg } from "./sanitize-svg";
 
 const fixtureSources = import.meta.glob("/fixtures/mermaid/*.mmd", {
@@ -376,12 +380,12 @@ function themeValuesOf(themeId: string): MermaidThemeValues {
     "--font-family-base",
     (fontMatch?.[1] ?? "").replace(/\s+/g, " ").trim(),
   );
-  const values: { -readonly [K in keyof MermaidThemeValues]?: string } = {};
+  const values: { -readonly [K in ThemeVariable]?: string } = {};
   for (const [variable, token] of THEME_TOKENS) {
     const value = tokens.get(token);
     if (value !== undefined && value !== "") values[variable] = value;
   }
-  return values;
+  return withNonTokenValues(values, themeId === "dark");
 }
 
 // Mermaid puts the position of a `click` node on the <a> around it (docs/architecture.md
@@ -479,7 +483,9 @@ describe("real Mermaid with the app's theme token values", () => {
     async (themeId) => {
       const theme = themeValuesOf(themeId);
       // A vacuous mapping would make the colour checks below pass for nothing.
-      expect(Object.keys(theme).length).toBe(THEME_TOKENS.length);
+      expect(
+        THEME_TOKENS.every(([variable]) => theme[variable] !== undefined),
+      ).toBe(true);
       const outcome = await mermaidRenderer.render(LABEL_SOURCE, theme);
       expect(outcome.ok).toBe(true);
       if (!outcome.ok) return;
@@ -489,6 +495,78 @@ describe("real Mermaid with the app's theme token values", () => {
         "primaryTextColor",
         "primaryBorderColor",
         "lineColor",
+      ] as const) {
+        expect(svg, `${themeId} ${variable}`).toContain(
+          (theme[variable] ?? "").toLowerCase(),
+        );
+      }
+    },
+  );
+
+  const PIE_SOURCE = `pie title Share\n  "Alpha" : 40\n  "Bravo" : 30\n  "Charlie" : 20\n  "Delta" : 10`;
+  const GANTT_SOURCE = [
+    "gantt",
+    "  dateFormat YYYY-MM-DD",
+    "  section Work",
+    "  Planned task :t1, 2026-01-01, 5d",
+    "  Active task :active, t2, 2026-01-06, 5d",
+    "  Done task :done, t3, 2026-01-11, 5d",
+    "  Critical task :crit, t4, 2026-01-16, 5d",
+  ].join("\n");
+
+  // The colour reaches the SVG as a style rule (a pie slice is drawn with an inline fill
+  // from pie1..; the rest are `<style>` rules), so the check is on the lowercase text.
+  it.each(["light", "dark"])(
+    "draws a pie chart with the %s palette, not a derived colour",
+    async (themeId) => {
+      const theme = themeValuesOf(themeId);
+      const outcome = await mermaidRenderer.render(PIE_SOURCE, theme);
+      expect(outcome.ok).toBe(true);
+      if (!outcome.ok) return;
+      const svg = sanitizeSvg(outcome.svg).toLowerCase();
+      for (const variable of [
+        "pie1",
+        "pie2",
+        "pie3",
+        "pie4",
+        "pieStrokeColor",
+        "pieOuterStrokeColor",
+        "pieSectionTextColor",
+        "pieTitleTextColor",
+        "pieLegendTextColor",
+      ] as const) {
+        expect(svg, `${themeId} ${variable}`).toContain(
+          (theme[variable] ?? "").toLowerCase(),
+        );
+      }
+      expect(svg).toMatch(/opacity:\s*1\b/);
+    },
+  );
+
+  it.each(["light", "dark"])(
+    "draws a gantt chart with the %s palette",
+    async (themeId) => {
+      const theme = themeValuesOf(themeId);
+      const outcome = await mermaidRenderer.render(GANTT_SOURCE, theme);
+      expect(outcome.ok).toBe(true);
+      if (!outcome.ok) return;
+      const svg = sanitizeSvg(outcome.svg).toLowerCase();
+      for (const variable of [
+        "taskBkgColor",
+        "taskBorderColor",
+        "taskTextColor",
+        "taskTextDarkColor",
+        "taskTextOutsideColor",
+        "activeTaskBkgColor",
+        "activeTaskBorderColor",
+        "doneTaskBkgColor",
+        "doneTaskBorderColor",
+        "critBkgColor",
+        "critBorderColor",
+        "sectionBkgColor",
+        "altSectionBkgColor",
+        "gridColor",
+        "todayLineColor",
       ] as const) {
         expect(svg, `${themeId} ${variable}`).toContain(
           (theme[variable] ?? "").toLowerCase(),

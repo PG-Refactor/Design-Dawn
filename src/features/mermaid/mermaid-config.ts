@@ -48,17 +48,21 @@ export interface MermaidInitializeConfig {
   readonly deterministicIds: true;
   readonly theme: "base";
   readonly secure: string[];
-  readonly themeVariables: Record<string, string>;
+  readonly themeVariables: Record<string, string | boolean>;
 }
 
 // Only resolved values go in: an empty string would override Mermaid's default with
 // something it cannot parse as a colour.
 function definedThemeVariables(
   theme: MermaidThemeValues,
-): Record<string, string> {
-  const variables: Record<string, string> = {};
+): Record<string, string | boolean> {
+  const variables: Record<string, string | boolean> = {};
   for (const [name, value] of Object.entries(theme)) {
-    if (typeof value === "string" && value !== "") variables[name] = value;
+    if (
+      typeof value === "boolean" ||
+      (typeof value === "string" && value !== "")
+    )
+      variables[name] = value;
   }
   return variables;
 }

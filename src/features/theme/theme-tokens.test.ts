@@ -8,11 +8,13 @@ import {
 } from "./test-support/color-contrast";
 import {
   COLOR_TOKEN_NAMES,
+  DIAGRAM_COLOR_TOKEN_NAMES,
   SHADOW_TOKEN_NAMES,
   THEME_TOKEN_NAMES,
 } from "./theme-tokens";
 
 const TEXT_CONTRAST_MINIMUM = 4.5;
+const GRAPHIC_CONTRAST_MINIMUM = 3;
 const BLOCK_PATTERN = new RegExp(
   `:root\\[${THEME_ATTRIBUTE_NAME}="([^"]+)"\\]\\s*\\{([^}]*)\\}`,
   "g",
@@ -131,6 +133,55 @@ describe("theme token stylesheet", () => {
         `${themeId} ${foreground} on ${background}`,
       ).toBeGreaterThanOrEqual(TEXT_CONTRAST_MINIMUM);
     }
+  });
+
+  // Mermaid pie slices and gantt bars (docs/architecture.md §15.4): every palette colour
+  // must be told apart from the surface (non-text, 3:1) and carry the text drawn on it.
+  it.each(themeIds)("%s diagram palette is readable", (themeId) => {
+    expect(DIAGRAM_COLOR_TOKEN_NAMES.length).toBe(8);
+    for (const token of DIAGRAM_COLOR_TOKEN_NAMES) {
+      for (const surface of ["--color-surface", "--color-surface-raised"]) {
+        expect(
+          contrastRatio(colorOf(themeId, token), colorOf(themeId, surface)),
+          `${themeId} ${token} on ${surface}`,
+        ).toBeGreaterThanOrEqual(GRAPHIC_CONTRAST_MINIMUM);
+      }
+      expect(
+        contrastRatio(
+          colorOf(themeId, "--color-on-diagram"),
+          colorOf(themeId, token),
+        ),
+        `${themeId} --color-on-diagram on ${token}`,
+      ).toBeGreaterThanOrEqual(TEXT_CONTRAST_MINIMUM);
+    }
+    // The critical bar uses --color-danger as its fill.
+    expect(
+      contrastRatio(
+        colorOf(themeId, "--color-on-diagram"),
+        colorOf(themeId, "--color-danger"),
+      ),
+    ).toBeGreaterThanOrEqual(TEXT_CONTRAST_MINIMUM);
+    // Task borders and the text outside a bar are drawn on the surface.
+    for (const token of [
+      "--color-text-muted",
+      "--color-text",
+      "--color-warning",
+    ]) {
+      expect(
+        contrastRatio(
+          colorOf(themeId, token),
+          colorOf(themeId, "--color-surface"),
+        ),
+        `${themeId} ${token} on surface`,
+      ).toBeGreaterThanOrEqual(GRAPHIC_CONTRAST_MINIMUM);
+    }
+  });
+
+  it.each(themeIds)("%s palette colours are all different", (themeId) => {
+    const values = DIAGRAM_COLOR_TOKEN_NAMES.map((token) =>
+      themes.get(themeId)?.get(token),
+    );
+    expect(new Set(values).size).toBe(DIAGRAM_COLOR_TOKEN_NAMES.length);
   });
 
   it("makes the switch visible: background and text differ between themes", () => {

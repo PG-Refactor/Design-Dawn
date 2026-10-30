@@ -1,6 +1,18 @@
 // Semantic token names (docs/architecture.md §13.3). The values live only in
 // `src/styles/theme-tokens.css`; each theme must define exactly these names.
 
+// The categorical palette of diagram previews (Mermaid pie slices, gantt bars).
+export const DIAGRAM_COLOR_TOKEN_NAMES = [
+  "--color-diagram-1",
+  "--color-diagram-2",
+  "--color-diagram-3",
+  "--color-diagram-4",
+  "--color-diagram-5",
+  "--color-diagram-6",
+  "--color-diagram-7",
+  "--color-diagram-8",
+] as const;
+
 export const COLOR_TOKEN_NAMES = [
   "--color-background",
   "--color-surface",
@@ -33,6 +45,8 @@ export const COLOR_TOKEN_NAMES = [
   "--color-git-renamed",
   "--color-git-untracked",
   "--color-git-conflict",
+  ...DIAGRAM_COLOR_TOKEN_NAMES,
+  "--color-on-diagram",
 ] as const;
 
 export const SHADOW_TOKEN_NAMES = ["--shadow-raised"] as const;

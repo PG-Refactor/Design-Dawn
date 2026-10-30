@@ -1,6 +1,14 @@
 /* The only file that contains colour values. Each theme block must define exactly the
    token names listed in src/features/theme/theme-tokens.ts; a new theme is one more block.
-   Text/background pairs meet WCAG AA (4.5:1), checked by theme-tokens.test.ts. */
+   Text/background pairs meet WCAG AA (4.5:1), checked by theme-tokens.test.ts.
+
+   --color-diagram-1..8 / --color-on-diagram: the categorical palette of the Mermaid
+   previews (pie slices, gantt bars). Mermaid would derive these from the base colours by
+   darkening, which leaves them near-black on a dark surface, so they are fixed per theme.
+   Light: deep fills (>= 5:1 against the surface) with white text on them. Dark: light
+   fills (>= 6:1 against the raised surface) with a dark text on them. Hues differ in the
+   same order in both themes (blue, green, orange, purple, teal, pink, olive, slate), and
+   each fill is >= 4.5:1 with --color-on-diagram. Checked by theme-tokens.test.ts. */
 
 :root[data-theme="light"] {
   color-scheme: light;
@@ -35,6 +43,15 @@
   --color-git-renamed: #0b6b8f;
   --color-git-untracked: #17673f;
   --color-git-conflict: #a31515;
+  --color-diagram-1: #2859c0;
+  --color-diagram-2: #1a7a4c;
+  --color-diagram-3: #b0541a;
+  --color-diagram-4: #8a3fb0;
+  --color-diagram-5: #0b7285;
+  --color-diagram-6: #b0356b;
+  --color-diagram-7: #7a6200;
+  --color-diagram-8: #566074;
+  --color-on-diagram: #ffffff;
   --shadow-raised: 0 1px 3px rgba(28, 35, 48, 0.18);
 }
 
@@ -71,5 +88,14 @@
   --color-git-renamed: #7fc8e8;
   --color-git-untracked: #73c991;
   --color-git-conflict: #ffa89e;
+  --color-diagram-1: #7aa7ff;
+  --color-diagram-2: #6fcf97;
+  --color-diagram-3: #f2a65a;
+  --color-diagram-4: #c79bf2;
+  --color-diagram-5: #5fd0e0;
+  --color-diagram-6: #f28ab2;
+  --color-diagram-7: #e0d05a;
+  --color-diagram-8: #a3acba;
+  --color-on-diagram: #0d1626;
   --shadow-raised: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
