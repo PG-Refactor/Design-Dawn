@@ -1,0 +1,638 @@
+{
+  "fixtureVersion": 1,
+  "subject": "Tier 1 edit scenarios of the sequence editor (Step S-2)",
+  "scenarios": [
+    {
+      "id": "SQE-P01",
+      "op": "addParticipant",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant D as Dan\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "append at end of the order (EOF); naive: right after the header puts it first"
+    },
+    {
+      "id": "SQE-P02",
+      "op": "addParticipant",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye    participant D as Dan\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "source without final newline: naive glues the text onto the last message"
+    },
+    {
+      "id": "SQE-P03",
+      "op": "addParticipant(actor)",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    actor D as Dan\n",
+      "naiveGate": "PASS",
+      "note": "kind actor"
+    },
+    {
+      "id": "SQE-P04",
+      "op": "addParticipant",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    participant D as Ops;Team\n",
+      "naiveGate": "FAIL-parse",
+      "note": "label with ';' : naive parse error, safe = #59;"
+    },
+    {
+      "id": "SQE-P05",
+      "op": "addParticipant",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    participant D as Dev#1\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "label with '#': naive silently truncates (comment), safe = #35;"
+    },
+    {
+      "id": "SQE-P06",
+      "op": "addParticipant",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    participant D as X%%{init: {\"theme\":\"dark\"}}%%Y\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "label containing %%{ : directive is applied by mermaid -> refuse"
+    },
+    {
+      "id": "SQE-P07",
+      "op": "renameParticipantLabel",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello Alice\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alicia\n    participant B as Bob\n    A->>B: Hello Alicia\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "alias exists; naive global replace also changes message text"
+    },
+    {
+      "id": "SQE-P08",
+      "op": "renameParticipantLabel",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant Alicia\n    participant B\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "declared without alias; naive replaces the id in the declaration (new participant)"
+    },
+    {
+      "id": "SQE-P09",
+      "op": "renameParticipantLabel",
+      "source": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "naiveCandidate": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n    participant A as Alice\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "implicit participant: naive appends a late declaration (prev/next chain corrupted), safe inserts before the first mention"
+    },
+    {
+      "id": "SQE-P10",
+      "op": "changeParticipantKind",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: participant list\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    actor A as Alice\n    actor B as Bob\n    A->>B: actor list\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "participant -> actor, keyword span only; naive global replace hits message text"
+    },
+    {
+      "id": "SQE-P11",
+      "op": "renameParticipantLabel",
+      "source": "sequenceDiagram\n    participant A@{ \"type\": \"database\" }\n    A->>B: q\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Store@{ \"type\": \"database\" }\n    A->>B: q\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "declaration with @{ type }: naive inserts ' as' before @{"
+    },
+    {
+      "id": "SQE-P12",
+      "op": "deleteParticipant",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "cascade: declaration + every message; naive removes the declaration only"
+    },
+    {
+      "id": "SQE-P13",
+      "op": "deleteParticipant",
+      "source": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "naiveCandidate": "sequenceDiagram\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "implicit participants with activations: keep A and C alive via declarations, strip nothing else"
+    },
+    {
+      "id": "SQE-P14",
+      "op": "deleteParticipant",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    B->>C: new\n    C->>A: ping\n    destroy C\n    A-xC: kill\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    B->>C: new\n    C->>A: ping\n    destroy C\n    A-xC: kill\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "created + destroyed participant: delete create/destroy lines and all its messages"
+    },
+    {
+      "id": "SQE-P15",
+      "op": "deleteParticipant",
+      "source": "sequenceDiagram\n    box Team\n        participant A\n        participant B\n    end\n    A->>B: x\n    B->>A: y\n",
+      "naiveCandidate": "sequenceDiagram\n    box Team\n        participant B\n    end\n    A->>B: x\n    B->>A: y\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "participant inside a box: remove its line and messages, box stays"
+    },
+    {
+      "id": "SQE-P16",
+      "op": "deleteParticipant",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: x\n    activate B\n    Note left of B: n\n    deactivate B\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A\n    activate B\n    Note left of B: n\n    deactivate B\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "explicit activate/deactivate and a note: naive leaves the note, which re-creates the participant"
+    },
+    {
+      "id": "SQE-P17",
+      "op": "reorderParticipants",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant B as Bob\n    participant A as Alice\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveGate": "PASS",
+      "note": "swap two declaration lines (both declared)"
+    },
+    {
+      "id": "SQE-P18",
+      "op": "reorderParticipants",
+      "source": "sequenceDiagram\n    A->>B: one\n    C->>D: two\n    A->>D: three\n",
+      "naiveCandidate": "sequenceDiagram\n    A->>B: one\n    participant C\n    C->>D: two\n    A->>D: three\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "implicit participants have no line to move: naive moves nothing meaningful; safe declares all in the new order"
+    },
+    {
+      "id": "SQE-P19",
+      "op": "renameParticipantLabel",
+      "source": "sequenceDiagram\n    participant A %% tail\n    participant B\n    B->>B: x\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A %% tail as Alicia\n    participant B\n    B->>B: x\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "participant line with trailing %% : mermaid takes the whole rest as the id -> read-only (naive appends alias into the id)"
+    },
+    {
+      "id": "SQE-P20",
+      "op": "renameParticipantLabel",
+      "source": "sequenceDiagram\n    participant A # keep\n    A->>B: x\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alicia # keep\n    A->>B: x\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "trailing '# keep' after the declaration: mermaid keeps it INSIDE the id ('A # keep'), so it is unreadable -> read-only"
+    },
+    {
+      "id": "SQE-M01",
+      "op": "addMessage",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    B-->>A: Later\n",
+      "naiveGate": "PASS",
+      "note": "append at end"
+    },
+    {
+      "id": "SQE-M02",
+      "op": "addMessage",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye    B-->>A: Later\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "no final newline"
+    },
+    {
+      "id": "SQE-M03",
+      "op": "addMessage",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "naiveCandidate": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    U->>S: ack\n    loop retry\n        U->>S: again\n    end\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "inside the first branch of alt (same indent as its sibling); naive appends after end"
+    },
+    {
+      "id": "SQE-M04",
+      "op": "addMessage",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    B-->>A: a; b\n",
+      "naiveGate": "FAIL-parse",
+      "note": "text with ';' : naive parse error; safe #59;"
+    },
+    {
+      "id": "SQE-M05",
+      "op": "addMessage",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    B-->>A: item #5\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "text with '#': naive silently truncated; safe #35;"
+    },
+    {
+      "id": "SQE-M06",
+      "op": "addMessage",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    B-->>A: wrap: now\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "text starting with 'wrap:' loses the prefix and turns wrapping on -> refuse"
+    },
+    {
+      "id": "SQE-M07",
+      "op": "addMessage",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    B-->>A: l1\nl2\n",
+      "naiveGate": "FAIL-parse",
+      "note": "multi-line text -> <br/>; naive newline creates a new statement (parse error)"
+    },
+    {
+      "id": "SQE-M08",
+      "op": "addMessage",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    B-->>A: x<y>z\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "text with < and > : '#lt;' '#gt;' form"
+    },
+    {
+      "id": "SQE-M09",
+      "op": "addMessage",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    B->>C: new\n    C->>A: ping\n    destroy C\n    A-xC: kill\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    A->>B: x\n    B->>C: new\n    C->>A: ping\n    destroy C\n    A-xC: kill\n",
+      "naiveGate": "FAIL-parse",
+      "note": "insert between 'create participant' and its creating message"
+    },
+    {
+      "id": "SQE-M10",
+      "op": "addMessage",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    B->>C: new\n    C->>A: ping\n    destroy C\n    A-xC: kill\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    B->>C: new\n    C->>A: ping\n    destroy C\n    A->>C: z\n    A-xC: kill\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "insert before 'destroy' (intended: after ping, before destroy); naive after destroy silently becomes the destroying message"
+    },
+    {
+      "id": "SQE-M11",
+      "op": "editMessageText",
+      "source": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "naiveCandidate": "sequenceDiagram\n    A->>B: call2\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "naiveGate": "FAIL-parse",
+      "note": "message with '+': naive regenerates the line from (from,arrow,to,text) and loses '+'"
+    },
+    {
+      "id": "SQE-M12",
+      "op": "editMessageText",
+      "source": "sequenceDiagram\n    A->>B: x # tail\n",
+      "naiveCandidate": "sequenceDiagram\n    A->>B: y\n",
+      "naiveGate": "PASS",
+      "note": "trailing '# tail' is a comment: replace only the text span"
+    },
+    {
+      "id": "SQE-M13",
+      "op": "editMessageText",
+      "source": "sequenceDiagram\n    A->>B: x %% tail\n",
+      "naiveCandidate": "sequenceDiagram\n    A->>B: y %% tail\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "trailing '%% tail' is part of the TEXT in a message: span must include it"
+    },
+    {
+      "id": "SQE-M14",
+      "op": "changeArrow",
+      "source": "sequenceDiagram\n    A->>+B: call a->>b\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "naiveCandidate": "sequenceDiagram\n    A-->>+B: call a-->>b\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "->> to -->> with '+'; naive replaces every '->>' in the line (text too)"
+    },
+    {
+      "id": "SQE-M15",
+      "op": "changeArrow",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A<<->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveGate": "PASS",
+      "note": "-> to <<->> (Step 9-1: Visimer mis-parsed it; mermaid is fine)"
+    },
+    {
+      "id": "SQE-M16",
+      "op": "changeArrow",
+      "source": "sequenceDiagram\n    A->>()B: t\n",
+      "naiveCandidate": "sequenceDiagram\n    A-->>()B: t\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "central connection ()"
+    },
+    {
+      "id": "SQE-M17",
+      "op": "swapDirection",
+      "source": "sequenceDiagram\n    participant Web\n    participant WebApp\n    Web->>WebApp: ping\n",
+      "naiveCandidate": "sequenceDiagram\n    participant Web\n    participant WebApp\n    Web->>WebApp: ping\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "ids that are prefixes of each other; naive swaps by string replacement"
+    },
+    {
+      "id": "SQE-M18",
+      "op": "swapDirection",
+      "source": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "naiveCandidate": "sequenceDiagram\n    B->>+A: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "naiveGate": "FAIL-parse",
+      "note": "message with '+': activation moves to the other side; naive keeps '+' and the later '-' becomes unmatched"
+    },
+    {
+      "id": "SQE-M19",
+      "op": "deleteMessage",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    A->>B: Bye\n",
+      "naiveGate": "PASS",
+      "note": "middle message, explicit participants"
+    },
+    {
+      "id": "SQE-M20",
+      "op": "deleteMessage",
+      "source": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "naiveCandidate": "sequenceDiagram\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "naiveGate": "FAIL-parse",
+      "note": "first message with '+': its '-' partner must lose the sign; implicit participants A,B keep their order via declarations"
+    },
+    {
+      "id": "SQE-M21",
+      "op": "deleteMessage",
+      "source": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "naiveCandidate": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    Note over A,B: done\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "closing message ('-'): naive leaves the activation open (silent); safe also removes the matching '+'"
+    },
+    {
+      "id": "SQE-M22",
+      "op": "deleteMessage",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n",
+      "naiveGate": "PASS",
+      "note": "last line without trailing newline"
+    },
+    {
+      "id": "SQE-M23",
+      "op": "deleteMessage",
+      "source": "sequenceDiagram\n    A->>B: one\n    C->>D: two\n    A->>D: three\n",
+      "naiveCandidate": "sequenceDiagram\n    C->>D: two\n    A->>D: three\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "first mention of implicit participants: naive changes the order (A after D) and drops B"
+    },
+    {
+      "id": "SQE-M24",
+      "op": "moveMessage",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    A->>B: Bye\n    B-->>A: Hi\n",
+      "naiveGate": "PASS",
+      "note": "swap with the next message, explicit participants"
+    },
+    {
+      "id": "SQE-M25",
+      "op": "moveMessage",
+      "source": "sequenceDiagram\n    A->>B: one\n    C->>D: two\n    A->>D: three\n",
+      "naiveCandidate": "sequenceDiagram\n    C->>D: two\n    A->>B: one\n    A->>D: three\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "implicit participants: moving the first message changes the column order; safe declares them first"
+    },
+    {
+      "id": "SQE-M26",
+      "op": "moveMessage",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "naiveCandidate": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    alt ok\n    U->>S: req\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "block-unaware: swapping with the 'alt' header pulls the message into the block"
+    },
+    {
+      "id": "SQE-M27",
+      "op": "moveMessage",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "naiveCandidate": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n    end\n        U->>S: again\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "block-unaware: swapping with 'end' moves the message out of the loop"
+    },
+    {
+      "id": "SQE-M28",
+      "op": "moveMessage",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    B->>C: new\n    C->>A: ping\n    destroy C\n    A-xC: kill\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    C->>A: ping\n    B->>C: new\n    destroy C\n    A-xC: kill\n",
+      "naiveGate": "FAIL-parse",
+      "note": "the creating message: swapping breaks 'create'"
+    },
+    {
+      "id": "SQE-M29",
+      "op": "duplicateMessage",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveGate": "PASS",
+      "note": "copy after itself"
+    },
+    {
+      "id": "SQE-M30",
+      "op": "deleteMessage",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    B->>C: new\n    C->>A: ping\n    destroy C\n    A-xC: kill\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    C->>A: ping\n    destroy C\n    A-xC: kill\n",
+      "naiveGate": "FAIL-parse",
+      "note": "the creating message: delete leaves 'create' dangling -> refuse"
+    },
+    {
+      "id": "SQE-M31",
+      "op": "deleteMessage",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    B->>C: new\n    C->>A: ping\n    destroy C\n    A-xC: kill\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    B->>C: new\n    C->>A: ping\n    destroy C\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "the destroying message: 'destroy C' must go with it"
+    },
+    {
+      "id": "SQE-M32",
+      "op": "deleteMessage",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: one; B->>A: two\n    A->>B: three\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: three\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "two statements on one line joined by ';': delete only the second"
+    },
+    {
+      "id": "SQE-M33",
+      "op": "editMessageText",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: one; B->>A: two\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: uno\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "';'-joined: the text ends at ';'"
+    },
+    {
+      "id": "SQE-M34",
+      "op": "addMessage",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    A->>Z: x\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "to a new (unknown) participant creates it implicitly at that position -> only offer existing participants"
+    },
+    {
+      "id": "SQE-N01",
+      "op": "addNote",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    Note over A,B: n\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveGate": "PASS",
+      "note": "note over A,B after message 1"
+    },
+    {
+      "id": "SQE-N02",
+      "op": "addNote",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    Note over A: a;b\n",
+      "naiveGate": "FAIL-parse",
+      "note": "text with ';'"
+    },
+    {
+      "id": "SQE-N03",
+      "op": "editNoteText",
+      "source": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "naiveCandidate": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: finished\n",
+      "naiveGate": "PASS",
+      "note": "replace the text span"
+    },
+    {
+      "id": "SQE-N04",
+      "op": "changeNotePlacement",
+      "source": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note over A,B: done\n",
+      "naiveCandidate": "sequenceDiagram\n    A->>+B: call\n    B->>+C: inner\n    C-->>-B: r1\n    B-->>-A: r2\n    Note left of A,B: done\n",
+      "naiveGate": "FAIL-parse",
+      "note": "over A,B -> left of A"
+    },
+    {
+      "id": "SQE-N05",
+      "op": "deleteNote",
+      "source": "sequenceDiagram\n    participant A\n    Note over Z: n\n    A->>A: x\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A\n    A->>A: x\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "the note is the only mention of Z: naive deletion silently removes participant Z"
+    },
+    {
+      "id": "SQE-N06",
+      "op": "addNote",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    Note over Z: n\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "note referencing an unknown participant creates it -> refuse"
+    },
+    {
+      "id": "SQE-N07",
+      "op": "addNote",
+      "source": "sequenceDiagram\n    participant Big One\n    participant B\n    Big One->>B: x\n",
+      "naiveCandidate": "sequenceDiagram\n    participant Big One\n    participant B\n    Big One->>B: x\n    Note over Big One,B: n\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "participant id containing a space is not representable in 'over A,B' lists -> refuse unreadable ids"
+    },
+    {
+      "id": "SQE-B01",
+      "op": "editBlockText",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "naiveCandidate": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry 3x\n        U->>S: again\n    end\n",
+      "naiveGate": "PASS",
+      "note": "loop text"
+    },
+    {
+      "id": "SQE-B02",
+      "op": "editBlockText",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "naiveCandidate": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else:\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "'else' without text: add text after the keyword"
+    },
+    {
+      "id": "SQE-B03",
+      "op": "editBlockText",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "naiveCandidate": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop a;b #1\n        U->>S: again\n    end\n",
+      "naiveGate": "FAIL-parse",
+      "note": "text with ';' and '#'"
+    },
+    {
+      "id": "SQE-B04",
+      "op": "wrapInBlock",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    loop retry\n    B-->>A: Hi\n    A->>B: Bye\n    end\n",
+      "naiveGate": "PASS",
+      "note": "wrap messages 2-3 in a loop (same sibling level)"
+    },
+    {
+      "id": "SQE-B05",
+      "op": "wrapInBlock",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "naiveCandidate": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    loop x\n    alt ok\n        S-->>U: 200\n    end\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "naiveGate": "FAIL-parse",
+      "note": "range ends inside the alt (before 'else'): naive wrap breaks the block structure"
+    },
+    {
+      "id": "SQE-B06",
+      "op": "wrapInBlock",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    create participant C\n    B->>C: new\n    C->>A: ping\n    destroy C\n    A-xC: kill\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A\n    participant B\n    A->>B: hi\n    loop x\n    create participant C\n    end\n    B->>C: new\n    C->>A: ping\n    destroy C\n    A-xC: kill\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "wrap only the 'create participant' line, not its message"
+    },
+    {
+      "id": "SQE-B07",
+      "op": "unwrapBlock",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "naiveCandidate": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n        U->>S: again\n    end\n",
+      "naiveGate": "FAIL-parse",
+      "note": "loop without branches: delete header and its 'end'"
+    },
+    {
+      "id": "SQE-B08",
+      "op": "unwrapBlock",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "naiveCandidate": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    loop retry\n        U->>S: again\n    end\n",
+      "naiveGate": "FAIL-parse",
+      "note": "alt with an else branch cannot be unwrapped without a decision"
+    },
+    {
+      "id": "SQE-B09",
+      "op": "deleteBlock",
+      "source": "sequenceDiagram\n    participant A\n    participant B\n    loop L\n        A->>+B: x\n    end\n    B-->>-A: y\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A\n    participant B\n    B-->>-A: y\n",
+      "naiveGate": "FAIL-parse",
+      "note": "block whose content opens an activation closed outside: strip the outer '-'"
+    },
+    {
+      "id": "SQE-B10",
+      "op": "addBranch",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "naiveCandidate": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    else other\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "naiveGate": "PASS",
+      "note": "add 'else' to an alt before its 'end'"
+    },
+    {
+      "id": "SQE-B11",
+      "op": "deleteBranch",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "naiveCandidate": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "delete the else branch (header + its statements); naive deletes the header only (statements merge into the first branch)"
+    },
+    {
+      "id": "SQE-B12",
+      "op": "editBox",
+      "source": "sequenceDiagram\n    box Team\n        participant A\n    end\n    A->>A: x\n",
+      "naiveCandidate": "sequenceDiagram\n    box Red Team\n        participant A\n    end\n    A->>A: x\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "box title that begins with a CSS colour word becomes the fill colour"
+    },
+    {
+      "id": "SQE-X01",
+      "op": "toggleAutonumber(on)",
+      "source": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n    autonumber\n",
+      "naiveGate": "FAIL-semantic",
+      "note": "insert right after the header; naive at EOF numbers nothing"
+    },
+    {
+      "id": "SQE-X02",
+      "op": "toggleAutonumber(off)",
+      "source": "sequenceDiagram\n    autonumber\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveGate": "PASS",
+      "note": "delete the autonumber line"
+    },
+    {
+      "id": "SQE-X03",
+      "op": "editTitle",
+      "source": "sequenceDiagram\n    title Old\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n    title New\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hello\n    B-->>A: Hi\n    A->>B: Bye\n",
+      "naiveGate": "PASS",
+      "note": "title statement text"
+    },
+    {
+      "id": "SQE-X04",
+      "op": "addMessage",
+      "source": "sequenceDiagram\r\n    participant A as Alice\r\n    participant B as Bob\r\n    A->>B: Hello\r\n    B-->>A: Hi\r\n    A->>B: Bye\r\n",
+      "naiveCandidate": "sequenceDiagram\r\n    participant A as Alice\r\n    participant B as Bob\r\n    A->>B: Hello\r\n    B-->>A: Hi\r\n    A->>B: Bye\r\n    B-->>A: Later\n",
+      "naiveGate": "PASS",
+      "note": "CRLF source: inserted line must use CRLF (naive \\n gives mixed EOL; mermaid accepts it but the file gets mixed endings)"
+    },
+    {
+      "id": "SQE-X05",
+      "op": "addMessage",
+      "source": "sequenceDiagram\n\tparticipant A as Alice\n\tparticipant B as Bob\n\tA->>B: Hello\n\tB-->>A: Hi\n\tA->>B: Bye\n",
+      "naiveCandidate": "sequenceDiagram\n\tparticipant A as Alice\n\tparticipant B as Bob\n\tA->>B: Hello\n\tB-->>A: Hi\n\tA->>B: Bye\n    B-->>A: Later\n",
+      "naiveGate": "PASS",
+      "note": "tab-indented source: reuse the indent of the neighbour"
+    },
+    {
+      "id": "SQE-X06",
+      "op": "deleteMessage",
+      "source": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n        U->>S: again\n    end\n",
+      "naiveCandidate": "sequenceDiagram\n    participant U as User\n    participant S as Server\n    U->>S: req\n    alt ok\n        S-->>U: 200\n    else fail\n        S-->>U: 500\n    end\n    loop retry\n    end\n",
+      "naiveGate": "PASS",
+      "note": "line inside a block that leaves the block empty (valid, stays)"
+    }
+  ]
+}

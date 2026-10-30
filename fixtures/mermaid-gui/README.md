@@ -44,3 +44,12 @@ Input of the differential test of the sequence reader (`src/features/mermaid/seq
 - Project-authored research input: no third-party code or corpus is included.
 - Fields: `id` (origin prefix kept), `group`, `source`, `note` (the corpus author's expectation in words, informal).
 - The expected results are not stored: Mermaid 12.1.0 is the reference and decides at test time. The test asserts recorded counts, so a change in Mermaid or in the reader shows up as a failure.
+
+## sequence-scenarios.json (Step S-2)
+
+The edit scenarios of the sequence editor (`src/features/mermaid/sequence-operations.real.dom.test.ts`, docs/architecture.md §16.16.5). 79 scenarios: all the hand-made edit scenarios of the Step 9-7 research. The test has a typed `SequenceOperation` and an expected outcome (planned, or refused with a reason) for the 61 that concern a Tier 1 operation or a construct the editor treats as read-only; the others (deleting or reordering participants, swapping the direction, duplicating, wrapping, unwrapping, adding or deleting a branch, box edits) are Tier 2 and are not exercised.
+
+- Origin: the same archive and generation as `sequence-corpus.json` (`src/seq-scenarios.ts`, `src/edit-lib.ts`, `raw/seq-edit-results.json`).
+- Project-authored research input: no third-party code is included.
+- Fields: `id` (the research id, e.g. `SQE-M11`), `op` (the research's name for the operation), `source`, `naiveCandidate` (the text after the research's hand-made edit), `naiveGate` (how Mermaid and the research's comparison judged that text: `PASS`, `FAIL-parse`, `FAIL-render` or `FAIL-semantic`), `note`.
+- Where `naiveGate` is not `PASS` and the editor plans the operation, the test asserts that the naive text really differs from the promised meaning in Mermaid 12.1.0 (one documented exception: `SQE-M08`, see the test).
