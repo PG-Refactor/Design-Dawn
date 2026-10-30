@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -7,6 +8,7 @@ import {
   SHEET_A2,
 } from "../../application/test-support/workspace-harness";
 import { makeDocumentADirty } from "./test-support/actions-harness";
+import { chooseMenuItem } from "./test-support/menu-helpers";
 import {
   applyOutsideUi,
   chooseRowMenuItem,
@@ -95,9 +97,7 @@ describe("name dialog", () => {
 
   it("creates a project from a name dialog", async () => {
     const harness = await renderShell();
-    await harness.user.click(
-      screen.getByRole("button", { name: "新規Project" }),
-    );
+    await chooseMenuItem(harness.user, "ファイル", "新規Project…");
     const dialog = screen.getByRole("dialog", { name: "新規Project" });
     await harness.user.type(
       within(dialog).getByRole("textbox", { name: "Project名" }),
@@ -236,7 +236,7 @@ describe("delete confirmation", () => {
     expect(harness.container.hasAttribute("inert")).toBe(true);
     expect(harness.container.getAttribute("aria-hidden")).toBe("true");
     expect(screen.queryByRole("tree")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Projectを開く" })).toBeNull();
+    expect(screen.queryByRole("menubar")).toBeNull();
 
     await harness.user.keyboard("{Escape}");
     expect(harness.container.hasAttribute("inert")).toBe(false);

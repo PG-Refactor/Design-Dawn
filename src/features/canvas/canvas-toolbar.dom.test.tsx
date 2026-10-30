@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { settle } from "../../application/test-support/fakes";
 import { SHEET_A1 } from "../../application/test-support/workspace-harness";
@@ -48,7 +54,7 @@ describe("+ Block menu", () => {
     await shell.user.click(addButton());
     expect(addButton().getAttribute("aria-expanded")).toBe("true");
     const menu = screen.getByRole("menu", { name: "追加するBlockの種類" });
-    const items = screen.getAllByRole("menuitem");
+    const items = within(screen.getByRole("menu")).getAllByRole("menuitem");
     expect(items.map((item) => item.textContent)).toEqual([
       "Markdown",
       "Mermaid",

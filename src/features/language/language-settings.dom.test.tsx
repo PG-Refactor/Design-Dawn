@@ -6,6 +6,7 @@ import {
   DISPLAY_LANGUAGE_NATIVE_NAMES,
   LANGUAGE_PREFERENCES,
 } from "../../config/language-config";
+import { openMenu } from "../workspace/test-support/menu-helpers";
 import { renderShell } from "../workspace/test-support/shell-harness";
 import { WORKSPACE_MESSAGES } from "../workspace/workspace-messages";
 
@@ -24,23 +25,40 @@ async function renderLoaded(systemLanguages?: readonly string[]) {
 }
 
 // "System" exists in both the language and the theme group, so a radio is looked up
-// inside its group.
-const radio = (name: string, legend: string = JA.languageLegend) =>
-  within(screen.getByRole("group", { name: legend })).getByRole("radio", {
-    name,
-  }) as HTMLInputElement;
+// inside its group of the (opened) View menu.
+async function radio(
+  shell: Awaited<ReturnType<typeof renderLoaded>>,
+  name: string,
+  language: typeof JA | typeof EN = JA,
+  legend: string = language.languageLegend,
+) {
+  const menu = await openMenu(shell.user, language.viewMenu);
+  return within(within(menu).getByRole("group", { name: legend })).getByRole(
+    "menuitemradio",
+    { name },
+  );
+}
+const isChecked = (element: HTMLElement) =>
+  element.getAttribute("aria-checked") === "true";
 
 describe("language selector", () => {
   it("offers System plus each language in its own name", async () => {
-    await renderLoaded();
-    const group = screen.getByRole("group", { name: JA.languageLegend });
-    const values = within(group)
-      .getAllByRole("radio")
-      .map((item) => item.getAttribute("value"));
-    expect(values).toEqual([...LANGUAGE_PREFERENCES]);
-    expect(radio(JA.systemOption).checked).toBe(true);
-    expect(radio(DISPLAY_LANGUAGE_NATIVE_NAMES.en)).toBeTruthy();
-    expect(radio(DISPLAY_LANGUAGE_NATIVE_NAMES.ja)).toBeTruthy();
+    const shell = await renderLoaded();
+    const menu = await openMenu(shell.user, JA.viewMenu);
+    const group = within(menu).getByRole("group", { name: JA.languageLegend });
+    const labels = within(group)
+      .getAllByRole("menuitemradio")
+      .map((item) => item.textContent);
+    expect(labels).toEqual(
+      LANGUAGE_PREFERENCES.map((preference) =>
+        preference === "system"
+          ? JA.systemOption
+          : DISPLAY_LANGUAGE_NATIVE_NAMES[preference],
+      ),
+    );
+    expect(isChecked(await radio(shell, JA.systemOption))).toBe(true);
+    expect(await radio(shell, DISPLAY_LANGUAGE_NATIVE_NAMES.en)).toBeTruthy();
+    expect(await radio(shell, DISPLAY_LANGUAGE_NATIVE_NAMES.ja)).toBeTruthy();
   });
 
   it("reflects the stored preference", async () => {
@@ -49,34 +67,37 @@ describe("language selector", () => {
     await act(async () => {
       await shell.languageController.initialize();
     });
-    expect(radio("English", EN.languageLegend).checked).toBe(true);
+    expect(isChecked(await radio(shell, "English", EN))).toBe(true);
   });
 
   it("saves the choice and switches the UI to English at once", async () => {
     const shell = await renderLoaded();
-    await shell.user.click(radio("English"));
+    await shell.user.click(await radio(shell, "English"));
     await waitFor(() => {
-      expect(
-        screen.getByRole("group", { name: EN.languageLegend }),
-      ).toBeTruthy();
+      expect(screen.getByRole("menuitem", { name: EN.viewMenu })).toBeTruthy();
     });
     expect(shell.languageGateway.languageCalls).toEqual(["en"]);
-    expect(screen.getByRole("group", { name: EN.themeLegend })).toBeTruthy();
-    expect(screen.queryByText(JA.openProject)).toBeNull();
-    expect(screen.getByText(EN.openProject)).toBeTruthy();
+    const menu = await openMenu(shell.user, EN.viewMenu);
+    expect(
+      within(menu).getByRole("group", { name: EN.themeLegend }),
+    ).toBeTruthy();
+    expect(
+      within(menu).getByRole("group", { name: EN.languageLegend }),
+    ).toBeTruthy();
+    expect(screen.queryByText(JA.viewMenu)).toBeNull();
     // The language names do not change with the language.
-    expect(radio("日本語", EN.languageLegend)).toBeTruthy();
-    expect(radio(EN.systemOption, EN.languageLegend)).toBeTruthy();
+    expect(await radio(shell, "日本語", EN)).toBeTruthy();
+    expect(await radio(shell, EN.systemOption, EN)).toBeTruthy();
   });
 
   it("shows a failed save as a notification and keeps the choice", async () => {
     const shell = await renderLoaded();
     shell.languageGateway.failSet = FAKE_SETTINGS_ERROR;
-    await shell.user.click(radio("English"));
+    await shell.user.click(await radio(shell, "English"));
     await waitFor(() => {
       expect(shell.languageGateway.languageCalls).toEqual(["en"]);
     });
-    expect(radio(JA.systemOption).checked).toBe(true);
+    expect(isChecked(await radio(shell, JA.systemOption))).toBe(true);
     await shell.user.click(
       screen.getByRole("button", { name: /エラー|error/i }),
     );
@@ -88,8 +109,9 @@ describe("language selector", () => {
   });
 
   it("is disabled until the setting is loaded", async () => {
-    await renderShell();
-    expect(radio(JA.systemOption).disabled).toBe(true);
+    const shell = await renderShell();
+    const item = await radio(shell, JA.systemOption);
+    expect(item.getAttribute("aria-disabled")).toBe("true");
   });
 });
 
@@ -97,11 +119,11 @@ describe("theme labels", () => {
   it("are shown in Japanese and in English", async () => {
     const shell = await renderLoaded();
     for (const label of [JA.themeLight, JA.themeDark]) {
-      expect(radio(label, JA.themeLegend)).toBeTruthy();
+      expect(await radio(shell, label, JA, JA.themeLegend)).toBeTruthy();
     }
     act(() => shell.languageController.applyExternal("en"));
     for (const label of [EN.themeLight, EN.themeDark]) {
-      expect(radio(label, EN.themeLegend)).toBeTruthy();
+      expect(await radio(shell, label, EN, EN.themeLegend)).toBeTruthy();
     }
   });
 });

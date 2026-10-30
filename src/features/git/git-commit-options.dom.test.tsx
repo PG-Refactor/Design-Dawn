@@ -92,7 +92,7 @@ describe("commit split menu", () => {
     expect(splitTrigger().getAttribute("aria-haspopup")).toBe("menu");
     splitTrigger().focus();
     await shell.user.keyboard("{ArrowDown}");
-    const items = screen.getAllByRole("menuitem");
+    const items = within(screen.getByRole("menu")).getAllByRole("menuitem");
     expect(items.map((entry) => entry.textContent)).toEqual([
       ja.commitActions.commit,
       ja.commitActions.amend,
@@ -185,7 +185,9 @@ describe("commit split menu", () => {
     const release = shell.gitGateway.holdNextCommit();
     await shell.user.keyboard("{Control>}{Enter}{/Control}");
     await shell.user.click(splitTrigger());
-    for (const entry of screen.getAllByRole("menuitem")) {
+    for (const entry of within(screen.getByRole("menu")).getAllByRole(
+      "menuitem",
+    )) {
       expect(entry.getAttribute("aria-disabled")).toBe("true");
     }
     await act(async () => {
@@ -203,7 +205,9 @@ describe("commit split menu", () => {
       }),
     );
     expect(
-      screen.getAllByRole("menuitem").map((entry) => entry.textContent),
+      within(screen.getByRole("menu"))
+        .getAllByRole("menuitem")
+        .map((entry) => entry.textContent),
     ).toEqual(["Commit", "Commit (Amend)", "Commit & Push", "Commit & Sync"]);
   });
 });
@@ -367,7 +371,9 @@ describe("header More Actions menu", () => {
     const shell = await openGit(statusOf([STAGED]));
     await shell.user.click(moreTrigger());
     expect(
-      screen.getAllByRole("menuitem").map((entry) => entry.textContent),
+      within(screen.getByRole("menu"))
+        .getAllByRole("menuitem")
+        .map((entry) => entry.textContent),
     ).toEqual([
       ja.headerActions.pull,
       ja.headerActions.push,

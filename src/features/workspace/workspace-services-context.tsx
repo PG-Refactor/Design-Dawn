@@ -19,8 +19,6 @@ import type {
 import type { Store } from "../../shared/store/store";
 import type { CanvasActions } from "../canvas/canvas-actions";
 import type { ViewportPersistence } from "../canvas/viewport-persistence";
-import type { AutoSaveSettingsController } from "../settings/auto-save-settings";
-import type { ThemeSettingsController } from "../theme/theme-settings";
 import type { DraftRegistry } from "./draft-registry";
 import type { UiStateStore } from "./ui-state/ui-state";
 import type { WorkspaceActions } from "./workspace-actions";
@@ -45,17 +43,21 @@ export interface WorkspaceServices {
   // The `src` of an image block's `<img>`.
   readonly assetUrlResolver: AssetUrlResolver;
   // `applyExternal`: settings another window changed (see `createSettingsChangeHandler`).
-  readonly themeController: ThemeSettingsController &
-    Pick<ThemeController, "applyExternal"> & {
-      readonly store: Store<ThemeState>;
-    };
+  readonly themeController: Pick<
+    ThemeController,
+    "store" | "setPreference" | "applyExternal"
+  > & {
+    readonly store: Store<ThemeState>;
+  };
   // `applyExternal` as for the theme; the UI texts follow `store` (see `useMessages`).
   readonly languageController: Pick<
     LanguageController,
     "store" | "setPreference" | "applyExternal"
   >;
-  readonly autoSaveController: AutoSaveSettingsController &
-    Pick<AutoSaveController, "applyExternal">;
+  readonly autoSaveController: Pick<
+    AutoSaveController,
+    "store" | "setEnabled" | "applyExternal"
+  >;
   readonly layoutSettingsController: Pick<
     LayoutSettingsController,
     "store" | "setProjectTreeWidth"

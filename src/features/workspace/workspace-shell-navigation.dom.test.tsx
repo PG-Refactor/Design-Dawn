@@ -6,6 +6,7 @@ import {
   DOCUMENT_B,
   FAILED_DOCUMENT_ID,
 } from "../../application/test-support/workspace-harness";
+import { menuItem, openMenu } from "./test-support/menu-helpers";
 import { openRowMenu, renderShell } from "./test-support/shell-harness";
 
 afterEach(() => {
@@ -30,10 +31,10 @@ function isSelected(element: HTMLElement): boolean {
 
 describe("empty state and opening a project", () => {
   it("shows an empty state, then the documents in order after opening a project", async () => {
-    const { openProjectInUi } = await renderShell();
+    const { user, openProjectInUi } = await renderShell();
     expect(screen.getByText("Projectが開かれていません")).toBeTruthy();
     expect(screen.queryByRole("tree")).toBeNull();
-    expect(screen.getByRole("button", { name: "新規Project" })).toBeTruthy();
+    expect(await menuItem(user, "ファイル", "新規Project…")).toBeTruthy();
 
     await openProjectInUi();
 
@@ -57,9 +58,10 @@ describe("empty state and opening a project", () => {
     ).toBeTruthy();
   });
 
-  it("places the theme settings in the top bar", async () => {
-    await renderShell();
-    expect(screen.getByRole("group", { name: "テーマ" })).toBeTruthy();
+  it("places the theme settings in the View menu of the top bar", async () => {
+    const { user } = await renderShell();
+    const menu = await openMenu(user, "表示");
+    expect(within(menu).getByRole("group", { name: "テーマ" })).toBeTruthy();
   });
 });
 

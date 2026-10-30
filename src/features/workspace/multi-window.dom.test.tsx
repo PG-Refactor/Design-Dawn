@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+
 import { act, cleanup, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { OPEN_IN_NEW_WINDOW_STATUS } from "../../application/ports/persistence-types";
@@ -9,6 +10,7 @@ import {
 } from "../../application/test-support/workspace-harness";
 import { LAYOUT_CONFIG } from "../../config/layout-config";
 import { makeDocumentADirty } from "./test-support/actions-harness";
+import { chooseMenuItem } from "./test-support/menu-helpers";
 import { chooseRowMenuItem, renderShell } from "./test-support/shell-harness";
 import { WORKSPACE_MESSAGES } from "./workspace-messages";
 
@@ -43,10 +45,10 @@ async function emitOpenDocument(
 describe("open in a new window", () => {
   it("is offered next to open / create when no Project is open", async () => {
     const shell = await renderShell();
-    await shell.user.click(
-      screen.getByRole("button", {
-        name: MESSAGES.topBar.openProjectInNewWindow,
-      }),
+    await chooseMenuItem(
+      shell.user,
+      MESSAGES.topBar.fileMenu,
+      MESSAGES.topBar.openProjectInNewWindow,
     );
     await settle();
 
@@ -63,10 +65,10 @@ describe("open in a new window", () => {
     await shell.openProjectInUi();
     shell.gateway.clearCalls();
 
-    await shell.user.click(
-      screen.getByRole("button", {
-        name: MESSAGES.topBar.openProjectInNewWindow,
-      }),
+    await chooseMenuItem(
+      shell.user,
+      MESSAGES.topBar.fileMenu,
+      MESSAGES.topBar.openProjectInNewWindow,
     );
     await settle();
 
@@ -102,10 +104,10 @@ describe("open in a new window", () => {
       status: OPEN_IN_NEW_WINDOW_STATUS.focusedExisting,
       inThisWindow: false,
     });
-    await shell.user.click(
-      screen.getByRole("button", {
-        name: MESSAGES.topBar.openProjectInNewWindow,
-      }),
+    await chooseMenuItem(
+      shell.user,
+      MESSAGES.topBar.fileMenu,
+      MESSAGES.topBar.openProjectInNewWindow,
     );
 
     const notice = await screen.findByText(

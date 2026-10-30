@@ -17,6 +17,7 @@ import {
   createActionsHarness,
   seedProjectIssues,
 } from "./actions-harness";
+import { chooseMenuItem } from "./menu-helpers";
 
 // A shell test that does not care about diagrams still must not load the real library.
 const defaultMermaidRenderer = createFakeRenderer();
@@ -24,7 +25,7 @@ const defaultMermaidRenderer = createFakeRenderer();
 export interface ShellHarness extends ActionsHarness {
   readonly user: ReturnType<typeof userEvent.setup>;
   readonly container: HTMLElement;
-  // Clicks the "open Project" button (in the current language) and waits for the tree.
+  // Chooses "open Project" in the File menu (in the current language) and waits for the tree.
   openProjectInUi(): Promise<void>;
   // Lets the auto-save timer fire and waits for the save to finish.
   runAutoSave(): Promise<void>;
@@ -66,11 +67,8 @@ export async function renderShell(
     container,
     async openProjectInUi() {
       const { language } = harness.services.languageController.store.getState();
-      await user.click(
-        screen.getByRole("button", {
-          name: messagesFor(language).workspace.topBar.openProject,
-        }),
-      );
+      const { topBar } = messagesFor(language).workspace;
+      await chooseMenuItem(user, topBar.fileMenu, topBar.openProject);
       await screen.findByRole("tree");
     },
     async runAutoSave() {

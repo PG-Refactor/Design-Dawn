@@ -70,7 +70,10 @@ import {
   seedFolderTree,
   type WorkspaceHarness,
 } from "../../../application/test-support/workspace-harness";
-import { createThemeController } from "../../../application/theme/theme-controller";
+import {
+  createThemeController,
+  type ThemeController,
+} from "../../../application/theme/theme-controller";
 import {
   createWorkspace,
   type Workspace,
@@ -119,6 +122,7 @@ export interface ActionsHarness extends WorkspaceHarness {
   // The language controller has its own settings gateway, so a test can fail or inspect
   // its saves without touching the theme / auto-save ones.
   readonly languageController: LanguageController;
+  readonly themeController: ThemeController;
   readonly languageGateway: FakeAppSettingsGateway;
   readonly externalChangeController: ExternalChangeController;
   readonly loadIssueRepairController: LoadIssueRepairController;
@@ -212,6 +216,7 @@ export function createActionsHarness(
     gitController,
     gitRefreshScheduler,
     languageController,
+    themeController,
     languageGateway,
     uiStateStore,
     actions,
