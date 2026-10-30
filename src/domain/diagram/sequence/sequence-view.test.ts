@@ -93,4 +93,71 @@ describe("readSequenceView", () => {
       textRestriction: "entityLikeText",
     });
   });
+
+  it("says why a participant cannot be deleted or moved (Tier 2)", () => {
+    const result = view(
+      "sequenceDiagram\n  participant A\n  participant B\n  A->>+B: x\n  Note over A,B: n\n  B-->>-A: y\n",
+    );
+    const [first, second] = result.participants;
+    expect(first).toMatchObject({
+      deleteRestriction: "noteSpansParticipants",
+      moveLeftRestriction: "atBoundary",
+      moveRightRestriction: null,
+    });
+    expect(second).toMatchObject({
+      moveLeftRestriction: null,
+      moveRightRestriction: "atBoundary",
+    });
+  });
+
+  it("offers the choices of a message and says which are refused (Tier 2)", () => {
+    const result = view(
+      "sequenceDiagram\n  A->>+B: x\n  B->>+C: y\n  C-->>-B: z\n  B-->>-A: w\n",
+    );
+    const [x, y] = result.entries;
+    expect(x).toMatchObject({
+      kind: "message",
+      duplicateRestriction: null,
+      // The - of `w` would lose its +.
+      activationRestrictions: {
+        "+": null,
+        "-": "activationPairing",
+        none: "activationPairing",
+      },
+    });
+    expect(y).toMatchObject({
+      activationRestrictions: { none: "activationPairing" },
+    });
+  });
+
+  it("lists where a wrapped range may end and what a block or branch can do (Tier 2)", () => {
+    const result = view(
+      "sequenceDiagram\n  A->>B: 1\n  alt a\n    A->>B: 2\n  else b\n    A->>B: 3\n  end\n  loop l\n    A->>B: 4\n  end\n  A->>B: 5\n",
+    );
+    const entry = (position: number) => result.entries[position];
+    const first = entry(0);
+    if (first?.kind !== "message") throw new Error("expected a message");
+    // `1`, the whole alt, the whole loop and `5`; nothing inside a block.
+    expect(first.wrapEnds.map((end) => end.index)).toEqual([0, 1, 6, 9]);
+    const alt = entry(1);
+    if (alt?.kind !== "blockStart") throw new Error("expected a block");
+    expect(alt).toMatchObject({
+      branchKeyword: "else",
+      unwrapRestriction: "hasBranches",
+      addBranchRestriction: null,
+      wrapRestriction: null,
+    });
+    const loop = entry(6);
+    expect(loop).toMatchObject({
+      kind: "blockStart",
+      branchKeyword: null,
+      unwrapRestriction: null,
+      addBranchRestriction: "noBranches",
+    });
+    const inside = entry(2);
+    if (inside?.kind !== "message") throw new Error("expected a message");
+    // A range inside a branch ends at the end of that branch.
+    expect(inside.wrapEnds.map((end) => end.index)).toEqual([2]);
+    expect(entry(3)).toMatchObject({ kind: "branch", deleteRestriction: null });
+  });
 });

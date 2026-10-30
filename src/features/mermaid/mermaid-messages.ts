@@ -214,6 +214,25 @@ const MERMAID_MESSAGES_JA = {
       wrongTargetKind: "対象の種類がこの操作と合いません。",
       firstMentionNotFound: "その参加者が書かれた位置が見つかりません。",
       declarationNotFound: "その参加者の宣言が見つかりません。",
+      noteSpansParticipants:
+        "この参加者と他の参加者にまたがる注釈があるため削除できません。先にその注釈を削除または変更してください。",
+      activationPairing:
+        "有効化（+ / activate）と無効化（- / deactivate）の対応が変わってしまうため、適用しませんでした。先に対になる側を外してください。",
+      declarationInRange:
+        "範囲の中に参加者の宣言があるため、適用しませんでした。",
+      statementsShareLine:
+        "変更する文が他の文と同じ行にあるため、GUIでは変更できません。ソースで編集してください。",
+      rangeCrossesBlock:
+        "範囲がブロックまたは枝を途中で分けてしまうため、囲めません。同じ階層・同じ枝の中で選んでください。",
+      rangeOrder: "範囲の終わりが始まりより前にあります。",
+      unsupportedInRange:
+        "範囲の中に参加者の宣言・タイトル・autonumber などがあるため、GUIでは扱えません。",
+      hasBranches:
+        "枝（else / and / option）があるため解除できません。先に枝を削除してください。",
+      noBranches: "このブロックには枝がありません。",
+      notInBlock: "選んだ項目はこのブロックの直下にありません。",
+      invalidBlock: "このブロックでは囲めません。",
+      invalidSign: "この記号は書き込めません。",
     },
     flowchart: {
       directionLabel: "向き",
@@ -377,6 +396,29 @@ const MERMAID_MESSAGES_JA = {
       moveDown: "下へ",
       deleteMessage: "メッセージを削除",
       deleteNote: "注釈を削除",
+      moveLeft: "左へ",
+      moveRight: "右へ",
+      deleteParticipant: "参加者を削除（メッセージ・注釈も削除）",
+      duplicateMessage: "メッセージを複製",
+      activationField: "有効化",
+      activationChoices: {
+        none: "なし",
+        "+": "+（受け側を有効化）",
+        "-": "-（送り側を無効化）",
+      },
+      unwrapBlock: "ブロックを解除（中身は残す）",
+      deleteBranch: "枝を削除（中身も削除）",
+      blockToolsHeading: "ブロック・枝",
+      wrapBlockField: "囲むブロックの種類",
+      wrapThroughField: "範囲の最後の項目",
+      wrapThroughSelf: "選択中の項目のみ",
+      blockToolsText: "新しいブロック・枝のテキスト",
+      wrapInBlock: "選択した範囲をブロックで囲む",
+      addBranch: "枝を追加（ブロックの末尾）",
+      blockToolsHint:
+        "メッセージ・注釈・ブロックを選ぶと、ブロックで囲めます。",
+      blockToolsPending:
+        "ブロック・枝のテキストが未適用です。ボタンで適用するか、空にしてください。",
       noSelection: "一覧から参加者または項目を選ぶと編集できます。",
       restrictedText: "このテキストはGUIから変更できません",
       addParticipantHeading: "参加者を追加",
@@ -737,6 +779,25 @@ const MERMAID_MESSAGES_EN: MermaidMessages = {
         "The place where that participant is written cannot be found.",
       declarationNotFound:
         "The declaration of that participant cannot be found.",
+      noteSpansParticipants:
+        "A note names this participant and another one, so it cannot be deleted. Delete or change the note first.",
+      activationPairing:
+        "The pairing of activations (+ / activate) and deactivations (- / deactivate) would change, so nothing was applied. Remove the other end first.",
+      declarationInRange:
+        "A participant declaration is inside the range, so nothing was applied.",
+      statementsShareLine:
+        "A statement to change shares its line with another one, so the GUI cannot change it. Edit it in Source.",
+      rangeCrossesBlock:
+        "The range would cut a block or a branch in two, so it cannot be wrapped. Pick entries at the same level of the same branch.",
+      rangeOrder: "The end of the range is before its start.",
+      unsupportedInRange:
+        "The range holds a participant declaration, a title or an autonumber, which the GUI does not move.",
+      hasBranches:
+        "The block has branches (else / and / option), so it cannot be unwrapped. Delete the branches first.",
+      noBranches: "This block has no branches.",
+      notInBlock: "The chosen entry is not directly inside this block.",
+      invalidBlock: "A block of this kind cannot be written here.",
+      invalidSign: "This sign cannot be written.",
     },
     flowchart: {
       directionLabel: "Direction",
@@ -889,6 +950,28 @@ const MERMAID_MESSAGES_EN: MermaidMessages = {
       moveDown: "Move down",
       deleteMessage: "Delete message",
       deleteNote: "Delete note",
+      moveLeft: "Move left",
+      moveRight: "Move right",
+      deleteParticipant: "Delete participant (and its messages and notes)",
+      duplicateMessage: "Duplicate message",
+      activationField: "Activation",
+      activationChoices: {
+        none: "None",
+        "+": "+ (activates the receiver)",
+        "-": "- (deactivates the sender)",
+      },
+      unwrapBlock: "Unwrap block (keep its content)",
+      deleteBranch: "Delete branch (and its content)",
+      blockToolsHeading: "Blocks and branches",
+      wrapBlockField: "Kind of block to wrap in",
+      wrapThroughField: "Last entry of the range",
+      wrapThroughSelf: "Only the selected entry",
+      blockToolsText: "Text of the new block or branch",
+      wrapInBlock: "Wrap the selected range in a block",
+      addBranch: "Add branch (at the end of the block)",
+      blockToolsHint: "Select a message, note or block to wrap it in a block.",
+      blockToolsPending:
+        "The text of a new block or branch is not applied. Press a button to apply it, or empty the field.",
       noSelection: "Select a participant or an entry in a list to edit it.",
       restrictedText: "This text cannot be changed from the GUI",
       addParticipantHeading: "Add participant",

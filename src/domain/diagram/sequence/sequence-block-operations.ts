@@ -148,7 +148,7 @@ export function planWrapInBlock(
     return refuse("rangeCrossesBlock", "no last statement");
   if (!isFirstOnLine(reading, first) || !isLastOnLine(reading, last)) {
     return refuse(
-      "sharedLine",
+      "statementsShareLine",
       "the range shares a line with other statements",
     );
   }
@@ -227,7 +227,7 @@ export function planUnwrapBlock(
   }
   if (!occupiesWholeLine(reading, header) || !occupiesWholeLine(reading, end)) {
     return refuse(
-      "sharedLine",
+      "statementsShareLine",
       "the header or the end of the block shares its line with something else",
     );
   }
@@ -290,7 +290,10 @@ export function planAddBranch(
   let itemIndex: number;
   if (operation.after === undefined) {
     if (!isFirstOnLine(reading, end)) {
-      return refuse("sharedLine", "the end of the block shares its line");
+      return refuse(
+        "statementsShareLine",
+        "the end of the block shares its line",
+      );
     }
     edit = insertLineBeforeEdit(reading, end.lineIndex, line);
     itemIndex = meaning.items.findIndex(

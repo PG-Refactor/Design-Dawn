@@ -187,7 +187,7 @@ describe("deleteParticipant", () => {
     const source = "sequenceDiagram\n    A->>B: x; B->>A: y\n    A->>C: z\n";
     expect(
       refusal(source, { kind: "deleteParticipant", participantId: "B" }),
-    ).toBe("sharedLine");
+    ).toBe("statementsShareLine");
   });
 
   it("refuses an unknown participant", () => {
@@ -425,7 +425,7 @@ describe("wrapInBlock", () => {
         block: "loop",
         text: "",
       }),
-    ).toBe("sharedLine");
+    ).toBe("statementsShareLine");
     expect(
       refusal(SR1, {
         kind: "wrapInBlock",
@@ -487,7 +487,7 @@ describe("unwrapBlock", () => {
     const source = "sequenceDiagram\n  loop x # why\n    A->>B: 1\n  end\n";
     expect(
       refusal(source, { kind: "unwrapBlock", target: h(source, "x") }),
-    ).toBe("sharedLine");
+    ).toBe("statementsShareLine");
     expect(refusal(SR1, { kind: "unwrapBlock", target: m(SR1, "Hi") })).toBe(
       "wrongTargetKind",
     );
@@ -545,7 +545,7 @@ describe("addBranch / deleteBranch", () => {
     const shared = "sequenceDiagram\n  alt a\n    A->>B: 1; end\n  A->>B: 2\n";
     expect(
       refusal(shared, { kind: "addBranch", target: h(shared, "a"), text: "" }),
-    ).toBe("sharedLine");
+    ).toBe("statementsShareLine");
   });
 
   it("deletes a branch with its statements", () => {

@@ -23,6 +23,7 @@ import { GuiDraftLabelField } from "./gui-draft-label-field";
 import { SequenceAddMessage } from "./sequence-add-message";
 import { SequenceAddNote } from "./sequence-add-note";
 import { SequenceAddParticipant } from "./sequence-add-participant";
+import { SequenceBlockTools } from "./sequence-block-tools";
 import { SequenceEntryEditor } from "./sequence-entry-editor";
 import { SequenceEntryList } from "./sequence-entry-list";
 import { entryKey } from "./sequence-entry-text";
@@ -88,6 +89,7 @@ export function SequenceGuiPanel({
   const addParticipantInputRef = useRef<(() => boolean) | null>(null);
   const addMessageInputRef = useRef<(() => boolean) | null>(null);
   const addNoteInputRef = useRef<(() => boolean) | null>(null);
+  const blockToolsInputRef = useRef<(() => boolean) | null>(null);
   // True from the moment this panel sends an operation until the view has followed it: only
   // then may a selected entry that no longer matches be looked up by its position (an edit
   // changes what the entry holds). An undo, a redo or a Source edit never gets that
@@ -202,7 +204,8 @@ export function SequenceGuiPanel({
     if (
       addParticipantInputRef.current?.() === true ||
       addMessageInputRef.current?.() === true ||
-      addNoteInputRef.current?.() === true
+      addNoteInputRef.current?.() === true ||
+      blockToolsInputRef.current?.() === true
     ) {
       setInputError(gui.addInputPending);
       return operationErr(
@@ -223,18 +226,14 @@ export function SequenceGuiPanel({
     };
   });
 
-  async function deleteEntry(entry: SequenceEntryView): Promise<void> {
-    // The delete button disappears with the selection; the focus moves first, because an
-    // element that is removed while focused would look like leaving the editor.
+  // For an operation after which the selected element is gone (a delete, an unwrap).
+  async function removeSelected(
+    sequenceOperation: SequenceOperation,
+  ): Promise<void> {
+    // The button disappears with the selection; the focus moves first, because an element
+    // that is removed while focused would look like leaving the editor.
     (entryListRef.current ?? addParticipantLabelRef.current)?.focus();
-    const operationToRun: SequenceOperation | null =
-      entry.kind === "message"
-        ? { kind: "deleteMessage", target: entry.target }
-        : entry.kind === "note"
-          ? { kind: "deleteNote", target: entry.target }
-          : null;
-    if (operationToRun === null) return;
-    const outcome = await run(operationToRun);
+    const outcome = await run(sequenceOperation);
     if (outcome !== "applied") return;
     setSelectionKey((key) => key + 1);
     setSelection(null);
@@ -373,6 +372,10 @@ export function SequenceGuiPanel({
           participant={selectedParticipant}
           busy={busy}
           runDraft={runDraft}
+          run={run}
+          onRemove={(sequenceOperation) =>
+            void removeSelected(sequenceOperation)
+          }
           onInvalidInput={setInputError}
           labelInputRef={editorLabelRef}
           commitPendingRef={commitPendingRef}
@@ -388,11 +391,23 @@ export function SequenceGuiPanel({
           run={run}
           runDraft={runDraft}
           onInvalidInput={setInputError}
-          onDelete={(entry) => void deleteEntry(entry)}
+          onRemove={(sequenceOperation) =>
+            void removeSelected(sequenceOperation)
+          }
           labelInputRef={editorLabelRef}
           commitPendingRef={commitPendingRef}
         />
       )}
+      <SequenceBlockTools
+        documentId={documentId}
+        blockId={blockId}
+        entries={view.entries}
+        selected={selection?.kind === "entry" ? selectedEntry : undefined}
+        busy={busy}
+        runDraft={runDraft}
+        onInvalidInput={setInputError}
+        hasInputRef={blockToolsInputRef}
+      />
       <SequenceAddParticipant
         documentId={documentId}
         blockId={blockId}

@@ -73,7 +73,10 @@ export function planStatementRemoval(
     );
   }
   if ([...perLine.values()].some((count) => count > 1)) {
-    return refuse("sharedLine", "several statements to remove share a line");
+    return refuse(
+      "statementsShareLine",
+      "several statements to remove share a line",
+    );
   }
   const edits: TextEdit[] = [];
   const wholeLines = new Set<number>();

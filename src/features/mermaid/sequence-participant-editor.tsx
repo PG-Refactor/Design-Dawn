@@ -1,4 +1,4 @@
-import type { MutableRefObject, Ref } from "react";
+import { type MutableRefObject, type Ref, useId } from "react";
 import type { ApplyDiagramEditsOutcome } from "../../application/diagram/apply-diagram-edits";
 import type { OperationResult } from "../../application/ports/operation-error";
 import { SEQUENCE_PARTICIPANT_KINDS } from "../../domain/diagram/sequence/sequence-config";
@@ -7,7 +7,7 @@ import type { SequenceParticipantView } from "../../domain/diagram/sequence/sequ
 import type { BlockId, DocumentId } from "../../domain/shared/entity-id";
 import { useMessages } from "../workspace/use-messages";
 import { describeRestriction } from "./diagram-gui-text";
-import { GuiSelect } from "./gui-controls";
+import { GuiButton, GuiSelect } from "./gui-controls";
 import { GuiDraftLabelField } from "./gui-draft-label-field";
 import type { GuiDraftCommit } from "./use-gui-field-draft";
 
@@ -19,6 +19,9 @@ export interface SequenceParticipantEditorProps {
   readonly runDraft: (
     operation: SequenceOperation,
   ) => Promise<OperationResult<ApplyDiagramEditsOutcome>>;
+  // Runs an operation that moves or removes the participant; a removal clears the selection.
+  readonly run: (operation: SequenceOperation) => Promise<unknown>;
+  readonly onRemove: (operation: SequenceOperation) => void;
   readonly onInvalidInput: (message: string) => void;
   readonly labelInputRef: Ref<HTMLInputElement | HTMLTextAreaElement>;
   readonly commitPendingRef: MutableRefObject<GuiDraftCommit | null>;
@@ -30,16 +33,29 @@ export function SequenceParticipantEditor({
   participant,
   busy,
   runDraft,
+  run,
+  onRemove,
   onInvalidInput,
   labelInputRef,
   commitPendingRef,
 }: SequenceParticipantEditorProps) {
+  const hintId = useId();
   const gui = useMessages().mermaid.gui;
   const text = gui.sequence;
   const restrictionText = describeRestriction(
     gui,
     participant?.restriction ?? null,
   );
+  const reasons = [
+    ...new Set(
+      [
+        describeRestriction(gui, participant?.moveLeftRestriction ?? null),
+        describeRestriction(gui, participant?.moveRightRestriction ?? null),
+        describeRestriction(gui, participant?.deleteRestriction ?? null),
+      ].filter((reason) => reason !== null),
+    ),
+  ];
+  const unavailable = busy || participant === undefined;
   return (
     <div className="diagram-gui__editor">
       <h4 className="diagram-gui__heading">
@@ -90,6 +106,56 @@ export function SequenceParticipantEditor({
           });
         }}
       />
+      <div className="diagram-gui__actions">
+        <GuiButton
+          label={text.moveLeft}
+          disabled={unavailable || participant?.moveLeftRestriction !== null}
+          reasonId={hintId}
+          onPress={() => {
+            if (participant === undefined) return;
+            void run({
+              kind: "reorderParticipants",
+              participantId: participant.id,
+              direction: "left",
+            });
+          }}
+        />
+        <GuiButton
+          label={text.moveRight}
+          disabled={unavailable || participant?.moveRightRestriction !== null}
+          reasonId={hintId}
+          onPress={() => {
+            if (participant === undefined) return;
+            void run({
+              kind: "reorderParticipants",
+              participantId: participant.id,
+              direction: "right",
+            });
+          }}
+        />
+        <GuiButton
+          label={text.deleteParticipant}
+          variant="danger"
+          disabled={unavailable || participant?.deleteRestriction !== null}
+          reasonId={hintId}
+          onPress={() => {
+            if (participant === undefined) return;
+            onRemove({
+              kind: "deleteParticipant",
+              participantId: participant.id,
+            });
+          }}
+        />
+      </div>
+      {reasons.length > 0 && (
+        <p id={hintId} className="diagram-gui__hint">
+          {reasons.map((reason) => (
+            <span key={reason} className="diagram-gui__reason">
+              {reason}{" "}
+            </span>
+          ))}
+        </p>
+      )}
     </div>
   );
 }

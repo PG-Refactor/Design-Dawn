@@ -23,7 +23,15 @@ import {
 import { applyTextEdits } from "../../domain/diagram/text-edit";
 import { seededRandom } from "./test-support/flowchart-generator";
 import { installFakeSvgMeasurement } from "./test-support/mermaid-dom-setup";
-import { checkPlanAgainstMermaid } from "./test-support/sequence-plan-check";
+import {
+  comparableOf,
+  firstDifference,
+} from "./test-support/sequence-comparison";
+import {
+  checkPlanAgainstMermaid,
+  mermaidSays,
+} from "./test-support/sequence-plan-check";
+import { loadSequenceScenarios } from "./test-support/sequence-scenarios";
 
 beforeAll(installFakeSvgMeasurement);
 
@@ -506,6 +514,153 @@ describe("sequence Tier 2 operations: the activation toggle for every arrow", ()
   );
 });
 
+// ---- the Tier 2 scenarios of the Step 9-7 research
+
+type Outcome =
+  | { readonly kind: "plan"; readonly operation: SequenceOperation }
+  | {
+      readonly kind: "refuse";
+      readonly reason: string;
+      readonly operation: SequenceOperation;
+    };
+const plan = (operation: SequenceOperation): Outcome => ({
+  kind: "plan",
+  operation,
+});
+const refuse = (reason: string, operation: SequenceOperation): Outcome => ({
+  kind: "refuse",
+  reason,
+  operation,
+});
+const NOT_EDITABLE = "diagramNotEditable";
+const ANY: SequenceOperation = { kind: "setTitle", title: "x" };
+
+// What the editor does with each Tier 2 scenario. `swapDirection` and `deleteBlock` are not
+// delivered (the editor has no such operation); box edits, create / destroy and links are
+// read-only diagrams.
+const INTENTS: Readonly<Record<string, (source: string) => Outcome>> = {
+  "SQE-P12": () => plan({ kind: "deleteParticipant", participantId: "B" }),
+  "SQE-P13": () =>
+    refuse("noteSpansParticipants", {
+      kind: "deleteParticipant",
+      participantId: "B",
+    }),
+  "SQE-P14": () => refuse(NOT_EDITABLE, ANY),
+  "SQE-P15": () => refuse(NOT_EDITABLE, ANY),
+  "SQE-P16": () => plan({ kind: "deleteParticipant", participantId: "B" }),
+  "SQE-P17": () =>
+    plan({
+      kind: "reorderParticipants",
+      participantId: "B",
+      direction: "left",
+    }),
+  "SQE-P18": () =>
+    plan({
+      kind: "reorderParticipants",
+      participantId: "D",
+      direction: "left",
+    }),
+  "SQE-M29": (source) =>
+    plan({ kind: "duplicateMessage", target: m(source, "Hello") }),
+  "SQE-B04": (source) =>
+    plan({
+      kind: "wrapInBlock",
+      from: m(source, "Hi"),
+      to: m(source, "Bye"),
+      block: "loop",
+      text: "again",
+    }),
+  "SQE-B05": (source) =>
+    refuse("rangeCrossesBlock", {
+      kind: "wrapInBlock",
+      from: m(source, "req"),
+      to: m(source, "200"),
+      block: "loop",
+      text: "x",
+    }),
+  "SQE-B06": () => refuse(NOT_EDITABLE, ANY),
+  "SQE-B07": (source) =>
+    plan({ kind: "unwrapBlock", target: b(source, "retry") }),
+  "SQE-B08": (source) =>
+    refuse("hasBranches", { kind: "unwrapBlock", target: b(source, "ok") }),
+  "SQE-B10": (source) =>
+    plan({ kind: "addBranch", target: b(source, "ok"), text: "other" }),
+  "SQE-B11": (source) =>
+    plan({ kind: "deleteBranch", target: b(source, "fail") }),
+  "SQE-B12": () => refuse(NOT_EDITABLE, ANY),
+};
+
+describe("sequence Tier 2 operations: research scenarios against mermaid 12.1.0", () => {
+  it(
+    "plans or refuses every Tier 2 scenario as intended, and the naive edit was wrong",
+    async () => {
+      const scenarios = loadSequenceScenarios();
+      const problems: string[] = [];
+      let planned = 0;
+      let refused = 0;
+      let naiveWrong = 0;
+      for (const scenario of scenarios) {
+        const intent = INTENTS[scenario.id];
+        if (intent === undefined) continue;
+        const outcome = intent(scenario.source);
+        const result = planSequenceOperation(
+          scenario.source,
+          outcome.operation,
+        );
+        if (outcome.kind === "plan") {
+          if (!result.ok) {
+            problems.push(`${scenario.id}: refused ${result.error.detail}`);
+            continue;
+          }
+          planned += 1;
+          const problem = await checkPlanAgainstMermaid(
+            scenario.id,
+            scenario.source,
+            outcome.operation,
+          );
+          if (problem !== null) problems.push(problem);
+          if (scenario.naiveGate !== "PASS") {
+            const naive = await mermaidSays(scenario.naiveCandidate);
+            if (
+              naive === null ||
+              firstDifference(comparableOf(result.value.expected), naive) !==
+                null
+            ) {
+              naiveWrong += 1;
+            } else {
+              problems.push(`${scenario.id}: the naive edit is now correct`);
+            }
+          }
+        } else {
+          if (result.ok) {
+            problems.push(
+              `${scenario.id}: planned, expected ${outcome.reason}`,
+            );
+            continue;
+          }
+          refused += 1;
+          const reason =
+            result.error.kind === NOT_EDITABLE
+              ? NOT_EDITABLE
+              : (result.error.detail.split(":")[0] ?? "");
+          if (reason !== outcome.reason) {
+            problems.push(
+              `${scenario.id}: refused with ${reason}, expected ${outcome.reason}`,
+            );
+          }
+        }
+      }
+      expect(problems).toEqual([]);
+      expect({ planned, refused, naiveWrong }).toEqual({
+        planned: 9,
+        refused: 7,
+        naiveWrong: 5,
+      });
+    },
+    TEST_TIMEOUT_MS,
+  );
+});
+
 // ---- seeded random operation sequences (Tier 1 and Tier 2 mixed)
 
 const BASE_DIAGRAMS: readonly string[] = [SR1, SR2, SR3, SR4, SR5, SR6, SR7];
@@ -689,7 +844,8 @@ describe("sequence Tier 2 operations: seeded random sequences against mermaid 12
         participantNotFound: 53,
         rangeCrossesBlock: 16,
         rangeOrder: 24,
-        sharedLine: 17,
+        sharedLine: 5,
+        statementsShareLine: 12,
         targetMismatch: 260,
         targetNotFound: 44,
         unsupportedInRange: 1,
