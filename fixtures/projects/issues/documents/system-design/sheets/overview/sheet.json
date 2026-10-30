@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef",
+  "name": "Overview",
+  "blocks": [
+    {
+      "blockId": "01928f3a-8e9f-7a01-8234-56789abcdef0",
+      "blockType": "markdown",
+      "position": {
+        "x": 100,
+        "y": 200
+      },
+      "size": {
+        "width": 480,
+        "height": 320
+      },
+      "contentPath": "sheets/overview/blocks/markdown-1.md"
+    },
+    {
+      "blockId": "01928f3a-a0b1-7c23-a456-789abcdef012",
+      "blockType": "mermaid",
+      "position": {
+        "x": -640,
+        "y": -120
+      },
+      "size": {
+        "width": 400,
+        "height": 300
+      },
+      "contentPath": "sheets/overview/blocks/mermaid-1.mmd"
+    },
+    {
+      "blockId": "01928f3a-9fa0-7b12-9345-6789abcdef01",
+      "blockType": "image",
+      "position": {
+        "x": 640,
+        "y": 200
+      },
+      "size": {
+        "width": 1,
+        "height": 1
+      },
+      "contentPath": "assets/pixel.png"
+    }
+  ]
+}

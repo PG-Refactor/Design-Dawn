@@ -167,6 +167,7 @@ describe("selectNotifications", () => {
         path: "documents/failed/document.json",
         entityId: FAILED_DOCUMENT_ID,
         detail: "bad json",
+        reason: null,
       },
     ]);
     await harness.workspace.openProject(SELECTION_ID);

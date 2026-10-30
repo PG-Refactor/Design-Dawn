@@ -59,6 +59,8 @@ export const COMMANDS = {
   checkExternalChanges: "check_external_changes",
   acceptDiskState: "accept_disk_state",
   compareBlockContent: "compare_block_content",
+  repairLoadIssue: "repair_load_issue",
+  updateOutdatedFiles: "update_outdated_files",
 } as const;
 
 export type CommandName = (typeof COMMANDS)[keyof typeof COMMANDS];
@@ -88,4 +90,6 @@ export {
   LOAD_ISSUE_KINDS,
   type LoadIssueKind,
   OPEN_IN_NEW_WINDOW_STATUS,
+  REPAIR_ACTIONS,
+  REPAIR_UNAVAILABLE_REASONS,
 } from "../../application/ports/persistence-types";

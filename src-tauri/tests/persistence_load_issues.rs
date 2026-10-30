@@ -43,7 +43,7 @@ fn sheet_json(sheet_id: &str, name: &str, schema_version: u32) -> serde_json::Va
 fn set_project_order(root: &Path, order: &[&str]) {
     let path = root.join("project.json");
     let mut value = read_json(&path);
-    value["documentOrder"] = json!(order);
+    value["childOrder"] = json!(order);
     write_json(&path, &value);
 }
 

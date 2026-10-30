@@ -14,7 +14,7 @@ import {
 } from "../../domain/shared/entity-id";
 import { unwrap } from "../../domain/shared/test-support";
 import { parseSheet } from "../../domain/sheet/sheet";
-import { COMMANDS } from "./command-constants";
+import { COMMANDS, REPAIR_UNAVAILABLE_REASONS } from "./command-constants";
 import type { CommandResult } from "./command-error";
 import {
   acceptDiskState,
@@ -37,12 +37,14 @@ import {
   openProjectInNewWindow,
   readBlockContent,
   reloadProject,
+  repairLoadIssue,
   restoreBlockContent,
   saveFolder,
   saveProject,
   saveSheet,
   selectProjectFolder,
   takeOpenRequest,
+  updateOutdatedFiles,
   writeBlockContent,
 } from "./persistence-client";
 
@@ -87,6 +89,7 @@ const rawIssue = {
   path: "documents/x/sheets/y/blocks/stray.md",
   entityId: null,
   detail: "no block references this file",
+  reason: null,
 };
 const SESSION_GENERATION = 7;
 const rawProjectSnapshot = {
@@ -986,6 +989,92 @@ describe("folder commands", () => {
     invokeMock.mockResolvedValueOnce(42);
     expectFailure(
       await moveEntry(projectId, unwrap(parseEntryId(DOCUMENT_ID)), null),
+      "invalidCommandResponse",
+    );
+  });
+});
+
+describe("repair_load_issue and update_outdated_files", () => {
+  const issue = {
+    kind: "orphanContent",
+    path: "documents/a/sheets/s/blocks/x.md",
+    entityId: null,
+  } as const;
+  const rawOutcome = {
+    applied: false,
+    files: ["documents/a/sheets/s/blocks/x.md"],
+    unavailable: null,
+    issues: [
+      {
+        kind: "orphanContent",
+        path: "documents/a/sheets/s/blocks/x.md",
+        entityId: null,
+        detail: "a content file is not used by any block",
+        reason: null,
+      },
+    ],
+  };
+
+  it("sends the issue, the action and the dry-run flag, and decodes the outcome", async () => {
+    invokeMock.mockResolvedValue(rawOutcome);
+    const result = await repairLoadIssue(
+      projectId,
+      documentId,
+      issue,
+      "deleteFile",
+      true,
+    );
+    expect(invokeMock).toHaveBeenCalledWith(COMMANDS.repairLoadIssue, {
+      projectId: PROJECT_ID,
+      documentId: DOCUMENT_ID,
+      issue,
+      action: "deleteFile",
+      dryRun: true,
+    });
+    expect(result.ok && result.value).toEqual(rawOutcome);
+  });
+
+  it("sends a null document for an issue of the Project's own load", async () => {
+    invokeMock.mockResolvedValue({ ...rawOutcome, issues: [] });
+    await repairLoadIssue(projectId, null, issue, "deleteFile", false);
+    expect(invokeMock).toHaveBeenLastCalledWith(
+      COMMANDS.repairLoadIssue,
+      expect.objectContaining({ documentId: null, dryRun: false }),
+    );
+  });
+
+  it("decodes every unavailable reason and rejects an unknown one", async () => {
+    for (const reason of REPAIR_UNAVAILABLE_REASONS) {
+      invokeMock.mockResolvedValue({ ...rawOutcome, unavailable: reason });
+      const result = await repairLoadIssue(
+        projectId,
+        documentId,
+        issue,
+        "deleteFile",
+        true,
+      );
+      expect(result.ok && result.value.unavailable).toBe(reason);
+    }
+    invokeMock.mockResolvedValue({
+      ...rawOutcome,
+      unavailable: "somethingNew",
+    });
+    expectFailure(
+      await repairLoadIssue(projectId, documentId, issue, "deleteFile", true),
+      "invalidCommandResponse",
+    );
+  });
+
+  it("sends only the project id for update_outdated_files and decodes the paths", async () => {
+    invokeMock.mockResolvedValue({ updated: ["project.json"] });
+    const result = await updateOutdatedFiles(projectId);
+    expect(invokeMock).toHaveBeenCalledWith(COMMANDS.updateOutdatedFiles, {
+      projectId: PROJECT_ID,
+    });
+    expect(result.ok && result.value).toEqual({ updated: ["project.json"] });
+    invokeMock.mockResolvedValue({});
+    expectFailure(
+      await updateOutdatedFiles(projectId),
       "invalidCommandResponse",
     );
   });

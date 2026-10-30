@@ -10,9 +10,7 @@ use serde_json::{Number, Value};
 
 use super::constants::{CURRENT_ENTRY_POINT_SCHEMA_VERSION, JSON_TRAILING_NEWLINE};
 use crate::domain::block::{Block, BlockInput};
-use crate::domain::constants::{
-    CURRENT_PROJECT_SCHEMA_VERSION, MIN_SCHEMA_VERSION, POSITION_MAX, SIZE_MIN,
-};
+use crate::domain::constants::{MIN_SCHEMA_VERSION, POSITION_MAX, SIZE_MIN};
 use crate::domain::document::{Document, DocumentInput};
 use crate::domain::entity_id::DocumentId;
 use crate::domain::error::{DomainError, DomainErrorKind};
@@ -30,17 +28,6 @@ pub struct ProjectDto {
     pub project_id: String,
     pub name: String,
     pub child_order: Vec<String>,
-}
-
-/// `project.json` as written by schemaVersion 1, which listed only Documents. It is read,
-/// never written: `into_current` maps it to the current shape (file-format.md §3.5).
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct LegacyProjectDto {
-    pub schema_version: Number,
-    pub project_id: String,
-    pub name: String,
-    pub document_order: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -198,19 +185,6 @@ impl ProjectDto {
                 .iter()
                 .map(ToString::to_string)
                 .collect(),
-        }
-    }
-}
-
-impl LegacyProjectDto {
-    /// The schema version is raised to the current one: the value is migrated in memory
-    /// only, so a later save writes the current format while loading never rewrites the file.
-    pub fn into_current(self) -> ProjectDto {
-        ProjectDto {
-            schema_version: Number::from(CURRENT_PROJECT_SCHEMA_VERSION),
-            project_id: self.project_id,
-            name: self.name,
-            child_order: self.document_order,
         }
     }
 }

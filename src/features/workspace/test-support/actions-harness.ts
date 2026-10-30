@@ -19,6 +19,7 @@ import {
   createLanguageController,
   type LanguageController,
 } from "../../../application/language/language-controller";
+import type { LoadIssueRepairController } from "../../../application/load-issue-repair/load-issue-repair-controller";
 import type { LoadIssue } from "../../../application/ports/persistence-types";
 import {
   type ApplicationStore,
@@ -87,6 +88,7 @@ import {
   type ViewportPersistence,
 } from "../../canvas/viewport-persistence";
 import { createAppExternalChangeController } from "../../external-change/create-external-change-controller";
+import { createAppLoadIssueRepairController } from "../../load-issue-repair/create-load-issue-repair-controller";
 import { createDraftRegistry, type DraftRegistry } from "../draft-registry";
 import { addOperationError } from "../ui-state/shell-ui-state";
 import { createUiStateStore, type UiStateStore } from "../ui-state/ui-state";
@@ -119,6 +121,7 @@ export interface ActionsHarness extends WorkspaceHarness {
   readonly languageController: LanguageController;
   readonly languageGateway: FakeAppSettingsGateway;
   readonly externalChangeController: ExternalChangeController;
+  readonly loadIssueRepairController: LoadIssueRepairController;
   readonly services: WorkspaceServices;
 }
 
@@ -194,9 +197,17 @@ export function createActionsHarness(
     actions,
     draftRegistry,
   });
+  const loadIssueRepairController = createAppLoadIssueRepairController({
+    gateway: base.signalingGateway,
+    applicationStore: base.store,
+    uiStateStore,
+    actions,
+    draftRegistry,
+  });
   return {
     ...base,
     externalChangeController,
+    loadIssueRepairController,
     gitGateway,
     gitController,
     gitRefreshScheduler,
@@ -232,6 +243,7 @@ export function createActionsHarness(
       projectWriteSignal: base.writeSignal,
       gitRefreshScheduler,
       externalChangeController,
+      loadIssueRepairController,
     },
   };
 }
@@ -260,6 +272,7 @@ export const PROJECT_ISSUE: LoadIssue = {
   path: "documents/unlisted",
   entityId: null,
   detail: "directory is not in childOrder",
+  reason: null,
 };
 
 // Makes the next project open report load issues (the fake disk has none of its own).

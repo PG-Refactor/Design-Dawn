@@ -66,6 +66,8 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   pullGit: "プルできませんでした",
   pushGit: "プッシュできませんでした",
   publishGit: "ブランチを発行できませんでした",
+  repairLoadIssue: "問題を修復できませんでした",
+  updateFileFormat: "ファイル形式を更新できませんでした",
   loadGitHistory: "履歴を取得できませんでした",
 };
 
@@ -161,6 +163,8 @@ const LOAD_ISSUES: Record<LoadIssueKind, string> = {
   orphanContent: "どのBlockからも参照されていない本文ファイルがあります。",
   leftoverTempFile: "保存途中の一時ファイルが残っています。",
   unrecognizedDirectory: "認識できないフォルダがあります。",
+  outdatedFormat:
+    "古いファイル形式のファイルがあります（保存するときに更新されます）。",
 };
 
 export const WORKSPACE_MESSAGES_JA = {
@@ -195,6 +199,9 @@ export const WORKSPACE_MESSAGES_JA = {
     externalReloaded: "外部の変更を読み直しました",
     externalWatchUnavailable:
       "外部の変更を自動で検知できません。ウィンドウに戻ったときに確認します",
+    loadIssueRepaired: "修復しました",
+    filesReloaded: "ファイルを読み直しました",
+    fileFormatUpdated: "ファイル形式を更新しました",
   },
   tree: {
     openProjectInNewWindow: "新しいウィンドウでProjectを開く",
@@ -273,6 +280,96 @@ export const WORKSPACE_MESSAGES_JA = {
       path: "パス",
       entityId: "ID",
       detail: "詳細",
+      reason: "理由",
+    },
+    // A newer file format than this app understands: the item is shown but never written.
+    readOnlyHint:
+      "このファイルは、このアプリより新しい形式で保存されています。読み取り専用として扱い、書き込みません。アプリを更新してください。",
+    formatUpdate:
+      "このProjectは古いファイル形式を使っています。保存するときに新しい形式へ更新されます。",
+    formatUpdateFiles: "対象のファイル",
+  },
+  loadIssueRepair: {
+    // Buttons in a notification.
+    actions: {
+      addToList: "一覧に追加",
+      removeFromList: "一覧から削除",
+      giveNewId: "新しいIDを付ける",
+      removeBlock: "Blockを削除",
+      createEmptyContent: "空の本文を作成",
+      deleteFile: "ファイルを削除",
+      addAsBlock: "新しいBlockとして追加",
+      deleteTempFile: "一時ファイルを削除",
+    },
+    reload: "読み直す",
+    updateFormat: "今すぐすべて更新",
+    // Dialog titles.
+    titles: {
+      addToList: "一覧に追加しますか？",
+      removeFromList: "一覧から削除しますか？",
+      giveNewId: "新しいIDを付けますか？",
+      removeBlock: "Blockを削除しますか？",
+      createEmptyContent: "空の本文を作成しますか？",
+      deleteFile: "ファイルを削除しますか？",
+      addAsBlock: "新しいBlockとして追加しますか？",
+      deleteTempFile: "一時ファイルを削除しますか？",
+      reload: "ファイルを読み直しますか？",
+      updateFormat: "ファイル形式を更新しますか？",
+      unavailable: "この修復はできません",
+    },
+    // What the repair does, in one or two sentences.
+    descriptions: {
+      addToList: "親の順序リストに、見つかった項目を末尾として追加します。",
+      removeFromList:
+        "順序リストから、存在しない項目と不正な項目を取り除きます。他の項目の順序は変わりません。",
+      giveNewId:
+        "無視されている側の重複したIDを、新しいIDに置き換えます。同じIDを指す.dawnがあれば、同じ場所を指すものも新しいIDへ更新します。このIDをキーにしたこのPCの保存データ（表示位置など）は使われなくなります。Gitの履歴は変更しません。",
+      removeBlock:
+        "このBlockをSheetから取り除きます。本文ファイルは元からありません。",
+      createEmptyContent: "Blockが指す場所に、空の本文ファイルを作成します。",
+      deleteFile:
+        "どのBlockも使っていないこのファイルを削除します。ゴミ箱には移動しません。",
+      addAsBlock:
+        "このテキストファイルを使う新しいBlockを、Sheetの既存のBlockの下に追加します。ファイルは変更しません。",
+      deleteTempFile:
+        "保存が途中で中断されたときに残った一時ファイルを削除します。",
+      reload:
+        "ディスク上のファイルを読み直します。アプリを経由せずにファイルが直されている場合などに使います。",
+      updateFormat:
+        "古い形式で保存されているファイルを、現在の形式で書き直します。内容の意味は変わりません。",
+    },
+    undoNotice: "この操作は元に戻す（Undo）の対象外です。",
+    filesLabel: "変更されるファイル",
+    saveFirst:
+      "未保存の変更があります。確認すると、先に保存してから実行します。",
+    cancel: "キャンセル",
+    close: "閉じる",
+    confirmLabels: {
+      run: "実行",
+      saveAndRun: "保存して実行",
+      reload: "読み直す",
+      saveAndReload: "保存して読み直す",
+      updateFormat: "更新する",
+      saveAndUpdateFormat: "保存して更新する",
+    },
+    unavailableReasons: {
+      issueGone:
+        "ファイルがすでに変わっていて、この問題は見つかりません。読み直してください。",
+      notApplicable: "この問題には、選んだ修復を適用できません。",
+      entityUnreadable:
+        "変更が必要なファイルを正しく読めないため、安全に修復できません。",
+      notWritable:
+        "変更先のDocumentまたはSheetは読み込みに失敗しているため、書き込みません。",
+      referencedElsewhere:
+        "読み込めた別のSheetがこのファイルを使っているため、削除も追加もしません。",
+      sheetsNotLoaded:
+        "読み込めなかったSheetがあり、このファイルが使われていないと確認できないため、削除しません。",
+      unsupportedContentType:
+        "テキスト（Markdown / Mermaid）のファイルだけが対象です。画像は作成も追加もできません。",
+      pathOccupied: "作成先にすでに何かがあるため、作成しません。",
+      ambiguousReference:
+        "このIDを指す.dawnのうち、どちらのコピーを指すか判別できないものがあるため、安全に更新できません。",
+      targetNotFound: "修復の対象がファイルの中に見つかりません。",
     },
   },
   externalChange: {

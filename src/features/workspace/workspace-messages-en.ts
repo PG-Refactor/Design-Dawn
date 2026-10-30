@@ -65,6 +65,8 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   pullGit: "Could not pull",
   pushGit: "Could not push",
   publishGit: "Could not publish the branch",
+  repairLoadIssue: "Could not repair the issue",
+  updateFileFormat: "Could not update the file format",
   loadGitHistory: "Could not get the history",
 };
 
@@ -161,6 +163,8 @@ const LOAD_ISSUES: Record<LoadIssueKind, string> = {
   orphanContent: "There is a text file that no block refers to.",
   leftoverTempFile: "A temporary file from an interrupted save remains.",
   unrecognizedDirectory: "There is an unrecognized folder.",
+  outdatedFormat:
+    "A file uses an older file format (it is updated when it is saved).",
 };
 
 export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
@@ -194,6 +198,9 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     externalReloaded: "Reloaded after a change made outside the app",
     externalWatchUnavailable:
       "External changes cannot be detected automatically. They are checked when you return to the window",
+    loadIssueRepaired: "Repaired",
+    filesReloaded: "Files were read again",
+    fileFormatUpdated: "File format updated",
   },
   tree: {
     openProjectInNewWindow: "Open Project in New Window",
@@ -272,6 +279,98 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
       path: "Path",
       entityId: "ID",
       detail: "Details",
+      reason: "Reason",
+    },
+    // A newer file format than this app understands: the item is shown but never written.
+    readOnlyHint:
+      "This file was saved in a newer format than this app understands. It is treated as read-only and is never written. Update the app.",
+    formatUpdate:
+      "This project uses an older file format. The files are updated when they are saved.",
+    formatUpdateFiles: "Affected files",
+  },
+  loadIssueRepair: {
+    // Buttons in a notification.
+    actions: {
+      addToList: "Add to the list",
+      removeFromList: "Remove from the list",
+      giveNewId: "Give a new ID",
+      removeBlock: "Remove the block",
+      createEmptyContent: "Create empty content",
+      deleteFile: "Delete the file",
+      addAsBlock: "Add as a new block",
+      deleteTempFile: "Delete the temporary file",
+    },
+    reload: "Reload",
+    updateFormat: "Update all now",
+    // Dialog titles.
+    titles: {
+      addToList: "Add it to the list?",
+      removeFromList: "Remove it from the list?",
+      giveNewId: "Give it a new ID?",
+      removeBlock: "Remove the block?",
+      createEmptyContent: "Create an empty text file?",
+      deleteFile: "Delete the file?",
+      addAsBlock: "Add it as a new block?",
+      deleteTempFile: "Delete the temporary file?",
+      reload: "Read the files again?",
+      updateFormat: "Update the file format?",
+      unavailable: "This repair cannot be done",
+    },
+    // What the repair does, in one or two sentences.
+    descriptions: {
+      addToList:
+        "Appends the item that was found to the end of its parent's order list.",
+      removeFromList:
+        "Removes entries that do not exist or are invalid from the order list. The order of the other entries does not change.",
+      giveNewId:
+        "Replaces the duplicated ID of the copy that is being ignored with a new one. An entry point (.dawn) that points at that copy follows the new ID. Settings saved on this computer under the old ID (such as the view position) are left unused. Git history is not changed.",
+      removeBlock:
+        "Removes this block from its Sheet. Its text file was already missing.",
+      createEmptyContent:
+        "Creates an empty text file where the block expects it.",
+      deleteFile:
+        "Deletes this file, which no block uses. It is not moved to the recycle bin.",
+      addAsBlock:
+        "Adds a new block that uses this text file, below the existing blocks of the Sheet. The file itself is not changed.",
+      deleteTempFile:
+        "Deletes the temporary file an interrupted save left behind.",
+      reload:
+        "Reads the files on disk again, for example after they were fixed outside the app.",
+      updateFormat:
+        "Rewrites the files saved in an older format in the current format. Their meaning does not change.",
+    },
+    undoNotice: "This cannot be undone with Undo.",
+    filesLabel: "Files that will change",
+    saveFirst:
+      "There are unsaved changes. Confirming saves them first, then runs this.",
+    cancel: "Cancel",
+    close: "Close",
+    confirmLabels: {
+      run: "Do it",
+      saveAndRun: "Save and do it",
+      reload: "Reload",
+      saveAndReload: "Save and reload",
+      updateFormat: "Update",
+      saveAndUpdateFormat: "Save and update",
+    },
+    unavailableReasons: {
+      issueGone:
+        "The files have changed and this issue is no longer found. Reload to see the current state.",
+      notApplicable: "The chosen repair does not apply to this issue.",
+      entityUnreadable:
+        "A file that has to change cannot be read correctly, so it cannot be repaired safely.",
+      notWritable:
+        "The Document or Sheet to change failed to load, so it is not written.",
+      referencedElsewhere:
+        "A Sheet that loaded uses this file, so it is neither deleted nor added.",
+      sheetsNotLoaded:
+        "A Sheet failed to load, so it cannot be confirmed that nothing uses this file. It is not deleted.",
+      unsupportedContentType:
+        "Only text files (Markdown / Mermaid) qualify. An image can be neither created nor added.",
+      pathOccupied: "Something already exists there, so nothing is created.",
+      ambiguousReference:
+        "An entry point (.dawn) names this ID but it cannot be told which copy it means, so it cannot be updated safely.",
+      targetNotFound: "The target of the repair was not found in the files.",
     },
   },
   externalChange: {

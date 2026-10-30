@@ -1,8 +1,11 @@
 use serde::ser::SerializeStruct;
-use serde::{Serialize, Serializer};
+use serde::{Deserialize, Serialize, Serializer};
+
+use super::error::ApplicationError;
 
 /// Load Issue kinds from docs/data-model.md §7.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum LoadIssueKind {
     UnlistedEntity,
     MissingEntity,
@@ -13,6 +16,9 @@ pub enum LoadIssueKind {
     OrphanContent,
     LeftoverTempFile,
     UnrecognizedDirectory,
+    /// A metadata file is written in an older `schemaVersion`; it was migrated in memory and
+    /// is written in the current version by its next save.
+    OutdatedFormat,
 }
 
 impl LoadIssueKind {
@@ -27,6 +33,7 @@ impl LoadIssueKind {
             Self::OrphanContent => "orphanContent",
             Self::LeftoverTempFile => "leftoverTempFile",
             Self::UnrecognizedDirectory => "unrecognizedDirectory",
+            Self::OutdatedFormat => "outdatedFormat",
         }
     }
 
@@ -44,6 +51,7 @@ impl LoadIssueKind {
             Self::OrphanContent => "a content file is not used by any block",
             Self::LeftoverTempFile => "a temporary file was left over from an interrupted save",
             Self::UnrecognizedDirectory => "the directory is not recognized",
+            Self::OutdatedFormat => "the file uses an older format and is updated when it is saved",
         }
     }
 }
@@ -57,6 +65,9 @@ pub struct LoadIssue {
     pub entity_id: Option<String>,
     /// Developer-facing only (may contain absolute paths); never serialized as is.
     pub detail: String,
+    /// For `EntityLoadFailed`: the public error kind that stopped the load (for example
+    /// `unsupportedSchemaVersion`, which makes the item read-only), so the user is told why.
+    pub reason: Option<&'static str>,
 }
 
 impl LoadIssue {
@@ -71,17 +82,24 @@ impl LoadIssue {
             path: path.map(str::to_owned),
             entity_id,
             detail: detail.into(),
+            reason: None,
         }
+    }
+
+    pub fn with_reason(mut self, error: &ApplicationError) -> Self {
+        self.reason = Some(error.kind.as_str());
+        self
     }
 }
 
 impl Serialize for LoadIssue {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut state = serializer.serialize_struct("LoadIssue", 4)?;
+        let mut state = serializer.serialize_struct("LoadIssue", 5)?;
         state.serialize_field("kind", self.kind.as_str())?;
         state.serialize_field("path", &self.path)?;
         state.serialize_field("entityId", &self.entity_id)?;
         state.serialize_field("detail", self.kind.public_description())?;
+        state.serialize_field("reason", &self.reason)?;
         state.end()
     }
 }
@@ -90,7 +108,7 @@ impl Serialize for LoadIssue {
 mod tests {
     use super::*;
 
-    const ALL_KINDS: [LoadIssueKind; 9] = [
+    const ALL_KINDS: [LoadIssueKind; 10] = [
         LoadIssueKind::UnlistedEntity,
         LoadIssueKind::MissingEntity,
         LoadIssueKind::InvalidOrderEntry,
@@ -100,7 +118,16 @@ mod tests {
         LoadIssueKind::OrphanContent,
         LoadIssueKind::LeftoverTempFile,
         LoadIssueKind::UnrecognizedDirectory,
+        LoadIssueKind::OutdatedFormat,
     ];
+
+    #[test]
+    fn a_kind_is_read_back_from_its_wire_name() {
+        for kind in ALL_KINDS {
+            let parsed: LoadIssueKind = serde_json::from_value(kind.as_str().into()).unwrap();
+            assert_eq!(parsed, kind);
+        }
+    }
 
     #[test]
     fn serialized_detail_is_the_public_description_and_keeps_the_relative_path() {
@@ -114,6 +141,7 @@ mod tests {
 
         assert_eq!(json["path"], "documents/a/document.json");
         assert_eq!(json["entityId"], "doc-1");
+        assert!(json["reason"].is_null());
         assert_eq!(
             json["detail"],
             LoadIssueKind::EntityLoadFailed.public_description()

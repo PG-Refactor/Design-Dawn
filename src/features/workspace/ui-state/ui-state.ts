@@ -240,6 +240,8 @@ export const OPERATION_LABELS = [
   "pushGit",
   "publishGit",
   "loadGitHistory",
+  "repairLoadIssue",
+  "updateFileFormat",
 ] as const;
 
 export type OperationLabel = (typeof OPERATION_LABELS)[number];
@@ -252,6 +254,9 @@ export const NOTICE_KINDS = [
   "projectOpenInThisWindow",
   "externalReloaded",
   "externalWatchUnavailable",
+  "loadIssueRepaired",
+  "filesReloaded",
+  "fileFormatUpdated",
 ] as const;
 
 export type NoticeKind = (typeof NOTICE_KINDS)[number];

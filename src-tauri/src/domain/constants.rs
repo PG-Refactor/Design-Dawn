@@ -10,10 +10,9 @@ pub const SIZE_MIN: i64 = 1;
 pub const SIZE_MAX: i64 = 2_147_483_647;
 
 pub const MIN_SCHEMA_VERSION: i64 = 1;
-/// 2 replaced `documentOrder` with `childOrder` (docs/file-format.md §3.5); 1 is still read.
+/// 2 replaced `documentOrder` with `childOrder` (docs/file-format.md §3.5); 1 is still read
+/// through the migration registry (`infrastructure/file_format/migration.rs`).
 pub const CURRENT_PROJECT_SCHEMA_VERSION: u32 = 2;
-/// The last `project.json` version that stored `documentOrder`.
-pub const LEGACY_PROJECT_SCHEMA_VERSION: u32 = 1;
 pub const CURRENT_FOLDER_SCHEMA_VERSION: u32 = 1;
 pub const CURRENT_DOCUMENT_SCHEMA_VERSION: u32 = 1;
 pub const CURRENT_SHEET_SCHEMA_VERSION: u32 = 1;
@@ -21,6 +20,16 @@ pub const CURRENT_SHEET_SCHEMA_VERSION: u32 = 1;
 /// Inclusive code point ranges rejected in display names (C0, DEL, C1, line/paragraph separators).
 pub const DISPLAY_NAME_FORBIDDEN_CODE_POINT_RANGES: [(u32, u32); 3] =
     [(0x0000, 0x001F), (0x007F, 0x009F), (0x2028, 0x2029)];
+
+/// What a Block gets when it is created without a position or size (by the MCP server, or by
+/// adopting a content file that no Block used). The size matches the app's new Markdown /
+/// Mermaid Block. A Block without a position goes below the lowest existing one, leaving the
+/// gap, so it does not hide another Block.
+pub const DEFAULT_NEW_BLOCK_WIDTH: i64 = 480;
+pub const DEFAULT_NEW_BLOCK_HEIGHT: i64 = 320;
+pub const DEFAULT_NEW_BLOCK_X: i64 = 0;
+pub const DEFAULT_NEW_BLOCK_Y: i64 = 0;
+pub const DEFAULT_NEW_BLOCK_GAP: i64 = 24;
 
 // Entity ID canonical form: 8-4-4-4-12 lowercase hex, version nibble 7, variant 10xx.
 pub const ENTITY_ID_LENGTH: usize = 36;

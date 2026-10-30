@@ -1,6 +1,10 @@
 //! Values of the MCP server that are decided in one place (CLAUDE.md §46).
 
 use crate::application::authoring::BLOCK_TEXT_MAX_BYTES;
+use crate::domain::constants::{
+    DEFAULT_NEW_BLOCK_GAP, DEFAULT_NEW_BLOCK_HEIGHT, DEFAULT_NEW_BLOCK_WIDTH, DEFAULT_NEW_BLOCK_X,
+    DEFAULT_NEW_BLOCK_Y,
+};
 
 pub const SERVER_NAME: &str = "design-dawn-mcp";
 pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -24,15 +28,13 @@ pub const MESSAGE_MAX_BYTES: usize = 8 * 1024 * 1024;
 /// A Block's text may not exceed this (the same bound the app applies to comparisons).
 pub const TEXT_MAX_BYTES: u64 = BLOCK_TEXT_MAX_BYTES;
 
-/// What a new Block starts with when the caller gives no position or size. The size matches
-/// the app's new Markdown / Mermaid Block (`MARKDOWN_BLOCK_DEFAULTS`, `MERMAID_BLOCK_DEFAULTS`).
-pub const DEFAULT_BLOCK_WIDTH: i64 = 480;
-pub const DEFAULT_BLOCK_HEIGHT: i64 = 320;
-pub const DEFAULT_BLOCK_X: i64 = 0;
-/// A new Block without a position goes below the lowest existing one, leaving this gap, so
-/// it does not hide another Block.
-pub const DEFAULT_BLOCK_GAP: i64 = 24;
-pub const DEFAULT_BLOCK_Y: i64 = 0;
+/// What a new Block starts with when the caller gives no position or size
+/// (`domain::constants::DEFAULT_NEW_BLOCK_*`, shared with the app's repair of orphan files).
+pub const DEFAULT_BLOCK_WIDTH: i64 = DEFAULT_NEW_BLOCK_WIDTH;
+pub const DEFAULT_BLOCK_HEIGHT: i64 = DEFAULT_NEW_BLOCK_HEIGHT;
+pub const DEFAULT_BLOCK_X: i64 = DEFAULT_NEW_BLOCK_X;
+pub const DEFAULT_BLOCK_GAP: i64 = DEFAULT_NEW_BLOCK_GAP;
+pub const DEFAULT_BLOCK_Y: i64 = DEFAULT_NEW_BLOCK_Y;
 
 /// The SHA-256 hex digest used as `contentHash`.
 pub const CONTENT_HASH_HEX_LENGTH: usize = 64;

@@ -17,6 +17,7 @@ import {
   createLanguageController,
   type LanguageController,
 } from "../application/language/language-controller";
+import type { LoadIssueRepairController } from "../application/load-issue-repair/load-issue-repair-controller";
 import type { AppRequestSource } from "../application/ports/app-request-source";
 import type { AssetUrlResolver } from "../application/ports/asset-url-resolver";
 import type { DropEventSource } from "../application/ports/drop-event-source";
@@ -57,6 +58,7 @@ import {
   type ViewportPersistence,
 } from "../features/canvas/viewport-persistence";
 import { createAppExternalChangeController } from "../features/external-change/create-external-change-controller";
+import { createAppLoadIssueRepairController } from "../features/load-issue-repair/create-load-issue-repair-controller";
 import {
   createDraftRegistry,
   type DraftRegistry,
@@ -118,6 +120,8 @@ export interface AppServices {
   readonly gitRefreshScheduler: Scheduler;
   // Files changed outside the app: decides between reading again and asking the user.
   readonly externalChangeController: ExternalChangeController;
+  // Confirming and running repairs of Load Issues, re-reads and "update all now".
+  readonly loadIssueRepairController: LoadIssueRepairController;
   // Detaches the workspace -> UI state connector.
   readonly disconnectUiState: () => void;
 }
@@ -190,6 +194,13 @@ export function createAppServices(): AppServices {
     actions,
     draftRegistry,
   });
+  const loadIssueRepairController = createAppLoadIssueRepairController({
+    gateway,
+    applicationStore,
+    uiStateStore,
+    actions,
+    draftRegistry,
+  });
   const disconnectUiState = connectWorkspaceToUiState(workspace, uiStateStore);
   const themeController = createThemeController({
     gateway: settingsGateway,
@@ -229,6 +240,7 @@ export function createAppServices(): AppServices {
     projectWriteSignal,
     gitRefreshScheduler: createTimeoutScheduler(),
     externalChangeController,
+    loadIssueRepairController,
     disconnectUiState,
   };
 }

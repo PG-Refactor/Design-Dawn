@@ -120,6 +120,8 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::check_external_changes,
             commands::accept_disk_state,
             commands::compare_block_content,
+            commands::repair_load_issue,
+            commands::update_outdated_files,
         ])
 }
 

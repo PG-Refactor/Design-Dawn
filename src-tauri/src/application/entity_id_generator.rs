@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::domain::entity_id::{BlockId, DocumentId, ProjectId, SheetId};
+use crate::domain::entity_id::{BlockId, DocumentId, FolderId, ProjectId, SheetId};
 use crate::domain::error::DomainError;
 
 // Going through the domain parser guarantees generated IDs satisfy the same rule as
@@ -16,6 +16,10 @@ pub fn generate_project_id() -> ProjectId {
 
 pub fn generate_document_id() -> DocumentId {
     generate(DocumentId::parse)
+}
+
+pub fn generate_folder_id() -> FolderId {
+    generate(FolderId::parse)
 }
 
 pub fn generate_sheet_id() -> SheetId {

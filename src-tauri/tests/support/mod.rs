@@ -18,6 +18,12 @@ pub const FIXTURE_PROJECTS_DIRECTORY: &str =
     concat!(env!("CARGO_MANIFEST_DIR"), "/../fixtures/projects");
 pub const FIXTURE_PROJECT: &str =
     concat!(env!("CARGO_MANIFEST_DIR"), "/../fixtures/projects/basic");
+/// The same sample as `basic` with a schemaVersion 1 `project.json` (`documentOrder`); the
+/// migration tests read it.
+pub const LEGACY_V1_FIXTURE_PROJECT: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../fixtures/projects/legacy-v1"
+);
 /// The schemaVersion 2 sample with nested Folders (`fixtures/projects/folders`).
 pub const FOLDERS_FIXTURE_PROJECT: &str =
     concat!(env!("CARGO_MANIFEST_DIR"), "/../fixtures/projects/folders");
@@ -86,6 +92,14 @@ pub fn project_copy() -> (TempDir, PathBuf) {
     let temp = TempDir::new();
     let root = temp.path().join("project");
     copy_dir_all(Path::new(FIXTURE_PROJECT), &root);
+    (temp, root)
+}
+
+/// A fresh copy of the schemaVersion 1 sample project.
+pub fn legacy_project_copy() -> (TempDir, PathBuf) {
+    let temp = TempDir::new();
+    let root = temp.path().join("project");
+    copy_dir_all(Path::new(LEGACY_V1_FIXTURE_PROJECT), &root);
     (temp, root)
 }
 
