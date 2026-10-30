@@ -17,7 +17,7 @@ use crate::infrastructure::filesystem::atomic_write::WriteOutcome;
 use crate::infrastructure::filesystem::text_content::{decode_text, encode_text};
 
 /// Text content lives in a sheet's `blocks/` directory; binary content (images) in `assets/`.
-fn is_text_block_type(block_type: BlockType) -> bool {
+pub(super) fn is_text_block_type(block_type: BlockType) -> bool {
     block_type.definition().location == ContentLocation::SheetBlocks
 }
 
