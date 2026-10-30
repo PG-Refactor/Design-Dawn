@@ -7,7 +7,7 @@ import {
 } from "../test-support/session-harness";
 
 // Boundaries between a Mermaid block's edit, the history, the auto-save and the disk.
-// Mermaid has no save path or history of its own (docs/architecture.md §15.2-15.3), so
+// Mermaid has no save path or history of its own, so
 // each test pins the shared rules with the `mermaid` block type. The Markdown twins are
 // named per test.
 

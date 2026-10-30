@@ -25,7 +25,7 @@ import {
 } from "./gantt-operation-support";
 import type { GanttLine, GanttTaskEntry, ParsedGantt } from "./gantt-types";
 
-// Moving and duplicating tasks and sections (Tier 2, docs/architecture.md §16.17.2).
+// Moving and duplicating tasks and sections (Tier 2).
 //
 // A task that has no start of its own starts where the task above it ends, so moving a
 // neighbour changes its date. The rule of every move here: no task may end up with a

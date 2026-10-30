@@ -49,7 +49,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             |context, request, responder| {
                 let app = context.app_handle().clone();
                 let uri = request.uri().clone();
-                // The requesting webview decides which Project may be read (security.md).
+                // The requesting webview decides which Project may be read.
                 let webview_label = context.webview_label().to_owned();
                 tauri::async_runtime::spawn_blocking(move || {
                     let sessions = app.state::<Mutex<ProjectSessions>>();

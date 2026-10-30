@@ -1,5 +1,5 @@
-//! Runs the shared fixtures in `fixtures/app-state/` against the Rust local state validators
-//! (docs/testing.md §8, §12). The viewport goes through the same JSON -> DTO -> validation
+//! Runs the shared fixtures in `fixtures/app-state/` against the Rust local state validators.
+//! The viewport goes through the same JSON -> DTO -> validation
 //! path as the `save_sheet_viewport` payload.
 
 use design_dawn_lib::application::error::ApplicationError;

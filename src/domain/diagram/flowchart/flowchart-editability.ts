@@ -15,8 +15,7 @@ import type { FlowchartStatement } from "./flowchart-types";
 // reader recognises but later steps will not edit (classDef / class / style / linkStyle /
 // click / accTitle / accDescr, markdown labels, edge ids and their attribute lines, the
 // `@{}` form) never block here: the diagram stays editable for the operations that do not
-// touch them, and each element's own limits are decided where the operations are
-// (docs/architecture.md §16.15.4).
+// touch them, and each element's own limits are decided where the operations are.
 
 export type FlowchartNotEditableReason =
   | "notFlowchart"

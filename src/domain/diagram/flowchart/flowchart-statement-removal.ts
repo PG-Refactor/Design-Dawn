@@ -4,7 +4,7 @@ import { refuse } from "./flowchart-operation-support";
 import type { FlowchartReading } from "./flowchart-reader";
 import type { FlowchartStatement, TextSpan } from "./flowchart-types";
 
-// Taking whole statements out of a text (docs/architecture.md §16.15.14). A statement that has
+// Taking whole statements out of a text. A statement that has
 // its line to itself takes the line with it; one that shares a line (`A; B --> C`) takes the
 // separator next to it, so no `;;` or dangling `;` is left behind.
 

@@ -32,7 +32,7 @@ beforeAll(installFakeSvgMeasurement);
 
 const renderCheck = createDiagramRenderCheck(mermaidRenderer);
 
-// Seeded random programs. 600 programs with seed 2026 are the size of the Step 9-5 research
+// Seeded random programs. 600 programs with seed 2026 are the size of the earlier research
 // run; the file as a whole stays within a minute in the container.
 const FUZZ_SEED = 2026;
 const FUZZ_PROGRAM_COUNT = 600;
@@ -40,7 +40,7 @@ const GENERATOR_TIMEOUT_MS = 120_000;
 const TEST_TIMEOUT_MS = 300_000;
 
 // Mermaid parses `(-x-)` but its renderer has no ellipse: the only fully read input that
-// may fail to draw (docs/architecture.md §16.15.2). Later steps never offer the shape.
+// may fail to draw. Later steps never offer the shape.
 const ELLIPSE_RENDER_FAILURE = /No such shape: ellipse/;
 
 interface SetCounts {

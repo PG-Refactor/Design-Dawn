@@ -1,4 +1,4 @@
-// What the open diff does once the Git status has changed (docs/ui-design.md §13.4).
+// What the open diff does once the Git status has changed.
 // Pure, so Stage / Unstage and, later, Commit share the rule.
 
 import type { GitStatus } from "../../application/ports/git-gateway";

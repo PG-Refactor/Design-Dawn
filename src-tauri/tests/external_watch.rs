@@ -1,4 +1,4 @@
-//! The real file watcher (docs/architecture.md §14.4) on a temporary directory, and the
+//! The real file watcher on a temporary directory, and the
 //! decision a batch of events leads to. Waits are bounded polls on a channel, never fixed
 //! sleeps that the test depends on for correctness.
 

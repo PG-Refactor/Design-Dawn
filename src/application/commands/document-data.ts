@@ -9,7 +9,7 @@ import type { Sheet } from "../../domain/sheet/sheet";
 export interface DocumentData {
   readonly document: Document;
   readonly sheets: ReadonlyMap<SheetId, Sheet>;
-  // The text of the blocks whose content is LOADED (docs/architecture.md §9). A block
+  // The text of the blocks whose content is LOADED. A block
   // without an entry has not been read (or failed to): that is different from "", which
   // is a valid, empty text. Blocks never get a made-up text.
   readonly contents: ReadonlyMap<BlockId, string>;

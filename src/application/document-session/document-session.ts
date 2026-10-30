@@ -1,5 +1,5 @@
-// One open Document: its immutable Domain values, undo / redo history and save state
-// (docs/architecture.md §9, §10). UI-free; state reaches the application store through
+// One open Document: its immutable Domain values, undo / redo history and save state.
+// UI-free; state reaches the application store through
 // `onStateChange`.
 //
 // Everything that touches the document (execute, undo, redo, flush, auto-save) runs on
@@ -105,8 +105,8 @@ export interface SessionExclusiveScope {
   saveDirty(): Promise<OperationResult<void>>;
   markDirty(change: DocumentDataChange): void;
   // Changes the document's structure (sheets added to / removed from the document).
-  // Deliberately NOT a history step: creating and deleting sheets is not undoable
-  // (docs/architecture.md §9.3), so it never goes through `execute`. Sheets that
+  // Deliberately NOT a history step: creating and deleting sheets is not undoable,
+  // so it never goes through `execute`. Sheets that
   // appear or disappear are not marked dirty: their files are created / deleted by
   // the caller through the gateway, not saved by the coordinator.
   applyStructuralChange(
@@ -131,8 +131,8 @@ export interface DocumentSession {
   // Called when auto-save is switched back on: pending changes get their debounce timer.
   resumeAutoSave(): void;
   // The Document's files changed outside the app: stops every save (timer, flush, Ctrl/Cmd+S)
-  // with `error` while something is unsaved. The session stays open and editable
-  // (docs/architecture.md §14.7). `resumeSaving` lifts it.
+  // with `error` while something is unsaved. The session stays open and editable.
+  // `resumeSaving` lifts it.
   suspendSaving(error: OperationError): void;
   resumeSaving(): void;
   // For when a sheet is deleted: no history entry may reference it any more.

@@ -2,7 +2,7 @@
 //! runtime, real `tauri.conf.json` and capability file, the same `configure` as production):
 //! argument deserialization, managed state, ACL, Application layer, filesystem, and the
 //! serialized response or error. The TypeScript side replays the same file against the client
-//! wrappers, so both ends are pinned to one contract. See docs/testing.md.
+//! wrappers, so both ends are pinned to one contract.
 //!
 //! Not covered by the mock runtime: the JS `invoke` serialization (no webview) and the native
 //! folder dialog (replaced by a fake picker).
@@ -32,7 +32,7 @@ const CURRENT_TARGET: &str = "rust";
 /// The only window the default capability applies to (capabilities/default.json).
 const MAIN_WINDOW_LABEL: &str = "main";
 const OTHER_WINDOW_LABEL: &str = "not-granted";
-/// A second window the capability covers (`window-*`), like the ones Step F will create.
+/// A second window the capability covers (`window-*`), like the ones later windows get.
 const SECOND_WINDOW_LABEL: &str = "window-1";
 /// The origin of the app's own frontend; ACL treats it as a local URL.
 const LOCAL_ORIGIN: &str = "tauri://localhost";
@@ -846,7 +846,7 @@ fn close_document_through_ipc_stops_the_asset_from_being_served() {
     assert_eq!(serve(), 404);
 }
 
-// ---- Step D: per-window Project binding (docs/architecture.md §11.0.1) ----
+// ---- per-window Project binding ----
 
 fn second_window(opened: &OpenedProject) -> tauri::WebviewWindow<tauri::test::MockRuntime> {
     WebviewWindowBuilder::new(&opened.app, SECOND_WINDOW_LABEL, Default::default())

@@ -1,6 +1,6 @@
 //! The failure of a tool call as the AI sees it: `{ "error": { "kind", "message" } }` in a
 //! result with `isError: true`. Messages are fixed per kind, so no path, Project root or file
-//! content can leak through an error (docs/security.md §4).
+//! content can leak through an error.
 
 use serde_json::{json, Value};
 

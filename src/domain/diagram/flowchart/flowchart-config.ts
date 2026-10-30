@@ -1,5 +1,5 @@
 // Syntax and policy values of the flowchart reader. Every one of them was measured against
-// Mermaid 12.1.0 (docs/architecture.md §16.15); nothing here is a guess about newer
+// Mermaid 12.1.0; nothing here is a guess about newer
 // versions. Values that the reader, the meaning and the editability all need live here so
 // they cannot drift apart.
 
@@ -60,7 +60,7 @@ export const FLOWCHART_LINK_STYLE_FILL_DEFAULT = "fill:none";
 
 // Limits. They equal Mermaid's own defaults (`maxEdges` 500, `maxTextSize` 50000);
 // mermaid-config.ts leaves both at the default and they are secure keys that a diagram
-// cannot raise (docs/security.md), so a source inside these limits is never cut by Mermaid.
+// cannot raise, so a source inside these limits is never cut by Mermaid.
 // `maxTextSize` is checked by render() on the raw text length and a longer text is drawn as
 // an "exceeded" diagram that still counts as a success, so the limit is checked here too.
 export const FLOWCHART_MAX_EDGES = 500;
@@ -118,7 +118,7 @@ export const FLOWCHART_KEYWORD_PREFIXES: readonly string[] = [
   "accDescr",
 ];
 
-// Conservative id alphabet (decision of Step 9-6): ASCII letters, digits and `_`, plus the
+// Conservative id alphabet (a deliberate restriction): ASCII letters, digits and `_`, plus the
 // letters and numbers of Han, Hiragana, Katakana (with the long-vowel mark) and Hangul
 // within the Basic Multilingual Plane (Mermaid rejects astral CJK). `-` and `.` are part of
 // an id only between id characters. Everything else Mermaid accepts in an id (`!"#$%&'*+,/:?`
@@ -213,7 +213,7 @@ export const FLOWCHART_INLINE_LABEL_FORBIDDEN_PATTERN =
   FLOWCHART_UNQUOTED_LABEL_FORBIDDEN_PATTERN;
 /["`|@()[\]{}]|--|==|-\./;
 
-// Link tokens (measured and read from the lexer; docs/architecture.md §16.15.2). A link
+// Link tokens (measured and read from the lexer). A link
 // written whole (`-->`, `-.->`, `==>`, `~~~`) or the two halves of `-- text -->`.
 export const FLOWCHART_FULL_LINK_PATTERN =
   /(?:~{3,}|[xo<]?={2,}[=xo>]|[xo<]?-?\.+-[xo>]?|[xo<]?-{2,}[-xo>])/y;
@@ -238,7 +238,7 @@ export type FlowchartLinkType =
 export type FlowchartLinkStroke = "normal" | "thick" | "dotted" | "invisible";
 
 // `A@{ shape: ..., label: "..." }`. These are the 147 names and aliases that parse AND draw
-// in the app pipeline (measured: out/shapes.txt of the Step 9-5 archive); legacy db names
+// in the app pipeline (measured against the bundled Mermaid version); legacy db names
 // (`square`, `round`, `ellipse` ...) and capitalised names are not valid there.
 export const FLOWCHART_KNOWN_SHAPE_NAMES: ReadonlySet<string> = new Set([
   "state",
@@ -428,8 +428,7 @@ export const FLOWCHART_CLICK_TARGETS = [
   "_top",
 ] as const;
 
-// Text that Mermaid rewrites before it reads the diagram (docs/architecture.md §16.15
-// Step 9-6 notes): see flowchart-source-issues.ts.
+// Text that Mermaid rewrites before it reads the diagram: see flowchart-source-issues.ts.
 export const FLOWCHART_ENTITY_LIKE_PATTERN = /#\w+;/y;
 export const FLOWCHART_STYLE_LIKE_PATTERNS: readonly RegExp[] = [
   /style.*:\S*#.*;/g,

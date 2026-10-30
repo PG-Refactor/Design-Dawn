@@ -1,4 +1,4 @@
-# Development container (docs/environment.md). Run every npm / cargo / tauri
+# Development container. Run every npm / cargo / tauri
 # command inside this service; nothing is installed on the host.
 services:
   dev:

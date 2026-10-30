@@ -1,4 +1,4 @@
-//! The MCP tools against temporary copies of the sample Projects (docs/testing.md §29):
+//! The MCP tools against temporary copies of the sample Projects:
 //! every tool's success and refusals, the read-only mode, conflicts, hostile IDs, and that
 //! what the tools write loads in the app's loader without Load Issues.
 

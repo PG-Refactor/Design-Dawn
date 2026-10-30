@@ -1,4 +1,4 @@
-//! Block text encoding rules (docs/file-format.md §9.2).
+//! Block text encoding rules.
 
 use crate::infrastructure::error::{PersistenceError, PersistenceErrorKind};
 use crate::infrastructure::file_format::constants::{CRLF, LF, UTF8_BOM};

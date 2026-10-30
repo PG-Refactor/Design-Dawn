@@ -30,7 +30,7 @@ function selectHasUnsaved(application: ApplicationState): boolean {
 }
 
 // The commit form of a ready repository. It commits what is staged, nothing else: it never
-// saves the workspace and never touches documents or Undo (docs/ui-design.md §13.4).
+// saves the workspace and never touches documents or Undo.
 export function GitCommitBox({ status }: { readonly status: GitStatus }) {
   const messages = useMessages().git;
   const services = useWorkspaceServices();
@@ -50,7 +50,7 @@ export function GitCommitBox({ status }: { readonly status: GitStatus }) {
     branchName === null
       ? messages.commitPlaceholderGeneric
       : messages.commitPlaceholder(branchName);
-  // Enabled with any committable change (VS Code): when nothing is staged the flow asks
+  // Enabled with any committable change (a typical source-control view): when nothing is staged the flow asks
   // whether to stage everything.
   const canCommit =
     !(submitting || blocked) &&

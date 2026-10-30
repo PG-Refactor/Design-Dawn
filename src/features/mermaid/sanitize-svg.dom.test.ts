@@ -310,7 +310,7 @@ describe("sanitizeSvg output", () => {
 });
 
 // Mermaid draws a `click` node as <a transform="translate(x, y)"><g class="node">…</g></a>:
-// the position is on the link (docs/architecture.md §16.15.8). These are structural checks
+// the position is on the link. These are structural checks
 // on crafted input; render-mermaid.real.dom.test.ts runs the same case through Mermaid.
 describe("sanitizeSvg keeps the position of a removed link", () => {
   const nodeInLink = (linkAttributes: string, id = "node-A") =>

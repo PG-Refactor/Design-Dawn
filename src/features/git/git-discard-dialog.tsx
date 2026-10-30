@@ -18,7 +18,7 @@ interface GitDiscardDialogProps {
 const selectProject = (application: ApplicationState) => application.project;
 
 // The question before Git changes are discarded. Cancel has the initial focus; the texts
-// follow VS Code's wording. Names of Documents are looked up now, so they are current.
+// follow the wording common to source-control views. Names of Documents are looked up now, so they are current.
 export function GitDiscardDialog({
   targets,
   documentIds,

@@ -1,4 +1,4 @@
-//! Folder commands (docs/architecture.md §6.2.4): create, save, move and delete Folders, and
+//! Folder commands: create, save, move and delete Folders, and
 //! Documents created in or moved between Folders. The commands never touch order arrays.
 
 mod support;

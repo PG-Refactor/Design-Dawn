@@ -43,7 +43,7 @@ import type {
 // piece an operation may change carries its absolute range (UTF-16 offsets into `source`).
 // A line the reader cannot account for exactly is `unsupported`, and the chart is then
 // read-only as a whole (gantt-editability.ts); the grammar evidence is in
-// docs/architecture.md §16.17.
+// gantt-grammar.real.dom.test.ts.
 
 const BLANK_PATTERN = /^[\t ]*$/;
 // Any whitespace or control character other than a blank and a tab: Mermaid's lexer treats

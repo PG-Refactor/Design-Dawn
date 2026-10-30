@@ -1,5 +1,4 @@
-// What the commit form and the menus ask before a Git action runs (docs/ui-design.md
-// §13.6, R-4): smart commit (stage everything?) and which remote to publish to. Both are
+// What the commit form and the menus ask before a Git action runs: smart commit (stage everything?) and which remote to publish to. Both are
 // Workspace questions in the UI state; this module opens them and continues with the
 // answer, so the components only call these functions. The flows that do the work are
 // `git-commit-flow.ts` and `git-remote-flow.ts`.

@@ -1,5 +1,5 @@
-//! Project Session: what the Rust side remembers about an opened Project
-//! (docs/architecture.md §6.1). All file access for a Project goes through here so that
+//! Project Session: what the Rust side remembers about an opened Project.
+//! All file access for a Project goes through here so that
 //! path containment checks and the hash ledger cannot be bypassed.
 
 use std::collections::{BTreeMap, HashMap};
@@ -29,7 +29,7 @@ use crate::infrastructure::filesystem::path_resolution::{
 use crate::infrastructure::filesystem::text_content::decode_text;
 
 /// Path → SHA-256 of the file content as last read or written by this process, keyed by
-/// the Project-root-relative `/`-separated path. Phase 7 compares watcher events with it
+/// the Project-root-relative `/`-separated path. The file watcher compares its events with it
 /// to recognize the app's own writes.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct HashLedger {
@@ -103,7 +103,7 @@ impl HashLedger {
 }
 
 /// Identifies one numbering sequence: block content files of one type in one sheet
-/// directory (file-format.md §9.3).
+/// directory.
 type BlockNumberKey = (DocumentId, String, BlockType);
 
 /// Why a directory could not be removed, and whether the entity can still be loaded.
@@ -171,8 +171,8 @@ impl std::fmt::Debug for WatchGuard {
 pub struct ProjectSession {
     root: PathBuf,
     project_id: ProjectId,
-    /// Tells the Frontend which read of the Project a notification belongs to
-    /// (docs/architecture.md §14.4): a notification made for an earlier session of the same
+    /// Tells the Frontend which read of the Project a notification belongs to:
+    /// a notification made for an earlier session of the same
     /// Project describes files the Frontend has since read again.
     generation: u64,
     /// Present while the file watcher runs. Without it (it could not start, or none is
@@ -183,7 +183,7 @@ pub struct ProjectSession {
     ledger: HashLedger,
     /// Highest block content number this session issued, restored or deleted per sequence.
     /// Kept in memory only: numbers are derived from file names, never stored in metadata,
-    /// so after a restart a deleted highest number can be reused (file-format.md §9.3).
+    /// so after a restart a deleted highest number can be reused.
     block_numbers: HashMap<BlockNumberKey, u64>,
 }
 
@@ -346,8 +346,7 @@ impl ProjectSession {
     }
 
     /// Fails with `externallyModified` when the file this session has read or written is no
-    /// longer what it recorded (changed, replaced or removed outside the app, docs/architecture.md
-    /// §14.6): the write would discard that change. A path the session never read or wrote
+    /// longer what it recorded (changed, replaced or removed outside the app): the write would discard that change. A path the session never read or wrote
     /// has nothing to compare with and passes.
     fn ensure_unchanged_since_recorded(
         &self,
@@ -495,7 +494,7 @@ impl ProjectSession {
         });
     }
 
-    /// The user chose to overwrite what is on disk (docs/architecture.md §14.6, §14.9):
+    /// The user chose to overwrite what is on disk:
     /// every recorded file under `scope_prefix` is recorded again as it is now, and a file that
     /// is gone is forgotten so a save can create it again. Files outside the scope keep their
     /// record. A file that cannot be read for another reason keeps its record, so a later

@@ -1,4 +1,4 @@
-//! Parser for `git status --porcelain=v2 -z` (docs/git-development.md §11.6). Only this
+//! Parser for `git status --porcelain=v2 -z`. Only this
 //! machine-readable format is parsed. Records are NUL separated; a rename / copy record
 //! (`2`) is followed by one more NUL-separated record holding the original path.
 //!

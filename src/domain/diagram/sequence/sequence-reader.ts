@@ -37,7 +37,7 @@ import type {
 // the source is only ever sliced, and every token carries its absolute span (UTF-16
 // offsets). What the reader does not fully understand becomes an opaque statement; `meaning`
 // exists only when nothing at all is opaque and Mermaid's pre-parse rewriting cannot have
-// changed the text, so a meaning is never partial (docs/architecture.md §16.16.4).
+// changed the text, so a meaning is never partial.
 
 export interface SequenceReading {
   readonly source: string;

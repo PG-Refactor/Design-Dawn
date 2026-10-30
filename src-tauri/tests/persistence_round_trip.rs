@@ -1,4 +1,4 @@
-//! Byte-stability of load -> save, and the atomic write primitives (docs/testing.md §9).
+//! Byte-stability of load -> save, and the atomic write primitives.
 
 mod support;
 
@@ -125,7 +125,7 @@ fn atomic_write_replaces_content_reuses_a_stale_temp_and_skips_identical_bytes()
 }
 
 // A cloned repository may contain a symlink named like our temp file; writing through it
-// would modify a file outside the Project (docs/security.md §5).
+// would modify a file outside the Project.
 #[cfg(unix)]
 #[test]
 fn atomic_write_never_writes_through_a_planted_temp_symlink() {

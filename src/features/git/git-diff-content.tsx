@@ -20,7 +20,7 @@ function DiffText({ diff }: { readonly diff: string }) {
   );
 }
 
-// The result of a diff load by outcome (docs/git-development.md §11.10); every outcome is
+// The result of a diff load by outcome; every outcome is
 // an answer, not a failure.
 export function GitDiffContent({ diff }: { readonly diff: GitDiff }) {
   const messages = useMessages().git;

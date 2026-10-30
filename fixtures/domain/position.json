@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "subject": "position",
-  "description": "position.x / position.y must be integers in the signed 32-bit range. See docs/data-model.md §11.3.",
+  "description": "position.x / position.y must be integers in the signed 32-bit range.",
   "cases": [
     {
       "name": "origin",

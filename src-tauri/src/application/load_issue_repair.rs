@@ -1,4 +1,4 @@
-//! Explicit, confirmed repairs of Load Issues (docs/architecture.md §14.15).
+//! Explicit, confirmed repairs of Load Issues.
 //!
 //! Loading only reports problems and normalises them in memory. A repair is the user's
 //! choice to make the files agree with that normalised view, one issue at a time:

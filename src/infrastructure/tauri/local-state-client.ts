@@ -1,4 +1,4 @@
-// Typed wrappers for the Application Local State commands (docs/architecture.md §6.2.2).
+// Typed wrappers for the Application Local State commands.
 // Loading problems arrive as `loadIssue` next to default values, not as errors.
 
 import type { ThemePreference } from "../../application/local-state/theme";

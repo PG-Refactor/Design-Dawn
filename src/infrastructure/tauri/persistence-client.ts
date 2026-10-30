@@ -1,4 +1,4 @@
-// Typed wrappers for the persistence Tauri commands (docs/architecture.md §6.2). This is the
+// Typed wrappers for the persistence Tauri commands. This is the
 // only place that calls `invoke`. Expected failures come back as `{ ok: false, error }`;
 // nothing here throws for them.
 

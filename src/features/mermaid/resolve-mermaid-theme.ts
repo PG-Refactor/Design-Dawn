@@ -1,7 +1,7 @@
 import type { MermaidThemeValues } from "./mermaid-renderer-types";
 
 // Which design token feeds which Mermaid theme variable. Colours are never written here:
-// the values are read from the active theme (docs/architecture.md §13, §15.4).
+// the values are read from the active theme.
 export type ThemeVariable = Exclude<
   keyof MermaidThemeValues,
   "darkMode" | "pieOpacity"

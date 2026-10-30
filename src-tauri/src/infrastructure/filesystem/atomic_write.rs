@@ -1,4 +1,4 @@
-//! Atomic Save and create-only writes (docs/file-format.md §9).
+//! Atomic Save and create-only writes.
 
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;

@@ -1,4 +1,4 @@
-// Parsing of the language preference setting (docs/architecture.md §6.2.2). The values live
+// Parsing of the language preference setting. The values live
 // in `config/language-config.ts`; this is the TypeScript twin of Rust's `LanguagePreference`.
 
 import {

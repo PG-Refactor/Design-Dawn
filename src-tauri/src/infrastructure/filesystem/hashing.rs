@@ -1,6 +1,6 @@
 use sha2::{Digest, Sha256};
 
-/// Lowercase hex SHA-256. The ledger stores this form so the Phase 7 watcher can compare
+/// Lowercase hex SHA-256. The ledger stores this form so the file watcher can compare
 /// hashes of files it observes with the ones this process wrote or read.
 pub fn sha256_hex(bytes: &[u8]) -> String {
     Sha256::digest(bytes)

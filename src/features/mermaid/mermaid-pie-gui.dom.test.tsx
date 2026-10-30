@@ -609,7 +609,7 @@ describe("refused input", () => {
     await enterValue(rendered, textbox(GUI.valueField), "-1");
     expect(alertText()).not.toBeNull();
     // The refused text is still a pending edit, so choosing another slice would commit it
-    // first (and fail): the selection stays until the input is reverted (Step 9-4.1).
+    // first (and fail): the selection stays until the input is reverted.
     await rendered.shell.user.click(button(GUI.revert));
     await select(rendered, "Cats", "85");
     expect(alertText()).toBeNull();

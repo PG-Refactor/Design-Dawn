@@ -11,7 +11,7 @@ pub struct FolderInput {
     pub child_order: Vec<String>,
 }
 
-/// A directory under `documents/` that groups Folders and Documents (docs/data-model.md §2.1).
+/// A directory under `documents/` that groups Folders and Documents.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Folder {
     schema_version: SchemaVersion,

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The flowchart GUI path end to end below the UI (docs/architecture.md §16.15.13): a new
+// The flowchart GUI path end to end below the UI: a new
 // Mermaid block's source, edited by GUI operations through the Application gate with the
 // real render check, saved through the normal auto-save, reloaded from the stored file,
 // and undone / redone. The stored file is compared line by line with the original, which is
@@ -157,7 +157,7 @@ describe("flowchart GUI operations, save, reload, undo", {
       renderCheck,
     );
     expect(outcome.ok).toBe(true);
-    // The command stores LF (docs/file-format.md §9.2); apart from that only D changed.
+    // The command stores LF; apart from that only D changed.
     expect(contentOf(harness)).toBe(
       handWritten.replaceAll("\r\n", "\n").replace("D\n", 'D["Done"]\n'),
     );

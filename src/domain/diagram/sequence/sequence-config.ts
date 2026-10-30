@@ -1,5 +1,5 @@
 // Syntax values of Mermaid 12.1.0's `sequenceDiagram` that the reader and the operations
-// share (docs/architecture.md §16.16). What is only needed to WRITE text lives in
+// share. What is only needed to WRITE text lives in
 // sequence-operation-config.ts.
 
 export const SEQUENCE_HEADER_KEYWORD = "sequenceDiagram";
@@ -11,7 +11,7 @@ export const SEQUENCE_HASH_COMMENT_MARK = "#";
 
 // A participant id the editor reads: letters, digits and `_`. Mermaid accepts more (spaces,
 // `-`, `.` ...), but those forms are where its lexer has corner cases, so a diagram that
-// uses them is read-only (measured in docs/architecture.md §16.16.3).
+// uses them is read-only (measured against Mermaid).
 export const SEQUENCE_ID_PATTERN_SOURCE = "[\\p{L}\\p{N}_]+";
 
 // Words that cannot be a participant id. Mermaid rejects the keywords in any letter case; the

@@ -7,7 +7,7 @@ import {
 } from "./pie-config";
 
 // Text rules of the pie editor. They mirror what Mermaid 12.1.0 does to the text before and
-// while it reads a pie chart (docs/architecture.md §16.13), because a label or title is only
+// while it reads a pie chart, because a label or title is only
 // safe to write if Mermaid reads back exactly what was written.
 
 // `<tag attr="v">` becomes `<tag attr='v'>` before parsing (mermaid preprocess `cleanupText`).

@@ -1,5 +1,5 @@
 //! Folder selection with a fake picker (the real OS dialog cannot be driven headlessly), and
-//! the select -> open / create flow built on it (docs/architecture.md §6.2.2).
+//! the select -> open / create flow built on it.
 
 mod support;
 

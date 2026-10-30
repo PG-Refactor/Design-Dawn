@@ -1,5 +1,5 @@
 //! "Update all now": writes every metadata file that was read in an older `schemaVersion` in
-//! the current version (docs/architecture.md §14.15). Loading never does this; an entity is
+//! the current version. Loading never does this; an entity is
 //! otherwise updated by its next save.
 
 use serde::Serialize;

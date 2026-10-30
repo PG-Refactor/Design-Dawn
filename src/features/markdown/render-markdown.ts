@@ -1,4 +1,4 @@
-// The Markdown pipeline (docs/security.md §3):
+// The Markdown pipeline:
 //   source -> markdown-it -> HTML string -> DOMPurify -> SanitizedHtml -> React
 // Stage one narrows what markdown-it may produce; stage two (`sanitizeHtml`) is mandatory
 // and does not rely on stage one.

@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "subject": "contentPath",
-  "description": "contentPath is relative to the Document root. TypeScript treats it as opaque and only rejects the empty string; Rust validates syntax, location and extension. Filesystem checks (existence, canonicalize, symlinks) belong to Phase 2. See docs/file-format.md §6.",
+  "description": "contentPath is relative to the Document root. TypeScript treats it as opaque and only rejects the empty string; Rust validates syntax, location and extension. Filesystem checks (existence, canonicalize, symlinks) are not part of the pure validation.",
   "cases": [
     {
       "name": "markdown in sheet blocks",

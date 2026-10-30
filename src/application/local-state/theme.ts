@@ -1,5 +1,4 @@
-// Theme identifiers and the preference -> applied theme derivation (docs/architecture.md
-// §13.1). Pure: the OS theme is passed in, and reading it from the OS / applying it to the
+// Theme identifiers and the preference -> applied theme derivation. Pure: the OS theme is passed in, and reading it from the OS / applying it to the
 // UI is a later step. Mirrors `THEME_IDS` in Rust (`application/local_state/constants.rs`).
 
 import {

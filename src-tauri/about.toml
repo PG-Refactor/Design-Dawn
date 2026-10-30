@@ -1,8 +1,7 @@
 # Third-party license policy for the Rust side of the shipped application.
 # Used by `npm run licenses:generate` / `licenses:check` (scripts/third-party-notices.mjs).
-# See docs/oss-policy.md section 5.1 and docs/dependencies.md.
 
-# Only permissive licenses are accepted globally (docs/oss-policy.md section 2).
+# Only permissive licenses are accepted globally.
 # Any other license makes cargo-about fail, so a new dependency with an unreviewed
 # license can never slip into THIRD_PARTY_NOTICES.md silently.
 accepted = [
@@ -13,8 +12,8 @@ accepted = [
   "Zlib",
   "CC0-1.0",
   "MIT-0",
-  # ISC (functionally equivalent to MIT; docs/oss-policy.md): inotify and inotify-sys, pulled
-  # in by notify (Phase 7, user delegation 2026-10-30).
+  # ISC (functionally equivalent to MIT): inotify and inotify-sys, pulled
+  # in by notify (the file watcher).
   "ISC",
 ]
 
@@ -38,7 +37,7 @@ ignore-build-dependencies = true
 private = { ignore = true }
 
 # MPL-2.0 (weak, file-level copyleft) is NOT accepted globally. It is accepted per crate
-# below for these five crates only (user decision, 2026-10-11). They are used unmodified;
+# below for these five crates only. They are used unmodified;
 # THIRD_PARTY_NOTICES.md lists their exact versions with the crates.io source archives.
 # A new MPL-2.0 crate is not covered and makes the command fail until it is reviewed.
 #   option-ext   : shipped (dirs-sys -> tauri), used unmodified

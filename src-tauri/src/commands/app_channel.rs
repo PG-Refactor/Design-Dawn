@@ -1,4 +1,4 @@
-//! The app channel (docs/architecture.md §11.0.1): Rust to one window, for requests that
+//! The app channel: Rust to one window, for requests that
 //! arrive while the window is running. Separate from the drop and close-request channels.
 //! It carries `openDocument` (a `.dawn` opened again for a Project this window has) and
 //! `settingsChanged` (the theme or auto-save setting was changed in another window).
@@ -40,8 +40,7 @@ pub enum AppNotification {
         language_preference: LanguagePreference,
         auto_save: bool,
     },
-    /// Files of the window's Project changed behind the app's back (docs/architecture.md
-    /// §14.4): `{ "kind": "projectFilesChanged", "projectId", "sessionGeneration",
+    /// Files of the window's Project changed behind the app's back: `{ "kind": "projectFilesChanged", "projectId", "sessionGeneration",
     /// "watching", "rescan", "project", "documents" }`. Paths are relative; none is absolute.
     #[serde(rename_all = "camelCase")]
     ProjectFilesChanged {

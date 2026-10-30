@@ -59,7 +59,8 @@ import {
   planSetSubgraphTitle,
 } from "./flowchart-subgraph-operations";
 
-// Tier 1 operations of the flowchart GUI editor (docs/architecture.md §16.15.5 and §16.15.12).
+// Tier 1 operations of the flowchart GUI editor ("Tier 1" is the basic set of edits, "Tier 2" the
+// later, more structural ones: deleting nodes and editing subgraphs).
 // Pure functions from the current source to a set of TextEdits plus the meaning the result
 // must have: "meaning before + what the operation meant". They change only the bytes the
 // operation is about (a token, a label, a bracket pair, one inserted or removed line), so
@@ -120,7 +121,7 @@ export type FlowchartOperation =
       readonly nodeId: string;
     }
   | { readonly kind: "deleteEdge"; readonly target: FlowchartEdgeTarget }
-  // Tier 2 (docs/architecture.md §16.15.14).
+  // Tier 2.
   | { readonly kind: "deleteNode"; readonly nodeId: string }
   | {
       readonly kind: "setSubgraphTitle";

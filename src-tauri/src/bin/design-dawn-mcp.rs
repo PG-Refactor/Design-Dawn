@@ -1,4 +1,4 @@
-//! The MCP server executable (docs/architecture.md §17). It does not start Tauri.
+//! The MCP server executable. It does not start Tauri.
 
 use std::io::{stdin, stdout};
 use std::process::ExitCode;

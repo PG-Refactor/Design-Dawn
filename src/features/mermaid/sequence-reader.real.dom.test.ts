@@ -30,7 +30,7 @@ beforeAll(installFakeSvgMeasurement);
 
 const renderCheck = createDiagramRenderCheck(mermaidRenderer);
 
-// 700 programs with seed 2026 are the size of the Step 9-7 research run.
+// 700 programs with seed 2026 are the size of the earlier research run.
 const FUZZ_SEED = 2026;
 const FUZZ_PROGRAM_COUNT = 700;
 const TEST_TIMEOUT_MS = 600_000;

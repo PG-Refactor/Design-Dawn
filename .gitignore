@@ -33,7 +33,7 @@ logs/
 .env.*
 !.env.example
 
-# ---- Claude Code: personal/local settings only (shared settings stay tracked) ----
+# ---- Local development tooling settings and worktrees ----
 /.claude/
 
 # ---- Local design notes (working documents, not published) ----

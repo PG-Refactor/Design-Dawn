@@ -53,7 +53,7 @@ import {
 } from "./flowchart-subgraph-model";
 import type { FlowchartStatement } from "./flowchart-types";
 
-// Tier 2 subgraph operations (docs/architecture.md §16.15.14): title, direction, creating and
+// Tier 2 subgraph operations: title, direction, creating and
 // dissolving a block, and moving a node in or out of one. Same contract as the Tier 1
 // operations: minimal edits, and the meaning the result must have, computed from the meaning
 // before the edit and what the operation meant (membership through `resolveMembers`), never

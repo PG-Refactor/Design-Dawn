@@ -12,7 +12,7 @@ import {
 } from "./flowchart-operation-support";
 import type { FlowchartLinkStyleStatement } from "./flowchart-types";
 
-// Deleting an edge (docs/architecture.md §16.15.12). The statement is cut so that nothing else
+// Deleting an edge. The statement is cut so that nothing else
 // it said is lost, and everything that names the edge by position is repaired in the same set
 // of edits: the `linkStyle` numbers behind it move down by one and its own number goes, and
 // the `id@{ ... }` lines of an edge with an id of its own go too (left behind they would

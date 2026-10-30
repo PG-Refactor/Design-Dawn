@@ -1,6 +1,6 @@
 // Where UI-local drafts (text typed into an editor but not yet committed as a command)
-// announce themselves, so "save everything" can turn them into commands first
-// (`docs/architecture.md` §10.1). UI plumbing only: not application state, not in a store,
+// announce themselves, so "save everything" can turn them into commands first.
+// UI plumbing only: not application state, not in a store,
 // and never part of the history. Only Markdown editors register; rename inputs and name
 // dialogs do not.
 

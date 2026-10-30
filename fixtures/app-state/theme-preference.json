@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "subject": "themePreference",
-  "description": "Theme preference accepts exactly system, light and dark (case-sensitive). See docs/architecture.md §6.2.2 and §13.",
+  "description": "Theme preference accepts exactly system, light and dark (case-sensitive).",
   "cases": [
     {
       "name": "system",

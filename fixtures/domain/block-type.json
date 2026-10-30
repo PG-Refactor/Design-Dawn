@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "subject": "blockType",
-  "description": "Only the defined block types are accepted, case-sensitively. See docs/data-model.md §11.4.",
+  "description": "Only the defined block types are accepted, case-sensitively.",
   "cases": [
     {
       "name": "markdown",

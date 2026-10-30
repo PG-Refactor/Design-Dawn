@@ -1,5 +1,4 @@
-// The second stage of the Mermaid pipeline (docs/architecture.md §15.4, docs/security.md
-// §7): whatever SVG Mermaid produced, only SVG that cannot reach outside the image comes
+// The second stage of the Mermaid pipeline: whatever SVG Mermaid produced, only SVG that cannot reach outside the image comes
 // out. It does not trust Mermaid's own sanitising. The result is shown through <img>,
 // which runs no script and loads nothing, so this is the second of two defences.
 //
@@ -48,7 +47,7 @@ const TRANSFORM_ATTRIBUTE = "transform";
 
 // A transform made only of SVG transform functions with plain numbers, which cannot name
 // anything outside the image. Anything else is not carried over. The number of arguments
-// each function takes (SVG 1.1 §7.6).
+// each function takes (SVG 1.1, transform functions).
 const TRANSFORM_ARGUMENT_COUNTS: Readonly<Record<string, readonly number[]>> = {
   matrix: [6],
   translate: [1, 2],

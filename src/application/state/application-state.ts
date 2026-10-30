@@ -1,4 +1,4 @@
-// Application / Domain State (docs/architecture.md §8.1): the open project, the open
+// Application / Domain State: the open project, the open
 // documents' immutable Domain values, history flags and save state. No UI concerns
 // (selection, viewport, hover) belong here.
 
@@ -88,7 +88,7 @@ export interface OpenProjectState {
   readonly projectId: ProjectId;
   readonly project: Project;
   // Which read of the Project this is (Rust's session generation). External change
-  // notices for another read are stale and dropped (docs/architecture.md §14.4).
+  // notices for another read are stale and dropped.
   readonly sessionGeneration: number;
   // Every Folder of the Project, flat; the tree follows `parentFolderId` and `childOrder`.
   readonly folders: readonly OpenProjectFolderEntry[];

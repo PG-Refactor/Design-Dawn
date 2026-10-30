@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Evidence for docs/architecture.md §16.13: how mermaid 12.1.0 reads pie charts, and which
+// Evidence for the pie reader: how mermaid 12.1.0 reads pie charts, and which
 // of those inputs the domain (src/domain/diagram/pie/) calls editable. Each case names a
 // fact; the test name is the evidence cited in the table. jsdom cannot lay text out, so
 // "renders" means the real renderer and the SVG sanitiser accept it, not how it looks.

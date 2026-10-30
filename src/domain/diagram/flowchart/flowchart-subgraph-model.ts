@@ -10,7 +10,7 @@ import type {
 } from "./flowchart-types";
 
 // The subgraph blocks of a text and the rule that turns what is written inside them into
-// members (docs/architecture.md §16.15.14). The membership operations change the list of
+// members. The membership operations change the list of
 // mentions of a block and ask `resolveMembers` what Mermaid will then make of it, so the
 // meaning they promise does not depend on the text they produce.
 

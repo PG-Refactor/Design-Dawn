@@ -18,27 +18,27 @@ export const PERSISTENCE_ERROR_KINDS = [
   "alreadyExists",
   "ioError",
   // The file changed (or was removed) outside the app since the app last read or wrote it,
-  // so a save would discard that change (docs/architecture.md §14.6).
+  // so a save would discard that change.
   "externallyModified",
 ] as const;
 
 // `entityNotFound` is already part of the domain kinds in TypeScript.
 // `projectOpenInOtherWindow`: the Project is open in another window, which Rust brought
-// to the front instead of opening it here (docs/architecture.md §11.0.1).
+// to the front instead of opening it here.
 export const SESSION_ERROR_KINDS = [
   "notWritable",
   "projectNotOpen",
   "projectOpenInOtherWindow",
 ] as const;
 
-// Folder selection (docs/architecture.md §6.2.2): the dialog failed, or a selectionId is
+// Folder selection: the dialog failed, or a selectionId is
 // unknown / replaced by a newer selection. Cancelling is a result, not an error.
 export const FOLDER_SELECTION_ERROR_KINDS = [
   "dialogFailed",
   "invalidFolderSelection",
 ] as const;
 
-// Image assets (docs/file-format.md §6): a dropped file or asset whose content is not a
+// Image assets: a dropped file or asset whose content is not a
 // valid image, one over the size limit, and a `dropId` that is unknown or replaced by a
 // newer drop (the same pattern as `invalidFolderSelection`).
 export const ASSET_ERROR_KINDS = [
@@ -47,11 +47,11 @@ export const ASSET_ERROR_KINDS = [
   "invalidDropSelection",
 ] as const;
 
-// Folder commands (docs/architecture.md §6.2.4): deleting a folder that still holds
+// Folder commands: deleting a folder that still holds
 // something, and a move that is not allowed (into itself or a descendant, or an open entry).
 export const FOLDER_ERROR_KINDS = ["folderNotEmpty", "invalidMove"] as const;
 
-// Git (docs/git-development.md §11.8): a git process that failed or timed out, and a
+// Git: a git process that failed or timed out, and a
 // Project-relative path git must not receive. "No repository" / "git missing" are states of
 // the Git status, not error kinds.
 export const GIT_ERROR_KINDS = [
@@ -59,22 +59,22 @@ export const GIT_ERROR_KINDS = [
   "gitTimeout",
   "invalidGitPath",
   "gitNotReady",
-  // Commit (docs/git-development.md §11.11).
+  // Commit.
   "invalidCommitMessage",
   "nothingToCommit",
   "gitUnmergedChanges",
   "gitOperationInProgress",
   "gitIdentityMissing",
   "gitCommitRejected",
-  // History (docs/git-development.md §11.12).
+  // History.
   "invalidHistoryRequest",
-  // Discard (docs/git-development.md §11.14).
+  // Discard.
   "gitDiscardRejected",
-  // Commit options and Undo Last Commit (docs/git-development.md §11.16).
+  // Commit options and Undo Last Commit.
   "gitNoCommitToAmend",
   "gitCommitAlreadyPushed",
   "gitCannotUndoCommit",
-  // Remote operations (docs/git-development.md §11.16).
+  // Remote operations.
   "gitNoRemote",
   "gitNoUpstream",
   "gitDetachedHead",
@@ -92,7 +92,7 @@ export const RUST_ONLY_DOMAIN_ERROR_KINDS = [
 ] as const;
 
 // The app itself refuses to save a Document whose files changed outside the app until the
-// user decides what to do (docs/architecture.md §14.7). Produced by the application layer,
+// user decides what to do. Produced by the application layer,
 // never by Rust (Rust's own last-line refusal is `externallyModified`).
 export const EXTERNAL_CHANGE_ERROR_KINDS = ["externalConflict"] as const;
 

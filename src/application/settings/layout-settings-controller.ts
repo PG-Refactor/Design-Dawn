@@ -1,4 +1,4 @@
-// Owns the "Project Tree width" app setting (docs/architecture.md §6.2.2). Framework-free and,
+// Owns the "Project Tree width" app setting. Framework-free and,
 // like the theme and auto-save controllers, outside the application store, document
 // sessions and undo history: it is app-local layout, not Project data.
 

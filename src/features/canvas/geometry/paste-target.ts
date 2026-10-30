@@ -1,4 +1,4 @@
-// Where a paste puts the top-left corner of the pasted group (docs/architecture.md §9.5).
+// Where a paste puts the top-left corner of the pasted group.
 
 import type { ClipboardContent } from "../../../application/clipboard/clipboard";
 import { commitPosition } from "../../../application/commit-geometry";

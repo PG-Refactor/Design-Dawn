@@ -1,4 +1,4 @@
-//! The migration registry end to end (docs/file-format.md §11, docs/architecture.md §14.15):
+//! The migration registry end to end:
 //! an older file is read as the current shape, loading never rewrites it, it is written in
 //! the current version only by its next save or by "update all", and a newer file is never
 //! written at all.

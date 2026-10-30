@@ -1,7 +1,6 @@
 // View model of the notifications: one flat, prioritised list built from state the
 // application layer already holds (save errors, load results, warnings) plus the theme
-// and operation errors. Nothing is stored here; the order follows docs/ui-design.md
-// §12.5: save errors > load failures > load warnings > orphan content files.
+// and operation errors. Nothing is stored here; the order is: save errors > load failures > load warnings > orphan content files.
 
 import type { LanguageState } from "../../../application/language/language-controller";
 import type { RepairTarget } from "../../../application/load-issue-repair/load-issue-repair-controller";
@@ -115,7 +114,7 @@ export interface NotificationSheetDeletion {
   readonly sheetId: SheetId;
 }
 
-// The explicit repairs offered for a Load Issue (docs/architecture.md §14.15): which issue
+// The explicit repairs offered for a Load Issue: which issue
 // to name, which Document reported it, and the actions that apply to its kind.
 export interface NotificationRepair {
   readonly target: RepairTarget;

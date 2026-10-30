@@ -64,7 +64,7 @@ function keyOf(entry: StripEntry): string {
 }
 
 // The main tab strip: the Document tabs (reorderable, closed with confirmation) followed by
-// the diff tabs (UI state only; docs/ui-design.md §13.5). Arrow keys move through all of
+// the diff tabs (UI state only). Arrow keys move through all of
 // them; Ctrl/Cmd+Arrow reorders Document tabs only.
 export function DocumentTabs() {
   const messages = useMessages().workspace;

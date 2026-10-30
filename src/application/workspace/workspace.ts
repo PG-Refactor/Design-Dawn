@@ -1,4 +1,4 @@
-// The Application-layer workspace (docs/architecture.md §9.7, §11): assembles the open
+// The Application-layer workspace: assembles the open
 // project and its document sessions on top of the persistence gateway and the store.
 // UI-free; it never shows a dialog and never touches UI state.
 //
@@ -100,7 +100,7 @@ export interface WorkspaceOptions {
 }
 
 // `discardChanges` closes WITHOUT saving: only after the user explicitly chose to give up
-// the unsaved changes (docs/architecture.md §10.1, auto-save off).
+// the unsaved changes (auto-save off).
 export interface CloseOptions {
   readonly discardChanges?: boolean;
 }
@@ -721,7 +721,7 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
       const without = documentWithoutSheet(data, sheetId);
       if (!without.ok) return failWith(without.error);
       const orderChanged = without.value !== data.document;
-      // Order first, directory second (docs/file-format.md §9). Memory is untouched
+      // Order first, directory second. Memory is untouched
       // until the directory is really gone, so a failure here changes nothing.
       if (orderChanged) {
         const saved = await gateway.saveDocument(projectId, without.value);

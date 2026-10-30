@@ -1,17 +1,16 @@
-//! Every fixed value of the Git integration (CLAUDE.md §46): executable names, environment
+//! Every fixed value of the Git integration: executable names, environment
 //! variable names, git arguments, limits and timeouts.
 
 use std::time::Duration;
 
-/// Default time limit of one git process (docs/git-development.md §11.6). Diff may get its
+/// Default time limit of one git process. Diff may get its
 /// own value later.
 pub const GIT_COMMAND_TIMEOUT: Duration = Duration::from_secs(30);
 
-/// Time limit of `git commit`: hooks (pre-commit, commit-msg) and signing run inside it
-/// (docs/git-development.md §11.11).
+/// Time limit of `git commit`: hooks (pre-commit, commit-msg) and signing run inside it.
 pub const GIT_COMMIT_TIMEOUT: Duration = Duration::from_secs(120);
 
-/// Time limit of fetch / pull / push (docs/git-development.md §11.16): includes the time a
+/// Time limit of fetch / pull / push: includes the time a
 /// credential manager may wait for the user to answer a prompt, and hooks of pull / push.
 pub const GIT_NETWORK_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 
@@ -22,7 +21,7 @@ pub const COMMIT_MESSAGE_LIMIT_BYTES: usize = 64 * 1024;
 /// something is wrong, and a truncated record list must never be parsed.
 pub const GIT_STDOUT_LIMIT_BYTES: usize = 16 * 1024 * 1024;
 
-/// A Diff larger than this is not shown (docs/git-development.md §11.6, §11.10): a partial
+/// A Diff larger than this is not shown: a partial
 /// diff would read as a complete one. The runner reads one byte more so "exactly at the
 /// limit" and "over it" can be told apart.
 pub const DIFF_OUTPUT_LIMIT_BYTES: usize = 1024 * 1024;
@@ -124,7 +123,7 @@ pub const ARG_UNTRACKED_ALL: &str = "--untracked-files=all";
 pub const ARG_DIFF: &str = "diff";
 pub const ARG_NUMSTAT: &str = "--numstat";
 /// An external diff program or a textconv filter is a program named by repository
-/// configuration; neither may run (docs/git-development.md §11.6).
+/// configuration; neither may run.
 pub const ARG_NO_EXT_DIFF: &str = "--no-ext-diff";
 pub const ARG_NO_TEXTCONV: &str = "--no-textconv";
 /// Compares two paths outside the index; used to show an untracked file as all additions.
@@ -183,7 +182,7 @@ pub const IN_PROGRESS_GIT_PATHS: [&str; 5] = [
 /// Object IDs are SHA-1 (40) or SHA-256 (64) lowercase hexadecimal.
 pub const OBJECT_ID_LENGTHS: [usize; 2] = [40, 64];
 
-/// History (docs/git-development.md §11.12): page size bounds, the deepest `--skip` a cursor
+/// History: page size bounds, the deepest `--skip` a cursor
 /// may carry (a cursor is client supplied, so it is bounded), and the stdout bound of one
 /// page (the page size limit keeps real output far below it).
 pub const HISTORY_LIMIT_MIN: usize = 1;
@@ -204,7 +203,7 @@ pub const ARG_SKIP_PREFIX: &str = "--skip=";
 /// Peels a revision to a commit: it names nothing unless the object is a commit.
 pub const REVISION_COMMIT_SUFFIX: &str = "^{commit}";
 
-/// Commit options and Undo Last Commit (docs/git-development.md §11.16).
+/// Commit options and Undo Last Commit.
 /// `git add -A` stages every change of the working tree (no pathspec) for "commit all".
 pub const ARG_ADD_ALL: &str = "-A";
 pub const ARG_AMEND: &str = "--amend";
@@ -224,7 +223,7 @@ pub const FORMAT_REF_NAME: &str = "--format=%(refname)";
 /// Remote-tracking branches: a commit reachable from one of them is (assumed to be) pushed.
 pub const REMOTE_TRACKING_REFS: &str = "refs/remotes";
 
-/// Remote operations (docs/git-development.md §11.16). None of these arguments forces
+/// Remote operations. None of these arguments forces
 /// anything: no `--force`, `--force-with-lease`, `+` refspec, `--no-verify`, `--mirror`,
 /// `--delete` or `--tags` exists in this list, so no code path can pass them.
 pub const ARG_REMOTE: &str = "remote";

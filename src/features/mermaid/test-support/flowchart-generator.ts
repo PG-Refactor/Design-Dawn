@@ -1,5 +1,5 @@
 // TEST ONLY. A seeded generator of random flowchart programs for the differential test
-// (flowchart-reader.real.dom.test.ts). It is a typed rewrite of the generator of the Step 9-5
+// (flowchart-reader.real.dom.test.ts). It is a typed rewrite of the generator of the earlier
 // research (project-authored). The programs mix chains, `&` lists, edge ids, `@{}` nodes,
 // subgraphs, classes, styles, clicks, comments and several statements per line; whether
 // Mermaid accepts one is decided by Mermaid at test time, not by the generator.

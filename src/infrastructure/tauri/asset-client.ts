@@ -1,4 +1,4 @@
-// Typed wrappers for the asset Tauri commands (docs/architecture.md §6.2). Dropped files never
+// Typed wrappers for the asset Tauri commands. Dropped files never
 // pass through the Frontend: Rust keeps their paths and announces only a `dropId`.
 
 import type { ContentPath } from "../../domain/block/content-path";

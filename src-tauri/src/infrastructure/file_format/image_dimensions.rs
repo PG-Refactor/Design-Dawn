@@ -1,5 +1,5 @@
-//! Natural size of an image and the initial size of the Block created for it
-//! (docs/file-format.md §6). Pure functions over bytes, like `image_validation`.
+//! Natural size of an image and the initial size of the Block created for it.
+//! Pure functions over bytes, like `image_validation`.
 
 use super::constants::{INITIAL_IMAGE_LONG_EDGE_MAX, SVG_FALLBACK_HEIGHT, SVG_FALLBACK_WIDTH};
 use super::image_validation::{svg_root_attributes, ImageContentError, ImageFormat};

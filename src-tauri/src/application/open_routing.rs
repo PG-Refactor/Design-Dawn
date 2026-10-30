@@ -1,4 +1,4 @@
-//! The pure part of routing an open request to a window (docs/architecture.md §11.0.1):
+//! The pure part of routing an open request to a window:
 //! which window handles a Project, the labels of new windows, and the open-document requests
 //! that were sent to a window but not yet acknowledged. No Tauri types, so every rule is
 //! unit-tested; the commands layer executes the decisions.

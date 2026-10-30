@@ -1,4 +1,4 @@
-//! Values of the MCP server that are decided in one place (CLAUDE.md §46).
+//! Values of the MCP server that are decided in one place.
 
 use crate::application::authoring::BLOCK_TEXT_MAX_BYTES;
 use crate::domain::constants::{

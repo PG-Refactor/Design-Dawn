@@ -1,5 +1,5 @@
 // Syntax and policy values of the gantt editor. Every one of them was checked against
-// Mermaid 12.1.0 (docs/architecture.md §16.17); nothing here is a guess about newer versions.
+// Mermaid 12.1.0; nothing here is a guess about newer versions.
 
 export const GANTT_HEADER_KEYWORD = "gantt";
 
@@ -96,7 +96,7 @@ export const GANTT_WEEKDAY_NAMES = [
 export const GANTT_WEEKENDS_TOKEN = "weekends";
 
 // What Mermaid's lexer takes for something other than a task when a line starts with it
-// (measured, §16.17): a name that starts like this would become that statement.
+// (measured): a name that starts like this would become that statement.
 export const GANTT_KEYWORD_LED_PATTERN =
   /^(?:gantt\b|dateformat\s|inclusiveenddates\b|topaxis\b|axisformat\s|tickinterval\s|includes\s|excludes\s|todaymarker\s|weekday\s+\w+|weekend\s+(?:friday|saturday)\b|title\s|section\s|click\s|call\s|href\s+"|acc(?:title|descr)\s*:|accdescr\s*\{|accdescription\s|\d{4}-\d\d-\d\d\b)/i;
 // A line that starts with one of these words but has no usable value: its empty value would
@@ -110,7 +110,7 @@ export const GANTT_DIRECTIVE_MARK = "%%{";
 export const GANTT_DEFAULT_INDENT = "    ";
 export const GANTT_DEFAULT_LINE_ENDING = "\n";
 
-// ---- Tier 2 (docs/architecture.md §16.17.2) ----
+// ---- Tier 2 ----
 
 export const GANTT_AXIS_FORMAT_KEYWORD = "axisFormat";
 export const GANTT_EXCLUDES_KEYWORD = "excludes";

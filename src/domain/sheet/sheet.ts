@@ -128,7 +128,7 @@ export function sendBlockToBack(
   return sendBlocksToBack(sheet, [blockId]);
 }
 
-// Multi-block operations (data-model.md §13). Convention shared by all of them:
+// Multi-block operations. Convention shared by all of them:
 //  - all-or-nothing: an unknown id (`entityNotFound`) or a repeated id (`duplicateId`)
 //    rejects the whole call and nothing changes;
 //  - an operation that changes nothing returns the SAME `sheet` reference, so callers

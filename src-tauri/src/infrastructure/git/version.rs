@@ -1,4 +1,4 @@
-//! Minimum git version (docs/git-development.md §11.6). The version is probed once per
+//! Minimum git version. The version is probed once per
 //! executable path and remembered for the process: an upgrade needs an app restart, which
 //! is cheaper than running `git --version` before every status refresh.
 

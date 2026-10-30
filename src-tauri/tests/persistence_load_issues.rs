@@ -1,4 +1,4 @@
-//! Every Load Issue kind in docs/data-model.md §7, plus load failures. All tests also assert
+//! Every Load Issue kind, plus load failures. All tests also assert
 //! that loading never changes a file ("ロードは書き込みを行わない").
 
 mod support;

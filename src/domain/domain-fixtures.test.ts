@@ -37,7 +37,7 @@ interface FixtureFile {
 }
 
 // Fixture inputs are checked by the domain validators themselves; these casts only
-// select the per-subject input shape documented in docs/testing.md §8.
+// select the per-subject input shape of each fixture file.
 type SubjectRunner = (input: unknown) => DomainResult<unknown>;
 
 const SUBJECT_RUNNERS: Readonly<Record<string, SubjectRunner>> = {

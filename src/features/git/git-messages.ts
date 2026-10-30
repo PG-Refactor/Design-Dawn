@@ -1,4 +1,4 @@
-// User-visible texts of the Git panel (docs/ui-design.md §13, docs/git-development.md §11.3),
+// User-visible texts of the Git panel,
 // one catalog per display language. The meaning of a state is carried by these texts,
 // never by colour alone.
 
@@ -43,7 +43,7 @@ const GIT_MESSAGES_JA = {
   unstageAll: "すべての変更のステージング解除",
   discard: "変更を破棄",
   discardAll: "すべての変更を破棄",
-  // The confirmation before changes are thrown away (docs/ui-design.md §13.5, V-5).
+  // The confirmation before changes are thrown away.
   discardDialog: {
     singleTracked: (name: string): string => `'${name}' の変更を破棄しますか?`,
     singleUntracked: (name: string): string => `'${name}' を削除しますか?`,
@@ -66,7 +66,7 @@ const GIT_MESSAGES_JA = {
   countLabel: (count: number): string => `${count} 件`,
   commit: "コミット",
   committing: "コミット中…",
-  // Progress text per `GitState.runningOperation` (docs/git-development.md §11.16).
+  // Progress text per `GitState.runningOperation`.
   runningOperation: {
     commit: "コミットしています...",
     amend: "コミットを修正しています...",
@@ -76,7 +76,7 @@ const GIT_MESSAGES_JA = {
     push: "プッシュしています...",
     publish: "ブランチを発行しています...",
   },
-  // Commit options, remote operations and their menus (docs/ui-design.md §13.6, R-4).
+  // Commit options, remote operations and their menus.
   commitMenuLabel: "その他のコミット操作",
   commitActions: {
     commit: "コミット",

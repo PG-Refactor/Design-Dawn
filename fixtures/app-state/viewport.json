@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "subject": "viewport",
-  "description": "Viewport: panX / panY finite with absolute value <= 1e11; zoom finite within [0.1, 8]. Fractions are allowed (UI state). See docs/architecture.md §6.2.2.",
+  "description": "Viewport: panX / panY finite with absolute value <= 1e11; zoom finite within [0.1, 8]. Fractions are allowed (UI state).",
   "cases": [
     {
       "name": "default-like",

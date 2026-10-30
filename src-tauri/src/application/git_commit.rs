@@ -1,4 +1,4 @@
-//! Commit of the staged changes (docs/git-development.md §11.11). Only the index is
+//! Commit of the staged changes. Only the index is
 //! committed: nothing is added, no path or `-a` is given, and the message travels on stdin.
 
 use std::path::{Path, PathBuf};
@@ -56,7 +56,7 @@ pub struct GitCommitResult {
     pub status: GitCommitStatus,
 }
 
-/// What the UI asks of a commit besides its message (docs/git-development.md §11.16).
+/// What the UI asks of a commit besides its message.
 /// Both default to `false`: a plain commit of the index.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -130,7 +130,7 @@ pub fn normalize_commit_message(message: &str) -> Result<String, CommitMessageEr
     Ok(normalized)
 }
 
-/// `git commit` of what is staged with no options (docs/git-development.md §11.11).
+/// `git commit` of what is staged with no options.
 pub fn commit_staged(
     runner: Option<&GitRunner>,
     project_root: &Path,
@@ -139,7 +139,7 @@ pub fn commit_staged(
     commit_with_options(runner, project_root, message, GitCommitOptions::default())
 }
 
-/// `git commit` (docs/git-development.md §11.11, §11.16). Checks run in a fixed order and
+/// `git commit`. Checks run in a fixed order and
 /// nothing is executed after the first failing one: repository ready, message, (amend:
 /// HEAD exists, not pushed), conflicts, (stage all: unfinished operation, `git add -A`),
 /// staged changes, unfinished operation, identity. Never saves anything.
@@ -266,7 +266,7 @@ pub fn commit_with_options(
     })
 }
 
-/// Undo Last Commit: `git reset --soft <parent>` (docs/git-development.md §11.16). The
+/// Undo Last Commit: `git reset --soft <parent>`. The
 /// index and the working tree are not touched, so everything the commit contained is
 /// staged again. The target is the parent's object ID read here, never text from the
 /// caller. The message is returned to the caller and never logged.

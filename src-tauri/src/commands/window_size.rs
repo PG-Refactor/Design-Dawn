@@ -1,4 +1,4 @@
-//! Window size persistence (docs/architecture.md §11.0.1): recording the size of a window
+//! Window size persistence: recording the size of a window
 //! about to be destroyed, and applying the recorded size at start-up and to new windows.
 //! The decisions are the pure functions of `application::local_state::window_size`; this
 //! module only reads and sets real windows. Nothing here may stop a window from closing or

@@ -1,4 +1,4 @@
-// Typed wrapper for the Git Tauri command (docs/architecture.md §6.2). The Frontend passes
+// Typed wrapper for the Git Tauri command. The Frontend passes
 // only the Project ID; Rust finds the Repository from the Project's root.
 
 import type {

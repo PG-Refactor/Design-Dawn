@@ -1,4 +1,4 @@
-// Port for requests Rust sends to this window while it runs (docs/architecture.md §11.0.1):
+// Port for requests Rust sends to this window while it runs:
 // "open this Document" for a Project the window already has, when a `.dawn` is opened again
 // from outside. Rust keeps a request until the window acknowledges it, and routes it again
 // when the window goes away first.
@@ -15,15 +15,14 @@ export interface OpenDocumentRequest {
   readonly documentId: DocumentId;
 }
 
-// The theme, language and auto-save values after another window changed them (docs/architecture.md
-// §11.0.1). The Project Tree width is per window and is never sent.
+// The theme, language and auto-save values after another window changed them. The Project Tree width is per window and is never sent.
 export interface SettingsChange {
   readonly themePreference: ThemePreference;
   readonly languagePreference: LanguagePreference;
   readonly autoSave: boolean;
 }
 
-// Files of this window's Project changed behind the app's back (docs/architecture.md §14.4).
+// Files of this window's Project changed behind the app's back.
 // May also arrive with nothing to report (`changes` empty) when the watcher saw files the app
 // does not track or may have lost events: the Git status behind the window is stale then.
 export interface ProjectFilesNotice {

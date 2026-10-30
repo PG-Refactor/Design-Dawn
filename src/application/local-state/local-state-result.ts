@@ -1,4 +1,4 @@
-// Error kinds of the local state validators (docs/architecture.md §6.3). They are not
+// Error kinds of the local state validators. They are not
 // Project domain errors, so they get their own kind list; the identifiers are shared with
 // Rust (`ErrorKind::as_str`) and the Rust/TypeScript kind-equality test covers them.
 export const LOCAL_STATE_ERROR_KINDS = [

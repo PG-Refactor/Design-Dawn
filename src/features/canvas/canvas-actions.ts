@@ -170,7 +170,7 @@ export interface ImportDroppedImagesInput {
 export interface CanvasActions {
   commitDrag(input: CommitDragInput): Promise<OperationResult<void>>;
   commitResize(input: CommitResizeInput): Promise<OperationResult<void>>;
-  // Deleting blocks is undoable, so there is no confirmation (docs/requirements.md §12).
+  // Deleting blocks is undoable, so there is no confirmation.
   deleteSelection(input: DeleteSelectionInput): Promise<OperationResult<void>>;
   // Changes the z-order of the selected blocks: one history entry, none when nothing moves.
   reorderSelection(

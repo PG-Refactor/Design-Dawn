@@ -1,5 +1,5 @@
-//! Which Project each window has open, and which window was focused last
-//! (docs/architecture.md §11.0.1). Pure data keyed by window label strings, so it is testable
+//! Which Project each window has open, and which window was focused last.
+//! Pure data keyed by window label strings, so it is testable
 //! without Tauri; not persisted (windows do not outlive the process).
 
 use std::collections::HashMap;
@@ -26,8 +26,8 @@ pub struct WindowRegistry {
 
 impl WindowRegistry {
     /// Idempotent. `bind` and `touch_focus` register a missing window themselves, so a window
-    /// that was never announced (the mock windows of the tests, a window created by Step F
-    /// before it registers) still works; the explicit call exists for `main` at set-up.
+    /// that was never announced (the mock windows of the tests, a window created before it
+    /// registers) still works; the explicit call exists for `main` at set-up.
     pub fn register(&mut self, label: &str) {
         self.windows.entry(label.to_owned()).or_default();
     }

@@ -1,4 +1,4 @@
-//! Routing of open requests to windows (docs/architecture.md §11.0.1, Steps C/E/F): the
+//! Routing of open requests to windows: the
 //! executor against a fake window host and a fake app channel, with real files for the
 //! `.dawn` / Project reads; plus `open_project_in_new_window` through the mock runtime.
 

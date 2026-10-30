@@ -33,7 +33,7 @@ import {
   type ObjectUrlFake,
 } from "./test-support/fake-mermaid-renderer";
 
-// Step 9-4.1: the pie GUI's uncommitted field values are drafts in the DraftRegistry, so
+// The pie GUI's uncommitted field values are drafts in the DraftRegistry, so
 // save-all, the unsaved-close check, GUI -> Source and leaving the editor all see them.
 
 let objectUrls: ObjectUrlFake;
@@ -581,7 +581,7 @@ describe("leaving the editor and other blocks", () => {
   });
 });
 
-// Step 9-4.2: which trigger may commit what, and that one input is never applied twice.
+// Which trigger may commit what, and that one input is never applied twice.
 
 const ENTER = { key: "Enter" };
 const INVALID_VALUE = "-1";

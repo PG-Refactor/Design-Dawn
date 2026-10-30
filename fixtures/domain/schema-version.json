@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "subject": "schemaVersion",
-  "description": "schemaVersion must be an integer >= 1 (invalidSchemaVersion) and not newer than the supported version, currently 2 for project (1 is the legacy documentOrder format that is still read) and 1 for folder, document and sheet (unsupportedSchemaVersion). See docs/data-model.md §11.6.",
+  "description": "schemaVersion must be an integer >= 1 (invalidSchemaVersion) and not newer than the supported version, currently 2 for project (1 is the legacy documentOrder format that is still read) and 1 for folder, document and sheet (unsupportedSchemaVersion).",
   "cases": [
     {
       "name": "project current",

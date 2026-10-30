@@ -1,6 +1,6 @@
 //! serde DTOs for `project.json`, `folder.json`, `document.json`, `sheet.json` and `.dawn`.
 //!
-//! Field order is the key order written to disk (docs/file-format.md §3). Numbers are
+//! Field order is the key order written to disk. Numbers are
 //! kept as `serde_json::Number` so that fractional or out-of-range values reach the
 //! domain validators and produce the same error kinds as in TypeScript.
 
@@ -333,7 +333,7 @@ pub fn parse_dto<T: DeserializeOwned>(value: Value) -> Result<T, PersistenceErro
     })
 }
 
-/// Pretty-printed JSON with 2-space indentation and a trailing newline (file-format.md §8).
+/// Pretty-printed JSON with 2-space indentation and a trailing newline.
 pub fn to_json_bytes<T: Serialize>(value: &T) -> Result<Vec<u8>, PersistenceError> {
     let mut text = serde_json::to_string_pretty(value).map_err(|error| {
         PersistenceError::new(PersistenceErrorKind::IoError, format!("serialize: {error}"))

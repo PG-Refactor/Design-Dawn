@@ -1,4 +1,4 @@
-//! Fetch, pull, push, publish and the remote list (docs/git-development.md §11.16).
+//! Fetch, pull, push, publish and the remote list.
 //!
 //! Authentication is left to the user's own git setup (credential manager, ssh agent): git
 //! is never given a prompt, a credential helper or an ssh command by this module. Nothing

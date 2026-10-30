@@ -1,4 +1,4 @@
-//! Executes the routing of an open request (docs/architecture.md §11.0.1): bring the window
+//! Executes the routing of an open request: bring the window
 //! that has the Project forward and tell it, or create a window for it. The decisions are the
 //! pure functions of `application::open_routing`; this module only carries them out against
 //! the registry, the pending requests, the app channel and a `WindowHost`.

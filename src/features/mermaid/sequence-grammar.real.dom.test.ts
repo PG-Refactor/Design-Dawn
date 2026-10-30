@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// Evidence for docs/architecture.md §16.16: how mermaid 12.1.0 reads sequence diagrams, and
+// Evidence for the sequence reader: how mermaid 12.1.0 reads sequence diagrams, and
 // which of those inputs the domain (src/domain/diagram/sequence/) calls editable. Each case
-// names a fact; the test name is the evidence cited in the docs. jsdom cannot lay text out,
+// names a fact; the test name states the evidence. jsdom cannot lay text out,
 // so "draws" means the real renderer and the SVG sanitiser accept it, not how it looks.
 import { beforeAll, describe, expect, it } from "vitest";
 import { SEQUENCE_MAX_SOURCE_LENGTH } from "../../domain/diagram/sequence/sequence-config";

@@ -2,7 +2,7 @@ use std::fmt;
 use std::io;
 
 /// Identifiers returned by `as_str` are part of the Command error contract
-/// (docs/architecture.md §6.3) and are mirrored in the TypeScript client.
+/// and are mirrored in the TypeScript client.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PersistenceErrorKind {
     InvalidJson,

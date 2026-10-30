@@ -1,5 +1,5 @@
 // Port for "the user asked to close the window". Rust stops the close and announces it with
-// an opaque token (docs/architecture.md §10.1); the window is closed only when the Frontend
+// an opaque token; the window is closed only when the Frontend
 // confirms with that token after saving.
 
 import type { OperationResult } from "./operation-error";

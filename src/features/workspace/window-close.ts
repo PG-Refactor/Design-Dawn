@@ -26,7 +26,7 @@ export interface WindowCloseHandler {
   onReleased(listener: () => void): () => void;
 }
 
-// Saves, then asks Rust to close (docs/architecture.md §10.1). Order is strict: saveAll,
+// Saves, then asks Rust to close. Order is strict: saveAll,
 // viewport flush, confirm. "Close without saving" (auto-save off, chosen by the user) skips
 // only the saveAll. The "in progress" flag lives in this closure rather than in a
 // store: a page reload drops the closure and the flag with it, so a stale flag can never

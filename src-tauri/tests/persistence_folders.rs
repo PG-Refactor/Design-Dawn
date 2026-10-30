@@ -1,4 +1,4 @@
-//! Folders in the Project tree (docs/data-model.md §2.1, §7; file-format.md §3.5): recursive
+//! Folders in the Project tree: recursive
 //! load, per-parent order normalization, the project.json v1 / v2 formats, and Documents that
 //! live inside Folders. Like the other load tests, loading must never write.
 

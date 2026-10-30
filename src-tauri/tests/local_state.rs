@@ -1,5 +1,4 @@
-//! Application Local State behaviour on a real filesystem (temporary directories):
-//! docs/architecture.md §6.2.2, docs/file-format.md §10. The shared validation fixtures
+//! Application Local State behaviour on a real filesystem (temporary directories). The shared validation fixtures
 //! are run by `app_state_fixtures.rs`; the command boundary by `ipc_contract.rs`.
 
 mod support;

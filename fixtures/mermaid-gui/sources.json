@@ -267,7 +267,7 @@
       "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  T :t1, notadate, 3d\n",
       "mermaidParses": true,
       "note": "mermaid.parse accepts it, but rendering fails",
-      "futureBehaviour": "Validity is decided by rendering (Step 9-3 gate), never by parse alone"
+      "futureBehaviour": "Validity is decided by rendering (the render gate), never by parse alone"
     }
   ]
 }

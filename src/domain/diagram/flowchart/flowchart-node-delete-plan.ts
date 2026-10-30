@@ -23,7 +23,7 @@ import type {
   FlowchartVertexStatement,
 } from "./flowchart-types";
 
-// Deleting a node (docs/architecture.md §16.15.14). Every written mention goes: the term in
+// Deleting a node. Every written mention goes: the term in
 // its statement (with the links it was an end of), `style X`, `X` in the target lists of
 // `class` and `click`, and the numbers of the `linkStyle` lines behind the edges that
 // disappear. Each statement is first cut so that the other nodes it mentioned stay exactly

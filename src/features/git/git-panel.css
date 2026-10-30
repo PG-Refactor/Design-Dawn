@@ -12,7 +12,7 @@
   min-width: 0;
 }
 
-/* VS Code's small uppercase view title; the Japanese text has no case, so it is unchanged. */
+/* A small uppercase view title; the Japanese text has no case, so it is unchanged. */
 .git-panel__title {
   flex: 0 0 auto;
   margin: 0;
@@ -371,7 +371,7 @@
   background: var(--color-surface);
 }
 
-/* No wrapping (like VS Code): a long line scrolls the view sideways. */
+/* No wrapping: a long line scrolls the view sideways. */
 .git-diff__table {
   width: 100%;
   border-collapse: collapse;

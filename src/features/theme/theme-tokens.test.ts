@@ -135,7 +135,7 @@ describe("theme token stylesheet", () => {
     }
   });
 
-  // Mermaid pie slices and gantt bars (docs/architecture.md §15.4): every palette colour
+  // Mermaid pie slices and gantt bars: every palette colour
   // must be told apart from the surface (non-text, 3:1) and carry the text drawn on it.
   it.each(themeIds)("%s diagram palette is readable", (themeId) => {
     expect(DIAGRAM_COLOR_TOKEN_NAMES.length).toBe(8);

@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "subject": "languagePreference",
-  "description": "Language preference accepts exactly system, en and ja (case-sensitive). See docs/architecture.md §6.2.2.",
+  "description": "Language preference accepts exactly system, en and ja (case-sensitive).",
   "cases": [
     { "name": "system", "input": "system", "expected": { "result": "accept" } },
     { "name": "en", "input": "en", "expected": { "result": "accept" } },

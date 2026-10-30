@@ -9,7 +9,7 @@ import { branchFactsOf, commitMenuItems } from "./git-menu-items";
 import { runGitSync } from "./git-remote-flow";
 import { useGitMenuRunner } from "./use-git-menu-runner";
 
-// What the main button of the commit form does (VS Code's "action button"): commit, or -
+// What the main button of the commit form does (a single primary action button): commit, or -
 // when there is nothing at all to commit - synchronize or publish the branch.
 export type GitPrimaryAction =
   | { readonly kind: "commit" }

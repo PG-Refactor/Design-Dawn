@@ -1,6 +1,6 @@
 import type { SequenceArrow } from "./sequence-config";
 
-// Values of the Tier 1 operations (docs/architecture.md §16.16.5). The reader's syntax
+// Values of the Tier 1 operations. The reader's syntax
 // values stay in sequence-config.ts; what is only needed to WRITE text lives here.
 
 // Fallbacks for a source that gives no hint (no statement line to copy the indentation from,
@@ -18,7 +18,7 @@ export const SEQUENCE_NEW_ID_PATTERN = /^[A-Za-z][A-Za-z0-9_]*$/;
 // The arrow a message the GUI adds starts with.
 export const SEQUENCE_DEFAULT_ARROW: SequenceArrow = "->>";
 
-// Text encoding (docs/architecture.md §16.16.6). `;` ends a statement and a `#` starts a
+// Text encoding. `;` ends a statement and a `#` starts a
 // comment, so both are written as entities that Mermaid decodes when it draws. A line break
 // typed in the GUI is written as `<br/>` (messages and notes only).
 export const SEQUENCE_ENCODED_CHARACTERS: Readonly<Record<string, string>> = {
@@ -65,7 +65,7 @@ export const SEQUENCE_INLINE_SEPARATOR = "; ";
 export const SEQUENCE_UNKNOWN_STATEMENT_INDEX = -1;
 export const SEQUENCE_NOTE_ID_SEPARATOR = ",";
 
-// Tier 2 (docs/architecture.md §16.16.9).
+// Tier 2.
 // The blocks the GUI can wrap statements in. `rect` takes a colour as its text and `par_over`
 // is rare, so neither is offered; both are still read and kept.
 export const SEQUENCE_WRAP_BLOCKS = [

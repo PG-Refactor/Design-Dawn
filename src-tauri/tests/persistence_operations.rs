@@ -353,7 +353,7 @@ fn block_text_round_trips_and_follows_the_encoding_rules() {
 
 #[test]
 fn mermaid_source_saves_through_the_same_text_rules() {
-    // Mermaid has no saving path of its own (docs/architecture.md §15.3): the shared text
+    // Mermaid has no saving path of its own: the shared text
     // rules (LF on write, BOM dropped on read, nothing rewritten when unchanged) hold for `.mmd`.
     let mut opened = open_copy();
     load_document(&mut opened.sessions, PROJECT_ID, DOCUMENT_ID).unwrap();

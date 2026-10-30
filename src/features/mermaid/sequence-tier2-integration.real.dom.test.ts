@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The Tier 2 sequence operations end to end below the UI (docs/architecture.md §16.16.9): a
+// The Tier 2 sequence operations end to end below the UI: a
 // Mermaid block's source, edited through the Application gate with the real render check,
 // saved through the normal auto-save, reloaded from the stored file, and undone / redone, one
 // undo per operation.

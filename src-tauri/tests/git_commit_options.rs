@@ -1,5 +1,5 @@
 //! Commit options, Undo Last Commit and the upstream information of the status against the
-//! system `git` in temporary repositories (docs/git-development.md §11.16). Every git process runs with a hermetic configuration
+//! system `git` in temporary repositories. Every git process runs with a hermetic configuration
 //! (no user or system config, a throwaway HOME, identity only from the repository's own
 //! config). Hooks live inside the temporary repository; no global hook path is touched.
 //! Tests are skipped, with a message, when no `git` is installed.

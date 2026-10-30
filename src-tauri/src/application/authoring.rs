@@ -1,11 +1,10 @@
 //! Compound write operations: the sequences the Frontend composes from several Commands
 //! (create content, then list it in the sheet; create a Document, then list it in its parent),
-//! available to a process that has no Frontend, such as the MCP server (docs/architecture.md
-//! §17). Each function takes the already loaded parent state, so the caller decides how fresh
+//! available to a process that has no Frontend, such as the MCP server. Each function takes the already loaded parent state, so the caller decides how fresh
 //! it is; the session's hash ledger then refuses a write if that state changed on disk since
 //! it was read.
 //!
-//! The ordering rules are the Frontend's (docs/architecture.md §9.4): content files are
+//! The ordering rules are the Frontend's: content files are
 //! created before the metadata that lists them, and removed after the metadata stops listing
 //! them.
 

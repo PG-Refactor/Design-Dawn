@@ -1,4 +1,4 @@
-// Shapes the persistence port hands to the application (docs/architecture.md §6.2.1).
+// Shapes the persistence port hands to the application.
 // They live here so the application layer can name them without importing
 // infrastructure; `infrastructure/tauri/persistence-types.ts` re-exports them unchanged.
 
@@ -36,7 +36,7 @@ export type LoadIssueKind = (typeof LOAD_ISSUE_KINDS)[number];
 export const ENTITY_STATES = ["loaded", "loadFailed"] as const;
 export type EntityState = (typeof ENTITY_STATES)[number];
 
-// A warning or error found while loading (docs/data-model.md §7).
+// A warning or error found while loading.
 export interface LoadIssue {
   readonly kind: LoadIssueKind;
   // Project-root-relative path for display; not a handle to use with commands.
@@ -75,8 +75,7 @@ export interface DocumentEntry {
 export interface ProjectSnapshot {
   readonly project: Project;
   // Which read of the Project this is. Change notifications carry the same number, so one
-  // made for an earlier read (before a reload or reopen) is recognized and dropped
-  // (docs/architecture.md §14.4).
+  // made for an earlier read (before a reload or reopen) is recognized and dropped.
   readonly sessionGeneration: number;
   readonly folders: readonly FolderEntry[];
   readonly documents: readonly DocumentEntry[];
@@ -108,7 +107,7 @@ export interface DocumentSnapshot {
   readonly issues: readonly LoadIssue[];
 }
 
-// --- Load Issue repair and format update (docs/architecture.md §14.15) ---
+// --- Load Issue repair and format update ---
 
 export const REPAIR_ACTIONS = [
   "addToList",
@@ -161,7 +160,7 @@ export interface FormatUpdateResult {
   readonly updated: readonly string[];
 }
 
-// --- External changes (docs/architecture.md §14.4) ---
+// --- External changes ---
 
 export const BLOCK_COMPARISON_OUTCOMES = [
   "identical",
@@ -223,8 +222,8 @@ export const ENTRY_POINT_RESOLUTIONS = ["path", "idScan"] as const;
 export type EntryPointResolution = (typeof ENTRY_POINT_RESOLUTIONS)[number];
 
 // A request from outside the app (a `.dawn` passed at launch, or a Project folder chosen for
-// "open in a new window") that Rust already opened. Carries no path: Rust keeps it
-// (docs/architecture.md §11.0.1). A Project folder names no Document: `documentId` and
+// "open in a new window") that Rust already opened. Carries no path: Rust keeps it.
+// A Project folder names no Document: `documentId` and
 // `resolution` are null and only the Project is open.
 export interface OpenRequestResult {
   readonly snapshot: ProjectSnapshot;

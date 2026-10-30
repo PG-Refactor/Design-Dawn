@@ -1,4 +1,4 @@
-// Tracks what is dirty and persists it (docs/architecture.md §10). Metadata-only changes
+// Tracks what is dirty and persists it. Metadata-only changes
 // mark things dirty; saving happens after a quiet period (debounce), on `saveDirty`, or
 // before a file-backed sequence. It never runs concurrently with commands: the timer
 // goes through `runExclusive`, the session's serial queue.
@@ -47,7 +47,7 @@ export interface SaveCoordinator {
   getState(): SaveState;
   // Marks dirty, restarts the debounce timer (only while auto-save is enabled), and notifies.
   markDirty(change: DirtyChange): void;
-  // Stops saving while the files changed outside the app (docs/architecture.md §14.7): the
+  // Stops saving while the files changed outside the app: the
   // debounce timer does not run, and `saveDirty` fails with `error` without writing anything
   // while something is dirty. Dirty state is kept; an error is shown only when there is
   // something that cannot be saved. Does notify.

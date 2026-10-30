@@ -11,7 +11,7 @@ import {
 } from "./flowchart-operations";
 import { readFlowchart } from "./flowchart-reader";
 
-// Tier 2 operations (docs/architecture.md §16.15.14): deleteNode, setSubgraphTitle,
+// Tier 2 operations: deleteNode, setSubgraphTitle,
 // setSubgraphDirection, createSubgraph, dissolveSubgraph, moveNodeToSubgraph and
 // removeNodeFromSubgraph. `runOperation` proves for every success that the candidate reads
 // back as the promised meaning and that the inverse edits restore the source.

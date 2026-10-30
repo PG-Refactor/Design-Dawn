@@ -1,6 +1,6 @@
 //! A Mermaid source (`.mmd`) saved through `write_block_content` is an ordinary changed text
 //! file for Git: listed by `read_git_status`, a line diff in `diff_path`, and brought back
-//! by `discard_paths` (docs/testing.md §28, docs/architecture.md §15). Discard works per
+//! by `discard_paths`. Discard works per
 //! file; there is no per-block restore. Runs against the system `git` in a temporary
 //! repository with a hermetic configuration, and is skipped, with a message, when no `git`
 //! is installed.

@@ -1,4 +1,4 @@
-//! Git features of a Project (docs/git-development.md §11): turns the Git CLI's answers into
+//! Git features of a Project: turns the Git CLI's answers into
 //! Design Dawn's own types. The Frontend never sees a path of the machine, a raw status
 //! string or git's stderr.
 
@@ -197,8 +197,7 @@ pub fn git_stage(
     stage_paths(GitRunner::discover().ok().as_ref(), &project_root, paths)
 }
 
-/// `git add` for changed files that the repository's own status lists (docs/git-development.md
-/// §11.6, §11.7). Nothing is run unless every path is valid and listed as changed in the
+/// `git add` for changed files that the repository's own status lists. Nothing is run unless every path is valid and listed as changed in the
 /// working tree, so a directory, an unknown name or an unchanged file cannot widen the
 /// operation. Returns the status read after the operation. Never saves anything.
 pub fn stage_paths(
@@ -289,7 +288,7 @@ pub fn git_unstage(
     unstage_paths(GitRunner::discover().ok().as_ref(), &project_root, paths)
 }
 
-/// Takes staged entries back out of the index (docs/git-development.md §11.6): `git restore
+/// Takes staged entries back out of the index: `git restore
 /// --staged`, or `git rm --cached` while the repository has no commit. Only paths whose
 /// index side the repository's own status lists as changed (and not unmerged) are accepted,
 /// so nothing outside the request is touched. A staged rename is unstaged as a whole: its
@@ -393,8 +392,7 @@ pub enum DiffSide {
     Staged,
 }
 
-/// What a Diff request produced. Every variant is a result, not a failure
-/// (docs/git-development.md §11.10).
+/// What a Diff request produced. Every variant is a result, not a failure.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(
     tag = "outcome",
@@ -439,7 +437,7 @@ pub fn git_diff(
     )
 }
 
-/// Diff of one changed file (docs/git-development.md §11.10). Only a path the repository's
+/// Diff of one changed file. Only a path the repository's
 /// own status lists with a change on the requested side is accepted, like Stage / Unstage.
 /// Read-only: no index lock (`--no-optional-locks`), no external diff or textconv program,
 /// nothing is written or saved.
@@ -629,7 +627,7 @@ fn run_diff(
 }
 
 /// Working tree changes that have something to show: a diff against the index, or the
-/// untracked marker. Unmerged files are excluded (combined diffs are not part of Phase 6).
+/// untracked marker. Unmerged files are excluded (combined diffs are not supported).
 fn is_diffable_in_worktree(change: GitFileChange) -> bool {
     matches!(
         change,
@@ -666,7 +664,7 @@ fn repository_has_head(runner: &GitRunner, project_root: &Path) -> ApplicationRe
 }
 
 /// Index side changes that can be taken back out. Unmerged entries are excluded: resolving
-/// a conflict is not part of Phase 6.
+/// a conflict is not supported.
 pub(crate) fn is_unstageable(change: GitFileChange) -> bool {
     matches!(
         change,
@@ -761,8 +759,7 @@ fn read_status_snapshot(
     ))
 }
 
-/// Whether HEAD is reachable from any remote-tracking branch (docs/git-development.md
-/// §11.16). Read-only, one process. The caller must know that HEAD exists.
+/// Whether HEAD is reachable from any remote-tracking branch. Read-only, one process. The caller must know that HEAD exists.
 pub(crate) fn head_is_pushed(runner: &GitRunner, project_root: &Path) -> ApplicationResult<bool> {
     let output = runner
         .run(

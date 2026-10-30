@@ -1,5 +1,5 @@
-// Sorts the files of a Git status into the sections of the change list
-// (docs/ui-design.md §13.2). Git's answer is classified as it is; nothing is inferred.
+// Sorts the files of a Git status into the sections of the change list.
+// Git's answer is classified as it is; nothing is inferred.
 
 import type {
   GitFileChange,
@@ -13,7 +13,7 @@ import {
 } from "../workspace/ui-state/ui-state";
 
 export type { GitChangeSectionId };
-// Display order: Merge Changes, Staged Changes, Changes (docs/ui-design.md §13.5).
+// Display order: Merge Changes, Staged Changes, Changes.
 export { GIT_CHANGE_SECTION_IDS };
 
 const STAGED_CHANGES: ReadonlySet<GitFileChange> = new Set([
@@ -74,7 +74,7 @@ function comparePaths(left: GitChangeEntry, right: GitChangeEntry): number {
 }
 
 // Only the sections that have entries, in display order. Untracked files are listed in the
-// "changes" section (as VS Code does) and sorted with the other changes by path, because
+// "changes" section (as source-control views commonly do) and sorted with the other changes by path, because
 // Git reports them after the tracked ones.
 export function deriveGitChangeSections(
   status: GitStatus,

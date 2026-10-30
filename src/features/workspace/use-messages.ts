@@ -62,7 +62,7 @@ export function useDisplayLanguage(): DisplayLanguage {
 }
 
 // The texts of the current display language; the component re-renders when it changes.
-// All user-visible text goes through this hook (docs/coding-guidelines.md §14).
+// All user-visible text goes through this hook.
 export function useMessages(): Messages {
   return messagesFor(useDisplayLanguage());
 }

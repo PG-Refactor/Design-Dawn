@@ -1,5 +1,4 @@
-// What the open diff tabs become once the Git status has changed (docs/ui-design.md §13.4,
-// §13.5): `nextDiffAction` applied to every tab. Pure.
+// What the open diff tabs become once the Git status has changed: `nextDiffAction` applied to every tab. Pure.
 
 import type { GitStatus } from "../../application/ports/git-gateway";
 import {

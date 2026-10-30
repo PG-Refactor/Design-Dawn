@@ -1,4 +1,4 @@
-// Asking for, confirming and running the repair of a Load Issue (docs/architecture.md §14.15),
+// Asking for, confirming and running the repair of a Load Issue,
 // and the two neighbours that follow the same steps: reading the files of a Document or the
 // Project again, and "update all now" for files in an older format.
 //

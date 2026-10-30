@@ -1,4 +1,4 @@
-//! Discarding working tree changes (docs/git-development.md §11.14). The one Git operation
+//! Discarding working tree changes. The one Git operation
 //! that loses data, so it accepts only what the repository's own status reports: tracked
 //! files with a working tree change go back to the index, untracked regular files (or
 //! links) are deleted. Nothing is run or removed unless every requested path is accepted.
@@ -27,7 +27,7 @@ use crate::infrastructure::git::paths::{pathspec_stdin, ValidatedGitPath};
 use crate::infrastructure::git::redaction::redact_credentials;
 use crate::infrastructure::git::runner::GitRunner;
 
-/// What discarding would overwrite in the open Project (docs/git-development.md §11.14).
+/// What discarding would overwrite in the open Project.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GitDiscardImpact {
@@ -166,7 +166,7 @@ pub fn plan_discard(
     Ok(plan)
 }
 
-/// Discards working tree changes (docs/git-development.md §11.14). Order: the request is
+/// Discards working tree changes. Order: the request is
 /// validated and planned against a fresh status, the untracked files are checked on disk
 /// (still before anything changes), then tracked files are restored (the step that can fail
 /// for git's own reasons), and only then the untracked files are deleted. On a failure

@@ -1,5 +1,5 @@
 // TEST ONLY. A seeded generator of random sequence programs for the differential test
-// (sequence-reader.real.dom.test.ts). It is a typed rewrite of the generator of the Step 9-7
+// (sequence-reader.real.dom.test.ts). It is a typed rewrite of the generator of the earlier
 // research (project-authored). The programs mix declarations, messages with all arrows and
 // activation signs, notes, blocks with branches, `autonumber`, `create` / `destroy`, trailing
 // comments and several statements per line; whether Mermaid accepts one is decided by

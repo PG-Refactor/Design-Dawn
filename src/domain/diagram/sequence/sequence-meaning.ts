@@ -10,7 +10,7 @@ import {
 import type { SequenceStatement } from "./sequence-types";
 
 // What Mermaid 12.1.0 holds after reading a sequence diagram (its sequence db), derived from
-// the recognised statements by replaying Mermaid's own rules (docs/architecture.md §16.16.2).
+// the recognised statements by replaying Mermaid's own rules.
 // It is built only when the whole text was understood: never a partial meaning.
 // Items are Mermaid's flat message list: a `+` or `-` on a message adds an activation entry
 // right after it, exactly as the db does, so the two are compared entry by entry.
@@ -131,7 +131,7 @@ interface ParticipantRecord {
 }
 
 // Replays the statements the way Mermaid's db does. The rules are the measured ones of the
-// research (docs/architecture.md §16.16.2): a message or note creates the participants it
+// research: a message or note creates the participants it
 // names at their first mention; a `participant` statement that names an existing
 // participant changes nothing unless it gives an alias, and then replaces the record (which
 // is what breaks the previous / next chain); a `-` or `deactivate` needs an open activation.

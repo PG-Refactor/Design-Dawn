@@ -1,5 +1,4 @@
-//! Parser of the `git log -z --format=...` output of the History (docs/git-development.md
-//! §11.12). Pure: it receives the bytes and validates every field it can.
+//! Parser of the `git log -z --format=...` output of the History. Pure: it receives the bytes and validates every field it can.
 //!
 //! Each record is `HISTORY_FIELDS_PER_RECORD` fields that each end with NUL. Commit data
 //! cannot contain NUL, so a subject with newlines, tabs or any other separator-looking text

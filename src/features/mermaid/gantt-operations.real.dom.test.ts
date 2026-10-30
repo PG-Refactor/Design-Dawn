@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The gantt operations (src/domain/diagram/gantt/gantt-operations.ts) against the real
-// mermaid 12.1.0 (docs/architecture.md §16.17): every candidate a plan produces must be
+// mermaid 12.1.0: every candidate a plan produces must be
 // accepted by Mermaid, drawn by the same render check the app uses, hold exactly the meaning
 // the operation promised, and put every task where the editor's own date resolution says. The
 // db is read through an internal API and only here, in tests, with Mermaid's module state

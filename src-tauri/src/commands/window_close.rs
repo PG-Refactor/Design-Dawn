@@ -1,4 +1,4 @@
-//! Save before the window closes (docs/architecture.md §10.1). Rust only stops the close and
+//! Save before the window closes. Rust only stops the close and
 //! tells the Frontend; it keeps no "closing in progress" state. The Frontend saves, then calls
 //! `confirm_window_close` with the token of its subscription, and only then the window is
 //! destroyed. The token and subscription logic is in `CloseRequestHub`, independent of Tauri

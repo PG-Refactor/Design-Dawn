@@ -1,7 +1,7 @@
-//! Deep Folder hierarchies (file-format.md §3.5: Folders nest without a depth limit): every
+//! Deep Folder hierarchies (Folders nest without a depth limit): every
 //! operation must work at the bottom of a long chain. The chain's relative paths exceed the
 //! classic Windows MAX_PATH; Linux does not enforce it, so these tests only document the
-//! scenario. The real Windows behaviour must be verified on Windows (docs/testing.md).
+//! scenario. The real Windows behaviour must be verified on Windows.
 
 mod support;
 

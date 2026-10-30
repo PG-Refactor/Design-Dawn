@@ -22,7 +22,7 @@ import {
 // Lossless line-level parse of a Mermaid pie chart. Nothing is trimmed or rewritten: every
 // piece that an operation may change carries its absolute range (UTF-16 offsets into
 // `source`), and the raw text is always `source.slice(range)`. The grammar was read from
-// mermaid 12.1.0 (@mermaid-js/parser pie grammar); docs/architecture.md §16.13 lists the
+// mermaid 12.1.0 (@mermaid-js/parser pie grammar); pie-grammar.real.dom.test.ts holds the
 // evidence.
 
 export interface TextSpan {

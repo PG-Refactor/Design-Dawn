@@ -33,8 +33,7 @@ import {
 import { validateGanttAxisFormat } from "./gantt-text";
 import type { GanttLine } from "./gantt-types";
 
-// Settings of the chart that Tier 2 edits: `axisFormat` and `excludes` (docs/architecture.md
-// §16.17.2). A setting is one line `keyword value`; the value runs to the end of the line.
+// Settings of the chart that Tier 2 edits: `axisFormat` and `excludes`. A setting is one line `keyword value`; the value runs to the end of the line.
 // `excludes` also moves dates, so its plans promise the resolved date of every task.
 
 type EditableSetting =

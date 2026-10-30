@@ -1,5 +1,5 @@
 // The workspace shell's texts per display language, plus the language-independent helpers
-// that pick a sentence out of a catalog (docs/architecture.md §13.6). Components get the
+// that pick a sentence out of a catalog. Components get the
 // catalog through `useMessages()`; code that is not a component receives it as a parameter.
 
 import type { OperationErrorKind } from "../../application/ports/operation-error";

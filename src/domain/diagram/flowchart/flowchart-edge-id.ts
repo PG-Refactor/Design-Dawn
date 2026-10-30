@@ -2,7 +2,7 @@ import type { FlowchartEdgeMeaning } from "./flowchart-meaning";
 
 // Mermaid names an edge `L_<start>_<end>_<n>`, where n is 0 for the first edge between two
 // nodes and "number of earlier edges between them + 1" after that (so the second is `_2`;
-// measured, docs/architecture.md §16.15.2). The resolver and the operations share this rule
+// measured). The resolver and the operations share this rule
 // so an edit that moves or removes an edge predicts the new ids exactly.
 export const FLOWCHART_AUTO_EDGE_ID_PREFIX = "L";
 const AUTO_EDGE_ID_SEPARATOR = "_";

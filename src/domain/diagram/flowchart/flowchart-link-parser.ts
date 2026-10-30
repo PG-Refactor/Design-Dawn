@@ -35,7 +35,7 @@ import type {
 } from "./flowchart-types";
 
 // Link tokens. The meaning of each form (arrow type, stroke, length) follows Mermaid's own
-// destructLink rules, measured and read in docs/architecture.md §16.15.2.
+// destructLink rules, measured and read from the Mermaid sources.
 
 interface LinkInfo {
   readonly type: FlowchartLinkType;

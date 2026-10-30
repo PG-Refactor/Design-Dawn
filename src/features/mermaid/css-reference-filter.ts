@@ -1,4 +1,4 @@
-// Removes CSS that can load something from outside the image (docs/security.md §7). It is
+// Removes CSS that can load something from outside the image. It is
 // a small tokenizer following the CSS Syntax Level 3 rules that matter here (comments,
 // strings, escapes, function and url tokens, bracket nesting), not a regex, because a
 // pattern cannot tell a ")" inside a quoted string from the end of url(...), and CSS

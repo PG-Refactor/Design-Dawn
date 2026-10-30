@@ -1,5 +1,5 @@
 //! Git runner, repository detection and `status` against the system `git` in temporary
-//! repositories (docs/testing.md §26, docs/git-development.md §11). Every git process runs
+//! repositories. Every git process runs
 //! with a hermetic configuration (no user or system config, a throwaway HOME) so the
 //! result does not depend on the machine. Tests are skipped, with a message, when no `git`
 //! is installed.
@@ -652,7 +652,7 @@ fn git_status_over_ipc_is_refused_for_a_window_that_does_not_have_the_project() 
     }
 }
 
-// Runner-level checks of how paths reach git (docs/git-development.md §11.6, §11.7). `git
+// Runner-level checks of how paths reach git. `git
 // add` is used only to prove the mechanism; there is no public Stage API yet.
 
 const PATHSPEC_ADD_ARGUMENTS: [&str; 4] = [
@@ -766,7 +766,7 @@ fn a_git_that_is_too_old_or_unparsable_is_git_unavailable() {
     }
 }
 
-// ---- Stage (`git_stage`, docs/git-development.md §11.6, §11.7) ----
+// ---- Stage (`git_stage`) ----
 
 fn stage(fixture: &Fixture, project: &Path, names: &[&str]) -> ApplicationResult<GitStatusResult> {
     let paths: Vec<String> = names.iter().map(|name| (*name).to_owned()).collect();
@@ -1047,7 +1047,7 @@ fn stage_ignores_git_dir_and_git_index_file_of_the_process() {
     assert!(staged_names(&fixture, &other).is_empty());
 }
 
-// ---- Unstage (`git_unstage`, docs/git-development.md §11.6) ----
+// ---- Unstage (`git_unstage`) ----
 
 fn unstage(
     fixture: &Fixture,
@@ -1710,7 +1710,7 @@ fn git_unstage_over_ipc_is_refused_for_a_window_that_does_not_have_the_project()
     }
 }
 
-// ---- Diff (`git_diff`, docs/git-development.md §11.10) ----
+// ---- Diff (`git_diff`) ----
 
 /// Opens a repository Project whose `project.json` is committed and then changed in the
 /// working tree.
@@ -1854,7 +1854,7 @@ fn git_diff_over_ipc_reports_a_missing_repository() {
     }
 }
 
-// ---- Commit (`git_commit`, docs/git-development.md §11.11) ----
+// ---- Commit (`git_commit`) ----
 
 /// The command runs the machine's git, not the hermetic one, so the identity comes from
 /// the repository's own config.
@@ -1969,7 +1969,7 @@ fn git_commit_over_ipc_reports_a_missing_repository() {
     }
 }
 
-// ---- Commit options and Undo Last Commit (docs/git-development.md §11.16) ----
+// ---- Commit options and Undo Last Commit ----
 
 fn commit_over_ipc(
     webview: &tauri::WebviewWindow<tauri::test::MockRuntime>,
@@ -2165,7 +2165,7 @@ fn git_undo_last_commit_over_ipc_is_refused_for_a_window_that_does_not_have_the_
     }
 }
 
-// ---- History (`git_history`, docs/git-development.md §11.12) ----
+// ---- History (`git_history`) ----
 
 const HISTORY_COMMITS: usize = 3;
 const HISTORY_PAGE_LIMIT: u64 = 2;
@@ -2404,7 +2404,7 @@ fn write_fake_git(script: &Path, body: &str) {
     panic!("fake git stayed busy");
 }
 
-// ---- Diff (`diff_path`, docs/git-development.md §11.10) ----
+// ---- Diff (`diff_path`) ----
 
 fn diff(
     fixture: &Fixture,
@@ -2484,7 +2484,7 @@ fn diff_of_an_unstaged_modification_is_a_text_diff() {
 
 #[test]
 fn diff_of_a_mermaid_source_is_a_text_diff() {
-    // `.mmd` needs no Git handling of its own (docs/architecture.md §15): git sees a text
+    // `.mmd` needs no Git handling of its own: git sees a text
     // file, so a source change is a line diff, not a binary one.
     let fixture = fixture_or_skip!();
     let project = fixture.repository();

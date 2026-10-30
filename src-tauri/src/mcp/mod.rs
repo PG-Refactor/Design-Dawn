@@ -1,4 +1,4 @@
-//! MCP server (docs/architecture.md §17): lets an AI client read and change a Project through
+//! MCP server: lets an AI client read and change a Project through
 //! the same Application layer the app uses. It speaks JSON-RPC 2.0 over stdio, opens no
 //! network port and starts no Tauri runtime.
 

@@ -1,4 +1,4 @@
-//! Image format table and content validation (docs/file-format.md §6, docs/security.md §8).
+//! Image format table and content validation.
 //! Pure functions over bytes: nothing here touches the filesystem. SVG is only checked for
 //! shape and is never executed or sanitized, because the UI shows it through `<img>` only.
 

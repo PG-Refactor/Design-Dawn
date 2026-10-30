@@ -1,4 +1,4 @@
-// Fetch, Push, Pull and Sync as flows (docs/git-development.md §11.16, R-3). They take
+// Fetch, Push, Pull and Sync as flows. They take
 // everything they need as parameters: asking (which remote? really?) belongs to the UI,
 // which then calls these with the answers. Steps that span the Git controller, the
 // workspace actions and the UI state live here, in one place, like the discard flow.

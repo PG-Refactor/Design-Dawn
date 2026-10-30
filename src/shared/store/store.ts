@@ -1,4 +1,4 @@
-// A tiny framework-free store (docs/architecture.md §8.1). React binds to it through
+// A tiny framework-free store. React binds to it through
 // `useStoreSelector`; the application layer uses it without any React dependency.
 
 export type Listener = () => void;

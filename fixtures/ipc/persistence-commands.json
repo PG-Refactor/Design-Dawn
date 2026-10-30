@@ -1,7 +1,7 @@
 {
   "fixtureVersion": 1,
   "targetsNote": "A case without `targets` runs on both sides. `rust` marks requests the typed TypeScript client cannot produce (invalid ids, paths, names or payloads are rejected by its parsers before any call) or that bypass the client entirely (missing or wrong-typed arguments, ACL).",
-  "description": "Real command-boundary contract (docs/testing.md). Rust runs it through Tauri IPC (src-tauri/tests/ipc_contract.rs); TypeScript checks the same request/response shapes against the client wrappers (src/infrastructure/tauri/ipc-contract.test.ts). Cases run in order within a scenario against one app instance.",
+  "description": "Real command-boundary contract. Rust runs it through Tauri IPC (src-tauri/tests/ipc_contract.rs); TypeScript checks the same request/response shapes against the client wrappers (src/infrastructure/tauri/ipc-contract.test.ts). Cases run in order within a scenario against one app instance.",
   "selectionIdPlaceholder": "$selectionId",
   "scenarios": [
     {

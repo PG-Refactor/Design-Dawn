@@ -3,5 +3,5 @@ export type TextBlockEditorView = "source" | "gui";
 
 // Which view a Mermaid block's editor opens in. Source keeps the behaviour from before the
 // GUI existed (the textarea is focused at once); revisit once the GUI covers more diagram
-// types (docs/ui-design.md §7).
+// types.
 export const MERMAID_EDITOR_INITIAL_VIEW: TextBlockEditorView = "source";

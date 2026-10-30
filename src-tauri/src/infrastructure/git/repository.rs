@@ -1,4 +1,4 @@
-//! Repository detection (docs/git-development.md §11.3): the Git features exist only when
+//! Repository detection: the Git features exist only when
 //! the Repository root is the Project root. The root comes from `git rev-parse
 //! --show-toplevel`, not from the presence of `.git`, and both sides are compared as real
 //! paths (canonicalize resolves case and the `\\?\` form on Windows).

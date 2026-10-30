@@ -1,4 +1,4 @@
-// Port for the Project's Git state (docs/git-development.md §11). Git is read through the
+// Port for the Project's Git state. Git is read through the
 // Rust side only; the Frontend never sees a path of the machine, git's raw status codes
 // or its stderr. The values below are the wire identifiers Rust sends.
 
@@ -79,7 +79,7 @@ export const GIT_DIFF_OUTCOMES = [
 
 export type GitDiffOutcome = (typeof GIT_DIFF_OUTCOMES)[number];
 
-// Every outcome is a result, not a failure (docs/git-development.md §11.10).
+// Every outcome is a result, not a failure.
 export type GitDiffContent =
   | { readonly outcome: "text"; readonly diff: string }
   | { readonly outcome: "empty" }
@@ -100,13 +100,12 @@ export type GitCommitOutcome = (typeof GIT_COMMIT_OUTCOMES)[number];
 export type GitErrorKind = (typeof GIT_ERROR_KINDS)[number];
 
 // Whether the status read right after a successful commit could be obtained. A failure
-// there does not undo the commit, so it is part of the result, not an error
-// (docs/git-development.md §11.11).
+// there does not undo the commit, so it is part of the result, not an error.
 export type GitCommitStatus =
   | { readonly outcome: "updated"; readonly status: GitStatus }
   | { readonly outcome: "unavailable"; readonly errorKind: GitErrorKind };
 
-// Besides the message (docs/git-development.md §11.16).
+// Besides the message.
 export interface GitCommitOptions {
   // Rewrite the last commit; a blank message then keeps the old one.
   readonly amend: boolean;
@@ -159,7 +158,7 @@ export interface GitHistoryPage {
   readonly nextCursor: string | null;
 }
 
-// What discarding would overwrite in the open Project (docs/git-development.md §11.14).
+// What discarding would overwrite in the open Project.
 export interface GitDiscardImpact {
   // Documents with a requested path inside their directory (no duplicates).
   readonly documentIds: readonly DocumentId[];
