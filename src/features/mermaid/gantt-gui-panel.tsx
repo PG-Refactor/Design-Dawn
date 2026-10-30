@@ -11,10 +11,12 @@ import {
   operationErr,
   operationOk,
 } from "../../application/ports/operation-error";
+import type { GanttMoveDirection } from "../../domain/diagram/gantt/gantt-move-operations";
 import type { GanttOperation } from "../../domain/diagram/gantt/gantt-operations";
 import {
   type GanttSectionView,
   type GanttTaskView,
+  readGanttMoveTargets,
   readGanttView,
 } from "../../domain/diagram/gantt/gantt-view";
 import { useMessages } from "../workspace/use-messages";
@@ -23,6 +25,7 @@ import { GanttAddSection } from "./gantt-add-section";
 import { GanttAddTask } from "./gantt-add-task";
 import { GanttSectionEditor } from "./gantt-section-editor";
 import { GanttSectionList } from "./gantt-section-list";
+import { GanttSettingsEditor } from "./gantt-settings-editor";
 import { GanttTaskEditor } from "./gantt-task-editor";
 import { GanttTaskList } from "./gantt-task-list";
 import { sectionKey, taskKey } from "./gantt-task-text";
@@ -81,6 +84,7 @@ export function GanttGuiPanel({
   );
   const commitPendingRef = useRef<GuiDraftCommit | null>(null);
   const titleCommitRef = useRef<GuiDraftCommit | null>(null);
+  const settingsCommitRef = useRef<GuiDraftCommit | null>(null);
   const addSectionInputRef = useRef<(() => boolean) | null>(null);
   const addTaskInputRef = useRef<(() => boolean) | null>(null);
   // True from the moment this panel sends an operation until the view has followed it: only
@@ -100,8 +104,10 @@ export function GanttGuiPanel({
         section.target.name === selection.name,
     );
     if (exact !== undefined || !followEditRef.current) return exact;
-    return view.sections.find(
-      (section) => section.target.index === selection.index,
+    // A rename keeps the position; a move keeps the (unique) name.
+    return (
+      view.sections.find((section) => section.target.name === selection.name) ??
+      view.sections.find((section) => section.target.index === selection.index)
     );
   }, [selection, view]);
   const selectedTask = useMemo((): GanttTaskView | undefined => {
@@ -112,7 +118,12 @@ export function GanttGuiPanel({
         task.target.name === selection.name,
     );
     if (exact !== undefined || !followEditRef.current) return exact;
-    // A rename keeps the id and a new id keeps the name: either way it is the same task.
+    // A move keeps the id (unique), a rename keeps the id and a new id keeps the name: in
+    // each case it is the same task.
+    if (selection.id !== null) {
+      const moved = view.tasks.find((task) => task.id === selection.id);
+      if (moved !== undefined) return moved;
+    }
     return view.tasks.find(
       (task) =>
         task.target.index === selection.index &&
@@ -215,6 +226,8 @@ export function GanttGuiPanel({
     if (!pending.ok) return pending;
     const title = await titleCommitRef.current?.();
     if (title !== undefined && !title.ok) return title;
+    const settings = await settingsCommitRef.current?.();
+    if (settings !== undefined && !settings.ok) return settings;
     return operationOk(undefined);
   }
   useEffect(() => {
@@ -242,6 +255,24 @@ export function GanttGuiPanel({
     setSelectionKey((key) => key + 1);
     setSelection(null);
   }
+
+  // A moved task keeps its id, and the selection follows it. Without an id there is nothing
+  // to find it by (names repeat), so the selection is dropped instead of guessed.
+  async function moveTask(
+    task: GanttTaskView,
+    ganttOperation: GanttOperation,
+  ): Promise<void> {
+    const outcome = await run(ganttOperation);
+    if (outcome === "applied" && task.id === null) clearSelectionAfterAdd();
+  }
+
+  const moveTargets = useMemo(
+    () =>
+      selectedTask === undefined
+        ? []
+        : readGanttMoveTargets(source, selectedTask.target),
+    [source, selectedTask],
+  );
 
   if (view === null) return null;
   const refusal =
@@ -300,6 +331,15 @@ export function GanttGuiPanel({
       <p className="diagram-gui__hint">
         {text.dateFormatLine(view.dateFormat)}
       </p>
+      <GanttSettingsEditor
+        documentId={documentId}
+        blockId={blockId}
+        view={view}
+        busy={busy}
+        runDraft={runDraft}
+        onInvalidInput={setInputError}
+        commitPendingRef={settingsCommitRef}
+      />
       <h4 className="diagram-gui__heading">{text.sectionsHeading}</h4>
       <GanttSectionList
         shortId={shortId}
@@ -368,6 +408,9 @@ export function GanttGuiPanel({
               sectionListRef,
             )
           }
+          onMove={(section, direction: GanttMoveDirection) =>
+            void run({ kind: "moveSection", target: section.target, direction })
+          }
           nameInputRef={editorNameRef}
           commitPendingRef={commitPendingRef}
         />
@@ -388,6 +431,24 @@ export function GanttGuiPanel({
               taskListRef,
             )
           }
+          onMove={(task, direction: GanttMoveDirection) =>
+            void moveTask(task, {
+              kind: "moveTask",
+              target: task.target,
+              direction,
+            })
+          }
+          onMoveToSection={(task, sectionIndex) =>
+            void moveTask(task, {
+              kind: "moveTaskToSection",
+              target: task.target,
+              sectionIndex,
+            })
+          }
+          onDuplicate={(task) =>
+            void run({ kind: "duplicateTask", target: task.target })
+          }
+          moveTargets={moveTargets}
           nameInputRef={editorNameRef}
           commitPendingRef={commitPendingRef}
         />

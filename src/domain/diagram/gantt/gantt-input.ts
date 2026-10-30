@@ -1,4 +1,8 @@
-import { GANTT_AFTER_KEYWORD, GANTT_UNTIL_KEYWORD } from "./gantt-config";
+import {
+  GANTT_AFTER_KEYWORD,
+  GANTT_EXCLUDE_TOKEN_PATTERN,
+  GANTT_UNTIL_KEYWORD,
+} from "./gantt-config";
 import { isGanttDuration } from "./gantt-date";
 import type { GanttEndInput, GanttStartInput } from "./gantt-operations";
 import type { GanttEnd, GanttStart } from "./gantt-types";
@@ -56,4 +60,11 @@ export function ganttEndText(end: GanttEnd): string {
   return end.kind === "until"
     ? `${GANTT_UNTIL_KEYWORD} ${end.ids.join(" ")}`
     : end.text;
+}
+
+// The words of the "excluded days" field: blanks and commas separate them, like Mermaid does.
+export function ganttExcludeTokensOf(text: string): readonly string[] {
+  return text
+    .split(GANTT_EXCLUDE_TOKEN_PATTERN)
+    .filter((token) => token !== "");
 }
