@@ -4,6 +4,7 @@ import { useMessages } from "../workspace/use-messages";
 import { describeNotEditable } from "./diagram-gui-text";
 import "./diagram-gui.css";
 import { FlowchartGuiPanel } from "./flowchart-gui-panel";
+import { GanttGuiPanel } from "./gantt-gui-panel";
 import { PieGuiPanel } from "./pie-gui-panel";
 import { SequenceGuiPanel } from "./sequence-gui-panel";
 import type { DiagramOperationTarget } from "./use-diagram-operation";
@@ -52,6 +53,13 @@ export function DiagramGuiPanel({
         />
       ) : editability.editable && editability.type === "sequence" ? (
         <SequenceGuiPanel
+          target={target}
+          shortId={shortId}
+          source={source}
+          leaveRef={leaveRef}
+        />
+      ) : editability.editable && editability.type === "gantt" ? (
+        <GanttGuiPanel
           target={target}
           shortId={shortId}
           source={source}

@@ -61,6 +61,9 @@ export interface RefusalText {
 export function describeRefusal(
   gui: GuiMessages,
   error: OperationError,
+  // Reason codes whose wording depends on the diagram type (for example what an ID may
+  // hold); they win over the shared catalog.
+  specificReasons: Readonly<Record<string, string>> = {},
 ): RefusalText {
   const { code, rest } = splitReason(error.detail);
   const mermaidMessage =
@@ -70,6 +73,7 @@ export function describeRefusal(
       ? rest
       : null;
   const message =
+    lookup(specificReasons, code) ??
     lookup(gui.refusalReasons, code) ??
     lookup(gui.refusalKinds, error.kind) ??
     gui.refusalFallback;
@@ -81,7 +85,12 @@ export function describeRefusal(
 export function describeRestriction(
   gui: GuiMessages,
   code: string | null,
+  specificReasons: Readonly<Record<string, string>> = {},
 ): string | null {
   if (code === null) return null;
-  return lookup(gui.refusalReasons, code) ?? gui.refusalFallback;
+  return (
+    lookup(specificReasons, code) ??
+    lookup(gui.refusalReasons, code) ??
+    gui.refusalFallback
+  );
 }

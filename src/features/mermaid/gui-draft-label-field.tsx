@@ -40,6 +40,12 @@ export interface GuiDraftLabelFieldProps<Target, Operation> {
   readonly multiline?: boolean;
   // Why the label cannot be changed from the GUI (shown, and the field is read-only).
   readonly restrictionText: string | null;
+  // Always-visible help for the field (an expected format), read with the field.
+  readonly hint?: string;
+  // Names of the two buttons when several fields share an editor and "Apply" alone would not
+  // say which one it applies.
+  readonly applyLabel?: string;
+  readonly revertLabel?: string;
   // The sentence shown when the element changed under the draft.
   readonly itemChangedText: string;
   readonly busy: boolean;
@@ -67,6 +73,9 @@ export function GuiDraftLabelField<Target, Operation>({
   allowEmpty,
   multiline = true,
   restrictionText,
+  hint,
+  applyLabel,
+  revertLabel,
   itemChangedText,
   busy,
   runDraft,
@@ -76,6 +85,7 @@ export function GuiDraftLabelField<Target, Operation>({
 }: GuiDraftLabelFieldProps<Target, Operation>) {
   const gui = useMessages().mermaid.gui;
   const hintId = useId();
+  const formatHintId = useId();
   const [draft, setDraftState] = useState(committed);
   const draftRef = useRef(committed);
   const baseRef = useRef(committed);
@@ -163,9 +173,18 @@ export function GuiDraftLabelField<Target, Operation>({
         busy={busy}
         multiline={multiline}
         readOnly={restricted}
-        describedBy={restricted ? hintId : undefined}
+        describedBy={
+          [restricted ? hintId : null, hint === undefined ? null : formatHintId]
+            .filter((id) => id !== null)
+            .join(" ") || undefined
+        }
         inputRef={inputRef}
       />
+      {hint !== undefined && (
+        <p id={formatHintId} className="diagram-gui__hint">
+          {hint}
+        </p>
+      )}
       {restricted && (
         <p id={hintId} className="diagram-gui__hint">
           {restrictionText}
@@ -173,13 +192,13 @@ export function GuiDraftLabelField<Target, Operation>({
       )}
       <div className="diagram-gui__actions">
         <GuiButton
-          label={gui.apply}
+          label={applyLabel ?? gui.apply}
           disabled={busy || restricted}
           reasonId={hintId}
           onPress={() => void commit(commitText, "explicit")}
         />
         <GuiButton
-          label={gui.revert}
+          label={revertLabel ?? gui.revert}
           disabled={busy || !pending}
           onPress={() => {
             setDraft(baseRef.current);

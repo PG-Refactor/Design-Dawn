@@ -57,6 +57,22 @@ const MERMAID_MESSAGES_JA = {
         "Mermaidが受け付けない（または描画できない）文の組み合わせがあります。",
       participantRedeclared:
         "すでに現れた参加者が、あとで宣言し直されています（列の並びが崩れるため扱えません）。",
+      notGantt: "ガントチャートとして読み取れません。",
+      unreadableFrontMatter: "先頭のfront matterを読み取れません。",
+      unreadableDirective: "ディレクティブの書き方をGUIで扱えません。",
+      tooLong: "ソースが長すぎます（50000文字まで）。",
+      dateFormatMissing:
+        "dateFormat の指定がありません（GUIは日付の検証のために必要とします）。",
+      duplicateDateFormat: "dateFormat が複数あります。",
+      unsupportedDateFormat:
+        "この dateFormat はGUIで扱えません（YYYY-MM-DD、YYYY/MM/DD、DD/MM/YYYY、MM/DD/YYYY、YYYY-MM-DD HH:mm のみ）。",
+      duplicateTaskIds: "同じIDのタスクが複数あります。",
+      duplicateSectionNames:
+        "同じ名前のセクションが複数あります（Mermaidは1つにまとめて描きます）。",
+      danglingReference: "after / until が存在しないタスクを指しています。",
+      cyclicReference: "タスクが互いに循環して参照しています。",
+      allDaysExcluded: "excludes が全ての曜日を除外しています。",
+      firstTaskImplicitStart: "最初のタスクに開始日の指定がありません。",
     },
     notEditableFallback: "GUIで安全に編集できないソースです。",
     titleLabel: "タイトル",
@@ -393,6 +409,108 @@ const MERMAID_MESSAGES_JA = {
       itemGone:
         "編集していた項目が見つかりません。入力した内容は未適用のまま残っています。",
     },
+    gantt: {
+      titleField: "タイトル（空にすると削除）",
+      dateFormatLine: (format: string): string => `日付の形式：${format}`,
+      sectionsHeading: "セクション",
+      tasksHeading: "タスク",
+      sectionListLabel: (shortId: string): string =>
+        `セクション一覧（${shortId}）`,
+      taskListLabel: (shortId: string): string => `タスク一覧（${shortId}）`,
+      emptySections: "セクションがありません。下から追加してください。",
+      emptyTasks: "タスクがありません。下から追加してください。",
+      noSectionName: "（セクションなし）",
+      sectionOption: (name: string, count: number): string =>
+        `${name}（タスク${count}件）`,
+      taskOption: (
+        section: string,
+        name: string,
+        start: string,
+        end: string,
+      ): string => `${section}／${name}（${start} → ${end}）`,
+      implicitStartShown: "直前のタスクの終了後",
+      selectedSectionHeading: "選択中のセクション",
+      selectedTaskHeading: "選択中のタスク",
+      sectionNameField: "セクション名",
+      taskNameField: "タスク名",
+      taskIdField: "タスクID",
+      startField: "開始",
+      endField: "終了または期間",
+      startHint: (format: string): string =>
+        `日付（${format}）、または after タスクID（複数はスペース区切り）。空欄は直前のタスクの終了後を表します。`,
+      addStartHint: (format: string): string =>
+        `日付（${format}）、または after タスクID（複数はスペース区切り）。`,
+      endHint: (format: string): string =>
+        `期間（例：3d、2w、12h）、日付（${format}）、または until タスクID。`,
+      applyField: (label: string): string => `${label}を適用`,
+      revertField: (label: string): string => `${label}の入力を戻す`,
+      tagsGroup: "状態",
+      tags: {
+        done: "完了（done）",
+        active: "進行中（active）",
+        crit: "重要（crit）",
+        milestone: "マイルストーン（milestone）",
+        vert: "縦線（vert）",
+      },
+      deleteSection: "セクションを削除",
+      deleteTask: "タスクを削除",
+      noSelection: "一覧からセクションまたはタスクを選ぶと編集できます。",
+      addSectionHeading: "セクションを追加",
+      newSectionName: "新しいセクション名",
+      sectionPositionField: "追加する位置",
+      positionEnd: "図の末尾",
+      positionAfterSelected: "選択中のセクションの後",
+      addSection: "セクションを追加",
+      addTaskHeading: "タスクを追加",
+      newTaskSection: "追加するセクション",
+      newTaskSectionEnd: "図の末尾",
+      newTaskName: "新しいタスク名",
+      newTaskId: "ID（省略すると自動）",
+      newTaskStart: "新しいタスクの開始",
+      newTaskEnd: "新しいタスクの終了または期間",
+      addTask: "タスクを追加",
+      nameRequired: "名前を入力してください。",
+      startRequired: "開始を入力してください。",
+      endRequired: "終了または期間を入力してください。",
+      itemChanged:
+        "選択した項目がソース側で変わったため、入力は適用していません。入力はそのまま残してあります。もう一度適用するか、「入力を戻す」で破棄してください。",
+      itemGone:
+        "編集していた項目が見つかりません。入力した内容は未適用のまま残っています。",
+      refusalReasons: {
+        emptyText: "入力が空です。",
+        untrimmedText: "前後に空白を付けることはできません。",
+        specialCharacter:
+          "# と ; は使えません（コメント・文の区切りになるため）。",
+        commentMark:
+          "% で始まる単語、または2文字目が % の単語は使えません（その行がコメント扱いになるため）。",
+        colon: "タスク名に : は使えません。",
+        keywordLedName:
+          "title・section・日付・click などで始まる名前は、その文として読まれるため使えません。",
+        invalidId: "IDは英数字・_・- だけで書いてください。",
+        tagWordId:
+          "done・active・crit・milestone・vert は状態として読まれるため、IDに使えません。",
+        autoIdShape: "task+数字 はMermaidが自動で付けるIDなので使えません。",
+        invalidDate: "この図の日付形式で、実在する日付を入力してください。",
+        invalidDuration:
+          "数字と単位1つ（ms・s・m・h・d・w・M・y）で入力してください（例：3d）。",
+        duplicateSectionName: "同じ名前のセクションがすでにあります。",
+        duplicateSectionNames: "同じ名前のセクションがすでにあります。",
+        duplicateTaskIds: "同じIDのタスクがすでにあります。",
+        danglingReference:
+          "存在しないタスクを指すことになるため、適用できません。",
+        cyclicReference:
+          "タスクが循環して参照することになるため、適用できません。",
+        firstTaskImplicitStart: "最初のタスクには開始日が必要です。",
+        implicitStart:
+          "このタスクは直前のタスクの終了後に始まるため、日付がずれてしまう操作はできません。先に開始日を指定してください。",
+        clickLink: "click 行が参照しているため、GUIでは変更できません。",
+        noReference: "タスクIDを1つ以上指定してください。",
+        unknownReference: "存在しないタスクIDが指定されています。",
+        duplicateReference: "同じタスクIDが重複しています。",
+        unknownTag: "未知の状態です。",
+        duplicateTag: "状態が重複しています。",
+      },
+    },
   },
 } as const;
 
@@ -454,6 +572,22 @@ const MERMAID_MESSAGES_EN: MermaidMessages = {
         "Some statements together are not accepted (or cannot be drawn) by Mermaid.",
       participantRedeclared:
         "A participant is declared again after it already appeared (this breaks the column order, so it is not edited).",
+      notGantt: "It cannot be read as a Gantt chart.",
+      unreadableFrontMatter: "The front matter at the top cannot be read.",
+      unreadableDirective: "A directive is not in a form the GUI can handle.",
+      tooLong: "The source is too long (50000 characters at most).",
+      dateFormatMissing:
+        "There is no dateFormat (the GUI needs it to check dates).",
+      duplicateDateFormat: "There is more than one dateFormat.",
+      unsupportedDateFormat:
+        "This dateFormat is not supported by the GUI (only YYYY-MM-DD, YYYY/MM/DD, DD/MM/YYYY, MM/DD/YYYY and YYYY-MM-DD HH:mm).",
+      duplicateTaskIds: "Several tasks share an id.",
+      duplicateSectionNames:
+        "Several sections share a name (Mermaid draws them as one).",
+      danglingReference: "An after / until names a task that does not exist.",
+      cyclicReference: "Tasks refer to each other in a circle.",
+      allDaysExcluded: "The excludes setting removes every day of the week.",
+      firstTaskImplicitStart: "The first task has no start.",
     },
     notEditableFallback: "The source cannot be edited safely with the GUI.",
     titleLabel: "Title",
@@ -786,6 +920,110 @@ const MERMAID_MESSAGES_EN: MermaidMessages = {
         'The selected entry changed in the source, so your input was not applied. It is kept as it is: apply it again, or discard it with "Revert input".',
       itemGone:
         "The entry you were editing cannot be found. What you typed is kept and not applied.",
+    },
+    gantt: {
+      titleField: "Title (empty removes it)",
+      dateFormatLine: (format: string): string => `Date format: ${format}`,
+      sectionsHeading: "Sections",
+      tasksHeading: "Tasks",
+      sectionListLabel: (shortId: string): string =>
+        `Section list (${shortId})`,
+      taskListLabel: (shortId: string): string => `Task list (${shortId})`,
+      emptySections: "There are no sections. Add one below.",
+      emptyTasks: "There are no tasks. Add one below.",
+      noSectionName: "(no section)",
+      sectionOption: (name: string, count: number): string =>
+        `${name} (${count} ${count === 1 ? "task" : "tasks"})`,
+      taskOption: (
+        section: string,
+        name: string,
+        start: string,
+        end: string,
+      ): string => `${section} / ${name} (${start} -> ${end})`,
+      implicitStartShown: "after the task above",
+      selectedSectionHeading: "Selected section",
+      selectedTaskHeading: "Selected task",
+      sectionNameField: "Section name",
+      taskNameField: "Task name",
+      taskIdField: "Task ID",
+      startField: "Start",
+      endField: "End or duration",
+      startHint: (format: string): string =>
+        `A date (${format}) or "after" and task IDs (separated by spaces). Empty means after the task above.`,
+      addStartHint: (format: string): string =>
+        `A date (${format}) or "after" and task IDs (separated by spaces).`,
+      endHint: (format: string): string =>
+        `A duration (for example 3d, 2w, 12h), a date (${format}) or "until" and a task ID.`,
+      applyField: (label: string): string => `Apply ${label}`,
+      revertField: (label: string): string => `Revert ${label}`,
+      tagsGroup: "Status",
+      tags: {
+        done: "Done (done)",
+        active: "Active (active)",
+        crit: "Critical (crit)",
+        milestone: "Milestone (milestone)",
+        vert: "Vertical line (vert)",
+      },
+      deleteSection: "Delete section",
+      deleteTask: "Delete task",
+      noSelection: "Select a section or task in the lists to edit it.",
+      addSectionHeading: "Add a section",
+      newSectionName: "New section name",
+      sectionPositionField: "Position",
+      positionEnd: "End of the chart",
+      positionAfterSelected: "After the selected section",
+      addSection: "Add section",
+      addTaskHeading: "Add a task",
+      newTaskSection: "Section to add to",
+      newTaskSectionEnd: "End of the chart",
+      newTaskName: "New task name",
+      newTaskId: "ID (generated if empty)",
+      newTaskStart: "New task start",
+      newTaskEnd: "New task end or duration",
+      addTask: "Add task",
+      nameRequired: "Enter a name.",
+      startRequired: "Enter a start.",
+      endRequired: "Enter an end or a duration.",
+      itemChanged:
+        'The selected item changed in the source, so your input was not applied. It is kept as it is: apply it again, or discard it with "Revert".',
+      itemGone:
+        "The item you were editing cannot be found. What you typed is kept and not applied.",
+      refusalReasons: {
+        emptyText: "The text is empty.",
+        untrimmedText: "It cannot start or end with blanks.",
+        specialCharacter:
+          "# and ; are not allowed (they are a comment or a statement break).",
+        commentMark:
+          "A word that starts with %, or has % as its second character, is not allowed (it would turn the line into a comment).",
+        colon: "A task name cannot contain a colon.",
+        keywordLedName:
+          "A name starting with title, section, a date, click and the like would be read as that statement.",
+        invalidId: "Use only letters, digits, _ and - in an ID.",
+        tagWordId:
+          "done, active, crit, milestone and vert are read as status words, so they cannot be an ID.",
+        autoIdShape:
+          "task followed by digits is the ID Mermaid gives a task by itself.",
+        invalidDate: "Enter a real date written in the chart's date format.",
+        invalidDuration:
+          "Use digits and one unit (ms, s, m, h, d, w, M, y), for example 3d.",
+        duplicateSectionName: "A section with this name already exists.",
+        duplicateSectionNames: "A section with this name already exists.",
+        duplicateTaskIds: "A task with this ID already exists.",
+        danglingReference:
+          "That would refer to a task that does not exist, so it was not applied.",
+        cyclicReference:
+          "That would make tasks refer to each other in a circle, so it was not applied.",
+        firstTaskImplicitStart: "The first task needs a start date.",
+        implicitStart:
+          "This task starts after the task above it, so this would silently move dates. Give it a start date first.",
+        clickLink:
+          "A click line refers to it, so it cannot be changed from the GUI.",
+        noReference: "Give at least one task ID.",
+        unknownReference: "A task ID that does not exist was given.",
+        duplicateReference: "A task ID is given twice.",
+        unknownTag: "Unknown status.",
+        duplicateTag: "A status is given twice.",
+      },
     },
   },
 };

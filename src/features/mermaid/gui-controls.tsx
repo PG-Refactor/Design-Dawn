@@ -170,3 +170,36 @@ export function GuiSelect({
     </div>
   );
 }
+
+export interface GuiCheckboxProps {
+  readonly label: string;
+  readonly checked: boolean;
+  readonly onChange: (checked: boolean) => void;
+  // Not `disabled`, for the same reason as the other controls: a change is ignored while
+  // unavailable and the box keeps showing its state.
+  readonly disabled: boolean;
+  readonly reasonId?: string;
+}
+
+export function GuiCheckbox({
+  label,
+  checked,
+  onChange,
+  disabled,
+  reasonId,
+}: GuiCheckboxProps) {
+  return (
+    <label className="diagram-gui__check">
+      <input
+        type="checkbox"
+        checked={checked}
+        aria-disabled={disabled}
+        aria-describedby={disabled ? reasonId : undefined}
+        onChange={(event) => {
+          if (!disabled) onChange(event.target.checked);
+        }}
+      />
+      {label}
+    </label>
+  );
+}
