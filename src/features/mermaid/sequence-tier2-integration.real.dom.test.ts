@@ -139,7 +139,13 @@ async function runOperation(harness: Harness, operation: SequenceOperation) {
   );
 }
 
-describe("sequence Tier 2 operations, save, reload, undo", () => {
+// Each test runs several real Mermaid renders plus save / reload / undo; under a full
+// parallel test run that can exceed the 5 s default, so the budget is explicit.
+const INTEGRATION_TIMEOUT_MS = 30_000;
+
+describe("sequence Tier 2 operations, save, reload, undo", {
+  timeout: INTEGRATION_TIMEOUT_MS,
+}, () => {
   it("edits, saves, reloads and undoes one operation at a time", async () => {
     const harness = openSession([BLOCK]);
     harness.gateway.files.set(BLOCK.contentPath, ORIGINAL);
