@@ -35,6 +35,8 @@ logs/
 
 # ---- Claude Code: personal/local settings only (shared settings stay tracked) ----
 .claude/settings.local.json
+# Git worktrees for parallel work (Claude Code creates them here)
+.claude/worktrees/
 
 # ---- IDE ----
 .vscode/*

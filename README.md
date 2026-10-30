@@ -1,47 +1,116 @@
 # Design Dawn
 
-Design Dawn is a desktop design document application built with Tauri 2, React, TypeScript, Vite and Rust.
-Documents are stored as plain files and folders (Markdown, Mermaid, images, small JSON metadata) so that humans, Git and AI tools can all work with them directly.
+**English** | [日本語](README.ja.md)
 
-Design and rules live in [`docs/`](docs/README.md) and [`.claude/CLAUDE.md`](.claude/CLAUDE.md). Current status: Phase 0 (development environment only; no features yet).
+Design Dawn is a desktop application for writing design documents on an infinite canvas.
+A document is a set of sheets; each sheet holds freely placed blocks of **Markdown**, **Mermaid
+diagrams** and **images**. Everything is stored as ordinary files and folders, so the same project
+can be read and edited by people, reviewed with Git, and changed safely by AI tools.
 
-## Prerequisites
+![A design document with Markdown and a Mermaid flowchart on the canvas](docs/images/overview-dark.png)
 
-- Windows 11 with WSL2 (WSLg enabled)
-- Docker Desktop using the WSL2 backend
+> **Status**: pre-release, developed and tested on Linux (WSL2 + WSLg). Windows and macOS builds
+> have not been verified yet. See [`docs/development-state.md`](docs/development-state.md).
 
-Nothing else is installed on the host. Node.js, Rust and all dependencies live in the dev container ([`docs/environment.md`](docs/environment.md)).
+## Features
 
-## Setup
+- **Infinite canvas** — pan, zoom, select, move, resize, align, z-order, copy/paste, and undo/redo
+  for every edit.
+- **Project → Document → Sheet → Block** — a project tree with folders, document tabs and sheet
+  tabs; several documents (and windows) open at once.
+- **Markdown blocks** — rendered view on the canvas; a split source/preview editor while editing.
+- **Mermaid blocks** — any Mermaid 12 diagram, rendered locally and sanitised (no network, no
+  scripts).
+- **Mermaid GUI editor** — edit pie charts, flowcharts, sequence diagrams and gantt charts with
+  lists and property fields instead of syntax. The Mermaid source stays the single source of
+  truth: each GUI edit changes only the bytes it must, is checked by re-reading the result and
+  rendering it, and is one undo step. Anything the editor does not fully understand stays
+  read-only rather than being rewritten.
+- **Image blocks** — PNG, JPEG, WebP, SVG and GIF, added by drag and drop.
+- **Git integration** — status, stage/unstage, commit, history, side-by-side diffs in tabs,
+  discard, fetch/pull/push, branch display.
+- **External changes** — edits made by another editor, Git or an AI tool are detected; documents
+  without unsaved work reload automatically, otherwise you choose to reload, keep your version or
+  compare.
+- **AI / MCP** — `design-dawn-mcp`, a local MCP server (stdio only, read-only by default) that lets
+  AI clients such as Claude Code read and edit documents, sheets and blocks.
+- **Light / dark theme** and **English / Japanese** UI.
 
-The repository lives on the WSL2 filesystem (`~/GitHub/PG-Refactor/Design-Dawn` in the Ubuntu-22.04 distro). Run everything from a shell inside that distro (Docker Desktop WSL integration must be enabled for it).
+| Flowchart GUI editor | Sequence diagram GUI editor |
+|---|---|
+| ![Flowchart editor with node list and property panel](docs/images/flowchart-gui.png) | ![Sequence diagram editor with participants and messages](docs/images/sequence-gui.png) |
 
-```sh
-docker compose build          # build the dev image
-docker compose up -d          # start the dev container
-docker compose exec dev npm ci
+| Markdown editing | Git diff |
+|---|---|
+| ![Markdown block in split source/preview mode](docs/images/markdown-edit.png) | ![Side-by-side Git diff of a Markdown block](docs/images/git-diff.png) |
+
+| Gantt and pie charts | Light theme |
+|---|---|
+| ![Gantt chart and pie chart on a sheet](docs/images/plan.png) | ![The overview sheet in the light theme](docs/images/light-theme.png) |
+
+## How a project is stored
+
+```text
+my-project/
+├── project.json                  # project name and document order
+├── system-design.dawn            # entry point that opens a document from the file manager
+└── documents/
+    └── system-design/
+        ├── document.json         # sheet order
+        ├── assets/               # images
+        └── sheets/
+            └── overview/
+                ├── sheet.json    # block positions, sizes and types
+                └── blocks/
+                    ├── markdown-1.md
+                    └── mermaid-1.mmd
 ```
 
-## Daily commands
+Layout lives in small JSON files and content lives in `.md` / `.mmd` files, so diffs stay readable
+and a human or an AI can change one block without touching the rest. The full format is in
+[`docs/file-format.md`](docs/file-format.md).
+
+## Building and running
+
+Development happens entirely inside a dev container; nothing but Docker is needed on the host.
+
+**Prerequisites**: Linux, or Windows 11 with WSL2 (WSLg enabled), and Docker (Docker Desktop with
+the WSL2 backend on Windows). Clone the repository onto the Linux / WSL2 file system.
 
 ```sh
-docker compose exec dev npm run verify      # typecheck, biome, vitest, cargo fmt/clippy/test
-docker compose exec dev npm run build       # frontend production build
-docker compose exec dev npm run tauri dev   # run the app; the window appears through WSLg
+docker compose build                 # build the dev image
+docker compose up -d                 # start the dev container
+docker compose exec dev npm ci       # install dependencies
+docker compose exec dev npm run tauri dev   # run the app; the window appears through WSLg / X11
 ```
 
-Other scripts: `typecheck`, `lint`, `format`, `format:check`, `check`, `test`, `rust:fmt:check`, `rust:lint`, `rust:test` (see `package.json`).
-One-off commands also work without a running container: `docker compose run --rm dev <command>`.
-
-`compose.yaml` sets `GDK_BACKEND=x11` because the window is verified through WSLg X11 (XWayland); the native Wayland path is untested. To try Wayland:
+Other commands:
 
 ```sh
-docker compose exec -e GDK_BACKEND=wayland dev npm run tauri dev
+docker compose exec dev npm run verify   # typecheck, Biome, Vitest, license check, cargo fmt/clippy/test
+docker compose exec dev npm run build    # frontend production build
+docker compose exec dev npm run tauri build -- --bundles deb   # Linux package
 ```
 
-## Notes
+Details, including WSLg notes and known limitations, are in
+[`docs/environment.md`](docs/environment.md).
 
-- `node_modules`, `src-tauri/target` and the Cargo/npm caches live on Docker named volumes, not in the source tree. `cargo clean` reports "Device or resource busy" because `src-tauri/target` is a mount point (its contents are still removed).
-- WSLg sockets are mounted from `WSLG_DIR` (default `/mnt/wslg`, correct when compose runs inside the distro). If you ever run compose from Windows instead, set `WSLG_DIR=/run/desktop/mnt/host/wslg`; if the repository is bind-mounted from `C:\`, also set `DAWN_WATCH_POLLING=true` because file change events may not arrive.
-- `npm ci` must be re-run after the `node_modules` volume is removed (`docker compose down -v`).
-- Windows native builds (MSVC / WebView2) are out of scope for Phase 0.
+## Using it with AI (MCP)
+
+```sh
+docker compose exec dev cargo build --release --manifest-path src-tauri/Cargo.toml --bin design-dawn-mcp
+claude mcp add design-dawn -- /path/to/design-dawn-mcp --project /path/to/my-project
+```
+
+The server is read-only unless started with `--allow-write`. It cannot delete documents or sheets,
+run commands, use Git or open network connections. See [`docs/mcp.md`](docs/mcp.md).
+
+## Documentation
+
+Design and rules live in [`docs/`](docs/README.md): requirements, architecture, data model, file
+format, UI design, security, testing and the roadmap.
+
+## License
+
+The license of Design Dawn itself has not been chosen yet. Third-party licenses of the bundled
+dependencies are listed in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
