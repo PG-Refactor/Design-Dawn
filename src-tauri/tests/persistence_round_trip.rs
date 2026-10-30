@@ -34,11 +34,11 @@ fn opening_and_loading_the_sample_project_reports_no_issues_and_writes_nothing()
 #[test]
 fn saving_everything_that_was_loaded_leaves_every_file_byte_identical() {
     let mut opened = open_copy();
-    // The basic sample is a schemaVersion 1 project, so its first save migrates project.json
-    // (see persistence_folders.rs). From then on every save must be a no-op.
-    let migrated =
-        save_project(&mut opened.sessions, PROJECT_ID, &opened.snapshot.project).unwrap();
-    assert!(migrated.written);
+    let first = save_project(&mut opened.sessions, PROJECT_ID, &opened.snapshot.project).unwrap();
+    assert!(
+        !first.written,
+        "the basic sample is in the current format; a schemaVersion 1 sample is covered by schema_migration.rs"
+    );
     let before = tree_snapshot(&opened.root);
 
     let saved = save_project(&mut opened.sessions, PROJECT_ID, &opened.snapshot.project).unwrap();

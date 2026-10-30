@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "sheetId": "01928f3a-7d8f-7f90-b123-456789abcdef",
+  "name": "Details",
+  "blocks": [
+    {
+      "blockId": "01928f3a-b1c2-7d34-b567-89abcdef0123",
+      "blockType": "markdown",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "size": {
+        "width": 320,
+        "height": 240
+      },
+      "contentPath": "sheets/details/blocks/markdown-1.md"
+    }
+  ]
+}

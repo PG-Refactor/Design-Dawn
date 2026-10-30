@@ -32,11 +32,13 @@ use crate::application::folder_selection::{
     resolve_selection, select_project_folder as select_folder, FolderPicker, FolderSelection,
     FolderSelectionState,
 };
+use crate::application::format_update::{self, FormatUpdateResult};
 use crate::application::git_commit;
 use crate::application::git_discard;
 use crate::application::git_history;
 use crate::application::git_operations::{self, GitStatusResult};
 use crate::application::git_remote;
+use crate::application::load_issue_repair::{self, RepairAction, RepairIssueRef, RepairOutcome};
 use crate::application::local_state::operations::{AppSettings, LocalState, SheetViewportResult};
 use crate::application::open_request::{self, OpenRequest, OpenedRequest, PendingOpenRequests};
 use crate::application::project_operations as projects;
@@ -58,7 +60,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 56] = [
+pub const COMMAND_NAMES: [&str; 58] = [
     "select_project_folder",
     "create_project",
     "open_project",
@@ -115,6 +117,8 @@ pub const COMMAND_NAMES: [&str; 56] = [
     "check_external_changes",
     "accept_disk_state",
     "compare_block_content",
+    "repair_load_issue",
+    "update_outdated_files",
 ];
 
 pub use app_channel::{AppNotification, AppNotificationSink, AppRequestHub, AppRequestSubscriber};
@@ -688,6 +692,42 @@ pub fn accept_disk_state<R: Runtime>(
 ) -> Result<(), ApplicationError> {
     with_project_sessions(&window, &state, &project_id, |sessions| {
         external_change::accept_disk_state(sessions, &project_id, document_id.as_deref())
+    })
+}
+
+/// Plans (`dry_run`) or applies one explicit repair of a Load Issue the user confirmed
+/// (docs/architecture.md §14.15). `document_id` is the Document whose load reported it.
+#[tauri::command]
+pub fn repair_load_issue<R: Runtime>(
+    window: Window<R>,
+    state: SessionState<'_>,
+    project_id: String,
+    document_id: Option<String>,
+    issue: RepairIssueRef,
+    action: RepairAction,
+    dry_run: bool,
+) -> Result<RepairOutcome, ApplicationError> {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
+        load_issue_repair::repair_load_issue(
+            sessions,
+            &project_id,
+            document_id.as_deref(),
+            &issue,
+            action,
+            dry_run,
+        )
+    })
+}
+
+/// "Update all now": writes every file that was read in an older format in the current one.
+#[tauri::command]
+pub fn update_outdated_files<R: Runtime>(
+    window: Window<R>,
+    state: SessionState<'_>,
+    project_id: String,
+) -> Result<FormatUpdateResult, ApplicationError> {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
+        format_update::update_outdated_files(sessions, &project_id)
     })
 }
 

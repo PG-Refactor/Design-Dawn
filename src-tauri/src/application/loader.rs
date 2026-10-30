@@ -21,12 +21,15 @@ use crate::domain::entity_id::{BlockId, DocumentId, EntryId, FolderId, SheetId};
 use crate::domain::error::DomainError;
 use crate::domain::folder::Folder;
 use crate::domain::sheet::Sheet;
-use crate::infrastructure::error::PersistenceErrorKind;
+use crate::infrastructure::error::{PersistenceError, PersistenceErrorKind};
 use crate::infrastructure::file_format::constants::{
     DOCUMENTS_DIRECTORY_NAME, DOCUMENT_FILE_NAME, FOLDER_FILE_NAME, PROJECT_FILE_NAME,
     SHEET_FILE_NAME,
 };
 use crate::infrastructure::file_format::dto::{parse_dto, DocumentDto, FolderDto, SheetDto};
+use crate::infrastructure::file_format::migration::{
+    migrate_to_current, MigrationError, MigrationTarget,
+};
 use crate::infrastructure::filesystem::atomic_write::is_temp_file_name;
 use crate::infrastructure::filesystem::directory::{list_directory, DirectoryEntry, EntryKind};
 use crate::infrastructure::filesystem::path_resolution::resolve_existing;
@@ -123,12 +126,15 @@ where
     for scan in scans {
         let path = child_path(container_path, &scan.directory_name);
         if let Err(error) = &scan.payload {
-            issues.push(LoadIssue::new(
-                LoadIssueKind::EntityLoadFailed,
-                Some(&path),
-                scan.id.map(|id| id.to_string()),
-                format!("{entity_label} failed to load: {error}"),
-            ));
+            issues.push(
+                LoadIssue::new(
+                    LoadIssueKind::EntityLoadFailed,
+                    Some(&path),
+                    scan.id.map(|id| id.to_string()),
+                    format!("{entity_label} failed to load: {error}"),
+                )
+                .with_reason(error),
+            );
         }
         let Some(id) = scan.id else { continue };
         if let Some(first) = index_by_id.get(&id).map(|index| &accepted[*index]) {
@@ -269,6 +275,56 @@ pub(super) struct MetadataLoad<Entity, Id> {
     pub entity: Result<Entity, ApplicationError>,
     pub recovered_id: Option<Id>,
     pub recovered_name: Option<String>,
+    /// The `schemaVersion` the file is written in when it is older than the current one:
+    /// the entity was migrated in memory only and the file still holds the old format.
+    pub migrated_from: Option<u32>,
+}
+
+impl From<MigrationError> for ApplicationError {
+    fn from(error: MigrationError) -> Self {
+        match error {
+            MigrationError::Domain(error) => error.into(),
+            MigrationError::Persistence(error) => error.into(),
+        }
+    }
+}
+
+/// The migrated JSON and the version the file was written in, when that was older.
+pub(super) type MigratedMetadata = Result<(Value, Option<u32>), ApplicationError>;
+
+/// Runs the migration registry over a metadata file's JSON. The identity is recovered from
+/// the value as read, so an entity of an unsupported (newer) version is still listed by ID.
+pub(super) fn migrate_metadata(target: MigrationTarget, value: Value) -> (Value, MigratedMetadata) {
+    let original = value.clone();
+    let migrated = migrate_to_current(target, value)
+        .map(|migrated| (migrated.value, migrated.migrated_from))
+        .map_err(ApplicationError::from);
+    (original, migrated)
+}
+
+/// Reports a file that was read in an older format (docs/data-model.md §7).
+pub(super) fn report_outdated_format(
+    path: &str,
+    migrated_from: Option<u32>,
+    issues: &mut Vec<LoadIssue>,
+) {
+    if let Some(version) = migrated_from {
+        issues.push(LoadIssue::new(
+            LoadIssueKind::OutdatedFormat,
+            Some(path),
+            None,
+            format!("written as schemaVersion {version}"),
+        ));
+    }
+}
+
+fn unreadable<Entity, Id>(error: PersistenceError) -> MetadataLoad<Entity, Id> {
+    MetadataLoad {
+        entity: Err(error.into()),
+        recovered_id: None,
+        recovered_name: None,
+        migrated_from: None,
+    }
 }
 
 pub(super) fn load_document_file(
@@ -278,26 +334,22 @@ pub(super) fn load_document_file(
 ) -> MetadataLoad<Document, DocumentId> {
     let value = match session.read_json("", relative_file) {
         Ok(value) => value,
-        Err(error) => {
-            return MetadataLoad {
-                entity: Err(error.into()),
-                recovered_id: None,
-                recovered_name: None,
-            }
-        }
+        Err(error) => return unreadable(error),
     };
-    let (recovered_id, recovered_name) = recover_identity(&value, "documentId", DocumentId::parse);
-    let entity = parse_dto::<DocumentDto>(value)
-        .map_err(ApplicationError::from)
-        .and_then(|mut dto| {
-            dto.sheet_order =
-                normalize_order(&dto.sheet_order, SheetId::parse, relative_file, issues);
-            dto.to_domain().map_err(ApplicationError::from)
-        });
+    let (original, migrated) = migrate_metadata(MigrationTarget::Document, value);
+    let (recovered_id, recovered_name) =
+        recover_identity(&original, "documentId", DocumentId::parse);
+    let migrated_from = migrated.as_ref().ok().and_then(|(_, from)| *from);
+    let entity = migrated.and_then(|(value, _)| {
+        let mut dto = parse_dto::<DocumentDto>(value)?;
+        dto.sheet_order = normalize_order(&dto.sheet_order, SheetId::parse, relative_file, issues);
+        dto.to_domain().map_err(ApplicationError::from)
+    });
     MetadataLoad {
         entity,
         recovered_id,
         recovered_name,
+        migrated_from,
     }
 }
 
@@ -307,22 +359,21 @@ pub(super) fn load_sheet_file(
 ) -> MetadataLoad<Sheet, SheetId> {
     let value = match session.read_json("", relative_file) {
         Ok(value) => value,
-        Err(error) => {
-            return MetadataLoad {
-                entity: Err(error.into()),
-                recovered_id: None,
-                recovered_name: None,
-            }
-        }
+        Err(error) => return unreadable(error),
     };
-    let (recovered_id, recovered_name) = recover_identity(&value, "sheetId", SheetId::parse);
-    let entity = parse_dto::<SheetDto>(value)
-        .map_err(ApplicationError::from)
-        .and_then(|dto| dto.to_domain().map_err(ApplicationError::from));
+    let (original, migrated) = migrate_metadata(MigrationTarget::Sheet, value);
+    let (recovered_id, recovered_name) = recover_identity(&original, "sheetId", SheetId::parse);
+    let migrated_from = migrated.as_ref().ok().and_then(|(_, from)| *from);
+    let entity = migrated.and_then(|(value, _)| {
+        parse_dto::<SheetDto>(value)?
+            .to_domain()
+            .map_err(ApplicationError::from)
+    });
     MetadataLoad {
         entity,
         recovered_id,
         recovered_name,
+        migrated_from,
     }
 }
 
@@ -333,26 +384,21 @@ pub(super) fn load_folder_file(
 ) -> MetadataLoad<Folder, FolderId> {
     let value = match session.read_json("", relative_file) {
         Ok(value) => value,
-        Err(error) => {
-            return MetadataLoad {
-                entity: Err(error.into()),
-                recovered_id: None,
-                recovered_name: None,
-            }
-        }
+        Err(error) => return unreadable(error),
     };
-    let (recovered_id, recovered_name) = recover_identity(&value, "folderId", FolderId::parse);
-    let entity = parse_dto::<FolderDto>(value)
-        .map_err(ApplicationError::from)
-        .and_then(|mut dto| {
-            dto.child_order =
-                normalize_order(&dto.child_order, EntryId::parse, relative_file, issues);
-            dto.to_domain().map_err(ApplicationError::from)
-        });
+    let (original, migrated) = migrate_metadata(MigrationTarget::Folder, value);
+    let (recovered_id, recovered_name) = recover_identity(&original, "folderId", FolderId::parse);
+    let migrated_from = migrated.as_ref().ok().and_then(|(_, from)| *from);
+    let entity = migrated.and_then(|(value, _)| {
+        let mut dto = parse_dto::<FolderDto>(value)?;
+        dto.child_order = normalize_order(&dto.child_order, EntryId::parse, relative_file, issues);
+        dto.to_domain().map_err(ApplicationError::from)
+    });
     MetadataLoad {
         entity,
         recovered_id,
         recovered_name,
+        migrated_from,
     }
 }
 
@@ -519,12 +565,15 @@ impl TreeScan<'_> {
         error: Option<&ApplicationError>,
     ) {
         if let Some(error) = error {
-            self.issues.push(LoadIssue::new(
-                LoadIssueKind::EntityLoadFailed,
-                Some(directory_path),
-                id.map(|id| id.to_string()),
-                format!("{label} failed to load: {error}"),
-            ));
+            self.issues.push(
+                LoadIssue::new(
+                    LoadIssueKind::EntityLoadFailed,
+                    Some(directory_path),
+                    id.map(|id| id.to_string()),
+                    format!("{label} failed to load: {error}"),
+                )
+                .with_reason(error),
+            );
         }
     }
 
@@ -560,6 +609,9 @@ impl TreeScan<'_> {
             _ => {
                 let mut discarded = Vec::new();
                 let result = load_document_file(self.session, file_path, &mut discarded);
+                if result.entity.is_ok() {
+                    report_outdated_format(file_path, result.migrated_from, self.issues);
+                }
                 match &result.entity {
                     Ok(document) => (
                         Ok(()),
@@ -612,6 +664,7 @@ impl TreeScan<'_> {
                 let result = load_folder_file(self.session, file_path, &mut order_issues);
                 match result.entity {
                     Ok(folder) => {
+                        report_outdated_format(file_path, result.migrated_from, &mut order_issues);
                         let identity = (
                             Some(*folder.folder_id()),
                             Some(folder.name().as_str().to_owned()),
@@ -741,6 +794,9 @@ pub(super) fn scan_sheet_directories(
             }),
             MetadataPresence::Present => {
                 let loaded = load_sheet_file(session, &file_path);
+                if loaded.entity.is_ok() {
+                    report_outdated_format(&file_path, loaded.migrated_from, issues);
+                }
                 let (id, display_name) = match &loaded.entity {
                     Ok(sheet) => (
                         Some(*sheet.sheet_id()),

@@ -478,7 +478,7 @@ mod project_formats {
 
     #[test]
     fn a_version_1_project_is_read_as_child_order_and_loading_leaves_the_file_alone() {
-        let (_temp, root) = project_copy();
+        let (_temp, root) = legacy_project_copy();
         let before = tree_snapshot(&root);
         let mut sessions = ProjectSessions::default();
         let snapshot = open_project(&mut sessions, &root).unwrap();
@@ -493,7 +493,7 @@ mod project_formats {
 
     #[test]
     fn saving_always_writes_version_2_with_the_documented_key_order() {
-        let (_temp, root) = project_copy();
+        let (_temp, root) = legacy_project_copy();
         let mut sessions = ProjectSessions::default();
         let snapshot = open_project(&mut sessions, &root).unwrap();
         let saved = save_project(&mut sessions, PROJECT_ID, &snapshot.project).unwrap();

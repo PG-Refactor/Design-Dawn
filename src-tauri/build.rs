@@ -58,6 +58,8 @@ const APP_COMMANDS: &[&str] = &[
     "check_external_changes",
     "accept_disk_state",
     "compare_block_content",
+    "repair_load_issue",
+    "update_outdated_files",
 ];
 
 fn main() {

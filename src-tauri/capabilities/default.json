@@ -59,6 +59,8 @@
     "allow-git-remotes",
     "allow-check-external-changes",
     "allow-accept-disk-state",
-    "allow-compare-block-content"
+    "allow-compare-block-content",
+    "allow-repair-load-issue",
+    "allow-update-outdated-files"
   ]
 }

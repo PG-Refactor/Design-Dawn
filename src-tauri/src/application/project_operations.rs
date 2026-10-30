@@ -6,7 +6,9 @@ use serde_json::{Number, Value};
 
 use super::entity_id_generator::generate_project_id;
 use super::error::{ApplicationError, ApplicationResult};
-use super::loader::{normalize_order, report_leftover_temp_files, scan_entry_tree};
+use super::loader::{
+    normalize_order, report_leftover_temp_files, report_outdated_format, scan_entry_tree,
+};
 use super::session::{
     document_base_path, read_json_value, DocumentRecord, FolderRecord, HashLedger, ProjectSession,
     ProjectSessions,
@@ -14,22 +16,19 @@ use super::session::{
 use super::snapshot::{
     DocumentEntry, EntityState, EntryPointSnapshot, FolderEntry, ProjectSnapshot, SaveResult,
 };
-use crate::domain::constants::{
-    CURRENT_PROJECT_SCHEMA_VERSION, LEGACY_PROJECT_SCHEMA_VERSION, PATH_SEPARATOR,
-};
+use crate::domain::constants::{CURRENT_PROJECT_SCHEMA_VERSION, PATH_SEPARATOR};
 use crate::domain::content_path::validate_relative_path;
 use crate::domain::display_name::DisplayName;
 use crate::domain::entity_id::{DocumentId, EntryId, ProjectId};
 use crate::domain::project::{Project, ProjectInput};
-use crate::domain::schema_version::{SchemaEntityKind, SchemaVersion};
 use crate::infrastructure::error::{PersistenceError, PersistenceErrorKind};
 use crate::infrastructure::file_format::constants::{
     DOCUMENTS_DIRECTORY_NAME, GITATTRIBUTES_CONTENT, GITATTRIBUTES_FILE_NAME, PROJECT_FILE_NAME,
 };
 use crate::infrastructure::file_format::dto::{
-    parse_dto, parse_json_text, schema_version_value, to_json_bytes, EntryPointDto,
-    LegacyProjectDto, ProjectDto,
+    parse_dto, parse_json_text, to_json_bytes, EntryPointDto, ProjectDto,
 };
+use crate::infrastructure::file_format::migration::{migrate_to_current, MigrationTarget};
 use crate::infrastructure::filesystem::atomic_write::WriteOutcome;
 use crate::infrastructure::filesystem::path_resolution::{
     canonicalize_root, join_relative, resolve_existing,
@@ -123,24 +122,15 @@ pub fn create_project(
     })
 }
 
-/// Reads `project.json` of either supported schema. The version decides the shape, so a
-/// version-1 file with `childOrder` or a version-2 file with `documentOrder` is an
-/// `invalidFileStructure` rather than being guessed at. A newer version is reported as
-/// such before its (unknown) structure is looked at.
-fn parse_project_file(value: Value) -> ApplicationResult<ProjectDto> {
-    let version = value
-        .get("schemaVersion")
-        .and_then(Value::as_number)
-        .map(|number| {
-            SchemaVersion::parse(SchemaEntityKind::Project, schema_version_value(number))
-        });
-    match version {
-        Some(Err(error)) => Err(error.into()),
-        Some(Ok(version)) if version.get() == LEGACY_PROJECT_SCHEMA_VERSION => {
-            Ok(parse_dto::<LegacyProjectDto>(value)?.into_current())
-        }
-        _ => Ok(parse_dto::<ProjectDto>(value)?),
-    }
+/// Reads `project.json` of any supported schema version: the migration registry brings an
+/// older file to the current shape first (a newer version is refused before its unknown
+/// structure is looked at). Also returns the version the file is written in when it is older.
+fn parse_project_file(value: Value) -> ApplicationResult<(ProjectDto, Option<u32>)> {
+    let migrated = migrate_to_current(MigrationTarget::Project, value)?;
+    Ok((
+        parse_dto::<ProjectDto>(migrated.value)?,
+        migrated.migrated_from,
+    ))
 }
 
 /// A Project that was read but is not yet in `ProjectSessions`. Splitting "read" from
@@ -165,8 +155,9 @@ pub fn load_project(project_root: &Path) -> ApplicationResult<LoadedProject> {
     let root = canonicalize_root(project_root)?;
     let mut ledger = HashLedger::default();
     let value = read_json_value(&root, &mut ledger, "", PROJECT_FILE_NAME)?;
-    let mut dto = parse_project_file(value)?;
+    let (mut dto, migrated_from) = parse_project_file(value)?;
     let mut issues = Vec::new();
+    report_outdated_format(PROJECT_FILE_NAME, migrated_from, &mut issues);
     dto.child_order = normalize_order(
         &dto.child_order,
         EntryId::parse,
@@ -324,7 +315,7 @@ fn read_project_id(project_root: &Path) -> ApplicationResult<ProjectId> {
     let file = root.join(PROJECT_FILE_NAME);
     let bytes = fs::read(&file)
         .map_err(|error| PersistenceError::from_io(format!("read {}", file.display()), &error))?;
-    let dto = parse_project_file(parse_json_text(&decode_text(&bytes)?)?)?;
+    let (dto, _) = parse_project_file(parse_json_text(&decode_text(&bytes)?)?)?;
     Ok(ProjectId::parse(&dto.project_id)?)
 }
 

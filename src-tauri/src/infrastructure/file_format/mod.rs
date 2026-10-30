@@ -5,6 +5,7 @@ pub mod constants;
 pub mod dto;
 pub mod image_dimensions;
 pub mod image_validation;
+pub mod migration;
 pub mod naming;
 #[cfg(test)]
 mod test_samples;
