@@ -137,9 +137,15 @@ export const GANTT_AXIS_CONVERSION_MARK = "%";
 // A link target: `http(s)://` and then characters that need no escaping in the quoted
 // `click` form. `#`, `;` and `%` end or change what Mermaid's lexer reads, so they are not
 // accepted (the reader refuses such a line).
-export const GANTT_LINK_URL_PATTERN = /^https?:\/\/[^"\s#;%]+$/;
+export const GANTT_LINK_URL_PATTERN = /^https?:\/\/[^"\s#;%\\]+$/;
+// Printable ASCII only: Mermaid normalises other characters, so the written text would not
+// be what it holds.
+export const GANTT_LINK_ASCII_PATTERN = /^[\x21-\x7e]+$/;
 export const GANTT_LINK_URL_MAX_LENGTH = 2000;
 export const GANTT_LINK_KEYWORD = "href";
 // Mermaid treats an end that is a date written as `YYYY-MM-DD` as final: `excludes` does not
 // push it later, whatever the chart's dateFormat is.
 export const GANTT_END_DATE_MANUAL_FORMAT: GanttDateFormat = "YYYY-MM-DD";
+export const GANTT_LINK_SCHEME_PATTERN = /^https?:\/\//;
+// The keyword and the blanks in front of a setting's value on its line.
+export const GANTT_SETTING_PREFIX_PATTERN = /^[ \t]*\S+[ \t]+/;

@@ -14,12 +14,20 @@ import {
   indentOf,
   insertLineAfter,
 } from "./gantt-edit-lines";
+import { addLink, removeLink } from "./gantt-link-operations";
 import {
   checkGanttMeaning,
   type GanttMeaning,
   type GanttTaskMeaning,
   orderGanttTags,
 } from "./gantt-meaning";
+import {
+  duplicateTask,
+  type GanttMoveDirection,
+  moveSection,
+  moveTask,
+  moveTaskToSection,
+} from "./gantt-move-operations";
 import {
   existingIds,
   finish,
@@ -39,6 +47,11 @@ import {
   taskIndentNear,
 } from "./gantt-operation-support";
 import { parseGantt } from "./gantt-parser";
+import {
+  clearExcludes,
+  setAxisFormat,
+  setExcludes,
+} from "./gantt-setting-operations";
 import {
   validateGanttDateText,
   validateGanttDurationText,
@@ -137,7 +150,35 @@ export type GanttOperation =
       readonly target: GanttTaskTarget;
       readonly tags: readonly GanttTag[];
     }
-  | { readonly kind: "deleteTask"; readonly target: GanttTaskTarget };
+  | { readonly kind: "deleteTask"; readonly target: GanttTaskTarget }
+  // Tier 2 (docs/architecture.md §16.17.2). The moves keep every task's resolved dates: an
+  // implicit start that would get another predecessor is written as the explicit date it has.
+  | {
+      readonly kind: "moveTask";
+      readonly target: GanttTaskTarget;
+      readonly direction: GanttMoveDirection;
+    }
+  | {
+      // Appends the task to the end of another section.
+      readonly kind: "moveTaskToSection";
+      readonly target: GanttTaskTarget;
+      readonly sectionIndex: number;
+    }
+  | {
+      readonly kind: "moveSection";
+      readonly target: GanttSectionTarget;
+      readonly direction: GanttMoveDirection;
+    }
+  | { readonly kind: "duplicateTask"; readonly target: GanttTaskTarget }
+  | { readonly kind: "setAxisFormat"; readonly format: string }
+  | { readonly kind: "setExcludes"; readonly tokens: readonly string[] }
+  | { readonly kind: "clearExcludes" }
+  | {
+      readonly kind: "addLink";
+      readonly target: GanttTaskTarget;
+      readonly url: string;
+    }
+  | { readonly kind: "removeLink"; readonly target: GanttTaskTarget };
 
 function idListText(
   keyword: string,
@@ -717,6 +758,28 @@ export function planGanttOperation(
       return setStatusTags(source, operation.target, operation.tags);
     case "deleteTask":
       return deleteTask(source, operation.target);
+    case "moveTask":
+      return moveTask(source, operation.target, operation.direction);
+    case "moveTaskToSection":
+      return moveTaskToSection(
+        source,
+        operation.target,
+        operation.sectionIndex,
+      );
+    case "moveSection":
+      return moveSection(source, operation.target, operation.direction);
+    case "duplicateTask":
+      return duplicateTask(source, operation.target);
+    case "setAxisFormat":
+      return setAxisFormat(source, operation.format);
+    case "setExcludes":
+      return setExcludes(source, operation.tokens);
+    case "clearExcludes":
+      return clearExcludes(source);
+    case "addLink":
+      return addLink(source, operation.target, operation.url);
+    case "removeLink":
+      return removeLink(source, operation.target);
   }
 }
 

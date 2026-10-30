@@ -1,5 +1,5 @@
 import { type DomainResult, err, ok } from "../../shared/domain-result";
-import type { TextEdit } from "../text-edit";
+import { applyTextEdits, type TextEdit } from "../text-edit";
 import {
   GANTT_GENERATED_ID_PREFIX,
   type GanttDateFormat,
@@ -7,6 +7,7 @@ import {
 import { indentOf } from "./gantt-edit-lines";
 import { ganttEditability } from "./gantt-editability";
 import {
+  checkGanttMeaning,
   findMeaningProblem,
   type GanttMeaning,
   type GanttTaskMeaning,
@@ -33,6 +34,9 @@ export interface GanttSectionTarget {
 export interface GanttOperationPlan {
   readonly edits: readonly TextEdit[];
   readonly expected: GanttMeaning;
+  // Indexes (in the source being edited) of the tasks whose implicit start the plan wrote as
+  // an explicit date so that no date moves. Absent when the plan freezes nothing.
+  readonly frozenTasks?: readonly number[];
 }
 
 export interface PreparedGantt {
@@ -195,4 +199,19 @@ export function nextGeneratedId(known: ReadonlySet<string>): string {
     const candidate = `${GANTT_GENERATED_ID_PREFIX}${number}`;
     if (!known.has(candidate)) return candidate;
   }
+}
+
+// The plan is only handed out when the editor's own reader finds, in the text the edits
+// make, exactly the promised meaning.
+export function readBack(
+  source: string,
+  edits: readonly TextEdit[],
+  expected: GanttMeaning,
+): DomainResult<void> {
+  const applied = applyTextEdits(source, edits);
+  if (!applied.ok) return refuse("invalidEdits", applied.error.detail);
+  const verdict = checkGanttMeaning(parseGantt(applied.value.text), expected);
+  return verdict.ok
+    ? ok(undefined)
+    : refuse("unreadableResult", verdict.error.detail);
 }
