@@ -5,6 +5,7 @@ import { describeNotEditable } from "./diagram-gui-text";
 import "./diagram-gui.css";
 import { FlowchartGuiPanel } from "./flowchart-gui-panel";
 import { PieGuiPanel } from "./pie-gui-panel";
+import { SequenceGuiPanel } from "./sequence-gui-panel";
 import type { DiagramOperationTarget } from "./use-diagram-operation";
 import type { GuiDraftCommit } from "./use-gui-field-draft";
 
@@ -44,6 +45,13 @@ export function DiagramGuiPanel({
         />
       ) : editability.editable && editability.type === "flowchart" ? (
         <FlowchartGuiPanel
+          target={target}
+          shortId={shortId}
+          source={source}
+          leaveRef={leaveRef}
+        />
+      ) : editability.editable && editability.type === "sequence" ? (
+        <SequenceGuiPanel
           target={target}
           shortId={shortId}
           source={source}

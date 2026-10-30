@@ -10,6 +10,7 @@
 
 .diagram-gui__pie,
 .diagram-gui__flowchart,
+.diagram-gui__sequence,
 .diagram-gui__not-editable {
   display: flex;
   flex-direction: column;
