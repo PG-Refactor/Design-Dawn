@@ -182,7 +182,24 @@ const MERMAID_MESSAGES_JA = {
       attributeLineShared:
         "消すべきエッジ属性の行が他の文と同じ行にあるため、削除できません。",
       notPlainlyDeletable:
-        "他の部分を変えずにこのエッジだけを消す書き方が見つからないため、削除しませんでした。ソースで編集してください。",
+        "他の部分を変えずにこの要素だけを消す書き方が見つからないため、削除しませんでした。ソースで編集してください。",
+      statementSharesLine:
+        "取り除くべき文がヘッダーと同じ行にあるため、適用できません。ソースで編集してください。",
+      firstDefinitionWins:
+        "先に閉じるサブグラフがこのノードを持っているため、所属を意図どおりに変えられません。",
+      subgraphReferenced:
+        "このサブグラフのIDが class や click などで使われているため、解除できません。",
+      mentionedInStatement:
+        "このノードはサブグラフの中でエッジや一括指定の一部として書かれているため、GUIから外せません。ソースで編集してください。",
+      notAMember: "このノードはそのサブグラフのメンバーではありません。",
+      wouldJoinOther:
+        "外すと、このノードを書いている別のサブグラフに移ってしまうため、適用しませんでした。",
+      nodeOrderAmbiguous:
+        "同じ文の中でノードの並びが変わってしまうため、適用しませんでした。",
+      notPlainlyRemovable:
+        "他の部分を変えずにメンバーから外す書き方が見つからないため、適用しませんでした。ソースで編集してください。",
+      subgraphModelMismatch:
+        "サブグラフの構造を正しく読み取れなかったため、適用しませんでした。",
       notPlainlyReconnectable:
         "他の部分を変えずにつなぎ替える書き方が見つからないため、適用しませんでした。ソースで編集してください。",
       planUnverified:
@@ -225,7 +242,7 @@ const MERMAID_MESSAGES_JA = {
       },
       nodesHeading: "ノード",
       edgesHeading: "エッジ",
-      subgraphsHeading: "サブグラフ（読み取り専用）",
+      subgraphsHeading: "サブグラフ",
       nodeListLabel: (shortId: string): string => `ノード一覧（${shortId}）`,
       edgeListLabel: (shortId: string): string => `エッジ一覧（${shortId}）`,
       subgraphListLabel: (shortId: string): string =>
@@ -240,7 +257,7 @@ const MERMAID_MESSAGES_JA = {
         `${title}（${id}）：${members}`,
       noMembers: "メンバーなし",
       memberSeparator: "、",
-      noSelection: "一覧からノードまたはエッジを選ぶと編集できます。",
+      noSelection: "一覧からノード・エッジ・サブグラフを選ぶと編集できます。",
       selectedNodeHeading: "選択中のノード",
       selectedEdgeHeading: "選択中のエッジ",
       nodeLabelField: "ノードのラベル",
@@ -283,6 +300,26 @@ const MERMAID_MESSAGES_JA = {
       startField: "始点",
       endField: "終点",
       deleteEdge: "エッジを削除",
+      deleteNode: "ノードを削除",
+      deleteNodeEdges: (count: number): string =>
+        `このノードにつながるエッジ${count}本も一緒に削除されます。`,
+      nodeSubgraphField: "所属するサブグラフ",
+      nodeSubgraphNone: "なし（サブグラフに属さない）",
+      unavailableOption: (label: string, reason: string): string =>
+        `${label}（${reason}）`,
+      selectedSubgraphHeading: "選択中のサブグラフ",
+      subgraphTitleField: "サブグラフのタイトル",
+      subgraphDirectionField: "サブグラフ内の向き",
+      subgraphDirectionNone: "指定なし（図全体に従う）",
+      subgraphMembersLabel: "メンバー",
+      dissolveSubgraph: "サブグラフを解除",
+      dissolveNote:
+        "ヘッダーと end の行だけを取り除き、中の文はそのまま残します。",
+      addSubgraphHeading: "サブグラフを追加",
+      newSubgraphTitle: "新しいサブグラフのタイトル",
+      newSubgraphMember: "最初のメンバー（省略可）",
+      newSubgraphMemberNone: "なし（空のサブグラフ）",
+      addSubgraph: "サブグラフを追加",
       edgeEndShared: "連鎖の途中のノードはつなぎ替えできません",
       restrictedNode: "このノードはGUIから変更できません",
       restrictedEdge: "このエッジはGUIから変更できません",
@@ -697,11 +734,28 @@ const MERMAID_MESSAGES_EN: MermaidMessages = {
         "An id of just x or o would be read as part of a link and cannot be used.",
       duplicateId: "This id is already used in the diagram.",
       linkStyleSharesLine:
-        "A linkStyle that must go shares its line with another statement, so the edge cannot be deleted.",
+        "A linkStyle that must go shares its line with another statement, so it cannot be deleted.",
       attributeLineShared:
-        "The edge attribute line that must go shares its line with another statement, so the edge cannot be deleted.",
+        "The edge attribute line that must go shares its line with another statement, so it cannot be deleted.",
       notPlainlyDeletable:
-        "No way to remove only this edge without changing anything else was found, so nothing was deleted. Edit it in Source.",
+        "No way to remove only this element without changing anything else was found, so nothing was deleted. Edit it in Source.",
+      statementSharesLine:
+        "A statement that must go shares the header line, so nothing was applied. Edit it in Source.",
+      firstDefinitionWins:
+        "A subgraph that closes earlier keeps this node, so its membership cannot be changed as intended.",
+      subgraphReferenced:
+        "The id of this subgraph is used by a class, click or similar statement, so it cannot be dissolved.",
+      mentionedInStatement:
+        "This node is written inside an edge or a list in the subgraph, so it cannot be taken out from the GUI. Edit it in Source.",
+      notAMember: "This node is not a member of that subgraph.",
+      wouldJoinOther:
+        "Taking it out would make it a member of another subgraph that also writes it, so nothing was applied.",
+      nodeOrderAmbiguous:
+        "The order of the nodes inside one statement would change, so nothing was applied.",
+      notPlainlyRemovable:
+        "No way to take it out without changing anything else was found, so nothing was applied. Edit it in Source.",
+      subgraphModelMismatch:
+        "The structure of the subgraphs could not be read reliably, so nothing was applied.",
       notPlainlyReconnectable:
         "No way to reconnect without changing anything else was found, so nothing was applied. Edit it in Source.",
       planUnverified:
@@ -748,7 +802,7 @@ const MERMAID_MESSAGES_EN: MermaidMessages = {
       },
       nodesHeading: "Nodes",
       edgesHeading: "Edges",
-      subgraphsHeading: "Subgraphs (read-only)",
+      subgraphsHeading: "Subgraphs",
       nodeListLabel: (shortId) => `Node list (${shortId})`,
       edgeListLabel: (shortId) => `Edge list (${shortId})`,
       subgraphListLabel: (shortId) => `Subgraph list (${shortId})`,
@@ -761,7 +815,7 @@ const MERMAID_MESSAGES_EN: MermaidMessages = {
       subgraphOption: (title, id, members) => `${title} (${id}): ${members}`,
       noMembers: "no members",
       memberSeparator: ", ",
-      noSelection: "Select a node or an edge in a list to edit it.",
+      noSelection: "Select a node, an edge or a subgraph in a list to edit it.",
       selectedNodeHeading: "Selected node",
       selectedEdgeHeading: "Selected edge",
       nodeLabelField: "Node label",
@@ -804,6 +858,25 @@ const MERMAID_MESSAGES_EN: MermaidMessages = {
       startField: "Start",
       endField: "End",
       deleteEdge: "Delete edge",
+      deleteNode: "Delete node",
+      deleteNodeEdges: (count) =>
+        `${count} ${count === 1 ? "edge" : "edges"} joined to this node will be deleted with it.`,
+      nodeSubgraphField: "Subgraph it belongs to",
+      nodeSubgraphNone: "None (not in a subgraph)",
+      unavailableOption: (label, reason) => `${label} (${reason})`,
+      selectedSubgraphHeading: "Selected subgraph",
+      subgraphTitleField: "Subgraph title",
+      subgraphDirectionField: "Direction inside the subgraph",
+      subgraphDirectionNone: "Not set (follows the diagram)",
+      subgraphMembersLabel: "Members",
+      dissolveSubgraph: "Dissolve subgraph",
+      dissolveNote:
+        "Only the header and end lines are removed; the statements inside stay as they are.",
+      addSubgraphHeading: "Add a subgraph",
+      newSubgraphTitle: "New subgraph title",
+      newSubgraphMember: "First member (optional)",
+      newSubgraphMemberNone: "None (empty subgraph)",
+      addSubgraph: "Add subgraph",
       edgeEndShared: "A node in the middle of a chain cannot be reconnected",
       restrictedNode: "This node cannot be changed from the GUI",
       restrictedEdge: "This edge cannot be changed from the GUI",

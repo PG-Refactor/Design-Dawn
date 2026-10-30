@@ -23,6 +23,8 @@ export const FLOWCHART_DEFAULT_NEW_NODE_SHAPE: FlowchartEditableShape =
 // Ids the domain makes up are `N1`, `N2` ...: the first one nothing else uses.
 export const FLOWCHART_GENERATED_ID_PREFIX = "N";
 export const FLOWCHART_GENERATED_ID_FIRST_NUMBER = 1;
+// Subgraph ids the domain makes up are `S1`, `S2` ...
+export const FLOWCHART_GENERATED_SUBGRAPH_ID_PREFIX = "S";
 // An id a caller supplies. Narrower than what the reader accepts: ASCII only, so a new id can
 // never meet the lexical corner cases (`-`, `.`, CJK ...) of Mermaid's id rules.
 export const FLOWCHART_NEW_ID_PATTERN = /^[A-Za-z][A-Za-z0-9_]*$/;

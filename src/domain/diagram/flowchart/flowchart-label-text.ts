@@ -146,9 +146,12 @@ export function validateNewNodeId(
 }
 
 // `N1`, `N2` ... the first one that nothing uses.
-export function generateNodeId(taken: ReadonlySet<string>): string {
+export function generateNodeId(
+  taken: ReadonlySet<string>,
+  prefix: string = FLOWCHART_GENERATED_ID_PREFIX,
+): string {
   for (let number = FLOWCHART_GENERATED_ID_FIRST_NUMBER; ; number += 1) {
-    const candidate = `${FLOWCHART_GENERATED_ID_PREFIX}${number}`;
+    const candidate = `${prefix}${number}`;
     if (!taken.has(candidate)) return candidate;
   }
 }

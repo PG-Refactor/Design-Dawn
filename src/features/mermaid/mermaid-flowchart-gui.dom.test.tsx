@@ -89,6 +89,8 @@ const nodeList = () =>
   screen.getByRole("listbox", { name: TEXT.nodeListLabel(SHORT_ID) });
 const edgeList = () =>
   screen.getByRole("listbox", { name: TEXT.edgeListLabel(SHORT_ID) });
+const subgraphList = () =>
+  screen.getByRole("listbox", { name: TEXT.subgraphListLabel(SHORT_ID) });
 const optionNames = (list: HTMLElement) =>
   within(list)
     .getAllByRole("option")
@@ -153,10 +155,9 @@ describe("the flowchart GUI lists", () => {
       edgeName("A", "B"),
       edgeName("A", "C"),
     ]);
-    const subgraphs = screen.getByRole("list", {
-      name: TEXT.subgraphListLabel(SHORT_ID),
-    });
-    expect(subgraphs.textContent).toBe(TEXT.subgraphOption("Group", "S", "H"));
+    expect(optionNames(subgraphList())).toEqual([
+      TEXT.subgraphOption("Group", "S", "H"),
+    ]);
     expect(combobox(TEXT.directionLabel).value).toBe("LR");
   });
 
@@ -453,5 +454,234 @@ describe("drafts", () => {
     expect(result.ok).toBe(false);
     expect(textbox(TEXT.edgeLabelField).value).toBe("maybe");
     expect(storedText(rendered)).not.toContain("maybe");
+  });
+});
+
+const TIER_TWO = [
+  "flowchart LR",
+  '  A["Start"] --> B(End)',
+  "  B -.-> C{Choice}",
+  "  subgraph S [Group]",
+  "    direction TB",
+  "    H",
+  "  end",
+  "",
+].join("\n");
+const TWO_SUBGRAPHS = [
+  "flowchart LR",
+  "  A --> B",
+  "  subgraph One",
+  "    A",
+  "  end",
+  "  subgraph Two",
+  "    B",
+  "  end",
+  "",
+].join("\n");
+
+const undo = async (rendered: Rendered): Promise<void> => {
+  await act(async () => {
+    await rendered.canvas.session.undo();
+    await settle();
+  });
+};
+
+describe("node deletion and membership through the GUI", () => {
+  it("deletes a node with its edges, in one undo step, and clears the selection", async () => {
+    const rendered = await openGui(TIER_TWO);
+    await pickNode(rendered, "End", "B");
+    expect(screen.getByText(TEXT.deleteNodeEdges(2))).toBeTruthy();
+    await rendered.shell.user.click(button(TEXT.deleteNode));
+    await act(settle);
+    expect(storedText(rendered)).toBe(
+      [
+        "flowchart LR",
+        '  A["Start"]',
+        "  C{Choice}",
+        "  subgraph S [Group]",
+        "    direction TB",
+        "    H",
+        "  end",
+        "",
+      ].join("\n"),
+    );
+    expect(optionNames(nodeList())).toEqual([
+      TEXT.nodeOption("Start", "A"),
+      TEXT.nodeOption("Choice", "C"),
+      TEXT.nodeOption("H", "H"),
+    ]);
+    expect(screen.queryByText(TEXT.selectedNodeHeading)).toBeNull();
+    expect(await rendered.canvas.undoDepth()).toBe(1);
+    await undo(rendered);
+    expect(storedText(rendered)).toBe(TIER_TWO);
+  });
+
+  it("disables the delete button with the reason the operation would give", async () => {
+    const source = "flowchart LR\n  A --> B; linkStyle 0 stroke:red\n";
+    const rendered = await openGui(source);
+    await pickNode(rendered, "A", "A");
+    expect(
+      screen.getByText(GUI.refusalReasons.linkStyleSharesLine),
+    ).toBeTruthy();
+    expect(isDisabled(button(TEXT.deleteNode))).toBe(true);
+    await rendered.shell.user.click(button(TEXT.deleteNode));
+    await act(settle);
+    expect(storedText(rendered)).toBe(source);
+  });
+
+  it("moves a node into a subgraph and takes it out again", async () => {
+    const rendered = await openGui(TIER_TWO);
+    await pickNode(rendered, "Start", "A");
+    expect(combobox(TEXT.nodeSubgraphField).value).toBe("");
+    await choose(rendered, combobox(TEXT.nodeSubgraphField), "S");
+    expect(storedText(rendered)).toBe(
+      TIER_TWO.replace("    H\n", "    H\n    A\n"),
+    );
+    expect(combobox(TEXT.nodeSubgraphField).value).toBe("S");
+    await choose(rendered, combobox(TEXT.nodeSubgraphField), "");
+    expect(storedText(rendered)).toBe(TIER_TWO);
+    expect(await rendered.canvas.undoDepth()).toBe(2);
+  });
+
+  it("offers a subgraph that would be refused greyed out, with the reason in its text", async () => {
+    const rendered = await openGui(TWO_SUBGRAPHS);
+    await pickNode(rendered, "A", "A");
+    const select = combobox(TEXT.nodeSubgraphField);
+    expect(select.value).toBe("One");
+    const two = within(select).getByRole("option", {
+      name: TEXT.unavailableOption(
+        TEXT.nodeOption("Two", "Two"),
+        GUI.refusalReasons.firstDefinitionWins,
+      ),
+    }) as HTMLOptionElement;
+    // One closes first, so it keeps A whatever Two says.
+    expect(two.disabled).toBe(true);
+    await pickNode(rendered, "B", "B");
+    const forB = combobox(TEXT.nodeSubgraphField);
+    expect(forB.value).toBe("Two");
+    const one = within(forB).getByRole("option", {
+      name: TEXT.nodeOption("One", "One"),
+    }) as HTMLOptionElement;
+    // Mentioning B in One makes One, which closes first, its owner.
+    expect(one.disabled).toBe(false);
+  });
+
+  it("refuses to take out a node that is written inside an edge, and says why", async () => {
+    const source = "flowchart LR\n  subgraph S\n    A --> B\n  end\n";
+    const rendered = await openGui(source);
+    await pickNode(rendered, "A", "A");
+    const none = within(combobox(TEXT.nodeSubgraphField)).getByRole("option", {
+      name: TEXT.unavailableOption(
+        TEXT.nodeSubgraphNone,
+        GUI.refusalReasons.mentionedInStatement,
+      ),
+    }) as HTMLOptionElement;
+    expect(none.disabled).toBe(true);
+    expect(storedText(rendered)).toBe(source);
+  });
+});
+
+describe("subgraphs through the GUI", () => {
+  it("renames a subgraph and sets its direction, one undo step each", async () => {
+    const rendered = await openGui(TIER_TWO);
+    await rendered.shell.user.click(
+      within(subgraphList()).getByRole("option", {
+        name: TEXT.subgraphOption("Group", "S", "H"),
+      }),
+    );
+    expect(textbox(TEXT.subgraphTitleField).value).toBe("Group");
+    expect(combobox(TEXT.subgraphDirectionField).value).toBe("TB");
+    await enter(rendered, textbox(TEXT.subgraphTitleField), "Box <1>");
+    expect(storedText(rendered)).toBe(
+      TIER_TWO.replace("[Group]", '["Box #lt;1#gt;"]'),
+    );
+    await choose(rendered, combobox(TEXT.subgraphDirectionField), "LR");
+    expect(storedText(rendered)).toContain("    direction LR\n");
+    await choose(rendered, combobox(TEXT.subgraphDirectionField), "");
+    expect(storedText(rendered)).not.toContain("direction");
+    expect(await rendered.canvas.undoDepth()).toBe(3);
+  });
+
+  it("dissolves a subgraph, keeps what was inside, and undoes it in one step", async () => {
+    const rendered = await openGui(TIER_TWO);
+    await rendered.shell.user.click(
+      within(subgraphList()).getByRole("option", {
+        name: TEXT.subgraphOption("Group", "S", "H"),
+      }),
+    );
+    expect(screen.getByText(TEXT.dissolveNote)).toBeTruthy();
+    await rendered.shell.user.click(button(TEXT.dissolveSubgraph));
+    await act(settle);
+    expect(storedText(rendered)).toBe(
+      [
+        "flowchart LR",
+        '  A["Start"] --> B(End)',
+        "  B -.-> C{Choice}",
+        "  H",
+        "",
+      ].join("\n"),
+    );
+    expect(screen.queryByText(TEXT.selectedSubgraphHeading)).toBeNull();
+    expect(await rendered.canvas.undoDepth()).toBe(1);
+    await undo(rendered);
+    expect(storedText(rendered)).toBe(TIER_TWO);
+  });
+
+  it("disables dissolving a subgraph whose id is named elsewhere, with the reason", async () => {
+    const source = `${TIER_TWO}  class S hot\n`;
+    const rendered = await openGui(source);
+    await rendered.shell.user.click(
+      within(subgraphList()).getByRole("option", {
+        name: TEXT.subgraphOption("Group", "S", "H"),
+      }),
+    );
+    expect(
+      screen.getByText(GUI.refusalReasons.subgraphReferenced),
+    ).toBeTruthy();
+    expect(isDisabled(button(TEXT.dissolveSubgraph))).toBe(true);
+    await rendered.shell.user.click(button(TEXT.dissolveSubgraph));
+    await act(settle);
+    expect(storedText(rendered)).toBe(source);
+  });
+
+  it("adds a subgraph with a title and a first member that no subgraph owns", async () => {
+    const rendered = await openGui(TIER_TWO);
+    const member = combobox(TEXT.newSubgraphMember);
+    expect(
+      within(member)
+        .getAllByRole("option")
+        .map((option) => (option as HTMLOptionElement).value),
+    ).toEqual(["", "A", "B", "C"]);
+    await rendered.shell.user.type(textbox(TEXT.newSubgraphTitle), "New box");
+    await choose(rendered, member, "C");
+    await rendered.shell.user.click(button(TEXT.addSubgraph));
+    await act(settle);
+    expect(storedText(rendered)).toBe(
+      `${TIER_TWO}  subgraph S1["New box"]\n    C\n  end\n`,
+    );
+    expect(textbox(TEXT.newSubgraphTitle).value).toBe("");
+    expect(await rendered.canvas.undoDepth()).toBe(1);
+  });
+
+  it("asks for a title when adding a subgraph", async () => {
+    const rendered = await openGui(TIER_TWO);
+    await rendered.shell.user.click(button(TEXT.addSubgraph));
+    await act(settle);
+    expect(alertText()).toContain(GUI.labelRequired);
+    expect(storedText(rendered)).toBe(TIER_TWO);
+  });
+
+  it("keeps the subgraph form as pending input that blocks the switch to Source", async () => {
+    const rendered = await openGui(TIER_TWO);
+    type(textbox(TEXT.newSubgraphTitle), "Half");
+    await rendered.shell.user.click(button(GUI.modeSource));
+    await act(settle);
+    expect(alertText()).toContain(GUI.addInputPending);
+    expect(textbox(TEXT.newSubgraphTitle).value).toBe("Half");
+    expect(rendered.shell.draftRegistry.hasPendingFor([DOCUMENT_A])).toBe(true);
+    expect((await saveAll(rendered)).ok).toBe(true);
+    expect(storedText(rendered)).toBe(
+      `${TIER_TWO}  subgraph S1["Half"]\n  end\n`,
+    );
   });
 });

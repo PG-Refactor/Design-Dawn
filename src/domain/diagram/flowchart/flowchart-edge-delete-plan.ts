@@ -21,16 +21,19 @@ import type { FlowchartLinkStyleStatement } from "./flowchart-types";
 const LINK_REPLACEMENT = "; ";
 const TARGET_SEPARATOR = ",";
 
-interface RepairedLines {
+export interface RepairedLines {
   // Lines that are removed whole.
   readonly lines: ReadonlySet<number>;
   // Everything else that changes.
   readonly edits: readonly TextEdit[];
 }
 
-function repairLinkStyles(
+// `removedIndexes` are the positions (linkStyle numbers) of the edges that go. A number moves
+// down by the count of removed edges before it, so deleting one edge and deleting every edge
+// of a node use the same repair.
+export function repairLinkStyles(
   prepared: PreparedFlowchart,
-  edgeIndex: number,
+  removedIndexes: ReadonlySet<number>,
 ): DomainResult<RepairedLines> {
   const { reading } = prepared;
   const lines = new Set<number>();
@@ -48,10 +51,15 @@ function repairLinkStyles(
         continue;
       }
       const index = Number(target.text);
-      if (index === edgeIndex) {
+      if (removedIndexes.has(index)) {
         changed = true;
-      } else if (index > edgeIndex) {
-        survivors.push(String(index - 1));
+        continue;
+      }
+      const shift = [...removedIndexes].filter(
+        (removed) => removed < index,
+      ).length;
+      if (shift > 0) {
+        survivors.push(String(index - shift));
         changed = true;
       } else {
         survivors.push(target.text);
@@ -90,19 +98,20 @@ function repairLinkStyles(
   return ok({ lines, edits });
 }
 
-function repairEdgeAttributes(
+// The `id@{ ... }` lines of the edges that go. `edgeIds` are the ids of edges that have an id of
+// their own.
+export function repairEdgeAttributes(
   prepared: PreparedFlowchart,
-  edge: ResolvedEdge,
+  edgeIds: ReadonlySet<string>,
 ): DomainResult<ReadonlySet<number>> {
   const lines = new Set<number>();
-  if (!edge.edge.userDefinedId) return ok(lines);
   for (const statement of prepared.reading.statements) {
     if (statement.kind !== "edgeAttributes") continue;
-    if (statement.id.text !== edge.edge.id) continue;
+    if (!edgeIds.has(statement.id.text)) continue;
     if (!occupiesWholeLine(prepared.reading, statement)) {
       return refuse(
         "attributeLineShared",
-        `the ${edge.edge.id}@{ ... } statement on line ${statement.lineIndex + 1} shares its line with another statement`,
+        `the ${statement.id.text}@{ ... } statement on line ${statement.lineIndex + 1} shares its line with another statement`,
       );
     }
     lines.add(statement.lineIndex);
@@ -172,9 +181,12 @@ export function planEdgeDeletion(
   edge: ResolvedEdge,
 ): DomainResult<EdgeDeletion> {
   const expected = withoutEdge(prepared.meaning, edge.index);
-  const styles = repairLinkStyles(prepared, edge.index);
+  const styles = repairLinkStyles(prepared, new Set([edge.index]));
   if (!styles.ok) return styles;
-  const attributeLines = repairEdgeAttributes(prepared, edge);
+  const attributeLines = repairEdgeAttributes(
+    prepared,
+    new Set(edge.edge.userDefinedId ? [edge.edge.id] : []),
+  );
   if (!attributeLines.ok) return attributeLines;
 
   let lastFailure = "no way to cut the statement was tried";

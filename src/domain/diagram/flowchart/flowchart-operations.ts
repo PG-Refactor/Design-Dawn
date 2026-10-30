@@ -30,6 +30,7 @@ import {
   withNode,
   withNodesReordered,
 } from "./flowchart-meaning-edit";
+import { planNodeDeletion } from "./flowchart-node-delete-plan";
 import {
   bracketPairOf,
   FLOWCHART_DEFAULT_NEW_NODE_SHAPE,
@@ -49,6 +50,14 @@ import {
   termsOf,
 } from "./flowchart-operation-support";
 import { readFlowchart } from "./flowchart-reader";
+import {
+  planCreateSubgraph,
+  planDissolveSubgraph,
+  planMoveNodeToSubgraph,
+  planRemoveNodeFromSubgraph,
+  planSetSubgraphDirection,
+  planSetSubgraphTitle,
+} from "./flowchart-subgraph-operations";
 
 // Tier 1 operations of the flowchart GUI editor (docs/architecture.md §16.15.5 and §16.15.12).
 // Pure functions from the current source to a set of TextEdits plus the meaning the result
@@ -110,7 +119,39 @@ export type FlowchartOperation =
       readonly end: "start" | "end";
       readonly nodeId: string;
     }
-  | { readonly kind: "deleteEdge"; readonly target: FlowchartEdgeTarget };
+  | { readonly kind: "deleteEdge"; readonly target: FlowchartEdgeTarget }
+  // Tier 2 (docs/architecture.md §16.15.14).
+  | { readonly kind: "deleteNode"; readonly nodeId: string }
+  | {
+      readonly kind: "setSubgraphTitle";
+      readonly subgraphId: string;
+      readonly title: string;
+    }
+  | {
+      readonly kind: "setSubgraphDirection";
+      readonly subgraphId: string;
+      // null removes the direction line.
+      readonly direction: FlowchartDirection | null;
+    }
+  | {
+      readonly kind: "createSubgraph";
+      readonly title: string;
+      // Made up (`S1`, `S2` ...) when omitted.
+      readonly id?: string;
+      // A node to put in the new block.
+      readonly memberId?: string;
+    }
+  | { readonly kind: "dissolveSubgraph"; readonly subgraphId: string }
+  | {
+      readonly kind: "moveNodeToSubgraph";
+      readonly nodeId: string;
+      readonly subgraphId: string;
+    }
+  | {
+      readonly kind: "removeNodeFromSubgraph";
+      readonly nodeId: string;
+      readonly subgraphId: string;
+    };
 
 export interface FlowchartOperationPlan {
   readonly edits: readonly TextEdit[];
@@ -778,6 +819,40 @@ export function planFlowchartOperation(
       );
     case "deleteEdge":
       return planDeleteEdge(source, state, operation.target);
+    case "deleteNode":
+      return planNodeDeletion(source, state, operation.nodeId);
+    case "setSubgraphTitle":
+      return planSetSubgraphTitle(
+        source,
+        state,
+        operation.subgraphId,
+        operation.title,
+      );
+    case "setSubgraphDirection":
+      return planSetSubgraphDirection(
+        source,
+        state,
+        operation.subgraphId,
+        operation.direction,
+      );
+    case "createSubgraph":
+      return planCreateSubgraph(source, state, operation);
+    case "dissolveSubgraph":
+      return planDissolveSubgraph(source, state, operation.subgraphId);
+    case "moveNodeToSubgraph":
+      return planMoveNodeToSubgraph(
+        source,
+        state,
+        operation.nodeId,
+        operation.subgraphId,
+      );
+    case "removeNodeFromSubgraph":
+      return planRemoveNodeFromSubgraph(
+        source,
+        state,
+        operation.nodeId,
+        operation.subgraphId,
+      );
   }
 }
 
