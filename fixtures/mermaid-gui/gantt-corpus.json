@@ -1,0 +1,2508 @@
+{
+  "fixtureVersion": 1,
+  "subject": "gantt reader differential (Step G-1)",
+  "cases": [
+    {
+      "id": "GT-hdr-1",
+      "group": "hdr",
+      "source": "gantt\n",
+      "note": "minimal"
+    },
+    {
+      "id": "GT-hdr-2",
+      "group": "hdr",
+      "source": "gantt",
+      "note": "header only no newline"
+    },
+    {
+      "id": "GT-hdr-3",
+      "group": "hdr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n",
+      "note": "header + dateFormat"
+    },
+    {
+      "id": "GT-hdr-4",
+      "group": "hdr",
+      "source": "Gantt\n  dateFormat YYYY-MM-DD\n",
+      "note": "capitalised"
+    },
+    {
+      "id": "GT-hdr-5",
+      "group": "hdr",
+      "source": "gantt dateFormat YYYY-MM-DD\n",
+      "note": "statement on header line"
+    },
+    {
+      "id": "GT-hdr-6",
+      "group": "hdr",
+      "source": "gantt;\n  dateFormat YYYY-MM-DD\n",
+      "note": "header followed by ; "
+    },
+    {
+      "id": "GT-hdr-7",
+      "group": "hdr",
+      "source": "---\ntitle: FM\nconfig:\n  gantt:\n    barHeight: 30\n---\ngantt\n  dateFormat YYYY-MM-DD\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "front matter title + config"
+    },
+    {
+      "id": "GT-hdr-8",
+      "group": "hdr",
+      "source": "%%{init: {\"theme\":\"forest\"}}%%\ngantt\n  dateFormat YYYY-MM-DD\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "init directive"
+    },
+    {
+      "id": "GT-hdr-9",
+      "group": "hdr",
+      "source": "gantt\n%%{init: {\"theme\":\"forest\"}}%%\n  dateFormat YYYY-MM-DD\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "init directive after header"
+    },
+    {
+      "id": "GT-hdr-10",
+      "group": "hdr",
+      "source": "gantt\r\n  dateFormat YYYY-MM-DD\r\n  section S\r\n  T :t1, 2024-01-01, 2d\r\n  U :after t1, 1d\r\n",
+      "note": "CRLF"
+    },
+    {
+      "id": "GT-hdr-11",
+      "group": "hdr",
+      "source": "﻿gantt\n  dateFormat YYYY-MM-DD\n  T :t1, 2024-01-01, 2d\n",
+      "note": "BOM"
+    },
+    {
+      "id": "GT-hdr-12",
+      "group": "hdr",
+      "source": "gantt\n\tdateFormat YYYY-MM-DD\n\tsection S\n\tT :t1, 2024-01-01, 2d\n",
+      "note": "tabs"
+    },
+    {
+      "id": "GT-hdr-13",
+      "group": "hdr",
+      "source": "gantt\ndateFormat YYYY-MM-DD\nsection S\nT :t1, 2024-01-01, 2d\n",
+      "note": "no indent"
+    },
+    {
+      "id": "GT-hdr-14",
+      "group": "hdr",
+      "source": "gantt\r  dateFormat YYYY-MM-DD\r  section S\r  T :t1, 2024-01-01, 2d\r",
+      "note": "lone CR"
+    },
+    {
+      "id": "GT-hdr-15",
+      "group": "hdr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\ngantt\n  T :t1, 2024-01-01, 2d\n",
+      "note": "two headers"
+    },
+    {
+      "id": "GT-hdr-16",
+      "group": "hdr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n\n\n  section S\n\n  T :t1, 2024-01-01, 2d\n\n",
+      "note": "blank lines"
+    },
+    {
+      "id": "GT-hdr-17",
+      "group": "hdr",
+      "source": "gantt\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "no dateFormat (default)"
+    },
+    {
+      "id": "GT-hdr-18",
+      "group": "hdr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  T :t1, 2024-01-01, 2d\n",
+      "note": "no section"
+    },
+    {
+      "id": "GT-hdr-19",
+      "group": "hdr",
+      "source": "title X\ngantt\n  dateFormat YYYY-MM-DD\n",
+      "note": "title before header"
+    },
+    {
+      "id": "GT-cm-1",
+      "group": "cm",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  %% c\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "%% line"
+    },
+    {
+      "id": "GT-cm-2",
+      "group": "cm",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n      %% c\n  T :t1, 2024-01-01, 2d\n",
+      "note": "indented %% in section"
+    },
+    {
+      "id": "GT-cm-3",
+      "group": "cm",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  % c\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "% single"
+    },
+    {
+      "id": "GT-cm-4",
+      "group": "cm",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  # c\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "# line"
+    },
+    {
+      "id": "GT-cm-5",
+      "group": "cm",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  T :t1, 2024-01-01, 2d %% c\n",
+      "note": "trailing %% on task"
+    },
+    {
+      "id": "GT-cm-6",
+      "group": "cm",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  T :t1, 2024-01-01, 2d # c\n",
+      "note": "trailing # on task"
+    },
+    {
+      "id": "GT-cm-7",
+      "group": "cm",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  T :t1, 2024-01-01, 2d;\n",
+      "note": "trailing ; on task"
+    },
+    {
+      "id": "GT-cm-8",
+      "group": "cm",
+      "source": "gantt\n  dateFormat YYYY-MM-DD %% c\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "trailing %% on dateFormat"
+    },
+    {
+      "id": "GT-cm-9",
+      "group": "cm",
+      "source": "gantt\n  dateFormat YYYY-MM-DD # c\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "trailing # on dateFormat"
+    },
+    {
+      "id": "GT-cm-10",
+      "group": "cm",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S %% c\n  T :t1, 2024-01-01, 2d\n",
+      "note": "trailing %% on section"
+    },
+    {
+      "id": "GT-cm-11",
+      "group": "cm",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  title X %% c\n  T :t1, 2024-01-01, 2d\n",
+      "note": "trailing %% on title"
+    },
+    {
+      "id": "GT-cm-12",
+      "group": "cm",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  T %%{init: {\"theme\":\"dark\"}}%% :t1, 2024-01-01, 2d\n",
+      "note": "%%{ in task name"
+    },
+    {
+      "id": "GT-cm-13",
+      "group": "cm",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  T %% x :t1, 2024-01-01, 2d\n",
+      "note": "%% in task name"
+    },
+    {
+      "id": "GT-cm-14",
+      "group": "cm",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section A %% B\n  T :t1, 2024-01-01, 2d\n",
+      "note": "%% in section name"
+    },
+    {
+      "id": "GT-df-1",
+      "group": "df",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  T :t1, 2024-01-01, 2d\n  U :after t1, 1d\n",
+      "note": "dateFormat YYYY-MM-DD with 2024-01-01"
+    },
+    {
+      "id": "GT-df-2",
+      "group": "df",
+      "source": "gantt\n  dateFormat DD/MM/YYYY\n  section S\n  T :t1, 01/01/2024, 2d\n  U :after t1, 1d\n",
+      "note": "dateFormat DD/MM/YYYY with 01/01/2024"
+    },
+    {
+      "id": "GT-df-3",
+      "group": "df",
+      "source": "gantt\n  dateFormat MM-DD-YYYY\n  section S\n  T :t1, 01-31-2024, 2d\n  U :after t1, 1d\n",
+      "note": "dateFormat MM-DD-YYYY with 01-31-2024"
+    },
+    {
+      "id": "GT-df-4",
+      "group": "df",
+      "source": "gantt\n  dateFormat YYYY-MM-DD HH:mm\n  section S\n  T :t1, 2024-01-01 09:30, 2d\n  U :after t1, 1d\n",
+      "note": "dateFormat YYYY-MM-DD HH:mm with 2024-01-01 09:30"
+    },
+    {
+      "id": "GT-df-5",
+      "group": "df",
+      "source": "gantt\n  dateFormat YYYY-MM-DD HH:mm:ss\n  section S\n  T :t1, 2024-01-01 09:30:15, 2d\n  U :after t1, 1d\n",
+      "note": "dateFormat YYYY-MM-DD HH:mm:ss with 2024-01-01 09:30:15"
+    },
+    {
+      "id": "GT-df-6",
+      "group": "df",
+      "source": "gantt\n  dateFormat HH:mm\n  section S\n  T :t1, 09:30, 2d\n  U :after t1, 1d\n",
+      "note": "dateFormat HH:mm with 09:30"
+    },
+    {
+      "id": "GT-df-7",
+      "group": "df",
+      "source": "gantt\n  dateFormat YY-MM-DD\n  section S\n  T :t1, 24-01-01, 2d\n  U :after t1, 1d\n",
+      "note": "dateFormat YY-MM-DD with 24-01-01"
+    },
+    {
+      "id": "GT-df-8",
+      "group": "df",
+      "source": "gantt\n  dateFormat x\n  section S\n  T :t1, 1704067200000, 2d\n  U :after t1, 1d\n",
+      "note": "dateFormat x with 1704067200000"
+    },
+    {
+      "id": "GT-df-9",
+      "group": "df",
+      "source": "gantt\n  dateFormat X\n  section S\n  T :t1, 1704067200, 2d\n  U :after t1, 1d\n",
+      "note": "dateFormat X with 1704067200"
+    },
+    {
+      "id": "GT-df-10",
+      "group": "df",
+      "source": "gantt\n  dateFormat YYYY/MM/DD\n  section S\n  T :t1, 2024/01/01, 2d\n  U :after t1, 1d\n",
+      "note": "dateFormat YYYY/MM/DD with 2024/01/01"
+    },
+    {
+      "id": "GT-df-11",
+      "group": "df",
+      "source": "gantt\n  dateFormat D MMM YYYY\n  section S\n  T :t1, 1 Jan 2024, 2d\n  U :after t1, 1d\n",
+      "note": "dateFormat D MMM YYYY with 1 Jan 2024"
+    },
+    {
+      "id": "GT-df-12",
+      "group": "df",
+      "source": "gantt\n  dateFormat YYYYMMDD\n  section S\n  T :t1, 20240101, 2d\n  U :after t1, 1d\n",
+      "note": "dateFormat YYYYMMDD with 20240101"
+    },
+    {
+      "id": "GT-df-13",
+      "group": "df",
+      "source": "gantt\n  dateFormat DD.MM.YYYY\n  section S\n  T :t1, 01.01.2024, 2d\n  U :after t1, 1d\n",
+      "note": "dateFormat DD.MM.YYYY with 01.01.2024"
+    },
+    {
+      "id": "GT-df-14",
+      "group": "df",
+      "source": "gantt\n  dateFormat YYYY-MM-DDTHH:mm\n  section S\n  T :t1, 2024-01-01T09:30, 2d\n  U :after t1, 1d\n",
+      "note": "dateFormat YYYY-MM-DDTHH:mm with 2024-01-01T09:30"
+    },
+    {
+      "id": "GT-df-15",
+      "group": "df",
+      "source": "gantt\n  dateFormat DD/MM/YYYY\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "dateFormat mismatch (ISO date with DD/MM/YYYY)"
+    },
+    {
+      "id": "GT-df-16",
+      "group": "df",
+      "source": "gantt\n  dateFormat YYYY;MM;DD\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "dateFormat with ';'"
+    },
+    {
+      "id": "GT-df-17",
+      "group": "df",
+      "source": "gantt\n  dateFormat YYYY#MM#DD\n  section S\n  T :t1, 2024#01#01, 2d\n",
+      "note": "dateFormat with #"
+    },
+    {
+      "id": "GT-df-18",
+      "group": "df",
+      "source": "gantt\n  section S\n  T :t1, 2024-01-01, 2d\n  dateFormat YYYY-MM-DD\n",
+      "note": "dateFormat after tasks"
+    },
+    {
+      "id": "GT-df-19",
+      "group": "df",
+      "source": "gantt\n  dateFormat DD/MM/YYYY\n  dateFormat YYYY-MM-DD\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "dateFormat twice"
+    },
+    {
+      "id": "GT-df-20",
+      "group": "df",
+      "source": "gantt\n  dateFormat \n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "dateFormat empty"
+    },
+    {
+      "id": "GT-df-21",
+      "group": "df",
+      "source": "gantt\n  dateFormat\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "dateFormat no arg"
+    },
+    {
+      "id": "GT-dr-1",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  axisFormat %m/%d\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "axisFormat"
+    },
+    {
+      "id": "GT-dr-2",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  axisFormat %Y %b %d\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "axisFormat with spaces"
+    },
+    {
+      "id": "GT-dr-3",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  axisFormat %%m\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "axisFormat with %%"
+    },
+    {
+      "id": "GT-dr-4",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  axisFormat %m\n  axisFormat %d\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "axisFormat twice"
+    },
+    {
+      "id": "GT-dr-5",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  tickInterval 1day\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "tickInterval 1day"
+    },
+    {
+      "id": "GT-dr-6",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  tickInterval 1week\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "tickInterval 1week"
+    },
+    {
+      "id": "GT-dr-7",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  tickInterval 1month\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "tickInterval 1month"
+    },
+    {
+      "id": "GT-dr-8",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  tickInterval 2day\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "tickInterval 2day"
+    },
+    {
+      "id": "GT-dr-9",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  tickInterval 15minute\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "tickInterval 15minute"
+    },
+    {
+      "id": "GT-dr-10",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  tickInterval 1hour\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "tickInterval 1hour"
+    },
+    {
+      "id": "GT-dr-11",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  tickInterval 1second\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "tickInterval 1second"
+    },
+    {
+      "id": "GT-dr-12",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  tickInterval 1millisecond\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "tickInterval 1millisecond"
+    },
+    {
+      "id": "GT-dr-13",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  tickInterval week\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "tickInterval week"
+    },
+    {
+      "id": "GT-dr-14",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  tickInterval 1 week\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "tickInterval 1 week"
+    },
+    {
+      "id": "GT-dr-15",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  tickInterval 1d\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "tickInterval 1d"
+    },
+    {
+      "id": "GT-dr-16",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  tickInterval 0day\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "tickInterval 0day"
+    },
+    {
+      "id": "GT-dr-17",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  tickInterval 1year\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "tickInterval 1year"
+    },
+    {
+      "id": "GT-dr-18",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  tickInterval 1.5day\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "tickInterval 1.5day"
+    },
+    {
+      "id": "GT-dr-19",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  tickInterval 1week\n  weekday monday\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "tickInterval weekday"
+    },
+    {
+      "id": "GT-dr-20",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  excludes weekends\n  section S\n  T :t1, 2024-01-01, 5d\n  U :after t1, 2d\n",
+      "note": "excludes \"weekends\""
+    },
+    {
+      "id": "GT-dr-21",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  excludes saturday\n  section S\n  T :t1, 2024-01-01, 5d\n  U :after t1, 2d\n",
+      "note": "excludes \"saturday\""
+    },
+    {
+      "id": "GT-dr-22",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  excludes sunday,monday\n  section S\n  T :t1, 2024-01-01, 5d\n  U :after t1, 2d\n",
+      "note": "excludes \"sunday,monday\""
+    },
+    {
+      "id": "GT-dr-23",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  excludes 2024-01-02\n  section S\n  T :t1, 2024-01-01, 5d\n  U :after t1, 2d\n",
+      "note": "excludes \"2024-01-02\""
+    },
+    {
+      "id": "GT-dr-24",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  excludes 2024-01-02, 2024-01-03\n  section S\n  T :t1, 2024-01-01, 5d\n  U :after t1, 2d\n",
+      "note": "excludes \"2024-01-02, 2024-01-03\""
+    },
+    {
+      "id": "GT-dr-25",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  excludes weekends 2024-01-02\n  section S\n  T :t1, 2024-01-01, 5d\n  U :after t1, 2d\n",
+      "note": "excludes \"weekends 2024-01-02\""
+    },
+    {
+      "id": "GT-dr-26",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  excludes WEEKENDS\n  section S\n  T :t1, 2024-01-01, 5d\n  U :after t1, 2d\n",
+      "note": "excludes \"WEEKENDS\""
+    },
+    {
+      "id": "GT-dr-27",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  excludes friday saturday\n  section S\n  T :t1, 2024-01-01, 5d\n  U :after t1, 2d\n",
+      "note": "excludes \"friday saturday\""
+    },
+    {
+      "id": "GT-dr-28",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  excludes holiday\n  section S\n  T :t1, 2024-01-01, 5d\n  U :after t1, 2d\n",
+      "note": "excludes \"holiday\""
+    },
+    {
+      "id": "GT-dr-29",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  excludes \n  section S\n  T :t1, 2024-01-01, 5d\n  U :after t1, 2d\n",
+      "note": "excludes \"\""
+    },
+    {
+      "id": "GT-dr-30",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  excludes weekends\n  includes 2024-01-06\n  section S\n  T :t1, 2024-01-04, 5d\n",
+      "note": "includes"
+    },
+    {
+      "id": "GT-dr-31",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  excludes weekends\n  weekend friday\n  section S\n  T :t1, 2024-01-01, 5d\n",
+      "note": "weekend friday"
+    },
+    {
+      "id": "GT-dr-32",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  excludes weekends\n  weekend saturday\n  section S\n  T :t1, 2024-01-01, 5d\n",
+      "note": "weekend saturday"
+    },
+    {
+      "id": "GT-dr-33",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  weekend sunday\n  section S\n  T :t1, 2024-01-01, 5d\n",
+      "note": "weekend sunday (invalid)"
+    },
+    {
+      "id": "GT-dr-34",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  weekday monday\n  tickInterval 1week\n  section S\n  T :t1, 2024-01-01, 5d\n",
+      "note": "weekday monday"
+    },
+    {
+      "id": "GT-dr-35",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  weekday funday\n  section S\n  T :t1, 2024-01-01, 5d\n",
+      "note": "weekday invalid"
+    },
+    {
+      "id": "GT-dr-36",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  todayMarker off\n  section S\n  T :t1, 2024-01-01, 5d\n",
+      "note": "todayMarker off"
+    },
+    {
+      "id": "GT-dr-37",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  todayMarker stroke-width:5px,stroke:#0f0,opacity:0.5\n  section S\n  T :t1, 2024-01-01, 5d\n",
+      "note": "todayMarker style"
+    },
+    {
+      "id": "GT-dr-38",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  todayMarker stroke:#0f0;opacity:0.5\n  section S\n  T :t1, 2024-01-01, 5d\n",
+      "note": "todayMarker with ';'"
+    },
+    {
+      "id": "GT-dr-39",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  inclusiveEndDates\n  section S\n  T :t1, 2024-01-01, 2024-01-03\n",
+      "note": "inclusiveEndDates"
+    },
+    {
+      "id": "GT-dr-40",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  topAxis\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "topAxis"
+    },
+    {
+      "id": "GT-dr-41",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  title My Plan\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "title"
+    },
+    {
+      "id": "GT-dr-42",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  title a;b #c\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "title with ; and #"
+    },
+    {
+      "id": "GT-dr-43",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  title One\n  title Two\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "title twice"
+    },
+    {
+      "id": "GT-dr-44",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  title\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "title empty"
+    },
+    {
+      "id": "GT-dr-45",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  accTitle: Acc\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "accTitle"
+    },
+    {
+      "id": "GT-dr-46",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  accDescr: Desc\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "accDescr"
+    },
+    {
+      "id": "GT-dr-47",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  accDescr {\n  l1\n  l2\n  }\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "accDescr multiline"
+    },
+    {
+      "id": "GT-dr-48",
+      "group": "dr",
+      "source": "gantt\n  DateFormat YYYY-MM-DD\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "directive keyword case"
+    },
+    {
+      "id": "GT-dr-49",
+      "group": "dr",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  Excludes weekends\n  section S\n  T :t1, 2024-01-01, 2d\n",
+      "note": "excludes keyword upper"
+    },
+    {
+      "id": "GT-sec-1",
+      "group": "sec",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section A\n  T :t1, 2024-01-01, 2d\n",
+      "note": "section"
+    },
+    {
+      "id": "GT-sec-2",
+      "group": "sec",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section Phase one: design\n  T :t1, 2024-01-01, 2d\n",
+      "note": "section with spaces"
+    },
+    {
+      "id": "GT-sec-3",
+      "group": "sec",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section a:b\n  T :t1, 2024-01-01, 2d\n",
+      "note": "section with colon"
+    },
+    {
+      "id": "GT-sec-4",
+      "group": "sec",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section a;b\n  T :t1, 2024-01-01, 2d\n",
+      "note": "section with ;"
+    },
+    {
+      "id": "GT-sec-5",
+      "group": "sec",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section a#b\n  T :t1, 2024-01-01, 2d\n",
+      "note": "section with #"
+    },
+    {
+      "id": "GT-sec-6",
+      "group": "sec",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section 設計\n  設計 :t1, 2024-01-01, 2d\n",
+      "note": "section unicode"
+    },
+    {
+      "id": "GT-sec-7",
+      "group": "sec",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section\n  T :t1, 2024-01-01, 2d\n",
+      "note": "section empty name"
+    },
+    {
+      "id": "GT-sec-8",
+      "group": "sec",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section   \n  T :t1, 2024-01-01, 2d\n",
+      "note": "section only spaces name"
+    },
+    {
+      "id": "GT-sec-9",
+      "group": "sec",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section A\n  T :t1, 2024-01-01, 2d\n  section A\n  U :t2, 2024-01-02, 2d\n",
+      "note": "two sections same name"
+    },
+    {
+      "id": "GT-sec-10",
+      "group": "sec",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section A   \n  T :t1, 2024-01-01, 2d\n",
+      "note": "section with trailing spaces"
+    },
+    {
+      "id": "GT-sec-11",
+      "group": "sec",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section A\n  section B\n  T :t1, 2024-01-01, 2d\n",
+      "note": "empty sections"
+    },
+    {
+      "id": "GT-sec-12",
+      "group": "sec",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  SECTION A\n  T :t1, 2024-01-01, 2d\n",
+      "note": "section keyword upper"
+    },
+    {
+      "id": "GT-sec-13",
+      "group": "sec",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section A<br/>B\n  T :t1, 2024-01-01, 2d\n",
+      "note": "section with <br>"
+    },
+    {
+      "id": "GT-sec-14",
+      "group": "sec",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section <b>A</b>\n  T :t1, 2024-01-01, 2d\n",
+      "note": "section with html"
+    },
+    {
+      "id": "GT-sec-15",
+      "group": "sec",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section section\n  T :t1, 2024-01-01, 2d\n",
+      "note": "section name 'section'"
+    },
+    {
+      "id": "GT-sec-16",
+      "group": "sec",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section\tA\n  T :t1, 2024-01-01, 2d\n",
+      "note": "section tab separated"
+    },
+    {
+      "id": "GT-sec-17",
+      "group": "sec",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section title of things\n  T :t1, 2024-01-01, 2d\n",
+      "note": "section name starting with keyword text"
+    },
+    {
+      "id": "GT-sec-18",
+      "group": "sec",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  sectioned thing :t1, 2024-01-01, 2d\n",
+      "note": "task name starting with 'section'"
+    },
+    {
+      "id": "GT-sec-19",
+      "group": "sec",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  titled :t1, 2024-01-01, 2d\n",
+      "note": "task name starting with 'title'"
+    },
+    {
+      "id": "GT-sec-20",
+      "group": "sec",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  clicker :t1, 2024-01-01, 2d\n",
+      "note": "task name starting with 'click'"
+    },
+    {
+      "id": "GT-sec-21",
+      "group": "sec",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  excludes list :t1, 2024-01-01, 2d\n",
+      "note": "task name 'excludes list'"
+    },
+    {
+      "id": "GT-sec-22",
+      "group": "sec",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  dateFormat x :t1, 2024-01-01, 2d\n",
+      "note": "task name 'dateFormat x'"
+    },
+    {
+      "id": "GT-sec-23",
+      "group": "sec",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  todayMarker :t1, 2024-01-01, 2d\n",
+      "note": "task name 'todayMarker'"
+    },
+    {
+      "id": "GT-sec-24",
+      "group": "sec",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  topAxis stuff :t1, 2024-01-01, 2d\n",
+      "note": "task name 'topAxis stuff'"
+    },
+    {
+      "id": "GT-tk-1",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  T :t1, 2024-01-01, 3d\n",
+      "note": "id,start,duration"
+    },
+    {
+      "id": "GT-tk-2",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  T :t1, 2024-01-01, 2024-01-05\n",
+      "note": "id,start,end"
+    },
+    {
+      "id": "GT-tk-3",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  T :2024-01-01, 2024-01-05\n",
+      "note": "start,end (no id)"
+    },
+    {
+      "id": "GT-tk-4",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  T :2024-01-01, 3d\n",
+      "note": "start,duration (no id)"
+    },
+    {
+      "id": "GT-tk-5",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d\n  B :3d\n",
+      "note": "duration only"
+    },
+    {
+      "id": "GT-tk-6",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d\n  B :2024-01-10\n",
+      "note": "end date only"
+    },
+    {
+      "id": "GT-tk-7",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  B :3d\n",
+      "note": "duration only as first task"
+    },
+    {
+      "id": "GT-tk-8",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d\n  B :after a1, 3d\n",
+      "note": "after id"
+    },
+    {
+      "id": "GT-tk-9",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d\n  B :b1, after a1, 3d\n",
+      "note": "id,after,dur"
+    },
+    {
+      "id": "GT-tk-10",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d\n  B :b1, 2024-01-02, 5d\n  C :c1, after a1 b1, 1d\n",
+      "note": "after two ids"
+    },
+    {
+      "id": "GT-tk-11",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d\n  B :b1, after zzz, 3d\n",
+      "note": "after unknown id"
+    },
+    {
+      "id": "GT-tk-12",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a-1, 2024-01-01, 2d\n  B :b1, after a-1, 3d\n",
+      "note": "after hyphen id"
+    },
+    {
+      "id": "GT-tk-13",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a.1, 2024-01-01, 2d\n  B :b1, after a.1, 3d\n",
+      "note": "after id with dot"
+    },
+    {
+      "id": "GT-tk-14",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :設計1, 2024-01-01, 2d\n  B :b1, after 設計1, 3d\n",
+      "note": "after unicode id"
+    },
+    {
+      "id": "GT-tk-15",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  B :b1, after a1, 3d\n  A :a1, 2024-01-01, 2d\n",
+      "note": "after forward ref"
+    },
+    {
+      "id": "GT-tk-16",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, after a1, 3d\n",
+      "note": "after self"
+    },
+    {
+      "id": "GT-tk-17",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, after b1, 3d\n  B :b1, after a1, 3d\n",
+      "note": "after cycle"
+    },
+    {
+      "id": "GT-tk-18",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-10, 2d\n  B :b1, 2024-01-01, until a1\n",
+      "note": "until id"
+    },
+    {
+      "id": "GT-tk-19",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  B :b1, 2024-01-01, until zzz\n",
+      "note": "until unknown"
+    },
+    {
+      "id": "GT-tk-20",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d\n  B :a2, 2024-01-10, 2d\n  C :c1, after a1, until a2\n",
+      "note": "after + until"
+    },
+    {
+      "id": "GT-tk-21",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d\n  M :milestone, m1, after a1, 0d\n",
+      "note": "milestone"
+    },
+    {
+      "id": "GT-tk-22",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d\n  M :milestone, after a1, 0d\n",
+      "note": "milestone no id"
+    },
+    {
+      "id": "GT-tk-23",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  M :milestone, m1, 2024-01-01, 3d\n",
+      "note": "milestone with duration"
+    },
+    {
+      "id": "GT-tk-24",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :active, a1, 2024-01-01, 2d\n",
+      "note": "active"
+    },
+    {
+      "id": "GT-tk-25",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :done, a1, 2024-01-01, 2d\n",
+      "note": "done"
+    },
+    {
+      "id": "GT-tk-26",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :crit, a1, 2024-01-01, 2d\n",
+      "note": "crit"
+    },
+    {
+      "id": "GT-tk-27",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :vert, v1, 2024-01-01, 0d\n",
+      "note": "vert"
+    },
+    {
+      "id": "GT-tk-28",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :crit, done, a1, 2024-01-01, 2d\n",
+      "note": "crit done"
+    },
+    {
+      "id": "GT-tk-29",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :done, crit, active, milestone, a1, 2024-01-01, 2d\n",
+      "note": "done crit active milestone"
+    },
+    {
+      "id": "GT-tk-30",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :done, done, a1, 2024-01-01, 2d\n",
+      "note": "tag repeated"
+    },
+    {
+      "id": "GT-tk-31",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :done, 2024-01-01, 2d\n",
+      "note": "tag without id"
+    },
+    {
+      "id": "GT-tk-32",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d\n  B :done, 3d\n",
+      "note": "tag only duration"
+    },
+    {
+      "id": "GT-tk-33",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :Done, a1, 2024-01-01, 2d\n",
+      "note": "tag uppercase"
+    },
+    {
+      "id": "GT-tk-34",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d\n  B :done, 3d\n  C :b1, after a1, 3d\n",
+      "note": "tag as id (done)"
+    },
+    {
+      "id": "GT-tk-35",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :crit, 2024-01-01, 2d\n",
+      "note": "id named like tag in 3rd pos"
+    },
+    {
+      "id": "GT-tk-36",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d, extra\n",
+      "note": "four fields"
+    },
+    {
+      "id": "GT-tk-37",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :done, a1, 2024-01-01, 2d, extra\n",
+      "note": "five fields"
+    },
+    {
+      "id": "GT-tk-38",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, , 2d\n",
+      "note": "empty field"
+    },
+    {
+      "id": "GT-tk-39",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d,\n",
+      "note": "trailing comma"
+    },
+    {
+      "id": "GT-tk-40",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1,2024-01-01,2d\n",
+      "note": "no spaces after commas"
+    },
+    {
+      "id": "GT-tk-41",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A   :   a1  ,  2024-01-01  ,  2d   \n",
+      "note": "spaces everywhere"
+    },
+    {
+      "id": "GT-tk-42",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A task without colon\n",
+      "note": "no colon"
+    },
+    {
+      "id": "GT-tk-43",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  :a1, 2024-01-01, 2d\n",
+      "note": "colon only"
+    },
+    {
+      "id": "GT-tk-44",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :\n",
+      "note": "empty data"
+    },
+    {
+      "id": "GT-tk-45",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A: b :a1, 2024-01-01, 2d\n",
+      "note": "colon in task name (second colon becomes data)"
+    },
+    {
+      "id": "GT-tk-46",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A;b :a1, 2024-01-01, 2d\n",
+      "note": "task name with ;"
+    },
+    {
+      "id": "GT-tk-47",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A#b :a1, 2024-01-01, 2d\n",
+      "note": "task name with #"
+    },
+    {
+      "id": "GT-tk-48",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  \"A\" & 'b' :a1, 2024-01-01, 2d\n",
+      "note": "task name with &,quotes"
+    },
+    {
+      "id": "GT-tk-49",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  50% done :a1, 2024-01-01, 2d\n",
+      "note": "task name with %"
+    },
+    {
+      "id": "GT-tk-50",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  設計 :a1, 2024-01-01, 2d\n",
+      "note": "task name unicode"
+    },
+    {
+      "id": "GT-tk-51",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  🚀 launch :a1, 2024-01-01, 2d\n",
+      "note": "task name emoji"
+    },
+    {
+      "id": "GT-tk-52",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A<br/>B :a1, 2024-01-01, 2d\n",
+      "note": "task name with <br/>"
+    },
+    {
+      "id": "GT-tk-53",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  <b>A</b> :a1, 2024-01-01, 2d\n",
+      "note": "task name html"
+    },
+    {
+      "id": "GT-tk-54",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  <script>alert(1)</script> :a1, 2024-01-01, 2d\n",
+      "note": "task name script"
+    },
+    {
+      "id": "GT-tk-55",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word :a1, 2024-01-01, 2d\n",
+      "note": "task name long"
+    },
+    {
+      "id": "GT-tk-56",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n     :a1, 2024-01-01, 2d\n",
+      "note": "task name only spaces"
+    },
+    {
+      "id": "GT-tk-57",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A\tB :a1, 2024-01-01, 2d\n",
+      "note": "task name with tab"
+    },
+    {
+      "id": "GT-tk-58",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A#59;B :a1, 2024-01-01, 2d\n",
+      "note": "task name with entity #59;"
+    },
+    {
+      "id": "GT-tk-59",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A#quot;B :a1, 2024-01-01, 2d\n",
+      "note": "task name with entity #quot;"
+    },
+    {
+      "id": "GT-tk-60",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a-1, 2024-01-01, 2d\n",
+      "note": "task id hyphen"
+    },
+    {
+      "id": "GT-tk-61",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a 1, 2024-01-01, 2d\n",
+      "note": "task id with space"
+    },
+    {
+      "id": "GT-tk-62",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :設計1, 2024-01-01, 2d\n",
+      "note": "task id unicode"
+    },
+    {
+      "id": "GT-tk-63",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :1, 2024-01-01, 2d\n",
+      "note": "task id numeric"
+    },
+    {
+      "id": "GT-tk-64",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :2024-01-01, 2d\n  B :task1, 2024-01-05, 2d\n  C :after task1, 1d\n",
+      "note": "task id like auto id task1"
+    },
+    {
+      "id": "GT-tk-65",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :2024-01-01, 2d\n  B :after task1, 2d\n",
+      "note": "auto ids referenced"
+    },
+    {
+      "id": "GT-tk-66",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d\n  B :a1, 2024-01-05, 2d\n  C :after a1, 1d\n",
+      "note": "duplicate ids"
+    },
+    {
+      "id": "GT-tk-67",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :A1, 2024-01-01, 2d\n  B :after A1, 1d\n",
+      "note": "id uppercase"
+    },
+    {
+      "id": "GT-tk-68",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :after, 2024-01-01, 2d\n",
+      "note": "id with reserved word 'after'"
+    },
+    {
+      "id": "GT-tk-69",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :until, 2024-01-01, 2d\n",
+      "note": "id 'until'"
+    },
+    {
+      "id": "GT-tk-70",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a:1, 2024-01-01, 2d\n",
+      "note": "id with ':' in data (second colon)"
+    },
+    {
+      "id": "GT-tk-71",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx, 2024-01-01, 2d\n",
+      "note": "id long"
+    },
+    {
+      "id": "GT-tk-72",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  T0 :t0, 2024-01-01, 2d\n  T1 :t1, 2024-01-02, 2d\n  T2 :t2, 2024-01-03, 2d\n  T3 :t3, 2024-01-04, 2d\n  T4 :t4, 2024-01-05, 2d\n  T5 :t5, 2024-01-06, 2d\n  T6 :t6, 2024-01-07, 2d\n  T7 :t7, 2024-01-08, 2d\n  T8 :t8, 2024-01-09, 2d\n  T9 :t9, 2024-01-10, 2d\n  T10 :t10, 2024-01-11, 2d\n  T11 :t11, 2024-01-12, 2d\n  T12 :t12, 2024-01-13, 2d\n  T13 :t13, 2024-01-14, 2d\n  T14 :t14, 2024-01-15, 2d\n  T15 :t15, 2024-01-16, 2d\n  T16 :t16, 2024-01-17, 2d\n  T17 :t17, 2024-01-18, 2d\n  T18 :t18, 2024-01-19, 2d\n  T19 :t19, 2024-01-20, 2d\n  T20 :t20, 2024-01-21, 2d\n  T21 :t21, 2024-01-22, 2d\n  T22 :t22, 2024-01-23, 2d\n  T23 :t23, 2024-01-24, 2d\n  T24 :t24, 2024-01-25, 2d\n  T25 :t25, 2024-01-26, 2d\n  T26 :t26, 2024-01-27, 2d\n  T27 :t27, 2024-01-01, 2d\n  T28 :t28, 2024-01-02, 2d\n  T29 :t29, 2024-01-03, 2d\n",
+      "note": "many tasks"
+    },
+    {
+      "id": "GT-tk-73",
+      "group": "tk",
+      "source": "gantt\n  A :a1, 2024-01-01, 2d\n",
+      "note": "task before dateFormat with default"
+    },
+    {
+      "id": "GT-tk-74",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :2024-01-01, 2d\n  B :3d\n  C :2d\n",
+      "note": "second task implicit after first"
+    },
+    {
+      "id": "GT-tk-75",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S1\n  A :a1, 2024-01-01, 2d\n  section S2\n  B :3d\n",
+      "note": "implicit across section"
+    },
+    {
+      "id": "GT-tk-76",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d\n  B :2024-01-10\n",
+      "note": "start only (1 field date)"
+    },
+    {
+      "id": "GT-tk-77",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A     :a1, 2024-01-01, 2d\n",
+      "note": "task with trailing spaces before colon"
+    },
+    {
+      "id": "GT-tk-78",
+      "group": "tk",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d; B :b1, 2024-01-02, 2d\n",
+      "note": "two tasks one line (no split)"
+    },
+    {
+      "id": "GT-du-1",
+      "group": "du",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 1d\n  B :after a1, 1d\n",
+      "note": "duration 1d"
+    },
+    {
+      "id": "GT-du-2",
+      "group": "du",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2h\n  B :after a1, 1d\n",
+      "note": "duration 2h"
+    },
+    {
+      "id": "GT-du-3",
+      "group": "du",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 30m\n  B :after a1, 1d\n",
+      "note": "duration 30m"
+    },
+    {
+      "id": "GT-du-4",
+      "group": "du",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 10s\n  B :after a1, 1d\n",
+      "note": "duration 10s"
+    },
+    {
+      "id": "GT-du-5",
+      "group": "du",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 500ms\n  B :after a1, 1d\n",
+      "note": "duration 500ms"
+    },
+    {
+      "id": "GT-du-6",
+      "group": "du",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 1w\n  B :after a1, 1d\n",
+      "note": "duration 1w"
+    },
+    {
+      "id": "GT-du-7",
+      "group": "du",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2M\n  B :after a1, 1d\n",
+      "note": "duration 2M"
+    },
+    {
+      "id": "GT-du-8",
+      "group": "du",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 1y\n  B :after a1, 1d\n",
+      "note": "duration 1y"
+    },
+    {
+      "id": "GT-du-9",
+      "group": "du",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 1.5d\n  B :after a1, 1d\n",
+      "note": "duration 1.5d"
+    },
+    {
+      "id": "GT-du-10",
+      "group": "du",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 0d\n  B :after a1, 1d\n",
+      "note": "duration 0d"
+    },
+    {
+      "id": "GT-du-11",
+      "group": "du",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 0.5h\n  B :after a1, 1d\n",
+      "note": "duration 0.5h"
+    },
+    {
+      "id": "GT-du-12",
+      "group": "du",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 10D\n  B :after a1, 1d\n",
+      "note": "duration 10D"
+    },
+    {
+      "id": "GT-du-13",
+      "group": "du",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 3 d\n  B :after a1, 1d\n",
+      "note": "duration 3 d"
+    },
+    {
+      "id": "GT-du-14",
+      "group": "du",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, d\n  B :after a1, 1d\n",
+      "note": "duration d"
+    },
+    {
+      "id": "GT-du-15",
+      "group": "du",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, -1d\n  B :after a1, 1d\n",
+      "note": "duration -1d"
+    },
+    {
+      "id": "GT-du-16",
+      "group": "du",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 1day\n  B :after a1, 1d\n",
+      "note": "duration 1day"
+    },
+    {
+      "id": "GT-du-17",
+      "group": "du",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 1 week\n  B :after a1, 1d\n",
+      "note": "duration 1 week"
+    },
+    {
+      "id": "GT-du-18",
+      "group": "du",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 1w2d\n  B :after a1, 1d\n",
+      "note": "duration 1w2d"
+    },
+    {
+      "id": "GT-du-19",
+      "group": "du",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 007d\n  B :after a1, 1d\n",
+      "note": "duration 007d"
+    },
+    {
+      "id": "GT-du-20",
+      "group": "du",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 1e3d\n  B :after a1, 1d\n",
+      "note": "duration 1e3d"
+    },
+    {
+      "id": "GT-du-21",
+      "group": "du",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 99999d\n  B :after a1, 1d\n",
+      "note": "duration 99999d"
+    },
+    {
+      "id": "GT-dt-1",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-1-1, 2d\n",
+      "note": "start date \"2024-1-1\""
+    },
+    {
+      "id": "GT-dt-2",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-02-30, 2d\n",
+      "note": "start date \"2024-02-30\""
+    },
+    {
+      "id": "GT-dt-3",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-13-01, 2d\n",
+      "note": "start date \"2024-13-01\""
+    },
+    {
+      "id": "GT-dt-4",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-02-29, 2d\n",
+      "note": "start date \"2024-02-29\""
+    },
+    {
+      "id": "GT-dt-5",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2023-02-29, 2d\n",
+      "note": "start date \"2023-02-29\""
+    },
+    {
+      "id": "GT-dt-6",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 24-01-01, 2d\n",
+      "note": "start date \"24-01-01\""
+    },
+    {
+      "id": "GT-dt-7",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 20240101, 2d\n",
+      "note": "start date \"20240101\""
+    },
+    {
+      "id": "GT-dt-8",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01T00:00:00Z, 2d\n",
+      "note": "start date \"2024-01-01T00:00:00Z\""
+    },
+    {
+      "id": "GT-dt-9",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, Jan 1 2024, 2d\n",
+      "note": "start date \"Jan 1 2024\""
+    },
+    {
+      "id": "GT-dt-10",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, notadate, 2d\n",
+      "note": "start date \"notadate\""
+    },
+    {
+      "id": "GT-dt-11",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024/01/01, 2d\n",
+      "note": "start date \"2024/01/01\""
+    },
+    {
+      "id": "GT-dt-12",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 0000-01-01, 2d\n",
+      "note": "start date \"0000-01-01\""
+    },
+    {
+      "id": "GT-dt-13",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 9999-12-31, 2d\n",
+      "note": "start date \"9999-12-31\""
+    },
+    {
+      "id": "GT-dt-14",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 10000-01-01, 2d\n",
+      "note": "start date \"10000-01-01\""
+    },
+    {
+      "id": "GT-dt-15",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01 , 2d\n",
+      "note": "start date \"2024-01-01 \""
+    },
+    {
+      "id": "GT-dt-16",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, today, 2d\n",
+      "note": "start date \"today\""
+    },
+    {
+      "id": "GT-dt-17",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, , 2d\n",
+      "note": "start date \"\""
+    },
+    {
+      "id": "GT-dt-18",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01, 2d\n",
+      "note": "start date \"2024-01\""
+    },
+    {
+      "id": "GT-dt-19",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2024-01-05\n",
+      "note": "end date \"2024-01-05\""
+    },
+    {
+      "id": "GT-dt-20",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2023-12-01\n",
+      "note": "end date \"2023-12-01\""
+    },
+    {
+      "id": "GT-dt-21",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2024-02-30\n",
+      "note": "end date \"2024-02-30\""
+    },
+    {
+      "id": "GT-dt-22",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, garbage\n",
+      "note": "end date \"garbage\""
+    },
+    {
+      "id": "GT-dt-23",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-10, 2024-01-01\n",
+      "note": "end before start"
+    },
+    {
+      "id": "GT-dt-24",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  inclusiveEndDates\n  section S\n  A :a1, 2024-01-01, 2d\n",
+      "note": "inclusiveEndDates with duration"
+    },
+    {
+      "id": "GT-dt-25",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  excludes weekends\n  section S\n  A :a1, 2024-01-04, 4d\n  B :after a1, 2d\n",
+      "note": "excludes weekends spanning"
+    },
+    {
+      "id": "GT-dt-26",
+      "group": "dt",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  excludes monday,tuesday,wednesday,thursday,friday,saturday,sunday\n  section S\n  A :a1, 2024-01-04, 4d\n",
+      "note": "excludes all days"
+    },
+    {
+      "id": "GT-dt-27",
+      "group": "dt",
+      "source": "gantt\n  dateFormat x\n  A :a1, 1704067200000, 86400000ms\n  B :after a1, 1d\n",
+      "note": "timestamp format with after"
+    },
+    {
+      "id": "GT-dt-28",
+      "group": "dt",
+      "source": "gantt\n  dateFormat HH:mm\n  axisFormat %H:%M\n  A :a1, 09:00, 2h\n  B :after a1, 90m\n",
+      "note": "time of day tasks"
+    },
+    {
+      "id": "GT-pc-1",
+      "group": "pc",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  5% rule :a1, 2024-01-01, 2d\n  Z :z1, 2024-01-05, 1d\n",
+      "note": "task name 5% rule (2nd char %) -> whole line is a comment"
+    },
+    {
+      "id": "GT-pc-2",
+      "group": "pc",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  x%%y :a1, 2024-01-01, 2d\n  Z :z1, 2024-01-05, 1d\n",
+      "note": "task name x%%y -> whole line is a comment"
+    },
+    {
+      "id": "GT-pc-3",
+      "group": "pc",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  é% :a1, 2024-01-01, 2d\n  Z :z1, 2024-01-05, 1d\n",
+      "note": "task name é% (non-ASCII first char) -> comment"
+    },
+    {
+      "id": "GT-pc-4",
+      "group": "pc",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  }%x :a1, 2024-01-01, 2d\n  Z :z1, 2024-01-05, 1d\n",
+      "note": "task name }%x -> NOT a comment"
+    },
+    {
+      "id": "GT-pc-5",
+      "group": "pc",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  ab%c :a1, 2024-01-01, 2d\n  Z :z1, 2024-01-05, 1d\n",
+      "note": "task name ab%c -> task"
+    },
+    {
+      "id": "GT-ck-1",
+      "group": "ck",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d\n  click a1 href \"https://example.com\"\n",
+      "note": "click href"
+    },
+    {
+      "id": "GT-ck-2",
+      "group": "ck",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d\n  click zz href \"https://example.com\"\n",
+      "note": "click href unknown id"
+    },
+    {
+      "id": "GT-ck-3",
+      "group": "ck",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d\n  click a1 href \"javascript:alert(1)\"\n",
+      "note": "click href javascript"
+    },
+    {
+      "id": "GT-ck-4",
+      "group": "ck",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d\n  click a1 call cb()\n",
+      "note": "click call"
+    },
+    {
+      "id": "GT-ck-5",
+      "group": "ck",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d\n  click a1 call cb(\"x\", 2)\n",
+      "note": "click call args"
+    },
+    {
+      "id": "GT-ck-6",
+      "group": "ck",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d\n  B :b1, 2024-01-02, 2d\n  click a1,b1 href \"https://example.com\"\n",
+      "note": "click two ids"
+    },
+    {
+      "id": "GT-ck-7",
+      "group": "ck",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  click a1 href \"https://example.com\"\n  A :a1, 2024-01-01, 2d\n",
+      "note": "click before task"
+    },
+    {
+      "id": "GT-ck-8",
+      "group": "ck",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d\n  click a1 href https://example.com\n",
+      "note": "click href without quotes"
+    },
+    {
+      "id": "GT-ck-9",
+      "group": "ck",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d\n  click a1 cb\n",
+      "note": "click bare callback"
+    },
+    {
+      "id": "GT-ck-10",
+      "group": "ck",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d\n  click a1 href \"https://example.com\" call cb()\n",
+      "note": "click then href then call"
+    },
+    {
+      "id": "GT-ck-11",
+      "group": "ck",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d\n  CLICK a1 href \"https://example.com\"\n",
+      "note": "click keyword uppercase"
+    },
+    {
+      "id": "GT-ck-12",
+      "group": "ck",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  click a1 : href \"x\"\n",
+      "note": "click as task-looking line"
+    },
+    {
+      "id": "GT-ck-13",
+      "group": "ck",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :2024-01-01, 2d\n  click task1 href \"https://example.com\"\n",
+      "note": "click on auto id"
+    },
+    {
+      "id": "GT-ck-14",
+      "group": "ck",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1, 2024-01-01, 2d\n  click\ta1\thref\t\"https://example.com\"\n",
+      "note": "click with tab"
+    },
+    {
+      "id": "GT-inv-1",
+      "group": "inv",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  frobnicate\n",
+      "note": "unknown statement"
+    },
+    {
+      "id": "GT-inv-2",
+      "group": "inv",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  just text\n",
+      "note": "text only inside section"
+    },
+    {
+      "id": "GT-inv-3",
+      "group": "inv",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  :\n",
+      "note": "lone colon"
+    },
+    {
+      "id": "GT-inv-4",
+      "group": "inv",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :done\n",
+      "note": "task data with only tags"
+    },
+    {
+      "id": "GT-inv-5",
+      "group": "inv",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  section S\n  A :a1\n",
+      "note": "task data = id only"
+    },
+    {
+      "id": "GT-inv-6",
+      "group": "inv",
+      "source": "gantt\n  dateFormat YYYY😀\n  A :a1, 2024😀, 2d\n",
+      "note": "emoji in dateFormat"
+    },
+    {
+      "id": "GT-inv-7",
+      "group": "inv",
+      "source": "gantt\n  dateFormat YYYY-MM-DD\n  title xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n  A :a1, 2024-01-01, 2d\n",
+      "note": "very long title"
+    },
+    {
+      "id": "GT-inv-8",
+      "group": "inv",
+      "source": "gantt\n  title Release plan\n  dateFormat YYYY-MM-DD\n  axisFormat %m/%d\n  excludes weekends\n  section Design\n  Spec :done, des1, 2024-01-01, 3d\n  Review :active, des2, after des1, 2d\n  section Build\n  Code :crit, b1, after des2, 5d\n  Test :b2, after b1, 3d\n  Release :milestone, m1, after b2, 0d\n",
+      "note": "realistic"
+    },
+    {
+      "id": "GTE-T01:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "replace the title text span"
+    },
+    {
+      "id": "GTE-T01:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Plan 2\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "setTitle: replace the title text span"
+    },
+    {
+      "id": "GTE-T02:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    First :2024-01-01, 2d\n    Second :3d\n    Third :2d\n    section B\n    Other :o1, 2024-02-01, 5d\n    click o1 href \"https://example.com\"\n",
+      "note": "add a title when none exists: insert as the first statement after the header"
+    },
+    {
+      "id": "GTE-T02:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    First :2024-01-01, 2d\n    Second :3d\n    Third :2d\n    section B\n    Other :o1, 2024-02-01, 5d\n    click o1 href \"https://example.com\"\n    title New\n",
+      "note": "setTitle: add a title when none exists: insert as the first statement after the header"
+    },
+    {
+      "id": "GTE-T03:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "blank the text: 'title ' is no longer a title statement -> parse error; delete the line instead"
+    },
+    {
+      "id": "GTE-T03:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title \n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "clearTitle: blank the text: 'title ' is no longer a title statement -> parse error; delete the line instead"
+    },
+    {
+      "id": "GTE-T04:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "title containing %%{ is applied as a directive -> refuse"
+    },
+    {
+      "id": "GTE-T04:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title X %%{init: {\"theme\":\"dark\"}}%%\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "setTitle: title containing %%{ is applied as a directive -> refuse"
+    },
+    {
+      "id": "GTE-D01:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "insert after the header block; dates are recomputed by mermaid (structure compared only)"
+    },
+    {
+      "id": "GTE-D01:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n    excludes weekends\n",
+      "note": "addDirective(excludes weekends): insert after the header block; dates are recomputed by mermaid (structure compared only)"
+    },
+    {
+      "id": "GTE-D02:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "add axisFormat"
+    },
+    {
+      "id": "GTE-D02:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    axisFormat %m/%d\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "setAxisFormat: add axisFormat"
+    },
+    {
+      "id": "GTE-D03:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    axisFormat %m/%d\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "axisFormat with a trailing '%% c' is part of the value -> never append comments"
+    },
+    {
+      "id": "GTE-D03:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    axisFormat %d/%m %% c\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "setAxisFormat: axisFormat with a trailing '%% c' is part of the value -> never append comments"
+    },
+    {
+      "id": "GTE-S01:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "append at the end"
+    },
+    {
+      "id": "GTE-S01:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n    section QA\n",
+      "note": "addSection: append at the end"
+    },
+    {
+      "id": "GTE-S02:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "after section Design: insert before the next section header; naive right after the Design header steals its tasks"
+    },
+    {
+      "id": "GTE-S02:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    section QA\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "addSection: after section Design: insert before the next section header; naive right after the Design header steals its tasks"
+    },
+    {
+      "id": "GTE-S03:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d",
+      "note": "no final newline"
+    },
+    {
+      "id": "GTE-S03:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d    section QA\n",
+      "note": "addSection: no final newline"
+    },
+    {
+      "id": "GTE-S04:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Build docs :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "name span only; naive global replace also renames a task"
+    },
+    {
+      "id": "GTE-S04:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Make\n    Code :crit, b1, after des2, 5d\n    Make docs :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "renameSection: name span only; naive global replace also renames a task"
+    },
+    {
+      "id": "GTE-S05:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "empty name swallows the next line as the section name -> refuse"
+    },
+    {
+      "id": "GTE-S05:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "renameSection: empty name swallows the next line as the section name -> refuse"
+    },
+    {
+      "id": "GTE-S06:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "name equal to another section merges them visually (same category) -> refuse duplicates"
+    },
+    {
+      "id": "GTE-S06:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Design\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "renameSection: name equal to another section merges them visually (same category) -> refuse duplicates"
+    },
+    {
+      "id": "GTE-S07:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    First :2024-01-01, 2d\n    Second :3d\n    Third :2d\n    section B\n    Other :o1, 2024-02-01, 5d\n    click o1 href \"https://example.com\"\n",
+      "note": "section with tasks and a click line, no outside dependents; naive deletes only the header (tasks join section A)"
+    },
+    {
+      "id": "GTE-S07:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    First :2024-01-01, 2d\n    Second :3d\n    Third :2d\n    Other :o1, 2024-02-01, 5d\n    click o1 href \"https://example.com\"\n",
+      "note": "deleteSection: section with tasks and a click line, no outside dependents; naive deletes only the header (tasks join section A)"
+    },
+    {
+      "id": "GTE-S08:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "outside dependents: deleting Design leaves 'after des2' pointing at nothing (today's date, non-deterministic)"
+    },
+    {
+      "id": "GTE-S08:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "deleteSection: outside dependents: deleting Design leaves 'after des2' pointing at nothing (today's date, non-deterministic)"
+    },
+    {
+      "id": "GTE-S09:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    a1 :a1, 2024-01-01, 2d\n    a2 :a2, after a1, 2d\n    section Empty\n    section B\n    b1 :b1, 2024-02-01, 2d\n",
+      "note": "empty section: delete its header only"
+    },
+    {
+      "id": "GTE-S09:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    a1 :a1, 2024-01-01, 2d\n    a2 :a2, after a1, 2d\n    section B\n    b1 :b1, 2024-02-01, 2d\n",
+      "note": "deleteSection: empty section: delete its header only"
+    },
+    {
+      "id": "GTE-S10:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    a1 :a1, 2024-01-01, 2d\n    a2 :a2, after a1, 2d\n    section B\n    b1 :b1, 2024-02-01, 2d\n",
+      "note": "swap two sections whose tasks have explicit starts"
+    },
+    {
+      "id": "GTE-S10:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section B\n    b1 :b1, 2024-02-01, 2d\n    section A\n    a1 :a1, 2024-01-01, 2d\n    a2 :a2, after a1, 2d\n",
+      "note": "moveSection: swap two sections whose tasks have explicit starts"
+    },
+    {
+      "id": "GTE-S11:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    a1 :a1, 2024-01-01, 2d\n    section B\n    b1 :3d\n",
+      "note": "moving a section whose first task has an implicit start to the top breaks render"
+    },
+    {
+      "id": "GTE-S11:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section B\n    b1 :3d\n    section A\n    a1 :a1, 2024-01-01, 2d\n",
+      "note": "moveSection: moving a section whose first task has an implicit start to the top breaks render"
+    },
+    {
+      "id": "GTE-K01:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "to the middle section: insert after the last line of that section; naive EOF lands in the last section"
+    },
+    {
+      "id": "GTE-K01:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n    Docs :d1, after des2, 1d\n",
+      "note": "addTask: to the middle section: insert after the last line of that section; naive EOF lands in the last section"
+    },
+    {
+      "id": "GTE-K02:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "name containing ':' splits at the first colon -> refuse"
+    },
+    {
+      "id": "GTE-K02:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    Docs: v2 :d1, after des2, 1d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "addTask: name containing ':' splits at the first colon -> refuse"
+    },
+    {
+      "id": "GTE-K03:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "name with ';' and '#' is plain text in a task name (but '%%' trailing would not be a comment)"
+    },
+    {
+      "id": "GTE-K03:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    Docs; part #2 :d1, after des2, 1d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "addTask: name with ';' and '#' is plain text in a task name (but '%%' trailing would not be a comment)"
+    },
+    {
+      "id": "GTE-K04:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "name that starts with a directive word ('excludes list'): the line becomes a directive, no task"
+    },
+    {
+      "id": "GTE-K04:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    excludes list :d1, after des2, 1d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "addTask: name that starts with a directive word ('excludes list'): the line becomes a directive, no task"
+    },
+    {
+      "id": "GTE-K05:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "name 'title page' sets the diagram title and creates no task"
+    },
+    {
+      "id": "GTE-K05:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    title page :d1, after des2, 1d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "addTask: name 'title page' sets the diagram title and creates no task"
+    },
+    {
+      "id": "GTE-K06:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "name starting with '%' is a comment: the task silently vanishes"
+    },
+    {
+      "id": "GTE-K06:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    %done :d1, after des2, 1d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "addTask: name starting with '%' is a comment: the task silently vanishes"
+    },
+    {
+      "id": "GTE-K06b:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "name whose 2nd character is '%' (e.g. '5% rule'): mermaid lexes char+'%' as a comment, the whole line vanishes"
+    },
+    {
+      "id": "GTE-K06b:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    5% rule :d1, after des2, 1d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "addTask: name whose 2nd character is '%' (e.g. '5% rule'): mermaid lexes char+'%' as a comment, the whole line vanishes"
+    },
+    {
+      "id": "GTE-K07:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "name starting with an ISO date is lexed as a date token -> parse error"
+    },
+    {
+      "id": "GTE-K07:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    2024-01-05 kickoff :d1, after des2, 1d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "addTask: name starting with an ISO date is lexed as a date token -> parse error"
+    },
+    {
+      "id": "GTE-K08:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "duplicate id re-points every 'after b1' to the new task"
+    },
+    {
+      "id": "GTE-K08:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n    Hotfix :b1, 2024-02-01, 1d\n",
+      "note": "addTask: duplicate id re-points every 'after b1' to the new task"
+    },
+    {
+      "id": "GTE-K09:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    A :2024-01-01, 2d\n    B :after task1, 2d\n",
+      "note": "id taskN collides with auto ids -> never generate it"
+    },
+    {
+      "id": "GTE-K09:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    A :2024-01-01, 2d\n    B :after task1, 2d\n    C :task1, 2024-03-01, 1d\n",
+      "note": "addTask: id taskN collides with auto ids -> never generate it"
+    },
+    {
+      "id": "GTE-K10:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section S\n",
+      "note": "implicit start (':3d') as the first task has no predecessor -> render error; always write id,start,duration"
+    },
+    {
+      "id": "GTE-K10:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section S\n    Docs :3d\n",
+      "note": "addTask: implicit start (':3d') as the first task has no predecessor -> render error; always write id,start,duration"
+    },
+    {
+      "id": "GTE-K11:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    First :2024-01-01, 2d\n    Second :3d\n    Third :2d\n    section B\n    Other :o1, 2024-02-01, 5d\n    click o1 href \"https://example.com\"\n",
+      "note": "insert before an implicit-start task shifts that task (its predecessor changes) -> refuse"
+    },
+    {
+      "id": "GTE-K11:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    First :2024-01-01, 2d\n    Mid :m1, 2024-01-03, 10d\n    Second :3d\n    Third :2d\n    section B\n    Other :o1, 2024-02-01, 5d\n    click o1 href \"https://example.com\"\n",
+      "note": "addTask: insert before an implicit-start task shifts that task (its predecessor changes) -> refuse"
+    },
+    {
+      "id": "GTE-K12:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    dateFormat DD/MM/YYYY\n    section S\n    A :a1, 01/01/2024, 2d\n",
+      "note": "date written in the diagram's dateFormat (DD/MM/YYYY); naive writes US order"
+    },
+    {
+      "id": "GTE-K12:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    dateFormat DD/MM/YYYY\n    section S\n    A :a1, 01/01/2024, 2d\n    B :b1, 03/01/2024, 1d\n",
+      "note": "addTask: date written in the diagram's dateFormat (DD/MM/YYYY); naive writes US order"
+    },
+    {
+      "id": "GTE-K13:before",
+      "group": "scenarioBefore",
+      "source": "gantt\r\n    title Release plan\r\n    dateFormat YYYY-MM-DD\r\n    section Design\r\n    Spec :done, des1, 2024-01-01, 3d\r\n    Review :active, des2, after des1, 2d\r\n    section Build\r\n    Code :crit, b1, after des2, 5d\r\n    Test :b2, after b1, 3d\r\n    Release :milestone, m1, after b2, 0d\r\n",
+      "note": "CRLF document: use CRLF"
+    },
+    {
+      "id": "GTE-K13:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\r\n    title Release plan\r\n    dateFormat YYYY-MM-DD\r\n    section Design\r\n    Spec :done, des1, 2024-01-01, 3d\r\n    Review :active, des2, after des1, 2d\r\n    section Build\r\n    Code :crit, b1, after des2, 5d\r\n    Test :b2, after b1, 3d\r\n    Release :milestone, m1, after b2, 0d\r\n    Docs :d1, after des2, 1d\n",
+      "note": "addTask: CRLF document: use CRLF"
+    },
+    {
+      "id": "GTE-K14:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d",
+      "note": "no final newline"
+    },
+    {
+      "id": "GTE-K14:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d    Docs :d1, after des2, 1d\n",
+      "note": "addTask: no final newline"
+    },
+    {
+      "id": "GTE-K15:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "copy with a fresh id; naive copies the id (re-points dependents)"
+    },
+    {
+      "id": "GTE-K15:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "duplicateTask: copy with a fresh id; naive copies the id (re-points dependents)"
+    },
+    {
+      "id": "GTE-K20:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "name span before ' :'"
+    },
+    {
+      "id": "GTE-K20:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Code review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "renameTask: name span before ' :'"
+    },
+    {
+      "id": "GTE-K21:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "rewrite every 'after des1' reference; naive changes only the definition"
+    },
+    {
+      "id": "GTE-K21:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, design1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "setTaskId: rewrite every 'after des1' reference; naive changes only the definition"
+    },
+    {
+      "id": "GTE-K22:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    First :2024-01-01, 2d\n    Second :3d\n    Third :2d\n    section B\n    Other :o1, 2024-02-01, 5d\n    click o1 href \"https://example.com\"\n",
+      "note": "new id is also used by 'click' lines"
+    },
+    {
+      "id": "GTE-K22:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    First :2024-01-01, 2d\n    Second :3d\n    Third :2d\n    section B\n    Other :o2, 2024-02-01, 5d\n    click o1 href \"https://example.com\"\n",
+      "note": "setTaskId: new id is also used by 'click' lines"
+    },
+    {
+      "id": "GTE-K23:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section S\n    A :a1, 2024-01-04, 4d\n",
+      "note": "new id equal to a tag word is eaten as a tag"
+    },
+    {
+      "id": "GTE-K23:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section S\n    A :crit, 2024-01-04, 4d\n",
+      "note": "setTaskId: new id equal to a tag word is eaten as a tag"
+    },
+    {
+      "id": "GTE-K24:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "non-ASCII id cannot be used after 'after' (regex [\\d\\w- ]) -> render error"
+    },
+    {
+      "id": "GTE-K24:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, 設計1, 2024-01-01, 3d\n    Review :active, des2, after 設計1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "setTaskId: non-ASCII id cannot be used after 'after' (regex [\\d\\w- ]) -> render error"
+    },
+    {
+      "id": "GTE-K25:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    A :2024-01-01, 2d\n    B :after task1, 2d\n",
+      "note": "auto-id task (no explicit id) referenced as 'after task1' -> structural edits refused"
+    },
+    {
+      "id": "GTE-K25:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    A :a1, 2024-01-01, 2d\n    B :after task1, 2d\n",
+      "note": "setTaskId: auto-id task (no explicit id) referenced as 'after task1' -> structural edits refused"
+    },
+    {
+      "id": "GTE-K30:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "no dependents (last task)"
+    },
+    {
+      "id": "GTE-K30:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n",
+      "note": "deleteTask: no dependents (last task)"
+    },
+    {
+      "id": "GTE-K31:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "explicit dependent: freeze 'after des1' into the resolved date; naive leaves a dangling reference (today's date)"
+    },
+    {
+      "id": "GTE-K31:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "deleteTask: explicit dependent: freeze 'after des1' into the resolved date; naive leaves a dangling reference (today's date)"
+    },
+    {
+      "id": "GTE-K32:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    First :2024-01-01, 2d\n    Second :3d\n    Third :2d\n    section B\n    Other :o1, 2024-02-01, 5d\n    click o1 href \"https://example.com\"\n",
+      "note": "predecessor of an implicit task: successor silently re-chains to the previous one"
+    },
+    {
+      "id": "GTE-K32:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    First :2024-01-01, 2d\n    Third :2d\n    section B\n    Other :o1, 2024-02-01, 5d\n    click o1 href \"https://example.com\"\n",
+      "note": "deleteTask: predecessor of an implicit task: successor silently re-chains to the previous one"
+    },
+    {
+      "id": "GTE-K33:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    First :2024-01-01, 2d\n    Second :3d\n",
+      "note": "first task with an implicit successor: successor becomes first -> render error"
+    },
+    {
+      "id": "GTE-K33:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    Second :3d\n",
+      "note": "deleteTask: first task with an implicit successor: successor becomes first -> render error"
+    },
+    {
+      "id": "GTE-K34:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    First :2024-01-01, 2d\n    Second :3d\n    Third :2d\n    section B\n    Other :o1, 2024-02-01, 5d\n    click o1 href \"https://example.com\"\n",
+      "note": "deleting an auto-id task renumbers the later auto ids (taskN); fine unless referenced"
+    },
+    {
+      "id": "GTE-K34:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    Second :3d\n    Third :2d\n    section B\n    Other :o1, 2024-02-01, 5d\n    click o1 href \"https://example.com\"\n",
+      "note": "deleteTask: deleting an auto-id task renumbers the later auto ids (taskN); fine unless referenced"
+    },
+    {
+      "id": "GTE-K35:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    First :2024-01-01, 2d\n    Second :3d\n    Third :2d\n    section B\n    Other :o1, 2024-02-01, 5d\n    click o1 href \"https://example.com\"\n",
+      "note": "with a click line: remove the link line as well (otherwise a later task reusing the id inherits the link)"
+    },
+    {
+      "id": "GTE-K35:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    First :2024-01-01, 2d\n    Second :3d\n    Third :2d\n    section B\n    click o1 href \"https://example.com\"\n",
+      "note": "deleteTask: with a click line: remove the link line as well (otherwise a later task reusing the id inherits the link)"
+    },
+    {
+      "id": "GTE-K36:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section S\n    A :a1, 2024-01-10, 2d\n    B :b1, 2024-01-01, until a1\n",
+      "note": "'until' reference: freeze the end"
+    },
+    {
+      "id": "GTE-K36:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section S\n    B :b1, 2024-01-01, until a1\n",
+      "note": "deleteTask: 'until' reference: freeze the end"
+    },
+    {
+      "id": "GTE-K40:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "absolute start of the head task: dependents shift"
+    },
+    {
+      "id": "GTE-K40:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-08, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "setStart(date): absolute start of the head task: dependents shift"
+    },
+    {
+      "id": "GTE-K41:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "replace 'after des2' with 'after des1'"
+    },
+    {
+      "id": "GTE-K41:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des1, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "setStart(after): replace 'after des2' with 'after des1'"
+    },
+    {
+      "id": "GTE-K42:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    First :2024-01-01, 2d\n    Second :3d\n    Third :2d\n    section B\n    Other :o1, 2024-02-01, 5d\n    click o1 href \"https://example.com\"\n",
+      "note": "implicit task (':3d'): becomes 'start, duration'; naive replaces the duration by the date"
+    },
+    {
+      "id": "GTE-K42:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    First :2024-01-01, 2d\n    Second :2024-01-05\n    Third :2d\n    section B\n    Other :o1, 2024-02-01, 5d\n    click o1 href \"https://example.com\"\n",
+      "note": "setStart(date): implicit task (':3d'): becomes 'start, duration'; naive replaces the duration by the date"
+    },
+    {
+      "id": "GTE-K43:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :done, 3d\n    Release :milestone, m1, after b1, 0d\n",
+      "note": "tagged implicit task (':done, 3d'): the start goes AFTER the tags"
+    },
+    {
+      "id": "GTE-K43:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :2024-02-01, done, 3d\n    Release :milestone, m1, after b1, 0d\n",
+      "note": "setStart(date): tagged implicit task (':done, 3d'): the start goes AFTER the tags"
+    },
+    {
+      "id": "GTE-K44:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "5d for Spec: dependents shift"
+    },
+    {
+      "id": "GTE-K44:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 5d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "setDuration: 5d for Spec: dependents shift"
+    },
+    {
+      "id": "GTE-K45:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "invalid duration text ('5 days') silently becomes zero length -> refuse; only ^\\d+(\\.\\d+)?(ms|[Mdhmswy])$"
+    },
+    {
+      "id": "GTE-K45:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 5 days\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "setDuration: invalid duration text ('5 days') silently becomes zero length -> refuse; only ^\\d+(\\.\\d+)?(ms|[Mdhmswy])$"
+    },
+    {
+      "id": "GTE-K46:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "end date instead of a duration"
+    },
+    {
+      "id": "GTE-K46:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 2024-01-05\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "setEnd(date): end date instead of a duration"
+    },
+    {
+      "id": "GTE-K47:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "calendar-invalid end date (02-30): silently zero length -> validate the calendar date"
+    },
+    {
+      "id": "GTE-K47:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 2024-02-30\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "setEnd(date): calendar-invalid end date (02-30): silently zero length -> validate the calendar date"
+    },
+    {
+      "id": "GTE-K48:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "month 13: mermaid.parse passes, rendering throws (Step 9-1 'invalid date' failure) -> render gate + validation"
+    },
+    {
+      "id": "GTE-K48:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-13-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "setStart(date): month 13: mermaid.parse passes, rendering throws (Step 9-1 'invalid date' failure) -> render gate + validation"
+    },
+    {
+      "id": "GTE-K49:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "02-30 rolls over to 03-01 in V8 (other engines: invalid) -> refuse"
+    },
+    {
+      "id": "GTE-K49:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-02-30, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "setStart(date): 02-30 rolls over to 03-01 in V8 (other engines: invalid) -> refuse"
+    },
+    {
+      "id": "GTE-K50:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "tags go first in the data; naive appends a 4th field (render error)"
+    },
+    {
+      "id": "GTE-K50:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d, done\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "setStatus(+done): tags go first in the data; naive appends a 4th field (render error)"
+    },
+    {
+      "id": "GTE-K51:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "remove 'done' with its separator; naive leaves an empty first field"
+    },
+    {
+      "id": "GTE-K51:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "setStatus(-done): remove 'done' with its separator; naive leaves an empty first field"
+    },
+    {
+      "id": "GTE-K52:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "toggle milestone on a task"
+    },
+    {
+      "id": "GTE-K52:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :milestone, b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "setStatus(milestone): toggle milestone on a task"
+    },
+    {
+      "id": "GTE-K53:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section S\n    A :a1, 2024-01-01, 2d %% c\n",
+      "note": "task line with a trailing '%% c': text after the duration makes it invalid (zero length) -> reader marks the line opaque, refuse"
+    },
+    {
+      "id": "GTE-K53:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section S\n    A :a1, 2024-01-01, 5d %% c\n",
+      "note": "setDuration: task line with a trailing '%% c': text after the duration makes it invalid (zero length) -> reader marks the line opaque, refuse"
+    },
+    {
+      "id": "GTE-K54:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section S\n    A :a1, 2024-01-01, 2d; B :b1, 2024-01-02, 2d\n",
+      "note": "two tasks on one line ('; B :b1,...') is read by mermaid as one odd task -> opaque, refuse"
+    },
+    {
+      "id": "GTE-K54:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section S\n    A :a1, 2024-01-01, 3d; B :b1, 2024-01-02, 2d\n",
+      "note": "editTask: two tasks on one line ('; B :b1,...') is read by mermaid as one odd task -> opaque, refuse"
+    },
+    {
+      "id": "GTE-K60:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    a1 :a1, 2024-01-01, 2d\n    a2 :a2, 2024-01-03, 2d\n    section B\n    b1 :b1, 2024-02-01, 2d\n",
+      "note": "swap two tasks that both have explicit starts (only source order changes)"
+    },
+    {
+      "id": "GTE-K60:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    a2 :a2, 2024-01-03, 2d\n    a1 :a1, 2024-01-01, 2d\n    section B\n    b1 :b1, 2024-02-01, 2d\n",
+      "note": "moveTask: swap two tasks that both have explicit starts (only source order changes)"
+    },
+    {
+      "id": "GTE-K61:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    First :2024-01-01, 2d\n    Second :3d\n    Third :2d\n    section B\n    Other :o1, 2024-02-01, 5d\n    click o1 href \"https://example.com\"\n",
+      "note": "tasks with implicit starts: the position IS the dependency -> refuse"
+    },
+    {
+      "id": "GTE-K61:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    First :2024-01-01, 2d\n    Third :2d\n    Second :3d\n    section B\n    Other :o1, 2024-02-01, 5d\n    click o1 href \"https://example.com\"\n",
+      "note": "moveTask: tasks with implicit starts: the position IS the dependency -> refuse"
+    },
+    {
+      "id": "GTE-K62:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "cut/paste the line at the end of the target section (not at EOF)"
+    },
+    {
+      "id": "GTE-K62:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n    Spec :done, des1, 2024-01-01, 3d\n",
+      "note": "moveTaskToSection: cut/paste the line at the end of the target section (not at EOF)"
+    },
+    {
+      "id": "GTE-C01:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "click before the task is ignored by mermaid: insert AFTER the task line"
+    },
+    {
+      "id": "GTE-C01:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    click b1 href \"https://example.com\"\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "addLink: click before the task is ignored by mermaid: insert AFTER the task line"
+    },
+    {
+      "id": "GTE-C02:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "url containing a double quote cannot be written -> refuse"
+    },
+    {
+      "id": "GTE-C02:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    title Release plan\n    dateFormat YYYY-MM-DD\n    section Design\n    Spec :done, des1, 2024-01-01, 3d\n    Review :active, des2, after des1, 2d\n    section Build\n    Code :crit, b1, after des2, 5d\n    click b1 href \"https://example.com/a\"b\"\n    Test :b2, after b1, 3d\n    Release :milestone, m1, after b2, 0d\n",
+      "note": "addLink: url containing a double quote cannot be written -> refuse"
+    },
+    {
+      "id": "GTE-C03:before",
+      "group": "scenarioBefore",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    First :2024-01-01, 2d\n    Second :3d\n    Third :2d\n    section B\n    Other :o1, 2024-02-01, 5d\n    click o1,zz href \"https://example.com\"\n",
+      "note": "'click a,b' lines: remove only the id from the list"
+    },
+    {
+      "id": "GTE-C03:naive",
+      "group": "scenarioNaive",
+      "source": "gantt\n    dateFormat YYYY-MM-DD\n    section A\n    First :2024-01-01, 2d\n    Second :3d\n    Third :2d\n    section B\n    Other :o1, 2024-02-01, 5d\n",
+      "note": "removeLink: 'click a,b' lines: remove only the id from the list"
+    }
+  ]
+}
