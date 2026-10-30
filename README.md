@@ -7,10 +7,10 @@ A document is a set of sheets; each sheet holds freely placed blocks of **Markdo
 diagrams** and **images**. Everything is stored as ordinary files and folders, so the same project
 can be read and edited by people, reviewed with Git, and changed safely by AI tools.
 
-![A design document with Markdown and a Mermaid flowchart on the canvas](docs/images/overview-dark.png)
+![A design document with Markdown and a Mermaid flowchart on the canvas](assets/screenshots/overview-dark.png)
 
 > **Status**: pre-release, developed and tested on Linux (WSL2 + WSLg). Windows and macOS builds
-> have not been verified yet. See [`docs/development-state.md`](docs/development-state.md).
+> have not been verified yet.
 
 ## Features
 
@@ -34,19 +34,23 @@ can be read and edited by people, reviewed with Git, and changed safely by AI to
   compare.
 - **AI / MCP** — `design-dawn-mcp`, a local MCP server (stdio only, read-only by default) that lets
   AI clients such as Claude Code read and edit documents, sheets and blocks.
-- **Light / dark theme** and **English / Japanese** UI.
+- **Load issue repair and format migration** — inconsistencies found when a project is opened
+  (missing or unlisted items, duplicate IDs, orphan files, leftovers of an interrupted save) can be
+  repaired from the notification panel; files written by older versions are read and upgraded on
+  the next save.
+- **Light / dark theme** and **English / Japanese** UI, with a compact File / View menu bar.
 
 | Flowchart GUI editor | Sequence diagram GUI editor |
 |---|---|
-| ![Flowchart editor with node list and property panel](docs/images/flowchart-gui.png) | ![Sequence diagram editor with participants and messages](docs/images/sequence-gui.png) |
+| ![Flowchart editor with node list and property panel](assets/screenshots/flowchart-gui.png) | ![Sequence diagram editor with participants and messages](assets/screenshots/sequence-gui.png) |
 
 | Markdown editing | Git diff |
 |---|---|
-| ![Markdown block in split source/preview mode](docs/images/markdown-edit.png) | ![Side-by-side Git diff of a Markdown block](docs/images/git-diff.png) |
+| ![Markdown block in split source/preview mode](assets/screenshots/markdown-edit.png) | ![Side-by-side Git diff of a Markdown block](assets/screenshots/git-diff.png) |
 
 | Gantt and pie charts | Light theme |
 |---|---|
-| ![Gantt chart and pie chart on a sheet](docs/images/plan.png) | ![The overview sheet in the light theme](docs/images/light-theme.png) |
+| ![Gantt chart and pie chart on a sheet](assets/screenshots/plan.png) | ![The overview sheet in the light theme](assets/screenshots/light-theme.png) |
 
 ## How a project is stored
 
@@ -67,8 +71,8 @@ my-project/
 ```
 
 Layout lives in small JSON files and content lives in `.md` / `.mmd` files, so diffs stay readable
-and a human or an AI can change one block without touching the rest. The full format is in
-[`docs/file-format.md`](docs/file-format.md).
+and a human or an AI can change one block without touching the rest. Every JSON file carries a
+`schemaVersion`; IDs are stable UUIDs, and display names are independent of folder names.
 
 ## Building and running
 
@@ -92,8 +96,12 @@ docker compose exec dev npm run build    # frontend production build
 docker compose exec dev npm run tauri build -- --bundles deb   # Linux package
 ```
 
-Details, including WSLg notes and known limitations, are in
-[`docs/environment.md`](docs/environment.md).
+Notes:
+
+- `node_modules` and the Rust build output live on Docker named volumes, not in the source tree.
+- The window is shown through WSLg X11 (`GDK_BACKEND=x11` in `compose.yaml`).
+- If the repository is bind-mounted from a Windows drive, set `DAWN_WATCH_POLLING=true`, because
+  file change events may not arrive there.
 
 ## Using it with AI (MCP)
 
@@ -102,13 +110,29 @@ docker compose exec dev cargo build --release --manifest-path src-tauri/Cargo.to
 claude mcp add design-dawn -- /path/to/design-dawn-mcp --project /path/to/my-project
 ```
 
-The server is read-only unless started with `--allow-write`. It cannot delete documents or sheets,
-run commands, use Git or open network connections. See [`docs/mcp.md`](docs/mcp.md).
+The server speaks MCP over stdin/stdout only and works whether or not the app is running.
 
-## Documentation
+- **Read tools**: `getProject`, `getDocument`, `getSheet`, `getBlock`.
+- **Write tools** (only with `--allow-write`): `createDocument`, `createSheet`, `createBlock`
+  (Markdown or Mermaid), `updateDocument`, `updateSheet`, `updateBlock`, `moveBlock`, `deleteBlock`.
+- To change a block's text, read it with `getBlock` and pass its `contentHash` as
+  `expectedContentHash`; if the text changed in the meantime the call returns `conflict`.
+- It cannot delete documents, sheets or projects, import files from disk, run commands, use Git or
+  open network connections. If the app has the project open, it picks the changes up as external
+  changes.
 
-Design and rules live in [`docs/`](docs/README.md): requirements, architecture, data model, file
-format, UI design, security, testing and the roadmap.
+Claude Desktop (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "design-dawn": {
+      "command": "/path/to/design-dawn-mcp",
+      "args": ["--project", "/path/to/my-project"]
+    }
+  }
+}
+```
 
 ## License
 

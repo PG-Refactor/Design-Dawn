@@ -34,9 +34,10 @@ logs/
 !.env.example
 
 # ---- Claude Code: personal/local settings only (shared settings stay tracked) ----
-.claude/settings.local.json
-# Git worktrees for parallel work (Claude Code creates them here)
-.claude/worktrees/
+/.claude/
+
+# ---- Local design notes (working documents, not published) ----
+/docs/
 
 # ---- IDE ----
 .vscode/*

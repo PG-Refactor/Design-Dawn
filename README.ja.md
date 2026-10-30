@@ -6,10 +6,9 @@ Design Dawn は、無限キャンバスの上で設計ドキュメントを書�
 ドキュメントは複数のシートからなり、各シートに **Markdown**・**Mermaid の図**・**画像** のブロックを自由に配置できます。
 すべてが通常のファイルとフォルダとして保存されるため、人が読み書きでき、Git でレビューでき、AI ツールも安全に変更できます。
 
-![Markdown と Mermaid のフローチャートを置いた設計ドキュメント](docs/images/overview-dark.png)
+![Markdown と Mermaid のフローチャートを置いた設計ドキュメント](assets/screenshots/overview-dark.png)
 
 > **状態**: 公開前の開発版です。Linux（WSL2 + WSLg）で開発・確認しています。Windows・macOS 向けのビルドはまだ確認していません。
-> 現在の状況は [`docs/development-state.md`](docs/development-state.md) を参照してください。
 
 ## 機能
 
@@ -22,19 +21,20 @@ Design Dawn は、無限キャンバスの上で設計ドキュメントを書�
 - **Git 連携** — 状態・ステージ / 解除・コミット・履歴・タブで開く左右比較の差分・変更の破棄・フェッチ / プル / プッシュ・ブランチ表示。
 - **外部変更の検知** — 他のエディタ・Git・AI ツールによる変更を検知します。未保存の変更が無い Document は自動で読み直し、ある場合は「読み直す / 今の内容を維持 / 比較」から選べます。
 - **AI / MCP** — `design-dawn-mcp`：Claude Code などの AI クライアントが Document・Sheet・Block を読み書きできるローカルの MCP サーバー（標準入出力のみ、既定は読み取り専用）。
-- **ライト / ダークのテーマ**、**英語 / 日本語** の表示。
+- **読み込み時の問題の修復と形式の移行** — Project を開いたときに見つかった不整合（一覧に無い / 存在しない項目、ID の重複、使われていないファイル、中断した保存の残り）を通知パネルから修復できます。古い版で書かれたファイルは読み込み時に変換し、次の保存で新しい形式になります。
+- **ライト / ダークのテーマ**、**英語 / 日本語** の表示。上部は「ファイル / 表示」のメニューバーにまとめています。
 
 | フローチャートの GUI 編集 | シーケンス図の GUI 編集 |
 |---|---|
-| ![ノード一覧とプロパティ欄のあるフローチャートの編集](docs/images/flowchart-gui.png) | ![参加者とメッセージの一覧があるシーケンス図の編集](docs/images/sequence-gui.png) |
+| ![ノード一覧とプロパティ欄のあるフローチャートの編集](assets/screenshots/flowchart-gui.png) | ![参加者とメッセージの一覧があるシーケンス図の編集](assets/screenshots/sequence-gui.png) |
 
 | Markdown の編集 | Git の差分 |
 |---|---|
-| ![ソースとプレビューの分割表示](docs/images/markdown-edit.png) | ![Markdown ブロックの左右比較の差分](docs/images/git-diff.png) |
+| ![ソースとプレビューの分割表示](assets/screenshots/markdown-edit.png) | ![Markdown ブロックの左右比較の差分](assets/screenshots/git-diff.png) |
 
 | ガントチャートと円グラフ | ライトテーマ |
 |---|---|
-| ![シート上のガントチャートと円グラフ](docs/images/plan.png) | ![ライトテーマの概要シート](docs/images/light-theme.png) |
+| ![シート上のガントチャートと円グラフ](assets/screenshots/plan.png) | ![ライトテーマの概要シート](assets/screenshots/light-theme.png) |
 
 ## Project の保存形式
 
@@ -55,7 +55,7 @@ my-project/
 ```
 
 配置は小さな JSON に、内容は `.md` / `.mmd` に分けて保存するため、差分が読みやすく、人や AI が他の部分に触れずに1つの Block だけを変更できます。
-形式の詳細は [`docs/file-format.md`](docs/file-format.md) にあります。
+すべての JSON ファイルは `schemaVersion` を持ち、ID は変わらない UUID、表示名はフォルダ名と独立しています。
 
 ## ビルドと実行
 
@@ -78,7 +78,11 @@ docker compose exec dev npm run build    # フロントエンドの本番ビル�
 docker compose exec dev npm run tauri build -- --bundles deb   # Linux のパッケージ
 ```
 
-WSLg の注意点や既知の制限を含む詳細は [`docs/environment.md`](docs/environment.md) を参照してください。
+注意:
+
+- `node_modules` と Rust のビルド出力は Docker の名前付きボリュームに置き、ソースツリーには入れません。
+- ウィンドウは WSLg の X11 で表示します（`compose.yaml` の `GDK_BACKEND=x11`）。
+- リポジトリを Windows のドライブからマウントしている場合は、ファイル変更の通知が届かないことがあるため `DAWN_WATCH_POLLING=true` を設定してください。
 
 ## AI（MCP）から使う
 
@@ -87,11 +91,25 @@ docker compose exec dev cargo build --release --manifest-path src-tauri/Cargo.to
 claude mcp add design-dawn -- /path/to/design-dawn-mcp --project /path/to/my-project
 ```
 
-`--allow-write` を付けて起動しない限り読み取り専用です。Document・Sheet の削除、コマンドの実行、Git の操作、ネットワーク接続はできません。詳細は [`docs/mcp.md`](docs/mcp.md)。
+標準入出力だけで MCP を話し、アプリが起動していなくても使えます。
 
-## ドキュメント
+- **読み取り**: `getProject`、`getDocument`、`getSheet`、`getBlock`。
+- **書き込み**（`--allow-write` のときだけ）: `createDocument`、`createSheet`、`createBlock`（Markdown / Mermaid）、`updateDocument`、`updateSheet`、`updateBlock`、`moveBlock`、`deleteBlock`。
+- Block の本文を変えるときは、`getBlock` で読んだ `contentHash` を `expectedContentHash` として渡します。その間に本文が変わっていれば `conflict` が返ります。
+- Document・Sheet・Project の削除、ディスク上のファイルの取り込み、コマンドの実行、Git の操作、ネットワーク接続はできません。アプリがその Project を開いていれば、変更は外部変更として取り込まれます。
 
-要件・アーキテクチャ・データモデル・ファイル形式・UI 設計・セキュリティ・テスト・ロードマップは [`docs/`](docs/README.md) にあります（日本語）。
+Claude Desktop（`claude_desktop_config.json`）:
+
+```json
+{
+  "mcpServers": {
+    "design-dawn": {
+      "command": "/path/to/design-dawn-mcp",
+      "args": ["--project", "/path/to/my-project"]
+    }
+  }
+}
+```
 
 ## ライセンス
 
