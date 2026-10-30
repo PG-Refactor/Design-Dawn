@@ -2,6 +2,7 @@
 //! of the UI, so a future MCP server can call them directly (docs/architecture.md §5).
 
 pub mod asset_import;
+pub mod authoring;
 pub mod block_content_operations;
 pub mod document_operations;
 pub mod dropped_files;

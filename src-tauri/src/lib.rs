@@ -3,6 +3,7 @@ pub mod commands;
 pub mod config;
 pub mod domain;
 pub mod infrastructure;
+pub mod mcp;
 
 use std::ffi::OsString;
 use std::path::PathBuf;
