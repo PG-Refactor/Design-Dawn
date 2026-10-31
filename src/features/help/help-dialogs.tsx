@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import appIconUrl from "../../../src-tauri/icons/128x128@2x.png";
 import { APP_CONFIG } from "../../config/app-config";
 import { Modal } from "../workspace/modal";
 import { useMessages } from "../workspace/use-messages";
@@ -34,9 +35,13 @@ function AboutDialog({
       onCancel={onClose}
       initialFocusRef={closeRef}
     >
-      <h2 id={titleId} className="modal__title">
-        {APP_CONFIG.displayName}
-      </h2>
+      <div className="help-about__header">
+        {/* The same image as the installed application icon; decorative next to the name. */}
+        <img className="help-about__icon" src={appIconUrl} alt="" />
+        <h2 id={titleId} className="modal__title help-about__title">
+          {APP_CONFIG.displayName}
+        </h2>
+      </div>
       <div className="modal__body">
         <p id={descriptionId}>{texts.description}</p>
         <dl className="help-about__facts">
@@ -46,7 +51,7 @@ function AboutDialog({
           <dd>{APP_CONFIG.licenseName}</dd>
         </dl>
       </div>
-      <div className="modal__actions">
+      <div className="modal__actions help-about__actions">
         <button
           type="button"
           className="button"
