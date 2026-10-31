@@ -32,6 +32,10 @@ import {
   type LayoutSettingsController,
 } from "../application/settings/layout-settings-controller";
 import {
+  createTextSizeController,
+  type TextSizeController,
+} from "../application/settings/text-size-controller";
+import {
   type ApplicationStore,
   createApplicationStore,
 } from "../application/state/application-state";
@@ -112,6 +116,8 @@ export interface AppServices {
   readonly autoSaveController: AutoSaveController;
   // The Project Tree width app setting (the splitter between the tree and the documents).
   readonly layoutSettingsController: LayoutSettingsController;
+  // The UI text size app setting.
+  readonly textSizeController: TextSizeController;
   // The open Project's Git state (runtime only; refreshed when a Project is installed).
   // No UI shows it yet.
   readonly gitController: GitController;
@@ -220,6 +226,9 @@ export function createAppServices(): AppServices {
         : globalThis.navigator,
     ),
   });
+  const textSizeController = createTextSizeController({
+    gateway: settingsGateway,
+  });
   return {
     applicationStore,
     uiStateStore,
@@ -236,6 +245,7 @@ export function createAppServices(): AppServices {
     languageController,
     autoSaveController,
     layoutSettingsController,
+    textSizeController,
     gitController,
     projectWriteSignal,
     gitRefreshScheduler: createTimeoutScheduler(),

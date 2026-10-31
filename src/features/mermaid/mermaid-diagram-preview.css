@@ -59,13 +59,13 @@
 .mermaid-preview__error-label {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 0.85rem;
+  font-size: calc(0.85 * var(--content-rem));
 }
 
 .mermaid-preview__error-detail {
   margin: 0;
   font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-  font-size: 0.85rem;
+  font-size: calc(0.85 * var(--content-rem));
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
@@ -73,5 +73,5 @@
 .mermaid-preview__hint {
   margin: var(--space-1) 0 0;
   color: var(--color-text-muted);
-  font-size: 0.85rem;
+  font-size: calc(0.85 * var(--content-rem));
 }

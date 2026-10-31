@@ -7,6 +7,12 @@
   --space-4: 1.5rem;
   --radius-medium: 6px;
   --focus-ring-width: 2px;
+  /* One rem of the Document content. Outside the canvas it is the UI's rem (it follows the
+     text size setting); the canvas pins it to the content rem below (see canvas.css). */
+  --content-rem: 1rem;
+  /* The size block content is laid out with. Blocks have a fixed size in the Document, so
+     their text must look the same whatever text size a viewer chose for the UI. */
+  --canvas-content-rem: 16px;
   --font-family-base:
     system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
 }

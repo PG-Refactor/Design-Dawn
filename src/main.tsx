@@ -18,6 +18,7 @@ const {
   languageController,
   autoSaveController,
   layoutSettingsController,
+  textSizeController,
 } = services;
 
 void startApp({
@@ -25,8 +26,10 @@ void startApp({
   languageController,
   autoSaveController,
   layoutSettingsController,
+  textSizeController,
   themeTarget: document.documentElement,
   languageTarget: document.documentElement,
+  textSizeTarget: document.documentElement,
   render: () =>
     createRoot(rootElement).render(
       <StrictMode>

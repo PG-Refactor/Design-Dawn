@@ -28,6 +28,7 @@ export const COMMANDS = {
   getAppSettings: "get_app_settings",
   setThemePreference: "set_theme_preference",
   setLanguagePreference: "set_language_preference",
+  setTextSize: "set_text_size",
   setAutoSave: "set_auto_save",
   setProjectTreeWidth: "set_project_tree_width",
   getSheetViewport: "get_sheet_viewport",

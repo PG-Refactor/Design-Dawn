@@ -29,6 +29,7 @@
     "allow-get-app-settings",
     "allow-set-theme-preference",
     "allow-set-language-preference",
+    "allow-set-text-size",
     "allow-set-auto-save",
     "allow-set-project-tree-width",
     "allow-get-sheet-viewport",

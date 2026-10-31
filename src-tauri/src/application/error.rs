@@ -47,6 +47,8 @@ pub enum ErrorKind {
     InvalidThemePreference,
     /// A language preference that is not `system`, `en` or `ja`.
     InvalidLanguagePreference,
+    /// A UI text size that is not one of the defined sizes.
+    InvalidTextSize,
     /// `delete_folder` on a folder that holds anything besides `folder.json` and temp files.
     FolderNotEmpty,
     /// `move_entry` that is not allowed: into itself or a descendant, or an entry that is
@@ -130,6 +132,7 @@ impl ErrorKind {
             Self::AssetTooLarge => "assetTooLarge",
             Self::InvalidThemePreference => "invalidThemePreference",
             Self::InvalidLanguagePreference => "invalidLanguagePreference",
+            Self::InvalidTextSize => "invalidTextSize",
             Self::FolderNotEmpty => "folderNotEmpty",
             Self::InvalidMove => "invalidMove",
             Self::InvalidViewport => "invalidViewport",
@@ -180,6 +183,7 @@ impl ErrorKind {
             Self::AssetTooLarge => "the image file is too large",
             Self::InvalidThemePreference => "the theme preference is not valid",
             Self::InvalidLanguagePreference => "the language preference is not valid",
+            Self::InvalidTextSize => "the text size is not valid",
             Self::FolderNotEmpty => "the folder is not empty",
             Self::InvalidMove => "the item cannot be moved there",
             Self::InvalidViewport => "the viewport is not valid",
@@ -288,7 +292,7 @@ impl Serialize for ApplicationError {
 mod tests {
     use super::*;
 
-    const ALL_KINDS: [ErrorKind; 56] = [
+    const ALL_KINDS: [ErrorKind; 57] = [
         ErrorKind::Domain(DomainErrorKind::InvalidEntityId),
         ErrorKind::Domain(DomainErrorKind::InvalidDisplayName),
         ErrorKind::Domain(DomainErrorKind::InvalidPosition),
@@ -316,6 +320,7 @@ mod tests {
         ErrorKind::AssetTooLarge,
         ErrorKind::InvalidThemePreference,
         ErrorKind::InvalidLanguagePreference,
+        ErrorKind::InvalidTextSize,
         ErrorKind::FolderNotEmpty,
         ErrorKind::InvalidMove,
         ErrorKind::InvalidViewport,

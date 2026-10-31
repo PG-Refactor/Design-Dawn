@@ -2,12 +2,17 @@ import { describe, expect, it } from "vitest";
 import { createLanguageController } from "../application/language/language-controller";
 import { createAutoSaveController } from "../application/settings/auto-save-controller";
 import { createLayoutSettingsController } from "../application/settings/layout-settings-controller";
+import { createTextSizeController } from "../application/settings/text-size-controller";
 import {
   createFakeAppSettingsGateway,
   createFakeOsThemeSource,
   FAKE_SETTINGS_ERROR,
 } from "../application/test-support/fake-theme";
 import { createThemeController } from "../application/theme/theme-controller";
+import {
+  DEFAULT_TEXT_SIZE,
+  TEXT_SIZE_ROOT_PX,
+} from "../config/text-size-config";
 import { startApp } from "./start-app";
 
 function setup(osTheme: "light" | "dark") {
@@ -160,5 +165,29 @@ describe("startApp", () => {
     expect(languageTarget.lang).toBe("ja");
     await languageController.setPreference("en");
     expect(languageTarget.lang).toBe("en");
+  });
+
+  it("renders with the stored text size and follows later changes", async () => {
+    const { gateway, themeController, themeTarget } = setup("light");
+    gateway.storage.textSize = "large";
+    const textSizeController = createTextSizeController({ gateway });
+    const textSizeTarget = { style: { fontSize: "" } };
+    const sizeAtRender: string[] = [];
+    const started = startApp({
+      themeController,
+      textSizeController,
+      themeTarget,
+      textSizeTarget,
+      render: () => sizeAtRender.push(textSizeTarget.style.fontSize),
+      reportError: () => {},
+    });
+    // The default applies before the stored size is known.
+    expect(textSizeTarget.style.fontSize).toBe(
+      `${TEXT_SIZE_ROOT_PX[DEFAULT_TEXT_SIZE]}px`,
+    );
+    await started;
+    expect(sizeAtRender).toEqual([`${TEXT_SIZE_ROOT_PX.large}px`]);
+    await textSizeController.setSize("small");
+    expect(textSizeTarget.style.fontSize).toBe(`${TEXT_SIZE_ROOT_PX.small}px`);
   });
 });

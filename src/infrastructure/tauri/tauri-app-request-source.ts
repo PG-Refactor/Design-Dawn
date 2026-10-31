@@ -1,5 +1,6 @@
 import { Channel } from "@tauri-apps/api/core";
 import { parseLanguagePreference } from "../../application/local-state/language";
+import { parseTextSize } from "../../application/local-state/text-size";
 import { parseThemePreference } from "../../application/local-state/theme";
 import type {
   AppRequestSource,
@@ -35,22 +36,25 @@ function toOpenDocumentRequest(message: unknown): OpenDocumentRequest | null {
 
 function toSettingsChange(message: unknown): SettingsChange | null {
   if (typeof message !== "object" || message === null) return null;
-  const { kind, themePreference, languagePreference, autoSave } =
+  const { kind, themePreference, languagePreference, textSize, autoSave } =
     message as Record<string, unknown>;
   if (
     kind !== SETTINGS_CHANGED_KIND ||
     typeof themePreference !== "string" ||
     typeof languagePreference !== "string" ||
+    typeof textSize !== "string" ||
     typeof autoSave !== "boolean"
   ) {
     return null;
   }
   const theme = parseThemePreference(themePreference);
   const language = parseLanguagePreference(languagePreference);
-  return theme.ok && language.ok
+  const size = parseTextSize(textSize);
+  return theme.ok && language.ok && size.ok
     ? {
         themePreference: theme.value,
         languagePreference: language.value,
+        textSize: size.value,
         autoSave,
       }
     : null;

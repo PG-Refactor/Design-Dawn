@@ -29,8 +29,10 @@
   border-radius: var(--radius-medium);
 }
 
+/* A zero basis lets a long name wrap inside the label instead of pushing the (hidden) menu
+   button onto a line of its own, which made the row twice as tall at large text sizes. */
 .tree-item__label {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-width: 0;
   overflow-wrap: anywhere;
 }

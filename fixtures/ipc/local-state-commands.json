@@ -18,6 +18,7 @@
             "ok": {
               "themePreference": "system",
               "languagePreference": "system",
+              "textSize": "medium",
               "autoSave": true,
               "projectTreeWidth": 320,
               "loadIssue": null
@@ -36,6 +37,7 @@
             "ok": {
               "themePreference": "dark",
               "languagePreference": "system",
+              "textSize": "medium",
               "autoSave": true,
               "projectTreeWidth": 320,
               "loadIssue": null
@@ -52,6 +54,7 @@
             "ok": {
               "themePreference": "dark",
               "languagePreference": "system",
+              "textSize": "medium",
               "autoSave": true,
               "projectTreeWidth": 320,
               "loadIssue": null
@@ -70,6 +73,7 @@
             "ok": {
               "themePreference": "dark",
               "languagePreference": "system",
+              "textSize": "medium",
               "autoSave": false,
               "projectTreeWidth": 320,
               "loadIssue": null
@@ -86,6 +90,7 @@
             "ok": {
               "themePreference": "dark",
               "languagePreference": "system",
+              "textSize": "medium",
               "autoSave": false,
               "projectTreeWidth": 320,
               "loadIssue": null
@@ -104,6 +109,7 @@
             "ok": {
               "themePreference": "light",
               "languagePreference": "system",
+              "textSize": "medium",
               "autoSave": false,
               "projectTreeWidth": 320,
               "loadIssue": null
@@ -122,6 +128,7 @@
             "ok": {
               "themePreference": "light",
               "languagePreference": "system",
+              "textSize": "medium",
               "autoSave": true,
               "projectTreeWidth": 320,
               "loadIssue": null
@@ -140,6 +147,7 @@
             "ok": {
               "themePreference": "light",
               "languagePreference": "system",
+              "textSize": "medium",
               "autoSave": true,
               "projectTreeWidth": 400,
               "loadIssue": null
@@ -156,6 +164,7 @@
             "ok": {
               "themePreference": "light",
               "languagePreference": "system",
+              "textSize": "medium",
               "autoSave": true,
               "projectTreeWidth": 400,
               "loadIssue": null
@@ -306,6 +315,7 @@
             "ok": {
               "themePreference": "light",
               "languagePreference": "system",
+              "textSize": "medium",
               "autoSave": true,
               "projectTreeWidth": 400,
               "loadIssue": null
@@ -452,6 +462,7 @@
             "ok": {
               "themePreference": "system",
               "languagePreference": "ja",
+              "textSize": "medium",
               "autoSave": true,
               "projectTreeWidth": 320,
               "loadIssue": null
@@ -470,6 +481,7 @@
             "ok": {
               "themePreference": "dark",
               "languagePreference": "ja",
+              "textSize": "medium",
               "autoSave": true,
               "projectTreeWidth": 320,
               "loadIssue": null
@@ -486,6 +498,7 @@
             "ok": {
               "themePreference": "dark",
               "languagePreference": "ja",
+              "textSize": "medium",
               "autoSave": true,
               "projectTreeWidth": 320,
               "loadIssue": null
@@ -512,6 +525,76 @@
           "targets": ["rust"],
           "request": {
             "command": "set_language_preference",
+            "args": {}
+          },
+          "expected": {
+            "tauriError": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "text-size",
+      "description": "Round trip, independence from the other settings, and rejection of invalid input.",
+      "cases": [
+        {
+          "name": "set_text_size: large",
+          "request": {
+            "command": "set_text_size",
+            "args": {
+              "textSize": "large"
+            }
+          },
+          "expected": {
+            "ok": {
+              "themePreference": "system",
+              "languagePreference": "system",
+              "textSize": "large",
+              "autoSave": true,
+              "projectTreeWidth": 320,
+              "loadIssue": null
+            }
+          }
+        },
+        {
+          "name": "set_theme_preference: keeps the text size",
+          "request": {
+            "command": "set_theme_preference",
+            "args": {
+              "themePreference": "dark"
+            }
+          },
+          "expected": {
+            "ok": {
+              "themePreference": "dark",
+              "languagePreference": "system",
+              "textSize": "large",
+              "autoSave": true,
+              "projectTreeWidth": 320,
+              "loadIssue": null
+            }
+          }
+        },
+        {
+          "name": "set_text_size: unknown size",
+          "targets": ["rust"],
+          "request": {
+            "command": "set_text_size",
+            "args": {
+              "textSize": "huge"
+            }
+          },
+          "expected": {
+            "error": {
+              "kind": "invalidTextSize"
+            }
+          }
+        },
+        {
+          "name": "set_text_size: missing argument",
+          "targets": ["rust"],
+          "request": {
+            "command": "set_text_size",
             "args": {}
           },
           "expected": {

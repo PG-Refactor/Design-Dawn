@@ -4,6 +4,7 @@
 import type { ThemePreference } from "../../application/local-state/theme";
 import type { Viewport } from "../../application/local-state/viewport";
 import type { LanguagePreference } from "../../config/language-config";
+import type { TextSize } from "../../config/text-size-config";
 import type {
   DocumentId,
   ProjectId,
@@ -41,6 +42,12 @@ export function setLanguagePreference(
     { languagePreference },
     toAppSettingsResult,
   );
+}
+
+export function setTextSize(
+  textSize: TextSize,
+): Promise<CommandResult<AppSettings>> {
+  return call(COMMANDS.setTextSize, { textSize }, toAppSettingsResult);
 }
 
 export function setAutoSave(

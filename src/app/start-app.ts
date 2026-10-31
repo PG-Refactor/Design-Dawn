@@ -6,11 +6,16 @@ import type { LanguageController } from "../application/language/language-contro
 import type { ResolvedTheme } from "../application/local-state/theme";
 import type { AutoSaveController } from "../application/settings/auto-save-controller";
 import type { LayoutSettingsController } from "../application/settings/layout-settings-controller";
+import type { TextSizeController } from "../application/settings/text-size-controller";
 import type { ThemeController } from "../application/theme/theme-controller";
 import {
   applyLanguage,
   type LanguageTarget,
 } from "../features/language/apply-language";
+import {
+  applyTextSize,
+  type TextSizeTarget,
+} from "../features/text-size/apply-text-size";
 import { applyTheme, type ThemeTarget } from "../features/theme/apply-theme";
 
 export interface StartAppDependencies {
@@ -27,9 +32,16 @@ export interface StartAppDependencies {
     LayoutSettingsController,
     "initialize"
   >;
+  // Loaded alongside the theme so the first paint already has the stored text size.
+  readonly textSizeController?: Pick<
+    TextSizeController,
+    "initialize" | "store"
+  >;
   readonly themeTarget: ThemeTarget;
   // Receives `lang`; the static value in index.html is only the fallback until then.
   readonly languageTarget?: LanguageTarget;
+  // Receives the root font size.
+  readonly textSizeTarget?: TextSizeTarget;
   readonly render: () => void;
   readonly reportError: (error: unknown) => void;
 }
@@ -42,8 +54,10 @@ export async function startApp(
     languageController,
     autoSaveController,
     layoutSettingsController,
+    textSizeController,
     themeTarget,
     languageTarget,
+    textSizeTarget,
     render,
     reportError,
   } = dependencies;
@@ -68,12 +82,25 @@ export async function startApp(
     );
   }
 
+  if (textSizeController !== undefined && textSizeTarget !== undefined) {
+    const textSizeStore = textSizeController.store;
+    let appliedSize = textSizeStore.getState().size;
+    applyTextSize(textSizeTarget, appliedSize);
+    textSizeStore.subscribe(() => {
+      const { size } = textSizeStore.getState();
+      if (size === appliedSize) return;
+      appliedSize = size;
+      applyTextSize(textSizeTarget, size);
+    });
+  }
+
   try {
     await Promise.all([
       themeController.initialize(),
       languageController?.initialize(),
       autoSaveController?.initialize(),
       layoutSettingsController?.initialize(),
+      textSizeController?.initialize(),
     ]);
   } catch (error) {
     // The app must still start with the default theme.

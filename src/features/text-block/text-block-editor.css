@@ -34,7 +34,7 @@
   background: var(--color-surface);
   color: var(--color-text);
   font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-  font-size: 0.9rem;
+  font-size: calc(0.9 * var(--content-rem));
   line-height: 1.5;
   resize: none;
   user-select: text;
@@ -99,11 +99,12 @@
 }
 
 /* Below this width the GUI controls go under the preview instead of squeezing beside it.
-   (A container query cannot read a custom property, so the width is written here.) */
-@container text-block-editor (max-width: 36rem) {
+   (A container query cannot read a custom property, so the width is written here; its em
+   is the container's font size, which on the canvas is the pinned content size.) */
+@container text-block-editor (max-width: 36em) {
   .text-block-editor__body {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(8rem, 2fr) minmax(0, 3fr);
+    grid-template-rows: minmax(calc(8 * var(--content-rem)), 2fr) minmax(0, 3fr);
   }
 
   .text-block-editor__body > .text-block-editor__preview {

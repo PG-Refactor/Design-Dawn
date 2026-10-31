@@ -19,13 +19,14 @@ use tauri::ipc::Channel;
 
 use crate::application::external_change::ExternalChanges;
 use crate::application::local_state::language::LanguagePreference;
+use crate::application::local_state::text_size::TextSize;
 use crate::application::local_state::theme::ThemePreference;
 use crate::application::open_routing::{SentOpenRequest, UnacknowledgedRequests};
 use crate::domain::entity_id::ProjectId;
 
 /// What the Frontend receives: `{ "kind": "openDocument", "requestId": string,
 /// "documentId": string }` or `{ "kind": "settingsChanged", "themePreference": string,
-/// "languagePreference": string, "autoSave": boolean }`. Deliberately carries no path.
+/// "languagePreference": string, "textSize": string, "autoSave": boolean }`. Deliberately carries no path.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum AppNotification {
@@ -38,6 +39,7 @@ pub enum AppNotification {
     SettingsChanged {
         theme_preference: ThemePreference,
         language_preference: LanguagePreference,
+        text_size: TextSize,
         auto_save: bool,
     },
     /// Files of the window's Project changed behind the app's back: `{ "kind": "projectFilesChanged", "projectId", "sessionGeneration",
@@ -139,6 +141,7 @@ impl<S: AppNotificationSink> AppRequestHub<S> {
         except_label: &str,
         theme_preference: ThemePreference,
         language_preference: LanguagePreference,
+        text_size: TextSize,
         auto_save: bool,
     ) -> Vec<String> {
         // Cloned so the lock is not held while the messages are sent.
@@ -153,6 +156,7 @@ impl<S: AppNotificationSink> AppRequestHub<S> {
             let notification = AppNotification::SettingsChanged {
                 theme_preference,
                 language_preference,
+                text_size,
                 auto_save,
             };
             match sink.send_notification(notification) {
@@ -261,6 +265,10 @@ mod tests {
         ThemePreference::parse(value).unwrap()
     }
 
+    fn size(value: &str) -> TextSize {
+        TextSize::parse(value).unwrap()
+    }
+
     fn language(value: &str) -> LanguagePreference {
         LanguagePreference::parse(value).unwrap()
     }
@@ -270,6 +278,7 @@ mod tests {
         let value = serde_json::to_value(AppNotification::SettingsChanged {
             theme_preference: theme("dark"),
             language_preference: language("ja"),
+            text_size: size("large"),
             auto_save: false,
         })
         .unwrap();
@@ -279,6 +288,7 @@ mod tests {
                 "kind": "settingsChanged",
                 "themePreference": "dark",
                 "languagePreference": "ja",
+                "textSize": "large",
                 "autoSave": false
             })
         );
@@ -369,14 +379,20 @@ mod tests {
         hub.subscribe("main", caller.clone());
         hub.subscribe("window-1", other.clone());
         hub.subscribe("window-2", third.clone());
-        let mut sent_to =
-            hub.broadcast_settings_changed("main", theme("dark"), language("ja"), false);
+        let mut sent_to = hub.broadcast_settings_changed(
+            "main",
+            theme("dark"),
+            language("ja"),
+            size("large"),
+            false,
+        );
         sent_to.sort();
         assert_eq!(sent_to, vec!["window-1", "window-2"]);
         assert!(received(&caller).is_empty());
         let expected = vec![AppNotification::SettingsChanged {
             theme_preference: theme("dark"),
             language_preference: language("ja"),
+            text_size: size("large"),
             auto_save: false,
         }];
         assert_eq!(received(&other), expected);
@@ -388,7 +404,13 @@ mod tests {
         let hub = AppRequestHub::<FakeSink>::default();
         hub.subscribe("main", FakeSink::default());
         assert!(hub
-            .broadcast_settings_changed("main", theme("light"), language("system"), true)
+            .broadcast_settings_changed(
+                "main",
+                theme("light"),
+                language("system"),
+                size("medium"),
+                true
+            )
             .is_empty());
         let late = FakeSink::default();
         hub.subscribe("window-1", late.clone());
@@ -408,7 +430,13 @@ mod tests {
             },
         );
         hub.subscribe("window-2", healthy.clone());
-        let sent_to = hub.broadcast_settings_changed("main", theme("system"), language("en"), true);
+        let sent_to = hub.broadcast_settings_changed(
+            "main",
+            theme("system"),
+            language("en"),
+            size("small"),
+            true,
+        );
         assert_eq!(sent_to, vec!["window-2"]);
         assert_eq!(received(&healthy).len(), 1);
     }
@@ -418,7 +446,13 @@ mod tests {
         let hub = AppRequestHub::<FakeSink>::default();
         hub.subscribe("window-1", FakeSink::default());
         hub.send_open_document("window-1", sent("r1"));
-        hub.broadcast_settings_changed("main", theme("dark"), language("system"), true);
+        hub.broadcast_settings_changed(
+            "main",
+            theme("dark"),
+            language("system"),
+            size("xlarge"),
+            true,
+        );
         assert_eq!(hub.discard_window("window-1"), vec![sent("r1")]);
     }
 

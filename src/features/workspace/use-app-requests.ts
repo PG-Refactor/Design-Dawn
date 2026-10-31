@@ -15,6 +15,7 @@ export function useAppRequests(closeStatus: WindowCloseStatus): void {
     appRequestSource,
     themeController,
     languageController,
+    textSizeController,
     autoSaveController,
   } = useWorkspaceServices();
   const latest = useRef({ actions });
@@ -40,6 +41,7 @@ export function useAppRequests(closeStatus: WindowCloseStatus): void {
           themeController.applyExternal(preference),
         applyLanguagePreference: (preference) =>
           languageController.applyExternal(preference),
+        applyTextSize: (size) => textSizeController.applyExternal(size),
         applyAutoSave: (enabled) => autoSaveController.applyExternal(enabled),
       }),
     );
@@ -54,6 +56,7 @@ export function useAppRequests(closeStatus: WindowCloseStatus): void {
     closeStatus,
     themeController,
     languageController,
+    textSizeController,
     autoSaveController,
   ]);
 }

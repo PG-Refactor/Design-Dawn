@@ -27,6 +27,14 @@
   width: 0;
   height: 0;
   transform-origin: 0 0;
+  /* Block content keeps one size for every viewer (the canvas zoom is the way to enlarge
+     it); the UI text size setting only changes the root rem, which is re-pinned here. */
+  --content-rem: var(--canvas-content-rem);
+  --space-1: calc(0.25 * var(--content-rem));
+  --space-2: calc(0.5 * var(--content-rem));
+  --space-3: calc(1 * var(--content-rem));
+  --space-4: calc(1.5 * var(--content-rem));
+  font-size: var(--content-rem);
 }
 
 /* Holding Space arms panning; the grab cursor must win over the block / handle cursors. */

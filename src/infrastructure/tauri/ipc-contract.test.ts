@@ -10,6 +10,7 @@ import domainErrorSource from "../../../src-tauri/src/domain/error.rs?raw";
 import persistenceErrorSource from "../../../src-tauri/src/infrastructure/error.rs?raw";
 import { parseLanguagePreference } from "../../application/local-state/language";
 import { LOCAL_STATE_ERROR_KINDS } from "../../application/local-state/local-state-result";
+import { parseTextSize } from "../../application/local-state/text-size";
 import {
   parseThemePreference,
   type ThemePreference,
@@ -19,6 +20,7 @@ import {
   type RawViewport,
 } from "../../application/local-state/viewport";
 import type { LanguagePreference } from "../../config/language-config";
+import type { TextSize } from "../../config/text-size-config";
 import { parseBlockType } from "../../domain/block/block-type";
 import { parseContentPath } from "../../domain/block/content-path";
 import { parseFolder, type RawFolder } from "../../domain/folder/folder";
@@ -51,6 +53,7 @@ import {
   setAutoSave,
   setLanguagePreference,
   setProjectTreeWidth,
+  setTextSize,
   setThemePreference,
 } from "./local-state-client";
 import {
@@ -156,6 +159,12 @@ function unwrapLanguage(
 ): LanguagePreference {
   if (!result.ok)
     throw new Error(`invalid language in fixture: ${result.error.kind}`);
+  return result.value;
+}
+
+function unwrapTextSize(result: ReturnType<typeof parseTextSize>): TextSize {
+  if (!result.ok)
+    throw new Error(`invalid text size in fixture: ${result.error.kind}`);
   return result.value;
 }
 
@@ -270,6 +279,8 @@ const WRAPPERS: Readonly<Record<string, Wrapper>> = {
         parseLanguagePreference(args.languagePreference as string),
       ),
     ),
+  set_text_size: (args) =>
+    setTextSize(unwrapTextSize(parseTextSize(args.textSize as string))),
   set_auto_save: (args) => setAutoSave(args.enabled as boolean),
   set_project_tree_width: (args) => setProjectTreeWidth(args.width as number),
   get_sheet_viewport: (args) =>
