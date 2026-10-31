@@ -1,3 +1,29 @@
+.help-about__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+}
+
+.help-about__icon {
+  width: 4rem;
+  height: 4rem;
+  flex: none;
+}
+
+.help-about__title {
+  margin: 0;
+}
+
+/* Labels stay on one line; the buttons wrap as a whole when the dialog is narrow. */
+.help-about__actions {
+  flex-wrap: wrap;
+}
+
+.help-about__actions .button {
+  white-space: nowrap;
+}
+
 .help-about__facts {
   display: grid;
   grid-template-columns: max-content 1fr;
