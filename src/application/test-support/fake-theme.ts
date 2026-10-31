@@ -2,6 +2,10 @@
 
 import type { LanguagePreference } from "../../config/language-config";
 import { LAYOUT_CONFIG } from "../../config/layout-config";
+import {
+  DEFAULT_TEXT_SIZE,
+  type TextSize,
+} from "../../config/text-size-config";
 import type { ResolvedTheme, ThemePreference } from "../local-state/theme";
 import type {
   AppSettingsGateway,
@@ -17,6 +21,7 @@ import type { OsThemeSource } from "../ports/os-theme-source";
 export interface FakeAppSettingsStorage {
   themePreference: ThemePreference;
   languagePreference: LanguagePreference;
+  textSize: TextSize;
   autoSave: boolean;
   projectTreeWidth: number;
   loadIssue: OperationError | null;
@@ -30,11 +35,13 @@ export interface FakeAppSettingsGateway extends AppSettingsGateway {
   failSet: OperationError | null;
   // Preferences passed to `setLanguagePreference`, in call order.
   readonly languageCalls: LanguagePreference[];
+  // Sizes passed to `setTextSize`, in call order.
+  readonly textSizeCalls: TextSize[];
   // Values passed to `setAutoSave`, in call order.
   readonly autoSaveCalls: boolean[];
   // Values passed to `setProjectTreeWidth`, in call order.
   readonly projectTreeWidthCalls: number[];
-  // Suspends the next set (theme, language, auto-save or width) until the returned function is called.
+  // Suspends the next set (theme, language, text size, auto-save or width) until the returned function is called.
   holdNextSet(): () => void;
 }
 
@@ -47,6 +54,7 @@ export function createFakeAppSettingsGateway(
   storage: FakeAppSettingsStorage = {
     themePreference: "system",
     languagePreference: "system",
+    textSize: DEFAULT_TEXT_SIZE,
     autoSave: true,
     projectTreeWidth: LAYOUT_CONFIG.projectTree.defaultWidthPx,
     loadIssue: null,
@@ -56,6 +64,7 @@ export function createFakeAppSettingsGateway(
   const snapshot = (): AppSettingsSnapshot => ({
     themePreference: storage.themePreference,
     languagePreference: storage.languagePreference,
+    textSize: storage.textSize,
     autoSave: storage.autoSave,
     projectTreeWidth: storage.projectTreeWidth,
     loadIssue: storage.loadIssue,
@@ -76,6 +85,7 @@ export function createFakeAppSettingsGateway(
     storage,
     setCalls: [],
     languageCalls: [],
+    textSizeCalls: [],
     autoSaveCalls: [],
     projectTreeWidthCalls: [],
     failGet: null,
@@ -99,6 +109,14 @@ export function createFakeAppSettingsGateway(
       const failure = await settleSet();
       if (failure !== null) return failure;
       storage.languagePreference = preference;
+      storage.loadIssue = null;
+      return operationOk(snapshot());
+    },
+    async setTextSize(size) {
+      gateway.textSizeCalls.push(size);
+      const failure = await settleSet();
+      if (failure !== null) return failure;
+      storage.textSize = size;
       storage.loadIssue = null;
       return operationOk(snapshot());
     },

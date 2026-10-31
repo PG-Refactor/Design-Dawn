@@ -4,6 +4,7 @@ import {
   setAutoSave,
   setLanguagePreference,
   setProjectTreeWidth,
+  setTextSize,
   setThemePreference,
 } from "./local-state-client";
 
@@ -13,6 +14,7 @@ export function createTauriAppSettingsGateway(): AppSettingsGateway {
     getAppSettings,
     setThemePreference,
     setLanguagePreference,
+    setTextSize,
     setAutoSave,
     setProjectTreeWidth,
   };

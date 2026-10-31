@@ -15,6 +15,7 @@ import {
   setAutoSave,
   setLanguagePreference,
   setProjectTreeWidth,
+  setTextSize,
   setThemePreference,
 } from "./local-state-client";
 
@@ -39,6 +40,7 @@ describe("getAppSettings", () => {
     invokeMock.mockResolvedValueOnce({
       themePreference: "dark",
       languagePreference: "system",
+      textSize: "medium",
       autoSave: false,
       projectTreeWidth: 400,
       loadIssue: null,
@@ -48,6 +50,7 @@ describe("getAppSettings", () => {
       value: {
         themePreference: "dark",
         languagePreference: "system",
+        textSize: "medium",
         autoSave: false,
         projectTreeWidth: 400,
         loadIssue: null,
@@ -62,6 +65,7 @@ describe("getAppSettings", () => {
     invokeMock.mockResolvedValueOnce({
       themePreference: "system",
       languagePreference: "system",
+      textSize: "medium",
       autoSave: true,
       projectTreeWidth: 320,
       loadIssue: ISSUE,
@@ -71,6 +75,7 @@ describe("getAppSettings", () => {
       value: {
         themePreference: "system",
         languagePreference: "system",
+        textSize: "medium",
         autoSave: true,
         projectTreeWidth: 320,
         loadIssue: ISSUE,
@@ -82,6 +87,7 @@ describe("getAppSettings", () => {
     const valid = {
       themePreference: "system",
       languagePreference: "system",
+      textSize: "medium",
       autoSave: true,
       projectTreeWidth: 320,
       loadIssue: null,
@@ -95,6 +101,8 @@ describe("getAppSettings", () => {
       { ...valid, themePreference: 1 },
       { ...valid, languagePreference: "fr" },
       { ...valid, languagePreference: undefined },
+      { ...valid, textSize: "huge" },
+      { ...valid, textSize: undefined },
       { ...valid, projectTreeWidth: undefined },
       { ...valid, projectTreeWidth: "320" },
       { ...valid, projectTreeWidth: 159 },
@@ -115,6 +123,7 @@ describe("setThemePreference", () => {
     invokeMock.mockResolvedValueOnce({
       themePreference: "light",
       languagePreference: "system",
+      textSize: "medium",
       autoSave: true,
       projectTreeWidth: 320,
       loadIssue: null,
@@ -143,6 +152,7 @@ describe("setLanguagePreference", () => {
     invokeMock.mockResolvedValueOnce({
       themePreference: "system",
       languagePreference: "ja",
+      textSize: "medium",
       autoSave: true,
       projectTreeWidth: 320,
       loadIssue: null,
@@ -217,11 +227,38 @@ describe("saveSheetViewport", () => {
   });
 });
 
+describe("setTextSize", () => {
+  it("sends the size and decodes the settings", async () => {
+    invokeMock.mockResolvedValueOnce({
+      themePreference: "system",
+      languagePreference: "system",
+      textSize: "xlarge",
+      autoSave: true,
+      projectTreeWidth: 320,
+      loadIssue: null,
+    });
+    const result = await setTextSize("xlarge");
+    expect(result.ok && result.value.textSize).toBe("xlarge");
+    expect(invokeMock.mock.calls).toStrictEqual([
+      [COMMANDS.setTextSize, { textSize: "xlarge" }],
+    ]);
+  });
+
+  it("returns Rust errors as they are", async () => {
+    invokeMock.mockRejectedValueOnce({ kind: "invalidTextSize", detail: "d" });
+    expect(await setTextSize("large")).toStrictEqual({
+      ok: false,
+      error: { kind: "invalidTextSize", detail: "d" },
+    });
+  });
+});
+
 describe("setAutoSave", () => {
   it("sends the flag and decodes the settings", async () => {
     invokeMock.mockResolvedValueOnce({
       themePreference: "dark",
       languagePreference: "system",
+      textSize: "medium",
       autoSave: false,
       projectTreeWidth: 320,
       loadIssue: null,
@@ -247,6 +284,7 @@ describe("setProjectTreeWidth", () => {
     invokeMock.mockResolvedValueOnce({
       themePreference: "dark",
       languagePreference: "system",
+      textSize: "medium",
       autoSave: true,
       projectTreeWidth: 480,
       loadIssue: null,

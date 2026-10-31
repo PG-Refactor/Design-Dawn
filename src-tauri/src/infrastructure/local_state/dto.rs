@@ -16,6 +16,9 @@ pub struct SettingsFileDto {
     /// Absent in schema versions 1 to 4 (read as `system`).
     #[serde(default)]
     pub language_preference: Option<String>,
+    /// Absent in schema versions 1 to 5 (read as the default size).
+    #[serde(default)]
+    pub text_size: Option<String>,
     /// Absent in schema version 1.
     #[serde(default)]
     pub auto_save: Option<bool>,

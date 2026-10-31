@@ -5,6 +5,7 @@
 import { parseLanguagePreference } from "../../application/local-state/language";
 import type { LocalStateResult } from "../../application/local-state/local-state-result";
 import { parseProjectTreeWidth } from "../../application/local-state/project-tree-width";
+import { parseTextSize } from "../../application/local-state/text-size";
 import {
   parseThemePreference,
   type ThemePreference,
@@ -15,6 +16,7 @@ import {
   type Viewport,
 } from "../../application/local-state/viewport";
 import type { LanguagePreference } from "../../config/language-config";
+import type { TextSize } from "../../config/text-size-config";
 import {
   type CommandResult,
   commandErr,
@@ -51,6 +53,7 @@ const decodeLoadIssue = objectOf<LocalStateLoadIssue>({
 interface RawAppSettings {
   readonly themePreference: string;
   readonly languagePreference: string;
+  readonly textSize: string;
   readonly autoSave: boolean;
   readonly projectTreeWidth: number;
   readonly loadIssue: LocalStateLoadIssue | null;
@@ -63,6 +66,7 @@ interface RawSheetViewportState {
 const rawAppSettings = objectOf<RawAppSettings>({
   themePreference: decodeString,
   languagePreference: decodeString,
+  textSize: decodeString,
   autoSave: decodeBoolean,
   projectTreeWidth: decodeNumber,
   loadIssue: nullable(decodeLoadIssue),
@@ -111,6 +115,10 @@ export function toAppSettingsResult(
     parseLanguagePreference(raw.value.languagePreference),
   );
   if (!languagePreference.ok) return languagePreference;
+  const textSize: CommandResult<TextSize> = asResponseValue(
+    parseTextSize(raw.value.textSize),
+  );
+  if (!textSize.ok) return textSize;
   const projectTreeWidth: CommandResult<number> = asResponseValue(
     parseProjectTreeWidth(raw.value.projectTreeWidth),
   );
@@ -118,6 +126,7 @@ export function toAppSettingsResult(
   return commandOk({
     themePreference: themePreference.value,
     languagePreference: languagePreference.value,
+    textSize: textSize.value,
     autoSave: raw.value.autoSave,
     projectTreeWidth: projectTreeWidth.value,
     loadIssue: raw.value.loadIssue,

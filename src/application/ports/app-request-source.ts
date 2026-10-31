@@ -4,6 +4,7 @@
 // when the window goes away first.
 
 import type { LanguagePreference } from "../../config/language-config";
+import type { TextSize } from "../../config/text-size-config";
 import type { DocumentId, ProjectId } from "../../domain/shared/entity-id";
 import type { ThemePreference } from "../local-state/theme";
 import type { OperationResult } from "./operation-error";
@@ -15,10 +16,11 @@ export interface OpenDocumentRequest {
   readonly documentId: DocumentId;
 }
 
-// The theme, language and auto-save values after another window changed them. The Project Tree width is per window and is never sent.
+// The theme, language, text size and auto-save values after another window changed them. The Project Tree width is per window and is never sent.
 export interface SettingsChange {
   readonly themePreference: ThemePreference;
   readonly languagePreference: LanguagePreference;
+  readonly textSize: TextSize;
   readonly autoSave: boolean;
 }
 

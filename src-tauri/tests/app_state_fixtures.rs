@@ -5,6 +5,7 @@
 use design_dawn_lib::application::error::ApplicationError;
 use design_dawn_lib::application::local_state::language::LanguagePreference;
 use design_dawn_lib::application::local_state::operations::parse_viewport_payload;
+use design_dawn_lib::application::local_state::text_size::TextSize;
 use design_dawn_lib::application::local_state::theme::ThemePreference;
 use serde_json::Value;
 
@@ -26,8 +27,9 @@ macro_rules! fixture {
     };
 }
 
-const FIXTURE_FILES: [(&str, &str); 3] = [
+const FIXTURE_FILES: [(&str, &str); 4] = [
     fixture!("language-preference.json"),
+    fixture!("text-size.json"),
     fixture!("theme-preference.json"),
     fixture!("viewport.json"),
 ];
@@ -40,6 +42,10 @@ fn run_subject(subject: &str, input: &Value) -> Verdict {
         "themePreference" => {
             let text = input.as_str().ok_or("input is not a string")?;
             Ok(ThemePreference::parse(text).map(|_| ()))
+        }
+        "textSize" => {
+            let text = input.as_str().ok_or("input is not a string")?;
+            Ok(TextSize::parse(text).map(|_| ()))
         }
         "languagePreference" => {
             let text = input.as_str().ok_or("input is not a string")?;

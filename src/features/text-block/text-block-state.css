@@ -21,7 +21,7 @@
 .text-block__details {
   margin: 0;
   overflow-wrap: anywhere;
-  font-size: 0.8rem;
+  font-size: calc(0.8 * var(--content-rem));
 }
 
 .text-block__details dd {

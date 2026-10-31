@@ -11,6 +11,7 @@ import {
   type LanguagePreference,
   SYSTEM_LANGUAGE_PREFERENCE,
 } from "../../config/language-config";
+import { TEXT_SIZES, type TextSize } from "../../config/text-size-config";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { type HelpDialogKind, HelpDialogs } from "../help/help-dialogs";
 import { MenuBar } from "../menu-bar/menu-bar";
@@ -40,6 +41,22 @@ function themeLabel(
   }
 }
 
+function textSizeLabel(
+  topBar: WorkspaceMessages["topBar"],
+  size: TextSize,
+): string {
+  switch (size) {
+    case "small":
+      return topBar.textSizeSmall;
+    case "medium":
+      return topBar.textSizeMedium;
+    case "large":
+      return topBar.textSizeLarge;
+    case "xlarge":
+      return topBar.textSizeXLarge;
+  }
+}
+
 // Only "System" is translated; a language is named in itself so that it can be found
 // without reading the current language.
 function languageLabel(
@@ -58,8 +75,13 @@ const selectProjectName = (application: ApplicationState) =>
 export function TopBar() {
   const messages = useMessages().workspace;
   const topBar = messages.topBar;
-  const { actions, themeController, languageController, autoSaveController } =
-    useWorkspaceServices();
+  const {
+    actions,
+    themeController,
+    languageController,
+    textSizeController,
+    autoSaveController,
+  } = useWorkspaceServices();
   const projectName = useWorkspaceModel(selectProjectName);
   const busy = useUiState(selectBusy);
   const themePreference = useStoreSelector(
@@ -76,6 +98,14 @@ export function TopBar() {
   );
   const languageLoading = useStoreSelector(
     languageController.store,
+    (state) => state.status === "loading",
+  );
+  const textSize = useStoreSelector(
+    textSizeController.store,
+    (state) => state.size,
+  );
+  const textSizeLoading = useStoreSelector(
+    textSizeController.store,
     (state) => state.status === "loading",
   );
   const autoSaveEnabled = useStoreSelector(
@@ -169,6 +199,24 @@ export function TopBar() {
               if (next !== undefined) void themeController.setPreference(next);
             },
           },
+          { kind: "separator", id: "separator-text-size" },
+          {
+            kind: "radioGroup",
+            id: "textSize",
+            label: topBar.textSizeLegend,
+            value: textSize,
+            disabled: textSizeLoading,
+            options: TEXT_SIZES.map((size) => ({
+              value: size,
+              label: textSizeLabel(topBar, size),
+            })),
+            // A failed save is recorded in the controller state and shown as a
+            // notification.
+            onSelect: (value) => {
+              const next = TEXT_SIZES.find((item) => item === value);
+              if (next !== undefined) void textSizeController.setSize(next);
+            },
+          },
           { kind: "separator", id: "separator-language" },
           {
             kind: "radioGroup",
@@ -226,6 +274,9 @@ export function TopBar() {
       languageController,
       languagePreference,
       languageLoading,
+      textSizeController,
+      textSize,
+      textSizeLoading,
       autoSaveController,
       autoSaveEnabled,
       autoSaveLoading,

@@ -138,11 +138,13 @@ describe("settingsChanged", () => {
       kind: "settingsChanged",
       themePreference: "dark",
       languagePreference: "ja",
+      textSize: "medium",
       autoSave: false,
     });
     expect(settingsListener).toHaveBeenCalledWith({
       themePreference: "dark",
       languagePreference: "ja",
+      textSize: "medium",
       autoSave: false,
     });
     expect(openListener).not.toHaveBeenCalled();
@@ -156,11 +158,14 @@ describe("settingsChanged", () => {
       kind: "settingsChanged",
       themePreference: "dark",
       languagePreference: "ja",
+      textSize: "medium",
       autoSave: true,
     };
     send({ ...valid, themePreference: "sepia" });
     send({ ...valid, languagePreference: "fr" });
     send({ ...valid, languagePreference: undefined });
+    send({ ...valid, textSize: "huge" });
+    send({ ...valid, textSize: undefined });
     send({ ...valid, autoSave: "yes" });
     send({ ...valid, themePreference: undefined });
     send({ ...valid, kind: "somethingElse" });
@@ -179,6 +184,7 @@ describe("settingsChanged", () => {
       kind: "settingsChanged",
       themePreference: "light",
       languagePreference: "system",
+      textSize: "medium",
       autoSave: true,
     });
     expect(settingsListener).not.toHaveBeenCalled();

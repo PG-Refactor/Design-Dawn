@@ -1,0 +1,36 @@
+{
+  "fixtureVersion": 1,
+  "subject": "textSize",
+  "description": "UI text size accepts exactly small, medium, large and xlarge (case-sensitive).",
+  "cases": [
+    { "name": "small", "input": "small", "expected": { "result": "accept" } },
+    { "name": "medium", "input": "medium", "expected": { "result": "accept" } },
+    { "name": "large", "input": "large", "expected": { "result": "accept" } },
+    { "name": "xlarge", "input": "xlarge", "expected": { "result": "accept" } },
+    {
+      "name": "capitalized",
+      "input": "Large",
+      "expected": { "result": "reject", "errorKind": "invalidTextSize" }
+    },
+    {
+      "name": "surrounding space",
+      "input": " medium",
+      "expected": { "result": "reject", "errorKind": "invalidTextSize" }
+    },
+    {
+      "name": "unknown size",
+      "input": "huge",
+      "expected": { "result": "reject", "errorKind": "invalidTextSize" }
+    },
+    {
+      "name": "system is not a size",
+      "input": "system",
+      "expected": { "result": "reject", "errorKind": "invalidTextSize" }
+    },
+    {
+      "name": "empty",
+      "input": "",
+      "expected": { "result": "reject", "errorKind": "invalidTextSize" }
+    }
+  ]
+}

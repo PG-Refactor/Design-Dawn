@@ -15,6 +15,11 @@ pub const LANGUAGE_SYSTEM: &str = "system";
 pub const LANGUAGE_IDS: [&str; 2] = ["en", "ja"];
 pub const DEFAULT_LANGUAGE_PREFERENCE: &str = LANGUAGE_SYSTEM;
 
+/// Text size of the application's own UI (not of the Document content). Mirrors
+/// `TEXT_SIZES` in `src/config/text-size-config.ts`, which also maps each id to a size.
+pub const TEXT_SIZE_IDS: [&str; 4] = ["small", "medium", "large", "xlarge"];
+pub const DEFAULT_TEXT_SIZE: &str = "medium";
+
 /// Mirrors `DEFAULT_AUTO_SAVE_ENABLED` in `src/config/app-config.ts` (or wherever TS keeps it).
 pub const DEFAULT_AUTO_SAVE: bool = true;
 

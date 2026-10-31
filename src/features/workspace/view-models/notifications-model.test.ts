@@ -112,6 +112,7 @@ describe("selectNotifications", () => {
       operationErrors,
       theme: { loadIssue: IO_ERROR, saveError: IO_ERROR },
       language: { saveError: IO_ERROR },
+      textSize: { saveError: IO_ERROR },
     });
     const priorities = model.items.map((item) => item.priority);
     expect(priorities).toEqual([...priorities].sort((a, b) => a - b));
@@ -120,6 +121,7 @@ describe("selectNotifications", () => {
       "operationError",
       "themeSaveError",
       "languageSaveError",
+      "textSizeSaveError",
       "loadFailed",
       "loadFailed",
       "loadIssue",

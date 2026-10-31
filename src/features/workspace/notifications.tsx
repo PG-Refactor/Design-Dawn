@@ -182,6 +182,7 @@ export function Notifications() {
     applicationStore,
     themeController,
     languageController,
+    textSizeController,
     autoSaveController,
     layoutSettingsController,
     actions,
@@ -192,6 +193,7 @@ export function Notifications() {
   const open = useUiState(selectNotificationsOpen);
   const theme = useStoreSelector(themeController.store, identity);
   const language = useStoreSelector(languageController.store, identity);
+  const textSize = useStoreSelector(textSizeController.store, identity);
   const autoSave = useStoreSelector(autoSaveController.store, identity);
   const layoutSettings = useStoreSelector(
     layoutSettingsController.store,
@@ -207,6 +209,7 @@ export function Notifications() {
         imageLoadFailures,
         theme,
         language,
+        textSize,
         autoSave,
         layoutSettings,
       }),
@@ -217,6 +220,7 @@ export function Notifications() {
       imageLoadFailures,
       theme,
       language,
+      textSize,
       autoSave,
       layoutSettings,
     ],

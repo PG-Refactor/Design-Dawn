@@ -17,6 +17,7 @@ import type {
 } from "../../../application/ports/persistence-types";
 import type { AutoSaveState } from "../../../application/settings/auto-save-controller";
 import type { LayoutSettingsState } from "../../../application/settings/layout-settings-controller";
+import type { TextSizeState } from "../../../application/settings/text-size-controller";
 import type {
   ApplicationState,
   DocumentSessionState,
@@ -42,6 +43,7 @@ export type NotificationKind =
   | "operationError"
   | "themeSaveError"
   | "languageSaveError"
+  | "textSizeSaveError"
   | "autoSaveSaveError"
   | "projectTreeWidthSaveError"
   | "loadFailed"
@@ -61,6 +63,7 @@ export const NOTIFICATION_PRIORITY: Record<NotificationKind, number> = {
   operationError: 0,
   themeSaveError: 0,
   languageSaveError: 0,
+  textSizeSaveError: 0,
   autoSaveSaveError: 0,
   projectTreeWidthSaveError: 0,
   loadFailed: 1,
@@ -77,6 +80,7 @@ const NOTIFICATION_SEVERITY: Record<NotificationKind, NotificationSeverity> = {
   operationError: "error",
   themeSaveError: "error",
   languageSaveError: "error",
+  textSizeSaveError: "error",
   autoSaveSaveError: "error",
   projectTreeWidthSaveError: "error",
   loadFailed: "error",
@@ -172,6 +176,7 @@ export interface NotificationsInput {
   // reported once through `theme.loadIssue`.
   readonly autoSave?: Pick<AutoSaveState, "saveError">;
   readonly language?: Pick<LanguageState, "saveError">;
+  readonly textSize?: Pick<TextSizeState, "saveError">;
   readonly layoutSettings?: Pick<LayoutSettingsState, "saveError">;
 }
 
@@ -650,6 +655,18 @@ function collectAppItems(
         source,
         message: `${messages.notifications.languageSaveError} ${describeErrorKind(messages, languageError.kind)}`,
         details: errorDetails(labels, languageError),
+      }),
+    );
+  }
+  const textSizeError = input.textSize?.saveError ?? null;
+  if (textSizeError !== null) {
+    items.push(
+      makeItem({
+        id: "textSizeSaveError",
+        kind: "textSizeSaveError",
+        source,
+        message: `${messages.notifications.textSizeSaveError} ${describeErrorKind(messages, textSizeError.kind)}`,
+        details: errorDetails(labels, textSizeError),
       }),
     );
   }

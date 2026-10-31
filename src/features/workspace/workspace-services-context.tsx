@@ -11,6 +11,7 @@ import type { Scheduler } from "../../application/ports/scheduler";
 import type { CloseRequestSource } from "../../application/ports/window-close";
 import type { AutoSaveController } from "../../application/settings/auto-save-controller";
 import type { LayoutSettingsController } from "../../application/settings/layout-settings-controller";
+import type { TextSizeController } from "../../application/settings/text-size-controller";
 import type { ApplicationStore } from "../../application/state/application-state";
 import type {
   ThemeController,
@@ -57,6 +58,11 @@ export interface WorkspaceServices {
   readonly autoSaveController: Pick<
     AutoSaveController,
     "store" | "setEnabled" | "applyExternal"
+  >;
+  // `applyExternal` as for the theme; the root font size follows `store` (see `startApp`).
+  readonly textSizeController: Pick<
+    TextSizeController,
+    "store" | "setSize" | "applyExternal"
   >;
   readonly layoutSettingsController: Pick<
     LayoutSettingsController,

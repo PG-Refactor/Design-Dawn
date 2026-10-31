@@ -22,6 +22,10 @@ import {
 import type { LoadIssueRepairController } from "../../../application/load-issue-repair/load-issue-repair-controller";
 import type { LoadIssue } from "../../../application/ports/persistence-types";
 import {
+  createTextSizeController,
+  type TextSizeController,
+} from "../../../application/settings/text-size-controller";
+import {
   type ApplicationStore,
   createApplicationStore,
 } from "../../../application/state/application-state";
@@ -124,6 +128,9 @@ export interface ActionsHarness extends WorkspaceHarness {
   readonly languageController: LanguageController;
   readonly themeController: ThemeController;
   readonly languageGateway: FakeAppSettingsGateway;
+  // Its own settings gateway as well, for the same reason.
+  readonly textSizeController: TextSizeController;
+  readonly textSizeGateway: FakeAppSettingsGateway;
   readonly externalChangeController: ExternalChangeController;
   readonly loadIssueRepairController: LoadIssueRepairController;
   readonly services: WorkspaceServices;
@@ -182,6 +189,10 @@ export function createActionsHarness(
       current: () => options.systemLanguages ?? DEFAULT_TEST_SYSTEM_LANGUAGES,
     },
   });
+  const textSizeGateway = createFakeAppSettingsGateway();
+  const textSizeController = createTextSizeController({
+    gateway: textSizeGateway,
+  });
   const gitGateway = createFakeGitGateway();
   const gitRefreshScheduler = createFakeScheduler();
   const gitController = createGitController({
@@ -218,6 +229,8 @@ export function createActionsHarness(
     languageController,
     themeController,
     languageGateway,
+    textSizeController,
+    textSizeGateway,
     uiStateStore,
     actions,
     canvasActions,
@@ -242,6 +255,7 @@ export function createActionsHarness(
       assetUrlResolver: createFakeAssetUrlResolver(),
       themeController,
       languageController,
+      textSizeController,
       autoSaveController: base.autoSaveController,
       layoutSettingsController: base.layoutSettingsController,
       gitController,

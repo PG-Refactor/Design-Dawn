@@ -60,7 +60,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 58] = [
+pub const COMMAND_NAMES: [&str; 59] = [
     "select_project_folder",
     "create_project",
     "open_project",
@@ -86,6 +86,7 @@ pub const COMMAND_NAMES: [&str; 58] = [
     "get_app_settings",
     "set_theme_preference",
     "set_language_preference",
+    "set_text_size",
     "set_auto_save",
     "set_project_tree_width",
     "get_sheet_viewport",
@@ -775,7 +776,8 @@ pub fn get_app_settings<R: Runtime>(app: AppHandle<R>) -> Result<AppSettings, Ap
     with_local_state(&app, |local_state| Ok(local_state.get_app_settings()))
 }
 
-/// Tells every other window with an app channel about the new theme, language and auto-save values.
+/// Tells every other window with an app channel about the new theme, language, text size and
+/// auto-save values.
 /// The caller already updated itself from the command result. Not sent for the Project Tree
 /// width: that is a per-window state.
 fn broadcast_settings<R: Runtime>(window: &Window<R>, settings: &AppSettings) {
@@ -784,6 +786,7 @@ fn broadcast_settings<R: Runtime>(window: &Window<R>, settings: &AppSettings) {
             window.label(),
             settings.theme_preference,
             settings.language_preference,
+            settings.text_size,
             settings.auto_save,
         );
     }
@@ -808,6 +811,18 @@ pub fn set_language_preference<R: Runtime>(
 ) -> Result<AppSettings, ApplicationError> {
     let settings = with_local_state(window.app_handle(), |local_state| {
         local_state.set_language_preference(&language_preference)
+    })?;
+    broadcast_settings(&window, &settings);
+    Ok(settings)
+}
+
+#[tauri::command]
+pub fn set_text_size<R: Runtime>(
+    window: Window<R>,
+    text_size: String,
+) -> Result<AppSettings, ApplicationError> {
+    let settings = with_local_state(window.app_handle(), |local_state| {
+        local_state.set_text_size(&text_size)
     })?;
     broadcast_settings(&window, &settings);
     Ok(settings)

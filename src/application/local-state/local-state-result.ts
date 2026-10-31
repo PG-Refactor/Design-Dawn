@@ -4,6 +4,7 @@
 export const LOCAL_STATE_ERROR_KINDS = [
   "invalidThemePreference",
   "invalidLanguagePreference",
+  "invalidTextSize",
   "invalidViewport",
   "invalidProjectTreeWidth",
 ] as const;

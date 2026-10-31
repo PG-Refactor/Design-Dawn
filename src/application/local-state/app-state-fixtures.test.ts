@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { parseLanguagePreference } from "./language";
 import type { LocalStateResult } from "./local-state-result";
+import { parseTextSize } from "./text-size";
 import { parseThemePreference } from "./theme";
 import { parseViewport, type RawViewport } from "./viewport";
 
@@ -29,6 +30,7 @@ type SubjectRunner = (input: unknown) => LocalStateResult<unknown>;
 
 const SUBJECT_RUNNERS: Readonly<Record<string, SubjectRunner>> = {
   languagePreference: (input) => parseLanguagePreference(input as string),
+  textSize: (input) => parseTextSize(input as string),
   themePreference: (input) => parseThemePreference(input as string),
   viewport: (input) => parseViewport(input as RawViewport),
 };

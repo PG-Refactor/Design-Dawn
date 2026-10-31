@@ -36,6 +36,7 @@ describe("createAppServices", () => {
     invokeMock.mockResolvedValue({
       themePreference: "dark",
       languagePreference: "ja",
+      textSize: "medium",
       autoSave: true,
       projectTreeWidth: 320,
       loadIssue: null,
@@ -51,6 +52,7 @@ describe("createAppServices", () => {
     invokeMock.mockResolvedValue({
       themePreference: "dark",
       languagePreference: "ja",
+      textSize: "medium",
       autoSave: true,
       projectTreeWidth: 320,
       loadIssue: null,

@@ -190,6 +190,52 @@ describe("View menu", () => {
     expect(checked.map((item) => item.textContent)).toEqual([JA.themeDark]);
   });
 
+  it("offers the text sizes with the stored one checked, and saves the one chosen", async () => {
+    const shell = await renderShell();
+    await act(async () => {
+      await shell.textSizeController.initialize();
+    });
+    const menu = await openMenu(shell.user, JA.viewMenu);
+    const sizes = within(menu).getByRole("group", { name: JA.textSizeLegend });
+    const radios = within(sizes).getAllByRole("menuitemradio");
+    expect(radios.map((item) => item.textContent)).toEqual([
+      JA.textSizeSmall,
+      JA.textSizeMedium,
+      JA.textSizeLarge,
+      JA.textSizeXLarge,
+    ]);
+    expect(
+      radios
+        .filter((item) => item.getAttribute("aria-checked") === "true")
+        .map((item) => item.textContent),
+    ).toEqual([JA.textSizeMedium]);
+    await shell.user.click(
+      within(sizes).getByRole("menuitemradio", { name: JA.textSizeLarge }),
+    );
+    await waitFor(() =>
+      expect(shell.textSizeController.store.getState().size).toBe("large"),
+    );
+    expect(shell.textSizeGateway.textSizeCalls).toEqual(["large"]);
+  });
+
+  it("shows a failed text size save in the notifications", async () => {
+    const shell = await renderShell();
+    await act(async () => {
+      await shell.textSizeController.initialize();
+    });
+    shell.textSizeGateway.failSet = { kind: "ioError", detail: "disk" };
+    await chooseMenuItem(
+      shell.user,
+      JA.viewMenu,
+      JA.textSizeXLarge,
+      "menuitemradio",
+    );
+    expect(
+      await screen.findByRole("button", { name: "エラー 1件" }),
+    ).toBeTruthy();
+    expect(shell.textSizeController.store.getState().size).toBe("medium");
+  });
+
   it("disables the radios until the settings are loaded", async () => {
     const shell = await renderShell();
     const item = await menuItem(

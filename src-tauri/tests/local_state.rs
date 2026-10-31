@@ -8,8 +8,9 @@ use std::path::PathBuf;
 
 use design_dawn_lib::application::error::ErrorKind;
 use design_dawn_lib::application::local_state::constants::{
-    DEFAULT_PROJECT_TREE_WIDTH, LANGUAGE_IDS, LANGUAGE_SYSTEM, MAX_SHEET_VIEWPORT_ENTRIES,
-    PROJECT_TREE_WIDTH_MAX, PROJECT_TREE_WIDTH_MIN, THEME_IDS, THEME_SYSTEM,
+    DEFAULT_PROJECT_TREE_WIDTH, DEFAULT_TEXT_SIZE, LANGUAGE_IDS, LANGUAGE_SYSTEM,
+    MAX_SHEET_VIEWPORT_ENTRIES, PROJECT_TREE_WIDTH_MAX, PROJECT_TREE_WIDTH_MIN, TEXT_SIZE_IDS,
+    THEME_IDS, THEME_SYSTEM,
 };
 use design_dawn_lib::application::local_state::operations::{LocalState, LocalStateDirectories};
 use design_dawn_lib::application::local_state::window_size::WindowSize;
@@ -106,7 +107,7 @@ fn settings_file_has_exactly_the_documented_bytes() {
     fixture.state.set_theme_preference("dark").unwrap();
     assert_eq!(
         fs::read(&fixture.settings_path).unwrap(),
-        b"{\n  \"schemaVersion\": 5,\n  \"themePreference\": \"dark\",\n  \"languagePreference\": \"system\",\n  \"autoSave\": true,\n  \"projectTreeWidth\": 320\n}\n"
+        b"{\n  \"schemaVersion\": 6,\n  \"themePreference\": \"dark\",\n  \"languagePreference\": \"system\",\n  \"textSize\": \"medium\",\n  \"autoSave\": true,\n  \"projectTreeWidth\": 320\n}\n"
     );
 }
 
@@ -164,7 +165,7 @@ fn broken_settings_files_give_defaults_with_a_load_issue_and_a_save_replaces_the
         "invalidThemePreference",
     );
     assert_broken_settings(
-        b"{\"schemaVersion\":6,\"themePreference\":\"dark\",\"autoSave\":true}",
+        b"{\"schemaVersion\":7,\"themePreference\":\"dark\",\"autoSave\":true}",
         "unsupportedSchemaVersion",
     );
     assert_broken_settings(
@@ -187,6 +188,10 @@ fn broken_settings_files_give_defaults_with_a_load_issue_and_a_save_replaces_the
     assert_broken_settings(
         b"{\"schemaVersion\":3,\"themePreference\":\"dark\",\"autoSave\":true,\"projectTreeWidth\":\"wide\"}",
         "invalidFileStructure",
+    );
+    assert_broken_settings(
+        b"{\"schemaVersion\":6,\"themePreference\":\"dark\",\"textSize\":\"huge\"}",
+        "invalidTextSize",
     );
     assert_broken_settings(&[0xFF, 0xFE, 0x41], "invalidEncoding");
 }
@@ -292,8 +297,66 @@ fn a_version_1_settings_file_loads_with_auto_save_on() {
     assert_eq!(settings.load_issue, None);
 }
 
+// ---- text size ----
+
 #[test]
-fn auto_save_round_trips_through_a_version_5_file() {
+fn text_size_defaults_to_the_default_size() {
+    let fixture = fixture();
+    let settings = fixture.state.get_app_settings();
+    assert_eq!(settings.text_size.as_str(), DEFAULT_TEXT_SIZE);
+    assert_eq!(settings.load_issue, None);
+}
+
+#[test]
+fn every_text_size_round_trips_and_keeps_the_other_settings() {
+    for size in TEXT_SIZE_IDS {
+        let fixture = fixture();
+        fixture.state.set_theme_preference("dark").unwrap();
+        fixture.state.set_language_preference("ja").unwrap();
+        let set = fixture.state.set_text_size(size).unwrap();
+        assert_eq!(set.text_size.as_str(), size);
+        let got = fixture.state.get_app_settings();
+        assert_eq!(got.text_size.as_str(), size);
+        assert_eq!(got.theme_preference.as_str(), "dark");
+        assert_eq!(got.language_preference.as_str(), "ja");
+        assert_eq!(got.load_issue, None);
+        assert_eq!(serde_json::to_value(&got).unwrap()["textSize"], size);
+        // Changing another setting keeps the size.
+        fixture.state.set_auto_save(false).unwrap();
+        assert_eq!(fixture.state.get_app_settings().text_size.as_str(), size);
+    }
+}
+
+#[test]
+fn settings_files_before_version_6_load_with_the_default_text_size() {
+    for content in [
+        &b"{\"schemaVersion\":1,\"themePreference\":\"dark\"}"[..],
+        &b"{\"schemaVersion\":5,\"themePreference\":\"dark\",\"languagePreference\":\"ja\",\"autoSave\":true,\"projectTreeWidth\":320}"[..],
+    ] {
+        let fixture = fixture();
+        fs::create_dir_all(fixture.settings_path.parent().unwrap()).unwrap();
+        fs::write(&fixture.settings_path, content).unwrap();
+        let settings = fixture.state.get_app_settings();
+        assert_eq!(settings.text_size.as_str(), DEFAULT_TEXT_SIZE);
+        assert_eq!(settings.theme_preference.as_str(), "dark");
+        assert_eq!(settings.load_issue, None);
+    }
+}
+
+#[test]
+fn an_invalid_text_size_is_rejected_and_the_file_is_unchanged() {
+    let fixture = fixture();
+    fixture.state.set_text_size("large").unwrap();
+    let before = fs::read(&fixture.settings_path).unwrap();
+    for invalid in ["Large", "huge", "", "system", " large"] {
+        let error = fixture.state.set_text_size(invalid).unwrap_err();
+        assert_eq!(error.kind, ErrorKind::InvalidTextSize, "{invalid:?}");
+    }
+    assert_eq!(fs::read(&fixture.settings_path).unwrap(), before);
+}
+
+#[test]
+fn auto_save_round_trips_through_a_version_6_file() {
     let fixture = fixture();
     let set = fixture.state.set_auto_save(false).unwrap();
     assert!(!set.auto_save);
@@ -301,7 +364,7 @@ fn auto_save_round_trips_through_a_version_5_file() {
     assert!(!fixture.state.get_app_settings().auto_save);
     assert_eq!(
         read_json(&fixture.settings_path),
-        json!({ "schemaVersion": 5, "themePreference": "system", "languagePreference": "system", "autoSave": false, "projectTreeWidth": 320 })
+        json!({ "schemaVersion": 6, "themePreference": "system", "languagePreference": "system", "textSize": "medium", "autoSave": false, "projectTreeWidth": 320 })
     );
     assert!(fixture.state.set_auto_save(true).unwrap().auto_save);
     assert!(fixture.state.get_app_settings().auto_save);
@@ -403,7 +466,7 @@ fn setting_auto_save_upgrades_a_version_1_file_and_keeps_its_theme() {
     fixture.state.set_auto_save(false).unwrap();
     assert_eq!(
         read_json(&fixture.settings_path),
-        json!({ "schemaVersion": 5, "themePreference": "dark", "languagePreference": "system", "autoSave": false, "projectTreeWidth": 320 })
+        json!({ "schemaVersion": 6, "themePreference": "dark", "languagePreference": "system", "textSize": "medium", "autoSave": false, "projectTreeWidth": 320 })
     );
 }
 
@@ -467,9 +530,10 @@ fn the_window_size_round_trips_and_is_written_in_the_documented_form() {
     assert_eq!(
         read_json(&fixture.settings_path),
         json!({
-            "schemaVersion": 5,
+            "schemaVersion": 6,
             "themePreference": "system",
             "languagePreference": "system",
+            "textSize": "medium",
             "autoSave": true,
             "projectTreeWidth": 320,
             "windowSize": { "width": 1440, "height": 900, "maximized": true }
