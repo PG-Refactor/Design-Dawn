@@ -18,7 +18,7 @@ const JA = WORKSPACE_MESSAGES.ja.topBar;
 const EN = WORKSPACE_MESSAGES.en.topBar;
 
 describe("top bar as a menu bar", () => {
-  it("is one row with the app name, the File / View menus and the Project name", async () => {
+  it("is one row with the app name, the File / View / Help menus and the Project name", async () => {
     const shell = await renderShell();
     const bar = screen.getByRole("banner");
     const menubar = within(bar).getByRole("menubar", { name: JA.menubarLabel });
@@ -26,7 +26,7 @@ describe("top bar as a menu bar", () => {
       within(menubar)
         .getAllByRole("menuitem")
         .map((item) => item.textContent),
-    ).toEqual([JA.fileMenu, JA.viewMenu]);
+    ).toEqual([JA.fileMenu, JA.viewMenu, JA.helpMenu]);
     expect(within(bar).queryAllByRole("button")).toHaveLength(1);
     expect(within(bar).getByText(JA.noProject)).toBeTruthy();
     await shell.openProjectInUi();
