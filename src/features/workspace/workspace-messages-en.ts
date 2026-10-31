@@ -193,6 +193,21 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     systemOption: "System",
     themeLight: "Light",
     themeDark: "Dark",
+    helpMenu: "Help",
+    about: "About Design Dawn",
+    license: "License",
+    thirdPartyLicenses: "Third-Party Licenses",
+  },
+  help: {
+    versionLabel: "Version",
+    licenseLabel: "License",
+    showLicense: "License Text…",
+    showThirdPartyLicenses: "Third-Party Licenses…",
+    close: "Close",
+    loading: "Loading…",
+    loadFailed: "Could not be loaded",
+    description:
+      "A desktop application for writing design documents on an infinite canvas.",
   },
   notices: {
     regionLabel: "Notices",

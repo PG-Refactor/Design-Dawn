@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   THEME_PREFERENCES,
   type ThemePreference,
@@ -12,6 +12,7 @@ import {
   SYSTEM_LANGUAGE_PREFERENCE,
 } from "../../config/language-config";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
+import { type HelpDialogKind, HelpDialogs } from "../help/help-dialogs";
 import { MenuBar } from "../menu-bar/menu-bar";
 import type { MenuDefinition } from "../menu-bar/menu-bar-types";
 import { Notifications } from "./notifications";
@@ -86,6 +87,7 @@ export function TopBar() {
     (state) => state.status === "loading",
   );
   const hasProject = projectName !== null;
+  const [helpDialog, setHelpDialog] = useState<HelpDialogKind | null>(null);
 
   const menus = useMemo<readonly MenuDefinition[]>(
     () => [
@@ -187,6 +189,31 @@ export function TopBar() {
           },
         ],
       },
+      {
+        id: "help",
+        label: topBar.helpMenu,
+        entries: [
+          {
+            kind: "item",
+            id: "about",
+            label: topBar.about,
+            onSelect: () => setHelpDialog("about"),
+          },
+          { kind: "separator", id: "separator-licenses" },
+          {
+            kind: "item",
+            id: "license",
+            label: topBar.license,
+            onSelect: () => setHelpDialog("license"),
+          },
+          {
+            kind: "item",
+            id: "thirdPartyLicenses",
+            label: topBar.thirdPartyLicenses,
+            onSelect: () => setHelpDialog("thirdPartyLicenses"),
+          },
+        ],
+      },
     ],
     [
       topBar,
@@ -211,6 +238,7 @@ export function TopBar() {
       <MenuBar label={topBar.menubarLabel} menus={menus} />
       <p className="top-bar__project">{projectName ?? topBar.noProject}</p>
       <Notifications />
+      <HelpDialogs dialog={helpDialog} onChange={setHelpDialog} />
     </header>
   );
 }

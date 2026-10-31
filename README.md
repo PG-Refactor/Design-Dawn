@@ -38,7 +38,7 @@ can be read and edited by people, reviewed with Git, and changed safely by AI to
   (missing or unlisted items, duplicate IDs, orphan files, leftovers of an interrupted save) can be
   repaired from the notification panel; files written by older versions are read and upgraded on
   the next save.
-- **Light / dark theme** and **English / Japanese** UI, with a compact File / View menu bar.
+- **Light / dark theme** and **English / Japanese** UI, with a compact File / View / Help menu bar (version and license information under Help).
 
 | Flowchart GUI editor | Sequence diagram GUI editor |
 |---|---|

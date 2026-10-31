@@ -1,0 +1,34 @@
+.help-about__facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+}
+
+.help-about__facts dt {
+  color: var(--color-text-muted);
+}
+
+.help-about__facts dd {
+  margin: 0;
+}
+
+/* License texts are plain text with meaningful line breaks; they wrap rather than
+   scroll sideways so that a narrow window still shows every word. */
+.help-text {
+  max-height: 60vh;
+  margin: 0;
+  padding: var(--space-3);
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface);
+}
+
+.help-text__content {
+  margin: 0;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 0.8125rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

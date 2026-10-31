@@ -52,6 +52,8 @@ export interface ModalProps {
   readonly initialFocusRef?: RefObject<HTMLElement | null>;
   // While true Escape does nothing (an operation is running).
   readonly busy?: boolean;
+  // For long read-only texts (license texts) that need the room.
+  readonly wide?: boolean;
   readonly children: ReactNode;
 }
 
@@ -63,6 +65,7 @@ export function Modal({
   onCancel,
   initialFocusRef,
   busy = false,
+  wide = false,
   children,
 }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -123,7 +126,7 @@ export function Modal({
       {/* The keydown handler is the focus trap; the dialog role is not a widget. */}
       <div
         ref={dialogRef}
-        className="modal"
+        className={wide ? "modal modal--wide" : "modal"}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

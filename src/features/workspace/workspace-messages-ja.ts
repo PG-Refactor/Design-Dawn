@@ -193,6 +193,21 @@ export const WORKSPACE_MESSAGES_JA = {
     systemOption: "システム",
     themeLight: "ライト",
     themeDark: "ダーク",
+    helpMenu: "ヘルプ",
+    about: "Design Dawn について",
+    license: "ライセンス",
+    thirdPartyLicenses: "サードパーティのライセンス",
+  },
+  help: {
+    versionLabel: "バージョン",
+    licenseLabel: "ライセンス",
+    showLicense: "ライセンス本文…",
+    showThirdPartyLicenses: "サードパーティのライセンス…",
+    close: "閉じる",
+    loading: "読み込み中…",
+    loadFailed: "読み込めませんでした",
+    description:
+      "無限キャンバスの上で設計ドキュメントを書くためのデスクトップアプリケーションです。",
   },
   notices: {
     // A light, self-clearing region; not part of the notifications panel.
