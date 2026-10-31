@@ -136,5 +136,5 @@ Claude Desktop (`claude_desktop_config.json`):
 
 ## License
 
-The license of Design Dawn itself has not been chosen yet. Third-party licenses of the bundled
+Design Dawn is released under the [MIT License](LICENSE). Third-party licenses of the bundled
 dependencies are listed in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).

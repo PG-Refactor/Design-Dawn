@@ -113,4 +113,4 @@ Claude Desktop（`claude_desktop_config.json`）:
 
 ## ライセンス
 
-Design Dawn 本体のライセンスは未定です。同梱している依存ライブラリの第三者ライセンスは [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) に記載しています。
+Design Dawn は [MIT License](LICENSE) で公開しています。同梱している依存ライブラリの第三者ライセンスは [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) に記載しています。

@@ -3,6 +3,7 @@ name = "design-dawn"
 version = "0.1.0"
 description = "Design Dawn desktop design document application"
 edition = "2021"
+license = "MIT"
 publish = false
 # `design-dawn-mcp` is a second binary; `cargo run` and the Tauri CLI mean the app.
 default-run = "design-dawn"
