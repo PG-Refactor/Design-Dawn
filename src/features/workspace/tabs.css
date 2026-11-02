@@ -58,11 +58,48 @@
   font-weight: 700;
 }
 
+.tab__icon {
+  display: inline-flex;
+}
+
+.tab__icon .tree-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Sheet tabs hang from the bottom edge of the canvas, as in a spreadsheet: flat on top,
+   rounded below, the active one marked by a bar along its bottom and joined to the canvas.
+   Together with their position and icon this tells them from the Document tabs. */
 .sheet-tabs {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   flex-wrap: wrap;
   gap: var(--space-2);
+  /* Cancels the panel's gap, so the tabs touch the canvas. */
+  margin-top: calc(-1 * var(--space-2));
+}
+
+.sheet-tabs .tab-list {
+  border-top: 1px solid var(--color-border);
+  border-bottom: none;
+}
+
+.sheet-tabs .tab {
+  border-top: none;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0 0 var(--radius-medium) var(--radius-medium);
+  font-size: 0.875rem;
+}
+
+.sheet-tabs .tab--active {
+  /* Same colour as the canvas, so the active sheet reads as part of it. */
+  background: var(--color-canvas-background);
+  box-shadow: inset 0 -3px 0 var(--color-accent);
+}
+
+.sheet-tabs__add {
+  margin-top: var(--space-1);
+  font-size: 1rem;
 }
 
 .tab__select {

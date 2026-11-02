@@ -264,6 +264,7 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     createSheet: "New Sheet",
     deleteSheet: "Delete Sheet",
     deleteSheetButtonText: "×",
+    createSheetButtonText: "+",
     moveLeft: "Move Left",
     moveRight: "Move Right",
   },

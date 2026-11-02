@@ -32,7 +32,9 @@ function selectPanel(application: ApplicationState, ui: UiState): PanelModel {
   };
 }
 
-// The tab panel of the active document tab: its sheet tabs and the sheet area.
+// The tab panel of the active document tab: the sheet area with its sheet tabs below it,
+// like the sheet tabs of a spreadsheet. Kept apart from the Document tabs at the top, so
+// the two rows of tabs are not mistaken for one another.
 export function DocumentPanel() {
   const messages = useMessages().workspace;
   const panel = useWorkspaceModel(selectPanel);
@@ -54,8 +56,8 @@ export function DocumentPanel() {
       className="document-panel"
     >
       <ActiveDocumentBanner documentId={panel.documentId} />
-      <SheetTabs />
       <CanvasPanel />
+      <SheetTabs />
     </div>
   );
 }
