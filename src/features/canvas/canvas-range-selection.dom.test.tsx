@@ -140,8 +140,8 @@ describe("pan with Space or the middle button", () => {
     const rendered = await renderOpenedCanvas();
     spaceDown();
     expect(canvasElement().className).toContain("canvas--pan-ready");
-    await dragOnCanvas([400, 400], [430, 380]);
-    expect(viewportOf(rendered)).toMatchObject({ panX: 30, panY: -20 });
+    await dragOnCanvas([400, 400], [370, 380]);
+    expect(viewportOf(rendered)).toMatchObject({ panX: -30, panY: -20 });
     expect(selectedLabels()).toEqual([]);
     expect(
       getSelection(rendered.shell.uiStateStore.getState(), SHEET_A1).size,
@@ -151,8 +151,8 @@ describe("pan with Space or the middle button", () => {
   it("Space + drag over a block pans: it neither selects nor moves the block", async () => {
     const rendered = await renderOpenedCanvas();
     spaceDown();
-    await dragOnCanvas([15, 25], [45, 45], {}, blockOption(0));
-    expect(viewportOf(rendered)).toMatchObject({ panX: 30, panY: 20 });
+    await dragOnCanvas([45, 45], [15, 25], {}, blockOption(0));
+    expect(viewportOf(rendered)).toMatchObject({ panX: -30, panY: -20 });
     expect(selectedLabels()).toEqual([]);
     expect(rendered.canvas.blocksOfSheetA1()[0]?.position).toEqual({
       x: 10,
@@ -165,8 +165,8 @@ describe("pan with Space or the middle button", () => {
     const rendered = await renderOpenedCanvas();
     await dragOnCanvas([200, 10], [320, 60]);
     spaceDown();
-    await dragOnCanvas([400, 400], [430, 380]);
-    expect(viewportOf(rendered)).toMatchObject({ panX: 30 });
+    await dragOnCanvas([400, 400], [370, 380]);
+    expect(viewportOf(rendered)).toMatchObject({ panX: -30 });
     expect(selectedLabels()).toEqual(["markdown 00000002"]);
   });
 
@@ -187,8 +187,8 @@ describe("pan with Space or the middle button", () => {
 
   it("the middle button pans without selecting", async () => {
     const rendered = await renderOpenedCanvas();
-    await dragOnCanvas([400, 400], [430, 380], { button: 1 });
-    expect(viewportOf(rendered)).toMatchObject({ panX: 30, panY: -20 });
+    await dragOnCanvas([400, 400], [370, 380], { button: 1 });
+    expect(viewportOf(rendered)).toMatchObject({ panX: -30, panY: -20 });
     expect(selectedLabels()).toEqual([]);
   });
 

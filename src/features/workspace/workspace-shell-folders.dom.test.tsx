@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   DOCUMENT_A,
@@ -276,6 +276,67 @@ describe("creating and renaming", () => {
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(treeItemNamed("Folder 2")).toBeTruthy();
     expect(harness.gateway.methods("saveFolder")).toEqual([]);
+  });
+});
+
+describe("toolbar buttons that create where the cursor is", () => {
+  const toolbarButton = (name: string) =>
+    within(screen.getByRole("toolbar", { name: TREE.toolbarLabel })).getByRole(
+      "button",
+      { name },
+    );
+
+  function putCursorOn(name: string): void {
+    act(() => treeItemNamed(name).focus());
+  }
+
+  async function submitName(
+    harness: ShellHarness,
+    dialogs: { readonly title: string; readonly nameLabel: string },
+    name: string,
+  ): Promise<void> {
+    const dialog = screen.getByRole("dialog", { name: dialogs.title });
+    await harness.user.type(
+      within(dialog).getByRole("textbox", { name: dialogs.nameLabel }),
+      `${name}{Enter}`,
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  }
+
+  it("creates a folder inside the folder the cursor is on", async () => {
+    const harness = await openedShell();
+    putCursorOn("Folder 2");
+    await harness.user.click(toolbarButton(TREE.createFolderIn("Folder 2")));
+    await submitName(harness, MESSAGES.dialogs.createFolder, "Inner");
+    expect(level("Inner")).toBe("4");
+    expect(harness.gateway.methods()).toEqual(["createFolder", "saveFolder"]);
+  });
+
+  it("creates a document next to the document the cursor is on, in its folder", async () => {
+    const harness = await openedShell();
+    putCursorOn("Document D");
+    await harness.user.click(toolbarButton(TREE.createDocumentIn("Folder 2")));
+    await submitName(harness, MESSAGES.dialogs.createDocument, "Sibling");
+    await screen.findByRole("tab", { name: /Sibling/ });
+    expect(level("Sibling")).toBe(level("Document D"));
+  });
+
+  it("creates at the top level from the Project row", async () => {
+    const harness = await openedShell();
+    putCursorOn("Project");
+    await harness.user.click(toolbarButton(TREE.createFolderIn("Project")));
+    await submitName(harness, MESSAGES.dialogs.createFolder, "Top");
+    expect(level("Top")).toBe("2");
+  });
+
+  it("shows an icon on every row without changing the row names", async () => {
+    await openedShell();
+    for (const item of screen.getAllByRole("treeitem")) {
+      expect(
+        item.querySelectorAll(":scope > .tree-item__row svg.tree-icon"),
+      ).toHaveLength(1);
+    }
+    expect(treeItemNamed("Folder 1")).toBeTruthy();
   });
 });
 

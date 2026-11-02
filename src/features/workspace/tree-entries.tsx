@@ -3,6 +3,7 @@
 
 import type { KeyboardEvent } from "react";
 import type { PopupMenuItem } from "../../shared/menu/popup-menu";
+import { DocumentIcon, FolderIcon, FolderOpenIcon } from "./tree-icons";
 import { TreeItem, type TreeItemRenaming } from "./tree-item";
 import { type RenamingTarget, sameRenamingTarget } from "./ui-state/ui-state";
 import { useMessages } from "./use-messages";
@@ -128,6 +129,7 @@ function DocumentTreeItem({
       level={level}
       isRoving={handlers.rovingKey === itemKey}
       selected={documentNode.isActive}
+      icon={<DocumentIcon />}
       failed={failed}
       register={handlers.register}
       onFocusItem={handlers.onFocusItem}
@@ -216,6 +218,7 @@ function FolderTreeItem({
           ? messages.tree.folderExpandedMarker
           : messages.tree.folderCollapsedMarker
       }
+      icon={folderNode.isExpanded ? <FolderOpenIcon /> : <FolderIcon />}
       failed={failed}
       register={handlers.register}
       onFocusItem={handlers.onFocusItem}

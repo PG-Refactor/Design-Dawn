@@ -235,9 +235,9 @@ describe("pan and wheel", () => {
   it("pans the viewport (UI state) on a pan drag and restores it on cancel", async () => {
     const { harness, input } = await setup();
     input.pointerDownForPan(ORIGIN);
-    input.pointerMove(moveBy(30, -12));
+    input.pointerMove(moveBy(-30, -12));
     expect(ui(harness).viewportBySheet.get(SHEET_A1)).toMatchObject({
-      panX: 30,
+      panX: -30,
       panY: -12,
     });
     input.cancel();
@@ -283,6 +283,34 @@ describe("pan and wheel", () => {
     input.wheel({ point: ORIGIN, deltaX: 0, deltaY: -100, zoom: true });
     expect(ui(harness).viewportBySheet.get(SHEET_A1)?.zoom).toBe(1);
     input.cancel();
+  });
+});
+
+describe("the sheet's top-left origin", () => {
+  it("does not pan or scroll past the origin, like a spreadsheet", async () => {
+    const { harness, input } = await setup();
+    input.pointerDownForPan(ORIGIN);
+    input.pointerMove(moveBy(40, 25));
+    expect(ui(harness).viewportBySheet.get(SHEET_A1)).toEqual({
+      panX: 0,
+      panY: 0,
+      zoom: 1,
+    });
+    await input.pointerUp();
+    input.wheel({ point: ORIGIN, deltaX: -10, deltaY: -30, zoom: false });
+    expect(ui(harness).viewportBySheet.get(SHEET_A1)).toMatchObject({
+      panX: 0,
+      panY: 0,
+    });
+  });
+
+  it("does not let a drag move a block past the origin", async () => {
+    const { harness, input } = await setup();
+    // Block one is at (10, 20).
+    input.pointerDownOnBlock(BLOCK_ONE, ORIGIN, false);
+    input.pointerMove(moveBy(-500, -500), SNAP_OFF);
+    await input.pointerUp();
+    expect(positionOf(harness, 0)).toEqual({ x: 0, y: 0 });
   });
 });
 

@@ -96,13 +96,13 @@ describe("range selection", () => {
 
   it("stores the rectangle in world coordinates and never moves the viewport", async () => {
     const { harness, input } = await setup();
-    const viewport = clampViewport({ panX: 100, panY: 50, zoom: 2 });
+    const viewport = clampViewport({ panX: -100, panY: -50, zoom: 2 });
     harness.uiStateStore.setState((state) =>
       setViewport(state, SHEET_A1, viewport),
     );
-    // Screen (320, 150) -> world ((320-100)/2, (150-50)/2) = (110, 50): inside ONE.
-    input.pointerDownOnBackground({ x: 320, y: 150 });
-    input.pointerMove({ x: 340, y: 170 });
+    // Screen (120, 50) -> world ((120+100)/2, (50+50)/2) = (110, 50): inside ONE.
+    input.pointerDownOnBackground({ x: 120, y: 50 });
+    input.pointerMove({ x: 140, y: 70 });
     expect(ui(harness).interaction).toMatchObject({
       start: { x: 110, y: 50 },
       current: { x: 120, y: 60 },
@@ -145,10 +145,10 @@ describe("pan gesture", () => {
     const { harness, input } = await setup();
     await dragRange(input, { x: 200, y: 10 }, { x: 320, y: 60 });
     input.pointerDownForPan({ x: 100, y: 100 });
-    input.pointerMove({ x: 130, y: 90 });
+    input.pointerMove({ x: 70, y: 90 });
     expect(ui(harness).interaction.kind).toBe("idle");
     expect(ui(harness).viewportBySheet.get(SHEET_A1)).toMatchObject({
-      panX: 30,
+      panX: -30,
       panY: -10,
     });
     await input.pointerUp();

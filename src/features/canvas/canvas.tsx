@@ -41,6 +41,7 @@ import {
 import { routePointerDown } from "./canvas-pointer-routing";
 import { displayedFrame, isInteracting } from "./geometry/preview-frame";
 import { normalizeRect } from "./geometry/range-selection";
+import { keepOriginInView, sheetOriginOf } from "./geometry/sheet-origin";
 import {
   DEFAULT_VIEWPORT,
   type Point,
@@ -113,7 +114,16 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
   const storedViewport = useUiState(
     useCallback((ui) => ui.viewportBySheet.get(sheetId), [sheetId]),
   );
-  const viewport = storedViewport ?? DEFAULT_VIEWPORT;
+  // A viewport saved before the sheet's origin rule (or past blocks moved since) is shown
+  // within it; the next pan / zoom saves the bounded one.
+  const viewport = useMemo(
+    () =>
+      keepOriginInView(
+        storedViewport ?? DEFAULT_VIEWPORT,
+        sheetOriginOf(blocks),
+      ),
+    [storedViewport, blocks],
+  );
   const fileDragActive = useUiState((ui) => ui.fileDragActive);
 
   const input = useMemo(
