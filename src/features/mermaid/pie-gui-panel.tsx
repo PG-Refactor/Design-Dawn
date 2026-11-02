@@ -14,6 +14,11 @@ import {
 import type { PieOperation } from "../../domain/diagram/pie/pie-operations";
 import { readPieChartView } from "../../domain/diagram/pie/pie-view";
 import { useMessages } from "../workspace/use-messages";
+import {
+  DiagramGuiLayout,
+  GuiStatus,
+  useGuiLayoutState,
+} from "./diagram-gui-layout";
 import { describeRefusal } from "./diagram-gui-text";
 import { PieAddSlice } from "./pie-add-slice";
 import { PieSliceEditor } from "./pie-slice-editor";
@@ -39,6 +44,9 @@ export interface PieGuiPanelProps {
 // Which slice is selected: its position, and the label it had when it was chosen (null
 // when only the position is known, for a slice that was just added or renamed). Component
 // state, separate from the canvas's block selection.
+const SLICES_TAB = "slices";
+const ADD_SLICE = "slice";
+
 interface SliceSelection {
   readonly index: number;
   readonly label: string | null;
@@ -61,6 +69,7 @@ export function PieGuiPanel({
   const listRef = useRef<HTMLDivElement>(null);
   const editorLabelRef = useRef<HTMLInputElement>(null);
   const addLabelRef = useRef<HTMLInputElement>(null);
+  const layout = useGuiLayoutState(SLICES_TAB);
   // The slice editor's "commit what is pending", for choosing another slice.
   const commitPendingRef = useRef<GuiDraftCommit | null>(null);
   const titleLeaveRef = useRef<GuiDraftCommit | null>(null);
@@ -115,6 +124,8 @@ export function PieGuiPanel({
   // Nothing is applied before that check, so a refused switch changes nothing.
   async function leaveGui(): Promise<OperationResult<void>> {
     if (addInputRef.current?.() === true) {
+      // The form may be closed: it is opened, so the input that blocks is in view.
+      layout.openAdd(ADD_SLICE);
       setInputError(gui.addInputPending);
       return operationErr(
         "invalidDiagramOperation",
@@ -139,7 +150,8 @@ export function PieGuiPanel({
     if (selected === undefined) return;
     // The delete button disappears with the last slice; the focus moves first, because an
     // element that is removed while focused would look like leaving the editor.
-    (view.slices.length > 1 ? listRef.current : addLabelRef.current)?.focus();
+    if (view.slices.length > 1) listRef.current?.focus();
+    else layout.focusToolbar();
     const outcome = await run({
       kind: "deleteSlice",
       target: { index: selected.index, label: selected.targetLabel },
@@ -157,94 +169,116 @@ export function PieGuiPanel({
   const refusal =
     operation.refusal === null ? null : describeRefusal(gui, operation.refusal);
 
-  return (
-    <div className="diagram-gui__pie">
-      {busy && (
-        <p role="status" className="diagram-gui__busy">
-          {gui.busy}
-        </p>
+  const editor = (
+    <>
+      {selected === undefined && view.slices.length > 0 && (
+        <p className="diagram-gui__hint">{gui.noSelection}</p>
       )}
-      {(refusal !== null || inputError !== null) && (
-        <div role="alert" className="diagram-gui__refusal">
-          <p className="diagram-gui__refusal-heading">{gui.refusalHeading}</p>
-          <p>{inputError ?? refusal?.message}</p>
-          {inputError === null && refusal?.mermaidMessage != null && (
-            <>
-              <p className="diagram-gui__refusal-label">
-                {gui.refusalDetailLabel}
-              </p>
-              <pre className="diagram-gui__refusal-detail">
-                {refusal.mermaidMessage}
-              </pre>
-            </>
-          )}
-        </div>
-      )}
-      <PieTitleField
-        documentId={documentId}
-        blockId={blockId}
-        title={view.title}
-        busy={busy}
-        runDraft={runDraft}
-        leaveRef={titleLeaveRef}
-      />
-      <h4 className="diagram-gui__heading">{gui.slicesHeading}</h4>
-      <div className="diagram-gui__slices">
-        <PieSliceList
-          shortId={shortId}
-          slices={view.slices}
-          selectedIndex={selected?.index ?? null}
-          onSelect={(index) => void select(index)}
-          onEnter={() => editorLabelRef.current?.focus()}
-          listRef={listRef}
+      {selection !== null && (
+        <PieSliceEditor
+          documentId={documentId}
+          blockId={blockId}
+          slice={selected}
+          selectionKey={selectionKey}
+          sliceCount={view.slices.length}
+          busy={busy}
+          run={run}
+          runDraft={runDraft}
+          onInvalidInput={setInputError}
+          onDelete={deleteSelected}
+          onMoved={(toIndex) =>
+            setSelection((current) =>
+              current?.index === selected?.index
+                ? { index: toIndex, label: selected?.targetLabel ?? null }
+                : current,
+            )
+          }
+          onRenaming={() =>
+            setSelection((current) =>
+              current !== null && current.index === selected?.index
+                ? { index: current.index, label: null }
+                : current,
+            )
+          }
+          labelInputRef={editorLabelRef}
+          commitPendingRef={commitPendingRef}
         />
-        {selected === undefined && view.slices.length > 0 && (
-          <p className="diagram-gui__hint">{gui.noSelection}</p>
-        )}
-        {selection !== null && (
-          <PieSliceEditor
+      )}
+    </>
+  );
+
+  return (
+    <DiagramGuiLayout
+      className="diagram-gui__pie"
+      state={layout}
+      toolbarLabel={gui.addToolbarLabel}
+      tabListLabel={gui.listTabsLabel}
+      addActions={[
+        {
+          id: ADD_SLICE,
+          label: gui.addSliceToggle,
+          form: (
+            <PieAddSlice
+              documentId={documentId}
+              blockId={blockId}
+              busy={busy}
+              runDraft={runDraft}
+              onInvalidInput={setInputError}
+              onAdded={() => {
+                setSelectionKey((key) => key + 1);
+                setSelection({ index: view.slices.length, label: null });
+              }}
+              labelInputRef={addLabelRef}
+              hasInputRef={addInputRef}
+            />
+          ),
+        },
+      ]}
+      status={
+        <GuiStatus
+          busy={busy}
+          busyText={gui.busy}
+          refusalHeading={gui.refusalHeading}
+          refusalDetailLabel={gui.refusalDetailLabel}
+          message={inputError ?? refusal?.message ?? null}
+          mermaidMessage={
+            inputError === null ? (refusal?.mermaidMessage ?? null) : null
+          }
+        />
+      }
+      editor={editor}
+      tabs={[
+        {
+          id: SLICES_TAB,
+          label: gui.slicesHeading,
+          count: view.slices.length,
+          content: (
+            <PieSliceList
+              shortId={shortId}
+              slices={view.slices}
+              selectedIndex={selected?.index ?? null}
+              onSelect={(index) => void select(index)}
+              onEnter={() => editorLabelRef.current?.focus()}
+              listRef={listRef}
+            />
+          ),
+        },
+      ]}
+      settings={
+        <section
+          aria-label={gui.settingsHeading}
+          className="diagram-gui__settings"
+        >
+          <PieTitleField
             documentId={documentId}
             blockId={blockId}
-            slice={selected}
-            selectionKey={selectionKey}
-            sliceCount={view.slices.length}
+            title={view.title}
             busy={busy}
-            run={run}
             runDraft={runDraft}
-            onInvalidInput={setInputError}
-            onDelete={deleteSelected}
-            onMoved={(toIndex) =>
-              setSelection((current) =>
-                current?.index === selected?.index
-                  ? { index: toIndex, label: selected?.targetLabel ?? null }
-                  : current,
-              )
-            }
-            onRenaming={() =>
-              setSelection((current) =>
-                current !== null && current.index === selected?.index
-                  ? { index: current.index, label: null }
-                  : current,
-              )
-            }
-            labelInputRef={editorLabelRef}
-            commitPendingRef={commitPendingRef}
+            leaveRef={titleLeaveRef}
           />
-        )}
-      </div>
-      <PieAddSlice
-        documentId={documentId}
-        blockId={blockId}
-        busy={busy}
-        runDraft={runDraft}
-        onInvalidInput={setInputError}
-        onAdded={() => {
-          setSelectionKey((key) => key + 1);
-          setSelection({ index: view.slices.length, label: null });
-        }}
-        labelInputRef={addLabelRef}
-        hasInputRef={addInputRef}
-      />
-    </div>
+        </section>
+      }
+    />
   );
 }

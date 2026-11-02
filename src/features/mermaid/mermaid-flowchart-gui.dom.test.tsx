@@ -28,6 +28,7 @@ import {
   installObjectUrlFake,
   type ObjectUrlFake,
 } from "./test-support/fake-mermaid-renderer";
+import { getShown } from "./test-support/reveal-in-gui";
 
 let objectUrls: ObjectUrlFake;
 
@@ -75,9 +76,7 @@ async function openGui(source: string = FLOWCHART) {
     mermaidRenderer: createFakeRenderer(),
   });
   fireEvent.doubleClick(blockOption(0));
-  await rendered.shell.user.click(
-    screen.getByRole("button", { name: GUI.modeGui }),
-  );
+  await rendered.shell.user.click(getShown("button", GUI.modeGui));
   await act(settle);
   return rendered;
 }
@@ -85,21 +84,19 @@ type Rendered = Awaited<ReturnType<typeof openGui>>;
 
 const storedText = (rendered: Rendered): string | undefined =>
   rendered.canvas.session.getState().contents.get(BLOCK_ONE);
-const nodeList = () =>
-  screen.getByRole("listbox", { name: TEXT.nodeListLabel(SHORT_ID) });
-const edgeList = () =>
-  screen.getByRole("listbox", { name: TEXT.edgeListLabel(SHORT_ID) });
+const nodeList = () => getShown("listbox", TEXT.nodeListLabel(SHORT_ID));
+const edgeList = () => getShown("listbox", TEXT.edgeListLabel(SHORT_ID));
 const subgraphList = () =>
-  screen.getByRole("listbox", { name: TEXT.subgraphListLabel(SHORT_ID) });
+  getShown("listbox", TEXT.subgraphListLabel(SHORT_ID));
 const optionNames = (list: HTMLElement) =>
   within(list)
     .getAllByRole("option")
     .map((option) => option.getAttribute("aria-label"));
 const textbox = (name: string) =>
-  screen.getByRole("textbox", { name }) as HTMLTextAreaElement;
+  getShown("textbox", name) as HTMLTextAreaElement;
 const combobox = (name: string) =>
-  screen.getByRole("combobox", { name }) as HTMLSelectElement;
-const button = (name: string) => screen.getByRole("button", { name });
+  getShown("combobox", name) as HTMLSelectElement;
+const button = (name: string) => getShown("button", name);
 const alertText = () => screen.queryByRole("alert")?.textContent ?? null;
 const isDisabled = (element: HTMLElement) =>
   element.getAttribute("aria-disabled") === "true";
