@@ -264,6 +264,8 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     createSheet: "New Sheet",
     deleteSheet: "Delete Sheet",
     deleteSheetButtonText: "×",
+    moveLeft: "Move Left",
+    moveRight: "Move Right",
   },
   saveStatus: {
     saved: "Saved",
@@ -527,5 +529,6 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
   retrySaveLabel: (name) => `Retry saving ${name}`,
   deleteSheetTabLabel: (name) => `Delete Sheet (${name})`,
   treeMenuLabel: (name) => `Menu for ${name}`,
+  tabMenuLabel: (name) => `Menu for ${name}`,
   renameInputLabel: (name) => `Rename ${name}`,
 };

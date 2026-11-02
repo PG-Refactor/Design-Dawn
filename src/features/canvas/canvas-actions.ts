@@ -110,6 +110,9 @@ export interface CreateBlockInput {
   readonly blockType: BlockType;
   // Size of the canvas element in screen pixels; the block is centred in what it shows.
   readonly viewportSize: Extent;
+  // A world point chosen on the canvas (a right-click): the block's top-left corner goes
+  // there instead of the centre of the view.
+  readonly at?: Point;
 }
 
 export interface CommitContentEditInput {
@@ -339,7 +342,10 @@ export function createCanvasActions(
   // positions of blocks of the same operation that are not on the sheet yet (several
   // images dropped at once).
   function newBlockPosition(
-    input: Pick<CreateBlockInput, "documentId" | "sheetId" | "viewportSize">,
+    input: Pick<
+      CreateBlockInput,
+      "documentId" | "sheetId" | "viewportSize" | "at"
+    >,
     size: Size,
     alsoTaken: readonly Position[] = [],
   ): OperationResult<Position> {
@@ -348,11 +354,14 @@ export function createCanvasActions(
       DEFAULT_VIEWPORT;
     const visible = visibleWorldRect(input.viewportSize, viewport);
     // A block larger than the view starts at its top-left corner instead, so it never
-    // lands left of / above the view (past the sheet's origin).
-    const centred = commitPosition({
-      x: visible.x + Math.max(0, (visible.width - size.width) / 2),
-      y: visible.y + Math.max(0, (visible.height - size.height) / 2),
-    });
+    // lands left of / above the view (past the sheet's origin). A chosen point is used as
+    // it is; it still steps aside from a block already there.
+    const centred = commitPosition(
+      input.at ?? {
+        x: visible.x + Math.max(0, (visible.width - size.width) / 2),
+        y: visible.y + Math.max(0, (visible.height - size.height) / 2),
+      },
+    );
     if (!centred.ok) return fromDomainResult(centred);
     const taken = [
       ...blocksOf(input.documentId, input.sheetId).map(

@@ -1,4 +1,3 @@
-import type { ReorderDirection } from "../../application/commands/block-commands";
 import type { BlockType } from "../../domain/block/block-type";
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
 import { PopupMenu, type PopupMenuEntry } from "../../shared/menu/popup-menu";
@@ -7,6 +6,7 @@ import { useMessages } from "../workspace/use-messages";
 import { useUiState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import { BlockCreateMenu } from "./block-create-menu";
+import { REORDER_ITEMS } from "./canvas-context-menu";
 import type { CanvasMessages } from "./canvas-messages";
 import type { AlignMode } from "./geometry/align";
 import type { Extent } from "./geometry/viewport-math";
@@ -18,17 +18,6 @@ export interface CanvasToolbarProps {
   // Size of the canvas on screen, read when a block is added so it lands in view.
   readonly measureCanvas: () => Extent;
 }
-
-// The labels are looked up by key at render time, so they follow the display language.
-const REORDER_ITEMS: readonly {
-  readonly direction: ReorderDirection;
-  readonly labelKey: keyof CanvasMessages["reorder"];
-}[] = [
-  { direction: "forward", labelKey: "forward" },
-  { direction: "backward", labelKey: "backward" },
-  { direction: "toFront", labelKey: "toFront" },
-  { direction: "toBack", labelKey: "toBack" },
-];
 
 // Top / vertical entries come after the separator.
 const ALIGN_ITEMS: readonly (

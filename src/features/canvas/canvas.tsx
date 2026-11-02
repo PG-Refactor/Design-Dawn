@@ -18,11 +18,17 @@ import type {
   DocumentId,
   SheetId,
 } from "../../domain/shared/entity-id";
+import { useContextMenu } from "../../shared/menu/context-menu";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
-import { getSelection, stopEditingSheet } from "../workspace/ui-state/ui-state";
+import {
+  getSelection,
+  selectBlocks as selectBlocksInUi,
+  stopEditingSheet,
+} from "../workspace/ui-state/ui-state";
 import { useMessages } from "../workspace/use-messages";
 import { useUiState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
+import { isEditableBlockType } from "./block-capabilities";
 import {
   BLOCK_ID_ATTRIBUTE,
   CANVAS_ATTRIBUTE,
@@ -30,6 +36,7 @@ import {
   RESIZE_HANDLE_ATTRIBUTE,
 } from "./block-dom";
 import { BlockFrame } from "./block-frame";
+import { backgroundMenuEntries, blockMenuEntries } from "./canvas-context-menu";
 import { createCanvasInput } from "./canvas-input";
 import {
   CANVAS_KEY_COMMANDS,
@@ -46,6 +53,7 @@ import {
   DEFAULT_VIEWPORT,
   type Point,
   type Rect,
+  screenToWorld,
   worldLayerTransform,
 } from "./geometry/viewport-math";
 import "./canvas.css";
@@ -154,6 +162,7 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
   );
 
   const elementRef = useRef<HTMLDivElement>(null);
+  const contextMenu = useContextMenu();
 
   // Space held on the canvas = pan modifier. The ref is what handlers read (always
   // current); the state only drives the grab cursor.
@@ -300,6 +309,100 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
     canvasActions.beginBlockEdit({ documentId, sheetId, blockId });
   }
 
+  // The selection when a menu item runs (not when the menu opened): the menu is not modal.
+  function currentSelection(): readonly BlockId[] {
+    const selected = getSelection(uiStateStore.getState(), sheetId);
+    return blocks
+      .map((block) => block.blockId)
+      .filter((blockId) => selected.has(blockId));
+  }
+
+  // Right-click on a block acts on the selection (the block joins it, or replaces it when
+  // it was not selected, like in file managers); on the empty canvas it adds where the
+  // pointer is. A block editor keeps the webview's text menu (cut / copy / paste).
+  function onContextMenu(event: MouseEvent<HTMLDivElement>) {
+    const target = event.target;
+    if (!(target instanceof Element) || isInsideBlockEditor(target)) return;
+    if (input.isGestureActive()) {
+      event.preventDefault();
+      return;
+    }
+    const element = event.currentTarget;
+    element.focus({ preventScroll: true });
+    const selectionInput = { documentId, sheetId };
+    const paste = () =>
+      void canvasActions.pasteClipboard({
+        ...selectionInput,
+        viewportSize: canvasSize(),
+      });
+    const blockId = blockIdOf(target, BLOCK_ID_ATTRIBUTE);
+    if (blockId === null) {
+      // The Menu key / Shift+F10 has no pointer: the block is centred in the view then.
+      const fromPointer = event.clientX !== 0 || event.clientY !== 0;
+      const at = fromPointer
+        ? screenToWorld(pointRelativeTo(element, event), viewport)
+        : undefined;
+      contextMenu.openFromEvent(
+        event,
+        messages.contextMenu.canvasLabel,
+        backgroundMenuEntries(messages, {
+          addBlock: (blockType) =>
+            void canvasActions.createBlock({
+              ...selectionInput,
+              blockType,
+              viewportSize: canvasSize(),
+              at,
+            }),
+          paste,
+        }),
+      );
+      return;
+    }
+    const selectedIds = selection.has(blockId) ? currentSelection() : [blockId];
+    if (!selection.has(blockId)) {
+      uiStateStore.setState((state) =>
+        selectBlocksInUi(state, sheetId, [blockId]),
+      );
+    }
+    const [only] = selectedIds;
+    const onlyBlock = blocks.find((block) => block.blockId === only);
+    contextMenu.openFromEvent(
+      event,
+      messages.contextMenu.blockLabel,
+      blockMenuEntries(
+        messages,
+        selectedIds.length === 1 &&
+          onlyBlock !== undefined &&
+          isEditableBlockType(onlyBlock.blockType),
+        {
+          edit: () => {
+            if (only !== undefined) {
+              canvasActions.beginBlockEdit({
+                ...selectionInput,
+                blockId: only,
+              });
+            }
+          },
+          cut: () => void canvasActions.cutSelection(selectionInput),
+          copy: () => void canvasActions.copySelection(selectionInput),
+          paste,
+          duplicate: () =>
+            void canvasActions.duplicateSelection(selectionInput),
+          reorder: (direction) =>
+            void canvasActions.reorderSelection({
+              ...selectionInput,
+              direction,
+            }),
+          delete: () =>
+            void canvasActions.deleteSelection({
+              ...selectionInput,
+              blockIds: currentSelection(),
+            }),
+        },
+      ),
+    );
+  }
+
   // Alt toggles the grid snap of the move / resize in progress. Its default action (the
   // menu bar taking focus on release) is suppressed only then, so the gesture is not
   // interrupted; Alt outside a gesture and inside editors is left alone.
@@ -432,6 +535,7 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
       onPointerUp={onPointerUp}
       onPointerCancel={() => input.cancel()}
       onDoubleClick={onDoubleClick}
+      onContextMenu={onContextMenu}
       onKeyDown={onKeyDown}
       onKeyUp={onKeyUp}
       onBlur={onBlur}
@@ -474,6 +578,7 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
           {messages.dropHint}
         </div>
       )}
+      {contextMenu.element}
     </div>
   );
 }

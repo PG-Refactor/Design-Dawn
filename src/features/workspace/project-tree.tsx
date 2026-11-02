@@ -1,4 +1,5 @@
 import { type KeyboardEvent, useMemo, useRef, useState } from "react";
+import { useContextMenu } from "../../shared/menu/context-menu";
 import { CANVAS_KEY_COMMANDS, keyCommandOf } from "../canvas/canvas-keyboard";
 import { restoreFocus } from "./focus-utils";
 import {
@@ -67,6 +68,7 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
   const items = useMemo(() => flattenProjectTree(model), [model]);
   const itemElements = useRef(new Map<string, HTMLLIElement>());
   const [focusedKey, setFocusedKey] = useState<string | null>(null);
+  const contextMenu = useContextMenu();
   const rovingKey =
     focusedKey !== null && items.some((item) => item.key === focusedKey)
       ? focusedKey
@@ -137,6 +139,7 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
     register,
     onFocusItem: setFocusedKey,
     onNavigate: handleNavigate,
+    onContextMenu: contextMenu.openFromEvent,
   };
 
   const creationTarget = creationTargetOf(model, rovingKey);
@@ -196,6 +199,7 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
           register={register}
           onFocusItem={setFocusedKey}
           onNavigate={handleNavigate}
+          onContextMenu={contextMenu.openFromEvent}
           menuItems={[
             {
               id: "createFolder",
@@ -219,12 +223,14 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
           ) : (
             <EntryItems
               entries={model.entries}
+              parentFolderId={null}
               level={PROJECT_ENTRY_LEVEL}
               handlers={handlers}
             />
           )}
         </TreeItem>
       </ul>
+      {contextMenu.element}
     </>
   );
 }

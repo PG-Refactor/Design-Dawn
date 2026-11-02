@@ -264,6 +264,8 @@ export const WORKSPACE_MESSAGES_JA = {
     createSheet: "Sheetを作成",
     deleteSheet: "Sheetを削除",
     deleteSheetButtonText: "×",
+    moveLeft: "左へ移動",
+    moveRight: "右へ移動",
   },
   saveStatus: {
     saved: "保存済み",
@@ -534,5 +536,6 @@ export const WORKSPACE_MESSAGES_JA = {
   retrySaveLabel: (name: string): string => `${name}の保存を再試行`,
   deleteSheetTabLabel: (name: string): string => `Sheetを削除（${name}）`,
   treeMenuLabel: (name: string): string => `${name} のメニュー`,
+  tabMenuLabel: (name: string): string => `${name} のメニュー`,
   renameInputLabel: (name: string): string => `${name}の名前を変更`,
 } as const;

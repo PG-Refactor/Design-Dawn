@@ -5,7 +5,11 @@ import {
   useId,
   useRef,
 } from "react";
-import { PopupMenu, type PopupMenuItem } from "../../shared/menu/popup-menu";
+import {
+  PopupMenu,
+  type PopupMenuEntry,
+  type PopupMenuItem,
+} from "../../shared/menu/popup-menu";
 import { FOCUS_FALLBACK_ATTRIBUTE } from "./focus-utils";
 import { TreeRenameInput } from "./tree-rename-input";
 import { useMessages } from "./use-messages";
@@ -52,8 +56,19 @@ export interface TreeItemProps {
   readonly onMove?: (direction: MoveDirection) => void;
   readonly renaming?: TreeItemRenaming;
   readonly menuItems: readonly PopupMenuItem[];
+  // The right-click menu: the "⋮" menu, or more where the row offers more (a document
+  // also creates next to itself).
+  readonly contextMenuItems?: readonly PopupMenuEntry[];
+  readonly onContextMenu: TreeContextMenuHandler;
   readonly children?: ReactNode;
 }
+
+export type TreeContextMenuHandler = (
+  event: MouseEvent,
+  label: string,
+  entries: readonly PopupMenuEntry[],
+  anchorElement: Element | null,
+) => void;
 
 function classNames(selected: boolean, failed: boolean): string {
   return [
@@ -85,12 +100,30 @@ export function TreeItem({
   onMove,
   renaming,
   menuItems,
+  contextMenuItems,
+  onContextMenu,
   children,
 }: TreeItemProps) {
   const messages = useMessages().workspace;
   const labelId = useId();
   const markerId = useId();
   const itemElement = useRef<HTMLLIElement | null>(null);
+  const rowElement = useRef<HTMLDivElement | null>(null);
+
+  function handleContextMenu(event: MouseEvent<HTMLLIElement>): void {
+    // The rename input keeps the webview's text menu (cut / copy / paste).
+    if (event.target instanceof Element && event.target.closest("input")) {
+      return;
+    }
+    // The row the menu is for becomes the focused one (and the toolbar's target).
+    event.currentTarget.focus({ preventScroll: true });
+    onContextMenu(
+      event,
+      messages.treeMenuLabel(label),
+      contextMenuItems ?? menuItems,
+      rowElement.current,
+    );
+  }
 
   function handleClick(event: MouseEvent<HTMLLIElement>): void {
     const target = event.target;
@@ -167,12 +200,13 @@ export function TreeItem({
       className={classNames(selected === true, failed)}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
+      onContextMenu={handleContextMenu}
       onFocus={(event) => {
         if (event.target === event.currentTarget) onFocusItem(itemKey);
       }}
       {...fallbackProps}
     >
-      <div className="tree-item__row">
+      <div ref={rowElement} className="tree-item__row">
         {leadingMarker === undefined && icon === undefined ? null : (
           <span className="tree-item__folder-marker" aria-hidden="true">
             {leadingMarker}

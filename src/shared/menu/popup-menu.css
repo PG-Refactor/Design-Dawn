@@ -66,3 +66,12 @@
   border: none;
   background: var(--color-border);
 }
+
+/* A right-click menu: placed at the pointer (fixed, in a portal), above everything else. */
+.context-menu__list {
+  position: fixed;
+  z-index: 100;
+  top: auto;
+  right: auto;
+  margin-top: 0;
+}

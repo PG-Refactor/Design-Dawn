@@ -1,5 +1,6 @@
-import { type KeyboardEvent, useRef } from "react";
+import { type KeyboardEvent, type MouseEvent, useRef } from "react";
 import type { SheetId } from "../../domain/shared/entity-id";
+import { useContextMenu } from "../../shared/menu/context-menu";
 import { restoreFocus } from "./focus-utils";
 import { sheetPanelId, sheetTabId } from "./tab-ids";
 import { TreeRenameInput } from "./tree-rename-input";
@@ -26,6 +27,7 @@ function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
   const renaming = useUiState((ui) => ui.renaming);
   const { tabs, documentId, activeSheetId } = model;
   const tabIds = tabs.map((tab) => tab.sheetId);
+  const contextMenu = useContextMenu();
 
   // Reordering moves DOM nodes, which can drop focus; put it back on the moved tab.
   function moveSheet(sheetId: SheetId, before: SheetId | null): void {
@@ -46,6 +48,49 @@ function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
       ),
     onDrop: moveSheet,
   });
+
+  function openTabMenu(
+    event: MouseEvent,
+    sheetId: SheetId,
+    name: string,
+  ): void {
+    const left = oneStepMove(tabIds, sheetId, MOVE_DIRECTIONS.up);
+    const right = oneStepMove(tabIds, sheetId, MOVE_DIRECTIONS.down);
+    contextMenu.openFromEvent(event, messages.tabMenuLabel(name), [
+      {
+        id: "rename",
+        label: messages.tree.rename,
+        onSelect: () => void actions.beginRenameSheet(documentId, sheetId),
+      },
+      {
+        id: "moveLeft",
+        label: messages.tabs.moveLeft,
+        disabled: left === null,
+        onSelect: () => {
+          if (left !== null) moveSheet(sheetId, left.before);
+        },
+      },
+      {
+        id: "moveRight",
+        label: messages.tabs.moveRight,
+        disabled: right === null,
+        onSelect: () => {
+          if (right !== null) moveSheet(sheetId, right.before);
+        },
+      },
+      { id: "createSeparator", separator: true },
+      {
+        id: "createSheet",
+        label: messages.tabs.createSheet,
+        onSelect: () => void actions.requestCreateSheet(documentId),
+      },
+      {
+        id: "deleteSheet",
+        label: messages.tabs.deleteSheet,
+        onSelect: () => actions.requestDeleteSheet(documentId, sheetId),
+      },
+    ]);
+  }
 
   function handleKeyDown(
     event: KeyboardEvent<HTMLButtonElement>,
@@ -102,6 +147,7 @@ function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
         const pointerHandlers = drag.handlersFor(tab.sheetId);
         const dragState = drag.dragState;
         return (
+          // biome-ignore lint/a11y/noStaticElementInteractions: the right-click menu repeats what the tab's own controls and the keyboard already offer.
           <div
             key={tab.sheetId}
             className={tabClassName(
@@ -109,6 +155,11 @@ function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
               dragState?.tabId === tab.sheetId,
               dropMarker(dragState?.slot ?? null, index, tabs.length),
             )}
+            onContextMenu={(event) => {
+              // The rename input keeps the webview's text menu.
+              if (isRenaming) return;
+              openTabMenu(event, tab.sheetId, tab.name);
+            }}
           >
             <button
               ref={(element) => {
@@ -165,6 +216,7 @@ function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
           </div>
         );
       })}
+      {contextMenu.element}
     </div>
   );
 }

@@ -1,5 +1,12 @@
-import { type KeyboardEvent, useEffect, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  type MouseEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import type { DocumentId } from "../../domain/shared/entity-id";
+import { useContextMenu } from "../../shared/menu/context-menu";
 import { ExternalCompareTabItem } from "../external-change/external-compare-tab";
 import { activateDiff, closeDiff, pinDiff } from "../git/git-diff-session";
 import { GitDiffTabItem } from "../git/git-diff-tab";
@@ -78,6 +85,7 @@ export function DocumentTabs() {
   // Set after a tab was closed (the neighbour that became active gets focus, because the
   // focused close button no longer exists) or moved (it keeps focus).
   const [focusRequest, setFocusRequest] = useState<string | null>(null);
+  const contextMenu = useContextMenu();
 
   useEffect(() => {
     if (focusRequest === null) return;
@@ -197,6 +205,27 @@ export function DocumentTabs() {
     focusActiveTabOrFallback();
   }
 
+  function openTabMenu(event: MouseEvent, tab: DocumentTab): void {
+    contextMenu.openFromEvent(event, messages.tabMenuLabel(tab.name), [
+      {
+        id: "rename",
+        label: messages.tree.rename,
+        onSelect: () => void actions.beginRenameDocument(tab.documentId),
+      },
+      {
+        id: "createSheet",
+        label: messages.tabs.createSheet,
+        onSelect: () => void actions.requestCreateSheet(tab.documentId),
+      },
+      { id: "closeSeparator", separator: true },
+      {
+        id: "close",
+        label: messages.tabs.close,
+        onSelect: () => void handleClose(tab),
+      },
+    ]);
+  }
+
   function handleCloseCompare(): void {
     uiStateStore.setState((state) => closeCompareTab(state));
     focusActiveTabOrFallback();
@@ -250,6 +279,7 @@ export function DocumentTabs() {
         const pointerHandlers = drag.handlersFor(tab.documentId);
         const dragState = drag.dragState;
         return (
+          // biome-ignore lint/a11y/noStaticElementInteractions: the right-click menu repeats what the tab's own controls, the tree and the keyboard already offer.
           <div
             key={tab.documentId}
             className={tabClassName(
@@ -257,6 +287,7 @@ export function DocumentTabs() {
               dragState?.tabId === tab.documentId,
               dropMarker(dragState?.slot ?? null, index, tabs.length),
             )}
+            onContextMenu={(event) => openTabMenu(event, tab)}
           >
             <button
               ref={registerElement(documentKey(tab.documentId))}
@@ -302,6 +333,7 @@ export function DocumentTabs() {
           </div>
         );
       })}
+      {contextMenu.element}
     </div>
   );
 }
