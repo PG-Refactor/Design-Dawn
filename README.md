@@ -2,7 +2,7 @@
 
 **English** | [日本語](README.ja.md)
 
-Design Dawn is a desktop application for writing design documents on an infinite canvas.
+Design Dawn is a desktop application for writing design documents on a free-form canvas.
 A document is a set of sheets; each sheet holds freely placed blocks of **Markdown**, **Mermaid
 diagrams** and **images**. Everything is stored as ordinary files and folders, so the same project
 can be read and edited by people, reviewed with Git, and changed safely by AI tools.
@@ -14,7 +14,7 @@ can be read and edited by people, reviewed with Git, and changed safely by AI to
 
 ## Features
 
-- **Infinite canvas** — pan, zoom, select, move, resize, align, z-order, copy/paste, and undo/redo
+- **Free-form canvas** — pan, zoom, select, move, resize, align, z-order, copy/paste, and undo/redo
   for every edit.
 - **Project → Document → Sheet → Block** — a project tree with folders, document tabs and sheet
   tabs; several documents (and windows) open at once.

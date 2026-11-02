@@ -1,4 +1,4 @@
-// Coordinate math of the Infinite Canvas. Pure functions: no
+// Coordinate math of the free-form canvas. Pure functions: no
 // React, no DOM.
 //
 //   screen = world * zoom + pan
