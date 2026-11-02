@@ -6,10 +6,12 @@ import {
   PROJECT_ENTRY_LEVEL,
   type TreeHandlers,
 } from "./tree-entries";
+import { NewDocumentIcon, NewFolderIcon, ProjectIcon } from "./tree-icons";
 import { TreeItem } from "./tree-item";
 import { useMessages } from "./use-messages";
 import { treeNavigation } from "./view-models/keyboard-navigation";
 import {
+  creationTargetOf,
   documentTreeKey,
   flattenProjectTree,
   folderTreeKey,
@@ -137,52 +139,93 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
     onNavigate: handleNavigate,
   };
 
+  const creationTarget = creationTargetOf(model, rovingKey);
+  const creationLocation =
+    creationTarget.parentFolderId === null
+      ? model.projectName
+      : (creationTarget.folderName ?? messages.tree.unnamedEntity);
+  const createFolderLabel = messages.tree.createFolderIn(creationLocation);
+  const createDocumentLabel = messages.tree.createDocumentIn(creationLocation);
+
   return (
-    <ul
-      // biome-ignore lint/a11y/noNoninteractiveElementToInteractiveRole: the ARIA tree pattern puts role="tree" on a list.
-      role="tree"
-      aria-label={messages.appRegionTreeLabel}
-      className="project-tree"
-      onKeyDown={handleHistoryKey}
-    >
-      <TreeItem
-        itemKey={PROJECT_TREE_KEY}
-        label={model.projectName}
-        level={1}
-        isRoving={rovingKey === PROJECT_TREE_KEY}
-        expanded
-        register={register}
-        onFocusItem={setFocusedKey}
-        onNavigate={handleNavigate}
-        menuItems={[
-          {
-            id: "createFolder",
-            label: messages.tree.createFolder,
-            onSelect: () => actions.requestCreateFolder(null),
-          },
-          {
-            id: "createDocument",
-            label: messages.tree.createDocument,
-            onSelect: () => actions.requestCreateDocument(null),
-          },
-          {
-            id: "openProjectInNewWindow",
-            label: messages.tree.openProjectInNewWindow,
-            onSelect: () => void actions.openProjectInNewWindowViaDialog(),
-          },
-        ]}
+    <>
+      <div
+        role="toolbar"
+        aria-label={messages.tree.toolbarLabel}
+        className="project-tree__toolbar"
       >
-        {model.entries.length === 0 ? (
-          <p className="project-tree__empty">{messages.tree.emptyProject}</p>
-        ) : (
-          <EntryItems
-            entries={model.entries}
-            level={PROJECT_ENTRY_LEVEL}
-            handlers={handlers}
-          />
-        )}
-      </TreeItem>
-    </ul>
+        <button
+          type="button"
+          className="icon-button"
+          aria-label={createFolderLabel}
+          title={createFolderLabel}
+          disabled={!creationTarget.available}
+          onClick={() =>
+            actions.requestCreateFolder(creationTarget.parentFolderId)
+          }
+        >
+          <NewFolderIcon />
+        </button>
+        <button
+          type="button"
+          className="icon-button"
+          aria-label={createDocumentLabel}
+          title={createDocumentLabel}
+          disabled={!creationTarget.available}
+          onClick={() =>
+            actions.requestCreateDocument(creationTarget.parentFolderId)
+          }
+        >
+          <NewDocumentIcon />
+        </button>
+      </div>
+      <ul
+        // biome-ignore lint/a11y/noNoninteractiveElementToInteractiveRole: the ARIA tree pattern puts role="tree" on a list.
+        role="tree"
+        aria-label={messages.appRegionTreeLabel}
+        className="project-tree"
+        onKeyDown={handleHistoryKey}
+      >
+        <TreeItem
+          itemKey={PROJECT_TREE_KEY}
+          label={model.projectName}
+          level={1}
+          isRoving={rovingKey === PROJECT_TREE_KEY}
+          expanded
+          icon={<ProjectIcon />}
+          register={register}
+          onFocusItem={setFocusedKey}
+          onNavigate={handleNavigate}
+          menuItems={[
+            {
+              id: "createFolder",
+              label: messages.tree.createFolder,
+              onSelect: () => actions.requestCreateFolder(null),
+            },
+            {
+              id: "createDocument",
+              label: messages.tree.createDocument,
+              onSelect: () => actions.requestCreateDocument(null),
+            },
+            {
+              id: "openProjectInNewWindow",
+              label: messages.tree.openProjectInNewWindow,
+              onSelect: () => void actions.openProjectInNewWindowViaDialog(),
+            },
+          ]}
+        >
+          {model.entries.length === 0 ? (
+            <p className="project-tree__empty">{messages.tree.emptyProject}</p>
+          ) : (
+            <EntryItems
+              entries={model.entries}
+              level={PROJECT_ENTRY_LEVEL}
+              handlers={handlers}
+            />
+          )}
+        </TreeItem>
+      </ul>
+    </>
   );
 }
 

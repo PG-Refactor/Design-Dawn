@@ -33,6 +33,9 @@ export interface TreeItemProps {
   // A decorative glyph before the name (the fold state of a folder). Not part of the
   // accessible name, which `aria-expanded` already covers.
   readonly leadingMarker?: string;
+  // Tells folders from documents at a glance. Decorative, like the marker; with an icon
+  // the marker's place is kept even when there is no marker, so the icons line up.
+  readonly icon?: ReactNode;
   // Failed to load: shown with a text marker, cannot be activated.
   readonly failed?: boolean;
   readonly register: (key: string, element: HTMLLIElement | null) => void;
@@ -72,6 +75,7 @@ export function TreeItem({
   expanded,
   level,
   leadingMarker,
+  icon,
   failed = false,
   register,
   onFocusItem,
@@ -169,10 +173,13 @@ export function TreeItem({
       {...fallbackProps}
     >
       <div className="tree-item__row">
-        {leadingMarker === undefined ? null : (
+        {leadingMarker === undefined && icon === undefined ? null : (
           <span className="tree-item__folder-marker" aria-hidden="true">
             {leadingMarker}
           </span>
+        )}
+        {icon === undefined ? null : (
+          <span className="tree-item__icon">{icon}</span>
         )}
         <span
           id={labelId}

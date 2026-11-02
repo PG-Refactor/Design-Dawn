@@ -87,4 +87,13 @@ describe("pasteTarget", () => {
     });
     expect(result.ok).toBe(false);
   });
+
+  it("other sheet: puts a group larger than the view at the view's top-left corner", () => {
+    const target = pasteTarget({
+      content: content(0),
+      sameSheet: false,
+      visible: { x: 0, y: 0, width: 120, height: 60 },
+    });
+    expect(target.ok && target.value).toEqual({ x: 0, y: 0 });
+  });
 });

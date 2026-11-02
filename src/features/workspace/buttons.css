@@ -30,3 +30,28 @@
   background: var(--color-accent);
   color: var(--color-accent-contrast);
 }
+
+/* A square button that shows only an icon; its name comes from aria-label / title. */
+.icon-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-medium);
+  background: none;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.icon-button:hover:not(:disabled) {
+  background: var(--color-selection);
+}
+
+.icon-button:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}

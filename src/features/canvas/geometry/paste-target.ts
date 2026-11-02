@@ -33,7 +33,8 @@ function groupExtent(content: ClipboardContent): {
 
 // Same sheet: PASTE_OFFSET further from the originals for every earlier paste, so the
 // first paste lands one step away and repeated pastes fan out. Elsewhere: the group's
-// bounding box is centred in the visible area. Rounded to integers like every committed
+// bounding box is centred in the visible area, or put at its top-left corner when it is
+// larger, so it never lands left of / above the view (past the sheet's origin). Rounded to integers like every committed
 // position; out-of-range values are rejected by the domain.
 export function pasteTarget(input: PasteTargetInput): DomainResult<Position> {
   const { content, sameSheet, visible } = input;
@@ -46,7 +47,7 @@ export function pasteTarget(input: PasteTargetInput): DomainResult<Position> {
   }
   const extent = groupExtent(content);
   return commitPosition({
-    x: visible.x + (visible.width - extent.width) / 2,
-    y: visible.y + (visible.height - extent.height) / 2,
+    x: visible.x + Math.max(0, (visible.width - extent.width) / 2),
+    y: visible.y + Math.max(0, (visible.height - extent.height) / 2),
   });
 }

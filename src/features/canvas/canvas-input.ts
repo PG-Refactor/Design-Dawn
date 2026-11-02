@@ -43,6 +43,11 @@ import {
 } from "./geometry/range-selection";
 import { boundsOfRects } from "./geometry/selection-bounds";
 import {
+  keepMoveRightOfOrigin,
+  keepOriginInView,
+  sheetOriginOf,
+} from "./geometry/sheet-origin";
+import {
   type ResizeEdges,
   snappedMoveDelta,
   snappedResizeFrame,
@@ -156,8 +161,9 @@ export function createCanvasInput(
   let lastPoint: Point | null = null;
 
   function currentViewport(): Viewport {
-    return (
-      uiStateStore.getState().viewportBySheet.get(sheetId) ?? DEFAULT_VIEWPORT
+    return keepOriginInView(
+      uiStateStore.getState().viewportBySheet.get(sheetId) ?? DEFAULT_VIEWPORT,
+      sheetOriginOf(blocks()),
     );
   }
 
@@ -187,7 +193,8 @@ export function createCanvasInput(
   }
 
   function setPan(viewport: Viewport): void {
-    uiStateStore.setState((state) => setViewport(state, sheetId, viewport));
+    const bounded = keepOriginInView(viewport, sheetOriginOf(blocks()));
+    uiStateStore.setState((state) => setViewport(state, sheetId, bounded));
   }
 
   function worldDeltaFrom(start: Point, point: Point): Point {
@@ -216,7 +223,8 @@ export function createCanvasInput(
         snapSuspended || gesture.bounds === null
           ? raw
           : snappedMoveDelta(gesture.bounds, raw, CANVAS_CONFIG.grid.interval);
-      uiStateStore.setState((state) => updateDrag(state, delta));
+      const bounded = keepMoveRightOfOrigin(gesture.bounds, delta);
+      uiStateStore.setState((state) => updateDrag(state, bounded));
     } else if (gesture?.kind === "resizing") {
       const raw = worldDeltaFrom(gesture.start, point);
       const frame = snapSuspended

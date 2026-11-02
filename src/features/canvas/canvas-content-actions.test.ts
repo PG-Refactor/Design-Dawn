@@ -82,12 +82,26 @@ describe("createBlock", () => {
       setViewport(
         state,
         SHEET_A1,
+        clampViewport({ panX: -100, panY: -50, zoom: 0.5 }),
+      ),
+    );
+    await createMarkdown(harness);
+    // Visible: x 200..1800, y 100..1300 -> centre (1000, 700) -> top-left (760, 540).
+    expect(newestBlock(harness).position).toEqual({ x: 760, y: 540 });
+  });
+
+  it("puts a block larger than the view at the view's top-left corner", async () => {
+    const harness = await openedCanvasHarness();
+    harness.uiStateStore.setState((state) =>
+      setViewport(
+        state,
+        SHEET_A1,
         clampViewport({ panX: -100, panY: -50, zoom: 2 }),
       ),
     );
     await createMarkdown(harness);
-    // Visible: x 50..450, y 25..325 -> centre (250, 175) -> top-left (10, 15).
-    expect(newestBlock(harness).position).toEqual({ x: 10, y: 15 });
+    // Visible: x 50..450, y 25..325, smaller than the 480 x 320 block.
+    expect(newestBlock(harness).position).toEqual({ x: 50, y: 25 });
   });
 
   it("steps by the paste offset until the position is free", async () => {

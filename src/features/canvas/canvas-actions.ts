@@ -347,9 +347,11 @@ export function createCanvasActions(
       uiStateStore.getState().viewportBySheet.get(input.sheetId) ??
       DEFAULT_VIEWPORT;
     const visible = visibleWorldRect(input.viewportSize, viewport);
+    // A block larger than the view starts at its top-left corner instead, so it never
+    // lands left of / above the view (past the sheet's origin).
     const centred = commitPosition({
-      x: visible.x + (visible.width - size.width) / 2,
-      y: visible.y + (visible.height - size.height) / 2,
+      x: visible.x + Math.max(0, (visible.width - size.width) / 2),
+      y: visible.y + Math.max(0, (visible.height - size.height) / 2),
     });
     if (!centred.ok) return fromDomainResult(centred);
     const taken = [

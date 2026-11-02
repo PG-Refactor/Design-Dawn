@@ -55,9 +55,23 @@
   cursor: not-allowed;
 }
 
+/* A fixed width, so a document's icon lines up with a folder's even without a marker. */
 .tree-item__folder-marker {
   flex: 0 0 auto;
+  width: 0.75em;
   color: var(--color-text-muted);
+  text-align: center;
+}
+
+.tree-item__icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+}
+
+.tree-icon {
+  width: 1rem;
+  height: 1rem;
 }
 
 .tree-item__marker {
@@ -114,4 +128,12 @@
 .tree-item:focus > .tree-item__row .popup-menu__trigger,
 .tree-item__menu .popup-menu__trigger[aria-expanded="true"] {
   opacity: 1;
+}
+
+/* The buttons that add a folder / document where the tree cursor is (VS Code's Explorer). */
+.project-tree__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  margin-bottom: var(--space-1);
 }

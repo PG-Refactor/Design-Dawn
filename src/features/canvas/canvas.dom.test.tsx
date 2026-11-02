@@ -320,11 +320,11 @@ describe("pan, zoom and viewport persistence", () => {
 
   it("pans by dragging with the middle button and keeps Domain data untouched", async () => {
     const { shell, canvas } = await renderOpenedCanvas();
-    await drag(canvasElement(), [400, 400], [430, 380], { button: 1 });
+    await drag(canvasElement(), [400, 400], [370, 380], { button: 1 });
     expect(
       shell.uiStateStore.getState().viewportBySheet.get(SHEET_A1),
     ).toMatchObject({
-      panX: 30,
+      panX: -30,
       panY: -20,
     });
     expect(canvas.session.getState().history.canUndo).toBe(false);
@@ -363,7 +363,7 @@ describe("pan, zoom and viewport persistence", () => {
   });
 
   it("restores a saved viewport from the gateway", async () => {
-    const saved = clampViewport({ panX: 70, panY: 30, zoom: 2 });
+    const saved = clampViewport({ panX: -70, panY: -30, zoom: 2 });
     const shell = await renderShell({
       seed: (harness) => {
         seedCanvasDisk(harness);
@@ -382,7 +382,7 @@ describe("pan, zoom and viewport persistence", () => {
     await screen.findByRole("listbox", { name: "Sheet A1" });
     await waitFor(() =>
       expect(worldLayer().style.transform).toBe(
-        "translate(70px, 30px) scale(2)",
+        "translate(-70px, -30px) scale(2)",
       ),
     );
     expect(shell.viewportGateway.saveCalls).toEqual([]);
