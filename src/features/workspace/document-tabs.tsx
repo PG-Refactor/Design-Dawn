@@ -12,6 +12,7 @@ import { activateDiff, closeDiff, pinDiff } from "../git/git-diff-session";
 import { GitDiffTabItem } from "../git/git-diff-tab";
 import { focusFallbackElement } from "./focus-utils";
 import { documentPanelId, documentTabId } from "./tab-ids";
+import { DocumentIcon } from "./tree-icons";
 import { activateCompareTab, closeCompareTab } from "./ui-state/diff-tabs";
 import type { CompareTab, DiffTab, GitSelection } from "./ui-state/ui-state";
 import { useMessages } from "./use-messages";
@@ -307,6 +308,9 @@ export function DocumentTabs() {
               onKeyDown={(event) => handleKeyDown(event, index)}
               {...pointerHandlers}
             >
+              <span className="tab__icon" aria-hidden="true">
+                <DocumentIcon />
+              </span>
               <span className="tab__name">{tab.name}</span>
               <SaveStatusIndicator tab={tab} />
             </button>

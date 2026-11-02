@@ -3,6 +3,7 @@ import type { SheetId } from "../../domain/shared/entity-id";
 import { useContextMenu } from "../../shared/menu/context-menu";
 import { restoreFocus } from "./focus-utils";
 import { sheetPanelId, sheetTabId } from "./tab-ids";
+import { SheetIcon } from "./tree-icons";
 import { TreeRenameInput } from "./tree-rename-input";
 import { sameRenamingTarget } from "./ui-state/ui-state";
 import { useMessages } from "./use-messages";
@@ -187,6 +188,9 @@ function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
               onKeyDown={(event) => handleKeyDown(event, index)}
               {...pointerHandlers}
             >
+              <span className="tab__icon" aria-hidden="true">
+                <SheetIcon />
+              </span>
               <span className="tab__name">{tab.name}</span>
             </button>
             {isRenaming ? (
@@ -229,12 +233,15 @@ export function SheetTabs() {
   return (
     <div className="sheet-tabs">
       <SheetTabList model={model} />
+      {/* A small "+" after the last tab, as in spreadsheets; the name says what it does. */}
       <button
         type="button"
-        className="button"
+        className="icon-button sheet-tabs__add"
+        aria-label={messages.tabs.createSheet}
+        title={messages.tabs.createSheet}
         onClick={() => void actions.requestCreateSheet(model.documentId)}
       >
-        {messages.tabs.createSheet}
+        <span aria-hidden="true">{messages.tabs.createSheetButtonText}</span>
       </button>
     </div>
   );

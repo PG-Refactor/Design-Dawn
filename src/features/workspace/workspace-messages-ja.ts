@@ -264,6 +264,7 @@ export const WORKSPACE_MESSAGES_JA = {
     createSheet: "Sheetを作成",
     deleteSheet: "Sheetを削除",
     deleteSheetButtonText: "×",
+    createSheetButtonText: "+",
     moveLeft: "左へ移動",
     moveRight: "右へ移動",
   },

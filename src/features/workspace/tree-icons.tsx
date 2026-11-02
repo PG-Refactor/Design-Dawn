@@ -1,4 +1,4 @@
-// Small inline icons of the Project Tree. They draw with `currentColor` (so themes and the
+// Small inline icons of the Project Tree (also on the tabs, so a tab shows what it holds). They draw with `currentColor` (so themes and the
 // row colours apply) and are decorative: the rows and buttons that use one have their own
 // accessible names, hence `aria-hidden`.
 
@@ -78,6 +78,16 @@ export function NewDocumentIcon() {
     <Icon>
       <path d="M8 14.5H3.5v-13h6l3 3V8" />
       <path d="M9.5 1.5v3h3M12 10v5M9.5 12.5h5" />
+    </Icon>
+  );
+}
+
+// A sheet: a page ruled into cells, as in spreadsheets.
+export function SheetIcon() {
+  return (
+    <Icon>
+      <rect x="1.5" y="2.5" width="13" height="11" rx="1" />
+      <path d="M1.5 6h13M1.5 9.5h13M6 6v7.5" />
     </Icon>
   );
 }
