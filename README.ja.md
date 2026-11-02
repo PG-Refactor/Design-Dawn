@@ -76,12 +76,14 @@ docker compose exec dev npm run tauri dev   # アプリを起動（ウィンド�
 docker compose exec dev npm run verify   # 型チェック・Biome・Vitest・ライセンス検査・cargo fmt / clippy / test
 docker compose exec dev npm run build    # フロントエンドの本番ビルド
 docker compose exec dev npm run tauri build -- --bundles deb   # Linux のパッケージ
+docker compose exec dev npm run tauri:build:windows   # Windows の .exe（クロスビルド、インストーラーなし）
 ```
 
 注意:
 
 - `node_modules` と Rust のビルド出力は Docker の名前付きボリュームに置き、ソースツリーには入れません。
 - ウィンドウは WSLg の X11 で表示します（`compose.yaml` の `GDK_BACKEND=x11`）。
+- `tauri:build:windows` は [cargo-xwin](https://github.com/rust-cross/cargo-xwin) で `design-dawn.exe` と `design-dawn-mcp.exe` を `src-tauri/target/x86_64-pc-windows-msvc/release/` にクロスビルドします。初回は Microsoft の CRT と Windows SDK（約 1 GB、Microsoft のライセンス）を Docker のボリュームにダウンロードします。`.exe` を Windows の任意の場所にコピーすれば実行できます（WebView2 ランタイムが必要で、Windows 11 には標準で入っています）。Tauri はこのビルド方法を試験的としているため、配布用のインストーラーは Windows 上で作ってください。
 - リポジトリを Windows のドライブからマウントしている場合は、ファイル変更の通知が届かないことがあるため `DAWN_WATCH_POLLING=true` を設定してください。
 
 ## AI（MCP）から使う
