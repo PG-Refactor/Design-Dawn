@@ -17,6 +17,7 @@
     "check": "biome check .",
     "test": "vitest run",
     "tauri": "tauri",
+    "tauri:build:windows": "tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc --no-bundle",
     "rust:fmt:check": "cargo fmt --check --manifest-path src-tauri/Cargo.toml",
     "rust:lint": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings",
     "rust:test": "cargo test --manifest-path src-tauri/Cargo.toml",

@@ -19,6 +19,8 @@ services:
       - cargo_registry:/home/dev/.cargo/registry
       - cargo_git:/home/dev/.cargo/git
       - npm_cache:/home/dev/.npm
+      # Microsoft CRT / Windows SDK for the Windows build (about 1 GB, downloaded once).
+      - xwin_cache:/home/dev/.cache/cargo-xwin
       # WSLg sockets. Compose is run from the WSL2 distro, whose own /mnt/wslg
       # is what Docker Desktop resolves. When running compose from Windows
       # instead, set WSLG_DIR=/run/desktop/mnt/host/wslg.
@@ -47,3 +49,4 @@ volumes:
   cargo_registry:
   cargo_git:
   npm_cache:
+  xwin_cache:

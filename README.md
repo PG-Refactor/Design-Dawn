@@ -94,12 +94,19 @@ Other commands:
 docker compose exec dev npm run verify   # typecheck, Biome, Vitest, license check, cargo fmt/clippy/test
 docker compose exec dev npm run build    # frontend production build
 docker compose exec dev npm run tauri build -- --bundles deb   # Linux package
+docker compose exec dev npm run tauri:build:windows   # Windows .exe (cross-built, no installer)
 ```
 
 Notes:
 
 - `node_modules` and the Rust build output live on Docker named volumes, not in the source tree.
 - The window is shown through WSLg X11 (`GDK_BACKEND=x11` in `compose.yaml`).
+- `tauri:build:windows` cross-builds `design-dawn.exe` and `design-dawn-mcp.exe` into
+  `src-tauri/target/x86_64-pc-windows-msvc/release/` with
+  [cargo-xwin](https://github.com/rust-cross/cargo-xwin). On first use it downloads the Microsoft
+  CRT and Windows SDK (about 1 GB, under Microsoft's license) into a Docker volume. Copy the
+  `.exe` anywhere on Windows and run it; it needs the WebView2 runtime, which Windows 11 includes.
+  Tauri calls this way of building experimental, so build installers for distribution on Windows.
 - If the repository is bind-mounted from a Windows drive, set `DAWN_WATCH_POLLING=true`, because
   file change events may not arrive there.
 

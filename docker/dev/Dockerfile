@@ -14,6 +14,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential \
       ca-certificates \
+      clang \
       curl \
       file \
       fonts-noto-cjk \
@@ -24,11 +25,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libssl-dev \
       libwebkit2gtk-4.1-dev \
       libxdo-dev \
+      lld \
+      llvm \
       pkg-config \
       wget \
       x11-utils \
       xz-utils \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    # cargo-xwin compiles C code for Windows with clang-cl; clang takes that
+    # mode from the name it is started under, and Ubuntu installs no such link.
+    && ln -s /usr/bin/clang /usr/local/bin/clang-cl
 
 # Node.js from the official tarball, verified against the published SHA256 list.
 RUN set -eux; \
@@ -56,7 +62,7 @@ RUN set -eux; \
     # dev user makes Docker initialise the volumes with that ownership.
     mkdir -p /workspace/node_modules /workspace/src-tauri/target \
              "/home/${DEV_USER}/.cargo/registry" "/home/${DEV_USER}/.cargo/git" \
-             "/home/${DEV_USER}/.npm"; \
+             "/home/${DEV_USER}/.npm" "/home/${DEV_USER}/.cache/cargo-xwin"; \
     chown -R "${DEV_UID}:${DEV_GID}" /workspace "/home/${DEV_USER}"
 
 USER ${DEV_USER}
@@ -75,5 +81,14 @@ RUN curl -fsSL --proto '=https' --tlsv1.2 https://sh.rustup.rs -o /tmp/rustup-in
 ARG CARGO_ABOUT_VERSION=0.9.2
 RUN cargo install cargo-about --locked --version "${CARGO_ABOUT_VERSION}" --features cli \
     && cargo about --version
+
+# Windows build from this container (`npm run tauri:build:windows`): the MSVC target and
+# cargo-xwin (MIT), which downloads the Microsoft CRT and Windows SDK into
+# ~/.cache/cargo-xwin on first use. That download is under Microsoft's license and stays in
+# the container; nothing of it is committed. Pinned exactly.
+ARG CARGO_XWIN_VERSION=0.23.1
+RUN rustup target add x86_64-pc-windows-msvc \
+    && cargo install cargo-xwin --locked --version "${CARGO_XWIN_VERSION}" \
+    && cargo xwin --version
 
 WORKDIR /workspace
