@@ -213,7 +213,7 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     loading: "Loading…",
     loadFailed: "Could not be loaded",
     description:
-      "A desktop application for writing design documents on an infinite canvas.",
+      "A desktop application for writing design documents on a free-form canvas.",
   },
   notices: {
     regionLabel: "Notices",

@@ -92,7 +92,7 @@ export interface CanvasProps {
   readonly sheetName: string;
 }
 
-// The Infinite Canvas of one sheet: a viewport element holding a world layer that is
+// The free-form canvas of one sheet: a viewport element holding a world layer that is
 // moved / scaled with a CSS transform. Blocks come from the application store (the single
 // source of truth); selection, drag / resize previews and the viewport come from UI state.
 export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {

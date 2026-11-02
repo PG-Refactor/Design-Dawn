@@ -17,7 +17,7 @@ pub const SUPPORTED_PROTOCOL_VERSIONS: [&str; 2] = ["2025-06-18", "2025-03-26"];
 pub const SERVER_INSTRUCTIONS: &str =
     "Reads and changes one Design Dawn Project made of Documents, Sheets and Blocks. \
 Start with getProject, then getDocument, getSheet and getBlock. Blocks are placed on an \
-infinite canvas in integer world units. To change a Block's text, call getBlock first and \
+free-form canvas in integer world units (unbounded in every direction). To change a Block's text, call getBlock first and \
 pass its contentHash as expectedContentHash to updateBlock; a conflict result means the text \
 changed since, so read it again. Write tools exist only when the server was started with \
 --allow-write.";

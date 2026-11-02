@@ -213,7 +213,7 @@ export const WORKSPACE_MESSAGES_JA = {
     loading: "読み込み中…",
     loadFailed: "読み込めませんでした",
     description:
-      "無限キャンバスの上で設計ドキュメントを書くためのデスクトップアプリケーションです。",
+      "ブロックを自由に配置できるキャンバスの上で設計ドキュメントを書くためのデスクトップアプリケーションです。",
   },
   notices: {
     // A light, self-clearing region; not part of the notifications panel.
