@@ -31,6 +31,7 @@ import {
   installObjectUrlFake,
   type ObjectUrlFake,
 } from "./test-support/fake-mermaid-renderer";
+import { getShown } from "./test-support/reveal-in-gui";
 
 let objectUrls: ObjectUrlFake;
 
@@ -76,9 +77,7 @@ async function openGui(
     mermaidRenderer: renderer,
   });
   fireEvent.doubleClick(blockOption(0));
-  await rendered.shell.user.click(
-    screen.getByRole("button", { name: GUI.modeGui }),
-  );
+  await rendered.shell.user.click(getShown("button", GUI.modeGui));
   await act(settle);
   return rendered;
 }
@@ -86,17 +85,19 @@ type Rendered = Awaited<ReturnType<typeof openGui>>;
 
 const storedText = (rendered: Rendered): string | undefined =>
   rendered.canvas.session.getState().contents.get(BLOCK_ONE);
-const list = () =>
-  screen.getByRole("listbox", { name: GUI.listLabel(SHORT_ID) });
+const list = () => getShown("listbox", GUI.listLabel(SHORT_ID));
 const optionNames = () =>
   within(list())
     .getAllByRole("option")
     .map((option) => option.getAttribute("aria-label"));
 const option = (label: string, value: string) =>
   within(list()).getByRole("option", { name: GUI.sliceOption(label, value) });
-const textbox = (name: string) =>
-  screen.getByRole("textbox", { name }) as HTMLInputElement;
-const button = (name: string) => screen.getByRole("button", { name });
+const textbox = (name: string) => getShown("textbox", name) as HTMLInputElement;
+const button = (name: string) => getShown("button", name);
+// The add form opens from its button at the top of the GUI.
+async function openAddSlice(rendered: Rendered): Promise<void> {
+  await rendered.shell.user.click(button(GUI.addSliceToggle));
+}
 const alertText = () => screen.queryByRole("alert")?.textContent ?? null;
 
 async function select(rendered: Rendered, label: string, value: string) {
@@ -120,9 +121,7 @@ describe("the mode switch", () => {
       mermaidRenderer: createFakeRenderer(),
     });
     fireEvent.doubleClick(blockOption(0));
-    expect(
-      screen.getByRole("textbox", { name: MESSAGES.sourceLabel(SHORT_ID) }),
-    ).toBeTruthy();
+    expect(getShown("textbox", MESSAGES.sourceLabel(SHORT_ID))).toBeTruthy();
     expect(button(GUI.modeSource).getAttribute("aria-pressed")).toBe("true");
     expect(button(GUI.modeGui).getAttribute("aria-pressed")).toBe("false");
     expect(
@@ -389,6 +388,7 @@ describe("a pie chart in the GUI", () => {
 
   it("adds a slice with Enter, selects it, clears the fields and keeps the focus", async () => {
     const rendered = await openGui();
+    await openAddSlice(rendered);
     const label = textbox(GUI.newLabelField);
     await rendered.shell.user.type(label, "Birds");
     await rendered.shell.user.type(textbox(GUI.newValueField), "7{Enter}");
@@ -404,6 +404,7 @@ describe("a pie chart in the GUI", () => {
 
   it("does not add half a slice when the focus moves from the label to the value field", async () => {
     const rendered = await openGui();
+    await openAddSlice(rendered);
     await rendered.shell.user.type(textbox(GUI.newLabelField), "Birds");
     await rendered.shell.user.tab();
     await act(settle);
@@ -464,6 +465,7 @@ describe("a pie chart in the GUI", () => {
 
   it("shows an empty chart as an empty list and can add the first slice", async () => {
     const rendered = await openGui("pie\n");
+    await openAddSlice(rendered);
     expect(screen.getByText(GUI.emptySlices)).toBeTruthy();
     expect(
       screen.queryByRole("listbox", { name: GUI.listLabel(SHORT_ID) }),
@@ -491,6 +493,7 @@ describe("a pie chart in the GUI", () => {
 
   it("shows a quote in a label as a quote and writes it as #quot;", async () => {
     const rendered = await openGui('pie\n  "A" : 1\n');
+    await openAddSlice(rendered);
     await rendered.shell.user.type(textbox(GUI.newLabelField), 'say "hi"');
     await rendered.shell.user.type(textbox(GUI.newValueField), "2{Enter}");
     await act(settle);
@@ -539,6 +542,7 @@ describe("refused input", () => {
 
   it("refuses entity-like and directive labels", async () => {
     const rendered = await openGui();
+    await openAddSlice(rendered);
     const label = textbox(GUI.newLabelField);
     const cases: readonly (readonly [string, string])[] = [
       ["#35;", GUI.refusalReasons.entityLikeText],

@@ -32,6 +32,7 @@ import {
   installObjectUrlFake,
   type ObjectUrlFake,
 } from "./test-support/fake-mermaid-renderer";
+import { getShown } from "./test-support/reveal-in-gui";
 
 // The pie GUI's uncommitted field values are drafts in the DraftRegistry, so
 // save-all, the unsaved-close check, GUI -> Source and leaving the editor all see them.
@@ -100,9 +101,7 @@ async function openGui(
     });
   }
   fireEvent.doubleClick(blockOption(0));
-  await rendered.shell.user.click(
-    screen.getByRole("button", { name: GUI.modeGui }),
-  );
+  await rendered.shell.user.click(getShown("button", GUI.modeGui));
   await act(settle);
   return rendered;
 }
@@ -110,9 +109,8 @@ type Rendered = Awaited<ReturnType<typeof openGui>>;
 
 const storedText = (rendered: Rendered): string | undefined =>
   rendered.canvas.session.getState().contents.get(BLOCK_ONE);
-const textbox = (name: string) =>
-  screen.getByRole("textbox", { name }) as HTMLInputElement;
-const button = (name: string) => screen.getByRole("button", { name });
+const textbox = (name: string) => getShown("textbox", name) as HTMLInputElement;
+const button = (name: string) => getShown("button", name);
 const alertText = () => screen.queryByRole("alert")?.textContent ?? null;
 const option = (label: string, value: string) =>
   screen.getByRole("option", { name: GUI.sliceOption(label, value) });
@@ -562,9 +560,7 @@ describe("leaving the editor and other blocks", () => {
 
     await leaveEditorWithoutBlur(rendered);
     fireEvent.doubleClick(blockOption(1));
-    await rendered.shell.user.click(
-      screen.getByRole("button", { name: GUI.modeGui }),
-    );
+    await rendered.shell.user.click(getShown("button", GUI.modeGui));
     await act(settle);
 
     expect(textbox(GUI.titleLabel).value).toBe("");

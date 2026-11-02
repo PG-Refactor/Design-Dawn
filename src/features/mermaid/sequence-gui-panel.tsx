@@ -17,6 +17,11 @@ import {
   type SequenceEntryView,
 } from "../../domain/diagram/sequence/sequence-view";
 import { useMessages } from "../workspace/use-messages";
+import {
+  DiagramGuiLayout,
+  GuiStatus,
+  useGuiLayoutState,
+} from "./diagram-gui-layout";
 import { describeRefusal, describeRestriction } from "./diagram-gui-text";
 import { GuiSelect } from "./gui-controls";
 import { GuiDraftLabelField } from "./gui-draft-label-field";
@@ -59,6 +64,14 @@ type SequenceSelection =
 
 // The title field edits one thing, so its target is this constant.
 const TITLE_TARGET = { key: "title" } as const;
+// The list (tab) that shows each kind of selection, and the add forms.
+const TABS = { participant: "participants", entry: "entries" } as const;
+const ADD = {
+  participant: "participant",
+  message: "message",
+  note: "note",
+  blockTools: "blockTools",
+} as const;
 const AUTONUMBER_ON = "on";
 const AUTONUMBER_OFF = "off";
 
@@ -87,6 +100,7 @@ export function SequenceGuiPanel({
   const commitPendingRef = useRef<GuiDraftCommit | null>(null);
   const titleCommitRef = useRef<GuiDraftCommit | null>(null);
   const addParticipantInputRef = useRef<(() => boolean) | null>(null);
+  const layout = useGuiLayoutState(TABS.participant);
   const addMessageInputRef = useRef<(() => boolean) | null>(null);
   const addNoteInputRef = useRef<(() => boolean) | null>(null);
   const blockToolsInputRef = useRef<(() => boolean) | null>(null);
@@ -195,6 +209,7 @@ export function SequenceGuiPanel({
     followEditRef.current = false;
     setSelectionKey((key) => key + 1);
     setSelection(next);
+    layout.showTab(TABS[next.kind]);
   }
 
   // GUI -> Source. Pending text is committed (a refusal keeps it, and the switch). The add
@@ -207,6 +222,16 @@ export function SequenceGuiPanel({
       addNoteInputRef.current?.() === true ||
       blockToolsInputRef.current?.() === true
     ) {
+      // A closed form may hold the input: it is opened, so what blocks is in view.
+      layout.openAdd(
+        addParticipantInputRef.current?.() === true
+          ? ADD.participant
+          : addMessageInputRef.current?.() === true
+            ? ADD.message
+            : addNoteInputRef.current?.() === true
+              ? ADD.note
+              : ADD.blockTools,
+      );
       setInputError(gui.addInputPending);
       return operationErr(
         "invalidDiagramOperation",
@@ -232,7 +257,13 @@ export function SequenceGuiPanel({
   ): Promise<void> {
     // The button disappears with the selection; the focus moves first, because an element
     // that is removed while focused would look like leaving the editor.
-    (entryListRef.current ?? addParticipantLabelRef.current)?.focus();
+    // The list on screen is the one of the selection's kind.
+    const list =
+      selection?.kind === "participant"
+        ? participantListRef.current
+        : entryListRef.current;
+    if (list !== null) list.focus();
+    else layout.focusToolbar();
     const outcome = await run(sequenceOperation);
     if (outcome !== "applied") return;
     setSelectionKey((key) => key + 1);
@@ -249,117 +280,8 @@ export function SequenceGuiPanel({
       : null;
   const titleRestriction = describeRestriction(gui, view.titleRestriction);
 
-  return (
-    <div className="diagram-gui__sequence">
-      {busy && (
-        <p role="status" className="diagram-gui__busy">
-          {gui.busy}
-        </p>
-      )}
-      {(refusal !== null || inputError !== null) && (
-        <div role="alert" className="diagram-gui__refusal">
-          <p className="diagram-gui__refusal-heading">{gui.refusalHeading}</p>
-          <p>{inputError ?? refusal?.message}</p>
-          {inputError === null && refusal?.mermaidMessage != null && (
-            <>
-              <p className="diagram-gui__refusal-label">
-                {gui.refusalDetailLabel}
-              </p>
-              <pre className="diagram-gui__refusal-detail">
-                {refusal.mermaidMessage}
-              </pre>
-            </>
-          )}
-        </div>
-      )}
-      <GuiDraftLabelField
-        documentId={documentId}
-        blockId={blockId}
-        label={text.titleField}
-        target={TITLE_TARGET}
-        targetKey={(titleTarget) => titleTarget.key}
-        committed={view.title}
-        buildOperation={(_titleTarget, title): SequenceOperation => ({
-          kind: "setTitle",
-          title,
-        })}
-        allowEmpty
-        multiline={false}
-        restrictionText={titleRestriction}
-        itemChangedText={text.itemChanged}
-        busy={busy}
-        runDraft={runDraft}
-        onInvalidInput={setInputError}
-        inputRef={titleLabelRef}
-        commitPendingRef={titleCommitRef}
-      />
-      <GuiSelect
-        label={text.autonumberLabel}
-        value={
-          view.autonumber.state === "on"
-            ? AUTONUMBER_ON
-            : view.autonumber.state === "off"
-              ? AUTONUMBER_OFF
-              : view.autonumber.state
-        }
-        options={[
-          { value: AUTONUMBER_OFF, label: text.autonumberStates.off },
-          { value: AUTONUMBER_ON, label: text.autonumberStates.on },
-          ...(view.autonumber.state === "custom"
-            ? [{ value: "custom", label: text.autonumberStates.custom }]
-            : []),
-        ]}
-        disabled={busy || view.autonumber.state === "custom"}
-        onChange={(value) => {
-          if (value === AUTONUMBER_ON || value === AUTONUMBER_OFF) {
-            void run({
-              kind: "setAutonumber",
-              enabled: value === AUTONUMBER_ON,
-            });
-          }
-        }}
-      />
-      {view.autonumber.state === "custom" && (
-        <p className="diagram-gui__hint">{text.autonumberCustom}</p>
-      )}
-      <h4 className="diagram-gui__heading">{text.participantsHeading}</h4>
-      <SequenceParticipantList
-        shortId={shortId}
-        participants={view.participants}
-        selectedId={
-          selection?.kind === "participant"
-            ? (selectedParticipant?.id ?? null)
-            : null
-        }
-        onSelect={(id) => void select({ kind: "participant", id })}
-        onEnter={() => editorLabelRef.current?.focus()}
-        listRef={participantListRef}
-      />
-      <h4 className="diagram-gui__heading">{text.entriesHeading}</h4>
-      <SequenceEntryList
-        shortId={shortId}
-        entries={view.entries}
-        selectedKey={
-          selection?.kind === "entry" && selectedEntry !== undefined
-            ? entryKey(selectedEntry)
-            : null
-        }
-        onSelect={(key) => {
-          const entry = view.entries.find(
-            (candidate) => entryKey(candidate) === key,
-          );
-          if (entry !== undefined) {
-            void select({
-              kind: "entry",
-              index: entry.target.index,
-              fingerprint: entry.target.fingerprint,
-              entryKind: entry.kind,
-            });
-          }
-        }}
-        onEnter={() => editorLabelRef.current?.focus()}
-        listRef={entryListRef}
-      />
+  const editor = (
+    <>
       {selection === null &&
         (view.participants.length > 0 || view.entries.length > 0) && (
           <p className="diagram-gui__hint">{text.noSelection}</p>
@@ -398,49 +320,207 @@ export function SequenceGuiPanel({
           commitPendingRef={commitPendingRef}
         />
       )}
-      <SequenceBlockTools
-        documentId={documentId}
-        blockId={blockId}
-        entries={view.entries}
-        selected={selection?.kind === "entry" ? selectedEntry : undefined}
-        busy={busy}
-        runDraft={runDraft}
-        onInvalidInput={setInputError}
-        hasInputRef={blockToolsInputRef}
-      />
-      <SequenceAddParticipant
-        documentId={documentId}
-        blockId={blockId}
-        busy={busy}
-        runDraft={runDraft}
-        onAdded={(participantId) => {
-          if (participantId === null) return;
-          setSelectionKey((key) => key + 1);
-          setSelection({ kind: "participant", id: participantId });
-        }}
-        labelInputRef={addParticipantLabelRef}
-        hasInputRef={addParticipantInputRef}
-      />
-      <SequenceAddMessage
-        documentId={documentId}
-        blockId={blockId}
-        participants={view.participants}
-        afterTarget={afterTarget}
-        busy={busy}
-        runDraft={runDraft}
-        onInvalidInput={setInputError}
-        hasInputRef={addMessageInputRef}
-      />
-      <SequenceAddNote
-        documentId={documentId}
-        blockId={blockId}
-        participants={view.participants}
-        afterTarget={afterTarget}
-        busy={busy}
-        runDraft={runDraft}
-        onInvalidInput={setInputError}
-        hasInputRef={addNoteInputRef}
-      />
-    </div>
+    </>
+  );
+
+  return (
+    <DiagramGuiLayout
+      className="diagram-gui__sequence"
+      state={layout}
+      toolbarLabel={gui.addToolbarLabel}
+      tabListLabel={gui.listTabsLabel}
+      addActions={[
+        {
+          id: ADD.participant,
+          label: text.addParticipantToggle,
+          form: (
+            <SequenceAddParticipant
+              documentId={documentId}
+              blockId={blockId}
+              busy={busy}
+              runDraft={runDraft}
+              onAdded={(participantId) => {
+                if (participantId === null) return;
+                setSelectionKey((key) => key + 1);
+                setSelection({ kind: "participant", id: participantId });
+                layout.showTab(TABS.participant);
+              }}
+              labelInputRef={addParticipantLabelRef}
+              hasInputRef={addParticipantInputRef}
+            />
+          ),
+        },
+        {
+          id: ADD.message,
+          label: text.addMessageToggle,
+          form: (
+            <SequenceAddMessage
+              documentId={documentId}
+              blockId={blockId}
+              participants={view.participants}
+              afterTarget={afterTarget}
+              busy={busy}
+              runDraft={runDraft}
+              onInvalidInput={setInputError}
+              hasInputRef={addMessageInputRef}
+            />
+          ),
+        },
+        {
+          id: ADD.note,
+          label: text.addNoteToggle,
+          form: (
+            <SequenceAddNote
+              documentId={documentId}
+              blockId={blockId}
+              participants={view.participants}
+              afterTarget={afterTarget}
+              busy={busy}
+              runDraft={runDraft}
+              onInvalidInput={setInputError}
+              hasInputRef={addNoteInputRef}
+            />
+          ),
+        },
+        {
+          id: ADD.blockTools,
+          label: text.blockToolsToggle,
+          form: (
+            <SequenceBlockTools
+              documentId={documentId}
+              blockId={blockId}
+              entries={view.entries}
+              selected={selection?.kind === "entry" ? selectedEntry : undefined}
+              busy={busy}
+              runDraft={runDraft}
+              onInvalidInput={setInputError}
+              hasInputRef={blockToolsInputRef}
+            />
+          ),
+        },
+      ]}
+      status={
+        <GuiStatus
+          busy={busy}
+          busyText={gui.busy}
+          refusalHeading={gui.refusalHeading}
+          refusalDetailLabel={gui.refusalDetailLabel}
+          message={inputError ?? refusal?.message ?? null}
+          mermaidMessage={
+            inputError === null ? (refusal?.mermaidMessage ?? null) : null
+          }
+        />
+      }
+      editor={editor}
+      tabs={[
+        {
+          id: TABS.participant,
+          label: text.participantsHeading,
+          count: view.participants.length,
+          content: (
+            <SequenceParticipantList
+              shortId={shortId}
+              participants={view.participants}
+              selectedId={
+                selection?.kind === "participant"
+                  ? (selectedParticipant?.id ?? null)
+                  : null
+              }
+              onSelect={(id) => void select({ kind: "participant", id })}
+              onEnter={() => editorLabelRef.current?.focus()}
+              listRef={participantListRef}
+            />
+          ),
+        },
+        {
+          id: TABS.entry,
+          label: text.entriesHeading,
+          count: view.entries.length,
+          content: (
+            <SequenceEntryList
+              shortId={shortId}
+              entries={view.entries}
+              selectedKey={
+                selection?.kind === "entry" && selectedEntry !== undefined
+                  ? entryKey(selectedEntry)
+                  : null
+              }
+              onSelect={(key) => {
+                const entry = view.entries.find(
+                  (candidate) => entryKey(candidate) === key,
+                );
+                if (entry !== undefined) {
+                  void select({
+                    kind: "entry",
+                    index: entry.target.index,
+                    fingerprint: entry.target.fingerprint,
+                    entryKind: entry.kind,
+                  });
+                }
+              }}
+              onEnter={() => editorLabelRef.current?.focus()}
+              listRef={entryListRef}
+            />
+          ),
+        },
+      ]}
+      settings={
+        <section
+          aria-label={text.settingsHeading}
+          className="diagram-gui__settings"
+        >
+          <GuiDraftLabelField
+            documentId={documentId}
+            blockId={blockId}
+            label={text.titleField}
+            target={TITLE_TARGET}
+            targetKey={(titleTarget) => titleTarget.key}
+            committed={view.title}
+            buildOperation={(_titleTarget, title): SequenceOperation => ({
+              kind: "setTitle",
+              title,
+            })}
+            allowEmpty
+            multiline={false}
+            restrictionText={titleRestriction}
+            itemChangedText={text.itemChanged}
+            busy={busy}
+            runDraft={runDraft}
+            onInvalidInput={setInputError}
+            inputRef={titleLabelRef}
+            commitPendingRef={titleCommitRef}
+          />
+          <GuiSelect
+            label={text.autonumberLabel}
+            value={
+              view.autonumber.state === "on"
+                ? AUTONUMBER_ON
+                : view.autonumber.state === "off"
+                  ? AUTONUMBER_OFF
+                  : view.autonumber.state
+            }
+            options={[
+              { value: AUTONUMBER_OFF, label: text.autonumberStates.off },
+              { value: AUTONUMBER_ON, label: text.autonumberStates.on },
+              ...(view.autonumber.state === "custom"
+                ? [{ value: "custom", label: text.autonumberStates.custom }]
+                : []),
+            ]}
+            disabled={busy || view.autonumber.state === "custom"}
+            onChange={(value) => {
+              if (value === AUTONUMBER_ON || value === AUTONUMBER_OFF) {
+                void run({
+                  kind: "setAutonumber",
+                  enabled: value === AUTONUMBER_ON,
+                });
+              }
+            }}
+          />
+          {view.autonumber.state === "custom" && (
+            <p className="diagram-gui__hint">{text.autonumberCustom}</p>
+          )}
+        </section>
+      }
+    />
   );
 }

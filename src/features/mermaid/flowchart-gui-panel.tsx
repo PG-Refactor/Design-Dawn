@@ -18,6 +18,11 @@ import {
   readFlowchartView,
 } from "../../domain/diagram/flowchart/flowchart-view";
 import { useMessages } from "../workspace/use-messages";
+import {
+  DiagramGuiLayout,
+  GuiStatus,
+  useGuiLayoutState,
+} from "./diagram-gui-layout";
 import { describeRefusal } from "./diagram-gui-text";
 import { FlowchartAddEdge } from "./flowchart-add-edge";
 import { FlowchartAddNode } from "./flowchart-add-node";
@@ -55,6 +60,10 @@ type FlowchartSelection =
 
 const DIRECTIONS: readonly FlowchartDirection[] = ["TB", "BT", "LR", "RL"];
 
+// The list (tab) that shows each kind of selection.
+const TABS = { node: "nodes", edge: "edges", subgraph: "subgraphs" } as const;
+const ADD = { node: "node", edge: "edge", subgraph: "subgraph" } as const;
+
 export function FlowchartGuiPanel({
   target,
   shortId,
@@ -80,6 +89,7 @@ export function FlowchartGuiPanel({
   );
   const commitPendingRef = useRef<GuiDraftCommit | null>(null);
   const addNodeInputRef = useRef<(() => boolean) | null>(null);
+  const layout = useGuiLayoutState(TABS.node);
   const addEdgeInputRef = useRef<(() => boolean) | null>(null);
   const addSubgraphInputRef = useRef<(() => boolean) | null>(null);
   const { documentId, blockId } = target;
@@ -140,6 +150,7 @@ export function FlowchartGuiPanel({
     operation.clearRefusal();
     setSelectionKey((key) => key + 1);
     setSelection(next);
+    layout.showTab(TABS[next.kind]);
   }
 
   // GUI -> Source. A pending label is committed (a refusal keeps it, and the switch). The
@@ -151,6 +162,14 @@ export function FlowchartGuiPanel({
       addEdgeInputRef.current?.() === true ||
       addSubgraphInputRef.current?.() === true
     ) {
+      // A closed form may hold the input: it is opened, so what blocks is in view.
+      layout.openAdd(
+        addNodeInputRef.current?.() === true
+          ? ADD.node
+          : addEdgeInputRef.current?.() === true
+            ? ADD.edge
+            : ADD.subgraph,
+      );
       setInputError(gui.addInputPending);
       return operationErr(
         "invalidDiagramOperation",
@@ -172,10 +191,8 @@ export function FlowchartGuiPanel({
     if (selectedEdge === undefined || view === null) return;
     // The delete button disappears with the selection; the focus moves first, because an
     // element that is removed while focused would look like leaving the editor.
-    (view.edges.length > 1
-      ? edgeListRef.current
-      : addNodeLabelRef.current
-    )?.focus();
+    if (view.edges.length > 1) edgeListRef.current?.focus();
+    else layout.focusToolbar();
     const outcome = await run({
       kind: "deleteEdge",
       target: { index: selectedEdge.index, id: selectedEdge.id },
@@ -187,10 +204,8 @@ export function FlowchartGuiPanel({
 
   async function deleteSelectedNode(): Promise<void> {
     if (selectedNode === undefined || view === null) return;
-    (view.nodes.length > 1
-      ? nodeListRef.current
-      : addNodeLabelRef.current
-    )?.focus();
+    if (view.nodes.length > 1) nodeListRef.current?.focus();
+    else layout.focusToolbar();
     const outcome = await run({ kind: "deleteNode", nodeId: selectedNode.id });
     if (outcome !== "applied") return;
     setSelectionKey((key) => key + 1);
@@ -199,10 +214,8 @@ export function FlowchartGuiPanel({
 
   async function dissolveSelectedSubgraph(): Promise<void> {
     if (selectedSubgraph === undefined || view === null) return;
-    (view.subgraphs.length > 1
-      ? subgraphListRef.current
-      : addSubgraphTitleRef.current
-    )?.focus();
+    if (view.subgraphs.length > 1) subgraphListRef.current?.focus();
+    else layout.focusToolbar();
     const outcome = await run({
       kind: "dissolveSubgraph",
       subgraphId: selectedSubgraph.id,
@@ -216,71 +229,8 @@ export function FlowchartGuiPanel({
   const refusal =
     operation.refusal === null ? null : describeRefusal(gui, operation.refusal);
 
-  return (
-    <div className="diagram-gui__flowchart">
-      {busy && (
-        <p role="status" className="diagram-gui__busy">
-          {gui.busy}
-        </p>
-      )}
-      {(refusal !== null || inputError !== null) && (
-        <div role="alert" className="diagram-gui__refusal">
-          <p className="diagram-gui__refusal-heading">{gui.refusalHeading}</p>
-          <p>{inputError ?? refusal?.message}</p>
-          {inputError === null && refusal?.mermaidMessage != null && (
-            <>
-              <p className="diagram-gui__refusal-label">
-                {gui.refusalDetailLabel}
-              </p>
-              <pre className="diagram-gui__refusal-detail">
-                {refusal.mermaidMessage}
-              </pre>
-            </>
-          )}
-        </div>
-      )}
-      <GuiSelect
-        label={text.directionLabel}
-        value={view.direction}
-        options={DIRECTIONS.map((direction) => ({
-          value: direction,
-          label: text.directions[direction],
-        }))}
-        disabled={busy}
-        onChange={(value) => {
-          const direction = DIRECTIONS.find((candidate) => candidate === value);
-          if (direction !== undefined) {
-            void run({ kind: "setDirection", direction });
-          }
-        }}
-      />
-      <h4 className="diagram-gui__heading">{text.nodesHeading}</h4>
-      <FlowchartNodeList
-        shortId={shortId}
-        nodes={view.nodes}
-        selectedId={
-          selection?.kind === "node" ? (selectedNode?.id ?? null) : null
-        }
-        onSelect={(id) => void select({ kind: "node", id })}
-        onEnter={() => editorLabelRef.current?.focus()}
-        listRef={nodeListRef}
-      />
-      <h4 className="diagram-gui__heading">{text.edgesHeading}</h4>
-      <FlowchartEdgeList
-        shortId={shortId}
-        edges={view.edges}
-        selectedIndex={
-          selection?.kind === "edge" ? (selectedEdge?.index ?? null) : null
-        }
-        onSelect={(index) => {
-          const edge = view.edges[index];
-          if (edge !== undefined) {
-            void select({ kind: "edge", index, id: edge.id });
-          }
-        }}
-        onEnter={() => editorLabelRef.current?.focus()}
-        listRef={edgeListRef}
-      />
+  const editor = (
+    <>
       {selection === null &&
         (view.nodes.length > 0 ||
           view.edges.length > 0 ||
@@ -318,41 +268,6 @@ export function FlowchartGuiPanel({
           commitPendingRef={commitPendingRef}
         />
       )}
-      <FlowchartAddNode
-        documentId={documentId}
-        blockId={blockId}
-        busy={busy}
-        runDraft={runDraft}
-        onInvalidInput={setInputError}
-        onAdded={(nodeId) => {
-          if (nodeId === null) return;
-          setSelectionKey((key) => key + 1);
-          setSelection({ kind: "node", id: nodeId });
-        }}
-        labelInputRef={addNodeLabelRef}
-        hasInputRef={addNodeInputRef}
-      />
-      <FlowchartAddEdge
-        documentId={documentId}
-        blockId={blockId}
-        nodes={view.nodes}
-        busy={busy}
-        runDraft={runDraft}
-        onInvalidInput={setInputError}
-        onAdded={() => undefined}
-        hasInputRef={addEdgeInputRef}
-      />
-      <h4 className="diagram-gui__heading">{text.subgraphsHeading}</h4>
-      <FlowchartSubgraphList
-        shortId={shortId}
-        subgraphs={view.subgraphs}
-        selectedId={
-          selection?.kind === "subgraph" ? (selectedSubgraph?.id ?? null) : null
-        }
-        onSelect={(id) => void select({ kind: "subgraph", id })}
-        onEnter={() => editorLabelRef.current?.focus()}
-        listRef={subgraphListRef}
-      />
       {selection?.kind === "subgraph" && (
         <FlowchartSubgraphEditor
           key={selectionKey}
@@ -367,16 +282,169 @@ export function FlowchartGuiPanel({
           commitPendingRef={commitPendingRef}
         />
       )}
-      <FlowchartAddSubgraph
-        documentId={documentId}
-        blockId={blockId}
-        nodes={view.nodes}
-        busy={busy}
-        runDraft={runDraft}
-        onInvalidInput={setInputError}
-        titleInputRef={addSubgraphTitleRef}
-        hasInputRef={addSubgraphInputRef}
-      />
-    </div>
+    </>
+  );
+
+  return (
+    <DiagramGuiLayout
+      className="diagram-gui__flowchart"
+      state={layout}
+      toolbarLabel={gui.addToolbarLabel}
+      tabListLabel={gui.listTabsLabel}
+      addActions={[
+        {
+          id: ADD.node,
+          label: text.addNodeToggle,
+          form: (
+            <FlowchartAddNode
+              documentId={documentId}
+              blockId={blockId}
+              busy={busy}
+              runDraft={runDraft}
+              onInvalidInput={setInputError}
+              onAdded={(nodeId) => {
+                if (nodeId === null) return;
+                setSelectionKey((key) => key + 1);
+                setSelection({ kind: "node", id: nodeId });
+                layout.showTab(TABS.node);
+              }}
+              labelInputRef={addNodeLabelRef}
+              hasInputRef={addNodeInputRef}
+            />
+          ),
+        },
+        {
+          id: ADD.edge,
+          label: text.addEdgeToggle,
+          form: (
+            <FlowchartAddEdge
+              documentId={documentId}
+              blockId={blockId}
+              nodes={view.nodes}
+              busy={busy}
+              runDraft={runDraft}
+              onInvalidInput={setInputError}
+              onAdded={() => undefined}
+              hasInputRef={addEdgeInputRef}
+            />
+          ),
+        },
+        {
+          id: ADD.subgraph,
+          label: text.addSubgraphToggle,
+          form: (
+            <FlowchartAddSubgraph
+              documentId={documentId}
+              blockId={blockId}
+              nodes={view.nodes}
+              busy={busy}
+              runDraft={runDraft}
+              onInvalidInput={setInputError}
+              titleInputRef={addSubgraphTitleRef}
+              hasInputRef={addSubgraphInputRef}
+            />
+          ),
+        },
+      ]}
+      status={
+        <GuiStatus
+          busy={busy}
+          busyText={gui.busy}
+          refusalHeading={gui.refusalHeading}
+          refusalDetailLabel={gui.refusalDetailLabel}
+          message={inputError ?? refusal?.message ?? null}
+          mermaidMessage={
+            inputError === null ? (refusal?.mermaidMessage ?? null) : null
+          }
+        />
+      }
+      editor={editor}
+      tabs={[
+        {
+          id: TABS.node,
+          label: text.nodesHeading,
+          count: view.nodes.length,
+          content: (
+            <FlowchartNodeList
+              shortId={shortId}
+              nodes={view.nodes}
+              selectedId={
+                selection?.kind === "node" ? (selectedNode?.id ?? null) : null
+              }
+              onSelect={(id) => void select({ kind: "node", id })}
+              onEnter={() => editorLabelRef.current?.focus()}
+              listRef={nodeListRef}
+            />
+          ),
+        },
+        {
+          id: TABS.edge,
+          label: text.edgesHeading,
+          count: view.edges.length,
+          content: (
+            <FlowchartEdgeList
+              shortId={shortId}
+              edges={view.edges}
+              selectedIndex={
+                selection?.kind === "edge"
+                  ? (selectedEdge?.index ?? null)
+                  : null
+              }
+              onSelect={(index) => {
+                const edge = view.edges[index];
+                if (edge !== undefined) {
+                  void select({ kind: "edge", index, id: edge.id });
+                }
+              }}
+              onEnter={() => editorLabelRef.current?.focus()}
+              listRef={edgeListRef}
+            />
+          ),
+        },
+        {
+          id: TABS.subgraph,
+          label: text.subgraphsHeading,
+          count: view.subgraphs.length,
+          content: (
+            <FlowchartSubgraphList
+              shortId={shortId}
+              subgraphs={view.subgraphs}
+              selectedId={
+                selection?.kind === "subgraph"
+                  ? (selectedSubgraph?.id ?? null)
+                  : null
+              }
+              onSelect={(id) => void select({ kind: "subgraph", id })}
+              onEnter={() => editorLabelRef.current?.focus()}
+              listRef={subgraphListRef}
+            />
+          ),
+        },
+      ]}
+      settings={
+        <section
+          aria-label={text.settingsHeading}
+          className="diagram-gui__settings"
+        >
+          <GuiSelect
+            label={text.directionLabel}
+            value={view.direction}
+            options={DIRECTIONS.map((direction) => ({
+              value: direction,
+              label: text.directions[direction],
+            }))}
+            disabled={busy}
+            onChange={(value) => {
+              const direction = DIRECTIONS.find(
+                (candidate) => candidate === value,
+              );
+              if (direction !== undefined) {
+                void run({ kind: "setDirection", direction });
+              }
+            }}
+          />
+        </section>
+      }
+    />
   );
 }

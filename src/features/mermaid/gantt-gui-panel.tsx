@@ -20,6 +20,11 @@ import {
   readGanttView,
 } from "../../domain/diagram/gantt/gantt-view";
 import { useMessages } from "../workspace/use-messages";
+import {
+  DiagramGuiLayout,
+  GuiStatus,
+  useGuiLayoutState,
+} from "./diagram-gui-layout";
 import { describeRefusal, describeRestriction } from "./diagram-gui-text";
 import { GanttAddSection } from "./gantt-add-section";
 import { GanttAddTask } from "./gantt-add-task";
@@ -60,6 +65,9 @@ type GanttSelection =
 
 // The title field edits one thing, so its target is this constant.
 const TITLE_TARGET = { key: "title" } as const;
+// The list (tab) that shows each kind of selection, and the add forms.
+const TABS = { section: "sections", task: "tasks" } as const;
+const ADD = { section: "section", task: "task" } as const;
 
 export function GanttGuiPanel({
   target,
@@ -86,6 +94,7 @@ export function GanttGuiPanel({
   const titleCommitRef = useRef<GuiDraftCommit | null>(null);
   const settingsCommitRef = useRef<GuiDraftCommit | null>(null);
   const addSectionInputRef = useRef<(() => boolean) | null>(null);
+  const layout = useGuiLayoutState(TABS.task);
   const addTaskInputRef = useRef<(() => boolean) | null>(null);
   // True from the moment this panel sends an operation until the view has followed it: only
   // then may a selected element whose name changed be looked up by its position (a rename
@@ -206,6 +215,7 @@ export function GanttGuiPanel({
     followEditRef.current = false;
     setSelectionKey((key) => key + 1);
     setSelection(next);
+    layout.showTab(TABS[next.kind]);
   }
 
   // GUI -> Source. Pending text is committed (a refusal keeps it, and the switch). The add
@@ -216,6 +226,10 @@ export function GanttGuiPanel({
       addSectionInputRef.current?.() === true ||
       addTaskInputRef.current?.() === true
     ) {
+      // A closed form may hold the input: it is opened, so what blocks is in view.
+      layout.openAdd(
+        addSectionInputRef.current?.() === true ? ADD.section : ADD.task,
+      );
       setInputError(gui.addInputPending);
       return operationErr(
         "invalidDiagramOperation",
@@ -243,7 +257,8 @@ export function GanttGuiPanel({
     operationToRun: GanttOperation,
     listRef: MutableRefObject<HTMLDivElement | null>,
   ): Promise<void> {
-    (listRef.current ?? addSectionNameRef.current)?.focus();
+    if (listRef.current !== null) listRef.current.focus();
+    else layout.focusToolbar();
     const outcome = await run(operationToRun);
     if (outcome !== "applied") return;
     setSelectionKey((key) => key + 1);
@@ -286,204 +301,244 @@ export function GanttGuiPanel({
   );
 
   return (
-    <div className="diagram-gui__gantt">
-      {busy && (
-        <p role="status" className="diagram-gui__busy">
-          {gui.busy}
-        </p>
-      )}
-      {(refusal !== null || inputError !== null) && (
-        <div role="alert" className="diagram-gui__refusal">
-          <p className="diagram-gui__refusal-heading">{gui.refusalHeading}</p>
-          <p>{inputError ?? refusal?.message}</p>
-          {inputError === null && refusal?.mermaidMessage != null && (
-            <>
-              <p className="diagram-gui__refusal-label">
-                {gui.refusalDetailLabel}
-              </p>
-              <pre className="diagram-gui__refusal-detail">
-                {refusal.mermaidMessage}
-              </pre>
-            </>
+    <DiagramGuiLayout
+      className="diagram-gui__gantt"
+      state={layout}
+      toolbarLabel={gui.addToolbarLabel}
+      tabListLabel={gui.listTabsLabel}
+      addActions={[
+        {
+          id: ADD.section,
+          label: text.addSectionToggle,
+          form: (
+            <GanttAddSection
+              documentId={documentId}
+              blockId={blockId}
+              afterSectionIndex={
+                selection?.kind === "section" && selectedSection !== undefined
+                  ? selectedSection.target.index
+                  : null
+              }
+              busy={busy}
+              runDraft={async (ganttOperation) => {
+                const result = await runDraft(ganttOperation);
+                if (result.ok) clearSelectionAfterAdd();
+                return result;
+              }}
+              nameInputRef={addSectionNameRef}
+              hasInputRef={addSectionInputRef}
+            />
+          ),
+        },
+        {
+          id: ADD.task,
+          label: text.addTaskToggle,
+          form: (
+            <GanttAddTask
+              documentId={documentId}
+              blockId={blockId}
+              sections={view.sections}
+              dateFormat={view.dateFormat}
+              busy={busy}
+              runDraft={async (ganttOperation) => {
+                const result = await runDraft(ganttOperation);
+                if (result.ok) clearSelectionAfterAdd();
+                return result;
+              }}
+              onInvalidInput={setInputError}
+              hasInputRef={addTaskInputRef}
+            />
+          ),
+        },
+      ]}
+      status={
+        <GuiStatus
+          busy={busy}
+          busyText={gui.busy}
+          refusalHeading={gui.refusalHeading}
+          refusalDetailLabel={gui.refusalDetailLabel}
+          message={inputError ?? refusal?.message ?? null}
+          mermaidMessage={
+            inputError === null ? (refusal?.mermaidMessage ?? null) : null
+          }
+        />
+      }
+      editor={
+        <>
+          {selection === null &&
+            (view.sections.length > 0 || view.tasks.length > 0) && (
+              <p className="diagram-gui__hint">{text.noSelection}</p>
+            )}
+          {selection?.kind === "section" && (
+            <GanttSectionEditor
+              key={selectionKey}
+              documentId={documentId}
+              blockId={blockId}
+              section={selectedSection}
+              busy={busy}
+              runDraft={runDraft}
+              onInvalidInput={setInputError}
+              onDelete={(section) =>
+                void deleteSelected(
+                  { kind: "deleteSection", target: section.target },
+                  sectionListRef,
+                )
+              }
+              onMove={(section, direction: GanttMoveDirection) =>
+                void run({
+                  kind: "moveSection",
+                  target: section.target,
+                  direction,
+                })
+              }
+              nameInputRef={editorNameRef}
+              commitPendingRef={commitPendingRef}
+            />
           )}
-        </div>
-      )}
-      <GuiDraftLabelField
-        documentId={documentId}
-        blockId={blockId}
-        label={text.titleField}
-        target={TITLE_TARGET}
-        targetKey={(titleTarget) => titleTarget.key}
-        committed={view.title}
-        buildOperation={(_titleTarget, title): GanttOperation =>
-          title === "" ? { kind: "clearTitle" } : { kind: "setTitle", title }
-        }
-        allowEmpty
-        multiline={false}
-        restrictionText={titleRestriction}
-        itemChangedText={text.itemChanged}
-        busy={busy}
-        runDraft={runDraft}
-        onInvalidInput={setInputError}
-        inputRef={null}
-        commitPendingRef={titleCommitRef}
-      />
-      <p className="diagram-gui__hint">
-        {text.dateFormatLine(view.dateFormat)}
-      </p>
-      <GanttSettingsEditor
-        documentId={documentId}
-        blockId={blockId}
-        view={view}
-        busy={busy}
-        runDraft={runDraft}
-        onInvalidInput={setInputError}
-        commitPendingRef={settingsCommitRef}
-      />
-      <h4 className="diagram-gui__heading">{text.sectionsHeading}</h4>
-      <GanttSectionList
-        shortId={shortId}
-        sections={view.sections}
-        selectedKey={
-          selection?.kind === "section" && selectedSection !== undefined
-            ? sectionKey(selectedSection)
-            : null
-        }
-        onSelect={(key) => {
-          const section = view.sections.find(
-            (candidate) => sectionKey(candidate) === key,
-          );
-          if (section !== undefined) {
-            void select({
-              kind: "section",
-              index: section.target.index,
-              name: section.target.name,
-            });
-          }
-        }}
-        onEnter={() => editorNameRef.current?.focus()}
-        listRef={sectionListRef}
-      />
-      <h4 className="diagram-gui__heading">{text.tasksHeading}</h4>
-      <GanttTaskList
-        shortId={shortId}
-        tasks={view.tasks}
-        selectedKey={
-          selection?.kind === "task" && selectedTask !== undefined
-            ? taskKey(selectedTask)
-            : null
-        }
-        onSelect={(key) => {
-          const task = view.tasks.find(
-            (candidate) => taskKey(candidate) === key,
-          );
-          if (task !== undefined) {
-            void select({
-              kind: "task",
-              index: task.target.index,
-              name: task.target.name,
-              id: task.id,
-            });
-          }
-        }}
-        onEnter={() => editorNameRef.current?.focus()}
-        listRef={taskListRef}
-      />
-      {selection === null &&
-        (view.sections.length > 0 || view.tasks.length > 0) && (
-          <p className="diagram-gui__hint">{text.noSelection}</p>
-        )}
-      {selection?.kind === "section" && (
-        <GanttSectionEditor
-          key={selectionKey}
-          documentId={documentId}
-          blockId={blockId}
-          section={selectedSection}
-          busy={busy}
-          runDraft={runDraft}
-          onInvalidInput={setInputError}
-          onDelete={(section) =>
-            void deleteSelected(
-              { kind: "deleteSection", target: section.target },
-              sectionListRef,
-            )
-          }
-          onMove={(section, direction: GanttMoveDirection) =>
-            void run({ kind: "moveSection", target: section.target, direction })
-          }
-          nameInputRef={editorNameRef}
-          commitPendingRef={commitPendingRef}
-        />
-      )}
-      {selection?.kind === "task" && (
-        <GanttTaskEditor
-          key={selectionKey}
-          documentId={documentId}
-          blockId={blockId}
-          task={selectedTask}
-          dateFormat={view.dateFormat}
-          busy={busy}
-          runDraft={runDraft}
-          onInvalidInput={setInputError}
-          onDelete={(task) =>
-            void deleteSelected(
-              { kind: "deleteTask", target: task.target },
-              taskListRef,
-            )
-          }
-          onMove={(task, direction: GanttMoveDirection) =>
-            void moveTask(task, {
-              kind: "moveTask",
-              target: task.target,
-              direction,
-            })
-          }
-          onMoveToSection={(task, sectionIndex) =>
-            void moveTask(task, {
-              kind: "moveTaskToSection",
-              target: task.target,
-              sectionIndex,
-            })
-          }
-          onDuplicate={(task) =>
-            void run({ kind: "duplicateTask", target: task.target })
-          }
-          moveTargets={moveTargets}
-          nameInputRef={editorNameRef}
-          commitPendingRef={commitPendingRef}
-        />
-      )}
-      <GanttAddSection
-        documentId={documentId}
-        blockId={blockId}
-        afterSectionIndex={
-          selection?.kind === "section" && selectedSection !== undefined
-            ? selectedSection.target.index
-            : null
-        }
-        busy={busy}
-        runDraft={async (ganttOperation) => {
-          const result = await runDraft(ganttOperation);
-          if (result.ok) clearSelectionAfterAdd();
-          return result;
-        }}
-        nameInputRef={addSectionNameRef}
-        hasInputRef={addSectionInputRef}
-      />
-      <GanttAddTask
-        documentId={documentId}
-        blockId={blockId}
-        sections={view.sections}
-        dateFormat={view.dateFormat}
-        busy={busy}
-        runDraft={async (ganttOperation) => {
-          const result = await runDraft(ganttOperation);
-          if (result.ok) clearSelectionAfterAdd();
-          return result;
-        }}
-        onInvalidInput={setInputError}
-        hasInputRef={addTaskInputRef}
-      />
-    </div>
+          {selection?.kind === "task" && (
+            <GanttTaskEditor
+              key={selectionKey}
+              documentId={documentId}
+              blockId={blockId}
+              task={selectedTask}
+              dateFormat={view.dateFormat}
+              busy={busy}
+              runDraft={runDraft}
+              onInvalidInput={setInputError}
+              onDelete={(task) =>
+                void deleteSelected(
+                  { kind: "deleteTask", target: task.target },
+                  taskListRef,
+                )
+              }
+              onMove={(task, direction: GanttMoveDirection) =>
+                void moveTask(task, {
+                  kind: "moveTask",
+                  target: task.target,
+                  direction,
+                })
+              }
+              onMoveToSection={(task, sectionIndex) =>
+                void moveTask(task, {
+                  kind: "moveTaskToSection",
+                  target: task.target,
+                  sectionIndex,
+                })
+              }
+              onDuplicate={(task) =>
+                void run({ kind: "duplicateTask", target: task.target })
+              }
+              moveTargets={moveTargets}
+              nameInputRef={editorNameRef}
+              commitPendingRef={commitPendingRef}
+            />
+          )}
+        </>
+      }
+      tabs={[
+        {
+          id: TABS.task,
+          label: text.tasksHeading,
+          count: view.tasks.length,
+          content: (
+            <GanttTaskList
+              shortId={shortId}
+              tasks={view.tasks}
+              selectedKey={
+                selection?.kind === "task" && selectedTask !== undefined
+                  ? taskKey(selectedTask)
+                  : null
+              }
+              onSelect={(key) => {
+                const task = view.tasks.find(
+                  (candidate) => taskKey(candidate) === key,
+                );
+                if (task !== undefined) {
+                  void select({
+                    kind: "task",
+                    index: task.target.index,
+                    name: task.target.name,
+                    id: task.id,
+                  });
+                }
+              }}
+              onEnter={() => editorNameRef.current?.focus()}
+              listRef={taskListRef}
+            />
+          ),
+        },
+        {
+          id: TABS.section,
+          label: text.sectionsHeading,
+          count: view.sections.length,
+          content: (
+            <GanttSectionList
+              shortId={shortId}
+              sections={view.sections}
+              selectedKey={
+                selection?.kind === "section" && selectedSection !== undefined
+                  ? sectionKey(selectedSection)
+                  : null
+              }
+              onSelect={(key) => {
+                const section = view.sections.find(
+                  (candidate) => sectionKey(candidate) === key,
+                );
+                if (section !== undefined) {
+                  void select({
+                    kind: "section",
+                    index: section.target.index,
+                    name: section.target.name,
+                  });
+                }
+              }}
+              onEnter={() => editorNameRef.current?.focus()}
+              listRef={sectionListRef}
+            />
+          ),
+        },
+      ]}
+      settings={
+        <section
+          aria-label={text.settingsHeading}
+          className="diagram-gui__settings"
+        >
+          <GuiDraftLabelField
+            documentId={documentId}
+            blockId={blockId}
+            label={text.titleField}
+            target={TITLE_TARGET}
+            targetKey={(titleTarget) => titleTarget.key}
+            committed={view.title}
+            buildOperation={(_titleTarget, title): GanttOperation =>
+              title === ""
+                ? { kind: "clearTitle" }
+                : { kind: "setTitle", title }
+            }
+            allowEmpty
+            multiline={false}
+            restrictionText={titleRestriction}
+            itemChangedText={text.itemChanged}
+            busy={busy}
+            runDraft={runDraft}
+            onInvalidInput={setInputError}
+            inputRef={null}
+            commitPendingRef={titleCommitRef}
+          />
+          <p className="diagram-gui__hint">
+            {text.dateFormatLine(view.dateFormat)}
+          </p>
+          <GanttSettingsEditor
+            documentId={documentId}
+            blockId={blockId}
+            view={view}
+            busy={busy}
+            runDraft={runDraft}
+            onInvalidInput={setInputError}
+            commitPendingRef={settingsCommitRef}
+          />
+        </section>
+      }
+    />
   );
 }
