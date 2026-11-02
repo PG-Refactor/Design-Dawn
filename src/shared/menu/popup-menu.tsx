@@ -1,35 +1,17 @@
 import {
-  type KeyboardEvent,
   type FocusEvent as ReactFocusEvent,
   type ReactNode,
-  useEffect,
   useRef,
   useState,
 } from "react";
+import { MenuList, type PopupMenuEntry, type PopupMenuItem } from "./menu-list";
 import "./popup-menu.css";
 
-export interface PopupMenuItem {
-  readonly id: string;
-  readonly label: string;
-  // Stays focusable (so it can be discovered) but does nothing when chosen.
-  readonly disabled?: boolean;
-  // Why the item is disabled (or a note about it): shown as a tooltip and exposed to
-  // assistive technology as the item's description.
-  readonly hint?: string;
-  readonly onSelect: () => void;
-}
-
-// A divider between groups of items; not focusable and not chosen.
-export interface PopupMenuSeparator {
-  readonly id: string;
-  readonly separator: true;
-}
-
-export type PopupMenuEntry = PopupMenuItem | PopupMenuSeparator;
-
-function isSeparator(entry: PopupMenuEntry): entry is PopupMenuSeparator {
-  return "separator" in entry;
-}
+export type {
+  PopupMenuEntry,
+  PopupMenuItem,
+  PopupMenuSeparator,
+} from "./menu-list";
 
 export interface PopupMenuProps {
   // Accessible name of the trigger button; `triggerContent` is only its visible glyph.
@@ -42,13 +24,7 @@ export interface PopupMenuProps {
   readonly className?: string;
 }
 
-const KEYS = {
-  escape: "Escape",
-  arrowDown: "ArrowDown",
-  arrowUp: "ArrowUp",
-  home: "Home",
-  end: "End",
-} as const;
+const OPEN_KEY = "ArrowDown";
 
 // A menu button (WAI-ARIA menu button pattern): the trigger opens a menu; arrow keys,
 // Home / End move, Enter / click chooses, Escape closes and focus goes back to the
@@ -63,57 +39,10 @@ export function PopupMenu({
 }: PopupMenuProps) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  function itemElements(): HTMLElement[] {
-    return [
-      ...(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ??
-        []),
-    ];
-  }
-
-  function focusItem(index: number): void {
-    const list = itemElements();
-    list[(index + list.length) % list.length]?.focus();
-  }
-
-  // The menu is rendered by the state change, so its first item is focused afterwards.
-  useEffect(() => {
-    if (!open) return;
-    menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
-  }, [open]);
 
   function close(): void {
     setOpen(false);
     buttonRef.current?.focus();
-  }
-
-  function onMenuKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
-    const current = itemElements().indexOf(
-      document.activeElement as HTMLElement,
-    );
-    switch (event.key) {
-      case KEYS.escape:
-        event.preventDefault();
-        close();
-        return;
-      case KEYS.arrowDown:
-        event.preventDefault();
-        focusItem(current + 1);
-        return;
-      case KEYS.arrowUp:
-        event.preventDefault();
-        focusItem(current - 1);
-        return;
-      case KEYS.home:
-        event.preventDefault();
-        focusItem(0);
-        return;
-      case KEYS.end:
-        event.preventDefault();
-        focusItem(itemElements().length - 1);
-        return;
-    }
   }
 
   function onBlur(event: ReactFocusEvent<HTMLDivElement>): void {
@@ -123,10 +52,8 @@ export function PopupMenu({
   }
 
   function choose(item: PopupMenuItem): void {
-    if (item.disabled === true) return;
     // Focus goes back first, so what the action opens (a dialog) remembers the trigger.
-    setOpen(false);
-    buttonRef.current?.focus();
+    close();
     item.onSelect();
   }
 
@@ -146,7 +73,7 @@ export function PopupMenu({
         tabIndex={triggerTabIndex}
         onClick={() => setOpen((wasOpen) => !wasOpen)}
         onKeyDown={(event) => {
-          if (event.key === KEYS.arrowDown) {
+          if (event.key === OPEN_KEY) {
             event.preventDefault();
             setOpen(true);
           }
@@ -155,32 +82,12 @@ export function PopupMenu({
         {triggerContent}
       </button>
       {open && (
-        <div
-          ref={menuRef}
-          role="menu"
-          aria-label={menuLabel}
-          className="popup-menu__list"
-          onKeyDown={onMenuKeyDown}
-        >
-          {items.map((item) =>
-            isSeparator(item) ? (
-              <hr key={item.id} className="popup-menu__separator" />
-            ) : (
-              <button
-                key={item.id}
-                type="button"
-                role="menuitem"
-                className="popup-menu__item"
-                aria-disabled={item.disabled === true ? true : undefined}
-                aria-description={item.hint}
-                title={item.hint}
-                onClick={() => choose(item)}
-              >
-                {item.label}
-              </button>
-            ),
-          )}
-        </div>
+        <MenuList
+          label={menuLabel}
+          entries={items}
+          onDismiss={close}
+          onChoose={choose}
+        />
       )}
     </div>
   );

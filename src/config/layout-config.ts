@@ -19,4 +19,6 @@ export const LAYOUT_CONFIG = {
   splitterWidthPx: 8,
   // How long a light, non-modal notice ("already open") stays before it fades away.
   noticeDurationMs: 4000,
+  // A right-click menu is kept at least this far inside the window edges.
+  contextMenuEdgeMarginPx: 4,
 } as const;

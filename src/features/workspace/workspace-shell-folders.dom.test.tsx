@@ -486,3 +486,55 @@ describe("deleting a folder", () => {
     expect(screen.getByRole("treeitem", { name: "Folder 2" })).toBeTruthy();
   });
 });
+
+describe("the right-click menu of the tree", () => {
+  async function rightClick(
+    harness: ShellHarness,
+    name: string,
+  ): Promise<HTMLElement> {
+    const row = treeItemNamed(name).querySelector(".tree-item__label");
+    if (row === null) throw new Error(`no label for ${name}`);
+    await harness.user.pointer({ keys: "[MouseRight]", target: row });
+    return screen.getByRole("menu", { name: MESSAGES.treeMenuLabel(name) });
+  }
+
+  it("offers the row's own menu on a folder and makes it the focused row", async () => {
+    const harness = await openedShell();
+    const names = menuItemNames(await rightClick(harness, "Folder 2"));
+    await harness.user.keyboard("{Escape}");
+    expect(document.activeElement).toBe(treeItemNamed("Folder 2"));
+    expect(names).toEqual(
+      menuItemNames(await openRowMenu(harness.user, "Folder 2")),
+    );
+  });
+
+  it("creates a document beside the right-clicked document, in its folder", async () => {
+    const harness = await openedShell();
+    const menu = await rightClick(harness, "Document D");
+    expect(menuItemNames(menu).slice(0, 2)).toEqual([
+      TREE.createDocument,
+      TREE.createFolder,
+    ]);
+    await harness.user.click(menuItem(menu, TREE.createDocument));
+    const dialog = screen.getByRole("dialog", {
+      name: MESSAGES.dialogs.createDocument.title,
+    });
+    await harness.user.type(
+      within(dialog).getByRole("textbox", {
+        name: MESSAGES.dialogs.createDocument.nameLabel,
+      }),
+      "Sibling{Enter}",
+    );
+    await screen.findByRole("tab", { name: /Sibling/ });
+    expect(level("Sibling")).toBe(level("Document D"));
+  });
+
+  it("opens the nearest row's menu only, and Escape gives focus back", async () => {
+    const harness = await openedShell();
+    await rightClick(harness, "Document D");
+    expect(screen.getAllByRole("menu")).toHaveLength(1);
+    await harness.user.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(document.activeElement).toBe(treeItemNamed("Document D"));
+  });
+});
