@@ -23,6 +23,7 @@ import type { AssetUrlResolver } from "../application/ports/asset-url-resolver";
 import type { DropEventSource } from "../application/ports/drop-event-source";
 import type { Scheduler } from "../application/ports/scheduler";
 import type { CloseRequestSource } from "../application/ports/window-close";
+import type { WindowTitle } from "../application/ports/window-title";
 import {
   type AutoSaveController,
   createAutoSaveController,
@@ -88,6 +89,7 @@ import { createTauriDropEventSource } from "../infrastructure/tauri/tauri-drop-e
 import { createTauriGitGateway } from "../infrastructure/tauri/tauri-git-gateway";
 import { createTauriPersistenceGateway } from "../infrastructure/tauri/tauri-persistence-gateway";
 import { createTauriViewportGateway } from "../infrastructure/tauri/tauri-viewport-gateway";
+import { createTauriWindowTitle } from "../infrastructure/tauri/tauri-window-title";
 import { createTimeoutScheduler } from "../infrastructure/timer/timeout-scheduler";
 
 export interface AppServices {
@@ -107,6 +109,8 @@ export interface AppServices {
   readonly closeRequestSource: CloseRequestSource;
   // Requests Rust sends to this window while it runs (open a Document of its Project).
   readonly appRequestSource: AppRequestSource;
+  // The window's title bar, which names the open Project.
+  readonly windowTitle: WindowTitle;
   // Restores / saves the per-sheet viewport; watches the UI state on its own.
   readonly viewportPersistence: ViewportPersistence;
   // App-level theme state; independent of the workspace, sessions and undo history.
@@ -241,6 +245,7 @@ export function createAppServices(): AppServices {
     dropEventSource: createTauriDropEventSource(),
     assetUrlResolver: createTauriAssetUrlResolver(),
     closeRequestSource: createTauriCloseRequestSource(),
+    windowTitle: createTauriWindowTitle(),
     appRequestSource: createTauriAppRequestSource(),
     viewportPersistence,
     themeController,

@@ -47,6 +47,7 @@ const APP_COMMANDS: &[&str] = &[
     "get_project_snapshot",
     "list_project_windows",
     "project_window_at",
+    "show_project_in_title",
     "git_status",
     "git_stage",
     "git_unstage",

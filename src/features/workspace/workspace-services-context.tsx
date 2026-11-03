@@ -9,6 +9,7 @@ import type { AssetUrlResolver } from "../../application/ports/asset-url-resolve
 import type { DropEventSource } from "../../application/ports/drop-event-source";
 import type { Scheduler } from "../../application/ports/scheduler";
 import type { CloseRequestSource } from "../../application/ports/window-close";
+import type { WindowTitle } from "../../application/ports/window-title";
 import type { AutoSaveController } from "../../application/settings/auto-save-controller";
 import type { LayoutSettingsController } from "../../application/settings/layout-settings-controller";
 import type { TextSizeController } from "../../application/settings/text-size-controller";
@@ -39,6 +40,9 @@ export interface WorkspaceServices {
   readonly closeRequestSource: CloseRequestSource;
   // Requests Rust sends to this window while it runs (open a Document of its Project).
   readonly appRequestSource: AppRequestSource;
+  // The window's title bar, which names the open Project. Absent in tests that do not
+  // look at it.
+  readonly windowTitle?: WindowTitle;
   // Only `flush` is used: written before the window closes.
   readonly viewportPersistence: Pick<ViewportPersistence, "flush">;
   // The `src` of an image block's `<img>`.

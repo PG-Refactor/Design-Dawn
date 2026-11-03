@@ -22,7 +22,9 @@ const IO_ERROR = { kind: "ioError", detail: "disk" } as const;
 describe("display language in the shell", () => {
   it("shows the top bar, the project tree and the Git panel in English", async () => {
     const shell = await renderShell({ systemLanguages: ["en-US"] });
-    expect(screen.getByText(EN.topBar.noProject)).toBeTruthy();
+    expect(
+      screen.getAllByText(EN.placeholder.noProject).length,
+    ).toBeGreaterThan(0);
     expect(
       await menuItem(shell.user, EN.topBar.fileMenu, EN.topBar.createProject),
     ).toBeTruthy();
@@ -47,7 +49,9 @@ describe("display language in the shell", () => {
 
   it("falls back to English when no system language has a catalog", async () => {
     await renderShell({ systemLanguages: ["fr"] });
-    expect(screen.getByText(EN.topBar.noProject)).toBeTruthy();
+    expect(
+      screen.getAllByText(EN.placeholder.noProject).length,
+    ).toBeGreaterThan(0);
   });
 
   it("switches the texts of the UI, including an existing notification, at runtime", async () => {

@@ -285,17 +285,8 @@ export function TopBar() {
 
   return (
     <header className="top-bar">
-      {/* The Project belongs with the app name, like a window title: "Design Dawn (name)". */}
-      <div className="top-bar__title">
-        <h1 className="top-bar__app-name">{APP_CONFIG.displayName}</h1>
-        <p className="top-bar__context">
-          <span aria-hidden="true">{topBar.projectNameOpen}</span>
-          <span className="top-bar__project">
-            {projectName ?? topBar.noProject}
-          </span>
-          <span aria-hidden="true">{topBar.projectNameClose}</span>
-        </p>
-      </div>
+      {/* The Project's name is in the window's own title bar ("Design Dawn (name)"). */}
+      <h1 className="top-bar__app-name">{APP_CONFIG.displayName}</h1>
       <MenuBar label={topBar.menubarLabel} menus={menus} />
       <div className="top-bar__spacer" />
       <Notifications />

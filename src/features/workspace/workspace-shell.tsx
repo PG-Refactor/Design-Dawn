@@ -10,6 +10,7 @@ import { useAppRequests } from "./use-app-requests";
 import { useLaunchRequest } from "./use-launch-request";
 import { useSaveShortcut } from "./use-save-shortcut";
 import { useWindowCloseSave } from "./use-window-close-save";
+import { useWindowTitle } from "./use-window-title";
 import { WorkspaceBody } from "./workspace-body";
 import { WorkspaceDialogs } from "./workspace-dialogs";
 import "./buttons.css";
@@ -23,6 +24,7 @@ export function WorkspaceShell() {
   useSaveShortcut();
   const closeStatus = useWindowCloseSave();
   useAppRequests(closeStatus);
+  useWindowTitle();
   useGitAutoRefresh();
   useExternalChangeWatching();
   return (

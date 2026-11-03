@@ -32,7 +32,10 @@ function isSelected(element: HTMLElement): boolean {
 describe("empty state and opening a project", () => {
   it("shows an empty state, then the documents in order after opening a project", async () => {
     const { user, openProjectInUi } = await renderShell();
-    expect(screen.getByText("Projectが開かれていません")).toBeTruthy();
+    // The tree and the document area both invite to open or create a Project.
+    expect(
+      screen.getAllByText("Projectを開くか、新規Projectを作成してください。"),
+    ).toHaveLength(2);
     expect(screen.queryByRole("tree")).toBeNull();
     expect(await menuItem(user, "ファイル", "新規Project…")).toBeTruthy();
 
