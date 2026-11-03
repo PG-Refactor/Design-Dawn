@@ -30,6 +30,12 @@ export interface FlowchartAddEdgeProps {
   readonly onInvalidInput: (message: string) => void;
   readonly onAdded: () => void;
   readonly hasInputRef: MutableRefObject<(() => boolean) | null>;
+  // Chosen elsewhere (the node right-clicked in the diagram): becomes the start node. A
+  // new `serial` applies it again, also for the same node.
+  readonly startPreset?: {
+    readonly nodeId: string;
+    readonly serial: number;
+  } | null;
 }
 
 // The empty choice of a select that has not been used yet.
@@ -47,6 +53,7 @@ export function FlowchartAddEdge({
   onInvalidInput,
   onAdded,
   hasInputRef,
+  startPreset = null,
 }: FlowchartAddEdgeProps) {
   const gui = useMessages().mermaid.gui;
   const text = gui.flowchart;
@@ -70,6 +77,11 @@ export function FlowchartAddEdge({
     labelRef.current = value;
     setLabelState(value);
   }
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: applied once per preset (its serial), not on every render.
+  useEffect(() => {
+    if (startPreset !== null) setStart(startPreset.nodeId);
+  }, [startPreset?.serial]);
 
   const leaveUnchanged = async () => true;
   const hasPending = () =>

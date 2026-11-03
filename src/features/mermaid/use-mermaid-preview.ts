@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { MERMAID_IMMEDIATE_RENDER_DELAY_MS } from "../../config/mermaid-preview-config";
+import { type DiagramShapes, readDiagramShapes } from "./diagram-shapes";
 import type { MermaidRenderer } from "./mermaid-renderer-types";
 import { resolveMermaidTheme } from "./resolve-mermaid-theme";
 import { type SanitizedSvg, sanitizeSvg } from "./sanitize-svg";
@@ -16,6 +17,8 @@ export interface MermaidPreview {
   // The last diagram that rendered successfully; kept while a newer source fails.
   readonly url: SanitizedSvgUrl | null;
   readonly errorMessage: string | null;
+  // Where the shapes of that diagram are (for clicks on the picture), when readable.
+  readonly shapes?: DiagramShapes | null;
 }
 
 export interface UseMermaidPreviewInput {
@@ -36,9 +39,15 @@ function describeFailure(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function sanitizeToUrl(svg: string): SanitizedSvgUrl {
+function sanitizeToUrl(svg: string): {
+  readonly url: SanitizedSvgUrl;
+  readonly shapes: DiagramShapes | null;
+} {
   const sanitized: SanitizedSvg = sanitizeSvg(svg);
-  return createSvgObjectUrl(sanitized);
+  return {
+    url: createSvgObjectUrl(sanitized),
+    shapes: readDiagramShapes(sanitized),
+  };
 }
 
 // Draws `source` and keeps the result as an object URL for an <img>. The URL is owned by
@@ -125,9 +134,9 @@ export function useMermaidPreview({
 
       if (svg !== null) {
         try {
-          const url = sanitizeToUrl(svg);
+          const { url, shapes } = sanitizeToUrl(svg);
           replaceUrl(url);
-          setPreview({ status: "ready", url, errorMessage: null });
+          setPreview({ status: "ready", url, errorMessage: null, shapes });
           return;
         } catch (error) {
           message = describeFailure(error);

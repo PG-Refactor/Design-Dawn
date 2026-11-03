@@ -17,6 +17,7 @@ import {
   readFlowchartNodeActions,
   readFlowchartView,
 } from "../../domain/diagram/flowchart/flowchart-view";
+import type { PopupMenuEntry } from "../../shared/menu/popup-menu";
 import { useMessages } from "../workspace/use-messages";
 import {
   DiagramGuiLayout,
@@ -24,6 +25,7 @@ import {
   useGuiLayoutState,
 } from "./diagram-gui-layout";
 import { describeRefusal } from "./diagram-gui-text";
+import type { DiagramHit } from "./diagram-shapes";
 import { FlowchartAddEdge } from "./flowchart-add-edge";
 import { FlowchartAddNode } from "./flowchart-add-node";
 import { FlowchartAddSubgraph } from "./flowchart-add-subgraph";
@@ -225,6 +227,56 @@ export function FlowchartGuiPanel({
     setSelection(null);
   }
 
+  // ---- the diagram picture: right-click and click on a node ----
+
+  const [edgeStartPreset, setEdgeStartPreset] = useState<{
+    readonly nodeId: string;
+    readonly serial: number;
+  } | null>(null);
+
+  async function editNodeFromDiagram(nodeId: string): Promise<void> {
+    await select({ kind: "node", id: nodeId });
+    // The editor appears with the selection; its label field takes the focus then.
+    requestAnimationFrame(() => editorLabelRef.current?.focus());
+  }
+
+  async function deleteNodeFromDiagram(nodeId: string): Promise<void> {
+    const outcome = await run({ kind: "deleteNode", nodeId });
+    if (outcome !== "applied") return;
+    if (selection?.kind === "node" && selection.id === nodeId) {
+      setSelectionKey((key) => key + 1);
+      setSelection(null);
+    }
+  }
+
+  function nodeEntries(hit: DiagramHit): readonly PopupMenuEntry[] {
+    if (view?.nodes.some((node) => node.id === hit.id) !== true) return [];
+    return [
+      {
+        id: "editNode",
+        label: text.editNodeMenu,
+        onSelect: () => void editNodeFromDiagram(hit.id),
+      },
+      {
+        id: "addEdgeFromNode",
+        label: text.addEdgeFromNodeMenu,
+        onSelect: () => {
+          setEdgeStartPreset((previous) => ({
+            nodeId: hit.id,
+            serial: (previous?.serial ?? 0) + 1,
+          }));
+          layout.openAdd(ADD.edge, true);
+        },
+      },
+      {
+        id: "deleteNode",
+        label: text.deleteNodeMenu,
+        disabled: busy,
+        onSelect: () => void deleteNodeFromDiagram(hit.id),
+      },
+    ];
+  }
+
   if (view === null) return null;
   const refusal =
     operation.refusal === null ? null : describeRefusal(gui, operation.refusal);
@@ -289,12 +341,19 @@ export function FlowchartGuiPanel({
     <DiagramGuiLayout
       className="diagram-gui__flowchart"
       state={layout}
+      shapeEntries={nodeEntries}
+      onPickShape={(hit) => {
+        if (view.nodes.some((node) => node.id === hit.id)) {
+          void select({ kind: "node", id: hit.id });
+        }
+      }}
       toolbarLabel={gui.addToolbarLabel}
       tabListLabel={gui.listTabsLabel}
       addActions={[
         {
           id: ADD.node,
           label: text.addNodeToggle,
+          menuLabel: text.addNodeHeading,
           form: (
             <FlowchartAddNode
               documentId={documentId}
@@ -316,6 +375,7 @@ export function FlowchartGuiPanel({
         {
           id: ADD.edge,
           label: text.addEdgeToggle,
+          menuLabel: text.addEdgeHeading,
           form: (
             <FlowchartAddEdge
               documentId={documentId}
@@ -326,12 +386,14 @@ export function FlowchartGuiPanel({
               onInvalidInput={setInputError}
               onAdded={() => undefined}
               hasInputRef={addEdgeInputRef}
+              startPreset={edgeStartPreset}
             />
           ),
         },
         {
           id: ADD.subgraph,
           label: text.addSubgraphToggle,
+          menuLabel: text.addSubgraphHeading,
           form: (
             <FlowchartAddSubgraph
               documentId={documentId}
