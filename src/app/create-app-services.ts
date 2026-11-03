@@ -83,6 +83,7 @@ import { createTauriAppRequestSource } from "../infrastructure/tauri/tauri-app-r
 import { createTauriAppSettingsGateway } from "../infrastructure/tauri/tauri-app-settings-gateway";
 import { createTauriAssetUrlResolver } from "../infrastructure/tauri/tauri-asset-url-resolver";
 import { createTauriCloseRequestSource } from "../infrastructure/tauri/tauri-close-request-source";
+import { createTauriDocumentWindowGateway } from "../infrastructure/tauri/tauri-document-window-gateway";
 import { createTauriDropEventSource } from "../infrastructure/tauri/tauri-drop-event-source";
 import { createTauriGitGateway } from "../infrastructure/tauri/tauri-git-gateway";
 import { createTauriPersistenceGateway } from "../infrastructure/tauri/tauri-persistence-gateway";
@@ -160,6 +161,7 @@ export function createAppServices(): AppServices {
       undoHistoryLimit: UNDO_HISTORY_LIMIT,
       autoSaveDelayMs: AUTO_SAVE_DELAY_MS,
     },
+    windows: createTauriDocumentWindowGateway(),
   });
   const draftRegistry = createDraftRegistry();
   const actions = createWorkspaceActions({

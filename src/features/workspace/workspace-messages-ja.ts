@@ -14,6 +14,8 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   selectFolder: "フォルダを選択できませんでした",
   openProject: "Projectを開けませんでした",
   openLaunchRequest: ".dawn を開けませんでした",
+  moveDocumentToWindow: "Documentを別のウィンドウへ移せませんでした",
+  receiveDocument: "移されたDocumentを開けませんでした",
   createProject: "Projectを作成できませんでした",
   closeProject: "Projectを閉じられませんでした",
   openDocument: "Documentを開けませんでした",
@@ -225,6 +227,7 @@ export const WORKSPACE_MESSAGES_JA = {
     documentAlreadyOpen: "既に開いています",
     projectOpenInOtherWindow: "このProjectは別のウィンドウで開いています",
     projectOpenInThisWindow: "このウィンドウで開いています",
+    documentOpenInOtherWindow: "別のウィンドウで開いています",
     externalReloaded: "外部の変更を読み直しました",
     externalWatchUnavailable:
       "外部の変更を自動で検知できません。ウィンドウに戻ったときに確認します",
@@ -271,6 +274,10 @@ export const WORKSPACE_MESSAGES_JA = {
     createSheetButtonText: "+",
     moveLeft: "左へ移動",
     moveRight: "右へ移動",
+    moveToNewWindow: "新しいウィンドウに移動",
+    moveToProjectWindow: "Projectウィンドウに戻す",
+    moveToOtherWindow: "別のウィンドウに移動",
+    moveToWindowOf: (name: string) => `「${name}」のウィンドウに移動`,
   },
   saveStatus: {
     saved: "保存済み",

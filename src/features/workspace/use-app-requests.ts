@@ -6,8 +6,8 @@ import {
 import type { WindowCloseStatus } from "./use-window-close-save";
 import { useWorkspaceServices } from "./workspace-services-context";
 
-// Handles `openDocument` requests and `settingsChanged` notifications from Rust for the
-// lifetime of the shell. Registered once;
+// Handles `openDocument` requests, `settingsChanged` notifications and the events of the
+// Project's other windows from Rust for the lifetime of the shell. Registered once;
 // the latest actions are read through a ref, so re-renders never re-subscribe.
 export function useAppRequests(closeStatus: WindowCloseStatus): void {
   const {
@@ -45,7 +45,28 @@ export function useAppRequests(closeStatus: WindowCloseStatus): void {
         applyAutoSave: (enabled) => autoSaveController.applyExternal(enabled),
       }),
     );
+    // Events from the other windows of the Project. Each waits for the start-up request (a
+    // Document window opens its Project with it), which the actions share.
+    const unsubscribeWindowEvents = appRequestSource.subscribeWindowEvents(
+      (event) => {
+        void latest.current.actions.openLaunchRequest().then(() => {
+          const { actions } = latest.current;
+          switch (event.kind) {
+            case "receiveDocument":
+              void actions.receiveDocument(event.transferId);
+              return;
+            case "activateDocument":
+              actions.showDocumentFromOtherWindow(event.documentId);
+              return;
+            case "projectTreeChanged":
+              void actions.refreshProjectTree();
+              return;
+          }
+        });
+      },
+    );
     return () => {
+      unsubscribeWindowEvents();
       unsubscribeSettings();
       unsubscribe();
       stopWaiting();

@@ -1,6 +1,10 @@
 // Converts untyped command payloads into typed values. Shapes are checked first, then the
 // existing domain parsers run, so TypeScript validates everything Rust returns as well.
 
+import type {
+  ProjectWindowInfo,
+  ProjectWindowRole,
+} from "../../application/ports/document-window-gateway";
 import type { RawBlock } from "../../domain/block/block";
 import { parseContentPath } from "../../domain/block/content-path";
 import {
@@ -300,11 +304,13 @@ interface RawOpenRequestResult {
   readonly snapshot: RawProjectSnapshot;
   readonly documentId: string | null;
   readonly resolution: OpenRequestResult["resolution"];
+  readonly transferId: string | null;
 }
 const rawOpenRequestResult = objectOf<RawOpenRequestResult>({
   snapshot: rawProjectSnapshot,
   documentId: nullable(decodeString),
   resolution: nullable(oneOf(ENTRY_POINT_RESOLUTIONS)),
+  transferId: nullable(decodeString),
 });
 
 // `null` means "no request pending for this window", which is a normal outcome.
@@ -322,6 +328,7 @@ export function toOpenRequestResult(
       snapshot: snapshot.value,
       documentId: null,
       resolution: raw.value.resolution,
+      transferId: raw.value.transferId,
     });
   }
   const documentId = fromDomain(parseDocumentId(raw.value.documentId));
@@ -330,7 +337,42 @@ export function toOpenRequestResult(
     snapshot: snapshot.value,
     documentId: documentId.value,
     resolution: raw.value.resolution,
+    transferId: raw.value.transferId,
   });
+}
+
+interface RawProjectWindow {
+  readonly label: string;
+  readonly role: ProjectWindowRole;
+  readonly isSelf: boolean;
+  readonly documentIds: readonly string[];
+}
+const rawProjectWindows = arrayOf(
+  objectOf<RawProjectWindow>({
+    label: decodeString,
+    role: oneOf(["project", "document"] as const),
+    isSelf: decodeBoolean,
+    documentIds: arrayOf(decodeString),
+  }),
+);
+
+export function toProjectWindows(
+  payload: unknown,
+): CommandResult<readonly ProjectWindowInfo[]> {
+  const raw = decodePayload(rawProjectWindows, payload);
+  if (!raw.ok) return raw;
+  return mapAll(raw.value, (window) => {
+    const documentIds = mapAll(window.documentIds, (id) =>
+      fromDomain(parseDocumentId(id)),
+    );
+    return documentIds.ok
+      ? commandOk({ ...window, documentIds: documentIds.value })
+      : documentIds;
+  });
+}
+
+export function toTransferPayload(payload: unknown): CommandResult<string> {
+  return decodePayload(decodeString, payload);
 }
 
 interface RawOpenInNewWindowResult {

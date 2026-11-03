@@ -12,6 +12,8 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   selectFolder: "Could not select the folder",
   openProject: "Could not open the Project",
   openLaunchRequest: "Could not open the .dawn file",
+  moveDocumentToWindow: "Could not move the Document to another window",
+  receiveDocument: "Could not open the Document moved here",
   createProject: "Could not create the Project",
   closeProject: "Could not close the Project",
   openDocument: "Could not open the Document",
@@ -224,6 +226,7 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     documentAlreadyOpen: "Already open",
     projectOpenInOtherWindow: "This Project is open in another window",
     projectOpenInThisWindow: "Open in this window",
+    documentOpenInOtherWindow: "Open in another window",
     externalReloaded: "Reloaded after a change made outside the app",
     externalWatchUnavailable:
       "External changes cannot be detected automatically. They are checked when you return to the window",
@@ -271,6 +274,10 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     createSheetButtonText: "+",
     moveLeft: "Move Left",
     moveRight: "Move Right",
+    moveToNewWindow: "Move to New Window",
+    moveToProjectWindow: "Move Back to Project Window",
+    moveToOtherWindow: "Move to Other Window",
+    moveToWindowOf: (name) => `Move to Window of "${name}"`,
   },
   saveStatus: {
     saved: "Saved",

@@ -259,11 +259,17 @@ export interface FakeGateway extends PersistenceGateway {
   queueOpenRequest(documentId: DocumentId): void;
   // Like `queueOpenRequest`, for a Project folder: the project opens, no Document is named.
   queueProjectFolderRequest(): void;
+  // Like Rust for a window made for a moved Document: the next `takeOpenRequest` returns
+  // the Project and the hand-over to take.
+  queueTransferRequest(transferId: string): void;
   // The result of the next `openProjectInNewWindow` call (default: a new window).
   setOpenInNewWindowResult(result: OpenInNewWindowResult): void;
   // Session generation of the latest project snapshot handed out (each open / reload /
   // create is a new read, like a new Rust session).
   readonly sessionGeneration: () => number;
+  // The Project as on the fake disk under the CURRENT read (no new generation), like what
+  // Rust gives a window that joins the Project's session.
+  peekProjectSnapshot(): ProjectSnapshot;
   // What the next `checkExternalChanges` calls return (until replaced); by default nothing
   // changed, reported for the current session generation.
   setExternalChanges(changes: ExternalChanges): void;
@@ -328,7 +334,11 @@ export function createFakeGateway(
   const drops = new Map<string, readonly FakeDroppedFile[]>();
   let nextSelection: FolderSelection = DEFAULT_SELECTION;
   const snapshotOverrides = new Map<string, ProjectSnapshot>();
-  let pendingOpenRequest: DocumentId | "projectFolder" | null = null;
+  let pendingOpenRequest:
+    | DocumentId
+    | "projectFolder"
+    | { readonly transferId: string }
+    | null = null;
   let sessionGeneration = 0;
   let scriptedExternalChanges: ExternalChanges | null = null;
   const acceptedDiskStates: (DocumentId | null)[] = [];
@@ -409,6 +419,14 @@ export function createFakeGateway(
         childOrder: order,
       }),
     );
+  }
+
+  // The snapshot of the session that is already there (joining it, not reading anew).
+  function sharedSnapshot(): ProjectSnapshot {
+    const shared = sessionGeneration;
+    const snapshot = projectSnapshot();
+    sessionGeneration = shared;
+    return { ...snapshot, sessionGeneration: shared };
   }
 
   function projectSnapshot(): ProjectSnapshot {
@@ -585,6 +603,7 @@ export function createFakeGateway(
       snapshotOverrides.set(selectionId, snapshot);
     },
     sessionGeneration: () => sessionGeneration,
+    peekProjectSnapshot: sharedSnapshot,
     setExternalChanges(changes) {
       scriptedExternalChanges = changes;
     },
@@ -607,6 +626,9 @@ export function createFakeGateway(
     queueProjectFolderRequest() {
       pendingOpenRequest = "projectFolder";
     },
+    queueTransferRequest(transferId) {
+      pendingOpenRequest = { transferId };
+    },
     setOpenInNewWindowResult(result) {
       openInNewWindowResult = result;
     },
@@ -627,12 +649,22 @@ export function createFakeGateway(
               snapshot: projectSnapshot(),
               documentId: null,
               resolution: null,
+              transferId: null,
+            });
+          }
+          if (typeof pending === "object") {
+            return operationOk({
+              snapshot: sharedSnapshot(),
+              documentId: null,
+              resolution: null,
+              transferId: pending.transferId,
             });
           }
           return operationOk({
             snapshot: projectSnapshot(),
             documentId: pending,
             resolution: "path" as const,
+            transferId: null,
           });
         },
       ),
