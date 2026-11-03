@@ -47,6 +47,7 @@ export const COMMANDS = {
   takeDocumentTransfer: "take_document_transfer",
   getProjectSnapshot: "get_project_snapshot",
   listProjectWindows: "list_project_windows",
+  projectWindowAt: "project_window_at",
   gitStatus: "git_status",
   gitStage: "git_stage",
   gitUnstage: "git_unstage",

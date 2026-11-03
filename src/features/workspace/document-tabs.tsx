@@ -126,6 +126,9 @@ export function DocumentTabs() {
             ?.parentElement?.getBoundingClientRect() ?? ZERO_RECT,
       ),
     onDrop: moveTab,
+    // Let go outside the window: the Document goes to the window there, or a new one.
+    onDropOutside: (documentId, screenX, screenY) =>
+      void actions.moveDocumentOutTo(documentId, screenX, screenY),
   });
 
   const entries: readonly StripEntry[] = [
@@ -336,11 +339,19 @@ export function DocumentTabs() {
           // biome-ignore lint/a11y/noStaticElementInteractions: the right-click menu repeats what the tab's own controls, the tree and the keyboard already offer.
           <div
             key={tab.documentId}
-            className={tabClassName(
-              tab.isActive,
-              dragState?.tabId === tab.documentId,
-              dropMarker(dragState?.slot ?? null, index, tabs.length),
-            )}
+            className={[
+              tabClassName(
+                tab.isActive,
+                dragState?.tabId === tab.documentId,
+                dropMarker(dragState?.slot ?? null, index, tabs.length),
+              ),
+              // Outside the window: letting go takes the Document to its own window.
+              dragState?.tabId === tab.documentId && dragState.outside
+                ? "tab--detaching"
+                : "",
+            ]
+              .filter((name) => name !== "")
+              .join(" ")}
             onContextMenu={(event) => openTabMenu(event, tab)}
           >
             <button

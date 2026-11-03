@@ -987,3 +987,35 @@ fn a_hand_over_whose_window_went_away_goes_to_the_project_window() {
     assert_eq!(ids.len(), 1);
     assert!(transfers.lock().unwrap().take(MAIN, &ids[0]).is_ok());
 }
+
+#[test]
+fn a_drop_point_finds_the_window_under_it_front_most_first() {
+    use design_dawn_lib::commands::window_containing;
+    let geometry = |left: f64, top: f64| WindowGeometry {
+        width: 800.0,
+        height: 600.0,
+        position: Some((left, top)),
+    };
+    let unknown = WindowGeometry {
+        width: 800.0,
+        height: 600.0,
+        position: None,
+    };
+    let candidates = vec![
+        ("window-2".to_owned(), geometry(100.0, 100.0)),
+        ("window-3".to_owned(), geometry(0.0, 0.0)),
+        ("window-4".to_owned(), unknown),
+    ];
+    // Both windows hold the point: the first (front-most) wins.
+    assert_eq!(
+        window_containing((150.0, 150.0), &candidates).as_deref(),
+        Some("window-2")
+    );
+    assert_eq!(
+        window_containing((50.0, 50.0), &candidates).as_deref(),
+        Some("window-3")
+    );
+    // Right / bottom edges are outside; so is a window without a known position.
+    assert_eq!(window_containing((900.0, 300.0), &candidates), None);
+    assert_eq!(window_containing((2000.0, 2000.0), &candidates), None);
+}

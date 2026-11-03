@@ -43,4 +43,11 @@ export interface DocumentWindowGateway {
   listProjectWindows(
     projectId: ProjectId,
   ): Promise<OperationResult<readonly ProjectWindowInfo[]>>;
+  // The other window of the Project under a screen point (where a dragged tab was let
+  // go), or null over none.
+  projectWindowAt(
+    projectId: ProjectId,
+    screenX: number,
+    screenY: number,
+  ): Promise<OperationResult<string | null>>;
 }
