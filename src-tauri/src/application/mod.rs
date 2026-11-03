@@ -5,6 +5,7 @@ pub mod asset_import;
 pub mod authoring;
 pub mod block_content_operations;
 pub mod document_operations;
+pub mod document_transfer;
 pub mod dropped_files;
 pub mod entity_id_generator;
 pub mod error;

@@ -29,6 +29,13 @@ export const SESSION_ERROR_KINDS = [
   "notWritable",
   "projectNotOpen",
   "projectOpenInOtherWindow",
+  // The Document is held by another window (Rust brought it forward).
+  "documentOpenInOtherWindow",
+  // A Project Tree change asked from a window that shows only Documents.
+  "projectWindowOnly",
+  // A Document hand-over that is unknown, not addressed to this window, too large, or
+  // whose payload cannot be taken in.
+  "invalidDocumentTransfer",
 ] as const;
 
 // Folder selection: the dialog failed, or a selectionId is
@@ -103,9 +110,6 @@ export const CLIENT_ERROR_KINDS = [
   // The command failed with something that is not a `{ kind, detail }` error
   // (for example the IPC layer refusing the call).
   "unexpectedCommandError",
-  // A document handed over by another window that cannot be taken in (another version of
-  // the payload, or values that are not what the app writes).
-  "invalidDocumentTransfer",
 ] as const;
 
 export type OperationErrorKind =

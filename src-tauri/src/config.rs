@@ -13,6 +13,11 @@ pub const WINDOW_LABEL_PREFIX: &str = "window-";
 /// was opened from, so it does not sit exactly on top of it. Positions are not remembered.
 pub const NEW_WINDOW_CASCADE_OFFSET: f64 = 32.0;
 
+/// The largest Document hand-over (its JSON, as the Frontend sent it) Rust keeps for the
+/// receiving window. A Document's loaded texts and history travel in it; this bounds the
+/// memory one hand-over can take.
+pub const DOCUMENT_TRANSFER_MAX_BYTES: usize = 64 * 1024 * 1024;
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -9,6 +9,7 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+use application::document_transfer::DocumentTransfers;
 use application::dropped_files::DroppedFilesState;
 use application::folder_selection::FolderSelectionState;
 use application::local_state::operations::{LocalState, LocalStateDirectories};
@@ -38,6 +39,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         .manage(Mutex::new(DroppedFilesState::default()))
         .manage(Mutex::new(PendingOpenRequests::default()))
         .manage(Mutex::new(WindowRegistry::default()))
+        .manage(Mutex::new(DocumentTransfers::default()))
         .manage(Mutex::new(WindowLabelAllocator::default()))
         .manage(AppRequestSubscriber::default())
         .manage(DropSubscriber::default())
@@ -104,6 +106,10 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::subscribe_app_requests,
             commands::ack_open_request,
             commands::open_project_in_new_window,
+            commands::transfer_document,
+            commands::take_document_transfer,
+            commands::get_project_snapshot,
+            commands::list_project_windows,
             commands::git_status,
             commands::git_stage,
             commands::git_unstage,
