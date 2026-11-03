@@ -6,6 +6,10 @@
   --space-3: 1rem;
   --space-4: 1.5rem;
   --radius-medium: 6px;
+  /* Menus, dialogs and panels: a little rounder than the controls inside them. */
+  --radius-large: 10px;
+  /* Hover and press feedback: quick enough not to feel laggy. */
+  --transition-fast: 120ms ease-out;
   --focus-ring-width: 2px;
   /* One rem of the Document content. Outside the canvas it is the UI's rem (it follows the
      text size setting); the canvas pins it to the content rem below (see canvas.css). */

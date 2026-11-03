@@ -4,13 +4,16 @@
   position: absolute;
   box-sizing: border-box;
   outline: calc(1px / var(--canvas-zoom, 1)) solid var(--color-border);
+  border-radius: var(--radius-medium);
   background: var(--color-surface);
+  box-shadow: var(--shadow-subtle);
   color: var(--color-text);
 }
 
+/* A selected block keeps its own background (a large diagram would otherwise be tinted
+   all over); the heavier accent outline is the mark, shown by width as well as colour. */
 .block-frame--selected {
   outline: calc(2px / var(--canvas-zoom, 1)) solid var(--color-accent);
-  background: var(--color-selection);
 }
 
 .block-frame--interacting {
@@ -21,6 +24,7 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
+  border-radius: inherit;
   cursor: grab;
 }
 

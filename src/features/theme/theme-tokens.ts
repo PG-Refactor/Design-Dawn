@@ -20,8 +20,10 @@ export const COLOR_TOKEN_NAMES = [
   "--color-text",
   "--color-text-muted",
   "--color-border",
+  "--color-border-strong",
   "--color-accent",
   "--color-accent-contrast",
+  "--color-hover",
   "--color-selection",
   "--color-danger",
   "--color-danger-contrast",
@@ -47,9 +49,13 @@ export const COLOR_TOKEN_NAMES = [
   "--color-git-conflict",
   ...DIAGRAM_COLOR_TOKEN_NAMES,
   "--color-on-diagram",
+  "--color-diagram-node-fill",
 ] as const;
 
-export const SHADOW_TOKEN_NAMES = ["--shadow-raised"] as const;
+export const SHADOW_TOKEN_NAMES = [
+  "--shadow-raised",
+  "--shadow-subtle",
+] as const;
 
 export const THEME_TOKEN_NAMES: readonly string[] = [
   ...COLOR_TOKEN_NAMES,

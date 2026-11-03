@@ -14,8 +14,7 @@
 
 .popup-menu__trigger:hover,
 .popup-menu__trigger[aria-expanded="true"] {
-  border-color: var(--color-border);
-  background: var(--color-surface);
+  background: var(--color-hover);
 }
 
 .popup-menu__list {
@@ -29,7 +28,7 @@
   margin-top: var(--space-1);
   padding: var(--space-1);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-medium);
+  border-radius: var(--radius-large);
   background: var(--color-surface-raised);
   box-shadow: var(--shadow-raised);
 }
@@ -48,7 +47,8 @@
 
 .popup-menu__item:hover,
 .popup-menu__item:focus-visible {
-  background: var(--color-selection);
+  background: var(--color-hover);
+  outline: none;
 }
 
 /* Disabled is also shown by the muted colour AND the cursor; the state itself is
