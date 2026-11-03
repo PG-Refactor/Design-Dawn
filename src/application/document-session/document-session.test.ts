@@ -261,6 +261,7 @@ describe("failed commands", () => {
       apply: (state) =>
         moveBlocksCommand(SHEET_ID, [move(1, 9, 9)]).apply(state),
       revert: () => err("entityNotFound", "cannot revert"),
+      snapshot: () => moveBlocksCommand(SHEET_ID, [move(1, 9, 9)]).snapshot(),
     };
     await session.execute(failingRevert);
     const before = session.getState();
@@ -282,6 +283,7 @@ describe("failed commands", () => {
         return applyCount === 1 ? real.apply(state) : err("duplicateId", "no");
       },
       revert: (state) => real.revert(state),
+      snapshot: () => real.snapshot(),
     };
     await session.execute(failingRedo);
     await session.undo();

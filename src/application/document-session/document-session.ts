@@ -87,6 +87,23 @@ export interface DocumentSessionOptions {
   readonly autoSavePolicy?: AutoSavePolicy;
   readonly config: DocumentSessionConfig;
   readonly onStateChange: (state: DocumentSessionState) => void;
+  // Starts from a session another window handed over (`handOver`) instead of from the
+  // files: its texts, unsaved changes and history, as they were.
+  readonly seed?: DocumentSessionSeed;
+}
+
+// What a session hands over when its document moves to another window: its Domain values,
+// everything that is not on disk yet, and the history. A session started from a seed is
+// given the seed's `document` / `sheets` as its options too.
+export interface DocumentSessionSeed {
+  readonly document: Document;
+  readonly sheets: ReadonlyMap<SheetId, Sheet>;
+  // The texts that were loaded; every one of them counts as loaded in the new session.
+  readonly contents: ReadonlyMap<BlockId, string>;
+  readonly undo: readonly HistoryEntry[];
+  readonly redo: readonly HistoryEntry[];
+  // What is not saved yet; the new session saves it (auto-save, flush, close).
+  readonly unsaved: DocumentDataChange;
 }
 
 export interface StructuralChangeOptions {
@@ -146,6 +163,11 @@ export interface DocumentSession {
   // dropped, further operations get `notWritable`). When saving fails the error is
   // returned and the session stays open and editable: unsaved work is never dropped.
   close(): Promise<OperationResult<void>>;
+  // Closes WITHOUT saving and returns everything needed to go on elsewhere, in one step on
+  // the serial queue (nothing can change in between). For moving the document to another
+  // window: nothing is lost, the unsaved changes and the history are in the seed, and the
+  // receiving session saves them. A failed hand-over leaves the session open.
+  handOver(): Promise<OperationResult<DocumentSessionSeed>>;
   // Closes WITHOUT saving. Only for a document that is being deleted. Waits for work
   // already in the queue (an in-flight save must not run after the directory is gone).
   discard(): Promise<void>;
@@ -173,14 +195,19 @@ export function createDocumentSession(
 ): DocumentSession {
   const { projectId, gateway, config } = options;
   const documentId = options.document.documentId;
+  const { seed } = options;
   let data: DocumentData = {
     document: options.document,
     sheets: options.sheets,
-    contents: new Map(),
+    contents: seed?.contents ?? new Map(),
   };
-  let contentStatus: ReadonlyMap<BlockId, ContentLoadStatus> = new Map();
-  let undoStack: readonly HistoryEntry[] = [];
-  let redoStack: readonly HistoryEntry[] = [];
+  let contentStatus: ReadonlyMap<BlockId, ContentLoadStatus> = new Map(
+    [...data.contents.keys()].map(
+      (blockId) => [blockId, { status: "loaded" }] as const,
+    ),
+  );
+  let undoStack: readonly HistoryEntry[] = seed?.undo ?? [];
+  let redoStack: readonly HistoryEntry[] = seed?.redo ?? [];
   let warnings: readonly OperationWarning[] = [];
   let closed = false;
   let queueTail: Promise<void> = Promise.resolve();
@@ -280,6 +307,10 @@ export function createDocumentSession(
   }
 
   current = buildState();
+  // A handed-over session's unsaved changes are its own now: they get the usual timer.
+  if (seed !== undefined && hasChanges(seed.unsaved)) {
+    coordinator.markDirty(seed.unsaved);
+  }
 
   function closedError<T>(): OperationResult<T> {
     return operationErr("notWritable", "the document session is closed");
@@ -575,6 +606,26 @@ export function createDocumentSession(
         if (!saved.ok) return saved;
         closeSession();
         return saved;
+      }),
+    handOver: () =>
+      runExclusive(async () => {
+        if (closed) return closedError<DocumentSessionSeed>();
+        const save = coordinator.getState();
+        const handed: DocumentSessionSeed = {
+          document: data.document,
+          sheets: data.sheets,
+          contents: data.contents,
+          undo: undoStack,
+          redo: redoStack,
+          unsaved: {
+            documentChanged: save.documentDirty,
+            changedSheetIds: [...save.dirtySheetIds],
+            changedContentBlockIds: [...save.dirtyContentBlockIds],
+          },
+        };
+        coordinator.dispose();
+        closeSession();
+        return operationOk(handed);
       }),
     discard() {
       // Timers and dirty marking stop immediately; the flag flips behind queued work.

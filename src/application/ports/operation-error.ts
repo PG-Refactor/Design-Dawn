@@ -103,6 +103,9 @@ export const CLIENT_ERROR_KINDS = [
   // The command failed with something that is not a `{ kind, detail }` error
   // (for example the IPC layer refusing the call).
   "unexpectedCommandError",
+  // A document handed over by another window that cannot be taken in (another version of
+  // the payload, or values that are not what the app writes).
+  "invalidDocumentTransfer",
 ] as const;
 
 export type OperationErrorKind =

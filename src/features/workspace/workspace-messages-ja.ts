@@ -152,6 +152,8 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
   invalidProjectTreeWidth: "Project Treeの幅の値が正しくありません。",
   invalidCommandResponse: "内部処理の応答が正しくありません。",
   unexpectedCommandError: "予期しないエラーが発生しました。",
+  invalidDocumentTransfer:
+    "このウィンドウへDocumentを移せませんでした。元のウィンドウに残っています。",
 };
 
 const LOAD_ISSUES: Record<LoadIssueKind, string> = {

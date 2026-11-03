@@ -6,20 +6,30 @@ import type { SheetId } from "../../domain/shared/entity-id";
 import { renameSheet } from "../../domain/sheet/sheet";
 import type { MetadataCommand } from "./command";
 import { COMMAND_KINDS } from "./command-kind";
+import type { MoveSheetRestore } from "./command-snapshot";
 import {
   commandNotApplied,
   updateDocument,
   updateSheet,
 } from "./document-data";
 
+// `restored` (in each factory): what an earlier run captured, for a command rebuilt from
+// its snapshot.
 export function renameSheetCommand(
   sheetId: SheetId,
   name: DisplayName,
+  restored: DisplayName | null = null,
 ): MetadataCommand {
-  let previousName: DisplayName | null = null;
+  let previousName: DisplayName | null = restored;
   return {
     category: "metadata",
     kind: COMMAND_KINDS.renameSheet,
+    snapshot: () => ({
+      kind: COMMAND_KINDS.renameSheet,
+      sheetId,
+      name,
+      previousName,
+    }),
     apply: (state) =>
       updateSheet(state, sheetId, (sheet) => {
         if (sheet.name === name) return ok(sheet);
@@ -36,11 +46,19 @@ export function renameSheetCommand(
   };
 }
 
-export function renameDocumentCommand(name: DisplayName): MetadataCommand {
-  let previousName: DisplayName | null = null;
+export function renameDocumentCommand(
+  name: DisplayName,
+  restored: DisplayName | null = null,
+): MetadataCommand {
+  let previousName: DisplayName | null = restored;
   return {
     category: "metadata",
     kind: COMMAND_KINDS.renameDocument,
+    snapshot: () => ({
+      kind: COMMAND_KINDS.renameDocument,
+      name,
+      previousName,
+    }),
     apply: (state) =>
       updateDocument(state, (document) => {
         if (document.name === name) return ok(document);
@@ -69,11 +87,18 @@ function sameOrder(first: Document, second: Document): boolean {
 export function moveSheetCommand(
   sheetId: SheetId,
   beforeSheetId: SheetId | null,
+  restored: MoveSheetRestore | null = null,
 ): MetadataCommand {
-  let restoreBefore: { readonly sheetId: SheetId | null } | null = null;
+  let restoreBefore: MoveSheetRestore | null = restored;
   return {
     category: "metadata",
     kind: COMMAND_KINDS.moveSheet,
+    snapshot: () => ({
+      kind: COMMAND_KINDS.moveSheet,
+      sheetId,
+      beforeSheetId,
+      restoreBefore,
+    }),
     apply: (state) =>
       updateDocument(state, (document) => {
         const next = moveSheet(document, sheetId, beforeSheetId);
