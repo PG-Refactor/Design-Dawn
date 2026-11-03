@@ -32,6 +32,21 @@ describe("top bar as a menu bar", () => {
     await shell.openProjectInUi();
     expect(within(bar).getByText("Project")).toBeTruthy();
   });
+
+  it("shows the Project name in parentheses after the app name, before the menus", async () => {
+    const shell = await renderShell();
+    await shell.openProjectInUi();
+    const bar = screen.getByRole("banner");
+    const name = within(bar).getByText("Project");
+    const context = name.closest(".top-bar__context");
+    expect(context?.textContent).toBe(
+      `${JA.projectNameOpen}Project${JA.projectNameClose}`,
+    );
+    const menubar = within(bar).getByRole("menubar");
+    expect(
+      name.compareDocumentPosition(menubar) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
 });
 
 describe("File menu", () => {

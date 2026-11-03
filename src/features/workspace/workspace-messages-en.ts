@@ -185,6 +185,8 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     label: "Project Tree width",
   },
   topBar: {
+    projectNameOpen: " (",
+    projectNameClose: ")",
     menubarLabel: "Application menu",
     fileMenu: "File",
     viewMenu: "View",
