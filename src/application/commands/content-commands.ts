@@ -25,12 +25,14 @@ export interface EditBlockContentRequest {
 // Replaces the loaded text of one text block. Typing never reaches this command: the UI
 // commits an edit (for example on blur), which is one undo step. Persistence is the
 // auto-save's job; the command only changes the in-memory text.
+// `restored`: the text an earlier run captured, for a command rebuilt from its snapshot.
 export function editBlockContentCommand(
   request: EditBlockContentRequest,
+  restored: string | null = null,
 ): MetadataCommand {
   const { sheetId, blockId } = request;
   const nextText = normalizeLineEndings(request.text);
-  let previousText: string | null = null;
+  let previousText: string | null = restored;
 
   // Text can only be replaced when it was read first: writing over content that was
   // never loaded (or failed to load) could destroy the file.
@@ -71,6 +73,13 @@ export function editBlockContentCommand(
   return {
     category: "metadata",
     kind: COMMAND_KINDS.editBlockContent,
+    snapshot: () => ({
+      kind: COMMAND_KINDS.editBlockContent,
+      sheetId,
+      blockId,
+      text: nextText,
+      previousText,
+    }),
     apply(state) {
       const current = loadedText(state);
       if (!current.ok) return current;

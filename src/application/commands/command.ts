@@ -4,6 +4,7 @@ import type { BlockId, SheetId } from "../../domain/shared/entity-id";
 import type { Position, Size } from "../../domain/shared/geometry";
 import type { OperationResult } from "../ports/operation-error";
 import type { CommandKind } from "./command-kind";
+import type { MetadataCommandSnapshot } from "./command-snapshot";
 import type { DocumentData } from "./document-data";
 
 // Pure commands: they change only in-memory Domain values. The session marks what
@@ -19,6 +20,9 @@ export interface MetadataCommand {
   // (`DomainResult`) are assignable to it.
   apply(state: DocumentData): OperationResult<DocumentData>;
   revert(state: DocumentData): OperationResult<DocumentData>;
+  // The command as plain data, including what the first `apply` captured, so its history
+  // entry can move to another window (`commandFromSnapshot` rebuilds it).
+  snapshot(): MetadataCommandSnapshot;
 }
 
 // Block types whose body is an imported asset instead of a text file (the domain's

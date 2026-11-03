@@ -152,6 +152,8 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
   invalidProjectTreeWidth: "The Project Tree width value is invalid.",
   invalidCommandResponse: "The response of an internal command is invalid.",
   unexpectedCommandError: "An unexpected error occurred.",
+  invalidDocumentTransfer:
+    "The document could not be moved to this window. It stays where it was.",
 };
 
 const LOAD_ISSUES: Record<LoadIssueKind, string> = {

@@ -14,6 +14,7 @@ import {
 } from "../../domain/sheet/sheet";
 import type { MetadataCommand } from "./command";
 import { COMMAND_KINDS, type CommandKind } from "./command-kind";
+import type { MetadataCommandSnapshot } from "./command-snapshot";
 import { commandNotApplied, updateSheet } from "./document-data";
 
 export interface BlockMove {
@@ -52,11 +53,16 @@ function frameCommand(
   kind: CommandKind,
   sheetId: SheetId,
   resolve: (sheet: Sheet) => DomainResult<readonly BlockFrameUpdate[]>,
+  snapshotOf: (
+    previousFrames: readonly BlockFrame[] | null,
+  ) => MetadataCommandSnapshot,
+  restored: readonly BlockFrame[] | null,
 ): MetadataCommand {
-  let previousFrames: readonly BlockFrame[] | null = null;
+  let previousFrames: readonly BlockFrame[] | null = restored;
   return {
     category: "metadata",
     kind,
+    snapshot: () => snapshotOf(previousFrames),
     apply: (state) =>
       updateSheet(state, sheetId, (sheet) => {
         const updates = resolve(sheet);
@@ -84,41 +90,74 @@ function capturePreviousFrames(
   return sheet.blocks.filter((block) => ids.has(block.blockId)).map(frameOf);
 }
 
+// `restored`: what an earlier run captured (a command rebuilt from its snapshot).
 export function moveBlocksCommand(
   sheetId: SheetId,
   moves: readonly BlockMove[],
+  restored: readonly BlockFrame[] | null = null,
 ): MetadataCommand {
-  return frameCommand(COMMAND_KINDS.moveBlocks, sheetId, (sheet) => {
-    const updates: BlockFrameUpdate[] = [];
-    for (const move of moves) {
-      const block = sheet.blocks.find(
-        (candidate) => candidate.blockId === move.blockId,
-      );
-      if (block === undefined) {
-        return err("entityNotFound", `block not found: ${move.blockId}`);
+  return frameCommand(
+    COMMAND_KINDS.moveBlocks,
+    sheetId,
+    (sheet) => {
+      const updates: BlockFrameUpdate[] = [];
+      for (const move of moves) {
+        const block = sheet.blocks.find(
+          (candidate) => candidate.blockId === move.blockId,
+        );
+        if (block === undefined) {
+          return err("entityNotFound", `block not found: ${move.blockId}`);
+        }
+        updates.push({ ...move, size: block.size });
       }
-      updates.push({ ...move, size: block.size });
-    }
-    return ok(updates);
-  });
+      return ok(updates);
+    },
+    (previousFrames) => ({
+      kind: COMMAND_KINDS.moveBlocks,
+      sheetId,
+      moves,
+      previousFrames,
+    }),
+    restored,
+  );
 }
 
 export function resizeBlocksCommand(
   sheetId: SheetId,
   frames: readonly BlockFrame[],
+  restored: readonly BlockFrame[] | null = null,
 ): MetadataCommand {
-  return frameCommand(COMMAND_KINDS.resizeBlocks, sheetId, () => ok(frames));
+  return frameCommand(
+    COMMAND_KINDS.resizeBlocks,
+    sheetId,
+    () => ok(frames),
+    (previousFrames) => ({
+      kind: COMMAND_KINDS.resizeBlocks,
+      sheetId,
+      frames,
+      previousFrames,
+    }),
+    restored,
+  );
 }
 
 export function reorderBlocksCommand(
   sheetId: SheetId,
   blockIds: readonly BlockId[],
   direction: ReorderDirection,
+  restored: readonly BlockId[] | null = null,
 ): MetadataCommand {
-  let previousOrder: readonly BlockId[] | null = null;
+  let previousOrder: readonly BlockId[] | null = restored;
   return {
     category: "metadata",
     kind: COMMAND_KINDS.reorderBlocks,
+    snapshot: () => ({
+      kind: COMMAND_KINDS.reorderBlocks,
+      sheetId,
+      blockIds,
+      direction,
+      previousOrder,
+    }),
     apply: (state) =>
       updateSheet(state, sheetId, (sheet) => {
         const next = REORDER_OPERATIONS[direction](sheet, blockIds);
