@@ -72,6 +72,10 @@ const toggle = (name: string) =>
   within(toolbar()).getByRole("button", { name });
 const tab = (label: string) =>
   screen.getByRole("tab", { name: new RegExp(`^${label}`) });
+// The folded lists / settings open from a quiet button above them.
+const listsButton = () => screen.getByRole("button", { name: /^一覧（/ });
+const settingsButton = () =>
+  screen.getByRole("button", { name: TEXT.settingsHeading });
 
 describe("the layout of the diagram GUI", () => {
   it("puts one add button per kind of element at the top, before the lists", async () => {
@@ -81,9 +85,8 @@ describe("the layout of the diagram GUI", () => {
         .getAllByRole("button")
         .map((button) => button.textContent),
     ).toEqual([TEXT.addNodeToggle, TEXT.addEdgeToggle, TEXT.addSubgraphToggle]);
-    const tabs = screen.getByRole("tablist", { name: GUI.listTabsLabel });
     expect(
-      toolbar().compareDocumentPosition(tabs) &
+      toolbar().compareDocumentPosition(listsButton()) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     // No add form is open at first.
@@ -138,8 +141,30 @@ describe("the layout of the diagram GUI", () => {
     expect(label.value).toBe("Half");
   });
 
+  it("folds the lists and the settings away, naming the lists with their counts", async () => {
+    const rendered = await openGui();
+    expect(listsButton().textContent).toContain(
+      GUI.listsSummary(
+        `${TEXT.nodesHeading} 3 · ${TEXT.edgesHeading} 2 · ${TEXT.subgraphsHeading} 0`,
+      ),
+    );
+    expect(listsButton().getAttribute("aria-expanded")).toBe("false");
+    expect(
+      screen.queryByRole("tablist", { name: GUI.listTabsLabel }),
+    ).toBeNull();
+    expect(settingsButton().getAttribute("aria-expanded")).toBe("false");
+    expect(
+      screen.queryByRole("combobox", { name: TEXT.directionLabel }),
+    ).toBeNull();
+    await rendered.shell.user.click(listsButton());
+    expect(
+      screen.getByRole("tablist", { name: GUI.listTabsLabel }),
+    ).toBeTruthy();
+  });
+
   it("shows one list at a time, with the number of elements on its tab", async () => {
     const rendered = await openGui();
+    await rendered.shell.user.click(listsButton());
     expect(tab(TEXT.nodesHeading).getAttribute("aria-selected")).toBe("true");
     expect(tab(TEXT.nodesHeading).textContent).toBe(`${TEXT.nodesHeading}3`);
     expect(tab(TEXT.edgesHeading).textContent).toBe(`${TEXT.edgesHeading}2`);
@@ -164,20 +189,22 @@ describe("the layout of the diagram GUI", () => {
 
   it("shows the editor of the selection above the lists", async () => {
     const rendered = await openGui();
+    await rendered.shell.user.click(listsButton());
     await rendered.shell.user.click(
       within(
         screen.getByRole("listbox", { name: TEXT.nodeListLabel(SHORT_ID) }),
       ).getByRole("option", { name: TEXT.nodeOption("Start", "A") }),
     );
     const label = screen.getByRole("textbox", { name: TEXT.nodeLabelField });
-    const tabs = screen.getByRole("tablist", { name: GUI.listTabsLabel });
     expect(
-      label.compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING,
+      label.compareDocumentPosition(listsButton()) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
 
   it("keeps the settings (direction) apart, after the lists", async () => {
-    await openGui();
+    const rendered = await openGui();
+    await rendered.shell.user.click(settingsButton());
     const settings = screen.getByRole("region", {
       name: TEXT.settingsHeading,
     });

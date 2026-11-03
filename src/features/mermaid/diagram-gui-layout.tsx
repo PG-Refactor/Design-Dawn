@@ -135,7 +135,12 @@ export interface DiagramGuiLayoutProps {
   readonly status: ReactNode;
   readonly editor: ReactNode;
   readonly tabs: readonly GuiListTab[];
+  // The lists are folded away until opened (the diagram itself is where elements are
+  // picked); the summary names them with their counts ("Lists (Nodes 7 · Edges 6)").
+  readonly listsLabel: (counts: string) => string;
   readonly settings?: ReactNode;
+  // The settings are folded away too.
+  readonly settingsLabel?: string;
   // What can be done with a shape right-clicked in the diagram picture (before the add
   // items), and what clicking it does. Diagram types without shapes leave them out.
   readonly shapeEntries?: (hit: DiagramHit) => readonly PopupMenuEntry[];
@@ -151,7 +156,9 @@ export function DiagramGuiLayout({
   status,
   editor,
   tabs,
+  listsLabel,
   settings,
+  settingsLabel,
   shapeEntries,
   onPickShape,
 }: DiagramGuiLayoutProps) {
@@ -252,49 +259,96 @@ export function DiagramGuiLayout({
       ))}
       {status}
       {editor}
-      <div
-        role="tablist"
-        aria-label={tabListLabel}
-        className="diagram-gui__tabs"
+      <GuiDisclosure
+        label={listsLabel(
+          tabs.map((tab) => `${tab.label} ${tab.count}`).join(" · "),
+        )}
+        className="diagram-gui__lists"
       >
-        {tabs.map((tab, index) => {
-          const active = tab.id === state.activeTabId;
-          return (
-            <button
-              key={tab.id}
-              ref={(element) => {
-                if (element === null) tabRefs.current.delete(tab.id);
-                else tabRefs.current.set(tab.id, element);
-              }}
-              type="button"
-              role="tab"
-              id={tabId(tab.id)}
-              aria-selected={active}
-              aria-controls={panelId(tab.id)}
-              tabIndex={active ? 0 : -1}
-              className="diagram-gui__tab"
-              onClick={() => state.showTab(tab.id)}
-              onKeyDown={(event) => onTabKeyDown(event, index)}
-            >
-              {tab.label}
-              <span className="diagram-gui__tab-count">{tab.count}</span>
-            </button>
-          );
-        })}
-      </div>
-      {tabs.map((tab) => (
         <div
-          key={tab.id}
-          role="tabpanel"
-          id={panelId(tab.id)}
-          aria-labelledby={tabId(tab.id)}
-          className="diagram-gui__tab-panel"
-          hidden={tab.id !== state.activeTabId}
+          role="tablist"
+          aria-label={tabListLabel}
+          className="diagram-gui__tabs"
         >
-          {tab.content}
+          {tabs.map((tab, index) => {
+            const active = tab.id === state.activeTabId;
+            return (
+              <button
+                key={tab.id}
+                ref={(element) => {
+                  if (element === null) tabRefs.current.delete(tab.id);
+                  else tabRefs.current.set(tab.id, element);
+                }}
+                type="button"
+                role="tab"
+                id={tabId(tab.id)}
+                aria-selected={active}
+                aria-controls={panelId(tab.id)}
+                tabIndex={active ? 0 : -1}
+                className="diagram-gui__tab"
+                onClick={() => state.showTab(tab.id)}
+                onKeyDown={(event) => onTabKeyDown(event, index)}
+              >
+                {tab.label}
+                <span className="diagram-gui__tab-count">{tab.count}</span>
+              </button>
+            );
+          })}
         </div>
-      ))}
-      {settings}
+        {tabs.map((tab) => (
+          <div
+            key={tab.id}
+            role="tabpanel"
+            id={panelId(tab.id)}
+            aria-labelledby={tabId(tab.id)}
+            className="diagram-gui__tab-panel"
+            hidden={tab.id !== state.activeTabId}
+          >
+            {tab.content}
+          </div>
+        ))}
+      </GuiDisclosure>
+      {settings === undefined ? null : (
+        <GuiDisclosure
+          label={settingsLabel ?? ""}
+          className="diagram-gui__settings-group"
+        >
+          {settings}
+        </GuiDisclosure>
+      )}
+    </div>
+  );
+}
+
+// A folded part of the editor: a button that shows or hides what is below it.
+function GuiDisclosure({
+  label,
+  className,
+  children,
+}: {
+  readonly label: string;
+  readonly className: string;
+  readonly children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const bodyId = useId();
+  return (
+    <div className={className}>
+      <button
+        type="button"
+        className="diagram-gui__disclosure"
+        aria-expanded={open}
+        aria-controls={bodyId}
+        onClick={() => setOpen((wasOpen) => !wasOpen)}
+      >
+        <span aria-hidden="true" className="diagram-gui__disclosure-marker">
+          {open ? "▾" : "▸"}
+        </span>
+        {label}
+      </button>
+      <div id={bodyId} className="diagram-gui__disclosure-body" hidden={!open}>
+        {children}
+      </div>
     </div>
   );
 }

@@ -113,7 +113,7 @@ const textbox = (name: string) => getShown("textbox", name) as HTMLInputElement;
 const button = (name: string) => getShown("button", name);
 const alertText = () => screen.queryByRole("alert")?.textContent ?? null;
 const option = (label: string, value: string) =>
-  screen.getByRole("option", { name: GUI.sliceOption(label, value) });
+  getShown("option", GUI.sliceOption(label, value));
 const pending = (rendered: Rendered) =>
   rendered.shell.draftRegistry.hasPendingFor([DOCUMENT_A]);
 
@@ -564,9 +564,7 @@ describe("leaving the editor and other blocks", () => {
     await act(settle);
 
     expect(textbox(GUI.titleLabel).value).toBe("");
-    expect(
-      screen.getByRole("option", { name: GUI.sliceOption("Other", "5") }),
-    ).toBeTruthy();
+    expect(getShown("option", GUI.sliceOption("Other", "5"))).toBeTruthy();
     expect(pending(rendered)).toBe(false);
     const second = rendered.canvas.session
       .getState()
