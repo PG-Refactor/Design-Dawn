@@ -108,6 +108,8 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
     "This Document has already been closed, so it cannot be changed.",
   projectNotOpen: "No Project is open.",
   projectOpenInOtherWindow: "This Project is open in another window",
+  documentOpenInOtherWindow: "This Document is open in another window",
+  projectWindowOnly: "Do this in the window with the Project tree",
   dialogFailed: "Could not open the folder dialog.",
   invalidFolderSelection:
     "The selected folder is not valid. Please select it again.",

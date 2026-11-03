@@ -60,6 +60,13 @@ pub enum ErrorKind {
     InvalidProjectTreeWidth,
     /// The Project is already open in another window.
     ProjectOpenInOtherWindow,
+    /// The Document is open in another window (each Document is held by one window).
+    DocumentOpenInOtherWindow,
+    /// A change of the Project Tree asked from a window that shows only Documents.
+    ProjectWindowOnly,
+    /// A Document hand-over that is unknown, not addressed to the caller, too large, or
+    /// whose Document the caller does not hold.
+    InvalidDocumentTransfer,
     /// A git process failed in a way that is not a repository state (non-zero exit of a
     /// ready repository, unreadable output, the process could not be started).
     GitCommandFailed,
@@ -138,6 +145,9 @@ impl ErrorKind {
             Self::InvalidViewport => "invalidViewport",
             Self::InvalidProjectTreeWidth => "invalidProjectTreeWidth",
             Self::ProjectOpenInOtherWindow => "projectOpenInOtherWindow",
+            Self::DocumentOpenInOtherWindow => "documentOpenInOtherWindow",
+            Self::ProjectWindowOnly => "projectWindowOnly",
+            Self::InvalidDocumentTransfer => "invalidDocumentTransfer",
             Self::GitCommandFailed => "gitCommandFailed",
             Self::GitTimeout => "gitTimeout",
             Self::InvalidGitPath => "invalidGitPath",
@@ -189,6 +199,9 @@ impl ErrorKind {
             Self::InvalidViewport => "the viewport is not valid",
             Self::InvalidProjectTreeWidth => "the project tree width is not valid",
             Self::ProjectOpenInOtherWindow => "the project is open in another window",
+            Self::DocumentOpenInOtherWindow => "the document is open in another window",
+            Self::ProjectWindowOnly => "only the window with the project tree can do this",
+            Self::InvalidDocumentTransfer => "the document could not be moved",
             Self::GitCommandFailed => "the git command failed",
             Self::GitTimeout => "the git command did not finish in time",
             Self::InvalidGitPath => "the path is not valid for git",
@@ -292,7 +305,7 @@ impl Serialize for ApplicationError {
 mod tests {
     use super::*;
 
-    const ALL_KINDS: [ErrorKind; 57] = [
+    const ALL_KINDS: [ErrorKind; 60] = [
         ErrorKind::Domain(DomainErrorKind::InvalidEntityId),
         ErrorKind::Domain(DomainErrorKind::InvalidDisplayName),
         ErrorKind::Domain(DomainErrorKind::InvalidPosition),
@@ -326,6 +339,9 @@ mod tests {
         ErrorKind::InvalidViewport,
         ErrorKind::InvalidProjectTreeWidth,
         ErrorKind::ProjectOpenInOtherWindow,
+        ErrorKind::DocumentOpenInOtherWindow,
+        ErrorKind::ProjectWindowOnly,
+        ErrorKind::InvalidDocumentTransfer,
         ErrorKind::GitCommandFailed,
         ErrorKind::GitTimeout,
         ErrorKind::InvalidGitPath,

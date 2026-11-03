@@ -10,16 +10,20 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+use design_dawn_lib::application::document_transfer::DocumentTransfers;
 use design_dawn_lib::application::folder_selection::{FolderPicker, FolderPickerError};
 use design_dawn_lib::application::open_request::{OpenRequest, PendingOpenRequests};
 use design_dawn_lib::application::open_routing::WindowLabelAllocator;
 use design_dawn_lib::application::window_registry::WindowRegistry;
+use design_dawn_lib::application::window_registry::WindowRole;
 use design_dawn_lib::commands::{
-    handle_second_launch, reroute_unacknowledged, route_open_request, AppNotification,
-    AppNotificationSink, AppRequestHub, PlacementSource, RouteOutcome, RoutingState,
-    SharedFolderPicker, WindowGeometry, WindowHost, WindowPlacement,
+    hand_over_document, handle_second_launch, reroute_transfers, reroute_unacknowledged,
+    route_open_request, AppNotification, AppNotificationSink, AppRequestHub, PlacementSource,
+    RouteOutcome, RoutingState, SharedFolderPicker, TransferTarget, WindowGeometry, WindowHost,
+    WindowPlacement,
 };
 use design_dawn_lib::config::NEW_WINDOW_CASCADE_OFFSET;
+use design_dawn_lib::domain::entity_id::DocumentId;
 use design_dawn_lib::domain::entity_id::ProjectId;
 use serde_json::{json, Value};
 use support::*;
@@ -45,6 +49,18 @@ impl AppNotificationSink for FakeSink {
 }
 
 impl FakeSink {
+    fn transfer_ids(&self) -> Vec<String> {
+        self.received
+            .lock()
+            .unwrap()
+            .iter()
+            .filter_map(|notification| match notification {
+                AppNotification::ReceiveDocument { transfer_id } => Some(transfer_id.clone()),
+                _ => None,
+            })
+            .collect()
+    }
+
     fn document_ids(&self) -> Vec<String> {
         self.received
             .lock()
@@ -53,7 +69,10 @@ impl FakeSink {
             .filter_map(|notification| match notification {
                 AppNotification::OpenDocument { document_id, .. } => Some(document_id.clone()),
                 AppNotification::SettingsChanged { .. }
-                | AppNotification::ProjectFilesChanged { .. } => None,
+                | AppNotification::ProjectFilesChanged { .. }
+                | AppNotification::ReceiveDocument { .. }
+                | AppNotification::ActivateDocument { .. }
+                | AppNotification::ProjectTreeChanged { .. } => None,
             })
             .collect()
     }
@@ -755,4 +774,216 @@ fn destroying_the_reserving_window_frees_the_project() {
         json!({ "selectionId": selection_id })
     )
     .is_ok());
+}
+
+// ---- moving Documents between windows ----------------------------------------------------
+
+const PROJECT: &str = FOLDERS_PROJECT_ID;
+const MOVED_DOCUMENT: &str = API_DESIGN_DOCUMENT_ID;
+
+fn project_id() -> ProjectId {
+    ProjectId::parse(PROJECT).unwrap()
+}
+
+fn moved_document() -> DocumentId {
+    DocumentId::parse(MOVED_DOCUMENT).unwrap()
+}
+
+/// `main` has the Project and holds the Document about to move.
+fn world_holding_the_document() -> World {
+    let world = World::default();
+    world.bind(MAIN, PROJECT);
+    world
+        .registry
+        .lock()
+        .unwrap()
+        .claim_document(MAIN, &project_id(), moved_document())
+        .unwrap();
+    world
+}
+
+fn hand_over(
+    world: &World,
+    transfers: &Mutex<DocumentTransfers>,
+    host: &FakeHost,
+    from: &str,
+    target: TransferTarget,
+) -> Result<(), design_dawn_lib::application::error::ApplicationError> {
+    hand_over_document(
+        &world.state(),
+        transfers,
+        host,
+        from,
+        project_id(),
+        moved_document(),
+        "{\"payload\":true}".to_owned(),
+        target,
+    )
+}
+
+fn owner(world: &World) -> Option<String> {
+    world
+        .registry
+        .lock()
+        .unwrap()
+        .owner_of_document(&project_id(), &moved_document())
+        .map(str::to_owned)
+}
+
+#[test]
+fn a_document_moves_to_a_new_document_window_where_it_was_dropped() {
+    let world = world_holding_the_document();
+    let transfers = Mutex::new(DocumentTransfers::default());
+    let host = FakeHost::default().with_geometry(MAIN, 900.0, 700.0);
+
+    hand_over(
+        &world,
+        &transfers,
+        &host,
+        MAIN,
+        TransferTarget::NewWindow {
+            position: Some((400.0, 300.0)),
+        },
+    )
+    .unwrap();
+
+    let created = host.created.borrow().clone();
+    assert_eq!(created.len(), 1);
+    let (label, placement) = &created[0];
+    assert_eq!(placement.size, Some((900.0, 700.0)));
+    assert_eq!(placement.position, Some((400.0, 300.0)));
+    assert_eq!(owner(&world).as_deref(), Some(label.as_str()));
+    let registry = world.registry.lock().unwrap();
+    assert_eq!(registry.role_of(label), Some(WindowRole::Document));
+    assert_eq!(registry.find_window_by_project(&project_id()), Some(MAIN));
+    drop(registry);
+    let Some(OpenRequest::DocumentTransfer { transfer_id, .. }) = world.pending_for(label) else {
+        panic!("the new window has no hand-over to take");
+    };
+    let taken = transfers.lock().unwrap().take(label, &transfer_id).unwrap();
+    assert_eq!(taken.payload, "{\"payload\":true}");
+}
+
+#[test]
+fn a_document_moves_to_another_window_of_the_project_which_is_told() {
+    let world = world_holding_the_document();
+    world
+        .registry
+        .lock()
+        .unwrap()
+        .attach_document_window("window-3", project_id());
+    let sink = FakeSink::default();
+    world.hub.subscribe("window-3", sink.clone());
+    let transfers = Mutex::new(DocumentTransfers::default());
+    let host = FakeHost::default();
+
+    hand_over(
+        &world,
+        &transfers,
+        &host,
+        MAIN,
+        TransferTarget::Window {
+            label: "window-3".to_owned(),
+        },
+    )
+    .unwrap();
+
+    assert_eq!(owner(&world).as_deref(), Some("window-3"));
+    assert_eq!(*host.raised.borrow(), ["window-3"]);
+    let ids = sink.transfer_ids();
+    assert_eq!(ids.len(), 1);
+    assert!(transfers.lock().unwrap().take("window-3", &ids[0]).is_ok());
+}
+
+#[test]
+fn nothing_changes_when_the_new_window_cannot_be_created() {
+    let world = world_holding_the_document();
+    let transfers = Mutex::new(DocumentTransfers::default());
+    let host = FakeHost {
+        fail_creation: true,
+        ..FakeHost::default()
+    };
+
+    let failed = hand_over(
+        &world,
+        &transfers,
+        &host,
+        MAIN,
+        TransferTarget::NewWindow { position: None },
+    );
+
+    assert!(failed.is_err());
+    assert_eq!(owner(&world).as_deref(), Some(MAIN));
+    assert_eq!(
+        world
+            .registry
+            .lock()
+            .unwrap()
+            .windows_of_project(&project_id()),
+        vec![(MAIN.to_owned(), WindowRole::Project)]
+    );
+    assert!(transfers.lock().unwrap().waiting_for("window-1").is_empty());
+}
+
+#[test]
+fn only_the_window_holding_the_document_can_move_it_and_not_to_a_stranger() {
+    let world = world_holding_the_document();
+    world.bind("window-9", "01928f3a-0000-7000-8000-00000000ffff");
+    let transfers = Mutex::new(DocumentTransfers::default());
+    let host = FakeHost::default();
+
+    let stranger = hand_over(
+        &world,
+        &transfers,
+        &host,
+        MAIN,
+        TransferTarget::Window {
+            label: "window-9".to_owned(),
+        },
+    );
+    assert!(stranger.is_err(), "a window of another Project");
+    world
+        .registry
+        .lock()
+        .unwrap()
+        .attach_document_window("window-3", project_id());
+    let not_held = hand_over(
+        &world,
+        &transfers,
+        &host,
+        "window-3",
+        TransferTarget::Window {
+            label: MAIN.to_owned(),
+        },
+    );
+    assert!(not_held.is_err(), "window-3 does not hold the document");
+    assert_eq!(owner(&world).as_deref(), Some(MAIN));
+}
+
+#[test]
+fn a_hand_over_whose_window_went_away_goes_to_the_project_window() {
+    let world = world_holding_the_document();
+    let transfers = Mutex::new(DocumentTransfers::default());
+    let host = FakeHost::default();
+    let sink = FakeSink::default();
+    world.hub.subscribe(MAIN, sink.clone());
+    hand_over(
+        &world,
+        &transfers,
+        &host,
+        MAIN,
+        TransferTarget::NewWindow { position: None },
+    )
+    .unwrap();
+    let label = host.created_labels()[0].clone();
+    // The new window is destroyed before it took the Document.
+    world.registry.lock().unwrap().unregister(&label);
+    let lost = transfers.lock().unwrap().take_window(&label);
+
+    reroute_transfers(&world.state(), &transfers, &host, lost);
+
+    assert_eq!(owner(&world).as_deref(), Some(MAIN));
+    let ids = sink.transfer_ids();
+    assert_eq!(ids.len(), 1);
+    assert!(transfers.lock().unwrap().take(MAIN, &ids[0]).is_ok());
 }

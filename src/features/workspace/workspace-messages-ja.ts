@@ -108,6 +108,8 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
   notWritable: "このDocumentは既に閉じられているため操作できません。",
   projectNotOpen: "Projectが開かれていません。",
   projectOpenInOtherWindow: "このProjectは別のウィンドウで開いています",
+  documentOpenInOtherWindow: "このDocumentは別のウィンドウで開いています",
+  projectWindowOnly: "この操作はProjectツリーのあるウィンドウで行ってください",
   dialogFailed: "フォルダ選択ダイアログを開けませんでした。",
   invalidFolderSelection:
     "選択したフォルダが無効です。もう一度選択してください。",

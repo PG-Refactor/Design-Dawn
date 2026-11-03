@@ -1,15 +1,35 @@
-//! Which Project each window has open, and which window was focused last.
-//! Pure data keyed by window label strings, so it is testable
+//! Which Project each window has open, which Documents it holds, and which window was
+//! focused last. Pure data keyed by window label strings, so it is testable
 //! without Tauri; not persisted (windows do not outlive the process).
+//!
+//! A Project is open in at most one *Project window* (the one with the Project Tree), and in
+//! any number of *Document windows* (Documents moved out of it). A Document is held by one
+//! window at a time.
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
-use super::error::{ApplicationError, ApplicationResult};
-use crate::domain::entity_id::ProjectId;
+use serde::Serialize;
+
+use super::error::{ApplicationError, ApplicationResult, ErrorKind};
+use crate::domain::entity_id::{DocumentId, ProjectId};
+
+/// What a window shows of its Project.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum WindowRole {
+    /// The Project Tree and the Documents: the only window that changes the tree.
+    #[default]
+    Project,
+    /// Documents only (moved out of another window).
+    Document,
+}
 
 #[derive(Debug, Clone, Default)]
 struct WindowEntry {
     project: Option<ProjectId>,
+    role: WindowRole,
+    /// The Documents this window holds (opened, or handed to it). Empty without a Project.
+    documents: BTreeSet<DocumentId>,
     /// A Project a freshly created window is about to open (its open request is still
     /// pending). Lets a second request for the same Project find this window instead of
     /// creating another one while the first is still starting.
@@ -32,10 +52,145 @@ impl WindowRegistry {
         self.windows.entry(label.to_owned()).or_default();
     }
 
-    /// Removes the window and returns the Project it had open, so the caller can drop that
-    /// Project's session.
+    /// Removes the window (and what it held) and returns the Project it had open. The
+    /// caller drops that Project's session when `is_project_in_use` says no window is left.
     pub fn unregister(&mut self, label: &str) -> Option<ProjectId> {
         self.windows.remove(label).and_then(|entry| entry.project)
+    }
+
+    /// Whether any window still has the Project open (or is about to): its session must
+    /// stay while one does.
+    pub fn is_project_in_use(&self, project: &ProjectId) -> bool {
+        self.windows.values().any(|entry| {
+            entry.project.as_ref() == Some(project)
+                || entry.reserved_project.as_ref() == Some(project)
+        })
+    }
+
+    pub fn role_of(&self, label: &str) -> Option<WindowRole> {
+        self.windows
+            .get(label)
+            .filter(|entry| entry.project.is_some())
+            .map(|entry| entry.role)
+    }
+
+    /// The window becomes a Document window of `project` (one that does not compete for the
+    /// Project with its Project window).
+    pub fn attach_document_window(&mut self, label: &str, project: ProjectId) {
+        let entry = self.windows.entry(label.to_owned()).or_default();
+        // Attached twice (when the hand-over is made, and when the window starts): what it
+        // was given in between stays.
+        if entry.project != Some(project) {
+            entry.documents.clear();
+        }
+        entry.project = Some(project);
+        entry.role = WindowRole::Document;
+        entry.reserved_project = None;
+    }
+
+    /// Every window that has `project` open, Project window first, then by label.
+    pub fn windows_of_project(&self, project: &ProjectId) -> Vec<(String, WindowRole)> {
+        let mut windows: Vec<(String, WindowRole)> = self
+            .windows
+            .iter()
+            .filter(|(_, entry)| entry.project.as_ref() == Some(project))
+            .map(|(label, entry)| (label.clone(), entry.role))
+            .collect();
+        windows.sort_by(|left, right| {
+            (left.1 != WindowRole::Project, &left.0)
+                .cmp(&(right.1 != WindowRole::Project, &right.0))
+        });
+        windows
+    }
+
+    /// The window that holds the Document, if any.
+    pub fn owner_of_document(&self, project: &ProjectId, document: &DocumentId) -> Option<&str> {
+        self.windows
+            .iter()
+            .find(|(_, entry)| {
+                entry.project.as_ref() == Some(project) && entry.documents.contains(document)
+            })
+            .map(|(label, _)| label.as_str())
+    }
+
+    /// The window takes the Document (opening it). `Err(label)` when another window holds it.
+    pub fn claim_document(
+        &mut self,
+        label: &str,
+        project: &ProjectId,
+        document: DocumentId,
+    ) -> Result<(), String> {
+        if let Some(owner) = self.owner_of_document(project, &document) {
+            if owner != label {
+                return Err(owner.to_owned());
+            }
+        }
+        if let Some(entry) = self.windows.get_mut(label) {
+            if entry.project.as_ref() == Some(project) {
+                entry.documents.insert(document);
+            }
+        }
+        Ok(())
+    }
+
+    /// The window let the Document go (closed or deleted it). Nothing for a window that did
+    /// not hold it.
+    pub fn release_document(&mut self, label: &str, document: &DocumentId) {
+        if let Some(entry) = self.windows.get_mut(label) {
+            entry.documents.remove(document);
+        }
+    }
+
+    /// Hands the Document from whoever holds it to `to` (a window of the same Project).
+    pub fn move_document(&mut self, project: &ProjectId, document: DocumentId, to: &str) {
+        for entry in self.windows.values_mut() {
+            if entry.project.as_ref() == Some(project) {
+                entry.documents.remove(&document);
+            }
+        }
+        if let Some(entry) = self.windows.get_mut(to) {
+            if entry.project.as_ref() == Some(project) {
+                entry.documents.insert(document);
+            }
+        }
+    }
+
+    /// The Documents the window holds.
+    pub fn documents_of(&self, label: &str) -> Vec<DocumentId> {
+        self.windows
+            .get(label)
+            .map(|entry| entry.documents.iter().copied().collect())
+            .unwrap_or_default()
+    }
+
+    /// For the commands that change the Project Tree: only the Project window may.
+    pub fn ensure_project_window(&self, label: &str, project: &ProjectId) -> ApplicationResult<()> {
+        self.ensure_bound(label, project)?;
+        if self.role_of(label) == Some(WindowRole::Project) {
+            Ok(())
+        } else {
+            Err(ApplicationError::new(
+                ErrorKind::ProjectWindowOnly,
+                format!("window {label} shows documents only"),
+            ))
+        }
+    }
+
+    /// For the commands that change or remove a Document: it must not be held by another
+    /// window. A Document nobody holds (not open) is fine.
+    pub fn ensure_document_not_elsewhere(
+        &self,
+        label: &str,
+        project: &ProjectId,
+        document: &DocumentId,
+    ) -> ApplicationResult<()> {
+        match self.owner_of_document(project, document) {
+            Some(owner) if owner != label => Err(ApplicationError::new(
+                ErrorKind::DocumentOpenInOtherWindow,
+                format!("document {document} is held by window {owner}"),
+            )),
+            _ => Ok(()),
+        }
     }
 
     pub fn project_of(&self, label: &str) -> Option<ProjectId> {
@@ -58,20 +213,30 @@ impl WindowRegistry {
             entry.reserved_project = None;
         }
         let previous = entry.project.replace(project);
+        if previous != Some(project) {
+            entry.documents.clear();
+        }
+        entry.role = WindowRole::Project;
         Ok(previous.filter(|previous| *previous != project))
     }
 
     /// The Project the window had open, if any. The window stays registered.
     pub fn unbind(&mut self, label: &str) -> Option<ProjectId> {
-        self.windows
-            .get_mut(label)
-            .and_then(|entry| entry.project.take())
+        self.windows.get_mut(label).and_then(|entry| {
+            entry.documents.clear();
+            entry.role = WindowRole::Project;
+            entry.project.take()
+        })
     }
 
+    /// The Project window of the Project (Document windows do not count: opening the
+    /// Project again goes to the window with its tree).
     pub fn find_window_by_project(&self, project: &ProjectId) -> Option<&str> {
         self.windows
             .iter()
-            .find(|(_, entry)| entry.project.as_ref() == Some(project))
+            .find(|(_, entry)| {
+                entry.project.as_ref() == Some(project) && entry.role == WindowRole::Project
+            })
             .map(|(label, _)| label.as_str())
     }
 
@@ -244,6 +409,86 @@ mod tests {
         registry.reserve_project("window-2", project(2));
         registry.clear_reservation("window-2");
         assert_eq!(registry.find_window_claiming_project(&project(2)), None);
+    }
+
+    fn document(number: u8) -> DocumentId {
+        DocumentId::parse(&format!("01928f3a-0000-7000-8000-0000000001{number:02}")).unwrap()
+    }
+
+    #[test]
+    fn a_document_window_shares_the_project_without_competing_for_it() {
+        let mut registry = WindowRegistry::default();
+        registry.bind("main", project(1)).unwrap();
+        registry.attach_document_window("window-1", project(1));
+        assert_eq!(registry.find_window_by_project(&project(1)), Some("main"));
+        assert!(registry.ensure_bound("window-1", &project(1)).is_ok());
+        assert_eq!(registry.role_of("window-1"), Some(WindowRole::Document));
+        assert_eq!(
+            registry.windows_of_project(&project(1)),
+            vec![
+                ("main".to_owned(), WindowRole::Project),
+                ("window-1".to_owned(), WindowRole::Document)
+            ]
+        );
+        // Opening the Project in a third window is still refused (main has it).
+        assert_eq!(
+            registry.bind("window-2", project(1)),
+            Err("main".to_owned())
+        );
+    }
+
+    #[test]
+    fn the_project_stays_in_use_while_any_window_has_it() {
+        let mut registry = WindowRegistry::default();
+        registry.bind("main", project(1)).unwrap();
+        registry.attach_document_window("window-1", project(1));
+        registry.unregister("main");
+        assert!(registry.is_project_in_use(&project(1)));
+        // Without its Project window, the Project can be opened with a tree again.
+        assert_eq!(registry.find_window_by_project(&project(1)), None);
+        assert_eq!(registry.bind("window-2", project(1)), Ok(None));
+        registry.unregister("window-1");
+        registry.unregister("window-2");
+        assert!(!registry.is_project_in_use(&project(1)));
+    }
+
+    #[test]
+    fn a_document_is_held_by_one_window_and_moves_between_windows() {
+        let mut registry = WindowRegistry::default();
+        registry.bind("main", project(1)).unwrap();
+        registry.attach_document_window("window-1", project(1));
+        assert_eq!(
+            registry.claim_document("main", &project(1), document(1)),
+            Ok(())
+        );
+        assert_eq!(
+            registry.claim_document("window-1", &project(1), document(1)),
+            Err("main".to_owned())
+        );
+        registry.move_document(&project(1), document(1), "window-1");
+        assert_eq!(
+            registry.owner_of_document(&project(1), &document(1)),
+            Some("window-1")
+        );
+        assert!(registry.documents_of("main").is_empty());
+        assert!(registry
+            .ensure_document_not_elsewhere("main", &project(1), &document(1))
+            .is_err());
+        registry.release_document("window-1", &document(1));
+        assert_eq!(registry.owner_of_document(&project(1), &document(1)), None);
+        assert!(registry
+            .ensure_document_not_elsewhere("main", &project(1), &document(1))
+            .is_ok());
+    }
+
+    #[test]
+    fn only_the_project_window_may_change_the_tree() {
+        let mut registry = WindowRegistry::default();
+        registry.bind("main", project(1)).unwrap();
+        registry.attach_document_window("window-1", project(1));
+        assert!(registry.ensure_project_window("main", &project(1)).is_ok());
+        let refused = registry.ensure_project_window("window-1", &project(1));
+        assert_eq!(refused.unwrap_err().kind, ErrorKind::ProjectWindowOnly);
     }
 
     #[test]

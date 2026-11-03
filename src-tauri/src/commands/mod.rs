@@ -24,6 +24,7 @@ use crate::application::asset_import::{
 };
 use crate::application::block_content_operations::{self as block_content, BlockContentComparison};
 use crate::application::document_operations as documents;
+use crate::application::document_transfer::DocumentTransfers;
 use crate::application::dropped_files::DroppedFilesState;
 use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
 use crate::application::external_change::{self, ExternalChanges};
@@ -48,11 +49,11 @@ use crate::application::snapshot::{
     DocumentSnapshot, FolderSnapshot, ProjectSnapshot, SaveResult, SheetSnapshot,
 };
 use crate::application::window_binding::{
-    close_window_project, create_project_in_window, open_project_in_window, release_window_project,
-    reload_project_in_window, WindowOpenError,
+    close_window_project, create_project_in_window, open_project_in_window,
+    project_snapshot_for_window, release_window_project, reload_project_in_window, WindowOpenError,
 };
-use crate::application::window_registry::WindowRegistry;
-use crate::domain::entity_id::ProjectId;
+use crate::application::window_registry::{WindowRegistry, WindowRole};
+use crate::domain::entity_id::{DocumentId, ProjectId};
 use crate::infrastructure::error::PersistenceErrorKind;
 use crate::infrastructure::file_format::dto::{
     parse_dto, DocumentDto, FolderDto, ProjectDto, SheetDto,
@@ -60,7 +61,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 59] = [
+pub const COMMAND_NAMES: [&str; 63] = [
     "select_project_folder",
     "create_project",
     "open_project",
@@ -101,6 +102,10 @@ pub const COMMAND_NAMES: [&str; 59] = [
     "subscribe_app_requests",
     "ack_open_request",
     "open_project_in_new_window",
+    "transfer_document",
+    "take_document_transfer",
+    "get_project_snapshot",
+    "list_project_windows",
     "git_status",
     "git_stage",
     "git_unstage",
@@ -128,9 +133,10 @@ pub use drag_drop::{DropNotification, DropSubscriber};
 pub use external_watch::install_external_change_watching;
 pub use folder_picker::DialogFolderPicker;
 pub use open_dispatch::{
-    dispatch_in_background, handle_second_launch, placement_following, reroute_unacknowledged,
-    route_external_request, route_open_request, with_routing_state, PlacementSource, RouteOutcome,
-    RoutingState, TauriWindowHost, WindowGeometry, WindowHost, WindowPlacement,
+    dispatch_in_background, hand_over_document, handle_second_launch, placement_following,
+    reroute_transfers, reroute_unacknowledged, route_external_request, route_open_request,
+    with_routing_state, PlacementSource, RouteOutcome, RoutingState, TauriWindowHost,
+    TransferTarget, WindowGeometry, WindowHost, WindowPlacement,
 };
 pub use window_close::{
     confirm_close, handle_close_requested, CloseNotification, CloseNotificationSink,
@@ -207,6 +213,21 @@ fn release_window_state<R: Runtime>(window: &Window<R>) {
         if !lost.is_empty() {
             dispatch_in_background(window.app_handle(), move |state, host| {
                 reroute_unacknowledged(state, host, lost);
+            });
+        }
+    }
+    // Documents handed to the window that it never took go to another window of their
+    // Project (their unsaved changes are in the hand-over).
+    if let Some(transfers) = window.try_state::<Mutex<DocumentTransfers>>() {
+        let lost = transfers
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take_window(label);
+        if !lost.is_empty() {
+            let app = window.app_handle().clone();
+            dispatch_in_background(window.app_handle(), move |state, host| {
+                let transfers = app.state::<Mutex<DocumentTransfers>>();
+                reroute_transfers(state, &transfers, host, lost);
             });
         }
     }
@@ -287,6 +308,66 @@ fn with_project_sessions<R: Runtime, T>(
 ) -> Result<T, ApplicationError> {
     ensure_window_project(window, project_id)?;
     with_sessions(state, operation)
+}
+
+/// Tells the other windows of the Project that its tree (or a Document's name) changed, so
+/// they read it again. Fire and forget: a window that misses it is behind until the next one.
+fn notify_tree_changed<R: Runtime>(window: &Window<R>, project_id: &str) {
+    let Ok(project) = ProjectId::parse(project_id) else {
+        return;
+    };
+    let others: Vec<String> = lock_registry(&window.state::<Mutex<WindowRegistry>>())
+        .windows_of_project(&project)
+        .into_iter()
+        .map(|(label, _)| label)
+        .filter(|label| label != window.label())
+        .collect();
+    let hub = window.state::<AppRequestSubscriber>();
+    for label in others {
+        hub.send_untracked(
+            &label,
+            AppNotification::ProjectTreeChanged {
+                project_id: project.to_string(),
+            },
+        );
+    }
+}
+
+/// A change of the Project Tree: only the Project window may make it, and the other windows
+/// of the Project hear about it.
+fn with_tree_change<R: Runtime, T>(
+    window: &Window<R>,
+    state: &SessionState<'_>,
+    project_id: &str,
+    operation: impl FnOnce(&mut ProjectSessions) -> ApplicationResult<T>,
+) -> Result<T, ApplicationError> {
+    let project = ProjectId::parse(project_id)?;
+    log_failure(
+        lock_registry(&window.state::<Mutex<WindowRegistry>>())
+            .ensure_project_window(window.label(), &project),
+    )?;
+    let outcome = with_sessions(state, operation)?;
+    notify_tree_changed(window, project_id);
+    Ok(outcome)
+}
+
+/// Refuses to change or remove a Document another window holds. The window must have the
+/// Project first (a window of another Project hears `projectNotOpen`, as everywhere).
+fn ensure_document_here<R: Runtime>(
+    window: &Window<R>,
+    project_id: &str,
+    document_id: &str,
+) -> ApplicationResult<()> {
+    ensure_window_project(window, project_id)?;
+    let project = ProjectId::parse(project_id)?;
+    let document = DocumentId::parse(document_id)?;
+    log_failure(
+        lock_registry(&window.state::<Mutex<WindowRegistry>>()).ensure_document_not_elsewhere(
+            window.label(),
+            &project,
+            &document,
+        ),
+    )
 }
 
 /// Async so it never runs on the main thread, and the blocking dialog runs on a thread of
@@ -402,7 +483,7 @@ pub fn save_project<R: Runtime>(
     project_id: String,
     project: Value,
 ) -> Result<SaveResult, ApplicationError> {
-    with_project_sessions(&window, &state, &project_id, |sessions| {
+    with_tree_change(&window, &state, &project_id, |sessions| {
         let project: ProjectDto = parse_dto(project)?;
         projects::save_project(sessions, &project_id, &project)
     })
@@ -417,7 +498,7 @@ pub fn create_document<R: Runtime>(
     name: String,
     parent_folder_id: Option<String>,
 ) -> Result<DocumentSnapshot, ApplicationError> {
-    with_project_sessions(&window, &state, &project_id, |sessions| {
+    let snapshot = with_tree_change(&window, &state, &project_id, |sessions| {
         documents::create_document(
             sessions,
             &project_id,
@@ -425,7 +506,19 @@ pub fn create_document<R: Runtime>(
             &name,
             parent_folder_id.as_deref(),
         )
-    })
+    })?;
+    // A new Document is open in the window that created it.
+    if let (Ok(project), Ok(document)) = (
+        ProjectId::parse(&project_id),
+        DocumentId::parse(&document_id),
+    ) {
+        let _ = lock_registry(&window.state::<Mutex<WindowRegistry>>()).claim_document(
+            window.label(),
+            &project,
+            document,
+        );
+    }
+    Ok(snapshot)
 }
 
 #[tauri::command]
@@ -437,7 +530,7 @@ pub fn create_folder<R: Runtime>(
     folder_id: String,
     name: String,
 ) -> Result<FolderSnapshot, ApplicationError> {
-    with_project_sessions(&window, &state, &project_id, |sessions| {
+    with_tree_change(&window, &state, &project_id, |sessions| {
         folders::create_folder(
             sessions,
             &project_id,
@@ -455,7 +548,7 @@ pub fn save_folder<R: Runtime>(
     project_id: String,
     folder: Value,
 ) -> Result<SaveResult, ApplicationError> {
-    with_project_sessions(&window, &state, &project_id, |sessions| {
+    with_tree_change(&window, &state, &project_id, |sessions| {
         let folder: FolderDto = parse_dto(folder)?;
         folders::save_folder(sessions, &project_id, &folder)
     })
@@ -469,7 +562,10 @@ pub fn move_entry<R: Runtime>(
     entry_id: String,
     target_parent_folder_id: Option<String>,
 ) -> Result<(), ApplicationError> {
-    with_project_sessions(&window, &state, &project_id, |sessions| {
+    if DocumentId::parse(&entry_id).is_ok() {
+        ensure_document_here(&window, &project_id, &entry_id)?;
+    }
+    with_tree_change(&window, &state, &project_id, |sessions| {
         folders::move_entry(
             sessions,
             &project_id,
@@ -486,7 +582,7 @@ pub fn delete_folder<R: Runtime>(
     project_id: String,
     folder_id: String,
 ) -> Result<(), ApplicationError> {
-    with_project_sessions(&window, &state, &project_id, |sessions| {
+    with_tree_change(&window, &state, &project_id, |sessions| {
         folders::delete_folder(sessions, &project_id, &folder_id)
     })
 }
@@ -498,9 +594,41 @@ pub fn load_document<R: Runtime>(
     project_id: String,
     document_id: String,
 ) -> Result<DocumentSnapshot, ApplicationError> {
-    with_project_sessions(&window, &state, &project_id, |sessions| {
+    ensure_window_project(&window, &project_id)?;
+    let project = ProjectId::parse(&project_id)?;
+    let document = DocumentId::parse(&document_id)?;
+    let registry = window.state::<Mutex<WindowRegistry>>();
+    // A Document is held by one window: opening it where another window has it shows it
+    // there instead.
+    let owner = lock_registry(&registry)
+        .owner_of_document(&project, &document)
+        .filter(|owner| *owner != window.label())
+        .map(str::to_owned);
+    if let Some(owner) = owner {
+        bring_window_to_front(&window, &owner);
+        window.state::<AppRequestSubscriber>().send_untracked(
+            &owner,
+            AppNotification::ActivateDocument {
+                document_id: document.to_string(),
+            },
+        );
+        return log_failure(Err(ApplicationError::new(
+            ErrorKind::DocumentOpenInOtherWindow,
+            format!("document {document} is held by window {owner}"),
+        )));
+    }
+    let snapshot = with_sessions(&state, |sessions| {
         documents::load_document(sessions, &project_id, &document_id)
-    })
+    })?;
+    // Two windows racing for the same Document: the later one is told, like above.
+    if let Err(owner) = lock_registry(&registry).claim_document(window.label(), &project, document)
+    {
+        return log_failure(Err(ApplicationError::new(
+            ErrorKind::DocumentOpenInOtherWindow,
+            format!("document {document} is held by window {owner}"),
+        )));
+    }
+    Ok(snapshot)
 }
 
 #[tauri::command]
@@ -510,9 +638,15 @@ pub fn close_document<R: Runtime>(
     project_id: String,
     document_id: String,
 ) -> Result<(), ApplicationError> {
+    ensure_document_here(&window, &project_id, &document_id)?;
     with_project_sessions(&window, &state, &project_id, |sessions| {
         documents::close_document(sessions, &project_id, &document_id)
-    })
+    })?;
+    if let Ok(document) = DocumentId::parse(&document_id) {
+        lock_registry(&window.state::<Mutex<WindowRegistry>>())
+            .release_document(window.label(), &document);
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -522,10 +656,13 @@ pub fn save_document<R: Runtime>(
     project_id: String,
     document: Value,
 ) -> Result<SaveResult, ApplicationError> {
-    with_project_sessions(&window, &state, &project_id, |sessions| {
+    let saved = with_project_sessions(&window, &state, &project_id, |sessions| {
         let document: DocumentDto = parse_dto(document)?;
         documents::save_document(sessions, &project_id, &document)
-    })
+    })?;
+    // The name may have changed: the tree of the other windows shows it.
+    notify_tree_changed(&window, &project_id);
+    Ok(saved)
 }
 
 #[tauri::command]
@@ -751,9 +888,15 @@ pub fn delete_document<R: Runtime>(
     project_id: String,
     document_id: String,
 ) -> Result<(), ApplicationError> {
-    with_project_sessions(&window, &state, &project_id, |sessions| {
+    ensure_document_here(&window, &project_id, &document_id)?;
+    with_tree_change(&window, &state, &project_id, |sessions| {
         documents::delete_document(sessions, &project_id, &document_id)
-    })
+    })?;
+    if let Ok(document) = DocumentId::parse(&document_id) {
+        lock_registry(&window.state::<Mutex<WindowRegistry>>())
+            .release_document(window.label(), &document);
+    }
+    Ok(())
 }
 
 /// The directories are registered at startup (`run`) or by the test harness. A missing
@@ -1233,9 +1376,147 @@ pub fn take_open_request<R: Runtime>(
 pub fn subscribe_app_requests<R: Runtime>(
     window: Window<R>,
     hub: State<'_, AppRequestSubscriber>,
+    transfers: State<'_, Mutex<DocumentTransfers>>,
     channel: Channel<AppNotification>,
 ) {
     hub.subscribe(window.label(), channel);
+    // Documents handed to the window before it listened (a reloaded page) are told again.
+    let waiting = transfers
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .waiting_for(window.label());
+    for transfer_id in waiting {
+        hub.send_untracked(
+            window.label(),
+            AppNotification::ReceiveDocument { transfer_id },
+        );
+    }
+}
+
+/// Where a moved Document goes (`transfer_document`): `{ "kind": "newWindow", "screenX"?,
+/// "screenY"? }` (logical screen pixels, where it was dropped) or `{ "kind": "window",
+/// "label" }` (a window of the same Project, as `list_project_windows` names it).
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum TransferTargetArgument {
+    #[serde(rename_all = "camelCase")]
+    NewWindow {
+        screen_x: Option<f64>,
+        screen_y: Option<f64>,
+    },
+    #[serde(rename_all = "camelCase")]
+    Window { label: String },
+}
+
+/// Moves a Document of the calling window to another window, unsaved changes and history
+/// included (`payload`: the Frontend's hand-over, kept as it is until the receiver takes it).
+/// On success the caller drops the Document without saving or closing it. `async` and on the
+/// blocking pool: it may create a window (see `open_dispatch`).
+#[tauri::command]
+pub async fn transfer_document<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    document_id: String,
+    payload: String,
+    target: TransferTargetArgument,
+) -> Result<(), ApplicationError> {
+    let project = log_failure(ProjectId::parse(&project_id).map_err(ApplicationError::from))?;
+    let document = log_failure(DocumentId::parse(&document_id).map_err(ApplicationError::from))?;
+    let from = window.label().to_owned();
+    let target = match target {
+        TransferTargetArgument::NewWindow { screen_x, screen_y } => TransferTarget::NewWindow {
+            position: screen_x.zip(screen_y),
+        },
+        TransferTargetArgument::Window { label } => TransferTarget::Window { label },
+    };
+    let outcome = tauri::async_runtime::spawn_blocking(move || {
+        let host = TauriWindowHost::new(app.clone());
+        let transfers = app.state::<Mutex<DocumentTransfers>>();
+        with_routing_state(&app, |state| {
+            hand_over_document(
+                state, &transfers, &host, &from, project, document, payload, target,
+            )
+        })
+    })
+    .await
+    .map_err(|error| {
+        ApplicationError::persistence(
+            PersistenceErrorKind::IoError,
+            format!("document transfer task failed: {error}"),
+        )
+    })?;
+    log_failure(outcome)
+}
+
+/// The hand-over addressed to the calling window (once). The window holds the Document from
+/// the moment it was handed over; this gives it the state to open it with.
+#[tauri::command]
+pub fn take_document_transfer<R: Runtime>(
+    window: Window<R>,
+    transfers: State<'_, Mutex<DocumentTransfers>>,
+    transfer_id: String,
+) -> Result<String, ApplicationError> {
+    let taken = transfers
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .take(window.label(), &transfer_id);
+    log_failure(taken.map(|transfer| transfer.payload))
+}
+
+/// The calling window's Project as it is on disk, for a window that heard the tree changed
+/// elsewhere. Neither builds nor replaces the session.
+#[tauri::command]
+pub fn get_project_snapshot<R: Runtime>(
+    window: Window<R>,
+    state: SessionState<'_>,
+    project_id: String,
+) -> Result<ProjectSnapshot, ApplicationError> {
+    let project = log_failure(ProjectId::parse(&project_id).map_err(ApplicationError::from))?;
+    let sessions = state.lock().unwrap_or_else(PoisonError::into_inner);
+    let registry = window.state::<Mutex<WindowRegistry>>();
+    let outcome = project_snapshot_for_window(
+        &sessions,
+        &lock_registry(&registry),
+        window.label(),
+        &project,
+    );
+    log_failure(outcome.map_err(ApplicationError::from))
+}
+
+/// A window of the calling window's Project, for "move to window …".
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectWindow {
+    pub label: String,
+    pub role: WindowRole,
+    pub is_self: bool,
+    pub document_ids: Vec<String>,
+}
+
+#[tauri::command]
+pub fn list_project_windows<R: Runtime>(
+    window: Window<R>,
+    project_id: String,
+) -> Result<Vec<ProjectWindow>, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    let project = ProjectId::parse(&project_id)?;
+    let registry = window.state::<Mutex<WindowRegistry>>();
+    let registry = lock_registry(&registry);
+    Ok(registry
+        .windows_of_project(&project)
+        .into_iter()
+        .map(|(label, role)| ProjectWindow {
+            is_self: label == window.label(),
+            document_ids: registry
+                .documents_of(&label)
+                .iter()
+                .map(ToString::to_string)
+                .collect(),
+            label,
+            role,
+        })
+        .collect())
 }
 
 /// The window handled (or deliberately set aside) an `openDocument`. A request id of

@@ -16,8 +16,11 @@ use super::project_operations::{
 };
 use super::session::ProjectSessions;
 use super::snapshot::ProjectSnapshot;
-use super::window_binding::{admit_prepared_entry_point, open_project_in_window, WindowOpenError};
+use super::window_binding::{
+    admit_prepared_entry_point, attach_document_window, open_project_in_window, WindowOpenError,
+};
 use super::window_registry::WindowRegistry;
+use crate::domain::entity_id::ProjectId;
 use crate::infrastructure::error::{PersistenceError, PersistenceErrorKind};
 use crate::infrastructure::file_format::constants::{ENTRY_POINT_EXTENSION, ENTRY_POINT_MAX_BYTES};
 
@@ -29,6 +32,12 @@ const FLAG_PREFIX: char = '-';
 pub enum OpenRequest {
     EntryPoint(PathBuf),
     ProjectFolder(PathBuf),
+    /// A window made for a Document moved out of another window of the same Project: it
+    /// joins the Project as a Document window and takes the hand-over `transfer_id`.
+    DocumentTransfer {
+        project_id: ProjectId,
+        transfer_id: String,
+    },
 }
 
 fn has_entry_point_extension(path: &Path) -> bool {
@@ -85,6 +94,8 @@ pub struct OpenedRequest {
     /// `None` for a Project folder: only the Project is opened.
     pub document_id: Option<String>,
     pub resolution: Option<EntryPointResolution>,
+    /// Set for a Document window: the hand-over it takes with `take_document_transfer`.
+    pub transfer_id: Option<String>,
 }
 
 fn invalid_entry_point(detail: &str) -> ApplicationError {
@@ -118,6 +129,10 @@ pub fn resolve_open_target(request: &OpenRequest) -> ApplicationResult<PeekedTar
             peek_entry_point(path)
         }
         OpenRequest::ProjectFolder(path) => peek_project_folder(path),
+        // Never routed: it is put straight into the pending requests of its new window.
+        OpenRequest::DocumentTransfer { .. } => Err(invalid_entry_point(
+            "a document hand-over is not an open request to route",
+        )),
     }
 }
 
@@ -147,6 +162,7 @@ pub fn take_open_request(
                 snapshot: opened.snapshot,
                 document_id: Some(opened.document_id),
                 resolution: Some(opened.resolution),
+                transfer_id: None,
             }))
         }
         Some(OpenRequest::ProjectFolder(path)) => {
@@ -155,6 +171,19 @@ pub fn take_open_request(
                 snapshot,
                 document_id: None,
                 resolution: None,
+                transfer_id: None,
+            }))
+        }
+        Some(OpenRequest::DocumentTransfer {
+            project_id,
+            transfer_id,
+        }) => {
+            let snapshot = attach_document_window(sessions, registry, window_label, &project_id)?;
+            Ok(Some(OpenedRequest {
+                snapshot,
+                document_id: None,
+                resolution: None,
+                transfer_id: Some(transfer_id),
             }))
         }
     }

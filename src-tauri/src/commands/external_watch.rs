@@ -1,5 +1,5 @@
-//! Starts a file watcher for every Project session and forwards what it finds to the window
-//! that has the Project. The watcher lives in the session
+//! Starts a file watcher for every Project session and forwards what it finds to the windows
+//! that have the Project. The watcher lives in the session
 //! (`WatchGuard`), so closing, replacing or dropping the session stops it. All decisions are in
 //! `application::external_change`; this only wires them to Tauri state.
 
@@ -27,16 +27,20 @@ fn forward_batch<R: Runtime>(
         BatchOutcome::Quiet => ControlFlow::Continue(()),
         BatchOutcome::Report(changes) => {
             // The sessions lock is released: locks are never nested here (registry, then hub).
-            let label = {
+            // Every window of the Project hears it: the Project window and the Document
+            // windows each check the files of what they show.
+            let labels: Vec<String> = {
                 let registry = app.state::<Mutex<WindowRegistry>>();
                 let registry = registry.lock().unwrap_or_else(PoisonError::into_inner);
                 registry
-                    .find_window_by_project(project_id)
-                    .map(str::to_owned)
+                    .windows_of_project(project_id)
+                    .into_iter()
+                    .map(|(label, _)| label)
+                    .collect()
             };
-            if let Some(label) = label {
-                app.state::<AppRequestSubscriber>()
-                    .send_project_files_changed(&label, project_id, changes);
+            let hub = app.state::<AppRequestSubscriber>();
+            for label in labels {
+                hub.send_project_files_changed(&label, project_id, changes.clone());
             }
             ControlFlow::Continue(())
         }

@@ -1,7 +1,9 @@
 //! Opening and closing a Project on behalf of one window:
-//! a Project is open in at most one window, and a window has at most one Project. The
-//! registry holds the relation and `ProjectSessions` the data; the two always change together
-//! here. Callers lock `ProjectSessions` first and the registry second, never the reverse.
+//! a Project is open in at most one Project window (plus any Document windows its Documents
+//! were moved to), and a window has at most one Project. The registry holds the relation and
+//! `ProjectSessions` the data; the two always change together here. A session lives while
+//! any window has its Project. Callers lock `ProjectSessions` first and the registry second,
+//! never the reverse.
 
 use std::path::Path;
 
@@ -55,9 +57,20 @@ fn bind_project(
         }
     })?;
     if let Some(previous) = previous {
-        sessions.remove(&previous);
+        drop_session_if_unused(sessions, registry, &previous);
     }
     Ok(())
+}
+
+/// Drops the Project's session once no window has the Project any more.
+fn drop_session_if_unused(
+    sessions: &mut ProjectSessions,
+    registry: &WindowRegistry,
+    project_id: &ProjectId,
+) {
+    if !registry.is_project_in_use(project_id) {
+        sessions.remove(project_id);
+    }
 }
 
 /// The loaded Project becomes the window's. The session is registered only after the binding
@@ -68,14 +81,23 @@ pub fn admit_loaded_project(
     window_label: &str,
     loaded: LoadedProject,
 ) -> OpenResult<ProjectSnapshot> {
-    bind_project(
-        sessions,
-        registry,
-        window_label,
-        *loaded.session.project_id(),
-    )?;
-    sessions.insert(loaded.session);
-    Ok(loaded.snapshot)
+    let project_id = *loaded.session.project_id();
+    // Document windows of the Project (its Project window was closed) keep using the session
+    // they have: the window that opens the Project again joins it instead of replacing it,
+    // so what they track (hashes, opened Documents) stays intact.
+    let shared = registry
+        .windows_of_project(&project_id)
+        .iter()
+        .any(|(label, _)| label != window_label)
+        && sessions.get(&project_id).is_ok();
+    bind_project(sessions, registry, window_label, project_id)?;
+    let mut snapshot = loaded.snapshot;
+    if shared {
+        snapshot.session_generation = sessions.get(&project_id)?.generation();
+    } else {
+        sessions.insert(loaded.session);
+    }
+    Ok(snapshot)
 }
 
 pub fn open_project_in_window(
@@ -100,8 +122,49 @@ pub fn reload_project_in_window(
     project_id: &ProjectId,
 ) -> OpenResult<ProjectSnapshot> {
     registry.ensure_bound(window_label, project_id)?;
+    // A reload replaces the session; Documents held by other windows would lose it.
+    if registry.windows_of_project(project_id).len() > 1 {
+        return Err(ApplicationError::new(
+            ErrorKind::DocumentOpenInOtherWindow,
+            format!("project {project_id} has documents in other windows"),
+        )
+        .into());
+    }
     let project_root = sessions.get(project_id)?.root().to_path_buf();
     open_project_in_window(sessions, registry, window_label, &project_root)
+}
+
+/// The Project of a window that is joining it as a Document window: the snapshot of the
+/// Project as it is on disk, with the shared session's generation (no session is built or
+/// replaced).
+pub fn attach_document_window(
+    sessions: &mut ProjectSessions,
+    registry: &mut WindowRegistry,
+    window_label: &str,
+    project_id: &ProjectId,
+) -> OpenResult<ProjectSnapshot> {
+    let session = sessions.get(project_id)?;
+    let generation = session.generation();
+    let root = session.root().to_path_buf();
+    let mut snapshot = project_operations::load_project(&root)?.snapshot;
+    snapshot.session_generation = generation;
+    registry.attach_document_window(window_label, *project_id);
+    Ok(snapshot)
+}
+
+/// The Project as it is on disk for a window that already has it (a Document window that
+/// heard the tree changed): no session is built or replaced.
+pub fn project_snapshot_for_window(
+    sessions: &ProjectSessions,
+    registry: &WindowRegistry,
+    window_label: &str,
+    project_id: &ProjectId,
+) -> OpenResult<ProjectSnapshot> {
+    registry.ensure_bound(window_label, project_id)?;
+    let session = sessions.get(project_id)?;
+    let mut snapshot = project_operations::load_project(session.root())?.snapshot;
+    snapshot.session_generation = session.generation();
+    Ok(snapshot)
 }
 
 /// What `take_open_request` returns once the Project is the window's.
@@ -150,18 +213,18 @@ pub fn close_window_project(
     window_label: &str,
 ) {
     if let Some(project_id) = registry.unbind(window_label) {
-        sessions.remove(&project_id);
+        drop_session_if_unused(sessions, registry, &project_id);
     }
 }
 
-/// The window is gone: forget it and its Project's session.
+/// The window is gone: forget it, and its Project's session once no window has it.
 pub fn release_window_project(
     sessions: &mut ProjectSessions,
     registry: &mut WindowRegistry,
     window_label: &str,
 ) {
     if let Some(project_id) = registry.unregister(window_label) {
-        sessions.remove(&project_id);
+        drop_session_if_unused(sessions, registry, &project_id);
     }
 }
 
@@ -169,6 +232,55 @@ pub fn release_window_project(
 mod tests {
     use super::*;
     use crate::application::error::ApplicationResult;
+
+    #[test]
+    fn a_document_window_keeps_the_session_when_the_project_window_closes() {
+        let (base, root) = empty_project_root("one");
+        let mut sessions = ProjectSessions::default();
+        let mut registry = WindowRegistry::default();
+        let project = create(&mut sessions, &mut registry, "main", &root);
+        let generation = sessions.get(&project).unwrap().generation();
+
+        let snapshot =
+            attach_document_window(&mut sessions, &mut registry, "window-1", &project).unwrap();
+        assert_eq!(snapshot.session_generation, generation);
+
+        release_window_project(&mut sessions, &mut registry, "main");
+        assert!(
+            sessions.get(&project).is_ok(),
+            "the document window still uses it"
+        );
+
+        // Opening the Project again joins the session the document window uses.
+        let reopened =
+            open_project_in_window(&mut sessions, &mut registry, "window-2", &root).unwrap();
+        assert_eq!(reopened.session_generation, generation);
+        assert_eq!(sessions.get(&project).unwrap().generation(), generation);
+
+        release_window_project(&mut sessions, &mut registry, "window-1");
+        release_window_project(&mut sessions, &mut registry, "window-2");
+        assert!(
+            sessions.get(&project).is_err(),
+            "dropped with the last window"
+        );
+        let _ = std::fs::remove_dir_all(base);
+    }
+
+    #[test]
+    fn reloading_is_refused_while_documents_are_in_other_windows() {
+        let (base, root) = empty_project_root("one");
+        let mut sessions = ProjectSessions::default();
+        let mut registry = WindowRegistry::default();
+        let project = create(&mut sessions, &mut registry, "main", &root);
+        attach_document_window(&mut sessions, &mut registry, "window-1", &project).unwrap();
+        let refused = reload_project_in_window(&mut sessions, &mut registry, "main", &project)
+            .map_err(ApplicationError::from);
+        assert_eq!(
+            refused.unwrap_err().kind,
+            ErrorKind::DocumentOpenInOtherWindow
+        );
+        let _ = std::fs::remove_dir_all(base);
+    }
 
     fn parsed(id: &str) -> ProjectId {
         ProjectId::parse(id).unwrap()

@@ -20,6 +20,7 @@ use super::app_channel::{
     AppNotification, AppNotificationSink, AppRequestHub, AppRequestSubscriber,
 };
 use super::window_size::recorded_size_for_new_window;
+use crate::application::document_transfer::{invalid_transfer, DocumentTransfers, PendingTransfer};
 use crate::application::error::{ApplicationError, ApplicationResult};
 use crate::application::open_request::{
     resolve_open_target, select_open_request, OpenRequest, PendingOpenRequests,
@@ -29,6 +30,7 @@ use crate::application::open_routing::{
 };
 use crate::application::window_registry::WindowRegistry;
 use crate::config::{MAIN_WINDOW_LABEL, NEW_WINDOW_CASCADE_OFFSET};
+use crate::domain::entity_id::{DocumentId, ProjectId};
 use crate::infrastructure::error::PersistenceErrorKind;
 
 /// A window's geometry in logical pixels.
@@ -253,6 +255,174 @@ pub fn reroute_unacknowledged<S: AppNotificationSink, H: WindowHost>(
 ) {
     for sent in lost {
         route_external_request(state, host, sent.request);
+    }
+}
+
+// ---- moving Documents between windows ----------------------------------------------------
+
+/// Where a Document goes.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TransferTarget {
+    /// A new Document window; `position` (logical screen pixels) is where it was dropped.
+    NewWindow { position: Option<(f64, f64)> },
+    /// Another window of the same Project.
+    Window { label: String },
+}
+
+/// Hands the Document `document` of `from` to `target`. On success the target holds it and
+/// is told (or created and will ask for it); the sender drops it without saving. On failure
+/// nothing changed: the sender still holds it.
+#[allow(clippy::too_many_arguments)]
+pub fn hand_over_document<S: AppNotificationSink, H: WindowHost>(
+    state: &RoutingState<'_, S>,
+    transfers: &Mutex<DocumentTransfers>,
+    host: &H,
+    from: &str,
+    project: ProjectId,
+    document: DocumentId,
+    payload: String,
+    target: TransferTarget,
+) -> ApplicationResult<()> {
+    {
+        let registry = lock(state.registry);
+        registry.ensure_bound(from, &project)?;
+        if registry.owner_of_document(&project, &document) != Some(from) {
+            return Err(invalid_transfer(format!(
+                "window {from} does not hold document {document}"
+            )));
+        }
+    }
+    match target {
+        TransferTarget::Window { label } => {
+            {
+                let mut registry = lock(state.registry);
+                if label == from || registry.ensure_bound(&label, &project).is_err() {
+                    return Err(invalid_transfer(format!(
+                        "window {label} cannot take a document of project {project}"
+                    )));
+                }
+                let transfer_id = lock(transfers).put(project, document, &label, payload)?;
+                registry.move_document(&project, document, &label);
+                drop(registry);
+                state
+                    .hub
+                    .send_untracked(&label, AppNotification::ReceiveDocument { transfer_id });
+            }
+            host.raise_window(&label);
+            Ok(())
+        }
+        TransferTarget::NewWindow { position } => {
+            let source = host.window_geometry(from);
+            let transfer_id = lock(transfers).put(project, document, "", payload)?;
+            open_document_window(
+                state,
+                transfers,
+                host,
+                project,
+                document,
+                transfer_id,
+                source,
+                position,
+            )
+            .inspect_err(|_| {
+                // Back to the sender, as if nothing happened.
+                lock(state.registry).move_document(&project, document, from);
+            })
+        }
+    }
+}
+
+/// Creates a Document window for the waiting hand-over `transfer_id`. Undoes everything
+/// about the new window when it cannot be created (the hand-over is withdrawn).
+#[allow(clippy::too_many_arguments)]
+fn open_document_window<S: AppNotificationSink, H: WindowHost>(
+    state: &RoutingState<'_, S>,
+    transfers: &Mutex<DocumentTransfers>,
+    host: &H,
+    project: ProjectId,
+    document: DocumentId,
+    transfer_id: String,
+    source: Option<WindowGeometry>,
+    position: Option<(f64, f64)>,
+) -> ApplicationResult<()> {
+    let label = lock(state.labels).allocate();
+    {
+        let mut registry = lock(state.registry);
+        registry.register(&label);
+        registry.attach_document_window(&label, project);
+        registry.move_document(&project, document, &label);
+    }
+    {
+        let mut transfers = lock(transfers);
+        if let Some(pending) = transfers.cancel(&transfer_id) {
+            transfers.readdress(pending, &label);
+        }
+    }
+    lock(state.pending).put(
+        &label,
+        OpenRequest::DocumentTransfer {
+            project_id: project,
+            transfer_id: transfer_id.clone(),
+        },
+    );
+    let mut placement = placement_following(source);
+    if position.is_some() {
+        placement.position = position;
+    }
+    if let Err(detail) = host.create_window(&label, placement) {
+        lock(transfers).cancel(&transfer_id);
+        lock(state.pending).discard(&label);
+        lock(state.registry).unregister(&label);
+        return Err(window_creation_failed(&detail));
+    }
+    Ok(())
+}
+
+/// A window went away before taking what was handed to it: each Document goes to its
+/// Project's window (the Project window first), or to a new Document window when none is
+/// left.
+pub fn reroute_transfers<S: AppNotificationSink, H: WindowHost>(
+    state: &RoutingState<'_, S>,
+    transfers: &Mutex<DocumentTransfers>,
+    host: &H,
+    lost: Vec<PendingTransfer>,
+) {
+    for transfer in lost {
+        let project = transfer.project_id;
+        let document = transfer.document_id;
+        let existing = lock(state.registry)
+            .windows_of_project(&project)
+            .into_iter()
+            .map(|(label, _)| label)
+            .next();
+        match existing {
+            Some(label) => {
+                let transfer_id = lock(transfers).readdress(transfer, &label);
+                lock(state.registry).move_document(&project, document, &label);
+                state
+                    .hub
+                    .send_untracked(&label, AppNotification::ReceiveDocument { transfer_id });
+                host.raise_window(&label);
+            }
+            None => {
+                let transfer_id = lock(transfers).readdress(transfer, "");
+                let source = host.window_geometry(MAIN_WINDOW_LABEL);
+                if let Err(error) = open_document_window(
+                    state,
+                    transfers,
+                    host,
+                    project,
+                    document,
+                    transfer_id,
+                    source,
+                    None,
+                ) {
+                    // Without any window of the Project its session is gone as well; the
+                    // unsaved changes of this Document cannot be kept.
+                    eprintln!("a moved document could not be delivered: {error}");
+                }
+            }
+        }
     }
 }
 

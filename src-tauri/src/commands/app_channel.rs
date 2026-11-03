@@ -50,6 +50,20 @@ pub enum AppNotification {
         #[serde(flatten)]
         changes: ExternalChanges,
     },
+    /// A Document was handed to this window: `{ "kind": "receiveDocument", "transferId" }`.
+    /// The window takes it with `take_document_transfer`; until then it waits (and is sent
+    /// again when the window subscribes again).
+    #[serde(rename_all = "camelCase")]
+    ReceiveDocument { transfer_id: String },
+    /// Show this Document's tab (another window tried to open a Document this window
+    /// holds): `{ "kind": "activateDocument", "documentId" }`.
+    #[serde(rename_all = "camelCase")]
+    ActivateDocument { document_id: String },
+    /// Another window of the same Project changed its tree or a Document's name:
+    /// `{ "kind": "projectTreeChanged", "projectId" }`. The window reads the Project again
+    /// with `get_project_snapshot`.
+    #[serde(rename_all = "camelCase")]
+    ProjectTreeChanged { project_id: String },
 }
 
 impl AppNotification {
@@ -188,6 +202,23 @@ impl<S: AppNotificationSink> AppRequestHub<S> {
             Ok(()) => true,
             Err(error) => {
                 eprintln!("failed to send a file change notice to window {window_label}: {error}");
+                false
+            }
+        }
+    }
+
+    /// Sends a notification that needs no tracking (the window asks again, or what it is
+    /// about is kept elsewhere until taken). Returns whether it was sent.
+    pub fn send_untracked(&self, window_label: &str, notification: AppNotification) -> bool {
+        // Cloned so the lock is not held while the message is sent.
+        let sink = self.subscriptions().get(window_label).cloned();
+        let Some(sink) = sink else {
+            return false;
+        };
+        match sink.send_notification(notification) {
+            Ok(()) => true,
+            Err(error) => {
+                eprintln!("failed to send a notification to window {window_label}: {error}");
                 false
             }
         }

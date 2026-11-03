@@ -1290,3 +1290,120 @@ fn focus_events_order_the_windows_for_the_registry() {
         Some(MAIN_WINDOW_LABEL)
     );
 }
+
+// ---- Document windows ----
+
+/// The second window joins the opened Project as a Document window (what a moved Document's
+/// window does when it starts).
+fn second_document_window(
+    opened: &OpenedProject,
+) -> tauri::WebviewWindow<tauri::test::MockRuntime> {
+    let second = second_window(opened);
+    let project = design_dawn_lib::domain::entity_id::ProjectId::parse(&opened.project_id).unwrap();
+    opened
+        .app
+        .state::<Mutex<WindowRegistry>>()
+        .lock()
+        .unwrap()
+        .attach_document_window(SECOND_WINDOW_LABEL, project);
+    second
+}
+
+#[test]
+fn a_document_window_cannot_open_a_document_another_window_holds() {
+    let temp = TempDir::new();
+    let opened = open_fixture_project(&temp);
+    let second = second_document_window(&opened);
+
+    let outcome = invoke(
+        &second,
+        "load_document",
+        &serde_json::json!({ "projectId": opened.project_id, "documentId": DOCUMENT_ID }),
+    );
+
+    assert_eq!(error_kind(outcome), "documentOpenInOtherWindow");
+    // It reads the Project's files like any window of the Project.
+    assert!(read_overview_markdown(&second, &opened.project_id).is_ok());
+}
+
+#[test]
+fn only_the_project_window_changes_the_tree() {
+    let temp = TempDir::new();
+    let opened = open_fixture_project(&temp);
+    let second = second_document_window(&opened);
+
+    let outcome = invoke(
+        &second,
+        "create_folder",
+        &serde_json::json!({
+            "projectId": opened.project_id,
+            "parentFolderId": null,
+            "folderId": "01928f3a-7000-7000-8000-000000000001",
+            "name": "From the document window",
+        }),
+    );
+
+    assert_eq!(error_kind(outcome), "projectWindowOnly");
+}
+
+#[test]
+fn the_windows_of_the_project_are_listed_with_what_they_hold() {
+    let temp = TempDir::new();
+    let opened = open_fixture_project(&temp);
+    let _second = second_document_window(&opened);
+
+    let windows = invoke(
+        &opened.webview,
+        "list_project_windows",
+        &serde_json::json!({ "projectId": opened.project_id }),
+    )
+    .unwrap();
+
+    assert_eq!(
+        windows,
+        serde_json::json!([
+            { "label": MAIN_WINDOW_LABEL, "role": "project", "isSelf": true,
+              "documentIds": [DOCUMENT_ID] },
+            { "label": SECOND_WINDOW_LABEL, "role": "document", "isSelf": false,
+              "documentIds": [] },
+        ])
+    );
+}
+
+#[test]
+fn a_document_window_reads_the_project_without_replacing_its_session() {
+    let temp = TempDir::new();
+    let opened = open_fixture_project(&temp);
+    let second = second_document_window(&opened);
+    let before = invoke(
+        &opened.webview,
+        "get_project_snapshot",
+        &serde_json::json!({ "projectId": opened.project_id }),
+    )
+    .unwrap();
+
+    let snapshot = invoke(
+        &second,
+        "get_project_snapshot",
+        &serde_json::json!({ "projectId": opened.project_id }),
+    )
+    .unwrap();
+
+    assert_eq!(snapshot["sessionGeneration"], before["sessionGeneration"]);
+    // The main window's opened Document is still served from the same session.
+    assert!(read_overview_markdown(&opened.webview, &opened.project_id).is_ok());
+}
+
+#[test]
+fn an_unknown_hand_over_cannot_be_taken() {
+    let temp = TempDir::new();
+    let opened = open_fixture_project(&temp);
+
+    let outcome = invoke(
+        &opened.webview,
+        "take_document_transfer",
+        &serde_json::json!({ "transferId": "01928f3a-0000-7000-8000-000000000000" }),
+    );
+
+    assert_eq!(error_kind(outcome), "invalidDocumentTransfer");
+}
