@@ -22,6 +22,18 @@ interface OpenContextMenu {
   readonly entries: readonly PopupMenuEntry[];
 }
 
+// Marks the menu's root. It lives at the end of the page (a portal), outside the element
+// that opened it; whoever watches focus leaving an area (an editor that closes then) asks
+// `isInsideContextMenu` so that moving into its own menu does not count as leaving.
+export const CONTEXT_MENU_ATTRIBUTE = "data-context-menu";
+
+export function isInsideContextMenu(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element &&
+    target.closest(`[${CONTEXT_MENU_ATTRIBUTE}]`) !== null
+  );
+}
+
 // The menu is rendered in a portal, but React still bubbles its events to the component
 // that opened it (the canvas would start a range selection on a click in the menu, or
 // treat the arrow keys as a nudge). The menu's events stop at the menu.
@@ -68,6 +80,7 @@ function ContextMenuPopup({
     // biome-ignore lint/a11y/noStaticElementInteractions: only keeps the menu's events from reaching the component that opened it.
     <div
       className="context-menu"
+      {...{ [CONTEXT_MENU_ATTRIBUTE]: "" }}
       onBlur={onBlur}
       onKeyDown={stop}
       onPointerDown={stop}

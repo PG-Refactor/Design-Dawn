@@ -21,11 +21,16 @@ import {
   useRef,
   useState,
 } from "react";
+import type { PopupMenuEntry } from "../../shared/menu/popup-menu";
+import { useDiagramInteraction } from "./diagram-interaction";
+import type { DiagramHit } from "./diagram-shapes";
 
 export interface GuiAddAction {
   readonly id: string;
   // The toggle's visible text and name ("+ Node"), unlike the add button inside the form.
   readonly label: string;
+  // The item of the diagram's right-click menu that opens the form ("Add a node").
+  readonly menuLabel: string;
   readonly form: ReactNode;
 }
 
@@ -131,6 +136,10 @@ export interface DiagramGuiLayoutProps {
   readonly editor: ReactNode;
   readonly tabs: readonly GuiListTab[];
   readonly settings?: ReactNode;
+  // What can be done with a shape right-clicked in the diagram picture (before the add
+  // items), and what clicking it does. Diagram types without shapes leave them out.
+  readonly shapeEntries?: (hit: DiagramHit) => readonly PopupMenuEntry[];
+  readonly onPickShape?: (hit: DiagramHit) => void;
 }
 
 export function DiagramGuiLayout({
@@ -143,7 +152,30 @@ export function DiagramGuiLayout({
   editor,
   tabs,
   settings,
+  shapeEntries,
+  onPickShape,
 }: DiagramGuiLayoutProps) {
+  const interaction = useDiagramInteraction();
+  // Every render: the latest closures. Gone with the panel (Source view, editor closed).
+  useEffect(() => {
+    interaction?.register({
+      entriesFor(hit) {
+        const adds: PopupMenuEntry[] = addActions.map((action) => ({
+          id: `add-${action.id}`,
+          label: action.menuLabel,
+          onSelect: () => state.openAdd(action.id, true),
+        }));
+        const own = hit === null ? [] : (shapeEntries?.(hit) ?? []);
+        return own.length === 0
+          ? adds
+          : [...own, { id: "shapeSeparator", separator: true }, ...adds];
+      },
+      pick(hit) {
+        onPickShape?.(hit);
+      },
+    });
+    return () => interaction?.register(null);
+  });
   const idPrefix = useId();
   const formId = (id: string) => `${idPrefix}-add-${id}`;
   const tabId = (id: string) => `${idPrefix}-tab-${id}`;

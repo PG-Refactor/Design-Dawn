@@ -310,6 +310,7 @@ export function GanttGuiPanel({
         {
           id: ADD.section,
           label: text.addSectionToggle,
+          menuLabel: text.addSectionHeading,
           form: (
             <GanttAddSection
               documentId={documentId}
@@ -333,6 +334,7 @@ export function GanttGuiPanel({
         {
           id: ADD.task,
           label: text.addTaskToggle,
+          menuLabel: text.addTaskHeading,
           form: (
             <GanttAddTask
               documentId={documentId}

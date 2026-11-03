@@ -217,6 +217,7 @@ export function PieGuiPanel({
         {
           id: ADD_SLICE,
           label: gui.addSliceToggle,
+          menuLabel: gui.addHeading,
           form: (
             <PieAddSlice
               documentId={documentId}

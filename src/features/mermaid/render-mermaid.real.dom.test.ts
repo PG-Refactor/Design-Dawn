@@ -4,6 +4,7 @@
 // check structure (what survives sanitising), never how a diagram looks. Whether the
 // diagrams look right in the WebView is a manual check.
 import { beforeAll, describe, expect, it } from "vitest";
+import { readDiagramShapes } from "./diagram-shapes";
 import {
   buildMermaidConfig,
   MERMAID_DEFAULT_SECURE_KEYS,
@@ -584,6 +585,27 @@ describe("real Mermaid with the app's theme token values", () => {
       });
       expect(outcome.ok, unsupported).toBe(false);
       if (!outcome.ok) expect(outcome.message).toContain("Unsupported color");
+    }
+  });
+});
+
+describe("the shapes of a real flowchart, for clicks on its picture", () => {
+  it("finds every node by its id, with a box of its own", async () => {
+    const outcome = await mermaidRenderer.render(
+      'flowchart LR\n  start-node["Start"] --> B{Choice}\n  B --> C([Done])',
+      themeValuesOf("light"),
+    );
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    const diagram = readDiagramShapes(sanitizeSvg(outcome.svg));
+    expect(diagram?.shapes.map((shape) => shape.hit.id).sort()).toEqual([
+      "B",
+      "C",
+      "start-node",
+    ]);
+    for (const shape of diagram?.shapes ?? []) {
+      expect(shape.box.width).toBeGreaterThan(0);
+      expect(shape.box.height).toBeGreaterThan(0);
     }
   });
 });

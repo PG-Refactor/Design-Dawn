@@ -17,6 +17,7 @@ import type {
   DocumentId,
   SheetId,
 } from "../../domain/shared/entity-id";
+import { isInsideContextMenu } from "../../shared/menu/context-menu";
 import {
   BLOCK_BODY_ATTRIBUTE,
   BLOCK_EDITOR_ATTRIBUTE,
@@ -243,6 +244,9 @@ export function TextBlockEditor({
     // container itself is focusable, so a click on non-focusable preview content lands
     // on it instead of on the page body.
     if (next instanceof Node && event.currentTarget.contains(next)) return;
+    // Its own right-click menu (the diagram's) is part of the editor while it is open;
+    // choosing an item puts the focus back inside.
+    if (isInsideContextMenu(next)) return;
     // The whole window lost focus (Alt+Tab): the page has no focus but the element is
     // still the active one, and the user has not left the editor. (A focus move inside the
     // page makes another element, or the body, active before this runs.)

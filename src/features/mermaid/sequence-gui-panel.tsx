@@ -333,6 +333,7 @@ export function SequenceGuiPanel({
         {
           id: ADD.participant,
           label: text.addParticipantToggle,
+          menuLabel: text.addParticipantHeading,
           form: (
             <SequenceAddParticipant
               documentId={documentId}
@@ -353,6 +354,7 @@ export function SequenceGuiPanel({
         {
           id: ADD.message,
           label: text.addMessageToggle,
+          menuLabel: text.addMessageHeading,
           form: (
             <SequenceAddMessage
               documentId={documentId}
@@ -369,6 +371,7 @@ export function SequenceGuiPanel({
         {
           id: ADD.note,
           label: text.addNoteToggle,
+          menuLabel: text.addNoteHeading,
           form: (
             <SequenceAddNote
               documentId={documentId}
@@ -385,6 +388,7 @@ export function SequenceGuiPanel({
         {
           id: ADD.blockTools,
           label: text.blockToolsToggle,
+          menuLabel: text.blockToolsHeading,
           form: (
             <SequenceBlockTools
               documentId={documentId}
