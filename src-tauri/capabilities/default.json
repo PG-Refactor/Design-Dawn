@@ -48,6 +48,7 @@
     "allow-take-document-transfer",
     "allow-get-project-snapshot",
     "allow-list-project-windows",
+    "allow-project-window-at",
     "allow-git-status",
     "allow-git-stage",
     "allow-git-unstage",

@@ -375,6 +375,12 @@ export function toTransferPayload(payload: unknown): CommandResult<string> {
   return decodePayload(decodeString, payload);
 }
 
+export function toOptionalWindowLabel(
+  payload: unknown,
+): CommandResult<string | null> {
+  return decodePayload(nullable(decodeString), payload);
+}
+
 interface RawOpenInNewWindowResult {
   readonly status: OpenInNewWindowResult["status"];
 }

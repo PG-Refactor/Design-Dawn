@@ -24,6 +24,8 @@ export interface FakeDocumentWindows {
   readonly sent: SentDocument[];
   // The next move fails (like a window that could not be created).
   failNextTransfer(): void;
+  // What `projectWindowAt` answers (default: no window there).
+  setWindowAtPoint(label: string | null): void;
   // What `listProjectWindows` answers (seen from each window: `isSelf` is set per caller).
   setWindows(
     windows: readonly {
@@ -41,6 +43,7 @@ export function createFakeDocumentWindows(
   let failNext = false;
   let nextId = 1;
   let nextWindow = 1;
+  let windowAtPoint: string | null = null;
   let listed: readonly {
     readonly label: string;
     readonly role: "project" | "document";
@@ -49,6 +52,9 @@ export function createFakeDocumentWindows(
     sent,
     setWindows(windows) {
       listed = windows;
+    },
+    setWindowAtPoint(label) {
+      windowAtPoint = label;
     },
     failNextTransfer() {
       failNext = true;
@@ -82,6 +88,9 @@ export function createFakeDocumentWindows(
         },
         async getProjectSnapshot() {
           return operationOk(disk.peekProjectSnapshot());
+        },
+        async projectWindowAt() {
+          return operationOk(windowAtPoint);
         },
         async listProjectWindows() {
           return operationOk(

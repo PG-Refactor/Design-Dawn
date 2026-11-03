@@ -269,6 +269,25 @@ pub enum TransferTarget {
     Window { label: String },
 }
 
+/// The window (of `candidates`, front-most first) whose area holds the screen point, in
+/// logical pixels. A window whose position is unknown cannot be hit.
+pub fn window_containing(
+    point: (f64, f64),
+    candidates: &[(String, WindowGeometry)],
+) -> Option<String> {
+    candidates
+        .iter()
+        .find(|(_, geometry)| {
+            geometry.position.is_some_and(|(left, top)| {
+                point.0 >= left
+                    && point.0 < left + geometry.width
+                    && point.1 >= top
+                    && point.1 < top + geometry.height
+            })
+        })
+        .map(|(label, _)| label.clone())
+}
+
 /// Hands the Document `document` of `from` to `target`. On success the target holds it and
 /// is told (or created and will ask for it); the sender drops it without saving. On failure
 /// nothing changed: the sender still holds it.

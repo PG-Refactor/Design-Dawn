@@ -157,3 +157,104 @@ describe("a Document window", () => {
     );
   });
 });
+
+describe("dragging a Document tab out of the window", () => {
+  const POINTER_Y = 10;
+  const OUTSIDE_X = -80;
+  const SCREEN = { screenX: 640, screenY: 480 };
+
+  async function projectWindowWithDocumentA() {
+    const first = createWorkspaceHarness();
+    const windows = createFakeDocumentWindows(first.gateway);
+    const shell = await renderShell({
+      workspace: {
+        sharedGateway: first.gateway,
+        windows: windows.gatewayFor("main"),
+      },
+    });
+    await shell.openProjectInUi();
+    await shell.user.click(
+      within(treeItemNamed("Document A")).getByText("Document A"),
+    );
+    await screen.findByRole("tab", { name: /Document A/ });
+    return { shell, windows };
+  }
+
+  // Press on the tab, move past the drag threshold, then out of the window and let go.
+  async function dragOut(tab: HTMLElement): Promise<void> {
+    const pointer = { pointerId: 1, isPrimary: true, button: 0 };
+    await act(async () => {
+      fireEvent.pointerDown(tab, {
+        ...pointer,
+        clientX: 5,
+        clientY: POINTER_Y,
+      });
+      fireEvent.pointerMove(tab, {
+        ...pointer,
+        clientX: 60,
+        clientY: POINTER_Y,
+      });
+      fireEvent.pointerMove(tab, {
+        ...pointer,
+        clientX: OUTSIDE_X,
+        clientY: POINTER_Y,
+      });
+    });
+    expect(tab.parentElement?.classList.contains("tab--detaching")).toBe(true);
+    await act(async () => {
+      fireEvent.pointerUp(tab, {
+        ...pointer,
+        clientX: OUTSIDE_X,
+        clientY: POINTER_Y,
+        ...SCREEN,
+      });
+      await settle();
+    });
+  }
+
+  it("moves the Document to a new window where it was let go", async () => {
+    const { windows } = await projectWindowWithDocumentA();
+    const tab = documentTab(/Document A/);
+    if (tab === null) throw new Error("no tab");
+
+    await dragOut(tab);
+
+    await waitFor(() => expect(documentTab(/Document A/)).toBeNull());
+    expect(windows.sent.map((sent) => sent.target)).toEqual([
+      { kind: "newWindow", ...SCREEN },
+    ]);
+  });
+
+  it("moves the Document into the window of the Project it was let go over", async () => {
+    const { windows } = await projectWindowWithDocumentA();
+    windows.setWindowAtPoint("window-7");
+    const tab = documentTab(/Document A/);
+    if (tab === null) throw new Error("no tab");
+
+    await dragOut(tab);
+
+    await waitFor(() => expect(documentTab(/Document A/)).toBeNull());
+    expect(windows.sent.map((sent) => sent.target)).toEqual([
+      { kind: "window", label: "window-7" },
+    ]);
+  });
+
+  it("leaves a Sheet tab dragged out where it was", async () => {
+    const { windows } = await projectWindowWithDocumentA();
+    const sheetTab = screen.getByRole("tab", { name: "Sheet A1" });
+    const pointer = { pointerId: 1, isPrimary: true, button: 0 };
+    await act(async () => {
+      fireEvent.pointerDown(sheetTab, { ...pointer, clientX: 5, clientY: 5 });
+      fireEvent.pointerMove(sheetTab, { ...pointer, clientX: 60, clientY: 5 });
+      fireEvent.pointerUp(sheetTab, {
+        ...pointer,
+        clientX: OUTSIDE_X,
+        clientY: 5,
+        ...SCREEN,
+      });
+      await settle();
+    });
+    expect(windows.sent).toEqual([]);
+    expect(screen.getByRole("tab", { name: "Sheet A1" })).toBeTruthy();
+  });
+});

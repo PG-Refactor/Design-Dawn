@@ -110,6 +110,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::take_document_transfer,
             commands::get_project_snapshot,
             commands::list_project_windows,
+            commands::project_window_at,
             commands::git_status,
             commands::git_stage,
             commands::git_unstage,

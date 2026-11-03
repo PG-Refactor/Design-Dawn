@@ -31,12 +31,30 @@ export interface TabDragState<Id> {
   readonly tabId: Id;
   // The insertion slot to indicate (0..tabs), or null when a drop would not move the tab.
   readonly slot: number | null;
+  // The pointer is outside the window: letting go there takes the tab out of it.
+  readonly outside: boolean;
 }
 
 export interface TabDragOptions<Id> {
   readonly tabIds: readonly Id[];
   readonly getRects: () => readonly TabRect[];
   readonly onDrop: (tabId: Id, before: Id | null) => void;
+  // Letting go outside the window (screen pixels). Without it, that is no drop at all.
+  readonly onDropOutside?: (
+    tabId: Id,
+    screenX: number,
+    screenY: number,
+  ) => void;
+}
+
+// Whether a pointer position (relative to the page) lies outside the window.
+function isOutsideWindow(point: PointerPoint): boolean {
+  return (
+    point.x < 0 ||
+    point.y < 0 ||
+    point.x >= window.innerWidth ||
+    point.y >= window.innerHeight
+  );
 }
 
 export interface TabPointerHandlers {
@@ -52,6 +70,7 @@ export function useTabDrag<Id>({
   tabIds,
   getRects,
   onDrop,
+  onDropOutside,
 }: TabDragOptions<Id>) {
   const session = useRef<DragSession<Id> | null>(null);
   // The click that ends a drag (the browser still sends it to the captured tab) must not
@@ -75,7 +94,9 @@ export function useTabDrag<Id>({
       session.current.cancelled = true;
       session.current.slot = null;
       setDragState((state) =>
-        state === null ? null : { tabId: state.tabId, slot: null },
+        state === null
+          ? null
+          : { tabId: state.tabId, slot: null, outside: false },
       );
     }
     document.addEventListener("keydown", handleKeyDown, true);
@@ -113,10 +134,11 @@ export function useTabDrag<Id>({
           if (!exceedsDragThreshold(current.start, point)) return;
           current.active = true;
         }
+        const outside = onDropOutside !== undefined && isOutsideWindow(point);
         const slot = dropSlotAt(getRects(), point);
-        const target = dropTargetOf(tabIds, tabId, slot);
+        const target = outside ? null : dropTargetOf(tabIds, tabId, slot);
         current.slot = target === null ? null : slot;
-        setDragState({ tabId, slot: current.slot });
+        setDragState({ tabId, slot: current.slot, outside });
       },
       onPointerUp(event) {
         const current = session.current;
@@ -125,7 +147,15 @@ export function useTabDrag<Id>({
         finish();
         if (!active) return;
         suppressClick.current = true;
-        if (cancelled || slot === null) return;
+        if (cancelled) return;
+        if (
+          onDropOutside !== undefined &&
+          isOutsideWindow({ x: event.clientX, y: event.clientY })
+        ) {
+          onDropOutside(tabId, event.screenX, event.screenY);
+          return;
+        }
+        if (slot === null) return;
         const target = dropTargetOf(tabIds, tabId, slot);
         if (target !== null) onDrop(tabId, target.before);
       },

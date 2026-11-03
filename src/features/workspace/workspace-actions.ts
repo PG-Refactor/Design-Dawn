@@ -132,6 +132,13 @@ export interface WorkspaceActions {
     documentId: DocumentId,
     target: DocumentWindowTarget,
   ): Promise<OperationResult<void>>;
+  // A Document tab was dragged out of the window and let go at a screen point: the
+  // Document goes to the window of the Project under it, or to a new window there.
+  moveDocumentOutTo(
+    documentId: DocumentId,
+    screenX: number,
+    screenY: number,
+  ): Promise<OperationResult<void>>;
   // Another window handed a Document to this one: opens it as it was there and shows it.
   receiveDocument(transferId: string): Promise<OperationResult<void>>;
   // Another window tried to open a Document this window holds: shows its tab.
@@ -737,6 +744,23 @@ export function createWorkspaceActions(
     return operationOk(undefined);
   }
 
+  async function moveDocumentToWindowNow(
+    documentId: DocumentId,
+    target: DocumentWindowTarget,
+  ): Promise<OperationResult<void>> {
+    const name = documentNameOf(documentId);
+    const result = await finishRemoval(documentId, async () => {
+      // A draft is part of the Document: committed (an undoable edit) so it moves too.
+      const drafts = await draftRegistry.commitFor([documentId]);
+      if (!drafts.ok) return drafts;
+      return workspace.moveDocumentToWindow(documentId, target);
+    });
+    if (!result.ok) {
+      record("moveDocumentToWindow", entitySubject(name), result.error);
+    }
+    return result;
+  }
+
   return {
     openProjectInNewWindowViaDialog: () => {
       if (uiStateStore.getState().busy) {
@@ -839,18 +863,18 @@ export function createWorkspaceActions(
       if (opened.value) activateDocument(documentId);
       return operationOk(undefined);
     },
-    async moveDocumentToWindow(documentId, target) {
-      const name = documentNameOf(documentId);
-      const result = await finishRemoval(documentId, async () => {
-        // A draft is part of the Document: committed (an undoable edit) so it moves too.
-        const drafts = await draftRegistry.commitFor([documentId]);
-        if (!drafts.ok) return drafts;
-        return workspace.moveDocumentToWindow(documentId, target);
-      });
-      if (!result.ok) {
-        record("moveDocumentToWindow", entitySubject(name), result.error);
+    moveDocumentToWindow: moveDocumentToWindowNow,
+    async moveDocumentOutTo(documentId, screenX, screenY) {
+      const target = await workspace.dropTargetAt(screenX, screenY);
+      if (!target.ok) {
+        record(
+          "moveDocumentToWindow",
+          entitySubject(documentNameOf(documentId)),
+          target.error,
+        );
+        return target;
       }
-      return result;
+      return moveDocumentToWindowNow(documentId, target.value);
     },
     async receiveDocument(transferId) {
       const received = await workspace.receiveDocument(transferId);

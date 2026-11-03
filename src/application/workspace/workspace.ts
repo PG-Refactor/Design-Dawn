@@ -231,6 +231,12 @@ export interface Workspace {
   refreshProjectTree(): Promise<OperationResult<void>>;
   // The windows of this window's Project (what a Document can move to).
   listProjectWindows(): Promise<OperationResult<readonly ProjectWindowInfo[]>>;
+  // Where a Document dropped at a screen point (a tab dragged out of the window) goes:
+  // the other window of the Project under it, or a new window placed there.
+  dropTargetAt(
+    screenX: number,
+    screenY: number,
+  ): Promise<OperationResult<DocumentWindowTarget>>;
 
   createSheet(
     documentId: DocumentId,
@@ -1048,6 +1054,24 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     moveDocumentToWindow: moveDocumentStep,
     receiveDocument: receiveDocumentStep,
     refreshProjectTree: refreshProjectTreeStep,
+    async dropTargetAt(screenX, screenY) {
+      const project = requireProject();
+      if (!project.ok) return project;
+      if (windows === undefined) {
+        return operationOk({ kind: "newWindow", screenX, screenY });
+      }
+      const found = await windows.projectWindowAt(
+        project.value.projectId,
+        screenX,
+        screenY,
+      );
+      if (!found.ok) return found;
+      return operationOk(
+        found.value === null
+          ? { kind: "newWindow", screenX, screenY }
+          : { kind: "window", label: found.value },
+      );
+    },
     async listProjectWindows() {
       const project = requireProject();
       if (!project.ok) return project;

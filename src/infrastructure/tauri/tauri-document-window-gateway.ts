@@ -3,6 +3,7 @@ import { COMMANDS } from "./command-constants";
 import { commandOk } from "./command-error";
 import { call } from "./invoke-command";
 import {
+  toOptionalWindowLabel,
   toProjectSnapshotResult,
   toProjectWindows,
   toTransferPayload,
@@ -35,5 +36,11 @@ export function createTauriDocumentWindowGateway(): DocumentWindowGateway {
       call(COMMANDS.getProjectSnapshot, { projectId }, toProjectSnapshotResult),
     listProjectWindows: (projectId) =>
       call(COMMANDS.listProjectWindows, { projectId }, toProjectWindows),
+    projectWindowAt: (projectId, screenX, screenY) =>
+      call(
+        COMMANDS.projectWindowAt,
+        { projectId, screenX, screenY },
+        toOptionalWindowLabel,
+      ),
   };
 }

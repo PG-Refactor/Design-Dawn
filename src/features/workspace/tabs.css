@@ -142,6 +142,12 @@
   opacity: 0.6;
 }
 
+/* Dragged out of the window: shown by the dashed outline as well as the fading. */
+.tab--detaching {
+  outline: 2px dashed var(--color-accent);
+  outline-offset: -2px;
+}
+
 /* The insertion point of a tab drag: a bar in the gap next to the tab. */
 .tab--drop-before::before,
 .tab--drop-after::after {

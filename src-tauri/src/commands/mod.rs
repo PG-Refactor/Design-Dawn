@@ -61,7 +61,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 63] = [
+pub const COMMAND_NAMES: [&str; 64] = [
     "select_project_folder",
     "create_project",
     "open_project",
@@ -106,6 +106,7 @@ pub const COMMAND_NAMES: [&str; 63] = [
     "take_document_transfer",
     "get_project_snapshot",
     "list_project_windows",
+    "project_window_at",
     "git_status",
     "git_stage",
     "git_unstage",
@@ -135,8 +136,8 @@ pub use folder_picker::DialogFolderPicker;
 pub use open_dispatch::{
     dispatch_in_background, hand_over_document, handle_second_launch, placement_following,
     reroute_transfers, reroute_unacknowledged, route_external_request, route_open_request,
-    with_routing_state, PlacementSource, RouteOutcome, RoutingState, TauriWindowHost,
-    TransferTarget, WindowGeometry, WindowHost, WindowPlacement,
+    window_containing, with_routing_state, PlacementSource, RouteOutcome, RoutingState,
+    TauriWindowHost, TransferTarget, WindowGeometry, WindowHost, WindowPlacement,
 };
 pub use window_close::{
     confirm_close, handle_close_requested, CloseNotification, CloseNotificationSink,
@@ -1515,6 +1516,47 @@ pub fn get_project_snapshot<R: Runtime>(
         &project,
     );
     log_failure(outcome.map_err(ApplicationError::from))
+}
+
+/// The other window of the calling window's Project under the screen point (logical
+/// pixels), where a dragged Document tab was dropped; `None` over no such window. The
+/// window focused last is checked first, as the one most likely in front.
+#[tauri::command]
+pub fn project_window_at<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    screen_x: f64,
+    screen_y: f64,
+) -> Result<Option<String>, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    let project = ProjectId::parse(&project_id)?;
+    let labels: Vec<String> = {
+        let registry = window.state::<Mutex<WindowRegistry>>();
+        let registry = lock_registry(&registry);
+        let mut labels: Vec<String> = registry
+            .windows_of_project(&project)
+            .into_iter()
+            .map(|(label, _)| label)
+            .filter(|label| label != window.label())
+            .collect();
+        if let Some(front) = registry.most_recently_focused() {
+            if let Some(index) = labels.iter().position(|label| label == front) {
+                let label = labels.remove(index);
+                labels.insert(0, label);
+            }
+        }
+        labels
+    };
+    let host = TauriWindowHost::new(app);
+    let candidates: Vec<(String, WindowGeometry)> = labels
+        .into_iter()
+        .filter_map(|label| {
+            host.window_geometry(&label)
+                .map(|geometry| (label, geometry))
+        })
+        .collect();
+    Ok(window_containing((screen_x, screen_y), &candidates))
 }
 
 /// A window of the calling window's Project, for "move to window …".
