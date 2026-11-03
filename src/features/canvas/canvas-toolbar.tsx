@@ -1,6 +1,7 @@
 import type { BlockType } from "../../domain/block/block-type";
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
 import { PopupMenu, type PopupMenuEntry } from "../../shared/menu/popup-menu";
+import type { MermaidTemplateId } from "../mermaid/mermaid-templates";
 import { getSelection } from "../workspace/ui-state/ui-state";
 import { useMessages } from "../workspace/use-messages";
 import { useUiState } from "../workspace/workspace-hooks";
@@ -50,11 +51,15 @@ export function CanvasToolbar({
   const { canvasActions } = useWorkspaceServices();
   const selectionSize = useUiState((ui) => getSelection(ui, sheetId).size);
   const hasSelection = selectionSize > 0;
-  function createBlock(blockType: BlockType): void {
+  function createBlock(
+    blockType: BlockType,
+    mermaidTemplate?: MermaidTemplateId,
+  ): void {
     void canvasActions.createBlock({
       documentId,
       sheetId,
       blockType,
+      mermaidTemplate,
       viewportSize: measureCanvas(),
     });
   }

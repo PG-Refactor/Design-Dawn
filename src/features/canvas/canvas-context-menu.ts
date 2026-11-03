@@ -4,6 +4,10 @@
 import type { ReorderDirection } from "../../application/commands/block-commands";
 import type { BlockType } from "../../domain/block/block-type";
 import type { PopupMenuEntry } from "../../shared/menu/popup-menu";
+import {
+  MERMAID_TEMPLATE_IDS,
+  type MermaidTemplateId,
+} from "../mermaid/mermaid-templates";
 import type { CanvasMessages } from "./canvas-messages";
 import { CREATABLE_BLOCK_TYPES } from "./creatable-block-types";
 
@@ -60,12 +64,29 @@ export function blockMenuEntries(
 
 export interface BackgroundMenuCommands {
   // The block's top-left corner goes where the menu was opened.
-  readonly addBlock: (blockType: BlockType) => void;
+  readonly addBlock: (
+    blockType: BlockType,
+    mermaidTemplate?: MermaidTemplateId,
+  ) => void;
   readonly paste: () => void;
+}
+
+// The other kinds of diagram, as "Add Mermaid: <kind> Block".
+export function templateEntries(
+  messages: CanvasMessages,
+  templateNames: Readonly<Record<MermaidTemplateId, string>>,
+  addTemplate: (template: MermaidTemplateId) => void,
+): PopupMenuEntry[] {
+  return MERMAID_TEMPLATE_IDS.map((template) => ({
+    id: `add-mermaid-${template}`,
+    label: messages.contextMenu.addBlock(`Mermaid: ${templateNames[template]}`),
+    onSelect: () => addTemplate(template),
+  }));
 }
 
 export function backgroundMenuEntries(
   messages: CanvasMessages,
+  templateNames: Readonly<Record<MermaidTemplateId, string>>,
   commands: BackgroundMenuCommands,
 ): PopupMenuEntry[] {
   return [
@@ -74,6 +95,10 @@ export function backgroundMenuEntries(
       label: messages.contextMenu.addBlock(creatable.label),
       onSelect: () => commands.addBlock(creatable.blockType),
     })),
+    { id: "templateSeparator", separator: true },
+    ...templateEntries(messages, templateNames, (template) =>
+      commands.addBlock("mermaid", template),
+    ),
     { id: "addSeparator", separator: true },
     {
       id: "paste",

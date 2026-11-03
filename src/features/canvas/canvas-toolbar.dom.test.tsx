@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+
 import {
   act,
   cleanup,
@@ -7,12 +8,13 @@ import {
   within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { settle } from "../../application/test-support/fakes";
+import { blockIdOf, settle } from "../../application/test-support/fakes";
 import { SHEET_A1 } from "../../application/test-support/workspace-harness";
 import {
   blockOption,
   renderOpenedCanvas,
 } from "../markdown/test-support/markdown-harness";
+import { MERMAID_TEMPLATES } from "../mermaid/mermaid-templates";
 import { getSelection } from "../workspace/ui-state/ui-state";
 
 const CANVAS_AREA = { width: 800, height: 600 };
@@ -49,7 +51,7 @@ describe("+ Block menu", () => {
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
-  it("opens a menu of the creatable types only, focusing the first item", async () => {
+  it("opens a menu of the creatable types and the Mermaid templates, focusing the first item", async () => {
     const { shell } = await renderOpenedCanvas();
     await shell.user.click(addButton());
     expect(addButton().getAttribute("aria-expanded")).toBe("true");
@@ -58,10 +60,32 @@ describe("+ Block menu", () => {
     expect(items.map((item) => item.textContent)).toEqual([
       "Markdown",
       "Mermaid",
+      "Mermaid: シーケンス図",
+      "Mermaid: ガントチャート",
+      "Mermaid: 円グラフ",
+      "Mermaid: クラス図",
+      "Mermaid: 状態遷移図",
+      "Mermaid: ER図",
     ]);
     expect(menu.contains(items[0] ?? null)).toBe(true);
     await act(settle);
     expect(document.activeElement).toBe(items[0]);
+  });
+
+  it("creates a Mermaid block from a template, with the template's text", async () => {
+    const { shell, canvas } = await renderOpenedCanvas();
+    await shell.user.click(addButton());
+    await shell.user.click(
+      within(screen.getByRole("menu")).getByRole("menuitem", {
+        name: "Mermaid: シーケンス図",
+      }),
+    );
+    await act(settle);
+    const created = canvas.blocksOfSheetA1().at(-1);
+    expect(created?.blockType).toBe("mermaid");
+    expect(
+      canvas.session.getState().contents.get(created?.blockId ?? blockIdOf(0)),
+    ).toBe(MERMAID_TEMPLATES.sequence);
   });
 
   it("closes with Escape and returns focus to the button", async () => {

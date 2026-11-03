@@ -106,6 +106,7 @@ export interface CanvasProps {
 // source of truth); selection, drag / resize previews and the viewport come from UI state.
 export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
   const messages = useMessages().canvas;
+  const mermaidMessages = useMessages().mermaid;
   const { applicationStore, uiStateStore, canvasActions } =
     useWorkspaceServices();
   const selectBlocks = useCallback(
@@ -345,13 +346,14 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
       contextMenu.openFromEvent(
         event,
         messages.contextMenu.canvasLabel,
-        backgroundMenuEntries(messages, {
-          addBlock: (blockType) =>
+        backgroundMenuEntries(messages, mermaidMessages.templates, {
+          addBlock: (blockType, mermaidTemplate) =>
             void canvasActions.createBlock({
               ...selectionInput,
               blockType,
               viewportSize: canvasSize(),
               at,
+              mermaidTemplate,
             }),
           paste,
         }),
