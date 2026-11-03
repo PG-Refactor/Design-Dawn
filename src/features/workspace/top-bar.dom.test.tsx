@@ -18,7 +18,7 @@ const JA = WORKSPACE_MESSAGES.ja.topBar;
 const EN = WORKSPACE_MESSAGES.en.topBar;
 
 describe("top bar as a menu bar", () => {
-  it("is one row with the app name, the File / View / Help menus and the Project name", async () => {
+  it("is one row with the app name and the File / View / Help menus", async () => {
     const shell = await renderShell();
     const bar = screen.getByRole("banner");
     const menubar = within(bar).getByRole("menubar", { name: JA.menubarLabel });
@@ -28,24 +28,18 @@ describe("top bar as a menu bar", () => {
         .map((item) => item.textContent),
     ).toEqual([JA.fileMenu, JA.viewMenu, JA.helpMenu]);
     expect(within(bar).queryAllByRole("button")).toHaveLength(1);
-    expect(within(bar).getByText(JA.noProject)).toBeTruthy();
     await shell.openProjectInUi();
-    expect(within(bar).getByText("Project")).toBeTruthy();
+    // The Project's name is in the window's title bar, not repeated here.
+    expect(within(bar).queryByText("Project")).toBeNull();
   });
 
-  it("shows the Project name in parentheses after the app name, before the menus", async () => {
+  it("names the open Project in the window's title bar", async () => {
     const shell = await renderShell();
+    await waitFor(() => expect(shell.windowTitles.at(-1)).toBeNull());
     await shell.openProjectInUi();
-    const bar = screen.getByRole("banner");
-    const name = within(bar).getByText("Project");
-    const context = name.closest(".top-bar__context");
-    expect(context?.textContent).toBe(
-      `${JA.projectNameOpen}Project${JA.projectNameClose}`,
-    );
-    const menubar = within(bar).getByRole("menubar");
-    expect(
-      name.compareDocumentPosition(menubar) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    await waitFor(() => expect(shell.windowTitles.at(-1)).toBe("Project"));
+    await chooseMenuItem(shell.user, JA.fileMenu, JA.closeProject);
+    await waitFor(() => expect(shell.windowTitles.at(-1)).toBeNull());
   });
 });
 
@@ -81,7 +75,9 @@ describe("File menu", () => {
     await shell.openProjectInUi();
     await chooseMenuItem(shell.user, JA.fileMenu, JA.closeProject);
     await waitFor(() => expect(screen.queryByRole("tree")).toBeNull());
-    expect(screen.getByText(JA.noProject)).toBeTruthy();
+    expect(
+      screen.getAllByText(WORKSPACE_MESSAGES.ja.placeholder.noProject).length,
+    ).toBeGreaterThan(0);
   });
 
   it("disables Save and Close Project without a Project, enables them with one", async () => {

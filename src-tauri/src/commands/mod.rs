@@ -61,7 +61,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 64] = [
+pub const COMMAND_NAMES: [&str; 65] = [
     "select_project_folder",
     "create_project",
     "open_project",
@@ -107,6 +107,7 @@ pub const COMMAND_NAMES: [&str; 64] = [
     "get_project_snapshot",
     "list_project_windows",
     "project_window_at",
+    "show_project_in_title",
     "git_status",
     "git_stage",
     "git_unstage",
@@ -1557,6 +1558,44 @@ pub fn project_window_at<R: Runtime>(
         })
         .collect();
     Ok(window_containing((screen_x, screen_y), &candidates))
+}
+
+/// The most of a Project name the window title shows; the rest is cut (the title bar has
+/// no room for more, and a name is at most a display name anyway).
+const TITLE_PROJECT_NAME_MAX_CHARS: usize = 120;
+
+/// The window title: the app name, followed by the Project's name in parentheses when the
+/// window has one ("Design Dawn (Order Service)"). Control characters never reach the title
+/// bar.
+pub fn window_title(project_name: Option<&str>) -> String {
+    let name: String = project_name
+        .unwrap_or_default()
+        .chars()
+        .filter(|character| !character.is_control())
+        .take(TITLE_PROJECT_NAME_MAX_CHARS)
+        .collect();
+    let name = name.trim();
+    if name.is_empty() {
+        crate::config::APP_NAME.to_owned()
+    } else {
+        format!("{} ({name})", crate::config::APP_NAME)
+    }
+}
+
+/// Shows the calling window's Project in its title bar (or only the app name without one).
+#[tauri::command]
+pub fn show_project_in_title<R: Runtime>(
+    window: Window<R>,
+    project_name: Option<String>,
+) -> Result<(), ApplicationError> {
+    let title = window_title(project_name.as_deref());
+    let shown = window.set_title(&title).map_err(|error| {
+        ApplicationError::persistence(
+            PersistenceErrorKind::IoError,
+            format!("failed to set the window title: {error}"),
+        )
+    });
+    log_failure(shown)
 }
 
 /// A window of the calling window's Project, for "move to window …".

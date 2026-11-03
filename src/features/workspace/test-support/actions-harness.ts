@@ -20,6 +20,7 @@ import {
   type LanguageController,
 } from "../../../application/language/language-controller";
 import type { LoadIssueRepairController } from "../../../application/load-issue-repair/load-issue-repair-controller";
+import { operationOk } from "../../../application/ports/operation-error";
 import type { LoadIssue } from "../../../application/ports/persistence-types";
 import {
   createTextSizeController,
@@ -115,6 +116,8 @@ export interface ActionsHarness extends WorkspaceHarness {
   readonly clipboard: ClipboardPort;
   readonly dropEventSource: FakeDropEventSource;
   readonly closeRequestSource: FakeCloseRequestSource;
+  // What the window's title bar was told to show, in order (null: no Project).
+  readonly windowTitles: (string | null)[];
   readonly appRequestSource: FakeAppRequestSource;
   readonly viewportGateway: FakeViewportGateway;
   // Its own clock, so viewport saves are advanced independently of auto-save.
@@ -172,6 +175,7 @@ export function createActionsHarness(
   });
   const dropEventSource = createFakeDropEventSource();
   const closeRequestSource = createFakeCloseRequestSource();
+  const windowTitles: (string | null)[] = [];
   const appRequestSource = createFakeAppRequestSource();
   const viewportGateway = createFakeViewportGateway();
   const viewportScheduler = createFakeScheduler();
@@ -241,6 +245,7 @@ export function createActionsHarness(
     clipboard,
     dropEventSource,
     closeRequestSource,
+    windowTitles,
     appRequestSource,
     viewportGateway,
     viewportScheduler,
@@ -253,6 +258,12 @@ export function createActionsHarness(
       draftRegistry,
       dropEventSource,
       closeRequestSource,
+      windowTitle: {
+        showProject: (projectName) => {
+          windowTitles.push(projectName);
+          return Promise.resolve(operationOk(undefined));
+        },
+      },
       appRequestSource,
       viewportPersistence,
       assetUrlResolver: createFakeAssetUrlResolver(),

@@ -185,13 +185,10 @@ export const WORKSPACE_MESSAGES_JA = {
     label: "Project Treeの幅",
   },
   topBar: {
-    projectNameOpen: "（",
-    projectNameClose: "）",
     menubarLabel: "アプリケーションメニュー",
     fileMenu: "ファイル",
     viewMenu: "表示",
     save: "保存",
-    noProject: "Projectが開かれていません",
     openProject: "Projectを開く…",
     createProject: "新規Project…",
     closeProject: "Projectを閉じる",

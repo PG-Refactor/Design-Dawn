@@ -1019,3 +1019,21 @@ fn a_drop_point_finds_the_window_under_it_front_most_first() {
     assert_eq!(window_containing((900.0, 300.0), &candidates), None);
     assert_eq!(window_containing((2000.0, 2000.0), &candidates), None);
 }
+
+#[test]
+fn the_window_title_names_the_project_in_parentheses() {
+    use design_dawn_lib::commands::window_title;
+    assert_eq!(window_title(None), "Design Dawn");
+    assert_eq!(window_title(Some("  ")), "Design Dawn");
+    assert_eq!(
+        window_title(Some("Order Service")),
+        "Design Dawn (Order Service)"
+    );
+    // Control characters (a newline) never reach the title bar; a long name is cut.
+    assert_eq!(window_title(Some("a\nb")), "Design Dawn (ab)");
+    let long = "x".repeat(500);
+    assert_eq!(
+        window_title(Some(&long)).chars().count(),
+        "Design Dawn ()".len() + 120
+    );
+}

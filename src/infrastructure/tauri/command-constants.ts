@@ -48,6 +48,7 @@ export const COMMANDS = {
   getProjectSnapshot: "get_project_snapshot",
   listProjectWindows: "list_project_windows",
   projectWindowAt: "project_window_at",
+  showProjectInTitle: "show_project_in_title",
   gitStatus: "git_status",
   gitStage: "git_stage",
   gitUnstage: "git_unstage",

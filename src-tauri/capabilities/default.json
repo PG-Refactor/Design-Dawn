@@ -49,6 +49,7 @@
     "allow-get-project-snapshot",
     "allow-list-project-windows",
     "allow-project-window-at",
+    "allow-show-project-in-title",
     "allow-git-status",
     "allow-git-stage",
     "allow-git-unstage",
