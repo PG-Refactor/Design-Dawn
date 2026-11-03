@@ -8,15 +8,15 @@ export const TEXT_SIZES = ["small", "medium", "large", "xlarge"] as const;
 
 export type TextSize = (typeof TEXT_SIZES)[number];
 
-// The browser default (16px). It looked small on a 4K screen under WSLg, which applies no
-// display scaling, but right on Windows, where the OS scaling applies; "large" and above
-// are for the former.
+// "medium" is the size of desktop tools such as VS Code (13px UI text), which suits a
+// Windows screen with its display scaling (user decision, 2026-11-03). Under WSLg on a 4K
+// screen, which applies no scaling, "large" and above make it readable.
 export const DEFAULT_TEXT_SIZE: TextSize = "medium";
 
 // The root font size each setting applies; every UI size is in rem, so this scales the UI.
 export const TEXT_SIZE_ROOT_PX: Readonly<Record<TextSize, number>> = {
-  small: 14,
-  medium: 16,
-  large: 18,
-  xlarge: 20,
+  small: 12,
+  medium: 13,
+  large: 15,
+  xlarge: 17,
 };

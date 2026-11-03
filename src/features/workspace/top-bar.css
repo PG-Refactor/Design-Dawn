@@ -13,12 +13,33 @@
   font-size: 1rem;
 }
 
-.top-bar__project {
-  flex: 1 1 0;
-  margin: 0;
+.top-bar__title {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: baseline;
+  gap: var(--space-1);
   min-width: 0;
+}
+
+.top-bar__app-name {
+  flex: 0 0 auto;
+}
+
+/* The Project name in parentheses after the app name; a long one is cut, not wrapped. */
+.top-bar__context {
+  display: flex;
+  min-width: 0;
+  margin: 0;
   color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.top-bar__project {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.top-bar__spacer {
+  flex: 1 1 0;
 }

@@ -185,6 +185,8 @@ export const WORKSPACE_MESSAGES_JA = {
     label: "Project Treeの幅",
   },
   topBar: {
+    projectNameOpen: "（",
+    projectNameClose: "）",
     menubarLabel: "アプリケーションメニュー",
     fileMenu: "ファイル",
     viewMenu: "表示",

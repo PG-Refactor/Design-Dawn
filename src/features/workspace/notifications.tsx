@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo } from "react";
+import { useEffect, useId, useMemo, useRef } from "react";
 import { LAYOUT_CONFIG } from "../../config/layout-config";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { clearNotice } from "./ui-state/shell-ui-state";
@@ -13,6 +13,9 @@ import {
 } from "./view-models/notifications-model";
 import type { WorkspaceActions } from "./workspace-actions";
 import { useUiState } from "./workspace-hooks";
+
+const ESCAPE_KEY = "Escape";
+
 import type { WorkspaceMessages } from "./workspace-messages";
 import { useWorkspaceServices } from "./workspace-services-context";
 import "./notifications.css";
@@ -227,9 +230,34 @@ export function Notifications() {
   );
   const { counts } = model;
   const total = counts.errors + counts.warnings;
+  const itemCount = model.items.length;
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const previousCount = useRef(itemCount);
+
+  // The panel is for what needs attention: once the last notice is dismissed it closes
+  // (focus goes back to the button, as the dismiss button is gone). Opened while empty, it
+  // stays open to say so until the user closes it.
+  useEffect(() => {
+    const before = previousCount.current;
+    previousCount.current = itemCount;
+    if (!open || before === 0 || itemCount > 0) return;
+    actions.setNotificationsOpen(false);
+    buttonRef.current?.focus();
+  }, [open, itemCount, actions]);
+
   return (
-    <div className="notifications">
+    // biome-ignore lint/a11y/noStaticElementInteractions: only listens for Escape from inside the panel; the controls are the buttons in it.
+    <div
+      className="notifications"
+      onKeyDown={(event) => {
+        if (event.key !== ESCAPE_KEY || !open) return;
+        event.preventDefault();
+        actions.setNotificationsOpen(false);
+        buttonRef.current?.focus();
+      }}
+    >
       <button
+        ref={buttonRef}
         type="button"
         className={`button notifications__summary${counts.errors > 0 ? " notifications__summary--error" : ""}`}
         aria-label={messages.notificationCounts(counts.errors, counts.warnings)}
