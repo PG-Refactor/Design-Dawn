@@ -61,6 +61,10 @@ import type {
   SheetId,
 } from "../../domain/shared/entity-id";
 import type { Position, Size } from "../../domain/shared/geometry";
+import {
+  MERMAID_TEMPLATES,
+  type MermaidTemplateId,
+} from "../mermaid/mermaid-templates";
 import { addOperationError } from "../workspace/ui-state/shell-ui-state";
 import {
   type FramePreview,
@@ -113,6 +117,8 @@ export interface CreateBlockInput {
   // A world point chosen on the canvas (a right-click): the block's top-left corner goes
   // there instead of the centre of the view.
   readonly at?: Point;
+  // A Mermaid block starting from a template instead of the default flowchart.
+  readonly mermaidTemplate?: MermaidTemplateId;
 }
 
 export interface CommitContentEditInput {
@@ -777,7 +783,11 @@ export function createCanvasActions(
             blockType: creatable.blockType,
             position: position.value,
             size: size.value,
-            text: creatable.initialText,
+            text:
+              input.mermaidTemplate !== undefined &&
+              creatable.blockType === "mermaid"
+                ? MERMAID_TEMPLATES[input.mermaidTemplate]
+                : creatable.initialText,
           },
         ]),
       );

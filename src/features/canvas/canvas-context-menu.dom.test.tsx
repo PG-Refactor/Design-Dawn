@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+
 import {
   act,
   cleanup,
@@ -16,6 +17,8 @@ import {
   renderOpenedCanvas,
   sourceBox,
 } from "../markdown/test-support/markdown-harness";
+import { MERMAID_MESSAGES } from "../mermaid/mermaid-messages";
+import { MERMAID_TEMPLATE_IDS } from "../mermaid/mermaid-templates";
 import { CANVAS_MESSAGES } from "./canvas-messages";
 
 const MESSAGES = CANVAS_MESSAGES.ja;
@@ -136,6 +139,9 @@ describe("the right-click menu of the empty canvas", () => {
     ).toEqual([
       LABELS.addBlock("Markdown"),
       LABELS.addBlock("Mermaid"),
+      ...MERMAID_TEMPLATE_IDS.map((template) =>
+        LABELS.addBlock(`Mermaid: ${MERMAID_MESSAGES.ja.templates[template]}`),
+      ),
       LABELS.paste,
     ]);
   });

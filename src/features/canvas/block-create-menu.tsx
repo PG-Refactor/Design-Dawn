@@ -5,11 +5,18 @@ import {
   useState,
 } from "react";
 import type { BlockType } from "../../domain/block/block-type";
+import {
+  MERMAID_TEMPLATE_IDS,
+  type MermaidTemplateId,
+} from "../mermaid/mermaid-templates";
 import { useMessages } from "../workspace/use-messages";
 import { CREATABLE_BLOCK_TYPES } from "./creatable-block-types";
 
 export interface BlockCreateMenuProps {
-  readonly onCreate: (blockType: BlockType) => void;
+  readonly onCreate: (
+    blockType: BlockType,
+    mermaidTemplate?: MermaidTemplateId,
+  ) => void;
 }
 
 const KEYS = {
@@ -25,6 +32,7 @@ const KEYS = {
 // the button.
 export function BlockCreateMenu({ onCreate }: BlockCreateMenuProps) {
   const messages = useMessages().canvas;
+  const mermaidMessages = useMessages().mermaid;
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -127,6 +135,25 @@ export function BlockCreateMenu({ onCreate }: BlockCreateMenuProps) {
               }}
             >
               {creatable.label}
+            </button>
+          ))}
+          {/* The other kinds of diagram start from a template. */}
+          <hr className="popup-menu__separator" />
+          {MERMAID_TEMPLATE_IDS.map((template) => (
+            <button
+              key={template}
+              type="button"
+              role="menuitem"
+              className="block-create-menu__item"
+              onClick={() => {
+                setOpen(false);
+                buttonRef.current?.focus();
+                onCreate("mermaid", template);
+              }}
+            >
+              {mermaidMessages.templateItem(
+                mermaidMessages.templates[template],
+              )}
             </button>
           ))}
         </div>

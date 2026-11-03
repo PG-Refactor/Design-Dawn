@@ -10,6 +10,7 @@ import {
   MERMAID_DEFAULT_SECURE_KEYS,
 } from "./mermaid-config";
 import type { MermaidThemeValues } from "./mermaid-renderer-types";
+import { MERMAID_TEMPLATE_IDS, MERMAID_TEMPLATES } from "./mermaid-templates";
 import { mermaidRenderer } from "./render-mermaid";
 import {
   THEME_TOKENS,
@@ -608,4 +609,17 @@ describe("the shapes of a real flowchart, for clicks on its picture", () => {
       expect(shape.box.height).toBeGreaterThan(0);
     }
   });
+});
+
+describe("the Mermaid templates", () => {
+  it.each(MERMAID_TEMPLATE_IDS)(
+    "%s renders with real Mermaid",
+    async (template) => {
+      const outcome = await mermaidRenderer.render(
+        MERMAID_TEMPLATES[template],
+        themeValuesOf("light"),
+      );
+      expect(outcome.ok, outcome.ok ? "" : outcome.message).toBe(true);
+    },
+  );
 });
