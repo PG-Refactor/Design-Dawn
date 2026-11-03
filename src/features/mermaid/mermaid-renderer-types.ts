@@ -13,6 +13,15 @@ export interface MermaidThemeValues {
   readonly secondaryColor?: string;
   readonly tertiaryColor?: string;
   readonly textColor?: string;
+  // Shapes of flowcharts and sequence diagrams. Mermaid would derive these from the base
+  // colours (a pale tint, hard to see on a white page), so they are given explicitly.
+  readonly mainBkg?: string;
+  readonly nodeBorder?: string;
+  readonly clusterBkg?: string;
+  readonly clusterBorder?: string;
+  readonly actorBkg?: string;
+  readonly actorBorder?: string;
+  readonly labelBoxBorderColor?: string;
   readonly fontFamily?: string;
   // Categorical pie slices, then the colours of pie and gantt text, lines and bars.
   readonly pie1?: string;

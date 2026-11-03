@@ -96,6 +96,13 @@ describe("theme token stylesheet", () => {
     const pairs = [
       ["--color-text", "--color-background"],
       ["--color-text", "--color-surface"],
+      ["--color-text", "--color-hover"],
+      ["--color-text", "--color-canvas-background"],
+      ["--color-text-muted", "--color-canvas-background"],
+      ["--color-text-muted", "--color-hover"],
+      ["--color-text-muted", "--color-selection"],
+      ["--color-text", "--color-selection"],
+      ["--color-text-muted", "--color-surface-raised"],
       ["--color-text-muted", "--color-background"],
       ["--color-text-muted", "--color-surface"],
       ["--color-accent-contrast", "--color-accent"],
@@ -134,6 +141,28 @@ describe("theme token stylesheet", () => {
       ).toBeGreaterThanOrEqual(TEXT_CONTRAST_MINIMUM);
     }
   });
+
+  // Outlines that must be seen to read or use something (diagram shapes, form fields,
+  // table rules) and the focus ring stand out from every surface they sit on.
+  it.each(themeIds)(
+    "%s strong borders and the focus ring are visible",
+    (themeId) => {
+      for (const outline of ["--color-border-strong", "--color-focus-ring"]) {
+        for (const surface of [
+          "--color-background",
+          "--color-surface",
+          "--color-surface-raised",
+          "--color-canvas-background",
+          "--color-diagram-node-fill",
+        ]) {
+          expect(
+            contrastRatio(colorOf(themeId, outline), colorOf(themeId, surface)),
+            `${themeId} ${outline} on ${surface}`,
+          ).toBeGreaterThanOrEqual(GRAPHIC_CONTRAST_MINIMUM);
+        }
+      }
+    },
+  );
 
   // Mermaid pie slices and gantt bars: every palette colour
   // must be told apart from the surface (non-text, 3:1) and carry the text drawn on it.

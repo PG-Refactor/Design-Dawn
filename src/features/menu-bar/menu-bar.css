@@ -19,8 +19,7 @@
 
 .menu-bar__trigger:hover,
 .menu-bar__trigger[aria-expanded="true"] {
-  border-color: var(--color-border);
-  background: var(--color-surface-raised);
+  background: var(--color-hover);
 }
 
 .menu-bar__popup {
@@ -33,7 +32,7 @@
   margin-top: var(--space-1);
   padding: var(--space-1);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-medium);
+  border-radius: var(--radius-large);
   background: var(--color-surface-raised);
   color: var(--color-text);
   box-shadow: var(--shadow-raised);
@@ -52,8 +51,7 @@
 
 .menu-bar__item:hover,
 .menu-bar__item:focus-visible {
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
+  background: var(--color-hover);
   outline: none;
 }
 
@@ -64,7 +62,7 @@
 
 .menu-bar__item[aria-disabled="true"]:hover,
 .menu-bar__item[aria-disabled="true"]:focus-visible {
-  background: var(--color-surface);
+  background: transparent;
   color: var(--color-text-muted);
 }
 

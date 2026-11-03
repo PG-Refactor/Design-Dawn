@@ -30,7 +30,7 @@
   min-height: 0;
   padding: var(--space-2);
   border: none;
-  border-right: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border-strong);
   background: var(--color-surface);
   color: var(--color-text);
   font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;

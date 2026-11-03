@@ -37,6 +37,15 @@
   overflow-wrap: anywhere;
 }
 
+/* Before the selection rule, so a selected row keeps its colour under the pointer. */
+.tree-item__row {
+  transition: background-color var(--transition-fast);
+}
+
+.tree-item__row:hover {
+  background: var(--color-hover);
+}
+
 .tree-item--selected > .tree-item__row {
   background: var(--color-selection);
 }

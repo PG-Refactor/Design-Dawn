@@ -1,4 +1,13 @@
-/* The only file that contains colour values. Each theme block must define exactly the
+/* The only file that contains colour values. The palette follows shadcn/ui's neutral
+   (zinc) greys with a blue accent: quiet surfaces, thin borders, colour kept for the
+   accent, the selection and states. --color-hover is the faint background of a control
+   under the pointer; --color-selection marks what is selected.
+
+   Readability comes before the light look: --color-border only divides the chrome, while
+   anything that must be seen to be read or used (diagram outlines, form fields, table
+   rules, the line between source and preview) uses --color-border-strong, >= 3:1 against
+   every surface it sits on (WCAG 1.4.11; theme-tokens.test.ts). Diagram nodes are filled
+   with --color-diagram-node-fill, apart from the white / dark page, and carry body text. Each theme block must define exactly the
    token names listed in src/features/theme/theme-tokens.ts; a new theme is one more block.
    Text/background pairs meet WCAG AA (4.5:1), checked by theme-tokens.test.ts.
 
@@ -12,31 +21,33 @@
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --color-background: #f6f7f9;
+  --color-background: #fafafa;
   --color-surface: #ffffff;
   --color-surface-raised: #ffffff;
-  --color-text: #1c2330;
-  --color-text-muted: #566074;
-  --color-border: #c9cfd9;
-  --color-accent: #2859c0;
+  --color-text: #09090b;
+  --color-text-muted: #63636b;
+  --color-border: #e4e4e7;
+  --color-border-strong: #85858e;
+  --color-accent: #2563eb;
   --color-accent-contrast: #ffffff;
-  --color-selection: #d6e4fb;
-  --color-danger: #b3261e;
+  --color-hover: #f4f4f5;
+  --color-selection: #e3edff;
+  --color-danger: #dc2626;
   --color-danger-contrast: #ffffff;
-  --color-warning: #8a5300;
-  --color-focus-ring: #2859c0;
-  --color-canvas-background: #eceff3;
-  --color-canvas-grid: #d3d8e0;
+  --color-warning: #b45309;
+  --color-focus-ring: #2563eb;
+  --color-canvas-background: #f4f4f5;
+  --color-canvas-grid: #d4d4d8;
   --color-diff-added-bg: #dff3e4;
   --color-diff-added-text: #14532d;
   --color-diff-removed-bg: #fbe3e1;
   --color-diff-removed-text: #8c1d18;
   --color-diff-hunk-text: #1d4f9f;
-  --color-diff-meta-text: #566074;
-  --color-diff-filler-bg: #eef0f4;
-  --color-button-primary-bg: #1f5fbf;
+  --color-diff-meta-text: #63636b;
+  --color-diff-filler-bg: #f4f4f5;
+  --color-button-primary-bg: #2563eb;
   --color-button-primary-text: #ffffff;
-  --color-button-primary-hover: #194c99;
+  --color-button-primary-hover: #1d4ed8;
   --color-git-modified: #7a5200;
   --color-git-added: #1a6e2e;
   --color-git-deleted: #b3261e;
@@ -50,38 +61,43 @@
   --color-diagram-5: #0b7285;
   --color-diagram-6: #b0356b;
   --color-diagram-7: #7a6200;
-  --color-diagram-8: #566074;
+  --color-diagram-8: #63636b;
   --color-on-diagram: #ffffff;
-  --shadow-raised: 0 1px 3px rgba(28, 35, 48, 0.18);
+  --color-diagram-node-fill: #f4f4f5;
+  --shadow-raised:
+    0 4px 12px -2px rgba(9, 9, 11, 0.12), 0 2px 4px -2px rgba(9, 9, 11, 0.08);
+  --shadow-subtle: 0 1px 2px rgba(9, 9, 11, 0.06);
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --color-background: #14171c;
-  --color-surface: #1c2027;
-  --color-surface-raised: #252a33;
-  --color-text: #e6e9ef;
-  --color-text-muted: #a3acba;
-  --color-border: #3a4150;
-  --color-accent: #7aa7ff;
-  --color-accent-contrast: #0d1626;
-  --color-selection: #25385c;
-  --color-danger: #ff8a80;
-  --color-danger-contrast: #2a0a08;
-  --color-warning: #f2c14e;
-  --color-focus-ring: #7aa7ff;
-  --color-canvas-background: #101317;
-  --color-canvas-grid: #272d37;
+  --color-background: #09090b;
+  --color-surface: #111114;
+  --color-surface-raised: #18181b;
+  --color-text: #fafafa;
+  --color-text-muted: #a1a1aa;
+  --color-border: #27272a;
+  --color-border-strong: #6b6b75;
+  --color-accent: #60a5fa;
+  --color-accent-contrast: #09090b;
+  --color-hover: #232327;
+  --color-selection: #1c2c4f;
+  --color-danger: #f87171;
+  --color-danger-contrast: #09090b;
+  --color-warning: #fbbf24;
+  --color-focus-ring: #60a5fa;
+  --color-canvas-background: #0c0c0e;
+  --color-canvas-grid: #232327;
   --color-diff-added-bg: #1d3a2a;
   --color-diff-added-text: #8fe3a8;
   --color-diff-removed-bg: #4a2322;
   --color-diff-removed-text: #ffb3ac;
   --color-diff-hunk-text: #8db4ff;
-  --color-diff-meta-text: #a3acba;
-  --color-diff-filler-bg: #161a20;
-  --color-button-primary-bg: #2a69cf;
+  --color-diff-meta-text: #a1a1aa;
+  --color-diff-filler-bg: #101013;
+  --color-button-primary-bg: #2563eb;
   --color-button-primary-text: #ffffff;
-  --color-button-primary-hover: #1f58b3;
+  --color-button-primary-hover: #1d4ed8;
   --color-git-modified: #e2c08d;
   --color-git-added: #81b88b;
   --color-git-deleted: #ff9a8f;
@@ -95,7 +111,9 @@
   --color-diagram-5: #5fd0e0;
   --color-diagram-6: #f28ab2;
   --color-diagram-7: #e0d05a;
-  --color-diagram-8: #a3acba;
-  --color-on-diagram: #0d1626;
-  --shadow-raised: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --color-diagram-8: #a1a1aa;
+  --color-on-diagram: #09090b;
+  --color-diagram-node-fill: #1f1f23;
+  --shadow-raised: 0 8px 20px -4px rgba(0, 0, 0, 0.7);
+  --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.4);
 }

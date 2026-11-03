@@ -489,8 +489,11 @@ describe("real Mermaid with the app's theme token values", () => {
       expect(outcome.ok).toBe(true);
       if (!outcome.ok) return;
       const svg = sanitizeSvg(outcome.svg).toLowerCase();
+      // What paints a flowchart: the node fill and outline (given explicitly, so a node
+      // reads on a white page), the text, the border of other shapes and the edges.
       for (const variable of [
-        "primaryColor",
+        "mainBkg",
+        "nodeBorder",
         "primaryTextColor",
         "primaryBorderColor",
         "lineColor",
