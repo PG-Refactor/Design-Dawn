@@ -282,10 +282,6 @@ export function SequenceGuiPanel({
 
   const editor = (
     <>
-      {selection === null &&
-        (view.participants.length > 0 || view.entries.length > 0) && (
-          <p className="diagram-gui__hint">{text.noSelection}</p>
-        )}
       {selection?.kind === "participant" && (
         <SequenceParticipantEditor
           key={selectionKey}
@@ -329,6 +325,8 @@ export function SequenceGuiPanel({
       state={layout}
       toolbarLabel={gui.addToolbarLabel}
       tabListLabel={gui.listTabsLabel}
+      listsLabel={gui.listsSummary}
+      settingsLabel={text.settingsHeading}
       addActions={[
         {
           id: ADD.participant,

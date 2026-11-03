@@ -4,19 +4,35 @@
 
 import { fireEvent, screen } from "@testing-library/react";
 
-const HIDDEN_CONTAINER =
-  ".diagram-gui__add-panel[hidden], .diagram-gui__tab-panel[hidden]";
+const HIDDEN_CONTAINER = [
+  ".diagram-gui__add-panel[hidden]",
+  ".diagram-gui__tab-panel[hidden]",
+  ".diagram-gui__disclosure-body[hidden]",
+].join(", ");
 
-// Opens what hides `element` (its add form or its list tab), then returns it.
+// Opens what hides `element` (its add form, its list tab, the folded lists or settings),
+// outermost first, then returns it.
 export function reveal<Element extends HTMLElement>(element: Element): Element {
-  const container = element.closest<HTMLElement>(HIDDEN_CONTAINER);
-  if (container === null) return element;
-  const opener = document.querySelector<HTMLElement>(
-    `[aria-controls="${container.id}"]`,
-  );
-  if (opener === null) throw new Error("no control opens this part of the GUI");
-  fireEvent.click(opener);
-  return element;
+  for (;;) {
+    const hidden = [] as HTMLElement[];
+    for (
+      let current: HTMLElement | null =
+        element.closest<HTMLElement>(HIDDEN_CONTAINER);
+      current !== null;
+      current =
+        current.parentElement?.closest<HTMLElement>(HIDDEN_CONTAINER) ?? null
+    ) {
+      hidden.push(current);
+    }
+    const outermost = hidden.at(-1);
+    if (outermost === undefined) return element;
+    const opener = document.querySelector<HTMLElement>(
+      `[aria-controls="${outermost.id}"]`,
+    );
+    if (opener === null)
+      throw new Error("no control opens this part of the GUI");
+    fireEvent.click(opener);
+  }
 }
 
 type Role =
@@ -25,7 +41,10 @@ type Role =
   | "button"
   | "listbox"
   | "checkbox"
-  | "group";
+  | "group"
+  | "option"
+  | "tab"
+  | "region";
 
 // getByRole that also finds a control in a closed add form or another list tab, and
 // shows it.

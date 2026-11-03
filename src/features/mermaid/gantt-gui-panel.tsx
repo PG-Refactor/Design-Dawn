@@ -306,6 +306,8 @@ export function GanttGuiPanel({
       state={layout}
       toolbarLabel={gui.addToolbarLabel}
       tabListLabel={gui.listTabsLabel}
+      listsLabel={gui.listsSummary}
+      settingsLabel={text.settingsHeading}
       addActions={[
         {
           id: ADD.section,
@@ -367,10 +369,6 @@ export function GanttGuiPanel({
       }
       editor={
         <>
-          {selection === null &&
-            (view.sections.length > 0 || view.tasks.length > 0) && (
-              <p className="diagram-gui__hint">{text.noSelection}</p>
-            )}
           {selection?.kind === "section" && (
             <GanttSectionEditor
               key={selectionKey}

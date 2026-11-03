@@ -99,75 +99,66 @@ export function FlowchartNodeEditor({
         inputRef={labelInputRef}
         commitPendingRef={commitPendingRef}
       />
-      <GuiSelect
-        label={text.shapeField}
-        value={node?.shape ?? UNSHAPED_NODE_SHAPE}
-        options={FLOWCHART_EDITABLE_SHAPES.map((shape) => ({
-          value: shape,
-          label: text.shapes[shape],
-        }))}
-        disabled={unavailable}
-        onChange={(shape) => {
-          if (node === undefined) return;
-          const editable = FLOWCHART_EDITABLE_SHAPES.find(
-            (candidate) => candidate === shape,
-          );
-          if (editable === undefined) return;
-          void runDraft({
-            kind: "setNodeShape",
-            nodeId: node.id,
-            shape: editable,
-          });
-        }}
-      />
-      <GuiSelect
-        label={text.nodeSubgraphField}
-        value={actions?.ownerId ?? NO_SUBGRAPH}
-        options={[
-          subgraphChoice(
-            NO_SUBGRAPH,
-            text.nodeSubgraphNone,
-            actions?.ownerId == null ? null : actions.removeRestriction,
-          ),
-          ...subgraphs.map((subgraph) =>
-            subgraphChoice(
-              subgraph.id,
-              text.nodeOption(oneLine(subgraph.title), subgraph.id),
-              actions?.moveRestrictions[subgraph.id],
-            ),
-          ),
-        ]}
-        disabled={membershipUnavailable}
-        onChange={(value) => {
-          if (node === undefined || actions === null) return;
-          if (value === NO_SUBGRAPH) {
-            if (actions.ownerId === null) return;
+      <div className="diagram-gui__row">
+        <GuiSelect
+          label={text.shapeField}
+          value={node?.shape ?? UNSHAPED_NODE_SHAPE}
+          options={FLOWCHART_EDITABLE_SHAPES.map((shape) => ({
+            value: shape,
+            label: text.shapes[shape],
+          }))}
+          disabled={unavailable}
+          onChange={(shape) => {
+            if (node === undefined) return;
+            const editable = FLOWCHART_EDITABLE_SHAPES.find(
+              (candidate) => candidate === shape,
+            );
+            if (editable === undefined) return;
             void runDraft({
-              kind: "removeNodeFromSubgraph",
+              kind: "setNodeShape",
               nodeId: node.id,
-              subgraphId: actions.ownerId,
+              shape: editable,
             });
-            return;
-          }
-          void runDraft({
-            kind: "moveNodeToSubgraph",
-            nodeId: node.id,
-            subgraphId: value,
-          });
-        }}
-      />
-      {deleteReason !== null ? (
-        <p id={deleteHintId} className="diagram-gui__hint">
-          {deleteReason}
-        </p>
-      ) : (
-        actions !== null &&
-        actions.edgeCount > 0 && (
-          <p id={deleteHintId} className="diagram-gui__hint">
-            {text.deleteNodeEdges(actions.edgeCount)}
-          </p>
-        )
-      )}
+          }}
+        />
+        <GuiSelect
+          label={text.nodeSubgraphField}
+          value={actions?.ownerId ?? NO_SUBGRAPH}
+          options={[
+            subgraphChoice(
+              NO_SUBGRAPH,
+              text.nodeSubgraphNone,
+              actions?.ownerId == null ? null : actions.removeRestriction,
+            ),
+            ...subgraphs.map((subgraph) =>
+              subgraphChoice(
+                subgraph.id,
+                text.nodeOption(oneLine(subgraph.title), subgraph.id),
+                actions?.moveRestrictions[subgraph.id],
+              ),
+            ),
+          ]}
+          disabled={membershipUnavailable}
+          onChange={(value) => {
+            if (node === undefined || actions === null) return;
+            if (value === NO_SUBGRAPH) {
+              if (actions.ownerId === null) return;
+              void runDraft({
+                kind: "removeNodeFromSubgraph",
+                nodeId: node.id,
+                subgraphId: actions.ownerId,
+              });
+              return;
+            }
+            void runDraft({
+              kind: "moveNodeToSubgraph",
+              nodeId: node.id,
+              subgraphId: value,
+            });
+          }}
+        />
+      </div>
+      {/* The note goes beside the button it is about. */}
       <div className="diagram-gui__actions">
         <GuiButton
           label={text.deleteNode}
@@ -176,6 +167,18 @@ export function FlowchartNodeEditor({
           reasonId={deleteHintId}
           onPress={() => void onDelete()}
         />
+        {deleteReason !== null ? (
+          <p id={deleteHintId} className="diagram-gui__hint">
+            {deleteReason}
+          </p>
+        ) : (
+          actions !== null &&
+          actions.edgeCount > 0 && (
+            <p id={deleteHintId} className="diagram-gui__hint">
+              {text.deleteNodeEdges(actions.edgeCount)}
+            </p>
+          )
+        )}
       </div>
     </div>
   );

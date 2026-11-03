@@ -207,7 +207,9 @@ describe("a pie chart in the GUI", () => {
       GUI.sliceOption("Cats", "85"),
       GUI.sliceOption("Rats", "15"),
     ]);
-    expect(screen.getByText(GUI.noSelection)).toBeTruthy();
+    // Nothing is selected yet: no editor, and no hint text taking room.
+    expect(screen.queryByText(GUI.selectedHeading)).toBeNull();
+    expect(screen.queryByText(GUI.noSelection)).toBeNull();
     // The same preview component draws it as an image.
     expect(
       within(

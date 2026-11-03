@@ -283,12 +283,6 @@ export function FlowchartGuiPanel({
 
   const editor = (
     <>
-      {selection === null &&
-        (view.nodes.length > 0 ||
-          view.edges.length > 0 ||
-          view.subgraphs.length > 0) && (
-          <p className="diagram-gui__hint">{text.noSelection}</p>
-        )}
       {selection?.kind === "node" && (
         <FlowchartNodeEditor
           key={selectionKey}
@@ -349,6 +343,8 @@ export function FlowchartGuiPanel({
       }}
       toolbarLabel={gui.addToolbarLabel}
       tabListLabel={gui.listTabsLabel}
+      listsLabel={gui.listsSummary}
+      settingsLabel={text.settingsHeading}
       addActions={[
         {
           id: ADD.node,

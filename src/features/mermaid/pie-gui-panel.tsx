@@ -171,9 +171,6 @@ export function PieGuiPanel({
 
   const editor = (
     <>
-      {selected === undefined && view.slices.length > 0 && (
-        <p className="diagram-gui__hint">{gui.noSelection}</p>
-      )}
       {selection !== null && (
         <PieSliceEditor
           documentId={documentId}
@@ -213,6 +210,8 @@ export function PieGuiPanel({
       state={layout}
       toolbarLabel={gui.addToolbarLabel}
       tabListLabel={gui.listTabsLabel}
+      listsLabel={gui.listsSummary}
+      settingsLabel={gui.settingsHeading}
       addActions={[
         {
           id: ADD_SLICE,

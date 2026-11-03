@@ -286,3 +286,58 @@
   padding-top: var(--space-2);
   border-top: 1px solid var(--color-border);
 }
+
+/* Folded parts (the lists, the settings): a quiet heading row that opens them. */
+.diagram-gui__disclosure {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-1) 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: calc(0.9 * var(--content-rem));
+  text-align: left;
+  cursor: pointer;
+}
+
+.diagram-gui__disclosure:hover {
+  color: var(--color-text);
+}
+
+.diagram-gui__disclosure-marker {
+  display: inline-block;
+  width: 1em;
+}
+
+.diagram-gui__disclosure-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.diagram-gui__disclosure-body[hidden] {
+  display: none;
+}
+
+/* Two short fields side by side (shape and group of a node); a long choice is cut
+   inside its field instead of widening the panel. */
+.diagram-gui__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.diagram-gui__row > *,
+.diagram-gui__row select {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* A note beside its button (what else a delete removes). */
+.diagram-gui__actions .diagram-gui__hint {
+  align-self: center;
+  font-size: calc(0.85 * var(--content-rem));
+}
