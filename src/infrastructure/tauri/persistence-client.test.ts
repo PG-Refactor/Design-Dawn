@@ -136,6 +136,7 @@ describe("take_open_request payloads", () => {
       snapshot: rawProjectSnapshot,
       documentId: DOCUMENT_ID,
       resolution: "idScan",
+      transferId: null,
     });
     const result = await takeOpenRequest();
     expect(invokeMock).toHaveBeenCalledWith(COMMANDS.takeOpenRequest, {});
@@ -151,13 +152,35 @@ describe("take_open_request payloads", () => {
       snapshot: rawProjectSnapshot,
       documentId: null,
       resolution: null,
+      transferId: null,
     });
     const result = await takeOpenRequest();
     expect(result.ok).toBe(true);
     if (!result.ok || result.value === null) return;
     expect(result.value.documentId).toBeNull();
     expect(result.value.resolution).toBeNull();
+    expect(result.value.transferId).toBeNull();
     expect(result.value.snapshot.project.projectId).toBe(PROJECT_ID);
+  });
+
+  it("carries the hand-over of a window made for a moved Document", async () => {
+    invokeMock.mockResolvedValue({
+      snapshot: rawProjectSnapshot,
+      documentId: null,
+      resolution: null,
+      transferId: "transfer-1",
+    });
+    const result = await takeOpenRequest();
+    expect(result.ok && result.value?.transferId).toBe("transfer-1");
+  });
+
+  it("rejects a request without the hand-over field", async () => {
+    invokeMock.mockResolvedValue({
+      snapshot: rawProjectSnapshot,
+      documentId: null,
+      resolution: null,
+    });
+    expect((await takeOpenRequest()).ok).toBe(false);
   });
 
   it("turns null into an ok result without a request", async () => {

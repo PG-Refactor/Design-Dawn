@@ -7,6 +7,7 @@ import type {
   OpenDocumentRequest,
   ProjectFilesNotice,
   SettingsChange,
+  WindowEvent,
 } from "../../application/ports/app-request-source";
 import { parseDocumentId, parseProjectId } from "../../domain/shared/entity-id";
 import { COMMANDS } from "./command-constants";
@@ -19,6 +20,33 @@ import { toExternalChanges } from "./persistence-payloads";
 const OPEN_DOCUMENT_KIND = "openDocument";
 const SETTINGS_CHANGED_KIND = "settingsChanged";
 const PROJECT_FILES_CHANGED_KIND = "projectFilesChanged";
+const RECEIVE_DOCUMENT_KIND = "receiveDocument";
+const ACTIVATE_DOCUMENT_KIND = "activateDocument";
+const PROJECT_TREE_CHANGED_KIND = "projectTreeChanged";
+
+function toWindowEvent(message: unknown): WindowEvent | null {
+  if (typeof message !== "object" || message === null) return null;
+  const { kind, transferId, documentId, projectId } = message as Record<
+    string,
+    unknown
+  >;
+  if (kind === RECEIVE_DOCUMENT_KIND && typeof transferId === "string") {
+    return { kind: "receiveDocument", transferId };
+  }
+  if (kind === ACTIVATE_DOCUMENT_KIND && typeof documentId === "string") {
+    const parsed = parseDocumentId(documentId);
+    return parsed.ok
+      ? { kind: "activateDocument", documentId: parsed.value }
+      : null;
+  }
+  if (kind === PROJECT_TREE_CHANGED_KIND && typeof projectId === "string") {
+    const parsed = parseProjectId(projectId);
+    return parsed.ok
+      ? { kind: "projectTreeChanged", projectId: parsed.value }
+      : null;
+  }
+  return null;
+}
 
 function toOpenDocumentRequest(message: unknown): OpenDocumentRequest | null {
   if (typeof message !== "object" || message === null) return null;
@@ -79,6 +107,7 @@ export function createTauriAppRequestSource(): AppRequestSource {
   const listeners = new Set<(request: OpenDocumentRequest) => void>();
   const settingsListeners = new Set<(change: SettingsChange) => void>();
   const projectFilesListeners = new Set<(notice: ProjectFilesNotice) => void>();
+  const windowListeners = new Set<(event: WindowEvent) => void>();
   let channel: Channel<unknown> | null = null;
 
   // A malformed message can only come from a bug on the Rust side. It stays
@@ -95,8 +124,13 @@ export function createTauriAppRequestSource(): AppRequestSource {
       return;
     }
     const notice = toProjectFilesNotice(message);
-    if (notice === null) return;
-    for (const listener of [...projectFilesListeners]) listener(notice);
+    if (notice !== null) {
+      for (const listener of [...projectFilesListeners]) listener(notice);
+      return;
+    }
+    const windowEvent = toWindowEvent(message);
+    if (windowEvent === null) return;
+    for (const listener of [...windowListeners]) listener(windowEvent);
   }
 
   // One channel per source, created on the first subscription: Rust keeps only the latest
@@ -135,6 +169,13 @@ export function createTauriAppRequestSource(): AppRequestSource {
       projectFilesListeners.add(listener);
       return () => {
         projectFilesListeners.delete(listener);
+      };
+    },
+    subscribeWindowEvents(listener) {
+      ensureSubscribed();
+      windowListeners.add(listener);
+      return () => {
+        windowListeners.delete(listener);
       };
     },
     acknowledgeOpenRequest(requestId) {

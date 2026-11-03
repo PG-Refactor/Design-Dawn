@@ -5,8 +5,10 @@ import {
   useRef,
   useState,
 } from "react";
+import type { DocumentWindowTarget } from "../../application/ports/document-window-gateway";
 import type { DocumentId } from "../../domain/shared/entity-id";
 import { useContextMenu } from "../../shared/menu/context-menu";
+import type { PopupMenuEntry } from "../../shared/menu/popup-menu";
 import { ExternalCompareTabItem } from "../external-change/external-compare-tab";
 import { activateDiff, closeDiff, pinDiff } from "../git/git-diff-session";
 import { GitDiffTabItem } from "../git/git-diff-tab";
@@ -16,6 +18,7 @@ import { DocumentIcon } from "./tree-icons";
 import { activateCompareTab, closeCompareTab } from "./ui-state/diff-tabs";
 import type { CompareTab, DiffTab, GitSelection } from "./ui-state/ui-state";
 import { useMessages } from "./use-messages";
+import { useProjectWindows } from "./use-project-windows";
 import { useTabDrag } from "./use-tab-drag";
 import {
   NAVIGATION_KEYS,
@@ -87,6 +90,13 @@ export function DocumentTabs() {
   // focused close button no longer exists) or moved (it keeps focus).
   const [focusRequest, setFocusRequest] = useState<string | null>(null);
   const contextMenu = useContextMenu();
+  const projectWindows = useProjectWindows();
+  const documentsOnly = useWorkspaceModel(
+    (application) => application.windowRole === "document",
+  );
+  const projectDocuments = useWorkspaceModel(
+    (application) => application.project?.documents ?? [],
+  );
 
   useEffect(() => {
     if (focusRequest === null) return;
@@ -206,18 +216,61 @@ export function DocumentTabs() {
     focusActiveTabOrFallback();
   }
 
+  // "Move to …" entries: a new window, and every other window of the Project (the
+  // Project window by its role, a Document window by the first Document it holds).
+  function moveEntries(tab: DocumentTab): PopupMenuEntry[] {
+    const move = (target: DocumentWindowTarget) =>
+      void actions.moveDocumentToWindow(tab.documentId, target);
+    const nameOf = (documentId: DocumentId) =>
+      projectDocuments.find((entry) => entry.documentId === documentId)?.name ??
+      null;
+    return [
+      { id: "moveSeparator", separator: true },
+      {
+        id: "moveToNewWindow",
+        label: messages.tabs.moveToNewWindow,
+        onSelect: () =>
+          move({ kind: "newWindow", screenX: null, screenY: null }),
+      },
+      ...projectWindows
+        .filter((window) => !window.isSelf)
+        .map((window): PopupMenuEntry => {
+          const firstName =
+            window.documentIds.length === 0
+              ? null
+              : nameOf(window.documentIds[0] as DocumentId);
+          return {
+            id: `moveTo-${window.label}`,
+            label:
+              window.role === "project"
+                ? messages.tabs.moveToProjectWindow
+                : firstName === null
+                  ? messages.tabs.moveToOtherWindow
+                  : messages.tabs.moveToWindowOf(firstName),
+            onSelect: () => move({ kind: "window", label: window.label }),
+          };
+        }),
+    ];
+  }
+
   function openTabMenu(event: MouseEvent, tab: DocumentTab): void {
     contextMenu.openFromEvent(event, messages.tabMenuLabel(tab.name), [
-      {
-        id: "rename",
-        label: messages.tree.rename,
-        onSelect: () => void actions.beginRenameDocument(tab.documentId),
-      },
+      // Renaming happens in the tree, which a Document window does not have.
+      ...(documentsOnly
+        ? []
+        : [
+            {
+              id: "rename",
+              label: messages.tree.rename,
+              onSelect: () => void actions.beginRenameDocument(tab.documentId),
+            },
+          ]),
       {
         id: "createSheet",
         label: messages.tabs.createSheet,
         onSelect: () => void actions.requestCreateSheet(tab.documentId),
       },
+      ...moveEntries(tab),
       { id: "closeSeparator", separator: true },
       {
         id: "close",

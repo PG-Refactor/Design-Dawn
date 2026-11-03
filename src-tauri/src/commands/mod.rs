@@ -351,6 +351,25 @@ fn with_tree_change<R: Runtime, T>(
     Ok(outcome)
 }
 
+/// A Document window that no longer holds any Document has nothing left to show: it is
+/// asked to close (through the normal close request, so its Frontend still confirms).
+fn close_if_empty_document_window<R: Runtime>(window: &Window<R>) {
+    let empty = {
+        let registry = window.state::<Mutex<WindowRegistry>>();
+        let registry = lock_registry(&registry);
+        registry.role_of(window.label()) == Some(WindowRole::Document)
+            && registry.documents_of(window.label()).is_empty()
+    };
+    if !empty {
+        return;
+    }
+    if let Some(target) = window.app_handle().get_webview_window(window.label()) {
+        if let Err(error) = target.close() {
+            eprintln!("failed to close empty document window: {error}");
+        }
+    }
+}
+
 /// Refuses to change or remove a Document another window holds. The window must have the
 /// Project first (a window of another Project hears `projectNotOpen`, as everywhere).
 fn ensure_document_here<R: Runtime>(
@@ -646,6 +665,7 @@ pub fn close_document<R: Runtime>(
         lock_registry(&window.state::<Mutex<WindowRegistry>>())
             .release_document(window.label(), &document);
     }
+    close_if_empty_document_window(&window);
     Ok(())
 }
 
@@ -1377,15 +1397,25 @@ pub fn subscribe_app_requests<R: Runtime>(
     window: Window<R>,
     hub: State<'_, AppRequestSubscriber>,
     transfers: State<'_, Mutex<DocumentTransfers>>,
+    pending: State<'_, Mutex<PendingOpenRequests>>,
     channel: Channel<AppNotification>,
 ) {
     hub.subscribe(window.label(), channel);
-    // Documents handed to the window before it listened (a reloaded page) are told again.
+    // Documents handed to the window before it listened (a reloaded page) are told again;
+    // not the one its start-up request carries (it takes that one with the request).
+    let launch_transfer = pending
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .pending_transfer_id(window.label())
+        .map(str::to_owned);
     let waiting = transfers
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
         .waiting_for(window.label());
-    for transfer_id in waiting {
+    for transfer_id in waiting
+        .into_iter()
+        .filter(|id| Some(id) != launch_transfer.as_ref())
+    {
         hub.send_untracked(
             window.label(),
             AppNotification::ReceiveDocument { transfer_id },
@@ -1424,6 +1454,7 @@ pub async fn transfer_document<R: Runtime>(
     let project = log_failure(ProjectId::parse(&project_id).map_err(ApplicationError::from))?;
     let document = log_failure(DocumentId::parse(&document_id).map_err(ApplicationError::from))?;
     let from = window.label().to_owned();
+    let sender = window.clone();
     let target = match target {
         TransferTargetArgument::NewWindow { screen_x, screen_y } => TransferTarget::NewWindow {
             position: screen_x.zip(screen_y),
@@ -1446,7 +1477,9 @@ pub async fn transfer_document<R: Runtime>(
             format!("document transfer task failed: {error}"),
         )
     })?;
-    log_failure(outcome)
+    log_failure(outcome)?;
+    close_if_empty_document_window(&sender);
+    Ok(())
 }
 
 /// The hand-over addressed to the calling window (once). The window holds the Document from

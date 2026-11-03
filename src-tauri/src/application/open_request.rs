@@ -80,6 +80,15 @@ impl PendingOpenRequests {
         self.by_window.remove(window_label)
     }
 
+    /// The hand-over the window's pending request carries, if it is one (the window takes
+    /// it with its request, so it is not announced separately).
+    pub fn pending_transfer_id(&self, window_label: &str) -> Option<&str> {
+        match self.by_window.get(window_label) {
+            Some(OpenRequest::DocumentTransfer { transfer_id, .. }) => Some(transfer_id),
+            _ => None,
+        }
+    }
+
     /// For a destroyed window: its request has nobody left to take it.
     pub fn discard(&mut self, window_label: &str) {
         self.by_window.remove(window_label);

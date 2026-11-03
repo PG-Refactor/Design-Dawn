@@ -32,6 +32,17 @@ export interface ProjectFilesNotice {
   readonly changes: ExternalChanges;
 }
 
+// What happens to this window because of another window of the same Project:
+// - `receiveDocument`: a Document was handed to this window; take it with
+//   `DocumentWindowGateway.takeDocumentTransfer`. Rust keeps it until taken (and says it
+//   again when the window subscribes again).
+// - `activateDocument`: another window tried to open a Document this window holds.
+// - `projectTreeChanged`: the tree (or a Document's name) changed in another window.
+export type WindowEvent =
+  | { readonly kind: "receiveDocument"; readonly transferId: string }
+  | { readonly kind: "activateDocument"; readonly documentId: DocumentId }
+  | { readonly kind: "projectTreeChanged"; readonly projectId: ProjectId };
+
 export interface AppRequestSource {
   // Returns the unsubscribe function.
   subscribe(listener: (request: OpenDocumentRequest) => void): () => void;
@@ -44,6 +55,9 @@ export interface AppRequestSource {
   subscribeProjectFiles(
     listener: (notice: ProjectFilesNotice) => void,
   ): () => void;
+  // Events from the other windows of the Project. Fire and forget, except
+  // `receiveDocument` (see `WindowEvent`).
+  subscribeWindowEvents(listener: (event: WindowEvent) => void): () => void;
   // Tells Rust the request was handled (or deliberately set aside), so it is not routed
   // again. An unknown id is not an error.
   acknowledgeOpenRequest(requestId: string): Promise<OperationResult<void>>;

@@ -9,7 +9,7 @@ import { DocumentTabs } from "./document-tabs";
 import { ProjectTreeSplitter } from "./project-tree-splitter";
 import { Sidebar } from "./sidebar";
 import { useMessages } from "./use-messages";
-import { useUiState } from "./workspace-hooks";
+import { useUiState, useWorkspaceModel } from "./workspace-hooks";
 import { useWorkspaceServices } from "./workspace-services-context";
 
 const { defaultWidthPx, maxWidthPx } = LAYOUT_CONFIG.projectTree;
@@ -31,6 +31,9 @@ export function WorkspaceBody() {
     selectProjectTreeWidth,
   );
   const mainTabKind = useUiState((ui) => ui.activeMainTab.kind);
+  const documentsOnly = useWorkspaceModel(
+    (application) => application.windowRole === "document",
+  );
   const [liveWidth, setLiveWidth] = useState<number | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   // Only the newest save may clear the live width: an older, slower one finishing later
@@ -76,21 +79,37 @@ export function WorkspaceBody() {
   };
 
   return (
-    <div ref={bodyRef} className="workspace-shell__body" style={style}>
-      <aside
-        className="workspace-shell__sidebar"
-        aria-label={messages.appRegionTreeLabel}
-      >
-        <Sidebar />
-      </aside>
-      <ProjectTreeSplitter
-        width={width}
-        measureMaxWidth={measureMaxWidth}
-        onPreview={setLiveWidth}
-        onCommit={(next) => void commit(next)}
-        onCancel={() => setLiveWidth(null)}
-        onReset={() => void commit(Math.min(defaultWidthPx, measureMaxWidth()))}
-      />
+    <div
+      ref={bodyRef}
+      className={
+        documentsOnly
+          ? "workspace-shell__body workspace-shell__body--documents-only"
+          : "workspace-shell__body"
+      }
+      style={style}
+    >
+      {/* A window of Documents moved out of another one has no tree: the Project window
+          is where the tree is changed. */}
+      {documentsOnly ? null : (
+        <>
+          <aside
+            className="workspace-shell__sidebar"
+            aria-label={messages.appRegionTreeLabel}
+          >
+            <Sidebar />
+          </aside>
+          <ProjectTreeSplitter
+            width={width}
+            measureMaxWidth={measureMaxWidth}
+            onPreview={setLiveWidth}
+            onCommit={(next) => void commit(next)}
+            onCancel={() => setLiveWidth(null)}
+            onReset={() =>
+              void commit(Math.min(defaultWidthPx, measureMaxWidth()))
+            }
+          />
+        </>
+      )}
       <main className="workspace-shell__main">
         <DocumentTabs />
         {mainTabKind === "diff" ? <GitDiffPanel /> : null}

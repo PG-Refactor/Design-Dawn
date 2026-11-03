@@ -229,6 +229,9 @@ export interface OpenRequestResult {
   readonly snapshot: ProjectSnapshot;
   readonly documentId: DocumentId | null;
   readonly resolution: EntryPointResolution | null;
+  // Set when this window was made for a Document moved out of another window: it joins
+  // the Project as a Document window and takes this hand-over.
+  readonly transferId: string | null;
 }
 
 // `status` values of the "open in a new window" result.

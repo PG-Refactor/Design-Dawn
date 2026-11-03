@@ -73,6 +73,7 @@ import {
   SHEET_A1,
   seedFolderTree,
   type WorkspaceHarness,
+  type WorkspaceHarnessOptions,
 } from "../../../application/test-support/workspace-harness";
 import {
   createThemeController,
@@ -139,6 +140,8 @@ export interface ActionsHarness extends WorkspaceHarness {
 export interface ActionsHarnessOptions {
   // The languages the fake WebView reports; the language preference stays "system".
   readonly systemLanguages?: readonly string[];
+  // See `WorkspaceHarnessOptions`: the windows of the Project and a shared fake disk.
+  readonly workspace?: WorkspaceHarnessOptions;
 }
 
 // The tests assert Japanese texts unless a test asks for another language.
@@ -147,7 +150,7 @@ export const DEFAULT_TEST_SYSTEM_LANGUAGES: readonly string[] = ["ja"];
 export function createActionsHarness(
   options: ActionsHarnessOptions = {},
 ): ActionsHarness {
-  const base = createWorkspaceHarness();
+  const base = createWorkspaceHarness(options.workspace);
   const uiStateStore = createUiStateStore();
   connectWorkspaceToUiState(base.workspace, uiStateStore);
   const draftRegistry = createDraftRegistry();

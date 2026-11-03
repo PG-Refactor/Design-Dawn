@@ -112,8 +112,13 @@ export interface OpenDocumentDetails {
   readonly issues: readonly LoadIssue[];
 }
 
+// What this window shows of its Project: the Project Tree and Documents ("project"), or
+// only Documents moved out of another window ("document"), which cannot change the tree.
+export type WindowRole = "project" | "document";
+
 export interface ApplicationState {
   readonly project: OpenProjectState | null;
+  readonly windowRole: WindowRole;
   readonly documents: ReadonlyMap<DocumentId, DocumentSessionState>;
   // Sibling of `documents` (same keys): the session state stays exactly what the
   // document session publishes.
@@ -123,7 +128,12 @@ export interface ApplicationState {
 export type ApplicationStore = Store<ApplicationState>;
 
 export function createInitialApplicationState(): ApplicationState {
-  return { project: null, documents: new Map(), documentDetails: new Map() };
+  return {
+    project: null,
+    windowRole: "project",
+    documents: new Map(),
+    documentDetails: new Map(),
+  };
 }
 
 export function createApplicationStore(): ApplicationStore {

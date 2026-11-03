@@ -13,6 +13,10 @@ import {
   renameSheetCommand,
 } from "../../application/commands/naming-commands";
 import type { AutoSavePolicy } from "../../application/ports/auto-save-policy";
+import type {
+  DocumentWindowTarget,
+  ProjectWindowInfo,
+} from "../../application/ports/document-window-gateway";
 import {
   fromDomainResult,
   type OperationError,
@@ -118,8 +122,24 @@ export interface WorkspaceActions {
   ): Promise<OperationResult<void>>;
 
   // Opens the document if needed, makes it active and activates its first sheet when
-  // none is active. A document that failed to load is left alone.
+  // none is active. A document that failed to load is left alone. A Document another
+  // window holds is shown there (Rust brings that window forward), with a light notice.
   openDocument(documentId: DocumentId): Promise<OperationResult<void>>;
+  // Moves an open Document to a new window (where it was dropped, when known) or to
+  // another window of the Project, with its unsaved changes and history; nothing is
+  // saved. Editor drafts are committed first. The neighbouring tab becomes active here.
+  moveDocumentToWindow(
+    documentId: DocumentId,
+    target: DocumentWindowTarget,
+  ): Promise<OperationResult<void>>;
+  // Another window handed a Document to this one: opens it as it was there and shows it.
+  receiveDocument(transferId: string): Promise<OperationResult<void>>;
+  // Another window tried to open a Document this window holds: shows its tab.
+  showDocumentFromOtherWindow(documentId: DocumentId): void;
+  // Another window changed the tree or a Document's name.
+  refreshProjectTree(): Promise<OperationResult<void>>;
+  // The windows of the Project, for "move to …".
+  listProjectWindows(): Promise<OperationResult<readonly ProjectWindowInfo[]>>;
   // Saves first (the workspace decides); on success the neighbouring tab becomes active.
   closeDocument(documentId: DocumentId): Promise<OperationResult<void>>;
   selectSheet(
@@ -369,6 +389,13 @@ export function createWorkspaceActions(
     if (entry?.state !== "loaded") return operationOk(false);
     const opened = await workspace.openDocument(documentId);
     if (!opened.ok) {
+      // Not a failure: the window that holds it was brought forward.
+      if (opened.error.kind === "documentOpenInOtherWindow") {
+        uiStateStore.setState((state) =>
+          showNotice(state, "documentOpenInOtherWindow"),
+        );
+        return operationOk(false);
+      }
       record("openDocument", entry.name, opened.error);
       return opened;
     }
@@ -812,6 +839,39 @@ export function createWorkspaceActions(
       if (opened.value) activateDocument(documentId);
       return operationOk(undefined);
     },
+    async moveDocumentToWindow(documentId, target) {
+      const name = documentNameOf(documentId);
+      const result = await finishRemoval(documentId, async () => {
+        // A draft is part of the Document: committed (an undoable edit) so it moves too.
+        const drafts = await draftRegistry.commitFor([documentId]);
+        if (!drafts.ok) return drafts;
+        return workspace.moveDocumentToWindow(documentId, target);
+      });
+      if (!result.ok) {
+        record("moveDocumentToWindow", entitySubject(name), result.error);
+      }
+      return result;
+    },
+    async receiveDocument(transferId) {
+      const received = await workspace.receiveDocument(transferId);
+      if (!received.ok) {
+        record("receiveDocument", null, received.error);
+        return received;
+      }
+      activateDocument(received.value);
+      return operationOk(undefined);
+    },
+    showDocumentFromOtherWindow(documentId) {
+      if (applicationStore.getState().documents.has(documentId)) {
+        activateDocument(documentId);
+      }
+    },
+    async refreshProjectTree() {
+      const refreshed = await workspace.refreshProjectTree();
+      if (!refreshed.ok) record("openProject", null, refreshed.error);
+      return refreshed;
+    },
+    listProjectWindows: () => workspace.listProjectWindows(),
     closeDocument(documentId) {
       const name = documentNameOf(documentId);
       if (

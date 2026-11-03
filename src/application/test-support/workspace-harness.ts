@@ -11,6 +11,7 @@ import {
   type ProjectWriteSignal,
   withWriteSignal,
 } from "../git/project-write-signal";
+import type { DocumentWindowGateway } from "../ports/document-window-gateway";
 import type { OperationResult } from "../ports/operation-error";
 import type { PersistenceGateway } from "../ports/persistence-gateway";
 import type { LoadIssue, ProjectSnapshot } from "../ports/persistence-types";
@@ -78,7 +79,21 @@ export interface WorkspaceHarness {
   readonly settingsGateway: FakeAppSettingsGateway;
 }
 
-export function createWorkspaceHarness(): WorkspaceHarness {
+export interface WorkspaceHarnessOptions {
+  // The other windows of the Project (moving Documents between them).
+  readonly windows?: DocumentWindowGateway;
+  // Another window of the same Project: its fake disk (already seeded) is shared.
+  readonly sharedGateway?: FakeGateway;
+}
+
+export function createWorkspaceHarness(
+  options: WorkspaceHarnessOptions = {},
+): WorkspaceHarness {
+  const gateway = options.sharedGateway ?? seededGateway();
+  return harnessOver(gateway, options.windows);
+}
+
+function seededGateway(): FakeGateway {
   const gateway = createFakeGateway();
   gateway.seedDocument({
     documentId: DOCUMENT_A,
@@ -96,6 +111,13 @@ export function createWorkspaceHarness(): WorkspaceHarness {
     sheets: [{ sheetId: SHEET_B1, name: "Sheet B1" }],
   });
   gateway.seedDocument({ documentId: FAILED_DOCUMENT_ID, state: "loadFailed" });
+  return gateway;
+}
+
+function harnessOver(
+  gateway: FakeGateway,
+  windows: DocumentWindowGateway | undefined,
+): WorkspaceHarness {
   const scheduler = createFakeScheduler();
   const store = createApplicationStore();
   const events: WorkspaceEvent[] = [];
@@ -117,6 +139,7 @@ export function createWorkspaceHarness(): WorkspaceHarness {
     idGenerator: createSequentialIdGenerator(),
     store,
     config: { undoHistoryLimit: 50, autoSaveDelayMs: TEST_AUTO_SAVE_DELAY_MS },
+    windows,
   });
   workspace.subscribe((event) => events.push(event));
   return {

@@ -242,6 +242,8 @@ export const OPERATION_LABELS = [
   "loadGitHistory",
   "repairLoadIssue",
   "updateFileFormat",
+  "moveDocumentToWindow",
+  "receiveDocument",
 ] as const;
 
 export type OperationLabel = (typeof OPERATION_LABELS)[number];
@@ -252,6 +254,7 @@ export const NOTICE_KINDS = [
   "documentAlreadyOpen",
   "projectOpenInOtherWindow",
   "projectOpenInThisWindow",
+  "documentOpenInOtherWindow",
   "externalReloaded",
   "externalWatchUnavailable",
   "loadIssueRepaired",

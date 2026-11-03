@@ -2,10 +2,12 @@
 // DOM tests only; not imported by production code.
 
 import { act, render, screen, waitFor, within } from "@testing-library/react";
+
 import userEvent from "@testing-library/user-event";
 import type { LoadIssue } from "../../../application/ports/persistence-types";
 import { settle } from "../../../application/test-support/fakes";
 import { TEST_AUTO_SAVE_DELAY_MS } from "../../../application/test-support/session-harness";
+import type { WorkspaceHarnessOptions } from "../../../application/test-support/workspace-harness";
 import { MermaidRendererContext } from "../../mermaid/mermaid-renderer-context";
 import type { MermaidRenderer } from "../../mermaid/mermaid-renderer-types";
 import { createFakeRenderer } from "../../mermaid/test-support/fake-mermaid-renderer";
@@ -39,6 +41,8 @@ export interface ShellOptions {
   readonly systemLanguages?: readonly string[];
   // Replaces the real Mermaid renderer, so a test never loads the library.
   readonly mermaidRenderer?: MermaidRenderer;
+  // See `WorkspaceHarnessOptions`: the windows of the Project and a shared fake disk.
+  readonly workspace?: WorkspaceHarnessOptions;
 }
 
 export async function renderShell(
@@ -46,6 +50,7 @@ export async function renderShell(
 ): Promise<ShellHarness> {
   const harness = createActionsHarness({
     systemLanguages: options.systemLanguages,
+    workspace: options.workspace,
   });
   options.seed?.(harness);
   if (options.projectIssues !== undefined) {

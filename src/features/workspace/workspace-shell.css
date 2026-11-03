@@ -45,6 +45,11 @@
   color: var(--color-text-muted);
 }
 
+/* A Document window: no tree, the document area takes the whole width. */
+.workspace-shell__body--documents-only {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 /* Narrow windows stack the tree above the main area. */
 @media (max-width: 40rem) {
   .workspace-shell__body {

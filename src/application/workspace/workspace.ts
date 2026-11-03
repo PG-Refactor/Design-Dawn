@@ -24,9 +24,19 @@ import {
   createDocumentSession,
   type DocumentSession,
   type DocumentSessionConfig,
+  type DocumentSessionSeed,
 } from "../document-session/document-session";
+import {
+  decodeDocumentTransfer,
+  encodeDocumentTransfer,
+} from "../document-session/document-transfer";
 import type { IdGenerator } from "../id-generator";
 import type { AutoSavePolicy } from "../ports/auto-save-policy";
+import type {
+  DocumentWindowGateway,
+  DocumentWindowTarget,
+  ProjectWindowInfo,
+} from "../ports/document-window-gateway";
 import {
   failWith,
   fromDomainResult,
@@ -45,6 +55,7 @@ import {
   type ApplicationState,
   connectSessionToStore,
   createInitialApplicationState,
+  type OpenDocumentDetails,
   type OpenProjectState,
   putDocumentDetails,
   putDocumentSession,
@@ -97,6 +108,9 @@ export interface WorkspaceOptions {
   readonly store: Store<ApplicationState>;
   readonly config: WorkspaceConfig;
   readonly events?: WorkspaceEvents;
+  // The other windows of the Project (moving Documents between them). Without it, moving
+  // is `notWritable` and nothing else changes.
+  readonly windows?: DocumentWindowGateway;
 }
 
 // `discardChanges` closes WITHOUT saving: only after the user explicitly chose to give up
@@ -202,6 +216,22 @@ export interface Workspace {
   // closing anything. Tries all of it; returns the first error.
   saveAll(): Promise<OperationResult<void>>;
 
+  // Moves an open Document to another window WITHOUT saving: its unsaved changes and
+  // undo / redo history go with it, and this window drops it. When the move fails the
+  // Document stays here as it was. Editor drafts must be committed by the caller first.
+  moveDocumentToWindow(
+    documentId: DocumentId,
+    target: DocumentWindowTarget,
+  ): Promise<OperationResult<void>>;
+  // Opens a Document another window handed to this one, as it was there (unsaved changes
+  // and history included). Resolves to the Document's id.
+  receiveDocument(transferId: string): Promise<OperationResult<DocumentId>>;
+  // Another window changed the tree or a Document's name: reads the Project again (without
+  // touching the session) and takes over the names; a Document window also takes the tree.
+  refreshProjectTree(): Promise<OperationResult<void>>;
+  // The windows of this window's Project (what a Document can move to).
+  listProjectWindows(): Promise<OperationResult<readonly ProjectWindowInfo[]>>;
+
   createSheet(
     documentId: DocumentId,
     name: string,
@@ -216,6 +246,11 @@ export interface Workspace {
 export function createWorkspace(options: WorkspaceOptions): Workspace {
   const { gateway, scheduler, idGenerator, store, config, autoSavePolicy } =
     options;
+  const { windows } = options;
+  // Hand-overs already taken, by id. The same hand-over can be announced again (a window
+  // that subscribes while starting hears about the one its start-up request carries), and
+  // taking it a second time must not count as a failure.
+  const takenTransfers = new Map<string, DocumentId>();
   const events = options.events ?? createWorkspaceEvents();
   const sessions = new Map<DocumentId, DocumentSession>();
   const connectSession = connectSessionToStore(store);
@@ -511,6 +546,162 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     });
   }
 
+  // ---- documents: moving between windows ----
+
+  // Puts a session made from a hand-over into the workspace, like a freshly opened one.
+  function adoptSession(
+    projectId: ProjectId,
+    seed: DocumentSessionSeed,
+    details: { readonly issues: OpenDocumentDetails["issues"] },
+  ): void {
+    const documentId = seed.document.documentId;
+    const session = createDocumentSession({
+      projectId,
+      document: seed.document,
+      sheets: seed.sheets,
+      seed,
+      gateway,
+      scheduler,
+      autoSavePolicy,
+      config,
+      onStateChange: connectSession,
+    });
+    const sessionState = session.getState();
+    sessions.set(documentId, session);
+    store.setState((state) =>
+      putDocumentDetails(putDocumentSession(state, sessionState), documentId, {
+        sheetEntries: syncSheetEntries([], sessionState),
+        issues: details.issues,
+      }),
+    );
+  }
+
+  function moveDocumentStep(
+    documentId: DocumentId,
+    target: DocumentWindowTarget,
+  ): Promise<OperationResult<void>> {
+    return runLifecycle(async () => {
+      if (windows === undefined) {
+        return operationErr("notWritable", "no other windows to move to");
+      }
+      const project = requireProject();
+      if (!project.ok) return project;
+      const session = sessions.get(documentId);
+      if (session === undefined) {
+        return operationErr(
+          "notWritable",
+          `document ${documentId} is not open`,
+        );
+      }
+      const issues =
+        store.getState().documentDetails.get(documentId)?.issues ?? [];
+      const handed = await session.handOver();
+      if (!handed.ok) return handed;
+      const payload = encodeDocumentTransfer({
+        projectId: project.value.projectId,
+        sessionGeneration: project.value.sessionGeneration,
+        documentId,
+        seed: handed.value,
+      });
+      const moved = await windows.transferDocument(
+        project.value.projectId,
+        documentId,
+        payload,
+        target,
+      );
+      if (!moved.ok) {
+        // Nothing left: the Document goes on here exactly as it was.
+        adoptSession(project.value.projectId, handed.value, { issues });
+        return moved;
+      }
+      // Not `closeDocument` in Rust: the Document stays open there, held by its new window.
+      detachDocument(documentId);
+      return operationOk(undefined);
+    });
+  }
+
+  function receiveDocumentStep(
+    transferId: string,
+  ): Promise<OperationResult<DocumentId>> {
+    return runLifecycle(async () => {
+      if (windows === undefined) {
+        return operationErr("invalidDocumentTransfer", "no window gateway");
+      }
+      const already = takenTransfers.get(transferId);
+      if (already !== undefined) return operationOk(already);
+      const project = requireProject();
+      if (!project.ok) return project;
+      const taken = await windows.takeDocumentTransfer(transferId);
+      if (!taken.ok) return taken;
+      const decoded = decodeDocumentTransfer(taken.value);
+      if (!decoded.ok) return decoded;
+      const transfer = decoded.value;
+      // A Document read under another Project, or under an older read of it, would save
+      // over files this window does not know the state of.
+      if (
+        transfer.projectId !== project.value.projectId ||
+        transfer.sessionGeneration !== project.value.sessionGeneration
+      ) {
+        return operationErr(
+          "invalidDocumentTransfer",
+          "the document belongs to another read of the project",
+        );
+      }
+      if (sessions.has(transfer.documentId)) {
+        return operationErr(
+          "invalidDocumentTransfer",
+          `document ${transfer.documentId} is already open here`,
+        );
+      }
+      adoptSession(project.value.projectId, transfer.seed, { issues: [] });
+      takenTransfers.set(transferId, transfer.documentId);
+      return operationOk(transfer.documentId);
+    });
+  }
+
+  function refreshProjectTreeStep(): Promise<OperationResult<void>> {
+    return runLifecycle(async () => {
+      if (windows === undefined) return operationOk(undefined);
+      const project = requireProject();
+      if (!project.ok) return project;
+      const read = await windows.getProjectSnapshot(project.value.projectId);
+      if (!read.ok) return read;
+      const valid = validateProjectSnapshot(read.value);
+      if (!valid.ok) return valid;
+      const fresh = valid.value;
+      if (store.getState().windowRole === "document") {
+        // Nothing here changes the tree: take it as it is now.
+        updateProject((current) => ({
+          ...current,
+          project: fresh.project,
+          folders: fresh.folders.map((entry) => ({
+            ...entry,
+            save: CLEAN_SAVE,
+          })),
+          documents: fresh.documents,
+        }));
+        return operationOk(undefined);
+      }
+      // The Project window owns its tree; only names changed elsewhere are taken over
+      // (a Document renamed in the window that holds it). Open Documents name themselves.
+      const names = new Map(
+        fresh.documents.map((entry) => [entry.documentId, entry.name]),
+      );
+      updateProject((current) => ({
+        ...current,
+        documents: current.documents.map((entry) => {
+          const name = names.get(entry.documentId);
+          return name === undefined ||
+            name === entry.name ||
+            sessions.has(entry.documentId)
+            ? entry
+            : { ...entry, name };
+        }),
+      }));
+      return operationOk(undefined);
+    });
+  }
+
   // ---- project-level operations ----
 
   function createDocumentStep(
@@ -801,7 +992,11 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
         () => Promise.resolve(operationOk(request.snapshot)),
         false,
       );
-      return installed.ok ? operationOk(request.documentId) : installed;
+      if (!installed.ok) return installed;
+      if (request.transferId === null) return operationOk(request.documentId);
+      // A window made for a Document moved out of another window: Documents only.
+      store.setState((state) => ({ ...state, windowRole: "document" }));
+      return receiveDocumentStep(request.transferId);
     },
     openProjectInNewWindow: (selectionId) =>
       gateway.openProjectInNewWindow(selectionId),
@@ -850,6 +1045,15 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     flushDocuments: (documentIds) =>
       runLifecycle(() => flushOpenDocuments(documentIds)),
     saveAll: () => runLifecycle(saveEverything),
+    moveDocumentToWindow: moveDocumentStep,
+    receiveDocument: receiveDocumentStep,
+    refreshProjectTree: refreshProjectTreeStep,
+    async listProjectWindows() {
+      const project = requireProject();
+      if (!project.ok) return project;
+      if (windows === undefined) return operationOk([]);
+      return windows.listProjectWindows(project.value.projectId);
+    },
     createSheet: createSheetStep,
     deleteSheet: (documentId, sheetId) => deleteSheetStep(documentId, sheetId),
   };
