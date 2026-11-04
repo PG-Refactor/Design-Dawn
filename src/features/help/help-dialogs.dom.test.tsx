@@ -3,6 +3,7 @@ import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import licenseText from "../../../LICENSE?raw";
 import { APP_CONFIG } from "../../config/app-config";
+import { AI_ACCESS_MESSAGES } from "../ai-access/ai-access-messages";
 import {
   chooseMenuItem,
   openMenu,
@@ -16,7 +17,7 @@ const EN = WORKSPACE_MESSAGES.en;
 const NOTICES_HEADING = "# Third-Party Notices";
 
 describe("Help menu", () => {
-  it("lists About, License and Third-Party Licenses", async () => {
+  it("lists the AI integration, About, License and Third-Party Licenses", async () => {
     const shell = await renderShell({ systemLanguages: ["en"] });
     const menu = await openMenu(shell.user, EN.topBar.helpMenu);
     expect(
@@ -24,6 +25,7 @@ describe("Help menu", () => {
         .getAllByRole("menuitem")
         .map((item) => item.textContent),
     ).toEqual([
+      AI_ACCESS_MESSAGES.en.menuItem,
       EN.topBar.about,
       EN.topBar.license,
       EN.topBar.thirdPartyLicenses,

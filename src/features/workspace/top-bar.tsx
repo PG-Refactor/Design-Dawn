@@ -13,6 +13,7 @@ import {
 } from "../../config/language-config";
 import { TEXT_SIZES, type TextSize } from "../../config/text-size-config";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
+import { AiAccessDialog } from "../ai-access/ai-access-dialog";
 import { type HelpDialogKind, HelpDialogs } from "../help/help-dialogs";
 import { MenuBar } from "../menu-bar/menu-bar";
 import type { MenuDefinition } from "../menu-bar/menu-bar-types";
@@ -73,8 +74,10 @@ const selectProjectName = (application: ApplicationState) =>
   application.project?.project.name ?? null;
 
 export function TopBar() {
-  const messages = useMessages().workspace;
+  const allMessages = useMessages();
+  const messages = allMessages.workspace;
   const topBar = messages.topBar;
+  const aiAccessTexts = allMessages.aiAccess;
   const {
     actions,
     themeController,
@@ -118,6 +121,7 @@ export function TopBar() {
   );
   const hasProject = projectName !== null;
   const [helpDialog, setHelpDialog] = useState<HelpDialogKind | null>(null);
+  const [aiAccessOpen, setAiAccessOpen] = useState(false);
 
   const menus = useMemo<readonly MenuDefinition[]>(
     () => [
@@ -243,6 +247,13 @@ export function TopBar() {
         entries: [
           {
             kind: "item",
+            id: "aiAccess",
+            label: aiAccessTexts.menuItem,
+            onSelect: () => setAiAccessOpen(true),
+          },
+          { kind: "separator", id: "separator-about" },
+          {
+            kind: "item",
             id: "about",
             label: topBar.about,
             onSelect: () => setHelpDialog("about"),
@@ -265,6 +276,7 @@ export function TopBar() {
     ],
     [
       topBar,
+      aiAccessTexts,
       actions,
       busy,
       hasProject,
@@ -291,6 +303,9 @@ export function TopBar() {
       <div className="top-bar__spacer" />
       <Notifications />
       <HelpDialogs dialog={helpDialog} onChange={setHelpDialog} />
+      {aiAccessOpen && (
+        <AiAccessDialog onClose={() => setAiAccessOpen(false)} />
+      )}
     </header>
   );
 }

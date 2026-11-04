@@ -149,34 +149,51 @@ yourself or got from a source you trust.
 
 ## Using it with AI (MCP)
 
-```sh
-docker compose exec dev cargo build --release --manifest-path src-tauri/Cargo.toml --bin design-dawn-mcp
-claude mcp add design-dawn -- /path/to/design-dawn-mcp --project /path/to/my-project
-```
+`design-dawn-mcp` is a local MCP server that lets an AI tool (Claude, Codex, GitHub Copilot,
+Cursor or any other MCP client) read and edit Design Dawn Projects. It speaks MCP over
+stdin/stdout only, opens no network port, and works whether or not the app is running.
 
-The server speaks MCP over stdin/stdout only and works whether or not the app is running.
-
-- **Read tools**: `getProject`, `getDocument`, `getSheet`, `getBlock`.
-- **Write tools** (only with `--allow-write`): `createDocument`, `createSheet`, `createBlock`
-  (Markdown or Mermaid), `updateDocument`, `updateSheet`, `updateBlock`, `moveBlock`, `deleteBlock`.
-- To change a block's text, read it with `getBlock` and pass its `contentHash` as
-  `expectedContentHash`; if the text changed in the meantime the call returns `conflict`.
-- It cannot delete documents, sheets or projects, import files from disk, run commands, use Git or
-  open network connections. If the app has the project open, it picks the changes up as external
-  changes.
-
-Claude Desktop (`claude_desktop_config.json`):
+**Set-up (once per AI tool)**: in the app, open **Help → AI Integration (MCP)**. It shows the
+command to register (the `design-dawn-mcp` next to the app) with a Copy button, and the same as
+the common JSON form:
 
 ```json
 {
   "mcpServers": {
-    "design-dawn": {
-      "command": "/path/to/design-dawn-mcp",
-      "args": ["--project", "/path/to/my-project"]
-    }
+    "design-dawn": { "command": "C:\\path\\to\\design-dawn-mcp.exe" }
   }
 }
 ```
+
+Register it the way your AI tool adds MCP servers (for Claude Code:
+`claude mcp add design-dawn -- <command>`). No Project is named in the registration.
+
+**Which Project the AI works on**: by default the Project open in the app (the window used last;
+the last one opened when the app is closed). The AI can list the Projects the app has opened
+(`listProjects`) and choose one (`selectProject`), so "summarize the order-service Project" works
+without registering anything again.
+
+**Permissions**: every Project is read-only for AI until you tick **Allow changes by AI** for it
+in the AI Integration screen. Only the app changes this list (it is kept in the app's settings
+folder as `ai-access.json`, never inside a Project), so an AI cannot grant itself access. The
+screen also removes a Project from the list.
+
+- **Tools**: `listProjects`, `selectProject`, `getProject`, `getDocument`, `getSheet`, `getBlock`;
+  for writable Projects also `createDocument`, `createSheet`, `createBlock` (Markdown or Mermaid),
+  `updateDocument`, `updateSheet`, `updateBlock`, `moveBlock`, `deleteBlock`.
+- To change a block's text, the AI reads it with `getBlock` and passes its `contentHash` as
+  `expectedContentHash`; if the text changed in the meantime the call returns `conflict`.
+- It cannot delete documents, sheets or projects, import files from disk, run commands, use Git or
+  open network connections. If the app has the project open, it shows the changes at once.
+
+**One fixed Project** (without the app's list): start it with
+`--project <folder holding project.json>`, and add `--allow-write` to allow changes:
+
+```sh
+claude mcp add design-dawn -- /path/to/design-dawn-mcp --project /path/to/my-project
+```
+
+To build only the server: `cargo build --release --manifest-path src-tauri/Cargo.toml --bin design-dawn-mcp`.
 
 ## License
 

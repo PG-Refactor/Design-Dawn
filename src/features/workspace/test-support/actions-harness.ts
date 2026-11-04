@@ -31,6 +31,10 @@ import {
   createApplicationStore,
 } from "../../../application/state/application-state";
 import {
+  createFakeAiAccessGateway,
+  type FakeAiAccessGateway,
+} from "../../../application/test-support/fake-ai-access";
+import {
   createFakeAppRequestSource,
   type FakeAppRequestSource,
 } from "../../../application/test-support/fake-app-requests";
@@ -125,6 +129,8 @@ export interface ActionsHarness extends WorkspaceHarness {
   readonly viewportPersistence: ViewportPersistence;
   readonly gitGateway: FakeGitGateway;
   readonly gitController: GitController;
+  // The AI integration screen's list; tests seed and inspect it.
+  readonly aiAccess: FakeAiAccessGateway;
   // The clock that debounces the automatic status read; tests advance it.
   readonly gitRefreshScheduler: FakeScheduler;
   // The language controller has its own settings gateway, so a test can fail or inspect
@@ -176,6 +182,7 @@ export function createActionsHarness(
   const dropEventSource = createFakeDropEventSource();
   const closeRequestSource = createFakeCloseRequestSource();
   const windowTitles: (string | null)[] = [];
+  const aiAccess = createFakeAiAccessGateway();
   const appRequestSource = createFakeAppRequestSource();
   const viewportGateway = createFakeViewportGateway();
   const viewportScheduler = createFakeScheduler();
@@ -247,6 +254,7 @@ export function createActionsHarness(
     closeRequestSource,
     windowTitles,
     appRequestSource,
+    aiAccess,
     viewportGateway,
     viewportScheduler,
     viewportPersistence,
@@ -272,6 +280,7 @@ export function createActionsHarness(
       textSizeController,
       autoSaveController: base.autoSaveController,
       layoutSettingsController: base.layoutSettingsController,
+      aiAccess,
       gitController,
       projectWriteSignal: base.writeSignal,
       gitRefreshScheduler,

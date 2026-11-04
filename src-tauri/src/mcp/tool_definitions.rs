@@ -4,6 +4,8 @@
 
 use serde_json::{json, Map, Value};
 
+pub const LIST_PROJECTS: &str = "listProjects";
+pub const SELECT_PROJECT: &str = "selectProject";
 pub const GET_PROJECT: &str = "getProject";
 pub const GET_DOCUMENT: &str = "getDocument";
 pub const GET_SHEET: &str = "getSheet";
@@ -32,8 +34,11 @@ pub struct Property {
 pub struct ToolDefinition {
     pub name: &'static str,
     pub description: &'static str,
-    /// Write tools are hidden and refused unless the server was started with `--allow-write`.
+    /// Write tools are refused unless the Project may be changed (`--allow-write`, or the
+    /// app's per-Project permission).
     pub writes: bool,
+    /// Choosing the Project: offered only when the server follows the app (no `--project`).
+    pub project_choice: bool,
     /// Whether the call replaces or removes something that cannot be brought back by the tool.
     pub destructive: bool,
     pub properties: Vec<Property>,
@@ -128,6 +133,7 @@ pub fn tool_definitions() -> Vec<ToolDefinition> {
         description,
         writes: false,
         destructive: false,
+        project_choice: false,
         properties,
     };
     let write = |name, description, destructive, properties| ToolDefinition {
@@ -135,9 +141,36 @@ pub fn tool_definitions() -> Vec<ToolDefinition> {
         description,
         writes: true,
         destructive,
+        project_choice: false,
+        properties,
+    };
+    let choice = |name, description, properties| ToolDefinition {
+        name,
+        description,
+        writes: false,
+        destructive: false,
+        project_choice: true,
         properties,
     };
     vec![
+        choice(
+            LIST_PROJECTS,
+            "The Projects Design Dawn offers to AI, most recently opened first: projectId, name, \
+folder name, whether it is open in the app, whether the other tools use it now (inUse) and \
+whether it may be changed (writable). Without selectProject the tools use the Project open in \
+the app.",
+            vec![],
+        ),
+        choice(
+            SELECT_PROJECT,
+            "Chooses the Project the other tools work on, by projectId from listProjects. Omit \
+projectId to follow the Project open in the app again. Only for this session.",
+            vec![id(
+                "projectId",
+                false,
+                "ID of the Project (from listProjects); omit to follow the app",
+            )],
+        ),
         read(
             GET_PROJECT,
             "The Project: its ID and name, the Folder tree and the list of Documents.",

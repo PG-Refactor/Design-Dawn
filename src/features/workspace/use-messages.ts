@@ -2,6 +2,10 @@ import type { LanguageState } from "../../application/language/language-controll
 import type { DisplayLanguage } from "../../config/language-config";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import {
+  AI_ACCESS_MESSAGES,
+  type AiAccessMessages,
+} from "../ai-access/ai-access-messages";
+import {
   CANVAS_MESSAGES,
   type CanvasMessages,
 } from "../canvas/canvas-messages";
@@ -30,6 +34,7 @@ export interface Messages {
   readonly mermaid: MermaidMessages;
   readonly image: ImageMessages;
   readonly git: GitMessages;
+  readonly aiAccess: AiAccessMessages;
 }
 
 function collectMessages(language: DisplayLanguage): Messages {
@@ -40,6 +45,7 @@ function collectMessages(language: DisplayLanguage): Messages {
     mermaid: MERMAID_MESSAGES[language],
     image: IMAGE_MESSAGES[language],
     git: GIT_MESSAGES[language],
+    aiAccess: AI_ACCESS_MESSAGES[language],
   };
 }
 

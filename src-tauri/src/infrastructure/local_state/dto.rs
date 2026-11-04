@@ -48,6 +48,27 @@ pub struct WindowSizeDto {
     pub maximized: bool,
 }
 
+/// `ai-access.json`: the Projects opened in the app, newest first, with whether an AI may
+/// change each one.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AiAccessFileDto {
+    pub schema_version: Number,
+    /// The Project of the app window used last; absent when none was opened yet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub current_project_id: Option<String>,
+    pub projects: Vec<AiAccessProjectDto>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AiAccessProjectDto {
+    pub project_id: String,
+    /// The Project folder (the one holding `project.json`).
+    pub folder: String,
+    pub allow_write: bool,
+}
+
 /// The `viewport` argument of `save_sheet_viewport`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

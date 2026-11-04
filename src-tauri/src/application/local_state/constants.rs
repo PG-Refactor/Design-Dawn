@@ -43,3 +43,17 @@ pub const WINDOW_WIDTH_MIN: u32 = 400;
 pub const WINDOW_WIDTH_MAX: u32 = 16_384;
 pub const WINDOW_HEIGHT_MIN: u32 = 300;
 pub const WINDOW_HEIGHT_MAX: u32 = 16_384;
+
+/// Projects kept in `ai-access.json`; the ones opened longest ago are dropped beyond this,
+/// so the list stays short enough to read and cannot grow without bound.
+pub const MAX_AI_ACCESS_PROJECTS: usize = 50;
+
+/// The file name of the MCP server without its platform suffix (`.exe` on Windows). It is
+/// installed next to the app, so the app finds it beside its own executable. Must match
+/// the `[[bin]]` name of `design-dawn-mcp` in Cargo.toml.
+pub const MCP_SERVER_EXECUTABLE_STEM: &str = "design-dawn-mcp";
+
+/// The app's identifier, which names its settings folder (`<OS config folder>/<identifier>`,
+/// where Tauri puts `settings.json` and `ai-access.json`). The MCP server finds the app's
+/// AI access list there. Must equal `identifier` in tauri.conf.json (checked by a test).
+pub const APP_IDENTIFIER: &str = "com.pgrefactor.designdawn";

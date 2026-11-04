@@ -1482,3 +1482,61 @@ fn a_new_project_is_created_in_a_named_folder_inside_the_chosen_place() {
     assert_eq!(default["status"], "selected");
     assert_eq!(default["displayPath"], place.display().to_string());
 }
+
+#[test]
+fn opening_a_project_offers_it_to_ai_read_only_and_the_screen_changes_that() {
+    let temp = TempDir::new();
+    let (_project_temp, project_root) = project_copy();
+    let app = build_app(
+        vec![PickerOutcome::Folder(project_root.clone())],
+        local_state_directories(temp.path()),
+    );
+    let window = main_window(&app);
+    let empty = invoke(&window, "ai_access_overview", &serde_json::json!({})).unwrap();
+    assert_eq!(empty["projects"], serde_json::json!([]));
+    assert!(empty["mcpServer"]["displayPath"]
+        .as_str()
+        .unwrap()
+        .contains("design-dawn-mcp"));
+
+    let selection = invoke(&window, "select_project_folder", &serde_json::json!({})).unwrap();
+    invoke(
+        &window,
+        "open_project",
+        &serde_json::json!({ "selectionId": selection["selectionId"] }),
+    )
+    .unwrap();
+
+    let overview = invoke(&window, "ai_access_overview", &serde_json::json!({})).unwrap();
+    let project = &overview["projects"][0];
+    assert_eq!(project["projectId"], PROJECT_ID);
+    assert_eq!(project["current"], true);
+    assert_eq!(project["allowWrite"], false);
+    assert!(project["name"].is_string());
+
+    invoke(
+        &window,
+        "set_ai_write_access",
+        &serde_json::json!({ "projectId": PROJECT_ID, "allowWrite": true }),
+    )
+    .unwrap();
+    let overview = invoke(&window, "ai_access_overview", &serde_json::json!({})).unwrap();
+    assert_eq!(overview["projects"][0]["allowWrite"], true);
+
+    assert_eq!(
+        error_kind(invoke(
+            &window,
+            "set_ai_write_access",
+            &serde_json::json!({ "projectId": UNKNOWN_ID, "allowWrite": true }),
+        )),
+        "entityNotFound"
+    );
+    invoke(
+        &window,
+        "remove_ai_project",
+        &serde_json::json!({ "projectId": PROJECT_ID }),
+    )
+    .unwrap();
+    let overview = invoke(&window, "ai_access_overview", &serde_json::json!({})).unwrap();
+    assert_eq!(overview["projects"], serde_json::json!([]));
+}

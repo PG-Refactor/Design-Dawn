@@ -160,8 +160,9 @@ fn bad_input_lines_get_errors_and_the_session_survives() {
 }
 
 #[test]
-fn starting_without_a_project_or_with_a_wrong_folder_fails_with_a_message_on_stderr() {
-    let output = run(&[], &[]);
+fn bad_arguments_or_a_wrong_folder_fail_with_a_message_on_stderr() {
+    // Following the app, writes are the app's choice per Project, not a switch.
+    let output = run(&["--allow-write"], &[]);
     assert_eq!(output.status.code(), Some(2));
     assert!(output.stdout.is_empty());
     assert!(String::from_utf8_lossy(&output.stderr).contains("--project"));
@@ -170,6 +171,46 @@ fn starting_without_a_project_or_with_a_wrong_folder_fails_with_a_message_on_std
     let output = run(&["--project", temp.path().to_str().unwrap()], &[]);
     assert_eq!(output.status.code(), Some(1));
     assert!(output.stdout.is_empty());
+}
+
+#[test]
+fn without_a_project_it_serves_the_project_open_in_the_app() {
+    let (_temp, root) = project_copy();
+    let config = TempDir::new();
+    let mut list = design_dawn_lib::application::local_state::ai_access::AiAccessList::default();
+    list.record_used(
+        design_dawn_lib::domain::entity_id::ProjectId::parse(PROJECT_ID).unwrap(),
+        &root,
+    );
+    list.write(config.path()).unwrap();
+
+    let mut input = handshake();
+    input.extend([
+        tool_call(2, "listProjects", json!({})),
+        tool_call(3, "getProject", json!({})),
+        tool_call(
+            4,
+            "createSheet",
+            json!({ "documentId": DOCUMENT_ID, "name": "From AI" }),
+        ),
+    ]);
+    let output = run(
+        &["--app-config-dir", config.path().to_str().unwrap()],
+        &input,
+    );
+    assert!(output.status.success(), "{:?}", output.status);
+    let replies = responses(&output);
+    assert!(replies[0]["result"]["instructions"]
+        .as_str()
+        .unwrap()
+        .contains("selectProject"));
+    assert_eq!(tool_result(&replies[1])["projects"][0]["inUse"], true);
+    assert_eq!(tool_result(&replies[2])["projectId"], PROJECT_ID);
+    // Read-only until the user allows it in the app.
+    assert_eq!(replies[3]["result"]["isError"], true);
+    assert_eq!(tool_result(&replies[3])["error"]["kind"], "writeDisabled");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!stderr.contains(root.to_str().unwrap()), "{stderr}");
 }
 
 #[test]

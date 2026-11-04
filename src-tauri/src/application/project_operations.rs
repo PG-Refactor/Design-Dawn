@@ -133,6 +133,25 @@ fn parse_project_file(value: Value) -> ApplicationResult<(ProjectDto, Option<u32
     ))
 }
 
+/// The id and name a Project folder holds, from `project.json` alone (no Documents are
+/// scanned). For lists of Projects that are not open, such as the AI access list.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProjectIdentity {
+    pub project_id: ProjectId,
+    pub name: String,
+}
+
+pub fn read_project_identity(project_root: &Path) -> ApplicationResult<ProjectIdentity> {
+    let root = canonicalize_root(project_root)?;
+    let value = read_json_value(&root, &mut HashLedger::default(), "", PROJECT_FILE_NAME)?;
+    let (dto, _) = parse_project_file(value)?;
+    let project = dto.to_domain()?;
+    Ok(ProjectIdentity {
+        project_id: *project.project_id(),
+        name: project.name().as_str().to_owned(),
+    })
+}
+
 /// A Project that was read but is not yet in `ProjectSessions`. Splitting "read" from
 /// "register" lets a window check that no other window has the Project before anything is
 /// replaced.

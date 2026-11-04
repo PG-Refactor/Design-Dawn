@@ -70,6 +70,10 @@ pub fn call_tool_guarded(
 struct GuardedHost<'a>(&'a dyn ToolHost);
 
 impl ToolHost for GuardedHost<'_> {
+    fn instructions(&self) -> &'static str {
+        self.0.instructions()
+    }
+
     fn list_tools(&self) -> Vec<Value> {
         self.0.list_tools()
     }
@@ -144,6 +148,10 @@ mod tests {
     struct PanickingHost;
 
     impl ToolHost for PanickingHost {
+        fn instructions(&self) -> &'static str {
+            ""
+        }
+
         fn list_tools(&self) -> Vec<Value> {
             Vec::new()
         }

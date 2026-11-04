@@ -4,9 +4,7 @@
 
 use serde_json::{json, Map, Value};
 
-use super::config::{
-    SERVER_INSTRUCTIONS, SERVER_NAME, SERVER_VERSION, SUPPORTED_PROTOCOL_VERSIONS,
-};
+use super::config::{SERVER_NAME, SERVER_VERSION, SUPPORTED_PROTOCOL_VERSIONS};
 use super::tool_error::ToolError;
 
 const JSONRPC_VERSION: &str = "2.0";
@@ -23,6 +21,8 @@ const METHOD_TOOLS_CALL: &str = "tools/call";
 
 /// What the protocol layer needs from the tools; it knows nothing about Projects.
 pub trait ToolHost {
+    /// Shown to the client in `initialize`: the AI's first description of what this is.
+    fn instructions(&self) -> &'static str;
     fn list_tools(&self) -> Vec<Value>;
     /// `None` when no tool has this name (a JSON-RPC error); a tool that fails is `Some` with
     /// `is_error` set.
@@ -90,7 +90,7 @@ fn negotiated_version(requested: &str) -> &'static str {
         .unwrap_or(SUPPORTED_PROTOCOL_VERSIONS[0])
 }
 
-fn initialize(params: Option<&Value>) -> Result<Value, (i64, &'static str)> {
+fn initialize(host: &dyn ToolHost, params: Option<&Value>) -> Result<Value, (i64, &'static str)> {
     let requested = params
         .and_then(|params| params.get("protocolVersion"))
         .and_then(Value::as_str)
@@ -99,7 +99,7 @@ fn initialize(params: Option<&Value>) -> Result<Value, (i64, &'static str)> {
         "protocolVersion": negotiated_version(requested),
         "capabilities": { "tools": { "listChanged": false } },
         "serverInfo": { "name": SERVER_NAME, "version": SERVER_VERSION },
-        "instructions": SERVER_INSTRUCTIONS,
+        "instructions": host.instructions(),
     }))
 }
 
@@ -166,7 +166,7 @@ pub fn handle_message(host: &dyn ToolHost, line: &[u8]) -> Option<String> {
     }
     let params = object.get("params");
     let outcome = match method {
-        METHOD_INITIALIZE => initialize(params),
+        METHOD_INITIALIZE => initialize(host, params),
         METHOD_PING => Ok(json!({})),
         METHOD_TOOLS_LIST => Ok(json!({ "tools": host.list_tools() })),
         METHOD_TOOLS_CALL => call_tool(host, params),
@@ -185,6 +185,10 @@ mod tests {
     struct FakeHost;
 
     impl ToolHost for FakeHost {
+        fn instructions(&self) -> &'static str {
+            crate::mcp::config::FIXED_PROJECT_INSTRUCTIONS
+        }
+
         fn list_tools(&self) -> Vec<Value> {
             vec![json!({ "name": "echo" })]
         }
