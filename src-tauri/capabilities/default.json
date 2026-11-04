@@ -5,6 +5,7 @@
   "windows": ["main", "window-*"],
   "permissions": [
     "allow-select-project-folder",
+    "allow-select-image-files",
     "allow-create-project",
     "allow-open-project",
     "allow-reload-project",

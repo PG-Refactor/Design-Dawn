@@ -1,15 +1,9 @@
-import {
-  type KeyboardEvent,
-  type FocusEvent as ReactFocusEvent,
-  useRef,
-  useState,
-} from "react";
+import { type FocusEvent as ReactFocusEvent, useRef, useState } from "react";
 import type { BlockType } from "../../domain/block/block-type";
-import {
-  MERMAID_TEMPLATE_IDS,
-  type MermaidTemplateId,
-} from "../mermaid/mermaid-templates";
+import { MenuList, type PopupMenuItem } from "../../shared/menu/menu-list";
+import type { MermaidTemplateId } from "../mermaid/mermaid-templates";
 import { useMessages } from "../workspace/use-messages";
+import { templateEntries } from "./canvas-context-menu";
 import { CREATABLE_BLOCK_TYPES } from "./creatable-block-types";
 
 export interface BlockCreateMenuProps {
@@ -17,74 +11,33 @@ export interface BlockCreateMenuProps {
     blockType: BlockType,
     mermaidTemplate?: MermaidTemplateId,
   ) => void;
+  // Opens the image file dialog.
+  readonly onAddImage: () => void;
 }
 
-const KEYS = {
-  escape: "Escape",
-  arrowDown: "ArrowDown",
-  arrowUp: "ArrowUp",
-  home: "Home",
-  end: "End",
-} as const;
+const OPEN_KEY = "ArrowDown";
 
 // The "+ Block" menu button (menu button pattern): the button opens a menu of the creatable
-// block types; arrow keys move, Enter / click chooses, Escape closes and focus goes back to
-// the button.
-export function BlockCreateMenu({ onCreate }: BlockCreateMenuProps) {
+// block types, the Mermaid templates (in a submenu) and images; arrow keys move, Enter /
+// click chooses, Escape closes and focus goes back to the button.
+export function BlockCreateMenu({
+  onCreate,
+  onAddImage,
+}: BlockCreateMenuProps) {
   const messages = useMessages().canvas;
   const mermaidMessages = useMessages().mermaid;
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  function items(): HTMLElement[] {
-    return [
-      ...(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ??
-        []),
-    ];
-  }
-
-  function focusItem(index: number): void {
-    const list = items();
-    list[(index + list.length) % list.length]?.focus();
-  }
 
   function close(): void {
     setOpen(false);
     buttonRef.current?.focus();
   }
 
-  function openMenu(): void {
-    setOpen(true);
-    // The menu is rendered by this state change; focus its first item right after.
-    queueMicrotask(() => focusItem(0));
-  }
-
-  function onMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    const list = items();
-    const current = list.indexOf(document.activeElement as HTMLElement);
-    switch (event.key) {
-      case KEYS.escape:
-        event.preventDefault();
-        close();
-        return;
-      case KEYS.arrowDown:
-        event.preventDefault();
-        focusItem(current + 1);
-        return;
-      case KEYS.arrowUp:
-        event.preventDefault();
-        focusItem(current - 1);
-        return;
-      case KEYS.home:
-        event.preventDefault();
-        focusItem(0);
-        return;
-      case KEYS.end:
-        event.preventDefault();
-        focusItem(list.length - 1);
-        return;
-    }
+  function choose(item: PopupMenuItem): void {
+    // Focus goes back first, so what the action opens (a dialog) remembers the button.
+    close();
+    item.onSelect();
   }
 
   // Focus leaving the whole widget (Tab away, a click elsewhere) closes the menu without
@@ -104,59 +57,42 @@ export function BlockCreateMenu({ onCreate }: BlockCreateMenuProps) {
         className="button"
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={() => (open ? setOpen(false) : openMenu())}
+        onClick={() => setOpen((wasOpen) => !wasOpen)}
         onKeyDown={(event) => {
-          if (event.key === KEYS.arrowDown) {
+          if (event.key === OPEN_KEY) {
             event.preventDefault();
-            openMenu();
+            setOpen(true);
           }
         }}
       >
         {messages.toolbar.addBlock}
       </button>
       {open && (
-        <div
-          ref={menuRef}
-          role="menu"
-          aria-label={messages.toolbar.blockTypeMenuLabel}
+        <MenuList
+          label={messages.toolbar.blockTypeMenuLabel}
           className="block-create-menu__list"
-          onKeyDown={onMenuKeyDown}
-        >
-          {CREATABLE_BLOCK_TYPES.map((creatable) => (
-            <button
-              key={creatable.blockType}
-              type="button"
-              role="menuitem"
-              className="block-create-menu__item"
-              onClick={() => {
-                setOpen(false);
-                buttonRef.current?.focus();
-                onCreate(creatable.blockType);
-              }}
-            >
-              {creatable.label}
-            </button>
-          ))}
-          {/* The other kinds of diagram start from a template. */}
-          <hr className="popup-menu__separator" />
-          {MERMAID_TEMPLATE_IDS.map((template) => (
-            <button
-              key={template}
-              type="button"
-              role="menuitem"
-              className="block-create-menu__item"
-              onClick={() => {
-                setOpen(false);
-                buttonRef.current?.focus();
-                onCreate("mermaid", template);
-              }}
-            >
-              {mermaidMessages.templateItem(
-                mermaidMessages.templates[template],
-              )}
-            </button>
-          ))}
-        </div>
+          onDismiss={close}
+          onChoose={choose}
+          entries={[
+            ...CREATABLE_BLOCK_TYPES.map((creatable) => ({
+              id: creatable.blockType,
+              label: creatable.label,
+              onSelect: () => onCreate(creatable.blockType),
+            })),
+            {
+              id: "templates",
+              label: messages.toolbar.templates,
+              entries: templateEntries(mermaidMessages.templates, (template) =>
+                onCreate("mermaid", template),
+              ),
+            },
+            {
+              id: "image",
+              label: messages.toolbar.image,
+              onSelect: onAddImage,
+            },
+          ]}
+        />
       )}
     </div>
   );

@@ -58,6 +58,37 @@
   cursor: not-allowed;
 }
 
+/* A submenu item and the menu it opens beside itself. */
+.popup-menu__submenu {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.popup-menu__item--submenu {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.popup-menu__item--submenu[aria-expanded="true"] {
+  background: var(--color-hover);
+}
+
+.popup-menu__submenu-marker {
+  color: var(--color-text-muted);
+}
+
+.popup-menu__list.popup-menu__list--nested {
+  position: absolute;
+  top: calc(-1 * var(--space-1));
+  right: auto;
+  left: 100%;
+  margin-top: 0;
+  margin-left: var(--space-1);
+}
+
 .popup-menu__separator {
   /* <hr> carries the separator role; its default border is replaced by a 1px line. */
   width: 100%;

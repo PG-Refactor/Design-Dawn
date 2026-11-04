@@ -361,6 +361,11 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
               at,
               mermaidTemplate,
             }),
+          addImage: () =>
+            void canvasActions.addImagesFromFiles({
+              viewportSize: canvasSize(),
+              ...(at === undefined ? {} : { at }),
+            }),
           paste,
         }),
       );

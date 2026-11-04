@@ -1,12 +1,14 @@
 // Decoders for the asset command payloads, in the same two steps as persistence-payloads:
 // check the shape, then run the domain parsers.
 
+import { IMAGE_SELECTION_STATUS } from "../../application/ports/asset-types";
 import { parseBlockType } from "../../domain/block/block-type";
 import { parseContentPath } from "../../domain/block/content-path";
 import type { DomainResult } from "../../domain/shared/domain-result";
 import type {
   CopiedAsset,
   DropImportResult,
+  ImageSelection,
   ImportedImage,
   RejectedFile,
 } from "./asset-types";
@@ -24,6 +26,7 @@ import {
   decodeNumber,
   decodeString,
   objectOf,
+  oneOf,
 } from "./payload-decoder";
 
 const PAYLOAD_ROOT = "payload";
@@ -132,4 +135,31 @@ export function toCopiedAsset(payload: unknown): CommandResult<CopiedAsset> {
         naturalHeight: raw.value.naturalHeight,
       })
     : contentPath;
+}
+
+const rawImageSelectionStatus = objectOf<{
+  readonly status: ImageSelection["status"];
+}>({
+  status: oneOf(Object.values(IMAGE_SELECTION_STATUS)),
+});
+const rawSelectedImages = objectOf<{
+  readonly dropId: string;
+  readonly fileCount: number;
+}>({
+  dropId: decodeString,
+  fileCount: decodeNumber,
+});
+
+export function toImageSelection(
+  payload: unknown,
+): CommandResult<ImageSelection> {
+  const status = decodePayload(rawImageSelectionStatus, payload);
+  if (!status.ok) return status;
+  if (status.value.status === IMAGE_SELECTION_STATUS.cancelled) {
+    return commandOk({ status: IMAGE_SELECTION_STATUS.cancelled });
+  }
+  const selected = decodePayload(rawSelectedImages, payload);
+  return selected.ok
+    ? commandOk({ status: IMAGE_SELECTION_STATUS.selected, ...selected.value })
+    : selected;
 }

@@ -79,18 +79,19 @@ export interface BackgroundMenuCommands {
     blockType: BlockType,
     mermaidTemplate?: MermaidTemplateId,
   ) => void;
+  // Opens the image file dialog; the first image goes where the menu was opened.
+  readonly addImage: () => void;
   readonly paste: () => void;
 }
 
-// The other kinds of diagram, as "Add Mermaid: <kind> Block".
+// The other kinds of diagram, one item per template, for a "templates" submenu.
 export function templateEntries(
-  messages: CanvasMessages,
   templateNames: Readonly<Record<MermaidTemplateId, string>>,
   addTemplate: (template: MermaidTemplateId) => void,
 ): PopupMenuEntry[] {
   return MERMAID_TEMPLATE_IDS.map((template) => ({
     id: `add-mermaid-${template}`,
-    label: messages.contextMenu.addBlock(`Mermaid: ${templateNames[template]}`),
+    label: templateNames[template],
     onSelect: () => addTemplate(template),
   }));
 }
@@ -106,10 +107,18 @@ export function backgroundMenuEntries(
       label: messages.contextMenu.addBlock(creatable.label),
       onSelect: () => commands.addBlock(creatable.blockType),
     })),
-    { id: "templateSeparator", separator: true },
-    ...templateEntries(messages, templateNames, (template) =>
-      commands.addBlock("mermaid", template),
-    ),
+    {
+      id: "addFromTemplate",
+      label: messages.contextMenu.templates,
+      entries: templateEntries(templateNames, (template) =>
+        commands.addBlock("mermaid", template),
+      ),
+    },
+    {
+      id: "addImage",
+      label: messages.contextMenu.addImage,
+      onSelect: commands.addImage,
+    },
     { id: "addSeparator", separator: true },
     {
       id: "paste",

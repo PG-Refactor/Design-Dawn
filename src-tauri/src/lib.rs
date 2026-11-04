@@ -18,8 +18,8 @@ use application::open_routing::WindowLabelAllocator;
 use application::session::ProjectSessions;
 use application::window_registry::WindowRegistry;
 use commands::{
-    AppRequestSubscriber, CloseRequestSubscriber, DialogFolderPicker, DropSubscriber,
-    SharedFolderPicker,
+    AppRequestSubscriber, CloseRequestSubscriber, DialogFolderPicker, DialogImagePicker,
+    DropSubscriber, SharedFolderPicker, SharedImagePicker,
 };
 use config::MAIN_WINDOW_LABEL;
 use tauri::{Builder, Manager, Runtime};
@@ -67,6 +67,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         )
         .invoke_handler(tauri::generate_handler![
             commands::select_project_folder,
+            commands::select_image_files,
             commands::create_project,
             commands::open_project,
             commands::reload_project,
@@ -159,6 +160,9 @@ pub fn run() {
             let picker: SharedFolderPicker =
                 Arc::new(DialogFolderPicker::new(app.handle().clone()));
             app.manage(picker);
+            let image_picker: SharedImagePicker =
+                Arc::new(DialogImagePicker::new(app.handle().clone()));
+            app.manage(image_picker);
             // Resolved by Tauri per OS; a failure aborts startup (setup error) instead of
             // silently running without a place to keep settings.
             let directories = LocalStateDirectories {

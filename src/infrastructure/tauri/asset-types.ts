@@ -2,6 +2,7 @@
 export type {
   CopiedAsset,
   DropImportResult,
+  ImageSelection,
   ImportedImage,
   RejectedFile,
 } from "../../application/ports/asset-types";

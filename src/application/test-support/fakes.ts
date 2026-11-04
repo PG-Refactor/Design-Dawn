@@ -310,6 +310,9 @@ export interface FakeGateway extends PersistenceGateway {
   // What the next `importDroppedImages(dropId, ...)` finds (each script is used once, like
   // a drop in Rust).
   scriptDrop(dropId: string, files: readonly FakeDroppedFile[]): void;
+  // What the next `selectImageFiles` returns: the id of a scripted drop (the chosen files),
+  // or null for a cancelled dialog. Default: cancelled.
+  scriptImageSelection(dropId: string | null): void;
   // Fails the `occurrence`-th call (1-based, counted from now) of `method`, once.
   failOn(method: string, kind: OperationErrorKind, occurrence?: number): void;
   failAlways(method: string, kind: OperationErrorKind): void;
@@ -332,6 +335,7 @@ export function createFakeGateway(
   let fileCounter = 0;
   const assets = new Map<DocumentId, Map<string, FakeAsset>>();
   const drops = new Map<string, readonly FakeDroppedFile[]>();
+  let nextImageSelection: string | null = null;
   let nextSelection: FolderSelection = DEFAULT_SELECTION;
   const snapshotOverrides = new Map<string, ProjectSnapshot>();
   let pendingOpenRequest:
@@ -909,6 +913,9 @@ export function createFakeGateway(
     },
     hasAsset: (documentId, contentPath) =>
       assetsOf(documentId).has(contentPath),
+    scriptImageSelection(dropId) {
+      nextImageSelection = dropId;
+    },
     scriptDrop(dropId, files) {
       drops.set(dropId, files);
     },
@@ -985,6 +992,20 @@ export function createFakeGateway(
       enter("deleteBlockContent", contentPath, () => {
         files.delete(contentPath);
         return operationOk(undefined);
+      }),
+    selectImageFiles: () =>
+      enter("selectImageFiles", "", () => {
+        const dropId = nextImageSelection;
+        nextImageSelection = null;
+        return operationOk(
+          dropId === null
+            ? { status: "cancelled" as const }
+            : {
+                status: "selected" as const,
+                dropId,
+                fileCount: drops.get(dropId)?.length ?? 0,
+              },
+        );
       }),
     importDroppedImages: (dropId, _project, documentId) =>
       enter("importDroppedImages", `${dropId}:${documentId}`, () => {

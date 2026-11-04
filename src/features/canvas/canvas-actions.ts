@@ -39,6 +39,7 @@ import type { ApplyDiagramEditsOutcome } from "../../application/diagram/apply-d
 import { applyValidatedDiagramOperation } from "../../application/diagram/apply-validated-diagram-operation";
 import type { DiagramRenderCheck } from "../../application/diagram/diagram-render-check";
 import type { IdGenerator } from "../../application/id-generator";
+import { IMAGE_SELECTION_STATUS } from "../../application/ports/asset-types";
 import {
   failWith,
   fromDomainResult,
@@ -183,6 +184,14 @@ export interface ImportDroppedImagesInput {
   readonly dropId: string;
   // Size of the canvas element in screen pixels (zero when no canvas is shown).
   readonly viewportSize: Extent;
+  // A world point chosen on the canvas (a right-click): the first image's top-left corner
+  // goes there instead of the centre of the view.
+  readonly at?: Point;
+}
+
+export interface AddImagesFromFilesInput {
+  readonly viewportSize: Extent;
+  readonly at?: Point;
 }
 
 export interface CanvasActions {
@@ -214,6 +223,11 @@ export interface CanvasActions {
   // are reported one by one; without an active sheet nothing is imported.
   importDroppedImages(
     input: ImportDroppedImagesInput,
+  ): Promise<OperationResult<void>>;
+  // "Add Image…": the OS dialog for image files, then the same import as a drop into the
+  // active sheet. Cancelling the dialog does nothing.
+  addImagesFromFiles(
+    input: AddImagesFromFilesInput,
   ): Promise<OperationResult<void>>;
   // Adds one block of `blockType` (one history entry) and selects it.
   createBlock(input: CreateBlockInput): Promise<OperationResult<BlockId>>;
@@ -551,7 +565,7 @@ export function createCanvasActions(
       : copied.value.copiedBlockIds;
   }
 
-  return {
+  const actions: CanvasActions = {
     async reorderSelection({ documentId, sheetId, direction }) {
       const blockIds = selectedBlockIds(documentId, sheetId);
       if (blockIds.length === 0) return NOTHING_TO_DO;
@@ -808,7 +822,27 @@ export function createCanvasActions(
       return operationOk(blockId);
     },
 
-    async importDroppedImages({ dropId, viewportSize }) {
+    async addImagesFromFiles({ viewportSize, at }) {
+      // Asked before the dialog, so nobody picks files that cannot be added.
+      if (activeSheetTarget() === null) {
+        return record(
+          "importImagesWithoutSheet",
+          operationErr("entityNotFound", "no sheet is open to receive images"),
+        );
+      }
+      const selected = record("importImages", await gateway.selectImageFiles());
+      if (!selected.ok) return failWith(selected.error);
+      if (selected.value.status === IMAGE_SELECTION_STATUS.cancelled) {
+        return NOTHING_TO_DO;
+      }
+      return actions.importDroppedImages({
+        dropId: selected.value.dropId,
+        viewportSize,
+        ...(at === undefined ? {} : { at }),
+      });
+    },
+
+    async importDroppedImages({ dropId, viewportSize, at }) {
       const target = activeSheetTarget();
       if (target === null) {
         return record(
@@ -841,7 +875,7 @@ export function createCanvasActions(
         });
         if (!size.ok) return record("importImages", fromDomainResult(size));
         const position = newBlockPosition(
-          { documentId, sheetId, viewportSize },
+          { documentId, sheetId, viewportSize, at },
           size.value,
           specs.map((spec) => spec.position),
         );
@@ -958,4 +992,5 @@ export function createCanvasActions(
     undo: (documentId) => history("undo", documentId),
     redo: (documentId) => history("redo", documentId),
   };
+  return actions;
 }

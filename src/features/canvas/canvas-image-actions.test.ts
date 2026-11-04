@@ -556,3 +556,44 @@ describe("align and snap with image blocks", () => {
     expect(await harness.undoDepth()).toBe(depthBefore + 1);
   });
 });
+
+describe("addImagesFromFiles", () => {
+  it("imports the files chosen in the dialog at the chosen point, in one undo step", async () => {
+    const harness = await openedCanvasHarness();
+    harness.gateway.scriptDrop("chosen", [photoFile(), photoFile("b.png")]);
+    harness.gateway.scriptImageSelection("chosen");
+    const at = { x: 480, y: 240 };
+    const result = await harness.canvasActions.addImagesFromFiles({
+      viewportSize: VIEWPORT_SIZE,
+      at,
+    });
+    expect(result.ok).toBe(true);
+    const images = imageBlocks(harness);
+    expect(images).toHaveLength(2);
+    expect(images[0]?.position).toEqual(at);
+    expect(await harness.undoDepth()).toBe(1);
+  });
+
+  it("does nothing when the dialog is cancelled", async () => {
+    const harness = await openedCanvasHarness();
+    harness.gateway.scriptImageSelection(null);
+    const result = await harness.canvasActions.addImagesFromFiles({
+      viewportSize: VIEWPORT_SIZE,
+    });
+    expect(result.ok).toBe(true);
+    expect(imageBlocks(harness)).toEqual([]);
+    expect(harness.gateway.methods("importDroppedImages")).toEqual([]);
+  });
+
+  it("does not open the dialog without an open sheet", async () => {
+    const harness = createCanvasHarness();
+    const result = await harness.canvasActions.addImagesFromFiles({
+      viewportSize: VIEWPORT_SIZE,
+    });
+    expect(result.ok).toBe(false);
+    expect(harness.gateway.methods("selectImageFiles")).toEqual([]);
+    expect(operationErrors(harness).at(-1)?.operation).toBe(
+      "importImagesWithoutSheet",
+    );
+  });
+});

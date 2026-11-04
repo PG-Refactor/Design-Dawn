@@ -3,6 +3,7 @@
 // Declaring the commands here makes Tauri require an explicit permission for each one.
 const APP_COMMANDS: &[&str] = &[
     "select_project_folder",
+    "select_image_files",
     "create_project",
     "open_project",
     "reload_project",
