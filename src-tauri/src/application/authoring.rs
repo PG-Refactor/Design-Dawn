@@ -314,6 +314,7 @@ fn block_dto(
         },
         content_path,
         caption: None,
+        caption_position: None,
     }
 }
 

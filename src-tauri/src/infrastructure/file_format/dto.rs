@@ -73,6 +73,9 @@ pub struct BlockDto {
     /// Absent when the Block has no caption (and in every version 1 file).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub caption: Option<String>,
+    /// `"above"` or `"below"`; absent means below.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub caption_position: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -251,6 +254,7 @@ impl BlockDto {
             height: size_axis(&self.size.height),
             content_path: self.content_path.clone(),
             caption: self.caption.clone(),
+            caption_position: self.caption_position.clone(),
         }
     }
 
@@ -272,6 +276,9 @@ impl BlockDto {
             },
             content_path: block.content_path().as_str().to_owned(),
             caption: block.caption().map(|caption| caption.as_str().to_owned()),
+            caption_position: block
+                .caption_position()
+                .map(|position| position.as_str().to_owned()),
         }
     }
 }
@@ -444,6 +451,27 @@ mod caption_tests {
         );
         let written = serde_json::to_value(SheetDto::from_domain(&sheet)).unwrap();
         assert_eq!(written["blocks"][0]["caption"], "Figure 1: flow");
+    }
+
+    #[test]
+    fn a_caption_position_goes_through_the_domain_and_back() {
+        let dto: SheetDto = serde_json::from_value(sheet_with(
+            json!({"caption": "Figure 1", "captionPosition": "above"}),
+        ))
+        .unwrap();
+        let written =
+            serde_json::to_value(SheetDto::from_domain(&dto.to_domain().unwrap())).unwrap();
+        assert_eq!(written["blocks"][0]["captionPosition"], "above");
+    }
+
+    #[test]
+    fn an_unknown_caption_position_is_an_invalid_caption() {
+        let dto: SheetDto =
+            serde_json::from_value(sheet_with(json!({"captionPosition": "left"}))).unwrap();
+        assert_eq!(
+            dto.to_domain().unwrap_err().kind,
+            DomainErrorKind::InvalidCaption
+        );
     }
 
     #[test]

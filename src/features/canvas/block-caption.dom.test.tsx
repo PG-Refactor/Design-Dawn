@@ -164,6 +164,64 @@ describe("the caption of a figure", () => {
     expect(document.activeElement).toBe(save);
   });
 
+  it("is shown above the figure when chosen, kept by a copy, and undone with its place", async () => {
+    const rendered = await renderFigures();
+    await editCaption(rendered, "Figure 1");
+    await rendered.shell.user.click(
+      within(blockMenu(0)).getByRole("menuitem", {
+        name: MESSAGES.contextMenu.editCaption,
+      }),
+    );
+    await rendered.shell.user.click(
+      screen.getByRole("radio", { name: MESSAGES.caption.positions.above }),
+    );
+    await rendered.shell.user.click(
+      screen.getByRole("button", { name: MESSAGES.caption.save }),
+    );
+    await act(settle);
+    const block = rendered.canvas.blocksOfSheetA1()[0];
+    expect(block?.caption).toBe("Figure 1");
+    expect(block?.captionPosition).toBe("above");
+    expect(
+      blockOption(0).parentElement?.querySelector(
+        ".block-frame__caption--above",
+      )?.textContent,
+    ).toBe("Figure 1");
+
+    await rendered.shell.user.click(
+      within(blockMenu(0)).getByRole("menuitem", {
+        name: MESSAGES.contextMenu.duplicate,
+      }),
+    );
+    await act(settle);
+    expect(rendered.canvas.blocksOfSheetA1().at(-1)?.captionPosition).toBe(
+      "above",
+    );
+    await act(async () => {
+      await rendered.canvas.canvasActions.undo(DOCUMENT_A);
+      await rendered.canvas.canvasActions.undo(DOCUMENT_A);
+    });
+    // Back below: the default place is not written at all.
+    expect(
+      rendered.canvas.blocksOfSheetA1()[0]?.captionPosition,
+    ).toBeUndefined();
+    expect(captionOf(rendered)).toBe("Figure 1");
+  });
+
+  it("offers the current place when it is opened again", async () => {
+    const rendered = await renderFigures();
+    await editCaption(rendered, "Figure 1");
+    await rendered.shell.user.click(
+      within(blockMenu(0)).getByRole("menuitem", {
+        name: MESSAGES.contextMenu.editCaption,
+      }),
+    );
+    const below = screen.getByRole("radio", {
+      name: MESSAGES.caption.positions.below,
+    }) as HTMLInputElement;
+    expect(below.checked).toBe(true);
+  });
+
   it("is not offered for a Markdown block", async () => {
     await renderFigures();
     const names = within(blockMenu(1))

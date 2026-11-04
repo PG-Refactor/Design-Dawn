@@ -55,7 +55,7 @@ import type { Workspace } from "../../application/workspace/workspace";
 import { PASTE_OFFSET } from "../../config/canvas-config";
 import type { Block } from "../../domain/block/block";
 import type { BlockType } from "../../domain/block/block-type";
-import { parseCaption } from "../../domain/block/caption";
+import { type CaptionPosition, parseCaption } from "../../domain/block/caption";
 import type { DiagramOperation } from "../../domain/diagram/diagram-operation";
 import type {
   BlockId,
@@ -129,6 +129,7 @@ export interface SetBlockCaptionInput {
   readonly sheetId: SheetId;
   readonly blockId: BlockId;
   readonly text: string;
+  readonly position: CaptionPosition;
 }
 
 export interface CommitContentEditInput {
@@ -938,7 +939,7 @@ export function createCanvasActions(
       return true;
     },
 
-    setBlockCaption({ documentId, sheetId, blockId, text }) {
+    setBlockCaption({ documentId, sheetId, blockId, text, position }) {
       const trimmed = text.trim();
       const caption = trimmed === "" ? null : parseCaption(trimmed);
       if (caption !== null && !caption.ok) {
@@ -952,7 +953,7 @@ export function createCanvasActions(
         setBlockCaptionCommand(
           sheetId,
           blockId,
-          caption === null ? null : caption.value,
+          caption === null ? null : { text: caption.value, position },
         ),
       );
     },

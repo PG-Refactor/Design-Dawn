@@ -88,6 +88,7 @@ const rawBlock = objectOf<RawBlock>({
   size: rawSize,
   contentPath: decodeString,
   caption: optional(decodeString),
+  captionPosition: optional(decodeString),
 });
 const rawProject = objectOf<RawProject>({
   schemaVersion: decodeNumber,

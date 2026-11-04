@@ -52,14 +52,32 @@
 /* The caption of a figure: one centred line under it, in the content's size (it is part
    of the Document, like the figure). A long one is cut rather than growing the block. */
 .block-frame__caption {
+  display: flex;
   flex: 0 0 auto;
+  justify-content: center;
   margin: 0;
   padding: calc(0.25 * var(--canvas-content-rem))
     calc(0.5 * var(--canvas-content-rem));
+  min-width: 0;
+}
+
+/* Above the figure: before the body, although it comes after it in the markup (the body
+   stays the block's first child for the canvas's hit testing and focus). */
+.block-frame__caption--above {
+  order: -1;
+}
+
+/* A light box, so the caption reads apart from the text inside the figure. */
+.block-frame__caption-text {
+  max-width: 100%;
+  padding: calc(0.125 * var(--canvas-content-rem))
+    calc(0.5 * var(--canvas-content-rem));
   overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface-raised);
   color: var(--color-text-muted);
   font-size: calc(0.875 * var(--canvas-content-rem));
-  text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

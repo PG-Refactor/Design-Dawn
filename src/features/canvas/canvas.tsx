@@ -13,6 +13,7 @@ import {
 import type { ApplicationState } from "../../application/state/application-state";
 import { CANVAS_CONFIG } from "../../config/canvas-config";
 import type { Block } from "../../domain/block/block";
+import { DEFAULT_CAPTION_POSITION } from "../../domain/block/caption";
 import type {
   BlockId,
   DocumentId,
@@ -605,11 +606,14 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
       {captionTarget === null ? null : (
         <CaptionDialog
           initial={captionTarget.caption ?? ""}
+          initialPosition={
+            captionTarget.captionPosition ?? DEFAULT_CAPTION_POSITION
+          }
           onCancel={() => {
             setCaptionTarget(null);
             elementRef.current?.focus({ preventScroll: true });
           }}
-          onSubmit={(text) => {
+          onSubmit={(text, position) => {
             const blockId = captionTarget.blockId;
             setCaptionTarget(null);
             elementRef.current?.focus({ preventScroll: true });
@@ -618,6 +622,7 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
               sheetId,
               blockId,
               text,
+              position,
             });
           }}
         />

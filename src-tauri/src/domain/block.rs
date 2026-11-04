@@ -1,5 +1,5 @@
 use super::block_type::BlockType;
-use super::caption::Caption;
+use super::caption::{Caption, CaptionPosition};
 use super::content_path::ContentPath;
 use super::entity_id::BlockId;
 use super::error::DomainError;
@@ -16,6 +16,8 @@ pub struct BlockInput {
     pub content_path: String,
     /// None: the Block has no caption.
     pub caption: Option<String>,
+    /// None: the default place (below the figure).
+    pub caption_position: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,6 +28,7 @@ pub struct Block {
     size: Size,
     content_path: ContentPath,
     caption: Option<Caption>,
+    caption_position: Option<CaptionPosition>,
 }
 
 impl Block {
@@ -37,6 +40,11 @@ impl Block {
         let size = Size::new(input.width, input.height)?;
         let content_path = ContentPath::parse(block_type, &input.content_path)?;
         let caption = input.caption.as_deref().map(Caption::new).transpose()?;
+        let caption_position = input
+            .caption_position
+            .as_deref()
+            .map(CaptionPosition::parse)
+            .transpose()?;
         Ok(Self {
             block_id,
             block_type,
@@ -44,6 +52,7 @@ impl Block {
             size,
             content_path,
             caption,
+            caption_position,
         })
     }
 
@@ -69,5 +78,10 @@ impl Block {
 
     pub fn caption(&self) -> Option<&Caption> {
         self.caption.as_ref()
+    }
+
+    /// As written in the file: None when it was left out (the default place).
+    pub fn caption_position(&self) -> Option<CaptionPosition> {
+        self.caption_position
     }
 }

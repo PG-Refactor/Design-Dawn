@@ -3,7 +3,7 @@
 // holds closures; its snapshot holds the arguments and what the first `apply` captured,
 // and `commandFromSnapshot` rebuilds an equivalent command.
 
-import type { Caption } from "../../domain/block/caption";
+import type { FigureCaption } from "../../domain/block/caption";
 import type { DisplayName } from "../../domain/shared/display-name";
 import type { BlockId, SheetId } from "../../domain/shared/entity-id";
 import {
@@ -71,7 +71,7 @@ export type MetadataCommandSnapshot =
       readonly kind: typeof COMMAND_KINDS.setBlockCaption;
       readonly sheetId: SheetId;
       readonly blockId: BlockId;
-      readonly caption: Caption | null;
+      readonly caption: FigureCaption | null;
       readonly previous: CaptionRestore | null;
     }
   | {

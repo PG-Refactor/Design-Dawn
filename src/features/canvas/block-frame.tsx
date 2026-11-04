@@ -1,5 +1,6 @@
 import { memo } from "react";
 import type { Block } from "../../domain/block/block";
+import { figureCaptionOf } from "../../domain/block/caption";
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
 import { useMessages } from "../workspace/use-messages";
 import { isCaptionableBlockType } from "./block-capabilities";
@@ -41,6 +42,10 @@ export const BlockFrame = memo(function BlockFrame({
 }: BlockFrameProps) {
   const messages = useMessages().canvas;
   const classNames = ["block-frame"];
+  // A figure's caption: one line above or below it, inside the block's frame.
+  const caption = isCaptionableBlockType(block.blockType)
+    ? figureCaptionOf(block)
+    : null;
   if (selected) classNames.push("block-frame--selected");
   if (interacting) classNames.push("block-frame--interacting");
   return (
@@ -64,11 +69,13 @@ export const BlockFrame = memo(function BlockFrame({
           block={block}
         />
       </div>
-      {/* A figure's caption: a line under it, inside the block's frame. */}
-      {block.caption !== undefined &&
-      isCaptionableBlockType(block.blockType) ? (
-        <p className="block-frame__caption">{block.caption}</p>
-      ) : null}
+      {caption === null ? null : (
+        <p
+          className={`block-frame__caption block-frame__caption--${caption.position}`}
+        >
+          <span className="block-frame__caption-text">{caption.text}</span>
+        </p>
+      )}
       <button
         type="button"
         tabIndex={-1}

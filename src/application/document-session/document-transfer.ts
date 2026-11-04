@@ -8,7 +8,11 @@ import {
   parseBlock,
   type RawBlock,
 } from "../../domain/block/block";
-import { parseCaption } from "../../domain/block/caption";
+import {
+  type FigureCaption,
+  parseCaption,
+  parseCaptionPosition,
+} from "../../domain/block/caption";
 import {
   parseDocument,
   type RawDocument,
@@ -254,8 +258,16 @@ function commandSnapshotOf(value: unknown): MetadataCommandSnapshot {
         })),
       };
     case COMMAND_KINDS.setBlockCaption: {
-      const captionOf = (value: unknown) =>
-        valid(parseCaption(text(value, "caption")), "caption");
+      const captionOf = (value: unknown): FigureCaption => {
+        const caption = record(value, "caption");
+        return {
+          text: valid(parseCaption(text(caption.text, "text")), "text"),
+          position: valid(
+            parseCaptionPosition(text(caption.position, "position")),
+            "position",
+          ),
+        };
+      };
       return {
         kind: COMMAND_KINDS.setBlockCaption,
         sheetId: sheetIdOf(command.sheetId),

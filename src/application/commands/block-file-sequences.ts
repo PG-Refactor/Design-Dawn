@@ -1,3 +1,4 @@
+import { captionFieldsOf } from "../../domain/block/caption";
 // The ONE place that orders block content files against sheet metadata:
 //
 //   add     content file(s) first, then sheet metadata
@@ -140,7 +141,7 @@ export async function addBlocksWithContent(
           position: spec.position,
           size: spec.size,
           contentPath: spec.contentPath,
-          ...(spec.caption === undefined ? {} : { caption: spec.caption }),
+          ...captionFieldsOf(spec),
         },
         index,
         text: null,
@@ -165,7 +166,7 @@ export async function addBlocksWithContent(
         position: spec.position,
         size: spec.size,
         contentPath: content.value,
-        ...(spec.caption === undefined ? {} : { caption: spec.caption }),
+        ...captionFieldsOf(spec),
       },
       index,
       text: spec.text,
