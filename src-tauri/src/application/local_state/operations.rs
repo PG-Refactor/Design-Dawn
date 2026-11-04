@@ -3,7 +3,7 @@
 //! and the problem is still reported. Write failures are
 //! errors.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use serde::Serialize;
@@ -54,6 +54,10 @@ pub struct AppSettings {
     /// Only Rust uses it (start-up and new windows), so it is not part of the wire form.
     #[serde(skip)]
     pub window_size: Option<WindowSize>,
+    /// The folder of the Project last opened or created from the folder dialog, where the
+    /// next dialog starts from. Only Rust uses it.
+    #[serde(skip)]
+    pub last_project_folder: Option<PathBuf>,
     pub load_issue: Option<ApplicationError>,
 }
 
@@ -66,6 +70,7 @@ impl AppSettings {
             auto_save: DEFAULT_AUTO_SAVE,
             project_tree_width: DEFAULT_PROJECT_TREE_WIDTH,
             window_size: None,
+            last_project_folder: None,
             load_issue,
         }
     }
@@ -200,6 +205,13 @@ impl LocalState {
                 Some(value) => TextSize::parse(value)?,
                 None => TextSize::default(),
             },
+            // Absent before schema version 7. Any text is kept: the path is only a hint for
+            // the dialog, which falls back to its own choice when it no longer exists.
+            last_project_folder: dto
+                .last_project_folder
+                .as_deref()
+                .filter(|path| !path.is_empty())
+                .map(PathBuf::from),
             load_issue: None,
         })
     }
@@ -231,6 +243,10 @@ impl LocalState {
                     height: Number::from(size.height),
                     maximized: size.maximized,
                 }),
+                last_project_folder: settings
+                    .last_project_folder
+                    .as_ref()
+                    .map(|path| path.to_string_lossy().into_owned()),
             },
         )?;
         Ok(settings)
@@ -289,6 +305,10 @@ impl LocalState {
     /// Recorded when a window closes. Keeps the other settings (read-modify-write).
     pub fn set_window_size(&self, size: WindowSize) -> ApplicationResult<AppSettings> {
         self.update_settings(|settings| settings.window_size = Some(size))
+    }
+
+    pub fn set_last_project_folder(&self, folder: &Path) -> ApplicationResult<AppSettings> {
+        self.update_settings(|settings| settings.last_project_folder = Some(folder.to_path_buf()))
     }
 
     pub fn get_sheet_viewport(

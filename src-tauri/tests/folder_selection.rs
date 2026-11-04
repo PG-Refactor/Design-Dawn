@@ -41,7 +41,7 @@ impl FakePicker {
 }
 
 impl FolderPicker for FakePicker {
-    fn pick_folder(&self) -> PickerOutcome {
+    fn pick_folder(&self, _start: Option<&Path>) -> PickerOutcome {
         self.outcomes
             .lock()
             .unwrap()
@@ -53,7 +53,7 @@ impl FolderPicker for FakePicker {
 const WINDOW_LABEL: &str = "main";
 
 fn select(picker: &FakePicker, state: &Mutex<FolderSelectionState>) -> FolderSelection {
-    select_project_folder(picker, state, WINDOW_LABEL).expect("selection result")
+    select_project_folder(picker, state, WINDOW_LABEL, None).expect("selection result")
 }
 
 fn selected_id(selection: &FolderSelection) -> String {
@@ -110,7 +110,7 @@ fn a_picker_failure_is_dialog_failed_and_keeps_the_previous_selection() {
     let first = selected_id(&select(&FakePicker::choosing(&path), &state));
 
     let failing = FakePicker::new(vec![Err(FolderPickerError::new("no display"))]);
-    let error = select_project_folder(&failing, &state, WINDOW_LABEL).unwrap_err();
+    let error = select_project_folder(&failing, &state, WINDOW_LABEL, None).unwrap_err();
     assert_eq!(error.kind, ErrorKind::DialogFailed);
     assert_eq!(error.detail, "no display");
     assert_eq!(
@@ -148,8 +148,13 @@ fn a_selection_id_resolves_only_for_its_own_window() {
     );
     assert!(resolve_selection(&state, WINDOW_LABEL, &id).is_ok());
     let other = selected_id(
-        &select_project_folder(&FakePicker::choosing(Path::new("/two")), &state, "window-1")
-            .unwrap(),
+        &select_project_folder(
+            &FakePicker::choosing(Path::new("/two")),
+            &state,
+            "window-1",
+            None,
+        )
+        .unwrap(),
     );
     assert_eq!(
         resolve_selection(&state, "window-1", &other).unwrap(),

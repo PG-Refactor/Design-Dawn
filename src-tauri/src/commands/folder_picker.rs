@@ -1,7 +1,7 @@
 //! The real `FolderPicker`: the OS folder dialog opened from Rust through `tauri-plugin-dialog`.
 //! Lives on the command side so the Application layer never depends on Tauri.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use tauri::{AppHandle, Runtime};
 use tauri_plugin_dialog::DialogExt;
@@ -23,9 +23,13 @@ impl<R: Runtime> DialogFolderPicker<R> {
 impl<R: Runtime> FolderPicker for DialogFolderPicker<R> {
     /// Blocks the calling thread until the dialog closes, so it must never run on the main
     /// thread (the dialog is shown through the main thread's event loop and would deadlock).
-    fn pick_folder(&self) -> Result<Option<PathBuf>, FolderPickerError> {
+    fn pick_folder(&self, start: Option<&Path>) -> Result<Option<PathBuf>, FolderPickerError> {
+        let mut dialog = self.app.dialog().file();
+        if let Some(start) = start {
+            dialog = dialog.set_directory(start);
+        }
         // `None` is the plugin's only signal for "closed without choosing".
-        let Some(chosen) = self.app.dialog().file().blocking_pick_folder() else {
+        let Some(chosen) = dialog.blocking_pick_folder() else {
             return Ok(None);
         };
         chosen.into_path().map(Some).map_err(|error| {

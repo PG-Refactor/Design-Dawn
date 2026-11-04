@@ -30,6 +30,10 @@ pub struct SettingsFileDto {
     /// file when there is none (a `null` is accepted when reading).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub window_size: Option<WindowSizeDto>,
+    /// Absent in schema versions 1 to 6 and until a Project was opened from the folder
+    /// dialog. Left out of the file when there is none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_project_folder: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 use std::fmt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
 
 use serde::Serialize;
@@ -45,7 +45,8 @@ impl From<FolderPickerError> for ApplicationError {
 pub trait FolderPicker: Send + Sync {
     /// `Ok(Some(path))`: a folder was chosen. `Ok(None)`: the user cancelled.
     /// `Err`: the dialog could not be shown or its result could not be read.
-    fn pick_folder(&self) -> Result<Option<PathBuf>, FolderPickerError>;
+    /// `start`: the folder the dialog shows first; `None` leaves it to the OS.
+    fn pick_folder(&self, start: Option<&Path>) -> Result<Option<PathBuf>, FolderPickerError>;
 }
 
 /// Wire form of the command result: `{ status: "selected", selectionId, displayPath }` or
@@ -107,6 +108,17 @@ impl FolderSelectionState {
     }
 }
 
+/// Where the folder dialog starts: the folder that holds the last opened Project, so that
+/// Project is listed and can be picked again. Left to the OS when unknown or gone. The
+/// Project folder itself is not used: Windows reopens a folder dialog inside the folder
+/// picked last, where pressing the select button does not pick that folder again.
+pub fn dialog_start_folder(last_project_folder: Option<&Path>) -> Option<PathBuf> {
+    last_project_folder
+        .and_then(Path::parent)
+        .filter(|parent| parent.is_dir())
+        .map(Path::to_path_buf)
+}
+
 /// Opens the dialog and records the choice. Performs no validation or loading of the folder;
 /// that is `open_project` / `create_project`'s job. The state lock is taken only after the
 /// dialog closed, so a dialog that stays open never blocks other commands.
@@ -114,8 +126,9 @@ pub fn select_project_folder(
     picker: &dyn FolderPicker,
     state: &Mutex<FolderSelectionState>,
     window_label: &str,
+    start: Option<&Path>,
 ) -> ApplicationResult<FolderSelection> {
-    let Some(path) = picker.pick_folder()? else {
+    let Some(path) = picker.pick_folder(start)? else {
         return Ok(FolderSelection::Cancelled);
     };
     let display_path = path.display().to_string();
@@ -140,4 +153,30 @@ pub fn resolve_selection(
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
         .resolve(window_label, selection_id)
+}
+
+#[cfg(test)]
+mod dialog_start_tests {
+    use super::dialog_start_folder;
+    use std::env;
+    use uuid::Uuid;
+
+    #[test]
+    fn the_dialog_starts_in_the_folder_that_holds_the_last_project() {
+        // Only the parent has to exist: the Project folder may have been moved since.
+        let parent = env::temp_dir();
+        assert_eq!(
+            dialog_start_folder(Some(&parent.join("order-service"))),
+            Some(parent)
+        );
+    }
+
+    #[test]
+    fn the_os_chooses_when_nothing_was_opened_or_the_place_is_gone() {
+        assert_eq!(dialog_start_folder(None), None);
+        let gone = env::temp_dir()
+            .join(Uuid::now_v7().to_string())
+            .join("order-service");
+        assert_eq!(dialog_start_folder(Some(&gone)), None);
+    }
 }

@@ -18,6 +18,7 @@ use design_dawn_lib::application::folder_selection::{FolderPicker, FolderPickerE
 use design_dawn_lib::application::local_state::operations::{LocalState, LocalStateDirectories};
 use design_dawn_lib::application::window_registry::WindowRegistry;
 use design_dawn_lib::commands::SharedFolderPicker;
+use design_dawn_lib::infrastructure::local_state::constants::SETTINGS_FILE_NAME;
 use serde_json::Value;
 use support::*;
 use tauri::ipc::{CallbackFn, InvokeBody};
@@ -54,7 +55,7 @@ struct FakePicker {
 }
 
 impl FolderPicker for FakePicker {
-    fn pick_folder(&self) -> Result<Option<PathBuf>, FolderPickerError> {
+    fn pick_folder(&self, _start: Option<&Path>) -> Result<Option<PathBuf>, FolderPickerError> {
         let outcome = self
             .outcomes
             .lock()
@@ -1406,4 +1407,20 @@ fn an_unknown_hand_over_cannot_be_taken() {
     );
 
     assert_eq!(error_kind(outcome), "invalidDocumentTransfer");
+}
+
+/// The folder of a Project opened from the dialog is kept in the settings, so the next
+/// dialog can start next to it.
+#[test]
+fn opening_a_project_from_the_dialog_remembers_its_folder() {
+    let temp = TempDir::new();
+    let opened = open_fixture_project(&temp);
+    let settings_path = local_state_directories(temp.path())
+        .config_dir
+        .join(SETTINGS_FILE_NAME);
+    let settings: Value = serde_json::from_slice(&fs::read(settings_path).unwrap()).unwrap();
+    assert_eq!(
+        settings["lastProjectFolder"],
+        Value::String(opened.project_root.to_string_lossy().into_owned())
+    );
 }
