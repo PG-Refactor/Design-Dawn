@@ -220,8 +220,14 @@ describe("Gantt charts", () => {
       id: "task1",
       ordinal: 1,
     });
-    // The section's background stripe is not a shape.
-    expect(shapeAt(diagram, { x: 250, y: 60 }, shown)).toBeNull();
+    // Away from the bars, the row's stripe stands for the first task's section.
+    expect(shapeAt(diagram, { x: 250, y: 60 }, shown)).toEqual({
+      kind: "section",
+      id: "",
+      ordinal: 0,
+    });
+    // Below every row, nothing.
+    expect(shapeAt(diagram, { x: 250, y: 98 }, shown)).toBeNull();
   });
 });
 
@@ -277,5 +283,58 @@ describe("pie charts", () => {
     ]) {
       expect(shapeAt(whole, point, square)?.id).toBe("All");
     }
+  });
+});
+
+describe("sequence blocks and Gantt section rows", () => {
+  it("numbers blocks by where they start, outer before inner, the coloured rect too", () => {
+    // An outer loop (y 100..300) holding an opt (y 150..250); below them a coloured rect
+    // block (y 320..380). Mermaid numbered the opt's end first.
+    const diagram =
+      readDiagramShapes(`<svg xmlns="http://www.w3.org/2000/svg" aria-roledescription="sequence" viewBox="0 0 400 400">
+      <g data-et="control-structure" data-id="i5">
+        <line x1="70" y1="150" x2="290" y2="150"/><line x1="70" y1="250" x2="290" y2="250"/>
+      </g>
+      <g data-et="control-structure" data-id="i6">
+        <line x1="60" y1="100" x2="300" y2="100"/><line x1="60" y1="300" x2="300" y2="300"/>
+      </g>
+      <rect x="60" y="320" width="240" height="60" class="rect"/>
+    </svg>`);
+    if (diagram === null) throw new Error("not read");
+    const shown = { width: 400, height: 400 };
+    expect(shapeAt(diagram, { x: 80, y: 120 }, shown)).toEqual({
+      kind: "block",
+      id: "",
+      ordinal: 0,
+    });
+    // Inside both: the inner (smaller) block.
+    expect(shapeAt(diagram, { x: 80, y: 200 }, shown)?.ordinal).toBe(1);
+    expect(shapeAt(diagram, { x: 80, y: 350 }, shown)?.ordinal).toBe(2);
+  });
+
+  it("does not take a flowchart's rect for a block", () => {
+    const diagram =
+      readDiagramShapes(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <rect x="0" y="0" width="100" height="100" class="rect"/>
+    </svg>`);
+    expect(diagram?.areas).toEqual([]);
+  });
+
+  it("tells the section row of each task, one stripe per task", () => {
+    const diagram =
+      readDiagramShapes(`<svg xmlns="http://www.w3.org/2000/svg" id="g" viewBox="0 0 300 100">
+      <rect x="0" y="0" width="300" height="24" class="section section0"/>
+      <rect x="0" y="24" width="300" height="24" class="section section1"/>
+      <rect id="g-a" x="100" y="2" width="40" height="20" class="task task0"/>
+    </svg>`);
+    if (diagram === null) throw new Error("not read");
+    const shown = { width: 300, height: 100 };
+    expect(shapeAt(diagram, { x: 250, y: 30 }, shown)).toEqual({
+      kind: "section",
+      id: "",
+      ordinal: 1,
+    });
+    // On the bar, the task.
+    expect(shapeAt(diagram, { x: 110, y: 10 }, shown)?.kind).toBe("task");
   });
 });

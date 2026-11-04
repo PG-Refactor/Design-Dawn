@@ -14,6 +14,7 @@ import {
 import type { SequenceOperation } from "../../domain/diagram/sequence/sequence-operations";
 import {
   readSequenceView,
+  type SequenceBlockStartEntry,
   type SequenceEntryView,
   type SequenceMessageEntry,
   type SequenceNoteEntry,
@@ -75,8 +76,18 @@ type SequenceShapeTarget =
     }
   | {
       readonly kind: "entry";
-      readonly entry: SequenceMessageEntry | SequenceNoteEntry;
+      readonly entry:
+        | SequenceMessageEntry
+        | SequenceNoteEntry
+        | SequenceBlockStartEntry;
     };
+
+// The entry kind each shape of the picture stands for.
+const ENTRY_KIND_OF_HIT = {
+  message: "message",
+  note: "note",
+  block: "blockStart",
+} as const;
 
 // The title field edits one thing, so its target is this constant.
 const TITLE_TARGET = { key: "title" } as const;
@@ -288,8 +299,8 @@ export function SequenceGuiPanel({
 
   // ---- the diagram picture: right-click and click on a participant, message or note ----
 
-  // What a hit stands for. Participants carry their id; messages and notes are told apart
-  // only by their order, which is source order in the drawing and in the entry list.
+  // What a hit stands for. Participants carry their id; messages, notes and blocks are told
+  // apart only by their order, which is source order in the drawing and in the entry list.
   function targetOf(hit: DiagramHit): SequenceShapeTarget | null {
     if (view === null) return null;
     if (hit.kind === "participant") {
@@ -300,13 +311,18 @@ export function SequenceGuiPanel({
         ? null
         : { kind: "participant", participant };
     }
-    if (
-      (hit.kind === "message" || hit.kind === "note") &&
-      hit.ordinal !== undefined
-    ) {
+    const entryKind =
+      hit.kind === "message" || hit.kind === "note" || hit.kind === "block"
+        ? ENTRY_KIND_OF_HIT[hit.kind]
+        : null;
+    if (entryKind !== null && hit.ordinal !== undefined) {
       const entry = view.entries.filter(
-        (candidate): candidate is SequenceMessageEntry | SequenceNoteEntry =>
-          candidate.kind === hit.kind,
+        (
+          candidate,
+        ): candidate is
+          | SequenceMessageEntry
+          | SequenceNoteEntry
+          | SequenceBlockStartEntry => candidate.kind === entryKind,
       )[hit.ordinal];
       return entry === undefined ? null : { kind: "entry", entry };
     }
@@ -363,6 +379,25 @@ export function SequenceGuiPanel({
       ];
     }
     const { entry } = target;
+    if (entry.kind === "blockStart") {
+      return [
+        {
+          id: "editBlock",
+          label: text.editBlockMenu,
+          onSelect: () => void editFromDiagram(selected),
+        },
+        {
+          id: "unwrapBlock",
+          label: text.unwrapBlockMenu,
+          disabled: busy || entry.unwrapRestriction !== null,
+          onSelect: () =>
+            void removeFromDiagram({
+              kind: "unwrapBlock",
+              target: entry.target,
+            }),
+        },
+      ];
+    }
     const isMessage = entry.kind === "message";
     return [
       {

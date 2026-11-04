@@ -18,16 +18,18 @@ export type DiagramHitKind =
   | "participant"
   | "message"
   | "note"
+  | "block"
   // Gantt chart
   | "task"
+  | "section"
   // pie chart
   | "slice";
 
 // What a point on the diagram is over. `id` is what the source calls it (a flowchart node
 // or edge id, a participant id, a Gantt task id, a pie slice's label), "" when the drawing
 // does not tell. `ordinal` is its position among the shapes of its kind in source order,
-// for the kinds whose elements have no name of their own (sequence messages and notes) or
-// may lack one (Gantt tasks, pie slices). Any other point is the diagram itself (`null`).
+// for the kinds whose elements have no name of their own (sequence messages, notes and
+// blocks, the Gantt sections of task rows) or may lack one (Gantt tasks, pie slices). Any other point is the diagram itself (`null`).
 export interface DiagramHit {
   readonly kind: DiagramHitKind;
   readonly id: string;
@@ -56,7 +58,7 @@ export interface DiagramWedge {
 
 // Four layers, looked up in this order: what is drawn on top (nodes, labels, participant
 // boxes, notes, task bars, legend entries), pie slices, lines (edges, messages, lifelines),
-// and the areas around everything else (subgraphs).
+// and the areas around everything else (subgraphs, sequence blocks, Gantt section rows).
 export interface DiagramShapes {
   readonly viewBox: DiagramBox;
   readonly shapes: readonly DiagramShape[];

@@ -180,6 +180,50 @@ describe("the sequence diagram's shapes", () => {
   });
 });
 
+describe("the sequence diagram's blocks", () => {
+  const TEXT = GUI.sequence;
+  const SOURCE = [
+    "sequenceDiagram",
+    "  A->>B: Hello",
+    "  loop Every minute",
+    "    A->>B: ping",
+    "  end",
+    "",
+  ].join("\n");
+  // The loop's frame (20..180, 30..90) around ping at y = 70.
+  const SVG = `<svg xmlns="http://www.w3.org/2000/svg" aria-roledescription="sequence" viewBox="0 0 200 100">
+    <line x1="30" y1="15" x2="150" y2="15" data-et="message" data-id="i0"/>
+    <g data-et="control-structure" data-id="i3">
+      <line x1="20" y1="30" x2="180" y2="30"/><line x1="20" y1="90" x2="180" y2="90"/>
+    </g>
+    <line x1="30" y1="70" x2="150" y2="70" data-et="message" data-id="i2"/>
+  </svg>`;
+
+  it("edits a block and unwraps it, keeping what it holds", async () => {
+    const rendered = await openGui(SOURCE, SVG);
+    const menu = rightClick(await picture(), 170, 45);
+    expect(itemNames(menu).slice(0, 2)).toEqual([
+      TEXT.editBlockMenu,
+      TEXT.unwrapBlockMenu,
+    ]);
+    await choose(rendered, menu, TEXT.editBlockMenu);
+    expect(focusedValue()).toBe("Every minute");
+    await choose(
+      rendered,
+      rightClick(await picture(), 170, 45),
+      TEXT.unwrapBlockMenu,
+    );
+    expect(storedText(rendered)).not.toContain("loop");
+    expect(storedText(rendered)).toContain("A->>B: ping");
+  });
+
+  it("still offers the message inside a block", async () => {
+    await openGui(SOURCE, SVG);
+    const menu = rightClick(await picture(), 90, 71);
+    expect(itemNames(menu)[0]).toBe(TEXT.editMessageMenu);
+  });
+});
+
 describe("the Gantt chart's tasks", () => {
   const TEXT = GUI.gantt;
   const SOURCE = [
@@ -191,7 +235,10 @@ describe("the Gantt chart's tasks", () => {
     "",
   ].join("\n");
   // Spec's bar (10..90, 10..30) has its own id; Review's (90..150, 40..60) a made-up one.
+  // Each task row has its section's stripe behind it.
   const SVG = `<svg xmlns="http://www.w3.org/2000/svg" id="m" viewBox="0 0 200 100">
+    <rect x="0" y="5" width="200" height="30" class="section section0"/>
+    <rect x="0" y="35" width="200" height="30" class="section section0"/>
     <rect id="m-s1" x="10" y="10" width="80" height="20" class="task task0"/>
     <rect id="m-task1" x="90" y="40" width="60" height="20" class="task task0"/>
   </svg>`;
@@ -212,6 +259,43 @@ describe("the Gantt chart's tasks", () => {
     );
     expect(storedText(rendered)).not.toContain("Spec");
     expect(storedText(rendered)).toContain("Review");
+  });
+});
+
+describe("the Gantt chart's sections", () => {
+  const TEXT = GUI.gantt;
+  const SOURCE = [
+    "gantt",
+    "  dateFormat YYYY-MM-DD",
+    "  section Design",
+    "  Spec :s1, 2024-01-01, 3d",
+    "  section Build",
+    "  Code :c1, 2024-01-04, 2d",
+    "",
+  ].join("\n");
+  const SVG = `<svg xmlns="http://www.w3.org/2000/svg" id="m" viewBox="0 0 200 100">
+    <rect x="0" y="5" width="200" height="30" class="section section0"/>
+    <rect x="0" y="35" width="200" height="30" class="section section1"/>
+    <rect id="m-s1" x="10" y="10" width="40" height="20" class="task task0"/>
+    <rect id="m-c1" x="50" y="40" width="40" height="20" class="task task1"/>
+  </svg>`;
+
+  it("edits a section from its row and deletes another", async () => {
+    const rendered = await openGui(SOURCE, SVG);
+    const menu = rightClick(await picture(), 180, 50);
+    expect(itemNames(menu).slice(0, 2)).toEqual([
+      TEXT.editSectionMenu,
+      TEXT.deleteSectionMenu,
+    ]);
+    await choose(rendered, menu, TEXT.editSectionMenu);
+    expect(focusedValue()).toBe("Build");
+    await choose(
+      rendered,
+      rightClick(await picture(), 180, 20),
+      TEXT.deleteSectionMenu,
+    );
+    expect(storedText(rendered)).not.toContain("section Design");
+    expect(storedText(rendered)).toContain("section Build");
   });
 });
 

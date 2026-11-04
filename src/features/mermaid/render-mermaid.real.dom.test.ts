@@ -4,6 +4,7 @@
 // check structure (what survives sanitising), never how a diagram looks. Whether the
 // diagrams look right in the WebView is a manual check.
 import { beforeAll, describe, expect, it } from "vitest";
+import { readSequenceView } from "../../domain/diagram/sequence/sequence-view";
 import { readDiagramShapes } from "./diagram-shapes";
 import {
   buildMermaidConfig,
@@ -648,6 +649,31 @@ describe("the shapes of real sequence and pie diagrams, for clicks on their pict
     );
     expect(hits("message").map((hit) => hit.ordinal)).toEqual([0, 1, 2]);
     expect(hits("note").map((hit) => hit.ordinal)).toEqual([0]);
+  });
+
+  it("finds one block area per block the editor lists, top to bottom", async () => {
+    const source =
+      "sequenceDiagram\n  A->>B: one\n  loop Outer\n    A->>B: two\n    opt Inner\n      B->>A: three\n    end\n  end\n  alt Yes\n    A->>B: four\n  else No\n    B->>A: five\n  end\n  rect rgb(200,200,255)\n    A->>B: six\n  end";
+    const outcome = await mermaidRenderer.render(
+      source,
+      themeValuesOf("light"),
+    );
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    const blocks = (
+      readDiagramShapes(sanitizeSvg(outcome.svg))?.areas ?? []
+    ).filter((area) => area.hit.kind === "block");
+    const listed = readSequenceView(source)?.entries.filter(
+      (entry) => entry.kind === "blockStart",
+    );
+    expect(blocks.map((block) => block.hit.ordinal)).toEqual([0, 1, 2, 3]);
+    expect(blocks).toHaveLength(listed?.length ?? -1);
+    // The inner opt lies inside the outer loop.
+    const [outer, inner] = blocks;
+    expect(inner?.box.y).toBeGreaterThan(outer?.box.y ?? Number.NaN);
+    expect((inner?.box.y ?? 0) + (inner?.box.height ?? 0)).toBeLessThan(
+      (outer?.box.y ?? 0) + (outer?.box.height ?? 0),
+    );
   });
 
   it("names every pie slice by its label", async () => {
