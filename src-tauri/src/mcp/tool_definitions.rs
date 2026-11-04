@@ -126,7 +126,8 @@ fn pair(
     )
 }
 
-const DOCUMENT_ID_HELP: &str = "ID of the Document (from getProject)";
+const DOCUMENT_ID_HELP: &str =
+    "ID of the Document (a documentId from getProject's documents; not the projectId)";
 const SHEET_ID_HELP: &str = "ID of the Sheet (from getDocument)";
 const BLOCK_ID_HELP: &str = "ID of the Block (from getSheet)";
 const WORLD_UNITS_HELP: &str = "integer world units";
@@ -230,7 +231,8 @@ the Project or in a Folder.",
         write(
             CREATE_BLOCK,
             "Adds a Markdown or Mermaid Block in front of the others. Without position it is \
-placed below the lowest existing Block; without size it is 480 x 320.",
+placed below the lowest existing Block; without size it is 480 x 320. The result has the new \
+blockId and contentHash. To give a Mermaid Block a caption, call updateBlockCaption next.",
             false,
             vec![
                 id("documentId", true, DOCUMENT_ID_HELP),
@@ -282,8 +284,9 @@ placed below the lowest existing Block; without size it is 480 x 320.",
         ),
         write(
             UPDATE_BLOCK,
-            "Replaces the text of a Markdown or Mermaid Block. Nothing is written (result \
-conflict) if the text changed since you read it.",
+            "Replaces the whole text of a Markdown or Mermaid Block (send the full new text; \
+there is no partial edit). Nothing is written (result conflict) if the text changed since you \
+read it.",
             true,
             vec![
                 id("documentId", true, DOCUMENT_ID_HELP),
@@ -293,7 +296,8 @@ conflict) if the text changed since you read it.",
                 text(
                     "expectedContentHash",
                     true,
-                    "the contentHash returned by getBlock for the text you based the change on",
+                    "the contentHash of the text you based the change on: from getBlock, or from \
+createBlock / updateBlock for text you wrote yourself",
                 ),
             ],
         ),
