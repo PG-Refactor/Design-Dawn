@@ -153,3 +153,129 @@ describe("edges and subgraphs", () => {
     expect(shapeAt(diagram, { x: 60, y: 25 }, half)).toBeNull();
   });
 });
+
+describe("sequence diagrams", () => {
+  // Participants A (0..150 wide, top and bottom box) and B, a message A -> B along y = 114,
+  // a note, and a second message B -> A at y = 156 that Mermaid numbered after the note.
+  const SEQUENCE = `<svg xmlns="http://www.w3.org/2000/svg" id="dawn-mermaid-1" viewBox="0 0 400 400">
+    <rect x="0" y="0" width="150" height="72" name="A" class="actor actor-top"/>
+    <rect x="200" y="0" width="150" height="72" name="B" class="actor actor-top"/>
+    <rect x="0" y="319" width="150" height="72" name="A" class="actor actor-bottom"/>
+    <line x1="75" y1="72" x2="75" y2="319" data-et="life-line" data-id="A"/>
+    <line x1="275" y1="72" x2="275" y2="319" data-et="life-line" data-id="B"/>
+    <g data-et="note" data-id="i2"><rect x="300" y="166" width="90" height="36" class="note"/></g>
+    <line x1="274" y1="156" x2="82" y2="156" data-et="message" data-id="i10"/>
+    <line x1="76" y1="114" x2="268" y2="114" data-et="message" data-id="i0"/>
+  </svg>`;
+  const diagram = readDiagramShapes(SEQUENCE);
+  if (diagram === null) throw new Error("not read");
+  const shown = { width: 400, height: 400 };
+
+  it("finds participants by id, top and bottom, and along their lifeline", () => {
+    expect(shapeAt(diagram, { x: 20, y: 20 }, shown)).toEqual({
+      kind: "participant",
+      id: "A",
+    });
+    expect(shapeAt(diagram, { x: 20, y: 350 }, shown)?.id).toBe("A");
+    expect(shapeAt(diagram, { x: 277, y: 250 }, shown)?.id).toBe("B");
+  });
+
+  it("numbers messages and notes in statement order, whatever the drawing order", () => {
+    expect(shapeAt(diagram, { x: 150, y: 115 }, shown)).toEqual({
+      kind: "message",
+      id: "",
+      ordinal: 0,
+    });
+    expect(shapeAt(diagram, { x: 150, y: 157 }, shown)).toEqual({
+      kind: "message",
+      id: "",
+      ordinal: 1,
+    });
+    expect(shapeAt(diagram, { x: 320, y: 180 }, shown)).toEqual({
+      kind: "note",
+      id: "",
+      ordinal: 0,
+    });
+  });
+});
+
+describe("Gantt charts", () => {
+  const GANTT = `<svg xmlns="http://www.w3.org/2000/svg" id="dawn-mermaid-2" viewBox="0 0 300 100">
+    <rect x="0" y="48" width="300" height="24" class="section section0"/>
+    <rect id="dawn-mermaid-2-s1" x="75" y="50" width="40" height="20" class="task task0"/>
+    <rect id="dawn-mermaid-2-task1" x="115" y="74" width="30" height="20" class="task task0"/>
+  </svg>`;
+  const diagram = readDiagramShapes(GANTT);
+  if (diagram === null) throw new Error("not read");
+
+  it("finds task bars by their id and their place in the chart", () => {
+    const shown = { width: 300, height: 100 };
+    expect(shapeAt(diagram, { x: 80, y: 60 }, shown)).toEqual({
+      kind: "task",
+      id: "s1",
+      ordinal: 0,
+    });
+    expect(shapeAt(diagram, { x: 120, y: 80 }, shown)).toEqual({
+      kind: "task",
+      id: "task1",
+      ordinal: 1,
+    });
+    // The section's background stripe is not a shape.
+    expect(shapeAt(diagram, { x: 250, y: 60 }, shown)).toBeNull();
+  });
+});
+
+describe("pie charts", () => {
+  // Mermaid's own output for "Dogs" 40, "Cats" 30, "Birds" 10 around (225, 225), r = 185:
+  // Dogs on the right half, Cats bottom-left, Birds top-left; the legend names them by colour.
+  const PIE = `<svg xmlns="http://www.w3.org/2000/svg" id="dawn-mermaid-3" viewBox="0 0 512 450">
+    <g transform="translate(225,225)"><g>
+      <circle cx="0" cy="0" r="186" class="pieOuterCircle"/>
+      <path d="M0,-185A185,185,0,1,1,0,185L0,0Z" fill="#2859c0" class="pieCircle"/>
+      <path d="M0,185A185,185,0,0,1,-130.815,-130.815L0,0Z" fill="#1a7a4c" class="pieCircle"/>
+      <path d="M-130.815,-130.815A185,185,0,0,1,0,-185L0,0Z" fill="#b0541a" class="pieCircle"/>
+    </g>
+    <g class="legend" transform="translate(216,-33)"><rect width="18" height="18" style="fill: rgb(40, 89, 192); stroke: rgb(40, 89, 192);"/><text x="22" y="14">Dogs</text></g>
+    <g class="legend" transform="translate(216,-11)"><rect width="18" height="18" style="fill: rgb(26, 122, 76);"/><text x="22" y="14">Cats</text></g>
+    <g class="legend" transform="translate(216,11)"><rect width="18" height="18" style="fill: rgb(176, 84, 26);"/><text x="22" y="14">Birds</text></g>
+    </g>
+  </svg>`;
+  const diagram = readDiagramShapes(PIE);
+  if (diagram === null) throw new Error("not read");
+  const shown = { width: 512, height: 450 };
+
+  it("finds the slice under a point by its label", () => {
+    expect(shapeAt(diagram, { x: 325, y: 225 }, shown)).toEqual({
+      kind: "slice",
+      id: "Dogs",
+      ordinal: 0,
+    });
+    expect(shapeAt(diagram, { x: 150, y: 300 }, shown)?.id).toBe("Cats");
+    expect(shapeAt(diagram, { x: 200, y: 100 }, shown)?.id).toBe("Birds");
+    // Outside the circle.
+    expect(shapeAt(diagram, { x: 10, y: 10 }, shown)).toBeNull();
+  });
+
+  it("finds the slice from its legend entry too", () => {
+    expect(
+      shapeAt(diagram, { x: 225 + 216 + 9, y: 225 - 11 + 9 }, shown),
+    ).toEqual({ kind: "slice", id: "Cats", ordinal: 1 });
+  });
+
+  it("covers the whole circle for a single slice", () => {
+    const whole =
+      readDiagramShapes(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="-100 -100 200 200">
+      <path d="M0,-90A90,90,0,1,1,0,90A90,90,0,1,1,0,-90Z" fill="#2859c0" class="pieCircle"/>
+      <g class="legend"><rect width="1" height="1" x="500" style="fill: #2859c0"/><text>All</text></g>
+    </svg>`);
+    if (whole === null) throw new Error("not read");
+    const square = { width: 200, height: 200 };
+    for (const point of [
+      { x: 150, y: 100 },
+      { x: 50, y: 100 },
+      { x: 100, y: 30 },
+    ]) {
+      expect(shapeAt(whole, point, square)?.id).toBe("All");
+    }
+  });
+});

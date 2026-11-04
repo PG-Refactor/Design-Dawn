@@ -13,6 +13,7 @@ import {
 } from "../../application/ports/operation-error";
 import type { PieOperation } from "../../domain/diagram/pie/pie-operations";
 import { readPieChartView } from "../../domain/diagram/pie/pie-view";
+import type { PopupMenuEntry } from "../../shared/menu/popup-menu";
 import { useMessages } from "../workspace/use-messages";
 import {
   DiagramGuiLayout,
@@ -20,6 +21,7 @@ import {
   useGuiLayoutState,
 } from "./diagram-gui-layout";
 import { describeRefusal } from "./diagram-gui-text";
+import type { DiagramHit } from "./diagram-shapes";
 import { PieAddSlice } from "./pie-add-slice";
 import { PieSliceEditor } from "./pie-slice-editor";
 import { PieSliceList } from "./pie-slice-list";
@@ -166,6 +168,52 @@ export function PieGuiPanel({
     );
   }
 
+  // ---- the diagram picture: right-click and click on a slice or its legend entry ----
+
+  // The slice a hit names: the drawing labels slices as they read (`displayLabel`).
+  function sliceIndexOf(hit: DiagramHit): number | null {
+    if (hit.kind !== "slice") return null;
+    return (
+      view.slices.find((slice) => slice.displayLabel === hit.id)?.index ?? null
+    );
+  }
+
+  async function editSliceFromDiagram(index: number): Promise<void> {
+    await select(index);
+    // The editor appears with the selection; its label field takes the focus then.
+    requestAnimationFrame(() => editorLabelRef.current?.focus());
+  }
+
+  async function deleteSliceFromDiagram(index: number): Promise<void> {
+    const slice = view.slices[index];
+    if (slice === undefined) return;
+    const outcome = await run({
+      kind: "deleteSlice",
+      target: { index: slice.index, label: slice.targetLabel },
+    });
+    if (outcome !== "applied") return;
+    setSelectionKey((key) => key + 1);
+    setSelection(null);
+  }
+
+  function sliceEntries(hit: DiagramHit): readonly PopupMenuEntry[] {
+    const index = sliceIndexOf(hit);
+    if (index === null) return [];
+    return [
+      {
+        id: "editSlice",
+        label: gui.editSliceMenu,
+        onSelect: () => void editSliceFromDiagram(index),
+      },
+      {
+        id: "deleteSlice",
+        label: gui.deleteSliceMenu,
+        disabled: busy,
+        onSelect: () => void deleteSliceFromDiagram(index),
+      },
+    ];
+  }
+
   const refusal =
     operation.refusal === null ? null : describeRefusal(gui, operation.refusal);
 
@@ -209,6 +257,11 @@ export function PieGuiPanel({
       className="diagram-gui__pie"
       state={layout}
       source={source}
+      shapeEntries={sliceEntries}
+      onPickShape={(hit) => {
+        const index = sliceIndexOf(hit);
+        if (index !== null) void select(index);
+      }}
       toolbarLabel={gui.addToolbarLabel}
       tabListLabel={gui.listTabsLabel}
       listsLabel={gui.listsSummary}

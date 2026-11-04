@@ -284,6 +284,9 @@ export function FlowchartGuiPanel({
           ? null
           : { kind: "edge", index: edge.index, id: edge.id };
       }
+      // A shape of another kind of diagram.
+      default:
+        return null;
     }
   }
 

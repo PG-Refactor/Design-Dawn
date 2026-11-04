@@ -15,7 +15,11 @@ import type { SequenceOperation } from "../../domain/diagram/sequence/sequence-o
 import {
   readSequenceView,
   type SequenceEntryView,
+  type SequenceMessageEntry,
+  type SequenceNoteEntry,
+  type SequenceParticipantView,
 } from "../../domain/diagram/sequence/sequence-view";
+import type { PopupMenuEntry } from "../../shared/menu/popup-menu";
 import { useMessages } from "../workspace/use-messages";
 import {
   DiagramGuiLayout,
@@ -23,6 +27,7 @@ import {
   useGuiLayoutState,
 } from "./diagram-gui-layout";
 import { describeRefusal, describeRestriction } from "./diagram-gui-text";
+import type { DiagramHit } from "./diagram-shapes";
 import { GuiSelect } from "./gui-controls";
 import { GuiDraftLabelField } from "./gui-draft-label-field";
 import { SequenceAddMessage } from "./sequence-add-message";
@@ -60,6 +65,17 @@ type SequenceSelection =
       readonly index: number;
       readonly fingerprint: string;
       readonly entryKind: SequenceEntryView["kind"];
+    };
+
+// What a shape of the diagram picture stands for.
+type SequenceShapeTarget =
+  | {
+      readonly kind: "participant";
+      readonly participant: SequenceParticipantView;
+    }
+  | {
+      readonly kind: "entry";
+      readonly entry: SequenceMessageEntry | SequenceNoteEntry;
     };
 
 // The title field edits one thing, so its target is this constant.
@@ -270,6 +286,104 @@ export function SequenceGuiPanel({
     setSelection(null);
   }
 
+  // ---- the diagram picture: right-click and click on a participant, message or note ----
+
+  // What a hit stands for. Participants carry their id; messages and notes are told apart
+  // only by their order, which is source order in the drawing and in the entry list.
+  function targetOf(hit: DiagramHit): SequenceShapeTarget | null {
+    if (view === null) return null;
+    if (hit.kind === "participant") {
+      const participant = view.participants.find(
+        (candidate) => candidate.id === hit.id,
+      );
+      return participant === undefined
+        ? null
+        : { kind: "participant", participant };
+    }
+    if (
+      (hit.kind === "message" || hit.kind === "note") &&
+      hit.ordinal !== undefined
+    ) {
+      const entry = view.entries.filter(
+        (candidate): candidate is SequenceMessageEntry | SequenceNoteEntry =>
+          candidate.kind === hit.kind,
+      )[hit.ordinal];
+      return entry === undefined ? null : { kind: "entry", entry };
+    }
+    return null;
+  }
+
+  function selectionOfTarget(target: SequenceShapeTarget): SequenceSelection {
+    return target.kind === "participant"
+      ? { kind: "participant", id: target.participant.id }
+      : {
+          kind: "entry",
+          index: target.entry.target.index,
+          fingerprint: target.entry.target.fingerprint,
+          entryKind: target.entry.kind,
+        };
+  }
+
+  async function editFromDiagram(next: SequenceSelection): Promise<void> {
+    await select(next);
+    // The editor appears with the selection; its text field takes the focus then.
+    requestAnimationFrame(() => editorLabelRef.current?.focus());
+  }
+
+  async function removeFromDiagram(
+    sequenceOperation: SequenceOperation,
+  ): Promise<void> {
+    const outcome = await run(sequenceOperation);
+    if (outcome !== "applied") return;
+    setSelectionKey((key) => key + 1);
+    setSelection(null);
+  }
+
+  function shapeEntries(hit: DiagramHit): readonly PopupMenuEntry[] {
+    const target = targetOf(hit);
+    if (target === null) return [];
+    const selected = selectionOfTarget(target);
+    if (target.kind === "participant") {
+      return [
+        {
+          id: "editParticipant",
+          label: text.editParticipantMenu,
+          onSelect: () => void editFromDiagram(selected),
+        },
+        {
+          id: "deleteParticipant",
+          label: text.deleteParticipantMenu,
+          disabled: busy || target.participant.deleteRestriction !== null,
+          onSelect: () =>
+            void removeFromDiagram({
+              kind: "deleteParticipant",
+              participantId: target.participant.id,
+            }),
+        },
+      ];
+    }
+    const { entry } = target;
+    const isMessage = entry.kind === "message";
+    return [
+      {
+        id: isMessage ? "editMessage" : "editNote",
+        label: isMessage ? text.editMessageMenu : text.editNoteMenu,
+        onSelect: () => void editFromDiagram(selected),
+      },
+      {
+        id: isMessage ? "deleteMessage" : "deleteNote",
+        label: isMessage ? text.deleteMessageMenu : text.deleteNoteMenu,
+        disabled: busy || entry.deleteRestriction !== null,
+        onSelect: () =>
+          void removeFromDiagram(
+            isMessage
+              ? { kind: "deleteMessage", target: entry.target }
+              : { kind: "deleteNote", target: entry.target },
+          ),
+      },
+    ];
+  }
+
   if (view === null) return null;
   const refusal =
     operation.refusal === null ? null : describeRefusal(gui, operation.refusal);
@@ -324,6 +438,11 @@ export function SequenceGuiPanel({
       className="diagram-gui__sequence"
       state={layout}
       source={source}
+      shapeEntries={shapeEntries}
+      onPickShape={(hit) => {
+        const target = targetOf(hit);
+        if (target !== null) void select(selectionOfTarget(target));
+      }}
       toolbarLabel={gui.addToolbarLabel}
       tabListLabel={gui.listTabsLabel}
       listsLabel={gui.listsSummary}

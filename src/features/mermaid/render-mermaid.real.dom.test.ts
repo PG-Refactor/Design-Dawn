@@ -629,6 +629,43 @@ describe("the edges and subgraphs of a real flowchart, for clicks on its picture
   });
 });
 
+describe("the shapes of real sequence and pie diagrams, for clicks on their picture", () => {
+  it("finds participants, messages in order and notes", async () => {
+    const outcome = await mermaidRenderer.render(
+      "sequenceDiagram\n  participant A as Alice\n  participant B\n  A->>B: Hello\n  Note right of B: thinking\n  B-->>A: Hi\n  loop Every minute\n    A->>B: ping\n  end",
+      themeValuesOf("light"),
+    );
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    const diagram = readDiagramShapes(sanitizeSvg(outcome.svg));
+    const hits = (kind: string) =>
+      [
+        ...(diagram?.shapes ?? []).map((shape) => shape.hit),
+        ...(diagram?.lines ?? []).map((line) => line.hit),
+      ].filter((hit) => hit.kind === kind);
+    expect(new Set(hits("participant").map((hit) => hit.id))).toEqual(
+      new Set(["A", "B"]),
+    );
+    expect(hits("message").map((hit) => hit.ordinal)).toEqual([0, 1, 2]);
+    expect(hits("note").map((hit) => hit.ordinal)).toEqual([0]);
+  });
+
+  it("names every pie slice by its label", async () => {
+    const outcome = await mermaidRenderer.render(
+      'pie title Pets\n  "Dogs" : 40\n  "Cats" : 30\n  "Birds" : 10',
+      themeValuesOf("light"),
+    );
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    const diagram = readDiagramShapes(sanitizeSvg(outcome.svg));
+    expect(diagram?.wedges.map((wedge) => wedge.hit.id).sort()).toEqual([
+      "Birds",
+      "Cats",
+      "Dogs",
+    ]);
+  });
+});
+
 describe("the Mermaid templates", () => {
   it.each(MERMAID_TEMPLATE_IDS)(
     "%s renders with real Mermaid",

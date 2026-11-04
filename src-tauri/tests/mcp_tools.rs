@@ -21,7 +21,7 @@ use support::*;
 const MERMAID_BLOCK_ID: &str = "01928f3a-a0b1-7c23-a456-789abcdef012";
 const IMAGE_BLOCK_ID: &str = "01928f3a-9fa0-7b12-9345-6789abcdef01";
 const READ_TOOLS: [&str; 4] = ["getProject", "getDocument", "getSheet", "getBlock"];
-const WRITE_TOOLS: [&str; 8] = [
+const WRITE_TOOLS: [&str; 9] = [
     "createDocument",
     "createSheet",
     "createBlock",
@@ -29,6 +29,7 @@ const WRITE_TOOLS: [&str; 8] = [
     "updateSheet",
     "updateBlock",
     "moveBlock",
+    "updateBlockCaption",
     "deleteBlock",
 ];
 const TEXT_LIMIT_PLUS_ONE: usize = 1024 * 1024 + 1;
@@ -1308,4 +1309,107 @@ fn a_fixed_project_offers_no_project_choice() {
         .call_tool("listProjects", &serde_json::Map::new())
         .is_none());
     assert!(!context.instructions().contains("listProjects"));
+}
+
+// ---- captions ----
+
+fn caption_arguments(block_id: &str, extra: Value) -> Value {
+    with(block_arguments(block_id, json!({})), extra)
+}
+
+fn sheet_block(context: &ToolContext, block_id: &str) -> Value {
+    let sheet = call(context, "getSheet", overview_ids()).ok();
+    sheet["blocks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|block| block["blockId"] == block_id)
+        .cloned()
+        .expect("the block is on the sheet")
+}
+
+#[test]
+fn a_figure_gets_a_caption_that_reads_back_and_loads() {
+    let (_temp, root) = project_copy();
+    let context = context_for(&root, true);
+    let set = call(
+        &context,
+        "updateBlockCaption",
+        caption_arguments(MERMAID_BLOCK_ID, json!({ "caption": "Figure 1: the flow" })),
+    )
+    .ok();
+    assert_eq!(set["caption"], "Figure 1: the flow");
+    assert_eq!(set["captionPosition"], "below");
+
+    // The position changes alone when the text is given again; "below" is not written.
+    call(
+        &context,
+        "updateBlockCaption",
+        caption_arguments(
+            MERMAID_BLOCK_ID,
+            json!({ "caption": "Figure 1: the flow", "position": "above" }),
+        ),
+    )
+    .ok();
+    let block = sheet_block(&context, MERMAID_BLOCK_ID);
+    assert_eq!(block["captionPosition"], "above");
+    let image = call(
+        &context,
+        "getBlock",
+        block_arguments(IMAGE_BLOCK_ID, json!({})),
+    )
+    .ok();
+    assert!(image.get("caption").is_none());
+    assert_loads_without_issues(&root);
+}
+
+#[test]
+fn an_empty_caption_removes_it_with_its_position() {
+    let (_temp, root) = project_copy();
+    let context = context_for(&root, true);
+    call(
+        &context,
+        "updateBlockCaption",
+        caption_arguments(
+            IMAGE_BLOCK_ID,
+            json!({ "caption": "Logo", "position": "above" }),
+        ),
+    )
+    .ok();
+    call(
+        &context,
+        "updateBlockCaption",
+        caption_arguments(IMAGE_BLOCK_ID, json!({ "caption": "" })),
+    )
+    .ok();
+    let block = sheet_block(&context, IMAGE_BLOCK_ID);
+    assert!(block.get("caption").is_none());
+    assert!(block.get("captionPosition").is_none());
+    let on_disk = read_text(&overview_file(&root, "sheet.json"));
+    assert!(!on_disk.contains("caption"), "{on_disk}");
+}
+
+#[test]
+fn a_caption_is_refused_on_text_blocks_and_when_it_breaks_the_rules() {
+    let (_temp, root) = project_copy();
+    let context = context_for(&root, true);
+    let before = tree_snapshot(&root);
+    for (block_id, extra) in [
+        (OVERVIEW_MARKDOWN_BLOCK_ID, json!({ "caption": "Text" })),
+        (MERMAID_BLOCK_ID, json!({ "caption": "two\nlines" })),
+        (MERMAID_BLOCK_ID, json!({ "caption": "x".repeat(501) })),
+        (
+            MERMAID_BLOCK_ID,
+            json!({ "caption": "ok", "position": "left" }),
+        ),
+    ] {
+        let kind = call(
+            &context,
+            "updateBlockCaption",
+            caption_arguments(block_id, extra),
+        )
+        .error_kind();
+        assert_eq!(kind, "invalidCaption");
+    }
+    assert_eq!(tree_snapshot(&root), before);
 }

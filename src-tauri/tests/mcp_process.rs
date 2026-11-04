@@ -99,7 +99,7 @@ fn a_read_write_session_over_stdio() {
         .collect();
     assert_eq!(ids, [1, 2, 3, 4, 5, 6, 7]);
     assert_eq!(replies[0]["result"]["protocolVersion"], "2025-06-18");
-    assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 12);
+    assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 13);
     assert_eq!(tool_result(&replies[2])["projectId"], PROJECT_ID);
     assert_eq!(replies[3]["result"]["isError"], false);
     assert_eq!(
