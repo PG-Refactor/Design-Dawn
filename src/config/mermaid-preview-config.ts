@@ -17,3 +17,8 @@ export const MERMAID_ERROR_MESSAGE_MAX_LENGTH = 600;
 // still mean that edge. The lines are thin; this keeps them easy to hit without reaching
 // over to a neighbour.
 export const DIAGRAM_LINE_HIT_REACH_PX = 6;
+
+// The height (in diagram units) of the click target of an empty flowchart subgraph. Mermaid
+// draws it as its title only, on a frame of no height; the target is one label line high,
+// centred on that frame, about the size of the title as drawn.
+export const EMPTY_SUBGRAPH_HIT_HEIGHT = 24;

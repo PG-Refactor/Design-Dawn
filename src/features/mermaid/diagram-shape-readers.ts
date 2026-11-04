@@ -2,6 +2,7 @@
 // marks its elements differently per diagram type, so each type has its own reader; they
 // look for classes and attributes no other type uses, so all of them run on any drawing.
 
+import { EMPTY_SUBGRAPH_HIT_HEIGHT } from "../../config/mermaid-preview-config";
 import type {
   DiagramHit,
   DiagramLine,
@@ -11,6 +12,8 @@ import type {
 import {
   boxOfPoints,
   colorKey,
+  type DiagramBox,
+  numberAttribute,
   offsetOf,
   pathSegments,
   placedBox,
@@ -71,6 +74,20 @@ const EDGE_LABEL_SELECTOR = "g.edgeLabel [data-id]";
 const NODE_OUTLINE_SELECTOR =
   "rect.label-container, rect, polygon, circle, ellipse, path";
 
+// An empty subgraph is drawn as its title alone: its rectangle has no height and runs
+// through the title. The click target is one label line around it.
+function emptySubgraphBox(rect: Element): DiagramBox | null {
+  const width = numberAttribute(rect, "width");
+  if (!(width > 0) || numberAttribute(rect, "height") !== 0) return null;
+  const offset = offsetOf(rect);
+  return {
+    x: numberAttribute(rect, "x") + offset.x,
+    y: numberAttribute(rect, "y") + offset.y - EMPTY_SUBGRAPH_HIT_HEIGHT / 2,
+    width,
+    height: EMPTY_SUBGRAPH_HIT_HEIGHT,
+  };
+}
+
 function readFlowchart(root: Element): DiagramLayers {
   const nodes = [...root.querySelectorAll("g.node")].flatMap((node) => {
     const id = FLOWCHART_NODE_ID.exec(node.getAttribute("id") ?? "")?.[1];
@@ -101,11 +118,12 @@ function readFlowchart(root: Element): DiagramLayers {
   );
   // A subgraph is a group `<svg id>-<subgraph id>` holding its rectangle.
   const subgraphs = [...root.querySelectorAll("g.cluster")].flatMap(
-    (cluster) => {
+    (cluster): DiagramShape[] => {
       const id = ownId(root, cluster);
-      return id === null
-        ? []
-        : boxShape({ kind: "subgraph", id }, cluster.querySelector("rect"));
+      const rect = cluster.querySelector("rect");
+      if (id === null || rect === null) return [];
+      const box = placedBox(rect) ?? emptySubgraphBox(rect);
+      return box === null ? [] : [{ hit: { kind: "subgraph", id }, box }];
     },
   );
   return {

@@ -90,9 +90,16 @@ const sourceBox = (shortId = "00000001") =>
     name: MESSAGES.sourceLabel(shortId),
   }) as HTMLTextAreaElement;
 
-async function startEditing() {
+// The editor opens in the GUI for a diagram the GUI can edit; these tests edit the Source.
+// The switch waits for the GUI to hand over what it holds, so the box is waited for.
+async function startEditing(): Promise<HTMLTextAreaElement> {
   fireEvent.doubleClick(blockOption(MERMAID_OPTION));
-  return sourceBox();
+  fireEvent.click(
+    screen.getByRole("button", { name: MESSAGES.gui.modeSource }),
+  );
+  return (await screen.findByRole("textbox", {
+    name: MESSAGES.sourceLabel("00000001"),
+  })) as HTMLTextAreaElement;
 }
 
 async function typeInto(
@@ -245,7 +252,15 @@ describe("a Mermaid block outside edit mode", () => {
     fireEvent.pointerDown(blockOption(MERMAID_OPTION), pointer(5, 5));
     fireEvent.pointerUp(canvasElement(), pointer(5, 5));
     await press({ key: "Enter" });
-    expect(sourceBox()).toBeTruthy();
+    expect(
+      screen.getByRole("group", { name: MESSAGES.editorLabel("00000001") }),
+    ).toBeTruthy();
+    // A flowchart the GUI can edit opens in the GUI.
+    expect(
+      screen
+        .getByRole("button", { name: MESSAGES.gui.modeGui })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
   });
 });
 

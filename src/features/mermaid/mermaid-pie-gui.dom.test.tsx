@@ -116,20 +116,13 @@ async function enterValue(
 }
 
 describe("the mode switch", () => {
-  it("opens in Source and shows the GUI only after the GUI button is used", async () => {
+  it("opens in the GUI for a chart it can edit, and Source shows the text", async () => {
     const rendered = await renderOpenedCanvas(seedMermaid(PIE), {
       mermaidRenderer: createFakeRenderer(),
     });
     fireEvent.doubleClick(blockOption(0));
-    expect(getShown("textbox", MESSAGES.sourceLabel(SHORT_ID))).toBeTruthy();
-    expect(button(GUI.modeSource).getAttribute("aria-pressed")).toBe("true");
-    expect(button(GUI.modeGui).getAttribute("aria-pressed")).toBe("false");
-    expect(
-      screen.queryByRole("listbox", { name: GUI.listLabel(SHORT_ID) }),
-    ).toBeNull();
-
-    await rendered.shell.user.click(button(GUI.modeGui));
     expect(button(GUI.modeGui).getAttribute("aria-pressed")).toBe("true");
+    expect(button(GUI.modeSource).getAttribute("aria-pressed")).toBe("false");
     expect(
       screen.queryByRole("textbox", { name: MESSAGES.sourceLabel(SHORT_ID) }),
     ).toBeNull();
@@ -138,6 +131,19 @@ describe("the mode switch", () => {
       GUI.sliceOption("Cats", "85"),
       GUI.sliceOption("Rats", "15"),
     ]);
+
+    await rendered.shell.user.click(button(GUI.modeSource));
+    expect(button(GUI.modeSource).getAttribute("aria-pressed")).toBe("true");
+    expect(getShown("textbox", MESSAGES.sourceLabel(SHORT_ID))).toBeTruthy();
+  });
+
+  it("opens in Source for a diagram the GUI cannot edit", async () => {
+    await renderOpenedCanvas(seedMermaid("classDiagram\n  Animal <|-- Duck"), {
+      mermaidRenderer: createFakeRenderer(),
+    });
+    fireEvent.doubleClick(blockOption(0));
+    expect(button(GUI.modeSource).getAttribute("aria-pressed")).toBe("true");
+    expect(getShown("textbox", MESSAGES.sourceLabel(SHORT_ID))).toBeTruthy();
   });
 
   it("commits the Source draft first (one history entry) and then shows it in the GUI", async () => {
@@ -145,6 +151,7 @@ describe("the mode switch", () => {
       mermaidRenderer: createFakeRenderer(),
     });
     fireEvent.doubleClick(blockOption(0));
+    await rendered.shell.user.click(button(GUI.modeSource));
     const box = screen.getByRole("textbox", {
       name: MESSAGES.sourceLabel(SHORT_ID),
     });
@@ -179,6 +186,7 @@ describe("the mode switch", () => {
       mermaidRenderer: createFakeRenderer(),
     });
     fireEvent.doubleClick(blockOption(0));
+    await rendered.shell.user.click(button(GUI.modeSource));
     const box = screen.getByRole("textbox", {
       name: MESSAGES.sourceLabel(SHORT_ID),
     });
