@@ -58,6 +58,10 @@ pub struct AppSettings {
     /// next dialog starts from. Only Rust uses it.
     #[serde(skip)]
     pub last_project_folder: Option<PathBuf>,
+    /// The folder new Projects are created in unless another one is chosen. Only Rust uses
+    /// it; the Frontend gets a selection for it.
+    #[serde(skip)]
+    pub default_project_location: Option<PathBuf>,
     pub load_issue: Option<ApplicationError>,
 }
 
@@ -71,6 +75,7 @@ impl AppSettings {
             project_tree_width: DEFAULT_PROJECT_TREE_WIDTH,
             window_size: None,
             last_project_folder: None,
+            default_project_location: None,
             load_issue,
         }
     }
@@ -212,6 +217,12 @@ impl LocalState {
                 .as_deref()
                 .filter(|path| !path.is_empty())
                 .map(PathBuf::from),
+            // Absent before schema version 7; a hint like the last folder.
+            default_project_location: dto
+                .default_project_location
+                .as_deref()
+                .filter(|path| !path.is_empty())
+                .map(PathBuf::from),
             load_issue: None,
         })
     }
@@ -245,6 +256,10 @@ impl LocalState {
                 }),
                 last_project_folder: settings
                     .last_project_folder
+                    .as_ref()
+                    .map(|path| path.to_string_lossy().into_owned()),
+                default_project_location: settings
+                    .default_project_location
                     .as_ref()
                     .map(|path| path.to_string_lossy().into_owned()),
             },
@@ -305,6 +320,12 @@ impl LocalState {
     /// Recorded when a window closes. Keeps the other settings (read-modify-write).
     pub fn set_window_size(&self, size: WindowSize) -> ApplicationResult<AppSettings> {
         self.update_settings(|settings| settings.window_size = Some(size))
+    }
+
+    pub fn set_default_project_location(&self, folder: &Path) -> ApplicationResult<AppSettings> {
+        self.update_settings(|settings| {
+            settings.default_project_location = Some(folder.to_path_buf());
+        })
     }
 
     pub fn set_last_project_folder(&self, folder: &Path) -> ApplicationResult<AppSettings> {

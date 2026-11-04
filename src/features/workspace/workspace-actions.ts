@@ -26,6 +26,7 @@ import {
 } from "../../application/ports/operation-error";
 import {
   FOLDER_SELECTION_STATUS,
+  type FolderSelection,
   OPEN_IN_NEW_WINDOW_STATUS,
 } from "../../application/ports/persistence-types";
 import {
@@ -74,6 +75,7 @@ import {
   endRenaming,
   entitySubject,
   type LeftPanelMode,
+  type NewProjectRequest,
   type OperationLabel,
   type OperationSubject,
   type RenamingTarget,
@@ -84,6 +86,13 @@ import {
   type UnsavedCloseTarget,
 } from "./ui-state/ui-state";
 import { type MoveDirection, oneStepMove } from "./view-models/reorder";
+
+// A place a new Project can go in: a folder selection kept by Rust, and its path to show.
+export interface ProjectLocation {
+  readonly selectionId: string;
+  readonly displayPath: string;
+}
+
 import { firstLoadedSheetId } from "./view-models/tabs-model";
 
 // The answer to the "unsaved changes" question of a window close request.
@@ -107,7 +116,14 @@ export interface WorkspaceActions {
     documentId: DocumentId,
   ): Promise<OperationResult<void>>;
   requestCreateProject(): void;
-  createProjectViaDialog(name: string): Promise<OperationResult<void>>;
+  // The place of a new Project: the default one (null when none is set) and one chosen
+  // with the folder dialog (null when cancelled). Failures are notified.
+  defaultProjectLocation(): Promise<OperationResult<ProjectLocation | null>>;
+  chooseProjectLocation(): Promise<OperationResult<ProjectLocation | null>>;
+  // Creates the Project from the New Project dialog. The dialog stays open when it fails.
+  createProjectViaDialog(
+    request: NewProjectRequest,
+  ): Promise<OperationResult<void>>;
   closeProject(): Promise<OperationResult<void>>;
   // Whether closing the app window must ask first: auto-save is off and something of the
   // open Project (or a Markdown draft) is not saved.
@@ -598,8 +614,6 @@ export function createWorkspaceActions(
   }
 
   async function selectAndOpenProject(
-    operation: "openProject" | "createProject",
-    name: string | null,
     discardChanges: boolean,
   ): Promise<OperationResult<void>> {
     {
@@ -621,14 +635,57 @@ export function createWorkspaceActions(
         if (!drafts.ok) return drafts;
       }
       const options = discardChanges ? DISCARD_CHANGES : undefined;
-      const result =
-        name === null
-          ? await workspace.openProject(selectionId, options)
-          : await workspace.createProject(selectionId, name, options);
+      const result = await workspace.openProject(selectionId, options);
       uiStateStore.setState(closeDialog);
-      if (!result.ok) record(operation, null, result.error);
+      if (!result.ok) record("openProject", null, result.error);
       return result;
     }
+  }
+
+  async function createProjectNow(
+    request: NewProjectRequest,
+    discardChanges: boolean,
+  ): Promise<OperationResult<void>> {
+    if (discardChanges) {
+      draftRegistry.discardAll();
+    } else {
+      const drafts = await draftRegistry.commitAll();
+      if (!drafts.ok) return drafts;
+    }
+    if (request.makeDefaultLocation) {
+      // Only a convenience: the Project is created even when it cannot be remembered.
+      const remembered = await workspace.setDefaultProjectLocation(
+        request.locationSelectionId,
+      );
+      if (!remembered.ok) {
+        record("setDefaultProjectLocation", null, remembered.error);
+      }
+    }
+    const result = await workspace.createProject(
+      request.locationSelectionId,
+      request.name,
+      discardChanges ? DISCARD_CHANGES : undefined,
+      request.folderName,
+    );
+    if (!result.ok) record("createProject", null, result.error);
+    return result;
+  }
+
+  function locationOf(
+    selection: OperationResult<FolderSelection>,
+  ): OperationResult<ProjectLocation | null> {
+    if (!selection.ok) {
+      record("selectFolder", null, selection.error);
+      return selection;
+    }
+    return operationOk(
+      selection.value.status === FOLDER_SELECTION_STATUS.cancelled
+        ? null
+        : {
+            selectionId: selection.value.selectionId,
+            displayPath: selection.value.displayPath,
+          },
+    );
   }
 
   async function reopenProjectNow(): Promise<OperationResult<boolean>> {
@@ -642,11 +699,8 @@ export function createWorkspaceActions(
     return closed.ok ? operationOk(false) : closed;
   }
 
-  function openOrCreateProject(
-    operation: "openProject" | "createProject",
-    name: string | null,
-  ): Promise<OperationResult<void>> {
-    return runBusy(() => selectAndOpenProject(operation, name, false));
+  function openProjectWithDialog(): Promise<OperationResult<void>> {
+    return runBusy(() => selectAndOpenProject(false));
   }
 
   async function deleteDocumentConfirmed(
@@ -784,25 +838,33 @@ export function createWorkspaceActions(
       ) {
         return Promise.resolve(operationOk(undefined));
       }
-      return openOrCreateProject("openProject", null);
+      return openProjectWithDialog();
     },
     requestCreateProject() {
       uiStateStore.setState((state) =>
         openDialog(state, { kind: "createProject" }),
       );
     },
-    createProjectViaDialog: (name) => {
+    defaultProjectLocation: async () =>
+      locationOf(await workspace.defaultProjectLocation()),
+    chooseProjectLocation: async () =>
+      locationOf(await workspace.selectProjectFolder()),
+    createProjectViaDialog: (request) => {
       if (uiStateStore.getState().busy)
         return Promise.resolve(operationOk(undefined));
       if (
         opensUnsavedCloseDialog(hasUnsavedProjectChanges(), {
           kind: "createProject",
-          name,
+          request,
         })
       ) {
         return Promise.resolve(operationOk(undefined));
       }
-      return openOrCreateProject("createProject", name);
+      return runBusy(async () => {
+        const result = await createProjectNow(request, false);
+        if (result.ok) uiStateStore.setState(closeDialog);
+        return result;
+      });
     },
     closeProject() {
       if (
@@ -847,11 +909,9 @@ export function createWorkspaceActions(
           ? closeDocumentNow(target.documentId, discardChanges)
           : target.kind === "project"
             ? closeProjectNow(discardChanges)
-            : selectAndOpenProject(
-                target.kind,
-                target.kind === "createProject" ? target.name : null,
-                discardChanges,
-              ));
+            : target.kind === "createProject"
+              ? createProjectNow(target.request, discardChanges)
+              : selectAndOpenProject(discardChanges));
         uiStateStore.setState(closeDialog);
         return result;
       });

@@ -11,6 +11,7 @@
 // the affected save state is left dirty with `lastError`, so a retry persists it.
 
 import { renameProject } from "../../domain/project/project";
+import { parseProjectFolderName } from "../../domain/project/project-folder-name";
 import { parseDisplayName } from "../../domain/shared/display-name";
 import type {
   DocumentId,
@@ -128,10 +129,19 @@ export interface Workspace {
     selectionId: string,
     options?: CloseOptions,
   ): Promise<OperationResult<void>>;
+  // With `folderName` the selected folder is the place a new folder of that name is made
+  // in for the Project; without it, it is the Project folder itself.
   createProject(
     selectionId: string,
     name: string,
     options?: CloseOptions,
+    folderName?: string,
+  ): Promise<OperationResult<void>>;
+  // The default place for new Projects (Rust keeps the path) as a selection of this
+  // window; cancelled when there is none.
+  defaultProjectLocation(): Promise<OperationResult<FolderSelection>>;
+  setDefaultProjectLocation(
+    selectionId: string,
   ): Promise<OperationResult<void>>;
   // Reads the open Project again from disk: like opening it afresh, so the open Documents
   // are saved and closed first (`options` as for `openProject`) and the Project and its
@@ -978,15 +988,30 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
         options?.discardChanges === true,
       );
     },
-    createProject(selectionId, name, options) {
+    createProject(selectionId, name, options, folderName) {
       const displayName = fromDomainResult(parseDisplayName(name));
       // Validated before anything is closed.
       if (!displayName.ok) return Promise.resolve(failWith(displayName.error));
+      const folder =
+        folderName === undefined
+          ? null
+          : fromDomainResult(parseProjectFolderName(folderName));
+      if (folder !== null && !folder.ok) {
+        return Promise.resolve(failWith(folder.error));
+      }
       return openOrCreateProject(
-        () => gateway.createProject(selectionId, displayName.value),
+        () =>
+          gateway.createProject(
+            selectionId,
+            displayName.value,
+            folder === null ? undefined : folder.value,
+          ),
         options?.discardChanges === true,
       );
     },
+    defaultProjectLocation: () => gateway.defaultProjectLocation(),
+    setDefaultProjectLocation: (selectionId) =>
+      gateway.setDefaultProjectLocation(selectionId),
     async openLaunchRequest() {
       // Taken outside the lifecycle queue: with nothing pending there is nothing to
       // serialise, and the open itself below goes through it like any other open.

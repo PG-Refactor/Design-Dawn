@@ -1424,3 +1424,61 @@ fn opening_a_project_from_the_dialog_remembers_its_folder() {
         Value::String(opened.project_root.to_string_lossy().into_owned())
     );
 }
+
+fn main_window(
+    app: &App<tauri::test::MockRuntime>,
+) -> tauri::WebviewWindow<tauri::test::MockRuntime> {
+    WebviewWindowBuilder::new(app, MAIN_WINDOW_LABEL, Default::default())
+        .build()
+        .expect("create main window")
+}
+
+/// A new Project goes into a folder of its own name inside the chosen place, and that
+/// place can become the default the next dialog starts from.
+#[test]
+fn a_new_project_is_created_in_a_named_folder_inside_the_chosen_place() {
+    let temp = TempDir::new();
+    let place = temp.path().join("projects");
+    fs::create_dir_all(&place).unwrap();
+    let app = build_app(
+        vec![PickerOutcome::Folder(place.clone())],
+        local_state_directories(temp.path()),
+    );
+    let window = main_window(&app);
+    // No default yet.
+    assert_eq!(
+        invoke(&window, "default_project_location", &serde_json::json!({})).unwrap()["status"],
+        "cancelled"
+    );
+    let selection = invoke(&window, "select_project_folder", &serde_json::json!({})).unwrap();
+    let selection_id = selection["selectionId"].clone();
+
+    assert_eq!(
+        error_kind(invoke(
+            &window,
+            "create_project",
+            &serde_json::json!({ "selectionId": selection_id, "name": "Order", "folderName": "a/b" }),
+        )),
+        "invalidFolderName"
+    );
+    assert!(fs::read_dir(&place).unwrap().next().is_none());
+
+    invoke(
+        &window,
+        "set_default_project_location",
+        &serde_json::json!({ "selectionId": selection_id }),
+    )
+    .unwrap();
+    let created = invoke(
+        &window,
+        "create_project",
+        &serde_json::json!({ "selectionId": selection_id, "name": "Order Service", "folderName": "order-service" }),
+    )
+    .unwrap();
+    assert_eq!(created["project"]["name"], "Order Service");
+    assert!(place.join("order-service").join("project.json").is_file());
+
+    let default = invoke(&window, "default_project_location", &serde_json::json!({})).unwrap();
+    assert_eq!(default["status"], "selected");
+    assert_eq!(default["displayPath"], place.display().to_string());
+}

@@ -12,5 +12,6 @@ pub mod error;
 pub mod folder;
 pub mod geometry;
 pub mod project;
+pub mod project_folder_name;
 pub mod schema_version;
 pub mod sheet;

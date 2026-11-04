@@ -69,24 +69,71 @@ describe("opening and creating a project", () => {
     expect(ui(harness).busy).toBe(false);
   });
 
-  it("creates a project from the name dialog and closes the dialog", async () => {
+  it("creates a project from the New Project dialog and closes the dialog", async () => {
     const harness = createActionsHarness();
     harness.actions.requestCreateProject();
     expect(ui(harness).dialog).toEqual({ kind: "createProject" });
-    const result = await harness.actions.createProjectViaDialog("My Project");
+    const location = await harness.actions.chooseProjectLocation();
+    expect(location.ok && location.value?.selectionId).toBe("selection-1");
+    const result = await harness.actions.createProjectViaDialog({
+      name: "My Project",
+      locationSelectionId: "selection-1",
+      folderName: "my-project",
+      makeDefaultLocation: false,
+    });
     expect(result.ok).toBe(true);
     expect(harness.store.getState().project?.project.name).toBe("My Project");
+    expect(harness.gateway.calls.at(-1)).toMatchObject({
+      method: "createProject",
+      detail: "selection-1:My Project:my-project",
+    });
+    expect(harness.gateway.methods("setDefaultProjectLocation")).toEqual([]);
     expect(ui(harness).dialog).toEqual({ kind: "none" });
   });
 
-  it("keeps the name dialog open when the folder dialog is cancelled", async () => {
+  it("remembers the place as the default when asked, and offers it next time", async () => {
+    const harness = createActionsHarness();
+    const before = await harness.actions.defaultProjectLocation();
+    expect(before.ok && before.value).toBeNull();
+    harness.actions.requestCreateProject();
+    await harness.actions.createProjectViaDialog({
+      name: "My Project",
+      locationSelectionId: "selection-1",
+      folderName: "My Project",
+      makeDefaultLocation: true,
+    });
+    const after = await harness.actions.defaultProjectLocation();
+    expect(after.ok && after.value?.displayPath).toBe("/projects/example");
+  });
+
+  it("keeps the New Project dialog open when the Project cannot be created", async () => {
     const harness = createActionsHarness();
     harness.actions.requestCreateProject();
-    harness.gateway.selectNext({ status: "cancelled" });
-    await harness.actions.createProjectViaDialog("Name");
+    harness.gateway.failOn("createProject", "alreadyExists");
+    const result = await harness.actions.createProjectViaDialog({
+      name: "Name",
+      locationSelectionId: "selection-1",
+      folderName: "Name",
+      makeDefaultLocation: false,
+    });
+    expect(result.ok).toBe(false);
     expect(ui(harness).dialog).toEqual({ kind: "createProject" });
     expect(harness.store.getState().project).toBeNull();
-    expect(ui(harness).operationErrors).toEqual([]);
+    expect(ui(harness).operationErrors).toMatchObject([
+      { operation: "createProject", error: { kind: "alreadyExists" } },
+    ]);
+  });
+
+  it("refuses a folder name the file system cannot hold before anything is closed", async () => {
+    const harness = createActionsHarness();
+    const result = await harness.actions.createProjectViaDialog({
+      name: "Name",
+      locationSelectionId: "selection-1",
+      folderName: "a/b",
+      makeDefaultLocation: false,
+    });
+    expect(result.ok).toBe(false);
+    expect(harness.gateway.methods("createProject")).toEqual([]);
   });
 
   it("closes the project", async () => {

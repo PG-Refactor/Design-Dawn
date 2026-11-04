@@ -11,6 +11,7 @@ const quoted = (name: string): string => `「${name}」`;
 
 // Full records, so a new operation or error kind cannot be added without a sentence.
 const OPERATION_HEADLINES: Record<OperationLabel, string> = {
+  setDefaultProjectLocation: "既定の保存場所を記録できませんでした",
   selectFolder: "フォルダを選択できませんでした",
   openProject: "Projectを開けませんでした",
   openLaunchRequest: ".dawn を開けませんでした",
@@ -77,6 +78,8 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
 const ERROR_KINDS: Record<OperationErrorKind, string> = {
   invalidEntityId: "IDの形式が正しくありません。",
   invalidDisplayName: "名前が正しくありません。",
+  invalidFolderName:
+    'フォルダ名に使えない文字が含まれています（/ \\ : * ? " < > | や末尾の「.」・空白、CON等の予約名は使えません）。',
   invalidCaption: "キャプションは1行・500文字までで入力してください。",
   invalidPosition: "位置の値が正しくありません。",
   invalidSize: "サイズの値が正しくありません。",
@@ -472,6 +475,14 @@ export const WORKSPACE_MESSAGES_JA = {
     createProject: {
       title: "新規Project",
       nameLabel: "Project名",
+      locationLabel: "保存場所",
+      noLocation: "未選択",
+      browse: "参照…",
+      sameFolderName: "フォルダ名をProject名と同じにする",
+      folderNameLabel: "フォルダ名",
+      makeDefault: "この保存場所を既定にする",
+      destination: (path: string): string => `作成先: ${path}`,
+      locationRequired: "保存場所を選んでください。",
       submit: "作成",
     },
     createDocument: {

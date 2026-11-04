@@ -31,8 +31,8 @@ use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
 use crate::application::external_change::{self, ExternalChanges};
 use crate::application::folder_operations as folders;
 use crate::application::folder_selection::{
-    dialog_start_folder, resolve_selection, select_project_folder as select_folder, FolderPicker,
-    FolderSelection, FolderSelectionState,
+    dialog_start_folder, register_known_folder, resolve_selection,
+    select_project_folder as select_folder, FolderPicker, FolderSelection, FolderSelectionState,
 };
 use crate::application::format_update::{self, FormatUpdateResult};
 use crate::application::git_commit;
@@ -58,6 +58,7 @@ use crate::application::window_binding::{
 };
 use crate::application::window_registry::{WindowRegistry, WindowRole};
 use crate::domain::entity_id::{DocumentId, ProjectId};
+use crate::domain::project_folder_name::ProjectFolderName;
 use crate::infrastructure::error::PersistenceErrorKind;
 use crate::infrastructure::file_format::dto::{
     parse_dto, DocumentDto, FolderDto, ProjectDto, SheetDto,
@@ -65,9 +66,11 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 66] = [
+pub const COMMAND_NAMES: [&str; 68] = [
     "select_project_folder",
     "select_image_files",
+    "default_project_location",
+    "set_default_project_location",
     "create_project",
     "open_project",
     "reload_project",
@@ -471,8 +474,19 @@ pub fn create_project<R: Runtime>(
     selections: FolderSelectionStateHandle<'_>,
     selection_id: String,
     name: String,
+    folder_name: Option<String>,
 ) -> Result<ProjectSnapshot, ApplicationError> {
-    let project_root = resolve_selection(&selections, window.label(), &selection_id)?;
+    let chosen = resolve_selection(&selections, window.label(), &selection_id)?;
+    // With a folder name the chosen folder is the place the new Project folder goes in;
+    // without one it is the Project folder itself.
+    let project_root = match folder_name {
+        Some(folder_name) => {
+            let folder_name =
+                log_failure(ProjectFolderName::new(&folder_name).map_err(ApplicationError::from))?;
+            chosen.join(folder_name.as_str())
+        }
+        None => chosen,
+    };
     let outcome = {
         let mut sessions = state.lock().unwrap_or_else(PoisonError::into_inner);
         create_project_in_window(
@@ -509,6 +523,39 @@ pub fn open_project<R: Runtime>(
     let opened = settle_open(&window, outcome)?;
     remember_project_folder(&window, &project_root);
     Ok(opened)
+}
+
+/// The default place for new Projects as a selection of this window; cancelled when none
+/// was chosen or it no longer exists. The path itself stays in Rust.
+#[tauri::command]
+pub fn default_project_location<R: Runtime>(
+    window: Window<R>,
+    selections: FolderSelectionStateHandle<'_>,
+) -> FolderSelection {
+    let location = window
+        .try_state::<LocalState>()
+        .and_then(|local_state| local_state.get_app_settings().default_project_location)
+        .filter(|path| path.is_dir());
+    match location {
+        Some(path) => register_known_folder(&selections, window.label(), path),
+        None => FolderSelection::Cancelled,
+    }
+}
+
+/// Makes a chosen folder the default place for new Projects.
+#[tauri::command]
+pub fn set_default_project_location<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    selections: FolderSelectionStateHandle<'_>,
+    selection_id: String,
+) -> Result<(), ApplicationError> {
+    let folder = resolve_selection(&selections, window.label(), &selection_id)?;
+    with_local_state(&app, |local_state| {
+        local_state
+            .set_default_project_location(&folder)
+            .map(|_| ())
+    })
 }
 
 /// Keeps the folder of a Project opened or created from the folder dialog, so the next

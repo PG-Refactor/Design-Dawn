@@ -16,6 +16,7 @@ import {
   createFolder,
   createProject,
   createSheet,
+  defaultProjectLocation,
   deleteBlockContent,
   deleteDocument,
   deleteFolder,
@@ -33,6 +34,7 @@ import {
   saveProject,
   saveSheet,
   selectProjectFolder,
+  setDefaultProjectLocation,
   takeOpenRequest,
   updateOutdatedFiles,
   writeBlockContent,
@@ -58,6 +60,9 @@ export function createTauriPersistenceGateway(): PersistenceGateway {
     takeOpenRequest,
     closeProject: async () => mapOperationResult(await closeProject(), discard),
     createProject,
+    defaultProjectLocation,
+    setDefaultProjectLocation: async (selectionId) =>
+      mapOperationResult(await setDefaultProjectLocation(selectionId), discard),
     saveProject: async (projectId, project) =>
       mapOperationResult(await saveProject(projectId, project), discard),
     createDocument,

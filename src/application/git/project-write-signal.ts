@@ -80,6 +80,9 @@ export const GATEWAY_METHOD_KINDS = {
   restoreBlockContent: "write",
   // Only records the chosen files (like a drop); the import writes.
   selectImageFiles: "read",
+  // App settings, not Project files.
+  defaultProjectLocation: "read",
+  setDefaultProjectLocation: "read",
   importDroppedImages: "write",
   copyAssetToDocument: "write",
 } as const satisfies Record<keyof PersistenceGateway, "write" | "read">;

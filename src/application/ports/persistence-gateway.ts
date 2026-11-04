@@ -3,6 +3,7 @@ import type { ContentPath } from "../../domain/block/content-path";
 import type { Document } from "../../domain/document/document";
 import type { Folder } from "../../domain/folder/folder";
 import type { Project } from "../../domain/project/project";
+import type { ProjectFolderName } from "../../domain/project/project-folder-name";
 import type { DisplayName } from "../../domain/shared/display-name";
 import type {
   DocumentId,
@@ -83,10 +84,19 @@ export interface PersistenceGateway {
   // The window no longer has a Project: Rust unbinds it (another window may open it now)
   // and drops its session. Called after the Project's documents were saved and closed.
   closeProject(): Promise<OperationResult<void>>;
+  // With `folderName` the selected folder is the place the new Project folder of that
+  // name is created in; without it, it is the Project folder itself.
   createProject(
     selectionId: string,
     name: DisplayName,
+    folderName?: ProjectFolderName,
   ): Promise<OperationResult<ProjectSnapshot>>;
+  // The default place for new Projects (kept by Rust) as a selection of this window;
+  // cancelled when none was chosen or it is gone.
+  defaultProjectLocation(): Promise<OperationResult<FolderSelection>>;
+  setDefaultProjectLocation(
+    selectionId: string,
+  ): Promise<OperationResult<void>>;
   saveProject(
     projectId: ProjectId,
     project: Project,

@@ -1,6 +1,9 @@
+import { useCallback } from "react";
+import type { OperationResult } from "../../application/ports/operation-error";
 import { GitRemoteDialog, GitStageAllDialog } from "../git/git-action-dialogs";
 import { GitDiscardDialog } from "../git/git-discard-dialog";
 import { ConfirmDialog } from "./confirm-dialog";
+import { CreateProjectDialog } from "./create-project-dialog";
 import { MoveDialog } from "./move-dialog";
 import { NameDialog } from "./name-dialog";
 import type { UiState, UnsavedCloseTarget } from "./ui-state/ui-state";
@@ -30,6 +33,11 @@ function unsavedCloseTitle(
 }
 
 const selectDialog = (ui: UiState) => ui.dialog;
+
+// A failure was already notified by the action; the dialog just keeps what it has.
+function valueOrNull<T>(result: OperationResult<T | null>): T | null {
+  return result.ok ? result.value : null;
+}
 const selectBusy = (ui: UiState) => ui.busy;
 
 // Renders the dialog the UI state asks for (at most one) and wires it to the actions.
@@ -41,19 +49,27 @@ export function WorkspaceDialogs() {
   const texts = messages.dialogs;
   const nameOf = (name: string | null): string =>
     name ?? messages.tree.unnamedEntity;
+  // Stable, so the New Project dialog asks for the default place once.
+  const loadDefaultLocation = useCallback(
+    async () => valueOrNull(await actions.defaultProjectLocation()),
+    [actions],
+  );
+  const chooseLocation = useCallback(
+    async () => valueOrNull(await actions.chooseProjectLocation()),
+    [actions],
+  );
 
   switch (dialog.kind) {
     case "none":
       return null;
     case "createProject":
       return (
-        <NameDialog
-          title={texts.createProject.title}
-          nameLabel={texts.createProject.nameLabel}
-          submitLabel={texts.createProject.submit}
+        <CreateProjectDialog
           busy={busy}
+          loadDefaultLocation={loadDefaultLocation}
+          chooseLocation={chooseLocation}
           onCancel={actions.cancelDialog}
-          onSubmit={(name) => void actions.createProjectViaDialog(name)}
+          onSubmit={(request) => void actions.createProjectViaDialog(request)}
         />
       );
     case "createDocument":
