@@ -36,17 +36,33 @@
 }
 
 .block-frame__resize-handle {
+  /* Two short diagonal lines in the corner (a grip), drawn as stripes of one gradient
+     so the colour stays a theme token. The stops place the lines inside the rounded
+     corner. */
+  --resize-grip-color: var(--color-border-strong);
   position: absolute;
   right: 0;
   bottom: 0;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   transform: scale(calc(1 / var(--canvas-zoom, 1)));
   transform-origin: bottom right;
   padding: 0;
   border: none;
-  background: var(--color-accent);
+  background: linear-gradient(
+    135deg,
+    transparent 0 42%,
+    var(--resize-grip-color) 42% 50%,
+    transparent 50% 62%,
+    var(--resize-grip-color) 62% 70%,
+    transparent 70%
+  );
   cursor: nwse-resize;
+}
+
+.block-frame__resize-handle:hover,
+.block-frame--selected .block-frame__resize-handle {
+  --resize-grip-color: var(--color-accent);
 }
 
 /* The caption of a figure: a strip across the full width, attached to the bottom (or top)
