@@ -45,9 +45,10 @@ offered. When the \
 user names another Project, or you are unsure which one is meant, call listProjects and then \
 selectProject with its projectId; selectProject without projectId follows the app again. \
 getProject tells which Project you are working on and whether it is writable. A Project is \
-read-only for AI unless the user allowed changes in the app's AI integration screen; a \
-writeDisabled result means that (it is given before the arguments are checked), so tell the \
-user instead of retrying. ",
+read-only for AI unless the user allowed editing in the app. A writeDisabled result means \
+that (it is given before the arguments are checked): call requestWriteAccess once to ask \
+the user in the app, tell them, and write only after getProject shows writable. Never claim \
+the user allowed something they did not answer in the app. ",
     common_instructions!()
 );
 

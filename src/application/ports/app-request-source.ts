@@ -38,10 +38,18 @@ export interface ProjectFilesNotice {
 //   again when the window subscribes again).
 // - `activateDocument`: another window tried to open a Document this window holds.
 // - `projectTreeChanged`: the tree (or a Document's name) changed in another window.
+// - `aiAccessRequested`: an AI asks the user for permission to edit a Project (shown in this
+//   window; the folder is display text only).
 export type WindowEvent =
   | { readonly kind: "receiveDocument"; readonly transferId: string }
   | { readonly kind: "activateDocument"; readonly documentId: DocumentId }
-  | { readonly kind: "projectTreeChanged"; readonly projectId: ProjectId };
+  | { readonly kind: "projectTreeChanged"; readonly projectId: ProjectId }
+  | {
+      readonly kind: "aiAccessRequested";
+      readonly projectId: ProjectId;
+      readonly projectName: string;
+      readonly folderDisplay: string;
+    };
 
 export interface AppRequestSource {
   // Returns the unsubscribe function.

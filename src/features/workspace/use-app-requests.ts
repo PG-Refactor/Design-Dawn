@@ -61,6 +61,9 @@ export function useAppRequests(closeStatus: WindowCloseStatus): void {
             case "projectTreeChanged":
               void actions.refreshProjectTree();
               return;
+            // Asked by the AI access prompt (`AiAccessRequestPrompt`).
+            case "aiAccessRequested":
+              return;
           }
         });
       },

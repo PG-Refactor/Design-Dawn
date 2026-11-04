@@ -3,6 +3,7 @@
 //! the Domain. Independent of Tauri; the commands only call `LocalState`.
 
 pub mod ai_access;
+pub mod ai_requests;
 pub mod constants;
 pub mod language;
 pub mod layout;

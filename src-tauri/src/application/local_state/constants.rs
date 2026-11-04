@@ -57,3 +57,14 @@ pub const MCP_SERVER_EXECUTABLE_STEM: &str = "design-dawn-mcp";
 /// where Tauri puts `settings.json` and `ai-access.json`). The MCP server finds the app's
 /// AI access list there. Must equal `identifier` in tauri.conf.json (checked by a test).
 pub const APP_IDENTIFIER: &str = "com.pgrefactor.designdawn";
+
+/// Where an AI's requests for write access wait (inside the app's config directory).
+pub const AI_REQUESTS_DIRECTORY_NAME: &str = "ai-requests";
+/// A request older than this is dropped: an AI that still wants access asks again, and a
+/// question asked long ago is not shown to the user out of context.
+pub const AI_REQUEST_MAX_AGE_SECS: u64 = 120;
+/// How often the running app looks for new requests.
+pub const AI_REQUEST_POLL_INTERVAL_MS: u64 = 1000;
+/// After the user says no, requests for that Project are dropped for this long, so an AI
+/// cannot keep asking.
+pub const AI_REQUEST_DENIED_COOLDOWN_SECS: u64 = 300;

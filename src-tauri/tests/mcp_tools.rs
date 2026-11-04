@@ -1172,7 +1172,7 @@ fn following_the_app_uses_the_project_open_in_the_app() {
     );
     let context = ToolContext::follow_app(config.path());
 
-    let mut expected: Vec<&str> = vec!["listProjects", "selectProject"];
+    let mut expected: Vec<&str> = vec!["listProjects", "selectProject", "requestWriteAccess"];
     expected.extend(READ_TOOLS);
     expected.extend(WRITE_TOOLS);
     assert_eq!(tool_names(&context), expected);
@@ -1444,4 +1444,86 @@ fn the_project_open_in_the_app_is_used_only_when_the_user_offered_it() {
         call(&context, "getProject", json!({})).ok()["projectId"],
         FOLDERS_PROJECT_ID
     );
+}
+
+// ---- asking the user for write access ----
+
+fn request_file(config: &Path, project_id: &str) -> std::path::PathBuf {
+    config
+        .join("ai-requests")
+        .join(format!("{project_id}.json"))
+}
+
+#[test]
+fn a_write_request_is_left_for_the_app_once_and_grants_nothing() {
+    let (_temp, root) = project_copy();
+    let config = TempDir::new();
+    app_list(config.path(), &[(PROJECT_ID, &root, false)]);
+    let context = ToolContext::follow_app(config.path());
+
+    let asked = call(&context, "requestWriteAccess", json!({})).ok();
+    assert_eq!(asked["requested"], true);
+    assert_eq!(asked["alreadyWaiting"], false);
+    assert!(request_file(config.path(), PROJECT_ID).is_file());
+    let again = call(&context, "requestWriteAccess", json!({})).ok();
+    assert_eq!(again["alreadyWaiting"], true);
+    // Still read-only: only the app's answer changes that.
+    assert_eq!(
+        call(&context, "getProject", json!({})).ok()["writable"],
+        false
+    );
+    assert_eq!(
+        call(
+            &context,
+            "createSheet",
+            json!({ "documentId": DOCUMENT_ID, "name": "X" })
+        )
+        .error_kind(),
+        "writeDisabled"
+    );
+}
+
+#[test]
+fn a_writable_project_needs_no_request_and_an_unknown_one_cannot_be_asked_for() {
+    let (_temp, root) = project_copy();
+    let config = TempDir::new();
+    app_list(config.path(), &[(PROJECT_ID, &root, true)]);
+    let context = ToolContext::follow_app(config.path());
+    let answer = call(&context, "requestWriteAccess", json!({})).ok();
+    assert_eq!(answer["writable"], true);
+    assert_eq!(answer["requested"], false);
+    assert!(!request_file(config.path(), PROJECT_ID).exists());
+
+    assert_eq!(
+        call(
+            &context,
+            "requestWriteAccess",
+            json!({ "projectId": FOLDERS_PROJECT_ID })
+        )
+        .error_kind(),
+        "projectNotListed"
+    );
+    assert!(!config.path().join("ai-requests").exists());
+}
+
+#[test]
+fn the_project_open_in_the_app_can_be_asked_for_before_it_is_offered() {
+    let (_temp, root) = project_copy();
+    let config = TempDir::new();
+    let mut list = AiAccessList::default();
+    list.record_used(ProjectId::parse(PROJECT_ID).unwrap(), &root);
+    list.write(config.path()).unwrap();
+    let context = ToolContext::follow_app(config.path());
+    let asked = call(&context, "requestWriteAccess", json!({})).ok();
+    assert_eq!(asked["requested"], true);
+    assert!(request_file(config.path(), PROJECT_ID).is_file());
+}
+
+#[test]
+fn a_fixed_project_has_no_write_request() {
+    let (_temp, root) = project_copy();
+    let context = context_for(&root, false);
+    assert!(context
+        .call_tool("requestWriteAccess", &serde_json::Map::new())
+        .is_none());
 }

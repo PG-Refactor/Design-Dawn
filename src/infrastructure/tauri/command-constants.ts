@@ -5,6 +5,7 @@
 export const COMMANDS = {
   selectProjectFolder: "select_project_folder",
   aiAccessOverview: "ai_access_overview",
+  answerAiAccessRequest: "answer_ai_access_request",
   addOpenProjectToAi: "add_open_project_to_ai",
   addAiProjectFolder: "add_ai_project_folder",
   setAiWriteAccess: "set_ai_write_access",

@@ -23,13 +23,18 @@ const PROJECT_FILES_CHANGED_KIND = "projectFilesChanged";
 const RECEIVE_DOCUMENT_KIND = "receiveDocument";
 const ACTIVATE_DOCUMENT_KIND = "activateDocument";
 const PROJECT_TREE_CHANGED_KIND = "projectTreeChanged";
+const AI_ACCESS_REQUESTED_KIND = "aiAccessRequested";
 
 function toWindowEvent(message: unknown): WindowEvent | null {
   if (typeof message !== "object" || message === null) return null;
-  const { kind, transferId, documentId, projectId } = message as Record<
-    string,
-    unknown
-  >;
+  const {
+    kind,
+    transferId,
+    documentId,
+    projectId,
+    projectName,
+    folderDisplay,
+  } = message as Record<string, unknown>;
   if (kind === RECEIVE_DOCUMENT_KIND && typeof transferId === "string") {
     return { kind: "receiveDocument", transferId };
   }
@@ -37,6 +42,22 @@ function toWindowEvent(message: unknown): WindowEvent | null {
     const parsed = parseDocumentId(documentId);
     return parsed.ok
       ? { kind: "activateDocument", documentId: parsed.value }
+      : null;
+  }
+  if (
+    kind === AI_ACCESS_REQUESTED_KIND &&
+    typeof projectId === "string" &&
+    typeof projectName === "string" &&
+    typeof folderDisplay === "string"
+  ) {
+    const parsed = parseProjectId(projectId);
+    return parsed.ok
+      ? {
+          kind: "aiAccessRequested",
+          projectId: parsed.value,
+          projectName,
+          folderDisplay,
+        }
       : null;
   }
   if (kind === PROJECT_TREE_CHANGED_KIND && typeof projectId === "string") {

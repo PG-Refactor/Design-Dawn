@@ -1580,3 +1580,62 @@ fn the_user_offers_projects_to_ai_read_only_and_the_screen_changes_that() {
     let overview = invoke(&window, "ai_access_overview", &serde_json::json!({})).unwrap();
     assert_eq!(overview["projects"].as_array().unwrap().len(), 1);
 }
+
+#[test]
+fn only_the_users_answer_in_the_app_grants_an_ais_request() {
+    use design_dawn_lib::application::local_state::ai_access::AiAccessList;
+    use design_dawn_lib::application::local_state::ai_requests::request_write_access;
+    use design_dawn_lib::domain::entity_id::ProjectId;
+
+    let temp = TempDir::new();
+    let (_project_temp, project_root) = project_copy();
+    let directories = local_state_directories(temp.path());
+    let config_dir = directories.config_dir.clone();
+    let app = build_app(
+        vec![PickerOutcome::Folder(project_root.clone())],
+        directories,
+    );
+    let window = main_window(&app);
+    let selection = invoke(&window, "select_project_folder", &serde_json::json!({})).unwrap();
+    invoke(
+        &window,
+        "open_project",
+        &serde_json::json!({ "selectionId": selection["selectionId"] }),
+    )
+    .unwrap();
+    let project_id = ProjectId::parse(PROJECT_ID).unwrap();
+    let request = config_dir
+        .join("ai-requests")
+        .join(format!("{PROJECT_ID}.json"));
+
+    // Refused: nothing changes, the request is gone.
+    request_write_access(&config_dir, project_id, 1).unwrap();
+    invoke(
+        &window,
+        "answer_ai_access_request",
+        &serde_json::json!({ "projectId": PROJECT_ID, "answer": "deny" }),
+    )
+    .unwrap();
+    assert!(!request.exists());
+    assert!(AiAccessList::read(&config_dir).unwrap().projects.is_empty());
+
+    // An answer that is not one of the three is not accepted.
+    assert!(invoke(
+        &window,
+        "answer_ai_access_request",
+        &serde_json::json!({ "projectId": PROJECT_ID, "answer": "always" }),
+    )
+    .is_err());
+
+    // "This time only": the open Project is offered, writable until the app exits.
+    invoke(
+        &window,
+        "answer_ai_access_request",
+        &serde_json::json!({ "projectId": PROJECT_ID, "answer": "allowUntilAppExits" }),
+    )
+    .unwrap();
+    let list = AiAccessList::read(&config_dir).unwrap();
+    let entry = list.find(&project_id).unwrap();
+    assert!(entry.allow_write);
+    assert!(entry.until_app_exits);
+}

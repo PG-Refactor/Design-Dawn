@@ -30,6 +30,14 @@ export interface AiAccessOverview {
   readonly loadIssue: OperationError | null;
 }
 
+// The user's answer to an AI's request for edit permission.
+export const AI_ACCESS_ANSWERS = [
+  "allow",
+  "allowUntilAppExits",
+  "deny",
+] as const;
+export type AiAccessAnswer = (typeof AI_ACCESS_ANSWERS)[number];
+
 // What choosing a folder to add came to.
 export type AiProjectFolderAddition = "added" | "cancelled";
 
@@ -44,4 +52,8 @@ export interface AiAccessGateway {
     allowWrite: boolean,
   ): Promise<OperationResult<void>>;
   remove(projectId: ProjectId): Promise<OperationResult<void>>;
+  answerRequest(
+    projectId: ProjectId,
+    answer: AiAccessAnswer,
+  ): Promise<OperationResult<void>>;
 }
