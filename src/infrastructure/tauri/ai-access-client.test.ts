@@ -15,6 +15,7 @@ function payload(overrides: Record<string, unknown> = {}): unknown {
         current: true,
       },
     ],
+    openProject: { projectId: PROJECT_ID, listed: true },
     loadIssue: null,
     ...overrides,
   };
@@ -42,6 +43,7 @@ describe("toAiAccessOverviewResult", () => {
       }),
       payload({ mcpServer: { displayPath: "x" } }),
       payload({ loadIssue: { kind: "notAKind", detail: "" } }),
+      payload({ openProject: { projectId: "x", listed: false } }),
     ]) {
       const result = toAiAccessOverviewResult(bad);
       expect(result.ok).toBe(false);

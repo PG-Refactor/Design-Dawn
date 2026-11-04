@@ -19,14 +19,26 @@ export interface AiProjectAccess {
 export interface AiAccessOverview {
   // Where the MCP server is (beside the app); `found` is false when the file is missing.
   readonly mcpServer: { readonly displayPath: string; readonly found: boolean };
-  // Most recently used first.
+  // The one added last first.
   readonly projects: readonly AiProjectAccess[];
+  // The Project this window has open (null: none), and whether it is offered to AI.
+  readonly openProject: {
+    readonly projectId: ProjectId;
+    readonly listed: boolean;
+  } | null;
   // Why the stored list could not be read; the list is then shown empty.
   readonly loadIssue: OperationError | null;
 }
 
+// What choosing a folder to add came to.
+export type AiProjectFolderAddition = "added" | "cancelled";
+
 export interface AiAccessGateway {
   overview(): Promise<OperationResult<AiAccessOverview>>;
+  // Offers the Project open in this window.
+  addOpenProject(): Promise<OperationResult<void>>;
+  // Lets the user choose a Project folder (the OS dialog) and offers that Project.
+  addProjectFolder(): Promise<OperationResult<AiProjectFolderAddition>>;
   setWriteAccess(
     projectId: ProjectId,
     allowWrite: boolean,

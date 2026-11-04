@@ -12,7 +12,7 @@ mod open_dispatch;
 mod window_close;
 mod window_size;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
 
 use serde_json::Value;
@@ -69,9 +69,11 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 71] = [
+pub const COMMAND_NAMES: [&str; 73] = [
     "select_project_folder",
     "ai_access_overview",
+    "add_open_project_to_ai",
+    "add_ai_project_folder",
     "set_ai_write_access",
     "remove_ai_project",
     "select_image_files",
@@ -567,9 +569,10 @@ pub fn set_default_project_location<R: Runtime>(
     })
 }
 
-/// The AI integration screen: where the MCP server is and which Projects an AI may use.
+/// The AI integration screen: where the MCP server is, which Projects an AI may use, and
+/// the Project the asking window has open.
 #[tauri::command]
-pub fn ai_access_overview<R: Runtime>(app: AppHandle<R>) -> AiAccessOverview {
+pub fn ai_access_overview<R: Runtime>(app: AppHandle<R>, window: Window<R>) -> AiAccessOverview {
     let mcp_server = std::env::current_exe()
         .map(|executable| mcp_server_path(&executable))
         .unwrap_or_default();
@@ -577,7 +580,49 @@ pub fn ai_access_overview<R: Runtime>(app: AppHandle<R>) -> AiAccessOverview {
         || Ok(AiAccessList::default()),
         |local_state| local_state.ai_access_list(),
     );
-    ai_access_overview_of(list, &mcp_server)
+    let open_project = window_project(&window).map(|(project_id, _)| project_id);
+    ai_access_overview_of(list, &mcp_server, open_project)
+}
+
+/// The Project `window` has open and its folder.
+fn window_project<R: Runtime>(window: &Window<R>) -> Option<(ProjectId, PathBuf)> {
+    let sessions = window.try_state::<Mutex<ProjectSessions>>()?;
+    let registry = window.try_state::<Mutex<WindowRegistry>>()?;
+    // Sessions first, then the registry (the order every command uses).
+    let sessions = sessions.lock().unwrap_or_else(PoisonError::into_inner);
+    let registry = lock_registry(&registry);
+    let project_id = registry.project_of(window.label())?;
+    let root = sessions.get(&project_id).ok()?.root().to_path_buf();
+    Some((project_id, root))
+}
+
+/// Offers the Project this window has open to AI.
+#[tauri::command]
+pub fn add_open_project_to_ai<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+) -> Result<(), ApplicationError> {
+    let (project_id, root) = window_project(&window)
+        .ok_or_else(|| ApplicationError::new(ErrorKind::ProjectNotOpen, "no Project is open"))?;
+    with_local_state(&app, |local_state| {
+        local_state.add_ai_project(project_id, &root)
+    })
+}
+
+/// Offers the Project in a folder the user chose (`select_project_folder`) to AI. The
+/// folder must hold a Project; the path stays in Rust.
+#[tauri::command]
+pub fn add_ai_project_folder<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    selections: FolderSelectionStateHandle<'_>,
+    selection_id: String,
+) -> Result<(), ApplicationError> {
+    let folder = resolve_selection(&selections, window.label(), &selection_id)?;
+    let identity = log_failure(projects::read_project_identity(&folder))?;
+    with_local_state(&app, |local_state| {
+        local_state.add_ai_project(identity.project_id, &folder)
+    })
 }
 
 /// Whether an AI may change the Project. Only the app changes this; the MCP server reads it.
@@ -603,29 +648,14 @@ pub fn remove_ai_project<R: Runtime>(
     })
 }
 
-/// Records the Project of `window` as the one an AI uses unless it chooses another: called
-/// when a window opens a Project and when a window comes to the front. Failing to write it
-/// only loses that convenience, so it is logged.
+/// Records the Project of `window` as the one an AI uses by default (when it is offered to
+/// AI): called when a window opens a Project and when a window comes to the front. Failing
+/// to write it only loses that convenience, so it is logged.
 fn note_ai_project<R: Runtime>(window: &Window<R>) {
-    let (Some(sessions), Some(registry), Some(local_state)) = (
-        window.try_state::<Mutex<ProjectSessions>>(),
-        window.try_state::<Mutex<WindowRegistry>>(),
-        window.try_state::<LocalState>(),
-    ) else {
+    let Some(local_state) = window.try_state::<LocalState>() else {
         return;
     };
-    let target = {
-        // Sessions first, then the registry (the order every command uses).
-        let sessions = sessions.lock().unwrap_or_else(PoisonError::into_inner);
-        let registry = lock_registry(&registry);
-        registry.project_of(window.label()).and_then(|project_id| {
-            sessions
-                .get(&project_id)
-                .ok()
-                .map(|session| (project_id, session.root().to_path_buf()))
-        })
-    };
-    if let Some((project_id, root)) = target {
+    if let Some((project_id, root)) = window_project(window) {
         let _ = log_failure(local_state.record_ai_project(project_id, &root));
     }
 }

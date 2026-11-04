@@ -38,8 +38,10 @@ pub const FIXED_PROJECT_INSTRUCTIONS: &str = concat!(
 
 /// Shown to the client in `initialize` when the server follows the Design Dawn app.
 pub const APP_MODE_INSTRUCTIONS: &str = concat!(
-    "Reads and changes the Design Dawn Projects that the user opened in the Design Dawn app. ",
-    "By default the tools work on the Project open in the app (the one used last). When the \
+    "Reads and changes the Design Dawn Projects that the user offered to AI in the Design Dawn \
+app. ",
+    "By default the tools work on the Project open in the app (the one used last), if it is \
+offered. When the \
 user names another Project, or you are unsure which one is meant, call listProjects and then \
 selectProject with its projectId; selectProject without projectId follows the app again. \
 getProject tells which Project you are working on and whether it is writable. A Project is \

@@ -107,9 +107,6 @@ function ProjectRow({
         {project.current && (
           <span className="ai-access__badge">{texts.current}</span>
         )}
-      </div>
-      <span className="ai-access__project-folder">{project.folderDisplay}</span>
-      <div className="ai-access__project-actions">
         <label className="ai-access__check">
           <input
             type="checkbox"
@@ -120,6 +117,11 @@ function ProjectRow({
           />
           {texts.allowWrite}
         </label>
+      </div>
+      <div className="ai-access__project-foot">
+        <span className="ai-access__project-folder">
+          {project.folderDisplay}
+        </span>
         <button
           type="button"
           className="button"
@@ -140,10 +142,12 @@ export function AiAccessDialog({ onClose }: { readonly onClose: () => void }) {
   const texts = useMessages().aiAccess;
   const { aiAccess } = useWorkspaceServices();
   const titleId = useId();
+  const openHintId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
   const [state, setState] = useState<OverviewState>({ status: "loading" });
   const [busy, setBusy] = useState(false);
-  const [changeFailed, setChangeFailed] = useState(false);
+  // The last change that failed, shown until the next one.
+  const [failed, setFailed] = useState<"change" | "add" | null>(null);
 
   const reload = useCallback(async (): Promise<void> => {
     const result = await aiAccess.overview();
@@ -160,16 +164,26 @@ export function AiAccessDialog({ onClose }: { readonly onClose: () => void }) {
 
   async function change(
     run: () => Promise<{ readonly ok: boolean }>,
+    failure: "change" | "add" = "change",
   ): Promise<void> {
     setBusy(true);
-    setChangeFailed(false);
+    setFailed(null);
     const result = await run();
-    if (!result.ok) setChangeFailed(true);
+    if (!result.ok) setFailed(failure);
     await reload();
     setBusy(false);
   }
 
   const overview = state.status === "loaded" ? state.overview : null;
+  // Why "add the open Project" is unavailable, or null.
+  const openProjectHint =
+    overview === null
+      ? null
+      : overview.openProject === null
+        ? texts.noOpenProject
+        : overview.openProject.listed
+          ? texts.openProjectListed
+          : null;
   return (
     <Modal titleId={titleId} onCancel={onClose} initialFocusRef={closeRef} wide>
       <h2 id={titleId} className="modal__title">
@@ -207,9 +221,9 @@ export function AiAccessDialog({ onClose }: { readonly onClose: () => void }) {
                   {texts.listUnreadable}
                 </p>
               )}
-              {changeFailed && (
+              {failed !== null && (
                 <p className="ai-access__warning" role="alert">
-                  {texts.changeFailed}
+                  {failed === "add" ? texts.addFailed : texts.changeFailed}
                 </p>
               )}
               {overview.projects.length === 0 ? (
@@ -232,6 +246,36 @@ export function AiAccessDialog({ onClose }: { readonly onClose: () => void }) {
                     />
                   ))}
                 </ul>
+              )}
+              <div className="ai-access__add">
+                <button
+                  type="button"
+                  className="button"
+                  disabled={busy || openProjectHint !== null}
+                  aria-describedby={
+                    openProjectHint === null ? undefined : openHintId
+                  }
+                  onClick={() =>
+                    void change(() => aiAccess.addOpenProject(), "add")
+                  }
+                >
+                  {texts.addOpenProject}
+                </button>
+                <button
+                  type="button"
+                  className="button"
+                  disabled={busy}
+                  onClick={() =>
+                    void change(() => aiAccess.addProjectFolder(), "add")
+                  }
+                >
+                  {texts.addProjectFolder}
+                </button>
+              </div>
+              {openProjectHint !== null && (
+                <p id={openHintId} className="ai-access__hint">
+                  {openProjectHint}
+                </p>
               )}
             </section>
           </>

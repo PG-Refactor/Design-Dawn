@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
+
 import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { DOCUMENT_A } from "../../application/test-support/workspace-harness";
+import { AI_ACCESS_MESSAGES } from "../ai-access/ai-access-messages";
 import { makeDocumentADirty } from "./test-support/actions-harness";
 import {
   chooseMenuItem,
@@ -59,9 +61,10 @@ describe("File menu", () => {
       ["menuitem", EN.openProjectInNewWindow],
       ["menuitem", `${EN.save}Ctrl+S`],
       ["menuitemcheckbox", EN.autoSave],
+      ["menuitem", AI_ACCESS_MESSAGES.en.menuItem],
       ["menuitem", EN.closeProject],
     ]);
-    expect(within(menu).getAllByRole("separator")).toHaveLength(2);
+    expect(within(menu).getAllByRole("separator")).toHaveLength(3);
   });
 
   it("opens the project via its item and shows the tree", async () => {

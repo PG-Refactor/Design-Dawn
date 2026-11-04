@@ -174,6 +174,13 @@ export function TopBar() {
             onSelect: () =>
               void autoSaveController.setEnabled(!autoSaveEnabled),
           },
+          { kind: "separator", id: "separator-ai" },
+          {
+            kind: "item",
+            id: "aiAccess",
+            label: aiAccessTexts.menuItem,
+            onSelect: () => setAiAccessOpen(true),
+          },
           { kind: "separator", id: "separator-close" },
           {
             kind: "item",
@@ -245,13 +252,6 @@ export function TopBar() {
         id: "help",
         label: topBar.helpMenu,
         entries: [
-          {
-            kind: "item",
-            id: "aiAccess",
-            label: aiAccessTexts.menuItem,
-            onSelect: () => setAiAccessOpen(true),
-          },
-          { kind: "separator", id: "separator-about" },
           {
             kind: "item",
             id: "about",

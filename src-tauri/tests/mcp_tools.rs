@@ -1148,6 +1148,7 @@ fn a_whole_authoring_session_leaves_a_project_the_loader_reads_without_issues() 
 fn app_list(config_dir: &Path, projects: &[(&str, &Path, bool)]) {
     let mut list = AiAccessList::default();
     for (project_id, folder, _) in projects {
+        list.add(ProjectId::parse(project_id).unwrap(), folder);
         list.record_used(ProjectId::parse(project_id).unwrap(), folder);
     }
     for (project_id, _, allow_write) in projects {
@@ -1412,4 +1413,35 @@ fn a_caption_is_refused_on_text_blocks_and_when_it_breaks_the_rules() {
         assert_eq!(kind, "invalidCaption");
     }
     assert_eq!(tree_snapshot(&root), before);
+}
+
+#[test]
+fn the_project_open_in_the_app_is_used_only_when_the_user_offered_it() {
+    let (_temp, root) = project_copy();
+    let (_folders_temp, folders) = folders_project_copy();
+    let config = TempDir::new();
+    let mut list = AiAccessList::default();
+    list.add(ProjectId::parse(FOLDERS_PROJECT_ID).unwrap(), &folders);
+    list.record_used(ProjectId::parse(PROJECT_ID).unwrap(), &root);
+    list.write(config.path()).unwrap();
+    let context = ToolContext::follow_app(config.path());
+
+    let refused = call(&context, "getProject", json!({}));
+    assert!(refused.is_error);
+    assert_eq!(refused.value["error"]["kind"], "projectNotListed");
+    assert!(refused.value["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("open in Design Dawn is not offered"));
+    // The offered one can still be chosen.
+    call(
+        &context,
+        "selectProject",
+        json!({ "projectId": FOLDERS_PROJECT_ID }),
+    )
+    .ok();
+    assert_eq!(
+        call(&context, "getProject", json!({})).ok()["projectId"],
+        FOLDERS_PROJECT_ID
+    );
 }

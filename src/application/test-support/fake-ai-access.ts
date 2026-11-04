@@ -12,6 +12,10 @@ export const FAKE_MCP_SERVER_PATH = "/opt/design-dawn/design-dawn-mcp";
 
 export interface FakeAiAccessGateway extends AiAccessGateway {
   projects: AiProjectAccess[];
+  // The Project the window has open (null: none).
+  openProject: AiProjectAccess | null;
+  // What the folder dialog gives next: a Project, or null for a cancel.
+  nextFolderProject: AiProjectAccess | null;
   serverFound: boolean;
   failNextOverview: boolean;
   failNextChange: boolean;
@@ -22,6 +26,8 @@ export function createFakeAiAccessGateway(
 ): FakeAiAccessGateway {
   const gateway: FakeAiAccessGateway = {
     projects,
+    openProject: null,
+    nextFolderProject: null,
     serverFound: true,
     failNextOverview: false,
     failNextChange: false,
@@ -38,9 +44,34 @@ export function createFakeAiAccessGateway(
           found: gateway.serverFound,
         },
         projects: gateway.projects.map((project) => ({ ...project })),
+        openProject:
+          gateway.openProject === null
+            ? null
+            : {
+                projectId: gateway.openProject.projectId,
+                listed: isListed(gateway.openProject),
+              },
         loadIssue: null,
       };
       return Promise.resolve(operationOk(overview));
+    },
+    addOpenProject() {
+      const failed = takeFailure();
+      if (failed !== null) return Promise.resolve(failed);
+      if (gateway.openProject === null) {
+        return Promise.resolve(operationErr("projectNotOpen", "no Project"));
+      }
+      add(gateway.openProject);
+      return Promise.resolve(operationOk(undefined));
+    },
+    addProjectFolder() {
+      const failed = takeFailure();
+      if (failed !== null) return Promise.resolve(failed);
+      const project = gateway.nextFolderProject;
+      gateway.nextFolderProject = null;
+      if (project === null) return Promise.resolve(operationOk("cancelled"));
+      add(project);
+      return Promise.resolve(operationOk("added"));
     },
     setWriteAccess(projectId, allowWrite) {
       const failed = takeFailure();
@@ -68,6 +99,16 @@ export function createFakeAiAccessGateway(
       return Promise.resolve(operationOk(undefined));
     },
   };
+  function isListed(project: AiProjectAccess): boolean {
+    return gateway.projects.some(
+      (listed) => listed.projectId === project.projectId,
+    );
+  }
+  // Read-only, at the top; a Project already listed stays as it is.
+  function add(project: AiProjectAccess): void {
+    if (isListed(project)) return;
+    gateway.projects = [{ ...project, allowWrite: false }, ...gateway.projects];
+  }
   function takeFailure() {
     if (!gateway.failNextChange) return null;
     gateway.failNextChange = false;

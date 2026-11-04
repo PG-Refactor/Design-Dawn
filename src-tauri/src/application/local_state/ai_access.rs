@@ -1,8 +1,9 @@
 //! Which Projects an AI client may use through `design-dawn-mcp`, kept in `ai-access.json`
-//! in the app's config directory. The app records every Project it opens (newest first)
-//! and which one was used last; the user decides per Project whether an AI may change it.
-//! Only the app writes the file, so an AI can never grant itself write access: the MCP
-//! server only reads it.
+//! in the app's config directory. The user adds Projects to the list (the one open in the
+//! app, or a folder) and decides per Project whether an AI may change it; the app also
+//! records which Project was used last, which an AI works on by default when it is listed.
+//! Only the app writes the file, so an AI can never offer itself a Project or grant itself
+//! write access: the MCP server only reads it.
 
 use std::path::{Path, PathBuf};
 
@@ -49,9 +50,9 @@ pub struct AiProjectEntry {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AiAccessList {
-    /// The Project of the app window used last, if it is still listed.
+    /// The Project of the app window used last, listed or not.
     pub current_project_id: Option<ProjectId>,
-    /// Newest first.
+    /// The Projects offered to AI, the one added last first.
     pub projects: Vec<AiProjectEntry>,
 }
 
@@ -108,8 +109,8 @@ impl AiAccessList {
         Ok(())
     }
 
-    /// A hand-edited file may repeat a Project (the first, newest, entry wins), name a
-    /// current Project that is not listed, or be too long.
+    /// A hand-edited file may repeat a Project (the first, newest, entry wins) or be too
+    /// long.
     fn normalize(&mut self) {
         let mut seen = Vec::new();
         self.projects.retain(|entry| {
@@ -118,12 +119,6 @@ impl AiAccessList {
             first
         });
         self.projects.truncate(MAX_AI_ACCESS_PROJECTS);
-        if self
-            .current_project_id
-            .is_some_and(|id| self.find(&id).is_none())
-        {
-            self.current_project_id = None;
-        }
     }
 
     pub fn find(&self, project_id: &ProjectId) -> Option<&AiProjectEntry> {
@@ -132,27 +127,44 @@ impl AiAccessList {
             .find(|entry| &entry.project_id == project_id)
     }
 
+    /// The Project used last in the app, when it is offered to AI.
     pub fn current(&self) -> Option<&AiProjectEntry> {
         self.current_project_id.and_then(|id| self.find(&id))
     }
 
     /// The Project was opened or brought to the front in the app: it becomes the current
-    /// one and moves to the top. A Project moved to another folder keeps its permission.
-    /// A new Project starts read-only.
+    /// one. It is not offered to AI by this; a listed Project that moved to another folder
+    /// is followed there.
     pub fn record_used(&mut self, project_id: ProjectId, folder: &Path) {
-        let allow_write = self
-            .find(&project_id)
-            .is_some_and(|entry| entry.allow_write);
-        self.projects.retain(|entry| entry.project_id != project_id);
+        if let Some(entry) = self
+            .projects
+            .iter_mut()
+            .find(|entry| entry.project_id == project_id)
+        {
+            entry.folder = plain_path(folder);
+        }
+        self.current_project_id = Some(project_id);
+    }
+
+    /// Offers the Project to AI, read-only, at the top of the list. A Project already listed
+    /// keeps its place and permission (its folder is updated).
+    pub fn add(&mut self, project_id: ProjectId, folder: &Path) {
+        if let Some(entry) = self
+            .projects
+            .iter_mut()
+            .find(|entry| entry.project_id == project_id)
+        {
+            entry.folder = plain_path(folder);
+            return;
+        }
         self.projects.insert(
             0,
             AiProjectEntry {
                 project_id,
                 folder: plain_path(folder),
-                allow_write,
+                allow_write: false,
             },
         );
-        self.current_project_id = Some(project_id);
         self.normalize();
     }
 
@@ -170,16 +182,13 @@ impl AiAccessList {
         Ok(())
     }
 
-    /// The Project is no longer offered to an AI (until the app opens it again).
+    /// The Project is no longer offered to AI (until the user adds it again).
     pub fn remove(&mut self, project_id: &ProjectId) -> ApplicationResult<()> {
         if self.find(project_id).is_none() {
             return Err(not_listed());
         }
         self.projects
             .retain(|entry| &entry.project_id != project_id);
-        if self.current_project_id.as_ref() == Some(project_id) {
-            self.current_project_id = None;
-        }
         Ok(())
     }
 }
@@ -192,6 +201,9 @@ impl AiAccessList {
 pub struct AiAccessOverview {
     pub mcp_server: McpServerLocation,
     pub projects: Vec<AiAccessProjectView>,
+    /// The Project the asking window has open, for "add the open Project" (`None`: no
+    /// Project is open there).
+    pub open_project: Option<OpenProjectView>,
     pub load_issue: Option<ApplicationError>,
 }
 
@@ -214,6 +226,14 @@ pub struct AiAccessProjectView {
     pub current: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenProjectView {
+    pub project_id: String,
+    /// Whether it is offered to AI already.
+    pub listed: bool,
+}
+
 /// Where the MCP server is: beside the app's own executable.
 pub fn mcp_server_path(app_executable: &Path) -> PathBuf {
     app_executable.with_file_name(format!(
@@ -234,6 +254,7 @@ pub fn listed_project_name(entry: &AiProjectEntry) -> Option<String> {
 pub fn ai_access_overview(
     list: ApplicationResult<AiAccessList>,
     mcp_server: &Path,
+    open_project: Option<ProjectId>,
 ) -> AiAccessOverview {
     let (list, load_issue) = match list {
         Ok(list) => (list, None),
@@ -245,6 +266,10 @@ pub fn ai_access_overview(
             display_path: plain_path(mcp_server).to_string_lossy().into_owned(),
             found: mcp_server.is_file(),
         },
+        open_project: open_project.map(|project_id| OpenProjectView {
+            project_id: project_id.to_string(),
+            listed: list.find(&project_id).is_some(),
+        }),
         projects: list
             .projects
             .iter()
@@ -276,27 +301,40 @@ mod tests {
     }
 
     #[test]
-    fn a_used_project_moves_to_the_top_keeps_its_permission_and_becomes_current() {
+    fn opening_a_project_makes_it_current_without_offering_it() {
         let mut list = AiAccessList::default();
         list.record_used(id(FIRST), Path::new("/p/first"));
-        list.set_allow_write(&id(FIRST), true).unwrap();
-        list.record_used(id(SECOND), Path::new("/p/second"));
-        assert_eq!(list.current().unwrap().project_id, id(SECOND));
-        assert!(!list.current().unwrap().allow_write);
-
-        list.record_used(id(FIRST), Path::new("/p/moved"));
-        assert_eq!(list.projects.len(), 2);
-        assert_eq!(list.projects[0].folder, PathBuf::from("/p/moved"));
-        assert!(list.projects[0].allow_write);
         assert_eq!(list.current_project_id, Some(id(FIRST)));
+        assert!(list.projects.is_empty());
+        assert!(list.current().is_none());
     }
 
     #[test]
-    fn removing_the_current_project_leaves_none_current() {
+    fn an_added_project_is_read_only_at_the_top_and_keeps_its_place_and_permission() {
         let mut list = AiAccessList::default();
+        list.add(id(FIRST), Path::new("/p/first"));
+        list.set_allow_write(&id(FIRST), true).unwrap();
+        list.add(id(SECOND), Path::new("/p/second"));
+        assert_eq!(list.projects[0].project_id, id(SECOND));
+        assert!(!list.projects[0].allow_write);
+
+        // Added again or opened from another folder: same place, same permission.
+        list.add(id(FIRST), Path::new("/p/moved"));
+        list.record_used(id(FIRST), Path::new("/p/moved-again"));
+        assert_eq!(list.projects.len(), 2);
+        assert_eq!(list.projects[1].folder, PathBuf::from("/p/moved-again"));
+        assert!(list.projects[1].allow_write);
+        assert_eq!(list.current().unwrap().project_id, id(FIRST));
+    }
+
+    #[test]
+    fn removing_a_project_stops_offering_it_but_it_stays_current() {
+        let mut list = AiAccessList::default();
+        list.add(id(FIRST), Path::new("/p/first"));
         list.record_used(id(FIRST), Path::new("/p/first"));
         list.remove(&id(FIRST)).unwrap();
         assert!(list.current().is_none());
+        assert_eq!(list.current_project_id, Some(id(FIRST)));
         assert!(list.projects.is_empty());
         assert!(list.remove(&id(FIRST)).is_err());
         assert!(list.set_allow_write(&id(FIRST), true).is_err());
@@ -316,17 +354,26 @@ mod tests {
     #[test]
     fn the_overview_marks_the_current_project_and_a_folder_that_lost_its_project() {
         let mut list = AiAccessList::default();
+        list.add(id(FIRST), Path::new("/nowhere/first"));
         list.record_used(id(FIRST), Path::new("/nowhere/first"));
-        let overview = ai_access_overview(Ok(list), Path::new("/nowhere/design-dawn-mcp"));
+        let overview = ai_access_overview(
+            Ok(list),
+            Path::new("/nowhere/design-dawn-mcp"),
+            Some(id(SECOND)),
+        );
         assert!(!overview.mcp_server.found);
         assert_eq!(overview.projects.len(), 1);
         assert!(overview.projects[0].current);
         assert_eq!(overview.projects[0].name, None);
         assert!(overview.load_issue.is_none());
+        let open = overview.open_project.unwrap();
+        assert_eq!(open.project_id, SECOND);
+        assert!(!open.listed);
 
         let broken = ai_access_overview(
             Err(ApplicationError::entity_not_found("x")),
             Path::new("/nowhere/design-dawn-mcp"),
+            None,
         );
         assert!(broken.projects.is_empty());
         assert!(broken.load_issue.is_some());
@@ -348,11 +395,12 @@ mod tests {
         );
 
         let mut list = AiAccessList::default();
-        list.record_used(id(FIRST), Path::new(r"\\?\C:\work\order"));
+        list.add(id(FIRST), Path::new(r"\\?\C:\work\order"));
         assert_eq!(list.projects[0].folder, PathBuf::from(r"C:\work\order"));
         // A list written before (with the prefix) is shown plainly too.
         list.projects[0].folder = PathBuf::from(r"\\?\C:\work\order");
-        let overview = ai_access_overview(Ok(list), Path::new(r"\\?\C:\app\design-dawn-mcp.exe"));
+        let overview =
+            ai_access_overview(Ok(list), Path::new(r"\\?\C:\app\design-dawn-mcp.exe"), None);
         assert_eq!(overview.projects[0].folder_display, r"C:\work\order");
         assert_eq!(
             overview.mcp_server.display_path,
@@ -365,7 +413,7 @@ mod tests {
         let mut list = AiAccessList::default();
         for index in 0..=MAX_AI_ACCESS_PROJECTS {
             let text = format!("01928f3a-0000-7000-8000-{index:012}");
-            list.record_used(id(&text), Path::new("/p"));
+            list.add(id(&text), Path::new("/p"));
         }
         assert_eq!(list.projects.len(), MAX_AI_ACCESS_PROJECTS);
     }
@@ -379,7 +427,8 @@ mod tests {
             AiAccessList::default()
         );
         let mut list = AiAccessList::default();
-        list.record_used(id(FIRST), Path::new("/p/first"));
+        list.add(id(FIRST), Path::new("/p/first"));
+        list.add(id(SECOND), Path::new("/p/second"));
         list.record_used(id(SECOND), Path::new("/p/second"));
         list.set_allow_write(&id(FIRST), true).unwrap();
         list.write(&directory).unwrap();
@@ -405,6 +454,8 @@ mod tests {
         let list = AiAccessList::read(&directory).unwrap();
         assert_eq!(list.projects.len(), 1);
         assert_eq!(list.projects[0].folder, PathBuf::from("/a"));
+        // The current Project need not be offered.
+        assert_eq!(list.current_project_id, Some(id(SECOND)));
         assert!(list.current().is_none());
 
         std::fs::write(&path, r#"{"schemaVersion":2,"projects":[]}"#).unwrap();

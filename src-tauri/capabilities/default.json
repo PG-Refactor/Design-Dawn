@@ -6,6 +6,8 @@
   "permissions": [
     "allow-select-project-folder",
     "allow-ai-access-overview",
+    "allow-add-open-project-to-ai",
+    "allow-add-ai-project-folder",
     "allow-set-ai-write-access",
     "allow-remove-ai-project",
     "allow-select-image-files",

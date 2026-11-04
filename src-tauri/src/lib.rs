@@ -68,6 +68,8 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         .invoke_handler(tauri::generate_handler![
             commands::select_project_folder,
             commands::ai_access_overview,
+            commands::add_open_project_to_ai,
+            commands::add_ai_project_folder,
             commands::set_ai_write_access,
             commands::remove_ai_project,
             commands::select_image_files,

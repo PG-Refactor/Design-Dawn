@@ -1484,21 +1484,36 @@ fn a_new_project_is_created_in_a_named_folder_inside_the_chosen_place() {
 }
 
 #[test]
-fn opening_a_project_offers_it_to_ai_read_only_and_the_screen_changes_that() {
+fn the_user_offers_projects_to_ai_read_only_and_the_screen_changes_that() {
     let temp = TempDir::new();
     let (_project_temp, project_root) = project_copy();
+    let (_folders_temp, folders_root) = folders_project_copy();
     let app = build_app(
-        vec![PickerOutcome::Folder(project_root.clone())],
+        vec![
+            PickerOutcome::Folder(project_root.clone()),
+            PickerOutcome::Folder(folders_root.clone()),
+            PickerOutcome::Folder(temp.path().to_path_buf()),
+        ],
         local_state_directories(temp.path()),
     );
     let window = main_window(&app);
     let empty = invoke(&window, "ai_access_overview", &serde_json::json!({})).unwrap();
     assert_eq!(empty["projects"], serde_json::json!([]));
+    assert!(empty["openProject"].is_null());
     assert!(empty["mcpServer"]["displayPath"]
         .as_str()
         .unwrap()
         .contains("design-dawn-mcp"));
+    assert_eq!(
+        error_kind(invoke(
+            &window,
+            "add_open_project_to_ai",
+            &serde_json::json!({})
+        )),
+        "projectNotOpen"
+    );
 
+    // Opening a Project does not offer it.
     let selection = invoke(&window, "select_project_folder", &serde_json::json!({})).unwrap();
     invoke(
         &window,
@@ -1506,13 +1521,38 @@ fn opening_a_project_offers_it_to_ai_read_only_and_the_screen_changes_that() {
         &serde_json::json!({ "selectionId": selection["selectionId"] }),
     )
     .unwrap();
+    let overview = invoke(&window, "ai_access_overview", &serde_json::json!({})).unwrap();
+    assert_eq!(overview["projects"], serde_json::json!([]));
+    assert_eq!(overview["openProject"]["projectId"], PROJECT_ID);
+    assert_eq!(overview["openProject"]["listed"], false);
 
+    invoke(&window, "add_open_project_to_ai", &serde_json::json!({})).unwrap();
     let overview = invoke(&window, "ai_access_overview", &serde_json::json!({})).unwrap();
     let project = &overview["projects"][0];
     assert_eq!(project["projectId"], PROJECT_ID);
     assert_eq!(project["current"], true);
     assert_eq!(project["allowWrite"], false);
     assert!(project["name"].is_string());
+    assert_eq!(overview["openProject"]["listed"], true);
+
+    // A folder chosen in the dialog: it must hold a Project.
+    let folders = invoke(&window, "select_project_folder", &serde_json::json!({})).unwrap();
+    invoke(
+        &window,
+        "add_ai_project_folder",
+        &serde_json::json!({ "selectionId": folders["selectionId"] }),
+    )
+    .unwrap();
+    let not_a_project = invoke(&window, "select_project_folder", &serde_json::json!({})).unwrap();
+    assert!(invoke(
+        &window,
+        "add_ai_project_folder",
+        &serde_json::json!({ "selectionId": not_a_project["selectionId"] }),
+    )
+    .is_err());
+    let overview = invoke(&window, "ai_access_overview", &serde_json::json!({})).unwrap();
+    assert_eq!(overview["projects"][0]["projectId"], FOLDERS_PROJECT_ID);
+    assert_eq!(overview["projects"].as_array().unwrap().len(), 2);
 
     invoke(
         &window,
@@ -1521,7 +1561,7 @@ fn opening_a_project_offers_it_to_ai_read_only_and_the_screen_changes_that() {
     )
     .unwrap();
     let overview = invoke(&window, "ai_access_overview", &serde_json::json!({})).unwrap();
-    assert_eq!(overview["projects"][0]["allowWrite"], true);
+    assert_eq!(overview["projects"][1]["allowWrite"], true);
 
     assert_eq!(
         error_kind(invoke(
@@ -1538,5 +1578,5 @@ fn opening_a_project_offers_it_to_ai_read_only_and_the_screen_changes_that() {
     )
     .unwrap();
     let overview = invoke(&window, "ai_access_overview", &serde_json::json!({})).unwrap();
-    assert_eq!(overview["projects"], serde_json::json!([]));
+    assert_eq!(overview["projects"].as_array().unwrap().len(), 1);
 }

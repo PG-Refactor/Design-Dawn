@@ -153,7 +153,7 @@ yourself or got from a source you trust.
 Cursor or any other MCP client) read and edit Design Dawn Projects. It speaks MCP over
 stdin/stdout only, opens no network port, and works whether or not the app is running.
 
-**Set-up (once per AI tool)**: in the app, open **Help → AI Integration (MCP)**. It shows the
+**Set-up (once per AI tool)**: in the app, open **File → AI Integration (MCP)**. It shows the
 command to register (the `design-dawn-mcp` next to the app) with a Copy button, and the same as
 the common JSON form:
 
@@ -168,15 +168,16 @@ the common JSON form:
 Register it the way your AI tool adds MCP servers (for Claude Code:
 `claude mcp add design-dawn -- <command>`). No Project is named in the registration.
 
-**Which Project the AI works on**: by default the Project open in the app (the window used last;
-the last one opened when the app is closed). The AI can list the Projects the app has opened
-(`listProjects`) and choose one (`selectProject`), so "summarize the order-service Project" works
-without registering anything again.
+**Which Projects the AI may use**: only the ones you add in the AI Integration screen (**Add
+the Open Project**, or **Add a Folder…** for any Project folder). By default the AI works on the
+Project open in the app (the window used last; the last one used when the app is closed), if it
+is added. The AI can list the added Projects (`listProjects`) and choose one (`selectProject`),
+so "summarize the order-service Project" works without registering anything again.
 
-**Permissions**: every Project is read-only for AI until you tick **Allow changes by AI** for it
-in the AI Integration screen. Only the app changes this list (it is kept in the app's settings
-folder as `ai-access.json`, never inside a Project), so an AI cannot grant itself access. The
-screen also removes a Project from the list.
+**Permissions**: an added Project is read-only for AI until you tick **Allow editing by AI**
+next to it. Only the app changes this list (it is kept in the app's settings folder as
+`ai-access.json`, never inside a Project), so an AI cannot add a Project or grant itself
+access. The screen also removes a Project from the list.
 
 - **Tools**: `listProjects`, `selectProject`, `getProject`, `getDocument`, `getSheet`, `getBlock`;
   for writable Projects also `createDocument`, `createSheet`, `createBlock` (Markdown or Mermaid),
