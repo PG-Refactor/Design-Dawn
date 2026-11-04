@@ -213,10 +213,11 @@ export interface SeedDocumentOptions {
 }
 
 const DEFAULT_SELECTION_ID = "selection-1";
+const DEFAULT_SELECTION_PATH = "/projects/example";
 const DEFAULT_SELECTION: FolderSelection = {
   status: "selected",
   selectionId: DEFAULT_SELECTION_ID,
-  displayPath: "/projects/example",
+  displayPath: DEFAULT_SELECTION_PATH,
 };
 
 // An image file of a scripted drop. `initialWidth` / `initialHeight` default to the natural
@@ -337,6 +338,8 @@ export function createFakeGateway(
   const drops = new Map<string, readonly FakeDroppedFile[]>();
   let nextImageSelection: string | null = null;
   let nextSelection: FolderSelection = DEFAULT_SELECTION;
+  // The default place for new Projects (its display path), as Rust keeps it.
+  let defaultLocation: string | null = null;
   const snapshotOverrides = new Map<string, ProjectSnapshot>();
   let pendingOpenRequest:
     | DocumentId
@@ -717,16 +720,39 @@ export function createFakeGateway(
         acceptedDiskStates.push(documentId);
         return operationOk(undefined);
       }),
-    createProject: (selectionId, name) =>
-      enter("createProject", `${selectionId}:${name}`, () => {
-        if (selectionId !== DEFAULT_SELECTION_ID) {
-          return operationErr("invalidFolderSelection", selectionId);
-        }
-        disk.projectName = name;
-        disk.childOrder = [];
-        disk.documents.clear();
-        return operationOk(projectSnapshot());
+    defaultProjectLocation: () =>
+      enter("defaultProjectLocation", "", () =>
+        operationOk(
+          defaultLocation === null
+            ? { status: "cancelled" as const }
+            : {
+                status: "selected" as const,
+                selectionId: DEFAULT_SELECTION_ID,
+                displayPath: defaultLocation,
+              },
+        ),
+      ),
+    setDefaultProjectLocation: (selectionId) =>
+      enter("setDefaultProjectLocation", selectionId, () => {
+        defaultLocation = DEFAULT_SELECTION_PATH;
+        return operationOk(undefined);
       }),
+    createProject: (selectionId, name, folderName) =>
+      enter(
+        "createProject",
+        folderName === undefined
+          ? `${selectionId}:${name}`
+          : `${selectionId}:${name}:${folderName}`,
+        () => {
+          if (selectionId !== DEFAULT_SELECTION_ID) {
+            return operationErr("invalidFolderSelection", selectionId);
+          }
+          disk.projectName = name;
+          disk.childOrder = [];
+          disk.documents.clear();
+          return operationOk(projectSnapshot());
+        },
+      ),
     saveProject: (_project, project) =>
       enter("saveProject", project.childOrder.join(","), () => {
         disk.projectName = project.name;

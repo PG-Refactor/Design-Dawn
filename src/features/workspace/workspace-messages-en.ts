@@ -9,6 +9,7 @@ import type { WorkspaceMessages } from "./workspace-messages";
 const quoted = (name: string): string => `"${name}"`;
 
 const OPERATION_HEADLINES: Record<OperationLabel, string> = {
+  setDefaultProjectLocation: "Could not remember the default location",
   selectFolder: "Could not select the folder",
   openProject: "Could not open the Project",
   openLaunchRequest: "Could not open the .dawn file",
@@ -76,6 +77,8 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
 const ERROR_KINDS: Record<OperationErrorKind, string> = {
   invalidEntityId: "The ID format is invalid.",
   invalidDisplayName: "The name is invalid.",
+  invalidFolderName:
+    'The folder name cannot contain / \\ : * ? " < > |, end with a dot or space, or be a reserved name such as CON.',
   invalidCaption: "A caption is one line of up to 500 characters.",
   invalidPosition: "The position value is invalid.",
   invalidSize: "The size value is invalid.",
@@ -471,6 +474,14 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     createProject: {
       title: "New Project",
       nameLabel: "Project name",
+      locationLabel: "Location",
+      noLocation: "Not chosen",
+      browse: "Browse…",
+      sameFolderName: "Use the Project name as the folder name",
+      folderNameLabel: "Folder name",
+      makeDefault: "Make this the default location",
+      destination: (path) => `Created in: ${path}`,
+      locationRequired: "Choose a location.",
       submit: "Create",
     },
     createDocument: {

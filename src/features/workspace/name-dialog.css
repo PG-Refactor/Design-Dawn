@@ -28,3 +28,9 @@
   color: var(--color-text-muted);
   font-size: 0.875rem;
 }
+
+/* A field that follows another one (the folder name while it is the Project name). */
+.name-dialog__input:disabled {
+  background: var(--color-surface-raised);
+  color: var(--color-text-muted);
+}

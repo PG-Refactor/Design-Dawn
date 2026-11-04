@@ -143,6 +143,24 @@ pub fn select_project_folder(
     })
 }
 
+/// Records a folder the app already knows (the default place for new Projects) as the
+/// window's latest selection, so the Frontend can use it like a chosen one.
+pub fn register_known_folder(
+    state: &Mutex<FolderSelectionState>,
+    window_label: &str,
+    path: PathBuf,
+) -> FolderSelection {
+    let display_path = path.display().to_string();
+    let selection_id = state
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .replace(window_label, path);
+    FolderSelection::Selected {
+        selection_id,
+        display_path,
+    }
+}
+
 /// Looks the path up and releases the lock before the caller touches the filesystem.
 pub fn resolve_selection(
     state: &Mutex<FolderSelectionState>,

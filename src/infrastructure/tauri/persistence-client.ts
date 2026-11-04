@@ -1,3 +1,4 @@
+import type { ProjectFolderName } from "../../domain/project/project-folder-name";
 // Typed wrappers for the persistence Tauri commands. This is the
 // only place that calls `invoke`. Expected failures come back as `{ ok: false, error }`;
 // nothing here throws for them.
@@ -59,14 +60,36 @@ export function selectProjectFolder(): Promise<CommandResult<FolderSelection>> {
 }
 
 // `selectionId` comes from `selectProjectFolder`; the Frontend never passes a path.
+// With `folderName` the selected folder is the place the new Project folder of that name
+// is created in; without it, it is the Project folder itself.
 export function createProject(
   selectionId: string,
   name: DisplayName,
+  folderName?: ProjectFolderName,
 ): Promise<CommandResult<ProjectSnapshot>> {
   return call(
     COMMANDS.createProject,
-    { selectionId, name },
+    folderName === undefined
+      ? { selectionId, name }
+      : { selectionId, name, folderName },
     toProjectSnapshotResult,
+  );
+}
+
+// The default place for new Projects, as a selection of this window (cancelled: none).
+export function defaultProjectLocation(): Promise<
+  CommandResult<FolderSelection>
+> {
+  return call(COMMANDS.defaultProjectLocation, {}, toFolderSelectionResult);
+}
+
+export function setDefaultProjectLocation(
+  selectionId: string,
+): Promise<CommandResult<null>> {
+  return call(
+    COMMANDS.setDefaultProjectLocation,
+    { selectionId },
+    toVoidResult,
   );
 }
 

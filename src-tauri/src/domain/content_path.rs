@@ -34,7 +34,9 @@ fn is_reserved_device_name(segment: &str) -> bool {
         .any(|reserved| reserved.eq_ignore_ascii_case(stem))
 }
 
-fn check_segment(segment: &str) -> Result<(), DomainError> {
+/// The lexical rules of one path segment (a file or folder name), shared with the name of a
+/// new Project folder.
+pub fn check_segment(segment: &str) -> Result<(), DomainError> {
     if segment.is_empty() {
         return Err(invalid_path("empty segment"));
     }

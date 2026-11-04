@@ -4,6 +4,8 @@
 const APP_COMMANDS: &[&str] = &[
     "select_project_folder",
     "select_image_files",
+    "default_project_location",
+    "set_default_project_location",
     "create_project",
     "open_project",
     "reload_project",

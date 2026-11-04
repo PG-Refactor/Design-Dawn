@@ -4,6 +4,7 @@ export const DOMAIN_ERROR_KINDS = [
   "invalidEntityId",
   "invalidDisplayName",
   "invalidCaption",
+  "invalidFolderName",
   "invalidPosition",
   "invalidSize",
   "unsupportedBlockType",

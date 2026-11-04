@@ -95,7 +95,7 @@ describe("name dialog", () => {
     expect(tabs[1]?.getAttribute("aria-selected")).toBe("true");
   });
 
-  it("creates a project from a name dialog", async () => {
+  it("creates a project from the New Project dialog, in a folder named after it", async () => {
     const harness = await renderShell();
     await chooseMenuItem(harness.user, "ファイル", "新規Project…");
     const dialog = screen.getByRole("dialog", { name: "新規Project" });
@@ -103,9 +103,87 @@ describe("name dialog", () => {
       within(dialog).getByRole("textbox", { name: "Project名" }),
       "Fresh{Enter}",
     );
+    // No place yet: nothing is created.
+    expect(within(dialog).getByRole("alert").textContent).toBe(
+      "保存場所を選んでください。",
+    );
+    await harness.user.click(
+      within(dialog).getByRole("button", { name: "参照…" }),
+    );
+    await waitFor(() =>
+      expect(
+        within(dialog).getByText("作成先: /projects/example/Fresh"),
+      ).toBeTruthy(),
+    );
+    // The folder follows the name while the box is checked.
+    const folderName = within(dialog).getByRole("textbox", {
+      name: "フォルダ名",
+    }) as HTMLInputElement;
+    expect(folderName.disabled).toBe(true);
+    expect(folderName.value).toBe("Fresh");
+    // Without a default place yet, the chosen one becomes it unless cleared.
+    expect(
+      (
+        within(dialog).getByRole("checkbox", {
+          name: "この保存場所を既定にする",
+        }) as HTMLInputElement
+      ).checked,
+    ).toBe(true);
+    await harness.user.click(
+      within(dialog).getByRole("button", { name: "作成" }),
+    );
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(await screen.findByRole("treeitem", { name: "Fresh" })).toBeTruthy();
-    expect(harness.gateway.methods("createProject")).toEqual(["createProject"]);
+    expect(
+      harness.gateway.calls.find((call) => call.method === "createProject")
+        ?.detail,
+    ).toBe("selection-1:Fresh:Fresh");
+    expect(harness.gateway.methods("setDefaultProjectLocation")).toEqual([
+      "setDefaultProjectLocation",
+    ]);
+  });
+
+  it("takes a folder name of its own when the box is cleared, and checks it", async () => {
+    const harness = await renderShell();
+    await harness.gateway.setDefaultProjectLocation("selection-1");
+    await chooseMenuItem(harness.user, "ファイル", "新規Project…");
+    const dialog = screen.getByRole("dialog", { name: "新規Project" });
+    // The default place is there from the start, and stays the default.
+    await waitFor(() =>
+      expect(within(dialog).getByText("/projects/example")).toBeTruthy(),
+    );
+    expect(
+      (
+        within(dialog).getByRole("checkbox", {
+          name: "この保存場所を既定にする",
+        }) as HTMLInputElement
+      ).checked,
+    ).toBe(false);
+    await harness.user.type(
+      within(dialog).getByRole("textbox", { name: "Project名" }),
+      "Order Service",
+    );
+    await harness.user.click(
+      within(dialog).getByRole("checkbox", {
+        name: "フォルダ名をProject名と同じにする",
+      }),
+    );
+    const folderName = within(dialog).getByRole("textbox", {
+      name: "フォルダ名",
+    });
+    expect((folderName as HTMLInputElement).value).toBe("Order Service");
+    await harness.user.clear(folderName);
+    await harness.user.type(folderName, "order/service{Enter}");
+    expect(within(dialog).getByRole("alert").textContent).toContain(
+      "フォルダ名に使えない文字",
+    );
+    await harness.user.clear(folderName);
+    await harness.user.type(folderName, "order-service{Enter}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(
+      harness.gateway.calls.find((call) => call.method === "createProject")
+        ?.detail,
+    ).toBe("selection-1:Order Service:order-service");
   });
 });
 

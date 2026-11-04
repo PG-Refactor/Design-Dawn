@@ -233,10 +233,16 @@ describe("opening another project with auto-save off", () => {
   it("creating a project asks as well, and saves on 保存", async () => {
     const harness = await dirtyHarness(false);
     harness.actions.requestCreateProject();
-    await harness.actions.createProjectViaDialog("Other");
+    const request = {
+      name: "Other",
+      locationSelectionId: "selection-1",
+      folderName: "Other",
+      makeDefaultLocation: false,
+    };
+    await harness.actions.createProjectViaDialog(request);
     expect(dialog(harness)).toMatchObject({
       kind: "confirmUnsavedClose",
-      target: { kind: "createProject", name: "Other" },
+      target: { kind: "createProject", request },
     });
     await harness.actions.answerUnsavedClose("save");
     expect(harness.gateway.methods(...WRITE_METHODS).length).toBeGreaterThan(0);

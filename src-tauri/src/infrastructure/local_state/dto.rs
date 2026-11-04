@@ -34,6 +34,10 @@ pub struct SettingsFileDto {
     /// dialog. Left out of the file when there is none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_project_folder: Option<String>,
+    /// Absent in schema versions 1 to 6 and until the user chose a default place for new
+    /// Projects.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_project_location: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

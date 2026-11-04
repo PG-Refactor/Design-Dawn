@@ -68,6 +68,8 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         .invoke_handler(tauri::generate_handler![
             commands::select_project_folder,
             commands::select_image_files,
+            commands::default_project_location,
+            commands::set_default_project_location,
             commands::create_project,
             commands::open_project,
             commands::reload_project,

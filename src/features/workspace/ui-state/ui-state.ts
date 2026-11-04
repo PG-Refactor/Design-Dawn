@@ -88,6 +88,16 @@ export function entitySubject(name: EntityName): OperationSubject {
   return name ?? UNNAMED_SUBJECT;
 }
 
+// What the New Project dialog asks for: the Project's name, the place it goes in (a folder
+// selection Rust keeps), the name of its own folder there, and whether that place becomes
+// the default for the next new Project.
+export interface NewProjectRequest {
+  readonly name: string;
+  readonly locationSelectionId: string;
+  readonly folderName: string;
+  readonly makeDefaultLocation: boolean;
+}
+
 // What a "close with unsaved changes" confirmation is about (auto-save off). The window
 // answer is delivered to the pending close request, the others run an action when answered.
 export type UnsavedCloseTarget =
@@ -95,7 +105,7 @@ export type UnsavedCloseTarget =
   | { readonly kind: "project" }
   // Opening / creating another Project closes the current one first.
   | { readonly kind: "openProject" }
-  | { readonly kind: "createProject"; readonly name: string }
+  | { readonly kind: "createProject"; readonly request: NewProjectRequest }
   | {
       readonly kind: "document";
       readonly documentId: DocumentId;
@@ -189,6 +199,7 @@ export interface DiscardTarget {
 // The user-level operations that can fail and be reported (one value per message).
 export const OPERATION_LABELS = [
   "selectFolder",
+  "setDefaultProjectLocation",
   "openProject",
   "openLaunchRequest",
   "createProject",
