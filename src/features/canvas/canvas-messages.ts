@@ -51,7 +51,9 @@ const CANVAS_MESSAGES_JA = {
   },
   caption: {
     dialogTitle: "キャプション",
-    fieldLabel: "図の下に表示する1行のテキスト",
+    fieldLabel: "図に添える1行のテキスト",
+    positionLabel: "表示位置",
+    positions: { below: "図の下", above: "図の上" },
     hint: "空にするとキャプションを消します。",
     save: "保存",
     invalid: "キャプションは1行・500文字までで入力してください。",
@@ -106,7 +108,9 @@ const CANVAS_MESSAGES_EN: CanvasMessages = {
   },
   caption: {
     dialogTitle: "Caption",
-    fieldLabel: "One line shown under the figure",
+    fieldLabel: "One line shown with the figure",
+    positionLabel: "Position",
+    positions: { below: "Below the figure", above: "Above the figure" },
     hint: "Leave it empty to remove the caption.",
     save: "Save",
     invalid: "A caption is one line of up to 500 characters.",

@@ -1,14 +1,20 @@
 import { type FormEvent, useId, useRef, useState } from "react";
-import { parseCaption } from "../../domain/block/caption";
+import {
+  CAPTION_POSITIONS,
+  type CaptionPosition,
+  parseCaption,
+} from "../../domain/block/caption";
 import { Modal } from "../workspace/modal";
 import { useMessages } from "../workspace/use-messages";
 import "../workspace/name-dialog.css";
+import "./caption-dialog.css";
 
 export interface CaptionDialogProps {
   // The caption the figure has now ("" when none).
   readonly initial: string;
-  // Called with the trimmed text ("" = remove), which the domain accepts.
-  readonly onSubmit: (text: string) => void;
+  readonly initialPosition: CaptionPosition;
+  // Called with the trimmed text ("" = remove), which the domain accepts, and its place.
+  readonly onSubmit: (text: string, position: CaptionPosition) => void;
   readonly onCancel: () => void;
 }
 
@@ -16,6 +22,7 @@ export interface CaptionDialogProps {
 // dialog never accepts what the action would refuse.
 export function CaptionDialog({
   initial,
+  initialPosition,
   onSubmit,
   onCancel,
 }: CaptionDialogProps) {
@@ -28,6 +35,8 @@ export function CaptionDialog({
   const inputRef = useRef<HTMLInputElement>(null);
   const [text, setText] = useState(initial);
   const [invalid, setInvalid] = useState(false);
+  const [position, setPosition] = useState(initialPosition);
+  const positionLabelId = useId();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
@@ -37,7 +46,7 @@ export function CaptionDialog({
       inputRef.current?.focus();
       return;
     }
-    onSubmit(trimmed);
+    onSubmit(trimmed, position);
   }
 
   return (
@@ -74,6 +83,27 @@ export function CaptionDialog({
               {messages.invalid}
             </p>
           ) : null}
+        </div>
+        <div
+          role="radiogroup"
+          aria-labelledby={positionLabelId}
+          className="caption-dialog__positions"
+        >
+          <span id={positionLabelId} className="name-dialog__label">
+            {messages.positionLabel}
+          </span>
+          {CAPTION_POSITIONS.map((candidate) => (
+            <label key={candidate} className="caption-dialog__position">
+              <input
+                type="radio"
+                name={positionLabelId}
+                value={candidate}
+                checked={position === candidate}
+                onChange={() => setPosition(candidate)}
+              />
+              {messages.positions[candidate]}
+            </label>
+          ))}
         </div>
         <div className="modal__actions">
           <button type="button" className="button" onClick={onCancel}>

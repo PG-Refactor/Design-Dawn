@@ -1,5 +1,8 @@
 import type { Block } from "../../domain/block/block";
-import type { Caption } from "../../domain/block/caption";
+import {
+  type FigureCaption,
+  figureCaptionOf,
+} from "../../domain/block/caption";
 import { type DomainResult, err, ok } from "../../domain/shared/domain-result";
 import type { BlockId, SheetId } from "../../domain/shared/entity-id";
 import type { Position, Size } from "../../domain/shared/geometry";
@@ -146,13 +149,13 @@ export function resizeBlocksCommand(
 // The caption a Block had before the first run (`{ caption: null }`: none), kept so undo
 // puts exactly that back.
 export interface CaptionRestore {
-  readonly caption: Caption | null;
+  readonly caption: FigureCaption | null;
 }
 
 export function setBlockCaptionCommand(
   sheetId: SheetId,
   blockId: BlockId,
-  caption: Caption | null,
+  caption: FigureCaption | null,
   restored: CaptionRestore | null = null,
 ): MetadataCommand {
   let previous: CaptionRestore | null = restored;
@@ -173,7 +176,9 @@ export function setBlockCaptionCommand(
           const block = sheet.blocks.find(
             (candidate) => candidate.blockId === blockId,
           );
-          previous = { caption: block?.caption ?? null };
+          previous = {
+            caption: block === undefined ? null : figureCaptionOf(block),
+          };
         }
         return next;
       }),

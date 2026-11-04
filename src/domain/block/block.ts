@@ -10,7 +10,12 @@ import {
   type Size,
 } from "../shared/geometry";
 import { type BlockType, parseBlockType } from "./block-type";
-import { type Caption, parseCaption } from "./caption";
+import {
+  type Caption,
+  type CaptionPosition,
+  parseCaption,
+  parseCaptionPosition,
+} from "./caption";
 import { type ContentPath, parseContentPath } from "./content-path";
 
 export interface Block {
@@ -21,6 +26,8 @@ export interface Block {
   readonly contentPath: ContentPath;
   // Absent: the Block has no caption.
   readonly caption?: Caption;
+  // Absent: the default place (below the figure).
+  readonly captionPosition?: CaptionPosition;
 }
 
 export interface RawBlock {
@@ -30,6 +37,7 @@ export interface RawBlock {
   readonly size: RawSize;
   readonly contentPath: string;
   readonly caption?: string;
+  readonly captionPosition?: string;
 }
 
 // Reports the first error in file-format key order.
@@ -46,6 +54,11 @@ export function parseBlock(raw: RawBlock): DomainResult<Block> {
   if (!contentPath.ok) return contentPath;
   const caption = raw.caption === undefined ? null : parseCaption(raw.caption);
   if (caption !== null && !caption.ok) return caption;
+  const captionPosition =
+    raw.captionPosition === undefined
+      ? null
+      : parseCaptionPosition(raw.captionPosition);
+  if (captionPosition !== null && !captionPosition.ok) return captionPosition;
   return ok({
     blockId: blockId.value,
     blockType: blockType.value,
@@ -53,5 +66,8 @@ export function parseBlock(raw: RawBlock): DomainResult<Block> {
     size: size.value,
     contentPath: contentPath.value,
     ...(caption === null ? {} : { caption: caption.value }),
+    ...(captionPosition === null
+      ? {}
+      : { captionPosition: captionPosition.value }),
   });
 }

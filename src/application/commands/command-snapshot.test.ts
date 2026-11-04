@@ -86,11 +86,10 @@ const COMMANDS: readonly (readonly [string, () => MetadataCommand])[] = [
   [
     "setBlockCaption",
     () =>
-      setBlockCaptionCommand(
-        SHEET_ID,
-        FIRST,
-        unwrapCaption(parseCaption("Figure 1: flow")),
-      ),
+      setBlockCaptionCommand(SHEET_ID, FIRST, {
+        text: unwrapCaption(parseCaption("Figure 1: flow")),
+        position: "above",
+      }),
   ],
   [
     "editBlockContent",

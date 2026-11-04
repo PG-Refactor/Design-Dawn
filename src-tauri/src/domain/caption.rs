@@ -41,6 +41,37 @@ impl Caption {
     }
 }
 
+/// Where a caption is shown relative to its figure. Below is the default and is not
+/// written to the file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CaptionPosition {
+    Below,
+    Above,
+}
+
+const CAPTION_POSITIONS: [(CaptionPosition, &str); 2] = [
+    (CaptionPosition::Below, "below"),
+    (CaptionPosition::Above, "above"),
+];
+
+impl CaptionPosition {
+    pub fn parse(value: &str) -> Result<Self, DomainError> {
+        CAPTION_POSITIONS
+            .iter()
+            .find(|(_, name)| *name == value)
+            .map(|(position, _)| *position)
+            .ok_or_else(|| invalid(format!("unknown caption position: {value:?}")))
+    }
+
+    pub fn as_str(self) -> &'static str {
+        CAPTION_POSITIONS
+            .iter()
+            .find(|(position, _)| *position == self)
+            .map(|(_, name)| *name)
+            .expect("every CaptionPosition has a name")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -57,5 +88,18 @@ mod tests {
         }
         assert!(Caption::new(&"x".repeat(CAPTION_MAX_CODE_POINTS)).is_ok());
         assert!(Caption::new(&"x".repeat(CAPTION_MAX_CODE_POINTS + 1)).is_err());
+    }
+
+    #[test]
+    fn a_caption_position_is_below_or_above() {
+        for name in ["below", "above"] {
+            assert_eq!(CaptionPosition::parse(name).unwrap().as_str(), name);
+        }
+        for invalid_name in ["", "Above", "left"] {
+            assert_eq!(
+                CaptionPosition::parse(invalid_name).unwrap_err().kind,
+                DomainErrorKind::InvalidCaption
+            );
+        }
     }
 }
