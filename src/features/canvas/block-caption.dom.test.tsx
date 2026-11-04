@@ -114,6 +114,30 @@ describe("the caption of a figure", () => {
     expect(document.querySelector(".block-frame__caption")).toBeNull();
   });
 
+  it("is removed from the block menu, which offers it only while there is one", async () => {
+    const rendered = await renderFigures();
+    expect(
+      within(blockMenu(0)).queryByRole("menuitem", {
+        name: MESSAGES.contextMenu.removeCaption,
+      }),
+    ).toBeNull();
+    await rendered.shell.user.keyboard("{Escape}");
+    await editCaption(rendered, "Figure 1");
+    await rendered.shell.user.click(
+      within(blockMenu(0)).getByRole("menuitem", {
+        name: MESSAGES.contextMenu.removeCaption,
+      }),
+    );
+    await act(settle);
+    expect(captionOf(rendered)).toBeUndefined();
+    expect(document.querySelector(".block-frame__caption")).toBeNull();
+    // One step back brings it back.
+    await act(async () => {
+      await rendered.canvas.canvasActions.undo(DOCUMENT_A);
+    });
+    expect(captionOf(rendered)).toBe("Figure 1");
+  });
+
   it("refuses a caption that is too long, keeping the dialog open", async () => {
     const rendered = await renderFigures();
     await rendered.shell.user.click(

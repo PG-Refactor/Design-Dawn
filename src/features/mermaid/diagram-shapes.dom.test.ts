@@ -90,3 +90,66 @@ describe("shapeAt", () => {
     });
   });
 });
+
+describe("edges and subgraphs", () => {
+  // A subgraph `grp` (0..100, 0..60) holding node A, an edge A -> B leaving it along
+  // y = 20 and another drawn inside a translated group.
+  const GROUPED = `<svg xmlns="http://www.w3.org/2000/svg" id="dawn-mermaid-3" viewBox="0 0 200 100">
+    <g class="clusters">
+      <g class="cluster" id="dawn-mermaid-3-grp"><rect x="0" y="0" width="100" height="60"/></g>
+    </g>
+    <g class="edgePaths">
+      <path d="M60,20L140,20" data-edge="true" data-id="L_A_B_0"/>
+      <g transform="translate(0, 50)"><path d="M150,0l0,40" data-edge="true" data-id="custom"/></g>
+    </g>
+    <g class="edgeLabels">
+      <g class="edgeLabel"><g class="label" data-id="L_A_B_0" transform="translate(100, 10)"><rect x="-10" y="-5" width="20" height="10"/></g></g>
+    </g>
+    <g class="node default" id="dawn-mermaid-3-flowchart-A-0" transform="translate(30, 20)">
+      <rect x="-20" y="-10" width="40" height="20"/>
+    </g>
+  </svg>`;
+  const diagram = readDiagramShapes(GROUPED);
+  if (diagram === null) throw new Error("not read");
+  const shown = { width: 200, height: 100 };
+
+  it("reads edges as lines and subgraphs as areas, by their source ids", () => {
+    expect(diagram.lines).toEqual([
+      { hit: { kind: "edge", id: "L_A_B_0" }, points: [60, 20, 140, 20] },
+      { hit: { kind: "edge", id: "custom" }, points: [150, 50, 150, 90] },
+    ]);
+    expect(diagram.areas).toEqual([
+      {
+        hit: { kind: "subgraph", id: "grp" },
+        box: { x: 0, y: 0, width: 100, height: 60 },
+      },
+    ]);
+  });
+
+  it("finds a node first, then an edge's label or line, then the subgraph", () => {
+    expect(shapeAt(diagram, { x: 30, y: 20 }, shown)).toEqual({
+      kind: "node",
+      id: "A",
+    });
+    // On the label, away from the line.
+    expect(shapeAt(diagram, { x: 105, y: 7 }, shown)?.id).toBe("L_A_B_0");
+    // Near the line, inside the subgraph.
+    expect(shapeAt(diagram, { x: 70, y: 23 }, shown)).toEqual({
+      kind: "edge",
+      id: "L_A_B_0",
+    });
+    expect(shapeAt(diagram, { x: 152, y: 70 }, shown)?.id).toBe("custom");
+    expect(shapeAt(diagram, { x: 70, y: 45 }, shown)).toEqual({
+      kind: "subgraph",
+      id: "grp",
+    });
+    expect(shapeAt(diagram, { x: 180, y: 10 }, shown)).toBeNull();
+  });
+
+  it("reaches a line by screen pixels, whatever the picture's scale", () => {
+    // Shown at half size: 4 screen px off the line is 8 diagram units off.
+    const half = { width: 100, height: 50 };
+    expect(shapeAt(diagram, { x: 60, y: 14 }, half)?.kind).toBe("edge");
+    expect(shapeAt(diagram, { x: 60, y: 25 }, half)).toBeNull();
+  });
+});

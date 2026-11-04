@@ -611,6 +611,24 @@ describe("the shapes of a real flowchart, for clicks on its picture", () => {
   });
 });
 
+describe("the edges and subgraphs of a real flowchart, for clicks on its picture", () => {
+  it("finds every edge by its source id and the subgraph by its id", async () => {
+    const outcome = await mermaidRenderer.render(
+      "flowchart LR\n  subgraph grp-1 [Group]\n  A --> B\n  end\n  B -- yes --> C\n  C e1@-.-> A",
+      themeValuesOf("light"),
+    );
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    const diagram = readDiagramShapes(sanitizeSvg(outcome.svg));
+    expect(diagram?.lines.map((line) => line.hit.id).sort()).toEqual([
+      "L_A_B_0",
+      "L_B_C_0",
+      "e1",
+    ]);
+    expect(diagram?.areas.map((area) => area.hit.id)).toEqual(["grp-1"]);
+  });
+});
+
 describe("the Mermaid templates", () => {
   it.each(MERMAID_TEMPLATE_IDS)(
     "%s renders with real Mermaid",

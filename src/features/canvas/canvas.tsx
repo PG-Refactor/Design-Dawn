@@ -13,7 +13,10 @@ import {
 import type { ApplicationState } from "../../application/state/application-state";
 import { CANVAS_CONFIG } from "../../config/canvas-config";
 import type { Block } from "../../domain/block/block";
-import { DEFAULT_CAPTION_POSITION } from "../../domain/block/caption";
+import {
+  DEFAULT_CAPTION_POSITION,
+  figureCaptionOf,
+} from "../../domain/block/caption";
 import type {
   BlockId,
   DocumentId,
@@ -401,6 +404,23 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
           onlyBlock !== undefined &&
           isCaptionableBlockType(onlyBlock.blockType)
             ? { editCaption: () => setCaptionTarget(onlyBlock) }
+            : {}),
+          ...(selectedIds.length === 1 &&
+          onlyBlock !== undefined &&
+          isCaptionableBlockType(onlyBlock.blockType) &&
+          figureCaptionOf(onlyBlock) !== null
+            ? {
+                // Saving an empty caption is what removes it (one undo step).
+                removeCaption: () =>
+                  void canvasActions.setBlockCaption({
+                    documentId,
+                    sheetId,
+                    blockId: onlyBlock.blockId,
+                    text: "",
+                    position:
+                      onlyBlock.captionPosition ?? DEFAULT_CAPTION_POSITION,
+                  }),
+              }
             : {}),
           cut: () => void canvasActions.cutSelection(selectionInput),
           copy: () => void canvasActions.copySelection(selectionInput),

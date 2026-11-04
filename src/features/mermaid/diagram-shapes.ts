@@ -3,10 +3,10 @@
 // page), so the sanitised SVG text is parsed here into plain boxes instead; nothing of it
 // is inserted anywhere.
 
-// What a point on the diagram is over. Only flowchart nodes are told apart so far; any
-// other point is the diagram itself (`null`).
+// What a point on the diagram is over: a flowchart node, edge or subgraph, by the id the
+// flowchart source gives it. Any other point is the diagram itself (`null`).
 export interface DiagramHit {
-  readonly kind: "node";
+  readonly kind: "node" | "edge" | "subgraph";
   readonly id: string;
 }
 
@@ -17,13 +17,27 @@ export interface DiagramBox {
   readonly height: number;
 }
 
+export interface DiagramShape {
+  readonly hit: DiagramHit;
+  readonly box: DiagramBox;
+}
+
+export interface DiagramLine {
+  readonly hit: DiagramHit;
+  // The points the line passes through, as x, y pairs in diagram coordinates.
+  readonly points: readonly number[];
+}
+
+// Three layers, looked up in this order: what is drawn on top (nodes and edge labels),
+// the edges as lines, and the subgraphs as the areas around everything else.
 export interface DiagramShapes {
   readonly viewBox: DiagramBox;
-  readonly shapes: readonly {
-    readonly hit: DiagramHit;
-    readonly box: DiagramBox;
-  }[];
+  readonly shapes: readonly DiagramShape[];
+  readonly lines: readonly DiagramLine[];
+  readonly areas: readonly DiagramShape[];
 }
+
+import { DIAGRAM_LINE_HIT_REACH_PX } from "../../config/mermaid-preview-config";
 
 const SVG_MIME = "image/svg+xml";
 // Mermaid gives each flowchart node `<svg id>-flowchart-<node id>-<counter>`.
@@ -31,6 +45,12 @@ const FLOWCHART_NODE_ID = /-flowchart-(.+)-\d+$/;
 const TRANSLATE = /translate\(\s*(-?[\d.]+)(?:[\s,]+(-?[\d.]+))?\s*\)/;
 const NUMBER = /-?\d*\.?\d+(?:e-?\d+)?/gi;
 const VIEW_BOX_PARTS = 4;
+// Mermaid marks each edge path with the edge's id, the one the flowchart source knows it by
+// (`L_A_B_0`, or the id written with `@`); its label carries the same id.
+const EDGE_PATH_SELECTOR = "path[data-edge='true'][data-id]";
+const EDGE_LABEL_SELECTOR = "g.edgeLabel [data-id]";
+// A subgraph is a group `<svg id>-<subgraph id>` holding its rectangle.
+const CLUSTER_SELECTOR = "g.cluster";
 
 function numberAttribute(element: Element, name: string): number {
   const value = Number(element.getAttribute(name));
@@ -135,7 +155,11 @@ function outlineOf(node: Element): Element | null {
 // The box of an outline in its own coordinates (before any transform): the rectangle,
 // the extent of the polygon's points or the path's coordinates, or the circle's square.
 function localBox(outline: Element): DiagramBox | null {
-  const rect = outline.localName === "rect" ? outline : null;
+  // A label's foreignObject is placed and sized like a rectangle.
+  const rect =
+    outline.localName === "rect" || outline.localName === "foreignObject"
+      ? outline
+      : null;
   if (rect !== null && numberAttribute(rect, "width") > 0) {
     return {
       x: numberAttribute(rect, "x"),
@@ -185,28 +209,132 @@ export function readDiagramShapes(svg: string): DiagramShapes | null {
   }
   const [x = 0, y = 0, width = 0, height = 0] = parts;
   if (width <= 0 || height <= 0) return null;
-  const shapes = [...root.querySelectorAll("g.node")].flatMap((node) => {
+  const nodes = [...root.querySelectorAll("g.node")].flatMap((node) => {
     const match = FLOWCHART_NODE_ID.exec(node.getAttribute("id") ?? "");
-    const outline = outlineOf(node);
-    const box = outline === null ? null : localBox(outline);
-    if (match?.[1] === undefined || outline === null || box === null) return [];
-    // From the outline up: Mermaid moves some outlines (the diamond) with a transform of
-    // their own inside the node's group.
-    const offset = offsetOf(outline);
-    return [
-      {
-        hit: { kind: "node", id: match[1] } as const,
-        box: { ...box, x: box.x + offset.x, y: box.y + offset.y },
-      },
-    ];
+    if (match?.[1] === undefined) return [];
+    // Mermaid moves some outlines (the diamond) with a transform of their own inside the
+    // node's group, so the offset is taken from the outline up.
+    return placedShape({ kind: "node", id: match[1] }, outlineOf(node));
   });
-  return { viewBox: { x, y, width, height }, shapes };
+  const edgeLabels = [...root.querySelectorAll(EDGE_LABEL_SELECTOR)].flatMap(
+    (label) =>
+      placedShape(
+        { kind: "edge", id: label.getAttribute("data-id") ?? "" },
+        label.querySelector("rect, foreignObject"),
+      ),
+  );
+  const lines = [...root.querySelectorAll(EDGE_PATH_SELECTOR)].flatMap(
+    (path): DiagramLine[] => {
+      const offset = offsetOf(path);
+      const points = pathPoints(path.getAttribute("d") ?? "").map(
+        (value, index) => value + (index % 2 === 0 ? offset.x : offset.y),
+      );
+      if (points.length < 2) return [];
+      return [
+        {
+          hit: { kind: "edge", id: path.getAttribute("data-id") ?? "" },
+          points,
+        },
+      ];
+    },
+  );
+  // The subgraph's own id is what follows the drawing's id in the group's id.
+  const prefix = `${root.getAttribute("id") ?? ""}-`;
+  const areas = [...root.querySelectorAll(CLUSTER_SELECTOR)].flatMap(
+    (cluster) => {
+      const id = cluster.getAttribute("id") ?? "";
+      if (prefix.length <= 1 || !id.startsWith(prefix)) return [];
+      return placedShape(
+        { kind: "subgraph", id: id.slice(prefix.length) },
+        cluster.querySelector("rect"),
+      );
+    },
+  );
+  return {
+    viewBox: { x, y, width, height },
+    shapes: [...nodes, ...edgeLabels].filter((shape) => shape.hit.id !== ""),
+    lines: lines.filter((line) => line.hit.id !== ""),
+    areas,
+  };
+}
+
+// The box of an outline in diagram coordinates (with every translation above it), or none.
+function placedShape(hit: DiagramHit, outline: Element | null): DiagramShape[] {
+  const box = outline === null ? null : localBox(outline);
+  if (outline === null || box === null || box.width <= 0 || box.height <= 0) {
+    return [];
+  }
+  const offset = offsetOf(outline);
+  return [{ hit, box: { ...box, x: box.x + offset.x, y: box.y + offset.y } }];
+}
+
+// The distance from a point to the segment between two others.
+function distanceToSegment(
+  x: number,
+  y: number,
+  from: readonly [number, number],
+  to: readonly [number, number],
+): number {
+  const dx = to[0] - from[0];
+  const dy = to[1] - from[1];
+  const lengthSquared = dx * dx + dy * dy;
+  const along =
+    lengthSquared === 0
+      ? 0
+      : Math.max(
+          0,
+          Math.min(
+            1,
+            ((x - from[0]) * dx + (y - from[1]) * dy) / lengthSquared,
+          ),
+        );
+  return Math.hypot(x - (from[0] + along * dx), y - (from[1] + along * dy));
+}
+
+function distanceToLine(
+  x: number,
+  y: number,
+  points: readonly number[],
+): number {
+  let nearest = Number.POSITIVE_INFINITY;
+  for (let index = 0; index + 3 < points.length; index += 2) {
+    nearest = Math.min(
+      nearest,
+      distanceToSegment(
+        x,
+        y,
+        [points[index] ?? 0, points[index + 1] ?? 0],
+        [points[index + 2] ?? 0, points[index + 3] ?? 0],
+      ),
+    );
+  }
+  return nearest;
+}
+
+function smallestBoxAt(
+  shapes: readonly DiagramShape[],
+  x: number,
+  y: number,
+): DiagramHit | null {
+  const under = shapes.filter(
+    ({ box }) =>
+      x >= box.x &&
+      x <= box.x + box.width &&
+      y >= box.y &&
+      y <= box.y + box.height,
+  );
+  under.sort(
+    (first, second) =>
+      first.box.width * first.box.height - second.box.width * second.box.height,
+  );
+  return under[0]?.hit ?? null;
 }
 
 // The shape under a point of the shown image (`point` relative to the image element's
 // top-left, `shown` its size on screen). The image keeps its aspect ratio inside its box
-// (`object-fit: contain`), so the diagram may be centred with empty bands around it. The
-// smallest shape wins where shapes overlap (a node inside a subgraph).
+// (`object-fit: contain`), so the diagram may be centred with empty bands around it. A node
+// or an edge label wins over an edge line, which wins over a subgraph's area; among boxes
+// of one layer the smallest wins (a subgraph inside another).
 export function shapeAt(
   diagram: DiagramShapes,
   point: { readonly x: number; readonly y: number },
@@ -222,16 +350,19 @@ export function shapeAt(
   const top = (shown.height - viewBox.height * scale) / 2;
   const x = viewBox.x + (point.x - left) / scale;
   const y = viewBox.y + (point.y - top) / scale;
-  const under = diagram.shapes.filter(
-    ({ box }) =>
-      x >= box.x &&
-      x <= box.x + box.width &&
-      y >= box.y &&
-      y <= box.y + box.height,
-  );
-  under.sort(
-    (first, second) =>
-      first.box.width * first.box.height - second.box.width * second.box.height,
-  );
-  return under[0]?.hit ?? null;
+  const onTop = smallestBoxAt(diagram.shapes, x, y);
+  if (onTop !== null) return onTop;
+  // A line is a few screen pixels wide whatever the zoom, so the reach is measured on the
+  // screen and turned into diagram units.
+  const reach = DIAGRAM_LINE_HIT_REACH_PX / scale;
+  let nearestLine: DiagramHit | null = null;
+  let nearestDistance = reach;
+  for (const line of diagram.lines) {
+    const distance = distanceToLine(x, y, line.points);
+    if (distance <= nearestDistance) {
+      nearestDistance = distance;
+      nearestLine = line.hit;
+    }
+  }
+  return nearestLine ?? smallestBoxAt(diagram.areas, x, y);
 }

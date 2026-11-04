@@ -24,6 +24,7 @@ export const COLOR_TOKEN_NAMES = [
   "--color-accent",
   "--color-accent-contrast",
   "--color-hover",
+  "--color-caption-background",
   "--color-selection",
   "--color-danger",
   "--color-danger-contrast",

@@ -100,6 +100,7 @@ describe("theme token stylesheet", () => {
       ["--color-text", "--color-canvas-background"],
       ["--color-text-muted", "--color-canvas-background"],
       ["--color-text-muted", "--color-hover"],
+      ["--color-text-muted", "--color-caption-background"],
       ["--color-text-muted", "--color-selection"],
       ["--color-text", "--color-selection"],
       ["--color-text-muted", "--color-surface-raised"],
