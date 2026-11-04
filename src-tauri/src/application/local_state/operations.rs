@@ -375,6 +375,32 @@ impl LocalState {
         })
     }
 
+    /// The user allowed an AI's request for write access.
+    pub fn grant_ai_write(
+        &self,
+        project_id: ProjectId,
+        folder: &Path,
+        until_app_exits: bool,
+    ) -> ApplicationResult<()> {
+        self.update_ai_access(|list| {
+            list.grant_write(project_id, folder, until_app_exits);
+            Ok(())
+        })
+    }
+
+    /// Ends the "this time only" write access (the app exits, or starts).
+    pub fn end_ai_grants_until_app_exits(&self) -> ApplicationResult<()> {
+        self.update_ai_access(|list| {
+            list.end_grants_until_app_exits();
+            Ok(())
+        })
+    }
+
+    /// Where the AI access list and the AI's requests are.
+    pub fn config_dir(&self) -> &Path {
+        &self.directories.config_dir
+    }
+
     pub fn set_ai_write_access(
         &self,
         project_id: &str,

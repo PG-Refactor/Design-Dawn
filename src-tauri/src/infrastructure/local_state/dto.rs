@@ -67,6 +67,19 @@ pub struct AiAccessProjectDto {
     /// The Project folder (the one holding `project.json`).
     pub folder: String,
     pub allow_write: bool,
+    /// The write access ends when the app exits ("this time only"). Left out when false.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub until_app_exits: bool,
+}
+
+/// `ai-requests/<projectId>.json`: an AI asks the user for write access to the Project.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AiRequestFileDto {
+    pub schema_version: Number,
+    pub project_id: String,
+    /// Seconds since the Unix epoch.
+    pub requested_at: Number,
 }
 
 /// The `viewport` argument of `save_sheet_viewport`.

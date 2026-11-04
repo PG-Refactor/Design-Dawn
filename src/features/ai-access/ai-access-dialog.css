@@ -140,3 +140,8 @@
   gap: var(--space-1);
   cursor: pointer;
 }
+
+/* Three answers; they wrap as a whole when the dialog is narrow. */
+.ai-access__request-actions {
+  flex-wrap: wrap;
+}

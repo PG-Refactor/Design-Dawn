@@ -14,6 +14,7 @@ import {
 import { TEXT_SIZES, type TextSize } from "../../config/text-size-config";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { AiAccessDialog } from "../ai-access/ai-access-dialog";
+import { AiAccessRequestPrompt } from "../ai-access/ai-access-request-prompt";
 import { type HelpDialogKind, HelpDialogs } from "../help/help-dialogs";
 import { MenuBar } from "../menu-bar/menu-bar";
 import type { MenuDefinition } from "../menu-bar/menu-bar-types";
@@ -306,6 +307,7 @@ export function TopBar() {
       {aiAccessOpen && (
         <AiAccessDialog onClose={() => setAiAccessOpen(false)} />
       )}
+      <AiAccessRequestPrompt />
     </header>
   );
 }

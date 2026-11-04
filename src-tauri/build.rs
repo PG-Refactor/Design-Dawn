@@ -4,6 +4,7 @@
 const APP_COMMANDS: &[&str] = &[
     "select_project_folder",
     "ai_access_overview",
+    "answer_ai_access_request",
     "add_open_project_to_ai",
     "add_ai_project_folder",
     "set_ai_write_access",

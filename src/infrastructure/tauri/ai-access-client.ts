@@ -113,6 +113,14 @@ export function createTauriAiAccessGateway(): AiAccessGateway {
       );
       return result.ok ? commandOk(discard()) : result;
     },
+    answerRequest: async (projectId, answer) => {
+      const result = await call(
+        COMMANDS.answerAiAccessRequest,
+        { projectId, answer },
+        toVoidResult,
+      );
+      return result.ok ? commandOk(discard()) : result;
+    },
     remove: async (projectId) => {
       const result = await call(
         COMMANDS.removeAiProject,

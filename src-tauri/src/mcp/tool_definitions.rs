@@ -6,6 +6,7 @@ use serde_json::{json, Map, Value};
 
 pub const LIST_PROJECTS: &str = "listProjects";
 pub const SELECT_PROJECT: &str = "selectProject";
+pub const REQUEST_WRITE_ACCESS: &str = "requestWriteAccess";
 pub const GET_PROJECT: &str = "getProject";
 pub const GET_DOCUMENT: &str = "getDocument";
 pub const GET_SHEET: &str = "getSheet";
@@ -174,6 +175,18 @@ projectId to follow the Project open in the app again. Only for this session.",
                 "projectId",
                 false,
                 "ID of the Project (from listProjects); omit to follow the app",
+            )],
+        ),
+        choice(
+            REQUEST_WRITE_ACCESS,
+            "Asks the user, in the Design Dawn app, to let you edit a Project (the one in use, \
+or projectId). The user answers there; nothing is granted by this call. Then check \
+getProject's writable before writing; do not ask again while a request is waiting. Works for \
+an offered Project and for the Project open in the app (allowing it offers it too).",
+            vec![id(
+                "projectId",
+                false,
+                "ID of the Project (from listProjects); omit for the Project in use",
             )],
         ),
         read(

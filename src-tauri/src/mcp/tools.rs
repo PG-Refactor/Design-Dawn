@@ -18,6 +18,7 @@ use crate::application::authoring::{
     set_block_caption, update_text_block, BlockGeometry,
 };
 use crate::application::local_state::ai_access::{listed_project_name, AiAccessList};
+use crate::application::local_state::ai_requests::{request_write_access, AiRequestOutcome};
 use crate::application::snapshot::EntityState;
 use crate::domain::caption::CaptionPosition;
 use crate::domain::entity_id::ProjectId;
@@ -204,13 +205,7 @@ Design Dawn's AI integration screen to check it",
                 let list = Self::access_list(config_dir)?;
                 let project_id = Self::selected(selected)
                     .or(list.current_project_id)
-                    .ok_or_else(|| {
-                        ToolError::new(
-                            KIND_NO_PROJECT,
-                            "no Project is chosen: none was selected and Design Dawn has not \
-opened one yet; call listProjects and selectProject",
-                        )
-                    })?;
+                    .ok_or_else(no_project)?;
                 let chosen = Self::selected(selected).is_some();
                 let entry = list.find(&project_id).ok_or_else(|| {
                     ToolError::new(
@@ -220,8 +215,8 @@ opened one yet; call listProjects and selectProject",
 listProjects and selectProject"
                         } else {
                             "the Project open in Design Dawn is not offered to AI; the user can \
-add it in Design Dawn's AI integration screen, or call listProjects and selectProject for \
-another one"
+add it in Design Dawn's AI integration screen (requestWriteAccess asks them), or call \
+listProjects and selectProject for another one"
                         },
                     )
                 })?;
@@ -254,6 +249,7 @@ another one"
         match definition.name {
             names::LIST_PROJECTS => self.list_projects(),
             names::SELECT_PROJECT => self.select_project(&arguments),
+            names::REQUEST_WRITE_ACCESS => self.request_write_access(&arguments),
             names::GET_PROJECT => self.get_project(),
             names::GET_DOCUMENT => self.get_document(&arguments),
             names::GET_SHEET => self.get_sheet(&arguments),
@@ -338,6 +334,54 @@ listProjects",
             "name": listed_project_name(entry),
             "writable": entry.allow_write,
             "followsApp": false,
+        }))
+    }
+
+    fn request_write_access(&self, arguments: &Arguments) -> Result<Value, ToolError> {
+        let Target::FollowApp {
+            config_dir,
+            selected,
+        } = &self.target
+        else {
+            return Err(fixed_project_only());
+        };
+        let list = Self::access_list(config_dir)?;
+        let project_id = match arguments.optional_string("projectId")? {
+            Some(text) => ProjectId::parse(text)?,
+            None => Self::selected(selected)
+                .or(list.current_project_id)
+                .ok_or_else(no_project)?,
+        };
+        if list
+            .find(&project_id)
+            .is_some_and(|entry| entry.allow_write)
+        {
+            return Ok(json!({
+                "projectId": project_id.to_string(),
+                "writable": true,
+                "requested": false,
+            }));
+        }
+        // The app can show only a Project it knows: one offered to AI or the one open in it.
+        if list.find(&project_id).is_none() && list.current_project_id != Some(project_id) {
+            return Err(ToolError::new(
+                KIND_PROJECT_NOT_LISTED,
+                "Design Dawn does not offer this Project to AI and does not have it open; \
+the user can add it in Design Dawn's AI integration screen",
+            ));
+        }
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |elapsed| elapsed.as_secs());
+        let outcome = request_write_access(config_dir, project_id, now).map_err(ToolError::from)?;
+        Ok(json!({
+            "projectId": project_id.to_string(),
+            "writable": false,
+            "requested": true,
+            "alreadyWaiting": outcome == AiRequestOutcome::AlreadyWaiting,
+            "message": "The user is asked in the Design Dawn app. Tell them, wait for their \
+        answer, then check getProject's writable. If Design Dawn is not running, the request is not \
+        shown: ask the user to open it.",
         }))
     }
 
@@ -723,11 +767,19 @@ fn write_disabled(follows_app: bool) -> ToolError {
     ToolError::new(
         KIND_WRITE_DISABLED,
         if follows_app {
-            "this Project is read-only for AI; the user can allow changes in Design Dawn's AI \
-integration screen"
+            "this Project is read-only for AI; call requestWriteAccess to ask the user, who \
+answers in Design Dawn"
         } else {
             "this server is read-only; it was not started with --allow-write"
         },
+    )
+}
+
+fn no_project() -> ToolError {
+    ToolError::new(
+        KIND_NO_PROJECT,
+        "no Project is chosen: none was selected and Design Dawn has not opened one yet; call \
+listProjects and selectProject",
     )
 }
 

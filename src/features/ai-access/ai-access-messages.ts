@@ -40,6 +40,17 @@ const AI_ACCESS_MESSAGES_JA = {
     "保存されている一覧を読み込めませんでした。Projectを開き直すと作り直されます。",
   changeFailed: "変更できませんでした",
   close: "閉じる",
+  requestTitle: "AI が編集の許可を求めています",
+  requestBody: (name: string): string =>
+    `AI ツールが「${name}」を編集できるようにしてほしいと求めています。`,
+  requestEffect:
+    "許可すると、AI はこのProjectのブロックの追加・変更・削除、シートや Document の追加と名前の変更ができます。変更は Git で確認・取り消せます。",
+  requestSettingsHint:
+    "許可はあとから「ファイル → AI連携（MCP）」で変えられます。",
+  requestAllow: "許可する",
+  requestAllowUntilAppExits: "今回だけ許可（アプリを閉じるまで）",
+  requestDeny: "許可しない",
+  requestFailed: "答えを保存できませんでした",
 } as const;
 
 export type AiAccessMessages = Widen<typeof AI_ACCESS_MESSAGES_JA>;
@@ -81,6 +92,16 @@ const AI_ACCESS_MESSAGES_EN: AiAccessMessages = {
     "The stored list could not be read. It is made again when you open a Project.",
   changeFailed: "Could not change it",
   close: "Close",
+  requestTitle: "An AI asks to edit a Project",
+  requestBody: (name) => `An AI tool asks to be allowed to edit “${name}”.`,
+  requestEffect:
+    "If you allow it, the AI can add, change and delete blocks and add or rename sheets and Documents of this Project. You can review and undo the changes with Git.",
+  requestSettingsHint:
+    "You can change this later in File → AI Integration (MCP).",
+  requestAllow: "Allow",
+  requestAllowUntilAppExits: "Allow This Time (until the app closes)",
+  requestDeny: "Don’t Allow",
+  requestFailed: "The answer could not be saved",
 };
 
 export const AI_ACCESS_MESSAGES: Readonly<

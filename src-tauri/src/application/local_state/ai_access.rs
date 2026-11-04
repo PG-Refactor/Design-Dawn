@@ -46,6 +46,8 @@ pub struct AiProjectEntry {
     /// The Project folder (the one holding `project.json`).
     pub folder: PathBuf,
     pub allow_write: bool,
+    /// The write access was given "this time only": it ends when the app exits.
+    pub until_app_exits: bool,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -73,6 +75,7 @@ impl AiAccessList {
                     project_id: ProjectId::parse(&entry.project_id)?,
                     folder: PathBuf::from(&entry.folder),
                     allow_write: entry.allow_write,
+                    until_app_exits: entry.allow_write && entry.until_app_exits,
                 })
             })
             .collect::<ApplicationResult<Vec<_>>>()?;
@@ -102,6 +105,7 @@ impl AiAccessList {
                         project_id: entry.project_id.to_string(),
                         folder: entry.folder.to_string_lossy().into_owned(),
                         allow_write: entry.allow_write,
+                        until_app_exits: entry.until_app_exits,
                     })
                     .collect(),
             },
@@ -163,6 +167,7 @@ impl AiAccessList {
                 project_id,
                 folder: plain_path(folder),
                 allow_write: false,
+                until_app_exits: false,
             },
         );
         self.normalize();
@@ -179,7 +184,35 @@ impl AiAccessList {
             .find(|entry| &entry.project_id == project_id)
             .ok_or_else(not_listed)?;
         entry.allow_write = allow_write;
+        // A choice made on the screen is lasting.
+        entry.until_app_exits = false;
         Ok(())
+    }
+
+    /// The user allowed an AI's request: the Project is offered (added when it was not) and
+    /// may be changed, until the app exits when `until_app_exits`.
+    pub fn grant_write(&mut self, project_id: ProjectId, folder: &Path, until_app_exits: bool) {
+        self.add(project_id, folder);
+        if let Some(entry) = self
+            .projects
+            .iter_mut()
+            .find(|entry| entry.project_id == project_id)
+        {
+            // A lasting permission is not shortened by a "this time only" answer.
+            let lasting = entry.allow_write && !entry.until_app_exits;
+            entry.allow_write = true;
+            entry.until_app_exits = until_app_exits && !lasting;
+        }
+    }
+
+    /// The app exits (or starts after an exit it could not see): "this time only" ends.
+    pub fn end_grants_until_app_exits(&mut self) {
+        for entry in &mut self.projects {
+            if entry.until_app_exits {
+                entry.allow_write = false;
+                entry.until_app_exits = false;
+            }
+        }
     }
 
     /// The Project is no longer offered to AI (until the user adds it again).
@@ -325,6 +358,24 @@ mod tests {
         assert_eq!(list.projects[1].folder, PathBuf::from("/p/moved-again"));
         assert!(list.projects[1].allow_write);
         assert_eq!(list.current().unwrap().project_id, id(FIRST));
+    }
+
+    #[test]
+    fn an_allowed_request_adds_the_project_and_this_time_only_ends_with_the_app() {
+        let mut list = AiAccessList::default();
+        list.grant_write(id(FIRST), Path::new("/p/first"), true);
+        assert!(list.projects[0].allow_write);
+        assert!(list.projects[0].until_app_exits);
+
+        list.add(id(SECOND), Path::new("/p/second"));
+        list.set_allow_write(&id(SECOND), true).unwrap();
+        // "This time only" does not shorten a lasting permission.
+        list.grant_write(id(SECOND), Path::new("/p/second"), true);
+        assert!(!list.find(&id(SECOND)).unwrap().until_app_exits);
+
+        list.end_grants_until_app_exits();
+        assert!(!list.find(&id(FIRST)).unwrap().allow_write);
+        assert!(list.find(&id(SECOND)).unwrap().allow_write);
     }
 
     #[test]
