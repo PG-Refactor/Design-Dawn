@@ -20,6 +20,25 @@ use crate::infrastructure::local_state::constants::{
 use crate::infrastructure::local_state::dto::{AiAccessFileDto, AiAccessProjectDto};
 use crate::infrastructure::local_state::files::{read_json_file, write_json_file};
 
+const VERBATIM_UNC_PREFIX: &str = r"\\?\UNC\";
+const VERBATIM_PREFIX: &str = r"\\?\";
+const UNC_PREFIX: &str = r"\\";
+
+/// The path as a person writes it. On Windows a resolved (canonical) path is in the
+/// "verbatim" form `\\?\C:\work\x` (or `\\?\UNC\server\share\x`); the prefix is dropped
+/// for showing and keeping the path. The path still opens the same folder (Rust adds the
+/// prefix itself when a path is too long for the plain form).
+pub fn plain_path(path: &Path) -> PathBuf {
+    let text = path.to_string_lossy();
+    if let Some(rest) = text.strip_prefix(VERBATIM_UNC_PREFIX) {
+        return PathBuf::from(format!("{UNC_PREFIX}{rest}"));
+    }
+    match text.strip_prefix(VERBATIM_PREFIX) {
+        Some(rest) => PathBuf::from(rest),
+        None => path.to_path_buf(),
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AiProjectEntry {
     pub project_id: ProjectId,
@@ -129,7 +148,7 @@ impl AiAccessList {
             0,
             AiProjectEntry {
                 project_id,
-                folder: folder.to_path_buf(),
+                folder: plain_path(folder),
                 allow_write,
             },
         );
@@ -223,7 +242,7 @@ pub fn ai_access_overview(
     let current = list.current_project_id;
     AiAccessOverview {
         mcp_server: McpServerLocation {
-            display_path: mcp_server.to_string_lossy().into_owned(),
+            display_path: plain_path(mcp_server).to_string_lossy().into_owned(),
             found: mcp_server.is_file(),
         },
         projects: list
@@ -232,7 +251,7 @@ pub fn ai_access_overview(
             .map(|entry| AiAccessProjectView {
                 project_id: entry.project_id.to_string(),
                 name: listed_project_name(entry),
-                folder_display: entry.folder.to_string_lossy().into_owned(),
+                folder_display: plain_path(&entry.folder).to_string_lossy().into_owned(),
                 allow_write: entry.allow_write,
                 current: current == Some(entry.project_id),
             })
@@ -311,6 +330,34 @@ mod tests {
         );
         assert!(broken.projects.is_empty());
         assert!(broken.load_issue.is_some());
+    }
+
+    #[test]
+    fn windows_verbatim_paths_are_kept_and_shown_in_the_plain_form() {
+        assert_eq!(
+            plain_path(Path::new(r"\\?\C:\Users\me\order-service")),
+            PathBuf::from(r"C:\Users\me\order-service")
+        );
+        assert_eq!(
+            plain_path(Path::new(r"\\?\UNC\server\share\p")),
+            PathBuf::from(r"\\server\share\p")
+        );
+        assert_eq!(
+            plain_path(Path::new("/home/me/p")),
+            PathBuf::from("/home/me/p")
+        );
+
+        let mut list = AiAccessList::default();
+        list.record_used(id(FIRST), Path::new(r"\\?\C:\work\order"));
+        assert_eq!(list.projects[0].folder, PathBuf::from(r"C:\work\order"));
+        // A list written before (with the prefix) is shown plainly too.
+        list.projects[0].folder = PathBuf::from(r"\\?\C:\work\order");
+        let overview = ai_access_overview(Ok(list), Path::new(r"\\?\C:\app\design-dawn-mcp.exe"));
+        assert_eq!(overview.projects[0].folder_display, r"C:\work\order");
+        assert_eq!(
+            overview.mcp_server.display_path,
+            r"C:\app\design-dawn-mcp.exe"
+        );
     }
 
     #[test]
