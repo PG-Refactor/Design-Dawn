@@ -106,9 +106,46 @@ Notes:
   [cargo-xwin](https://github.com/rust-cross/cargo-xwin). On first use it downloads the Microsoft
   CRT and Windows SDK (about 1 GB, under Microsoft's license) into a Docker volume. Copy the
   `.exe` anywhere on Windows and run it; it needs the WebView2 runtime, which Windows 11 includes.
-  Tauri calls this way of building experimental, so build installers for distribution on Windows.
+  Tauri calls this way of building experimental, so build installers for distribution on Windows
+  (see [Building a Windows installer](#building-a-windows-installer)).
 - If the repository is bind-mounted from a Windows drive, set `DAWN_WATCH_POLLING=true`, because
   file change events may not arrive there.
+
+## Building a Windows installer
+
+Installers are built on Windows itself (the dev container cross-builds only the `.exe` files).
+They are not code-signed for now.
+
+**Prerequisites** (on Windows):
+
+- [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with the
+  "Desktop development with C++" workload
+- [Rust](https://rustup.rs/) with the MSVC toolchain (the version in `rust-toolchain.toml` is
+  installed automatically on first build)
+- [Node.js](https://nodejs.org/) 24 or later
+- WebView2 runtime (included in Windows 11)
+
+**Build** (PowerShell, in a clone of the repository):
+
+```powershell
+npm ci
+npm run tauri build                                                   # installers for the app
+cargo build --release --manifest-path src-tauri/Cargo.toml --bin design-dawn-mcp   # MCP server
+```
+
+Results:
+
+- `src-tauri\target\release\bundle\nsis\Design Dawn_<version>_x64-setup.exe`: NSIS installer
+- `src-tauri\target\release\bundle\msi\Design Dawn_<version>_x64_en-US.msi`: MSI installer
+- `src-tauri\target\release\design-dawn-mcp.exe`: the MCP server. The installers do not include it
+  yet; put it anywhere and register that path with the AI client (see below).
+
+Tauri downloads NSIS and WiX on the first build. `npm run tauri build -- --bundles nsis` builds only
+the NSIS installer.
+
+**Unsigned builds**: Windows SmartScreen warns when an unsigned installer is started ("Windows
+protected your PC"). Choose "More info", then "Run anyway". Only do this for installers you built
+yourself or got from a source you trust.
 
 ## Using it with AI (MCP)
 
