@@ -177,7 +177,10 @@
               "sessionGeneration": 1,
               "watching": false,
               "rescan": true,
-              "project": { "structure": false, "files": [] },
+              "project": {
+                "structure": false,
+                "files": []
+              },
               "documents": []
             }
           },
@@ -278,7 +281,7 @@
                   "name": "Overview",
                   "state": "loaded",
                   "sheet": {
-                    "schemaVersion": 1,
+                    "schemaVersion": 2,
                     "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef",
                     "name": "Overview",
                     "blocks": [
@@ -329,7 +332,7 @@
                   "name": "Details",
                   "state": "loaded",
                   "sheet": {
-                    "schemaVersion": 1,
+                    "schemaVersion": 2,
                     "sheetId": "01928f3a-7d8f-7f90-b123-456789abcdef",
                     "name": "Details",
                     "blocks": [
@@ -393,7 +396,7 @@
               "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
               "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
               "sheet": {
-                "schemaVersion": 1,
+                "schemaVersion": 2,
                 "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef",
                 "name": "Overview",
                 "blocks": [
@@ -455,7 +458,7 @@
               "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
               "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
               "sheet": {
-                "schemaVersion": 1,
+                "schemaVersion": 2,
                 "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef",
                 "name": "Overview",
                 "blocks": [
@@ -518,7 +521,7 @@
               "projectId": "01928f3a-5b6c-7d8e-9f01-23456789abcd",
               "documentId": "01928f3a-6c7d-7e8f-a012-3456789abcde",
               "sheet": {
-                "schemaVersion": 1,
+                "schemaVersion": 2,
                 "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef",
                 "name": "Overview",
                 "blocks": [
@@ -596,7 +599,11 @@
               "text": "# Overview\n\nThis is the **basic** sample project.\n\n- first\n- second\n"
             }
           },
-          "expected": { "ok": { "outcome": "identical" } }
+          "expected": {
+            "ok": {
+              "outcome": "identical"
+            }
+          }
         },
         {
           "name": "compare_block_content: unified diff from disk to memory",
@@ -628,7 +635,11 @@
               "text": "x"
             }
           },
-          "expected": { "error": { "kind": "invalidContentPath" } }
+          "expected": {
+            "error": {
+              "kind": "invalidContentPath"
+            }
+          }
         },
         {
           "name": "compare_block_content: unknown documentId",
@@ -641,7 +652,11 @@
               "text": "x"
             }
           },
-          "expected": { "error": { "kind": "entityNotFound" } }
+          "expected": {
+            "error": {
+              "kind": "entityNotFound"
+            }
+          }
         },
         {
           "name": "compare_block_content: missing text",
@@ -654,7 +669,9 @@
               "contentPath": "sheets/overview/blocks/markdown-1.md"
             }
           },
-          "expected": { "tauriError": true }
+          "expected": {
+            "tauriError": true
+          }
         },
         {
           "name": "read_block_content: traversal contentPath",
@@ -1993,7 +2010,7 @@
                   "name": "Overview",
                   "state": "loaded",
                   "sheet": {
-                    "schemaVersion": 1,
+                    "schemaVersion": 2,
                     "sheetId": "01928f3a-7d8e-7f90-b123-456789abcdef",
                     "name": "Overview",
                     "blocks": [
@@ -2044,7 +2061,7 @@
                   "name": "Details",
                   "state": "loaded",
                   "sheet": {
-                    "schemaVersion": 1,
+                    "schemaVersion": 2,
                     "sheetId": "01928f3a-7d8f-7f90-b123-456789abcdef",
                     "name": "Details",
                     "blocks": [

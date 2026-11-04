@@ -17,6 +17,7 @@ use design_dawn_lib::application::project_operations::{
 };
 use design_dawn_lib::application::session::ProjectSessions;
 use design_dawn_lib::application::sheet_operations::{create_sheet, save_sheet};
+use design_dawn_lib::domain::constants::CURRENT_SHEET_SCHEMA_VERSION;
 use design_dawn_lib::domain::entity_id::ProjectId;
 use design_dawn_lib::domain::error::DomainErrorKind;
 use design_dawn_lib::infrastructure::error::PersistenceErrorKind;
@@ -736,7 +737,18 @@ fn saves_revalidate_payloads_through_the_domain() {
             ),
             DomainErrorKind::InvalidContentExtension,
         ),
-        (sheet(2, vec![]), DomainErrorKind::UnsupportedSchemaVersion),
+        (
+            sheet(CURRENT_SHEET_SCHEMA_VERSION + 1, vec![]),
+            DomainErrorKind::UnsupportedSchemaVersion,
+        ),
+        (
+            sheet(CURRENT_SHEET_SCHEMA_VERSION, {
+                let mut captioned = block(json!(0), "sheets/overview/blocks/markdown-1.md");
+                captioned["caption"] = json!("two\nlines");
+                vec![captioned]
+            }),
+            DomainErrorKind::InvalidCaption,
+        ),
         (
             sheet(
                 1,

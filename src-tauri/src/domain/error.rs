@@ -6,6 +6,7 @@ use std::fmt;
 pub enum DomainErrorKind {
     InvalidEntityId,
     InvalidDisplayName,
+    InvalidCaption,
     InvalidPosition,
     InvalidSize,
     UnsupportedBlockType,
@@ -21,6 +22,7 @@ impl DomainErrorKind {
         match self {
             Self::InvalidEntityId => "invalidEntityId",
             Self::InvalidDisplayName => "invalidDisplayName",
+            Self::InvalidCaption => "invalidCaption",
             Self::InvalidPosition => "invalidPosition",
             Self::InvalidSize => "invalidSize",
             Self::UnsupportedBlockType => "unsupportedBlockType",
@@ -38,6 +40,7 @@ impl DomainErrorKind {
         match self {
             Self::InvalidEntityId => "the ID is not valid",
             Self::InvalidDisplayName => "the name is not valid",
+            Self::InvalidCaption => "the caption is not valid",
             Self::InvalidPosition => "the position is not valid",
             Self::InvalidSize => "the size is not valid",
             Self::UnsupportedBlockType => "the block type is not supported",

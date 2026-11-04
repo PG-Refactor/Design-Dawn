@@ -70,6 +70,9 @@ pub struct BlockDto {
     pub position: PositionDto,
     pub size: SizeDto,
     pub content_path: String,
+    /// Absent when the Block has no caption (and in every version 1 file).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub caption: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -247,6 +250,7 @@ impl BlockDto {
             width: size_axis(&self.size.width),
             height: size_axis(&self.size.height),
             content_path: self.content_path.clone(),
+            caption: self.caption.clone(),
         }
     }
 
@@ -267,6 +271,7 @@ impl BlockDto {
                 height: Number::from(block.size().height()),
             },
             content_path: block.content_path().as_str().to_owned(),
+            caption: block.caption().map(|caption| caption.as_str().to_owned()),
         }
     }
 }
@@ -400,5 +405,52 @@ mod tests {
             kind("99999999999999999999"),
             DomainErrorKind::UnsupportedSchemaVersion
         );
+    }
+}
+
+#[cfg(test)]
+mod caption_tests {
+    use serde_json::json;
+
+    use super::*;
+
+    fn sheet_with(block_extra: Value) -> Value {
+        let mut block = json!({
+            "blockId": "01928f3a-b1c2-7d34-b567-89abcdef0123",
+            "blockType": "mermaid",
+            "position": {"x": 0, "y": 0},
+            "size": {"width": 320, "height": 240},
+            "contentPath": "sheets/details/blocks/mermaid-1.mmd",
+        });
+        if let (Some(target), Some(extra)) = (block.as_object_mut(), block_extra.as_object()) {
+            target.extend(extra.clone());
+        }
+        json!({
+            "schemaVersion": 2,
+            "sheetId": "01928f3a-7d8f-7f90-b123-456789abcdef",
+            "name": "Details",
+            "blocks": [block],
+        })
+    }
+
+    #[test]
+    fn a_caption_goes_through_the_domain_and_back() {
+        let dto: SheetDto =
+            serde_json::from_value(sheet_with(json!({"caption": "Figure 1: flow"}))).unwrap();
+        let sheet = dto.to_domain().unwrap();
+        assert_eq!(
+            sheet.blocks()[0].caption().map(|caption| caption.as_str()),
+            Some("Figure 1: flow")
+        );
+        let written = serde_json::to_value(SheetDto::from_domain(&sheet)).unwrap();
+        assert_eq!(written["blocks"][0]["caption"], "Figure 1: flow");
+    }
+
+    #[test]
+    fn a_block_without_a_caption_writes_no_caption_key() {
+        let dto: SheetDto = serde_json::from_value(sheet_with(json!({}))).unwrap();
+        let written =
+            serde_json::to_value(SheetDto::from_domain(&dto.to_domain().unwrap())).unwrap();
+        assert!(written["blocks"][0].get("caption").is_none());
     }
 }

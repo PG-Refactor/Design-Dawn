@@ -72,7 +72,8 @@ impl MigrationTarget {
     fn steps(&self) -> &'static [Registered] {
         match self {
             Self::Project => PROJECT_STEPS,
-            Self::Folder | Self::Document | Self::Sheet | Self::EntryPoint => NO_STEPS,
+            Self::Sheet => SHEET_STEPS,
+            Self::Folder | Self::Document | Self::EntryPoint => NO_STEPS,
         }
     }
 }
@@ -112,6 +113,17 @@ const PROJECT_STEPS: &[Registered] = &[Registered {
     from: 1,
     step: project_v1_to_v2,
 }];
+
+/// Version 2 lets a Block have a `caption`; a version 1 sheet has none, so nothing changes
+/// but the version.
+const SHEET_STEPS: &[Registered] = &[Registered {
+    from: 1,
+    step: sheet_v1_to_v2,
+}];
+
+fn sheet_v1_to_v2(value: Value) -> Result<Value, MigrationError> {
+    Ok(value)
+}
 
 fn project_v1_to_v2(mut value: Value) -> Result<Value, MigrationError> {
     let invalid = |detail: &str| {

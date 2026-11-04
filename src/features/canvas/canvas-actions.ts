@@ -23,6 +23,7 @@ import {
   type ReorderDirection,
   reorderBlocksCommand,
   resizeBlocksCommand,
+  setBlockCaptionCommand,
 } from "../../application/commands/block-commands";
 import type {
   ApplicationCommand,
@@ -53,6 +54,7 @@ import type { Workspace } from "../../application/workspace/workspace";
 import { PASTE_OFFSET } from "../../config/canvas-config";
 import type { Block } from "../../domain/block/block";
 import type { BlockType } from "../../domain/block/block-type";
+import { parseCaption } from "../../domain/block/caption";
 import type { DiagramOperation } from "../../domain/diagram/diagram-operation";
 import type {
   BlockId,
@@ -119,6 +121,13 @@ export interface CreateBlockInput {
   readonly at?: Point;
   // A Mermaid block starting from a template instead of the default flowchart.
   readonly mermaidTemplate?: MermaidTemplateId;
+}
+
+export interface SetBlockCaptionInput {
+  readonly documentId: DocumentId;
+  readonly sheetId: SheetId;
+  readonly blockId: BlockId;
+  readonly text: string;
 }
 
 export interface CommitContentEditInput {
@@ -215,6 +224,9 @@ export interface CanvasActions {
   // Opens the inline editor when the block has one and its text is loaded; false when it
   // cannot be edited (nothing changes then).
   beginBlockEdit(input: BeginBlockEditInput): boolean;
+  // Sets the caption of a figure (`text` is trimmed; empty removes the caption): one
+  // history entry, none when it is unchanged. `invalidCaption` for a text that cannot be one.
+  setBlockCaption(input: SetBlockCaptionInput): Promise<OperationResult<void>>;
   // Makes the edited text the block's text: one history entry, none when it is unchanged.
   commitContentEdit(
     input: CommitContentEditInput,
@@ -890,6 +902,25 @@ export function createCanvasActions(
         startEditing(selectBlocks(state, sheetId, [blockId]), sheetId, blockId),
       );
       return true;
+    },
+
+    setBlockCaption({ documentId, sheetId, blockId, text }) {
+      const trimmed = text.trim();
+      const caption = trimmed === "" ? null : parseCaption(trimmed);
+      if (caption !== null && !caption.ok) {
+        return Promise.resolve(
+          record("setBlockCaption", fromDomainResult(caption)),
+        );
+      }
+      return execute(
+        "setBlockCaption",
+        documentId,
+        setBlockCaptionCommand(
+          sheetId,
+          blockId,
+          caption === null ? null : caption.value,
+        ),
+      );
     },
 
     commitContentEdit: ({ documentId, sheetId, blockId, text }) =>

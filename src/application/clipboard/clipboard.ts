@@ -1,6 +1,7 @@
 // In-app clipboard. The port is the single boundary where an
 // OS clipboard could be attached later; nothing here touches browser or OS APIs.
 
+import type { Caption } from "../../domain/block/caption";
 import type { ContentPath } from "../../domain/block/content-path";
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
 import type { Size } from "../../domain/shared/geometry";
@@ -8,6 +9,8 @@ import type { AssetBlockType, TextBlockType } from "../commands/command";
 
 interface ClipboardBlockBase {
   readonly size: Size;
+  // A figure's caption goes with its copy.
+  readonly caption?: Caption;
   // Relative to the top-left corner of the copied group's bounding box.
   readonly offset: { readonly x: number; readonly y: number };
 }

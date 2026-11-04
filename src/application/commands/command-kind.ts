@@ -10,6 +10,7 @@ export const COMMAND_KINDS = {
   renameDocument: "renameDocument",
   moveSheet: "moveSheet",
   editBlockContent: "editBlockContent",
+  setBlockCaption: "setBlockCaption",
 } as const;
 
 export type CommandKind = (typeof COMMAND_KINDS)[keyof typeof COMMAND_KINDS];

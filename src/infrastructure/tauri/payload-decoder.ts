@@ -28,6 +28,12 @@ export function nullable<T>(inner: Decoder<T>): Decoder<T | null> {
   return (value, path) => (value === null ? decoded(null) : inner(value, path));
 }
 
+// A key that may be left out (undefined); present, it must decode with `inner`.
+export function optional<T>(inner: Decoder<T>): Decoder<T | undefined> {
+  return (value, path) =>
+    value === undefined ? decoded(undefined) : inner(value, path);
+}
+
 export function arrayOf<T>(inner: Decoder<T>): Decoder<readonly T[]> {
   return (value, path) => {
     if (!Array.isArray(value)) return mismatch(path, "an array");

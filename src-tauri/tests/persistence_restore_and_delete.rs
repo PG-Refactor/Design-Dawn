@@ -17,6 +17,7 @@ use design_dawn_lib::application::load_issue::LoadIssueKind;
 use design_dawn_lib::application::project_operations::open_project;
 use design_dawn_lib::application::session::ProjectSessions;
 use design_dawn_lib::application::sheet_operations::{delete_sheet, save_sheet};
+use design_dawn_lib::domain::constants::CURRENT_SHEET_SCHEMA_VERSION;
 use design_dawn_lib::domain::entity_id::ProjectId;
 use design_dawn_lib::domain::error::DomainErrorKind;
 use design_dawn_lib::infrastructure::error::PersistenceErrorKind;
@@ -85,11 +86,12 @@ fn ledger_hash(sessions: &ProjectSessions, key: &str) -> Option<String> {
         .map(str::to_owned)
 }
 
+// A sheet written by a newer app version: it fails to load.
 fn break_sheet(root: &Path, directory: &str) {
     replace_in_file(
         &sheet_dir(root, directory).join("sheet.json"),
-        "\"schemaVersion\": 1",
-        "\"schemaVersion\": 2",
+        &format!("\"schemaVersion\": {CURRENT_SHEET_SCHEMA_VERSION}"),
+        &format!("\"schemaVersion\": {}", CURRENT_SHEET_SCHEMA_VERSION + 1),
     );
 }
 

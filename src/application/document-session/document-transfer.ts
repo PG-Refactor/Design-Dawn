@@ -8,6 +8,7 @@ import {
   parseBlock,
   type RawBlock,
 } from "../../domain/block/block";
+import { parseCaption } from "../../domain/block/caption";
 import {
   parseDocument,
   type RawDocument,
@@ -252,6 +253,19 @@ function commandSnapshotOf(value: unknown): MetadataCommandSnapshot {
           ),
         })),
       };
+    case COMMAND_KINDS.setBlockCaption: {
+      const captionOf = (value: unknown) =>
+        valid(parseCaption(text(value, "caption")), "caption");
+      return {
+        kind: COMMAND_KINDS.setBlockCaption,
+        sheetId: sheetIdOf(command.sheetId),
+        blockId: blockIdOf(command.blockId),
+        caption: nullable(command.caption, captionOf),
+        previous: nullable(command.previous, (previous) => ({
+          caption: nullable(record(previous, "previous").caption, captionOf),
+        })),
+      };
+    }
     case COMMAND_KINDS.editBlockContent:
       return {
         kind: COMMAND_KINDS.editBlockContent,

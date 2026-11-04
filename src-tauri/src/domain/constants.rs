@@ -15,7 +15,11 @@ pub const MIN_SCHEMA_VERSION: i64 = 1;
 pub const CURRENT_PROJECT_SCHEMA_VERSION: u32 = 2;
 pub const CURRENT_FOLDER_SCHEMA_VERSION: u32 = 1;
 pub const CURRENT_DOCUMENT_SCHEMA_VERSION: u32 = 1;
-pub const CURRENT_SHEET_SCHEMA_VERSION: u32 = 1;
+/// 2 added the optional `caption` of a Block; 1 is still read (it has no captions).
+pub const CURRENT_SHEET_SCHEMA_VERSION: u32 = 2;
+
+/// The longest Block caption, in code points (a line under a figure, not a paragraph).
+pub const CAPTION_MAX_CODE_POINTS: usize = 500;
 
 /// Inclusive code point ranges rejected in display names (C0, DEL, C1, line/paragraph separators).
 pub const DISPLAY_NAME_FORBIDDEN_CODE_POINT_RANGES: [(u32, u32); 3] =

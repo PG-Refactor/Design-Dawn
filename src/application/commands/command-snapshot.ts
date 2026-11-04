@@ -3,15 +3,18 @@
 // holds closures; its snapshot holds the arguments and what the first `apply` captured,
 // and `commandFromSnapshot` rebuilds an equivalent command.
 
+import type { Caption } from "../../domain/block/caption";
 import type { DisplayName } from "../../domain/shared/display-name";
 import type { BlockId, SheetId } from "../../domain/shared/entity-id";
 import {
   type BlockFrame,
   type BlockMove,
+  type CaptionRestore,
   moveBlocksCommand,
   type ReorderDirection,
   reorderBlocksCommand,
   resizeBlocksCommand,
+  setBlockCaptionCommand,
 } from "./block-commands";
 import type { MetadataCommand } from "./command";
 import { COMMAND_KINDS } from "./command-kind";
@@ -65,6 +68,13 @@ export type MetadataCommandSnapshot =
       readonly restoreBefore: MoveSheetRestore | null;
     }
   | {
+      readonly kind: typeof COMMAND_KINDS.setBlockCaption;
+      readonly sheetId: SheetId;
+      readonly blockId: BlockId;
+      readonly caption: Caption | null;
+      readonly previous: CaptionRestore | null;
+    }
+  | {
       readonly kind: typeof COMMAND_KINDS.editBlockContent;
       readonly sheetId: SheetId;
       readonly blockId: BlockId;
@@ -108,6 +118,13 @@ export function commandFromSnapshot(
         snapshot.sheetId,
         snapshot.beforeSheetId,
         snapshot.restoreBefore,
+      );
+    case COMMAND_KINDS.setBlockCaption:
+      return setBlockCaptionCommand(
+        snapshot.sheetId,
+        snapshot.blockId,
+        snapshot.caption,
+        snapshot.previous,
       );
     case COMMAND_KINDS.editBlockContent:
       return editBlockContentCommand(

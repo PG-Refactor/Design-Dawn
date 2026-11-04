@@ -1,4 +1,5 @@
 import type { Block } from "../../domain/block/block";
+import type { Caption } from "../../domain/block/caption";
 import { type DomainResult, err, ok } from "../../domain/shared/domain-result";
 import type { BlockId, SheetId } from "../../domain/shared/entity-id";
 import type { Position, Size } from "../../domain/shared/geometry";
@@ -10,6 +11,7 @@ import {
   type Sheet,
   sendBlocksBackward,
   sendBlocksToBack,
+  setBlockCaption,
   setBlockFrames,
 } from "../../domain/sheet/sheet";
 import type { MetadataCommand } from "./command";
@@ -139,6 +141,49 @@ export function resizeBlocksCommand(
     }),
     restored,
   );
+}
+
+// The caption a Block had before the first run (`{ caption: null }`: none), kept so undo
+// puts exactly that back.
+export interface CaptionRestore {
+  readonly caption: Caption | null;
+}
+
+export function setBlockCaptionCommand(
+  sheetId: SheetId,
+  blockId: BlockId,
+  caption: Caption | null,
+  restored: CaptionRestore | null = null,
+): MetadataCommand {
+  let previous: CaptionRestore | null = restored;
+  return {
+    category: "metadata",
+    kind: COMMAND_KINDS.setBlockCaption,
+    snapshot: () => ({
+      kind: COMMAND_KINDS.setBlockCaption,
+      sheetId,
+      blockId,
+      caption,
+      previous,
+    }),
+    apply: (state) =>
+      updateSheet(state, sheetId, (sheet) => {
+        const next = setBlockCaption(sheet, blockId, caption);
+        if (next.ok && next.value !== sheet && previous === null) {
+          const block = sheet.blocks.find(
+            (candidate) => candidate.blockId === blockId,
+          );
+          previous = { caption: block?.caption ?? null };
+        }
+        return next;
+      }),
+    revert: (state) =>
+      updateSheet(state, sheetId, (sheet) =>
+        previous === null
+          ? commandNotApplied()
+          : setBlockCaption(sheet, blockId, previous.caption),
+      ),
+  };
 }
 
 export function reorderBlocksCommand(

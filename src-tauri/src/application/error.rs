@@ -305,9 +305,10 @@ impl Serialize for ApplicationError {
 mod tests {
     use super::*;
 
-    const ALL_KINDS: [ErrorKind; 60] = [
+    const ALL_KINDS: [ErrorKind; 61] = [
         ErrorKind::Domain(DomainErrorKind::InvalidEntityId),
         ErrorKind::Domain(DomainErrorKind::InvalidDisplayName),
+        ErrorKind::Domain(DomainErrorKind::InvalidCaption),
         ErrorKind::Domain(DomainErrorKind::InvalidPosition),
         ErrorKind::Domain(DomainErrorKind::InvalidSize),
         ErrorKind::Domain(DomainErrorKind::UnsupportedBlockType),

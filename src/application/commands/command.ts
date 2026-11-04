@@ -1,4 +1,5 @@
 import { type BlockType, isTextBlockType } from "../../domain/block/block-type";
+import type { Caption } from "../../domain/block/caption";
 import type { ContentPath } from "../../domain/block/content-path";
 import type { BlockId, SheetId } from "../../domain/shared/entity-id";
 import type { Position, Size } from "../../domain/shared/geometry";
@@ -34,6 +35,8 @@ interface BlockSpecBase {
   readonly blockId: BlockId;
   readonly position: Position;
   readonly size: Size;
+  // A copied figure keeps its caption.
+  readonly caption?: Caption;
 }
 
 // A block whose text file is created when the command runs.

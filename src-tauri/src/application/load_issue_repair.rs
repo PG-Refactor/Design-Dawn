@@ -784,6 +784,7 @@ fn plan_add_as_block(ctx: &mut Context<'_>) -> ApplicationResult<Plan> {
             height: DEFAULT_NEW_BLOCK_HEIGHT.into(),
         },
         content_path: orphan.relative_path,
+        caption: None,
     });
     // The domain refuses what it would refuse on the next save (for example too many Blocks).
     sheet.to_domain()?;

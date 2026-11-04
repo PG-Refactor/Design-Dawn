@@ -47,6 +47,7 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   importImagesWithoutSheet: "Open a Sheet to add images",
   editBlockContent:
     "Could not commit the edit of the block text (your edit is still on the screen)",
+  setBlockCaption: "Could not change the caption",
   editDiagram:
     "The diagram edit could not be applied (the source is unchanged).",
   loadBlockContents: "Could not load the block text",
@@ -75,6 +76,7 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
 const ERROR_KINDS: Record<OperationErrorKind, string> = {
   invalidEntityId: "The ID format is invalid.",
   invalidDisplayName: "The name is invalid.",
+  invalidCaption: "A caption is one line of up to 500 characters.",
   invalidPosition: "The position value is invalid.",
   invalidSize: "The size value is invalid.",
   unsupportedBlockType: "The block type is not supported.",

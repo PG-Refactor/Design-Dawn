@@ -24,7 +24,11 @@ function isLoneSurrogate(codePoint: number): boolean {
 
 // Iterating a string yields code points, and a lone surrogate comes out as a single
 // surrogate code point, so one pass covers length, control characters and surrogates.
-function findCodePointViolation(value: string): string | null {
+// Shared with the other one-line texts (a Block caption), which differ only in length.
+export function findCodePointViolation(
+  value: string,
+  maxCodePoints: number = DISPLAY_NAME_MAX_CODE_POINTS,
+): string | null {
   let codePointCount = 0;
   for (const character of value) {
     const codePoint = character.codePointAt(0) ?? 0;
@@ -36,8 +40,8 @@ function findCodePointViolation(value: string): string | null {
     }
     codePointCount += 1;
   }
-  if (codePointCount > DISPLAY_NAME_MAX_CODE_POINTS) {
-    return `longer than ${DISPLAY_NAME_MAX_CODE_POINTS} code points`;
+  if (codePointCount > maxCodePoints) {
+    return `longer than ${maxCodePoints} code points`;
   }
   return null;
 }

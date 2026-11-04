@@ -26,6 +26,7 @@ use design_dawn_lib::application::session::ProjectSessions;
 use design_dawn_lib::application::sheet_operations::{create_sheet, save_sheet};
 use design_dawn_lib::application::snapshot::{EntityState, ProjectSnapshot};
 use design_dawn_lib::domain::block_type::BlockType;
+use design_dawn_lib::domain::constants::CURRENT_SHEET_SCHEMA_VERSION;
 use design_dawn_lib::domain::error::DomainErrorKind;
 use design_dawn_lib::infrastructure::error::PersistenceErrorKind;
 use design_dawn_lib::infrastructure::file_format::dto::{
@@ -179,12 +180,13 @@ fn block_dto(content_path: String) -> BlockDto {
             height: Number::from(200),
         },
         content_path,
+        caption: None,
     }
 }
 
 fn sheet_dto(blocks: Vec<BlockDto>) -> SheetDto {
     SheetDto {
-        schema_version: Number::from(1),
+        schema_version: Number::from(CURRENT_SHEET_SCHEMA_VERSION),
         sheet_id: id(SHEET_ID_NUMBER),
         name: SHEET_NAME.to_owned(),
         blocks,

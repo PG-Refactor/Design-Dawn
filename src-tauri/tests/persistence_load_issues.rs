@@ -14,6 +14,7 @@ use design_dawn_lib::application::project_operations::open_project;
 use design_dawn_lib::application::session::ProjectSessions;
 use design_dawn_lib::application::sheet_operations::{create_sheet, save_sheet};
 use design_dawn_lib::application::snapshot::{DocumentSnapshot, EntityState, ProjectSnapshot};
+use design_dawn_lib::domain::constants::CURRENT_SHEET_SCHEMA_VERSION;
 use design_dawn_lib::domain::entity_id::{DocumentId, ProjectId, SheetId};
 use design_dawn_lib::domain::error::DomainErrorKind;
 use design_dawn_lib::infrastructure::error::PersistenceErrorKind;
@@ -269,7 +270,12 @@ fn a_newer_sheet_schema_fails_to_load_is_listed_and_can_never_be_written() {
     let (_temp, root) = project_copy();
     write_json(
         &sheet_dir(&root, "details").join("sheet.json"),
-        &sheet_json(DETAILS_SHEET_ID, "Details", 2),
+        // One version past what this build writes.
+        &sheet_json(
+            DETAILS_SHEET_ID,
+            "Details",
+            CURRENT_SHEET_SCHEMA_VERSION + 1,
+        ),
     );
     let (mut sessions, _snapshot, document) = open_and_load(&root);
 
@@ -296,9 +302,9 @@ fn a_newer_sheet_schema_fails_to_load_is_listed_and_can_never_be_written() {
     )
     .unwrap_err();
     assert_eq!(error.kind, ErrorKind::NotWritable);
-    assert!(
-        read_text(&sheet_dir(&root, "details").join("sheet.json")).contains("\"schemaVersion\": 2")
-    );
+    // The newer file is left as it was.
+    let newer = format!("\"schemaVersion\": {}", CURRENT_SHEET_SCHEMA_VERSION + 1);
+    assert!(read_text(&sheet_dir(&root, "details").join("sheet.json")).contains(&newer));
     assert!(
         read_text(&sheet_dir(&root, "details").join("blocks/markdown-1.md"))
             .starts_with("## Details")
