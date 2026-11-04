@@ -148,6 +148,22 @@ describe("the caption of a figure", () => {
     expect(rendered.canvas.blocksOfSheetA1().at(-1)?.caption).toBe("Figure 1");
   });
 
+  // The dialog is drawn in a portal but belongs to the canvas in the React tree; a press
+  // on its buttons must not reach the canvas, which takes the focus (and, in a webview,
+  // the pointer) so that the click on Save never arrives.
+  it("keeps a press on its buttons away from the canvas", async () => {
+    const rendered = await renderFigures();
+    await rendered.shell.user.click(
+      within(blockMenu(0)).getByRole("menuitem", {
+        name: MESSAGES.contextMenu.editCaption,
+      }),
+    );
+    const save = screen.getByRole("button", { name: MESSAGES.caption.save });
+    save.focus();
+    fireEvent.pointerDown(save, { button: 0, pointerId: 1 });
+    expect(document.activeElement).toBe(save);
+  });
+
   it("is not offered for a Markdown block", async () => {
     await renderFigures();
     const names = within(blockMenu(1))

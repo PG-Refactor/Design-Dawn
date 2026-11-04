@@ -534,64 +534,69 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
   } as CSSProperties;
 
   return (
-    <div
-      ref={elementRef}
-      role="listbox"
-      aria-multiselectable="true"
-      aria-label={sheetName}
-      tabIndex={0}
-      className={spaceHeld ? "canvas canvas--pan-ready" : "canvas"}
-      style={style}
-      {...{ [CANVAS_ATTRIBUTE]: "" }}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={() => input.cancel()}
-      onDoubleClick={onDoubleClick}
-      onContextMenu={onContextMenu}
-      onKeyDown={onKeyDown}
-      onKeyUp={onKeyUp}
-      onBlur={onBlur}
-    >
+    <>
       <div
-        className="canvas__world"
-        data-testid="canvas-world"
-        style={{ transform: worldLayerTransform(viewport) }}
+        ref={elementRef}
+        role="listbox"
+        aria-multiselectable="true"
+        aria-label={sheetName}
+        tabIndex={0}
+        className={spaceHeld ? "canvas canvas--pan-ready" : "canvas"}
+        style={style}
+        {...{ [CANVAS_ATTRIBUTE]: "" }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={() => input.cancel()}
+        onDoubleClick={onDoubleClick}
+        onContextMenu={onContextMenu}
+        onKeyDown={onKeyDown}
+        onKeyUp={onKeyUp}
+        onBlur={onBlur}
       >
-        {blocks.map((block) => {
-          const frame = displayedFrame(block, interaction, sheetId);
-          return (
-            <BlockFrame
-              key={block.blockId}
-              documentId={documentId}
-              sheetId={sheetId}
-              block={block}
-              selected={selection.has(block.blockId)}
-              interacting={isInteracting(block, interaction, sheetId)}
-              x={frame.x}
-              y={frame.y}
-              width={frame.width}
-              height={frame.height}
-            />
-          );
-        })}
-        {interaction.kind === "rangeSelecting" &&
-          interaction.sheetId === sheetId && (
-            <RangeSelectionRect
-              rect={normalizeRect(interaction.start, interaction.current)}
-            />
-          )}
-      </div>
-      {fileDragActive && (
         <div
-          aria-hidden="true"
-          data-testid="canvas-drop-overlay"
-          className="canvas__drop-overlay"
+          className="canvas__world"
+          data-testid="canvas-world"
+          style={{ transform: worldLayerTransform(viewport) }}
         >
-          {messages.dropHint}
+          {blocks.map((block) => {
+            const frame = displayedFrame(block, interaction, sheetId);
+            return (
+              <BlockFrame
+                key={block.blockId}
+                documentId={documentId}
+                sheetId={sheetId}
+                block={block}
+                selected={selection.has(block.blockId)}
+                interacting={isInteracting(block, interaction, sheetId)}
+                x={frame.x}
+                y={frame.y}
+                width={frame.width}
+                height={frame.height}
+              />
+            );
+          })}
+          {interaction.kind === "rangeSelecting" &&
+            interaction.sheetId === sheetId && (
+              <RangeSelectionRect
+                rect={normalizeRect(interaction.start, interaction.current)}
+              />
+            )}
         </div>
-      )}
-      {contextMenu.element}
+        {fileDragActive && (
+          <div
+            aria-hidden="true"
+            data-testid="canvas-drop-overlay"
+            className="canvas__drop-overlay"
+          >
+            {messages.dropHint}
+          </div>
+        )}
+        {contextMenu.element}
+      </div>
+      {/* Outside the canvas element: React events bubble through portals, and the
+          canvas's pointer-down would take the focus and the pointer from the dialog's
+          buttons (a click on Save would never arrive). */}
       {captionTarget === null ? null : (
         <CaptionDialog
           initial={captionTarget.caption ?? ""}
@@ -612,6 +617,6 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
           }}
         />
       )}
-    </div>
+    </>
   );
 }
