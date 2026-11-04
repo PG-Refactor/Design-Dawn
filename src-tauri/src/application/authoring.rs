@@ -313,6 +313,7 @@ fn block_dto(
             height: Number::from(geometry.height),
         },
         content_path,
+        caption: None,
     }
 }
 

@@ -30,6 +30,22 @@ fn current_project_text() -> String {
     read_text(std::path::Path::new(CURRENT_PROJECT_JSON))
 }
 
+// The legacy fixture is the basic one in older versions: version 1 of `project.json` and of
+// both `sheet.json` files.
+const LEGACY_SHEETS: [&str; 2] = [
+    "documents/system-design/sheets/details/sheet.json",
+    "documents/system-design/sheets/overview/sheet.json",
+];
+
+fn current_text(relative: &str) -> String {
+    read_text(
+        &std::path::Path::new(CURRENT_PROJECT_JSON)
+            .parent()
+            .unwrap()
+            .join(relative),
+    )
+}
+
 #[test]
 fn a_version_1_project_means_the_same_as_the_current_one_and_loading_writes_nothing() {
     let (_legacy_temp, legacy_root) = legacy_project_copy();
@@ -81,14 +97,15 @@ fn update_all_writes_only_the_outdated_files_in_the_current_version() {
     open_project(&mut sessions, &root).unwrap();
     let before = tree_snapshot(&root);
 
+    let outdated = ["project.json", LEGACY_SHEETS[0], LEGACY_SHEETS[1]];
     assert_eq!(
         list_outdated_files(&mut sessions, PROJECT_ID).unwrap(),
-        ["project.json"]
+        outdated
     );
     assert_eq!(tree_snapshot(&root), before, "listing must not write");
 
     let result = update_outdated_files(&mut sessions, PROJECT_ID).unwrap();
-    assert_eq!(result.updated, ["project.json"]);
+    assert_eq!(result.updated, outdated);
     assert_eq!(
         read_text(&root.join("project.json")),
         current_project_text()
@@ -98,6 +115,10 @@ fn update_all_writes_only_the_outdated_files_in_the_current_version() {
         "project.json".to_owned(),
         Some(current_project_text().into_bytes()),
     );
+    for sheet in LEGACY_SHEETS {
+        assert_eq!(read_text(&root.join(sheet)), current_text(sheet));
+        expected.insert(sheet.to_owned(), Some(current_text(sheet).into_bytes()));
+    }
     assert_eq!(tree_snapshot(&root), expected, "nothing else changes");
 
     // Nothing is outdated any more, so a second run writes nothing.

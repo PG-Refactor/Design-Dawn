@@ -6,6 +6,8 @@ export const INT32_MIN = -2_147_483_648;
 export const INT32_MAX = 2_147_483_647;
 
 export const DISPLAY_NAME_MAX_CODE_POINTS = 200;
+// The longest Block caption (a line under a figure). Mirrors `CAPTION_MAX_CODE_POINTS`.
+export const CAPTION_MAX_CODE_POINTS = 500;
 
 export const POSITION_MIN = INT32_MIN;
 export const POSITION_MAX = INT32_MAX;
@@ -29,7 +31,8 @@ export const CURRENT_SCHEMA_VERSIONS: Readonly<
   project: 2,
   folder: 1,
   document: 1,
-  sheet: 1,
+  // 2 added the optional `caption` of a Block; version 1 files are still read by Rust.
+  sheet: 2,
 };
 
 // UUIDv7 in canonical lowercase hyphenated form; variant bits are 10xx (8, 9, a, b).

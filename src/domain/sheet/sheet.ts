@@ -1,4 +1,5 @@
 import { type Block, parseBlock, type RawBlock } from "../block/block";
+import type { Caption } from "../block/caption";
 import { type DisplayName, parseDisplayName } from "../shared/display-name";
 import { type DomainResult, err, ok } from "../shared/domain-result";
 import { type BlockId, parseSheetId, type SheetId } from "../shared/entity-id";
@@ -232,6 +233,27 @@ export function setBlockFrames(
     if (update === undefined || hasFrame(block, update)) return block;
     changed = true;
     return { ...block, position: update.position, size: update.size };
+  });
+  return ok(changed ? { ...sheet, blocks } : sheet);
+}
+
+// Sets (or, with null, removes) the caption of one Block. The same sheet comes back when
+// nothing changes.
+export function setBlockCaption(
+  sheet: Sheet,
+  blockId: BlockId,
+  caption: Caption | null,
+): DomainResult<Sheet> {
+  const target = ensureTargets(sheet, [blockId]);
+  if (!target.ok) return target;
+  let changed = false;
+  const blocks = sheet.blocks.map((block) => {
+    if (block.blockId !== blockId || (block.caption ?? null) === caption) {
+      return block;
+    }
+    changed = true;
+    const { caption: _previous, ...withoutCaption } = block;
+    return caption === null ? withoutCaption : { ...withoutCaption, caption };
   });
   return ok(changed ? { ...sheet, blocks } : sheet);
 }

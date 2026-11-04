@@ -2,6 +2,7 @@ import { memo } from "react";
 import type { Block } from "../../domain/block/block";
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
 import { useMessages } from "../workspace/use-messages";
+import { isCaptionableBlockType } from "./block-capabilities";
 import {
   BLOCK_BODY_ATTRIBUTE,
   BLOCK_ID_ATTRIBUTE,
@@ -63,6 +64,11 @@ export const BlockFrame = memo(function BlockFrame({
           block={block}
         />
       </div>
+      {/* A figure's caption: a line under it, inside the block's frame. */}
+      {block.caption !== undefined &&
+      isCaptionableBlockType(block.blockType) ? (
+        <p className="block-frame__caption">{block.caption}</p>
+      ) : null}
       <button
         type="button"
         tabIndex={-1}

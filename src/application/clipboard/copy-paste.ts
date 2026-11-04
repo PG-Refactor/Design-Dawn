@@ -133,6 +133,7 @@ function readGroup(request: CopyRequest): OperationResult<{
   const blocks: ClipboardBlock[] = loaded.map((block) => {
     const base = {
       size: block.size,
+      ...(block.caption === undefined ? {} : { caption: block.caption }),
       offset: {
         x: block.position.x - origin.x,
         y: block.position.y - origin.y,
@@ -223,6 +224,7 @@ function pastedSpecs(
       blockId: idGenerator.blockId(),
       position: position.value,
       size: block.size,
+      ...(block.caption === undefined ? {} : { caption: block.caption }),
     };
     specs.push(
       block.kind === "text"

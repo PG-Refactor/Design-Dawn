@@ -50,6 +50,7 @@ import {
   nullable,
   objectOf,
   oneOf,
+  optional,
 } from "./payload-decoder";
 import type {
   BlockContentComparison,
@@ -86,6 +87,7 @@ const rawBlock = objectOf<RawBlock>({
   position: rawPosition,
   size: rawSize,
   contentPath: decodeString,
+  caption: optional(decodeString),
 });
 const rawProject = objectOf<RawProject>({
   schemaVersion: decodeNumber,

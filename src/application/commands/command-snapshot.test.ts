@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { parseCaption } from "../../domain/block/caption";
 import {
   blockIdOf,
   displayName,
@@ -13,7 +14,18 @@ import {
   moveBlocksCommand,
   reorderBlocksCommand,
   resizeBlocksCommand,
+  setBlockCaptionCommand,
 } from "./block-commands";
+import { COMMAND_KINDS } from "./command-kind";
+
+// createBlocks / deleteBlocks are data already (file-backed), not metadata commands.
+const FILE_BACKED_KINDS = 2;
+
+function unwrapCaption(result: ReturnType<typeof parseCaption>) {
+  if (!result.ok) throw new Error(result.error.detail);
+  return result.value;
+}
+
 import type { MetadataCommand } from "./command";
 import {
   commandFromSnapshot,
@@ -72,6 +84,15 @@ const COMMANDS: readonly (readonly [string, () => MetadataCommand])[] = [
   ["renameDocument", () => renameDocumentCommand(displayName("New name"))],
   ["moveSheet", () => moveSheetCommand(OTHER_SHEET_ID, SHEET_ID)],
   [
+    "setBlockCaption",
+    () =>
+      setBlockCaptionCommand(
+        SHEET_ID,
+        FIRST,
+        unwrapCaption(parseCaption("Figure 1: flow")),
+      ),
+  ],
+  [
     "editBlockContent",
     () =>
       editBlockContentCommand({
@@ -107,7 +128,9 @@ describe("commandFromSnapshot", () => {
   );
 
   it("covers every kind of metadata command", () => {
-    expect(new Set(COMMANDS.map(([kind]) => kind)).size).toBe(7);
+    expect(new Set(COMMANDS.map(([kind]) => kind)).size).toBe(
+      Object.keys(COMMAND_KINDS).length - FILE_BACKED_KINDS,
+    );
   });
 
   it("keeps an unapplied command unapplied (nothing captured to revert)", () => {

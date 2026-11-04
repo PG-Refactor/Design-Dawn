@@ -49,6 +49,7 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   importImagesWithoutSheet: "画像を追加するにはSheetを開いてください",
   editBlockContent:
     "Blockの本文の編集を確定できませんでした（編集内容は画面に残っています）",
+  setBlockCaption: "キャプションを変更できませんでした",
   editDiagram: "図の編集を適用できませんでした（ソースは変更されていません）",
   loadBlockContents: "Blockの本文を読み込めませんでした",
   undo: "元に戻せませんでした",
@@ -76,6 +77,7 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
 const ERROR_KINDS: Record<OperationErrorKind, string> = {
   invalidEntityId: "IDの形式が正しくありません。",
   invalidDisplayName: "名前が正しくありません。",
+  invalidCaption: "キャプションは1行・500文字までで入力してください。",
   invalidPosition: "位置の値が正しくありません。",
   invalidSize: "サイズの値が正しくありません。",
   unsupportedBlockType: "未対応のBlock種別です。",

@@ -3,6 +3,7 @@
 export const DOMAIN_ERROR_KINDS = [
   "invalidEntityId",
   "invalidDisplayName",
+  "invalidCaption",
   "invalidPosition",
   "invalidSize",
   "unsupportedBlockType",

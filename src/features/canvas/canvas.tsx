@@ -28,7 +28,10 @@ import {
 import { useMessages } from "../workspace/use-messages";
 import { useUiState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
-import { isEditableBlockType } from "./block-capabilities";
+import {
+  isCaptionableBlockType,
+  isEditableBlockType,
+} from "./block-capabilities";
 import {
   BLOCK_ID_ATTRIBUTE,
   CANVAS_ATTRIBUTE,
@@ -46,6 +49,7 @@ import {
   keyCommandOf,
 } from "./canvas-keyboard";
 import { routePointerDown } from "./canvas-pointer-routing";
+import { CaptionDialog } from "./caption-dialog";
 import { displayedFrame, isInteracting } from "./geometry/preview-frame";
 import { normalizeRect } from "./geometry/range-selection";
 import { keepOriginInView, sheetOriginOf } from "./geometry/sheet-origin";
@@ -164,6 +168,8 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
 
   const elementRef = useRef<HTMLDivElement>(null);
   const contextMenu = useContextMenu();
+  // The figure whose caption is being edited (the dialog is open).
+  const [captionTarget, setCaptionTarget] = useState<Block | null>(null);
 
   // Space held on the canvas = pan modifier. The ref is what handlers read (always
   // current); the state only drives the grab cursor.
@@ -385,6 +391,11 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
               });
             }
           },
+          ...(selectedIds.length === 1 &&
+          onlyBlock !== undefined &&
+          isCaptionableBlockType(onlyBlock.blockType)
+            ? { editCaption: () => setCaptionTarget(onlyBlock) }
+            : {}),
           cut: () => void canvasActions.cutSelection(selectionInput),
           copy: () => void canvasActions.copySelection(selectionInput),
           paste,
@@ -581,6 +592,26 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
         </div>
       )}
       {contextMenu.element}
+      {captionTarget === null ? null : (
+        <CaptionDialog
+          initial={captionTarget.caption ?? ""}
+          onCancel={() => {
+            setCaptionTarget(null);
+            elementRef.current?.focus({ preventScroll: true });
+          }}
+          onSubmit={(text) => {
+            const blockId = captionTarget.blockId;
+            setCaptionTarget(null);
+            elementRef.current?.focus({ preventScroll: true });
+            void canvasActions.setBlockCaption({
+              documentId,
+              sheetId,
+              blockId,
+              text,
+            });
+          }}
+        />
+      )}
     </div>
   );
 }

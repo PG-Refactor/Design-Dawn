@@ -24,6 +24,8 @@ export const REORDER_ITEMS: readonly {
 
 export interface BlockMenuCommands {
   readonly edit: () => void;
+  // Absent when the block is not a figure (no caption to edit).
+  readonly editCaption?: () => void;
   readonly cut: () => void;
   readonly copy: () => void;
   readonly paste: () => void;
@@ -46,6 +48,15 @@ export function blockMenuEntries(
       disabled: !canEdit,
       onSelect: commands.edit,
     },
+    ...(commands.editCaption === undefined
+      ? []
+      : [
+          {
+            id: "editCaption",
+            label: labels.editCaption,
+            onSelect: commands.editCaption,
+          },
+        ]),
     { id: "editSeparator", separator: true },
     { id: "cut", label: labels.cut, onSelect: commands.cut },
     { id: "copy", label: labels.copy, onSelect: commands.copy },
