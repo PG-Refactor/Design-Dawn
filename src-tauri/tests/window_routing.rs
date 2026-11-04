@@ -503,7 +503,7 @@ fn a_request_sent_to_another_project_window_is_rerouted_to_that_window_when_it_e
 struct ChoosingPicker(PathBuf);
 
 impl FolderPicker for ChoosingPicker {
-    fn pick_folder(&self) -> Result<Option<PathBuf>, FolderPickerError> {
+    fn pick_folder(&self, _start: Option<&Path>) -> Result<Option<PathBuf>, FolderPickerError> {
         Ok(Some(self.0.clone()))
     }
 }

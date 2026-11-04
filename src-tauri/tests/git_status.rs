@@ -494,7 +494,7 @@ struct FakePicker {
 }
 
 impl FolderPicker for FakePicker {
-    fn pick_folder(&self) -> Result<Option<PathBuf>, FolderPickerError> {
+    fn pick_folder(&self, _start: Option<&Path>) -> Result<Option<PathBuf>, FolderPickerError> {
         Ok(self.outcomes.lock().unwrap().pop_front())
     }
 }

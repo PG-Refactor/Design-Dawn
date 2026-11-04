@@ -12,6 +12,7 @@ mod open_dispatch;
 mod window_close;
 mod window_size;
 
+use std::path::Path;
 use std::sync::{Arc, Mutex, PoisonError};
 
 use serde_json::Value;
@@ -30,8 +31,8 @@ use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
 use crate::application::external_change::{self, ExternalChanges};
 use crate::application::folder_operations as folders;
 use crate::application::folder_selection::{
-    resolve_selection, select_project_folder as select_folder, FolderPicker, FolderSelection,
-    FolderSelectionState,
+    dialog_start_folder, resolve_selection, select_project_folder as select_folder, FolderPicker,
+    FolderSelection, FolderSelectionState,
 };
 use crate::application::format_update::{self, FormatUpdateResult};
 use crate::application::git_commit;
@@ -406,7 +407,17 @@ pub async fn select_project_folder<R: Runtime>(
             ApplicationError::new(ErrorKind::DialogFailed, "no folder picker is registered")
         })?;
         let selections = app.state::<Mutex<FolderSelectionState>>();
-        select_folder(picker.inner().as_ref(), &selections, &window_label)
+        // A local state that is not registered only loses the hint.
+        let last_project_folder = app
+            .try_state::<LocalState>()
+            .and_then(|local_state| local_state.get_app_settings().last_project_folder);
+        let start = dialog_start_folder(last_project_folder.as_deref());
+        select_folder(
+            picker.inner().as_ref(),
+            &selections,
+            &window_label,
+            start.as_deref(),
+        )
     })
     .await
     .map_err(|error| {
@@ -437,7 +448,9 @@ pub fn create_project<R: Runtime>(
             &name,
         )
     };
-    settle_open(&window, outcome)
+    let opened = settle_open(&window, outcome)?;
+    remember_project_folder(&window, &project_root);
+    Ok(opened)
 }
 
 #[tauri::command]
@@ -458,7 +471,18 @@ pub fn open_project<R: Runtime>(
             &project_root,
         )
     };
-    settle_open(&window, outcome)
+    let opened = settle_open(&window, outcome)?;
+    remember_project_folder(&window, &project_root);
+    Ok(opened)
+}
+
+/// Keeps the folder of a Project opened or created from the folder dialog, so the next
+/// dialog starts next to it. Failing to write it only loses that convenience: it is
+/// logged, and the open itself has succeeded.
+fn remember_project_folder<R: Runtime>(window: &Window<R>, project_root: &Path) {
+    if let Some(local_state) = window.try_state::<LocalState>() {
+        let _ = log_failure(local_state.set_last_project_folder(project_root));
+    }
 }
 
 /// Reads the Project this window has open again from its own root on disk (after files

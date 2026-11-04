@@ -107,7 +107,7 @@ fn settings_file_has_exactly_the_documented_bytes() {
     fixture.state.set_theme_preference("dark").unwrap();
     assert_eq!(
         fs::read(&fixture.settings_path).unwrap(),
-        b"{\n  \"schemaVersion\": 6,\n  \"themePreference\": \"dark\",\n  \"languagePreference\": \"system\",\n  \"textSize\": \"medium\",\n  \"autoSave\": true,\n  \"projectTreeWidth\": 320\n}\n"
+        b"{\n  \"schemaVersion\": 7,\n  \"themePreference\": \"dark\",\n  \"languagePreference\": \"system\",\n  \"textSize\": \"medium\",\n  \"autoSave\": true,\n  \"projectTreeWidth\": 320\n}\n"
     );
 }
 
@@ -165,7 +165,7 @@ fn broken_settings_files_give_defaults_with_a_load_issue_and_a_save_replaces_the
         "invalidThemePreference",
     );
     assert_broken_settings(
-        b"{\"schemaVersion\":7,\"themePreference\":\"dark\",\"autoSave\":true}",
+        b"{\"schemaVersion\":8,\"themePreference\":\"dark\",\"autoSave\":true}",
         "unsupportedSchemaVersion",
     );
     assert_broken_settings(
@@ -356,7 +356,7 @@ fn an_invalid_text_size_is_rejected_and_the_file_is_unchanged() {
 }
 
 #[test]
-fn auto_save_round_trips_through_a_version_6_file() {
+fn auto_save_round_trips_through_a_current_file() {
     let fixture = fixture();
     let set = fixture.state.set_auto_save(false).unwrap();
     assert!(!set.auto_save);
@@ -364,7 +364,7 @@ fn auto_save_round_trips_through_a_version_6_file() {
     assert!(!fixture.state.get_app_settings().auto_save);
     assert_eq!(
         read_json(&fixture.settings_path),
-        json!({ "schemaVersion": 6, "themePreference": "system", "languagePreference": "system", "textSize": "medium", "autoSave": false, "projectTreeWidth": 320 })
+        json!({ "schemaVersion": 7, "themePreference": "system", "languagePreference": "system", "textSize": "medium", "autoSave": false, "projectTreeWidth": 320 })
     );
     assert!(fixture.state.set_auto_save(true).unwrap().auto_save);
     assert!(fixture.state.get_app_settings().auto_save);
@@ -466,7 +466,7 @@ fn setting_auto_save_upgrades_a_version_1_file_and_keeps_its_theme() {
     fixture.state.set_auto_save(false).unwrap();
     assert_eq!(
         read_json(&fixture.settings_path),
-        json!({ "schemaVersion": 6, "themePreference": "dark", "languagePreference": "system", "textSize": "medium", "autoSave": false, "projectTreeWidth": 320 })
+        json!({ "schemaVersion": 7, "themePreference": "dark", "languagePreference": "system", "textSize": "medium", "autoSave": false, "projectTreeWidth": 320 })
     );
 }
 
@@ -530,7 +530,7 @@ fn the_window_size_round_trips_and_is_written_in_the_documented_form() {
     assert_eq!(
         read_json(&fixture.settings_path),
         json!({
-            "schemaVersion": 6,
+            "schemaVersion": 7,
             "themePreference": "system",
             "languagePreference": "system",
             "textSize": "medium",
@@ -907,4 +907,42 @@ fn theme_operations_leave_an_open_project_untouched_and_write_only_to_the_config
         "unexpected writes: {written:?}"
     );
     assert!(fixture.settings_path.exists());
+}
+
+#[test]
+fn the_last_project_folder_round_trips_and_keeps_the_other_settings() {
+    let fixture = fixture();
+    fixture.state.set_auto_save(false).unwrap();
+    assert_eq!(fixture.state.get_app_settings().last_project_folder, None);
+    let folder = PathBuf::from("/projects/order-service");
+    fixture.state.set_last_project_folder(&folder).unwrap();
+    let settings = fixture.state.get_app_settings();
+    assert_eq!(settings.last_project_folder, Some(folder));
+    assert!(!settings.auto_save);
+    assert_eq!(
+        read_json(&fixture.settings_path)["lastProjectFolder"],
+        json!("/projects/order-service")
+    );
+    // Changing another setting keeps it.
+    fixture.state.set_auto_save(true).unwrap();
+    assert!(fixture
+        .state
+        .get_app_settings()
+        .last_project_folder
+        .is_some());
+}
+
+#[test]
+fn a_version_6_settings_file_loads_without_a_last_project_folder() {
+    let fixture = fixture();
+    fs::create_dir_all(fixture.settings_path.parent().unwrap()).unwrap();
+    fs::write(
+        &fixture.settings_path,
+        json!({ "schemaVersion": 6, "themePreference": "dark", "languagePreference": "system", "textSize": "medium", "autoSave": true, "projectTreeWidth": 320 }).to_string(),
+    )
+    .unwrap();
+    let settings = fixture.state.get_app_settings();
+    assert_eq!(settings.load_issue, None);
+    assert_eq!(settings.theme_preference.as_str(), "dark");
+    assert_eq!(settings.last_project_folder, None);
 }
