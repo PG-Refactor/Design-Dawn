@@ -13,6 +13,7 @@ import {
 import type { GanttOperation } from "../../domain/diagram/gantt/gantt-operations";
 import type { BlockId, DocumentId } from "../../domain/shared/entity-id";
 import { useMessages } from "../workspace/use-messages";
+import { useAddDialogForm } from "./add-dialog-form";
 import { GuiButton, GuiSelect, GuiTextField } from "./gui-controls";
 import { useGuiFieldDraft } from "./use-gui-field-draft";
 
@@ -65,15 +66,35 @@ export function GanttAddSection({
   const leaveUnchanged = async () => true;
   const hasPending = () => nameRef.current !== "";
 
-  async function addPending(explicit: boolean): Promise<OperationResult<void>> {
-    if (!explicit && !hasPending()) return operationOk(undefined);
+  // The operation the fields describe; null while something it needs is missing.
+  function buildOperation(): GanttOperation | null {
+    if (!hasPending()) return null;
     const after =
       positionRef.current === POSITION_AFTER ? afterRef.current : null;
-    const result = await runDraft({
+    return {
       kind: "addSection",
       name: nameRef.current,
       ...(after === null ? {} : { afterSectionIndex: after }),
-    });
+    };
+  }
+  // The add dialog previews this operation and clears the fields when it is cancelled.
+  const pendingOperation = buildOperation();
+  const dialog = useAddDialogForm(
+    pendingOperation === null
+      ? null
+      : { diagram: "gantt", operation: pendingOperation },
+    () => {
+      setName("");
+    },
+  );
+
+  async function addPending(explicit: boolean): Promise<OperationResult<void>> {
+    if (!explicit && !hasPending()) return operationOk(undefined);
+    const operation = buildOperation();
+    // Unreachable after the checks above; nothing is added without the required fields.
+    if (operation === null) return operationOk(undefined);
+    const result = await runDraft(operation);
+    if (result.ok) dialog.added();
     if (!result.ok) return result;
     setName("");
     return operationOk(undefined);

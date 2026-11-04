@@ -15,6 +15,7 @@ import type { FlowchartOperation } from "../../domain/diagram/flowchart/flowchar
 import type { FlowchartNodeView } from "../../domain/diagram/flowchart/flowchart-view";
 import type { BlockId, DocumentId } from "../../domain/shared/entity-id";
 import { useMessages } from "../workspace/use-messages";
+import { useAddDialogForm } from "./add-dialog-form";
 import { oneLine } from "./flowchart-node-list";
 import { GuiButton, GuiSelect, GuiTextField } from "./gui-controls";
 import { useGuiFieldDraft } from "./use-gui-field-draft";
@@ -69,6 +70,29 @@ export function FlowchartAddSubgraph({
   const leaveUnchanged = async () => true;
   const hasPending = () => titleRef.current !== "";
 
+  // The operation the fields describe; null while something it needs is missing.
+  function buildOperation(): FlowchartOperation | null {
+    if (titleRef.current.trim() === "") return null;
+    return {
+      kind: "createSubgraph",
+      title: titleRef.current,
+      ...(memberRef.current === NO_MEMBER
+        ? {}
+        : { memberId: memberRef.current }),
+    };
+  }
+  // The add dialog previews this operation and clears the fields when it is cancelled.
+  const pendingOperation = buildOperation();
+  const dialog = useAddDialogForm(
+    pendingOperation === null
+      ? null
+      : { diagram: "flowchart", operation: pendingOperation },
+    () => {
+      setTitle("");
+      setMemberId(NO_MEMBER);
+    },
+  );
+
   async function addPending(explicit: boolean): Promise<OperationResult<void>> {
     if (!explicit && !hasPending()) return operationOk(undefined);
     if (titleRef.current.trim() === "") {
@@ -78,13 +102,11 @@ export function FlowchartAddSubgraph({
         "labelRequired: the new subgraph has no title",
       );
     }
-    const result = await runDraft({
-      kind: "createSubgraph",
-      title: titleRef.current,
-      ...(memberRef.current === NO_MEMBER
-        ? {}
-        : { memberId: memberRef.current }),
-    });
+    const operation = buildOperation();
+    // Unreachable after the checks above; nothing is added without the required fields.
+    if (operation === null) return operationOk(undefined);
+    const result = await runDraft(operation);
+    if (result.ok) dialog.added();
     if (!result.ok) return result;
     setTitle("");
     setMemberId(NO_MEMBER);

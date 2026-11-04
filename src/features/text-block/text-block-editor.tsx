@@ -18,6 +18,7 @@ import type {
   SheetId,
 } from "../../domain/shared/entity-id";
 import { isInsideContextMenu } from "../../shared/menu/context-menu";
+import { isInsideEditorOverlay } from "../../shared/overlay/editor-overlay";
 import {
   BLOCK_BODY_ATTRIBUTE,
   BLOCK_EDITOR_ATTRIBUTE,
@@ -247,6 +248,8 @@ export function TextBlockEditor({
     // Its own right-click menu (the diagram's) is part of the editor while it is open;
     // choosing an item puts the focus back inside.
     if (isInsideContextMenu(next)) return;
+    // So is a dialog it opened on the page (the diagram GUI's add dialog).
+    if (isInsideEditorOverlay(next)) return;
     // The whole window lost focus (Alt+Tab): the page has no focus but the element is
     // still the active one, and the user has not left the editor. (A focus move inside the
     // page makes another element, or the body, active before this runs.)

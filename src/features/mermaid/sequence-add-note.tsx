@@ -20,6 +20,7 @@ import type { SequenceOperation } from "../../domain/diagram/sequence/sequence-o
 import type { SequenceParticipantView } from "../../domain/diagram/sequence/sequence-view";
 import type { BlockId, DocumentId } from "../../domain/shared/entity-id";
 import { useMessages } from "../workspace/use-messages";
+import { useAddDialogForm } from "./add-dialog-form";
 import { GuiButton, GuiSelect, GuiTextField } from "./gui-controls";
 import { oneLine } from "./sequence-entry-text";
 import { useGuiFieldDraft } from "./use-gui-field-draft";
@@ -85,6 +86,38 @@ export function SequenceAddNote({
     secondRef.current !== NO_PARTICIPANT ||
     noteRef.current !== "";
 
+  // The operation the fields describe; null while something it needs is missing.
+  function buildOperation(): SequenceOperation | null {
+    if (firstRef.current === NO_PARTICIPANT) return null;
+    const chosen = [firstRef.current];
+    if (
+      placementRef.current === "over" &&
+      secondRef.current !== NO_PARTICIPANT
+    ) {
+      chosen.push(secondRef.current);
+    }
+    const after = afterRef.current;
+    return {
+      kind: "addNote",
+      placement: placementRef.current,
+      participants: chosen,
+      text: noteRef.current,
+      ...(after === null ? {} : { after }),
+    };
+  }
+  // The add dialog previews this operation and clears the fields when it is cancelled.
+  const pendingOperation = buildOperation();
+  const dialog = useAddDialogForm(
+    pendingOperation === null
+      ? null
+      : { diagram: "sequence", operation: pendingOperation },
+    () => {
+      setFirst(NO_PARTICIPANT);
+      setSecond(NO_PARTICIPANT);
+      setNote("");
+    },
+  );
+
   async function addPending(explicit: boolean): Promise<OperationResult<void>> {
     if (!explicit && !hasPending()) return operationOk(undefined);
     if (firstRef.current === NO_PARTICIPANT) {
@@ -94,21 +127,11 @@ export function SequenceAddNote({
         "participantRequired: the new note needs a participant",
       );
     }
-    const chosen = [firstRef.current];
-    if (
-      placementRef.current === "over" &&
-      secondRef.current !== NO_PARTICIPANT
-    ) {
-      chosen.push(secondRef.current);
-    }
-    const after = afterRef.current;
-    const result = await runDraft({
-      kind: "addNote",
-      placement: placementRef.current,
-      participants: chosen,
-      text: noteRef.current,
-      ...(after === null ? {} : { after }),
-    });
+    const operation = buildOperation();
+    // Unreachable after the checks above; nothing is added without the required fields.
+    if (operation === null) return operationOk(undefined);
+    const result = await runDraft(operation);
+    if (result.ok) dialog.added();
     if (!result.ok) return result;
     setFirst(NO_PARTICIPANT);
     setSecond(NO_PARTICIPANT);

@@ -15,15 +15,31 @@ import {
   type KeyboardEvent,
   type ReactNode,
   type RefObject,
+  type SyntheticEvent,
   useCallback,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
+import { previewDiagramOperation } from "../../application/diagram/preview-diagram-operation";
+import { fromDomainResult } from "../../application/ports/operation-error";
+import type { DiagramOperation } from "../../domain/diagram/diagram-operation";
 import type { PopupMenuEntry } from "../../shared/menu/popup-menu";
+import { EDITOR_OVERLAY_ATTRIBUTE } from "../../shared/overlay/editor-overlay";
+import { focusableElements } from "../workspace/focus-utils";
+import { useMessages } from "../workspace/use-messages";
+import {
+  AddDialogFormContext,
+  type AddDialogFormLink,
+} from "./add-dialog-form";
+import { DiagramAddPreview } from "./diagram-add-preview";
+import { describeRefusal } from "./diagram-gui-text";
 import { useDiagramInteraction } from "./diagram-interaction";
 import type { DiagramHit } from "./diagram-shapes";
+import "./diagram-add-dialog.css";
 
 export interface GuiAddAction {
   readonly id: string;
@@ -54,6 +70,10 @@ export interface GuiLayoutState {
   readonly focusRequest: string | null;
   readonly clearFocusRequest: () => void;
   readonly toolbarRef: RefObject<HTMLDivElement | null>;
+  // How many times each add dialog was cancelled; a new count clears its form.
+  readonly resetSignals: Readonly<Record<string, number>>;
+  // Closes the open add dialog after clearing its form.
+  readonly cancelAdd: () => void;
 }
 
 export function useGuiLayoutState(initialTabId: string): GuiLayoutState {
@@ -61,9 +81,24 @@ export function useGuiLayoutState(initialTabId: string): GuiLayoutState {
   const [activeTabId, setActiveTabId] = useState(initialTabId);
   const [focusRequest, setFocusRequest] = useState<string | null>(null);
   const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const [resetSignals, setResetSignals] = useState<
+    Readonly<Record<string, number>>
+  >({});
   const openAdd = useCallback((id: string | null, focus = false) => {
     setOpenAddId(id);
     setFocusRequest(focus ? id : null);
+  }, []);
+  const cancelAdd = useCallback(() => {
+    setOpenAddId((open) => {
+      if (open !== null) {
+        setResetSignals((signals) => ({
+          ...signals,
+          [open]: (signals[open] ?? 0) + 1,
+        }));
+      }
+      return null;
+    });
+    setFocusRequest(null);
   }, []);
   const focusToolbar = useCallback(() => {
     toolbarRef.current?.querySelector<HTMLElement>("button")?.focus();
@@ -77,6 +112,8 @@ export function useGuiLayoutState(initialTabId: string): GuiLayoutState {
     focusRequest,
     clearFocusRequest: () => setFocusRequest(null),
     toolbarRef,
+    resetSignals,
+    cancelAdd,
   };
 }
 
@@ -125,10 +162,20 @@ export function GuiStatus({
 
 const FIELD_SELECTOR = "input, textarea, select";
 const TAB_KEYS = { previous: "ArrowLeft", next: "ArrowRight" } as const;
+const DIALOG_KEYS = { escape: "Escape", tab: "Tab" } as const;
+
+// The add dialog is drawn on the page (outside the canvas, whose transform would move and
+// scale it), but React still bubbles its events to the canvas and the editor. They stop
+// at the dialog.
+function stop(event: SyntheticEvent): void {
+  event.stopPropagation();
+}
 
 export interface DiagramGuiLayoutProps {
   readonly className: string;
   readonly state: GuiLayoutState;
+  // The block's committed text: what the add dialog previews its add against.
+  readonly source: string;
   readonly toolbarLabel: string;
   readonly tabListLabel: string;
   readonly addActions: readonly GuiAddAction[];
@@ -150,6 +197,7 @@ export interface DiagramGuiLayoutProps {
 export function DiagramGuiLayout({
   className,
   state,
+  source,
   toolbarLabel,
   tabListLabel,
   addActions,
@@ -189,7 +237,86 @@ export function DiagramGuiLayout({
   const panelId = (id: string) => `${idPrefix}-panel-${id}`;
   const formRefs = useRef(new Map<string, HTMLDivElement>());
   const tabRefs = useRef(new Map<string, HTMLButtonElement>());
+  const dialogRef = useRef<HTMLDivElement>(null);
   const { focusRequest, clearFocusRequest } = state;
+  const gui = useMessages().mermaid.gui;
+  const [pendingById, setPendingById] = useState<
+    Readonly<Record<string, DiagramOperation | null>>
+  >({});
+  const openAction = addActions.find((action) => action.id === state.openAddId);
+
+  // The toggle of the open dialog takes the focus back before the dialog goes away, so
+  // the focus never falls out of the editor (which would end editing).
+  function focusToggle(id: string): void {
+    state.toolbarRef.current
+      ?.querySelector<HTMLElement>(`[aria-controls="${formId(id)}"]`)
+      ?.focus();
+  }
+
+  function cancel(): void {
+    if (state.openAddId !== null) focusToggle(state.openAddId);
+    state.cancelAdd();
+  }
+
+  // One link per form; a new one only when its reset count changes.
+  const resetKey = JSON.stringify(state.resetSignals);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: resetKey stands for the counts.
+  const links = useMemo(() => {
+    const byId = new Map<string, AddDialogFormLink>();
+    for (const action of addActions) {
+      byId.set(action.id, {
+        reportPending: (operation) =>
+          setPendingById((current) =>
+            JSON.stringify(current[action.id] ?? null) ===
+            JSON.stringify(operation)
+              ? current
+              : { ...current, [action.id]: operation },
+          ),
+        resetSignal: state.resetSignals[action.id] ?? 0,
+        added: () => {
+          focusToggle(action.id);
+          state.openAdd(null);
+        },
+      });
+    }
+    return byId;
+  }, [resetKey, addActions.map((action) => action.id).join()]);
+
+  // What the preview shows: the diagram after the described add, or the current one with
+  // the reason when the add cannot be made (or nothing is described yet).
+  const pending =
+    openAction === undefined ? null : (pendingById[openAction.id] ?? null);
+  const preview = useMemo(() => {
+    if (pending === null) return { source, refusal: null };
+    const result = fromDomainResult(previewDiagramOperation(source, pending));
+    return result.ok
+      ? { source: result.value, refusal: null }
+      : { source, refusal: describeRefusal(gui, result.error).message };
+  }, [pending, source, gui]);
+
+  function onDialogKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
+    event.stopPropagation();
+    if (event.key === DIALOG_KEYS.escape) {
+      event.preventDefault();
+      cancel();
+      return;
+    }
+    // The focus stays in the dialog: anywhere else on the page would end editing.
+    if (event.key !== DIALOG_KEYS.tab || dialogRef.current === null) return;
+    const focusable = focusableElements(dialogRef.current).filter(
+      (element) => element.closest("[hidden]") === null,
+    );
+    const first = focusable[0];
+    const last = focusable.at(-1);
+    if (first === undefined || last === undefined) return;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
 
   // The form is shown by the render, so its field can only take focus afterwards.
   useEffect(() => {
@@ -243,20 +370,64 @@ export function DiagramGuiLayout({
           );
         })}
       </div>
-      {addActions.map((action) => (
+      {createPortal(
+        // biome-ignore lint/a11y/noStaticElementInteractions: only keeps the dialog's events from reaching the canvas and the editor.
         <div
-          key={action.id}
-          id={formId(action.id)}
-          ref={(element) => {
-            if (element === null) formRefs.current.delete(action.id);
-            else formRefs.current.set(action.id, element);
-          }}
-          className="diagram-gui__add-panel"
-          hidden={state.openAddId !== action.id}
+          className="diagram-add-dialog__layer"
+          hidden={openAction === undefined}
+          {...{ [EDITOR_OVERLAY_ATTRIBUTE]: "" }}
+          onKeyDown={onDialogKeyDown}
+          onPointerDown={stop}
+          onMouseDown={stop}
+          onClick={stop}
+          onDoubleClick={stop}
+          onWheel={stop}
+          onContextMenu={stop}
         >
-          {action.form}
-        </div>
-      ))}
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={openAction?.menuLabel}
+            className="diagram-add-dialog"
+          >
+            <div className="diagram-add-dialog__form">
+              {/* Every form stays mounted (hidden), so it keeps what was typed while
+                  another one is shown. */}
+              {addActions.map((action) => (
+                <div
+                  key={action.id}
+                  id={formId(action.id)}
+                  ref={(element) => {
+                    if (element === null) formRefs.current.delete(action.id);
+                    else formRefs.current.set(action.id, element);
+                  }}
+                  className="diagram-gui__add-panel"
+                  hidden={state.openAddId !== action.id}
+                >
+                  <AddDialogFormContext.Provider
+                    value={links.get(action.id) ?? null}
+                  >
+                    {action.form}
+                  </AddDialogFormContext.Provider>
+                </div>
+              ))}
+              <div className="diagram-add-dialog__actions">
+                <button type="button" className="button" onClick={cancel}>
+                  {gui.addCancel}
+                </button>
+              </div>
+            </div>
+            {openAction === undefined ? null : (
+              <DiagramAddPreview
+                source={preview.source}
+                refusal={preview.refusal}
+              />
+            )}
+          </div>
+        </div>,
+        document.body,
+      )}
       {status}
       {editor}
       <GuiDisclosure
