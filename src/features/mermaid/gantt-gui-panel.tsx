@@ -291,7 +291,7 @@ export function GanttGuiPanel({
     [source, selectedTask],
   );
 
-  // ---- the diagram picture: right-click and click on a task bar ----
+  // ---- the diagram picture: right-click and click on a task bar or a section row ----
 
   // The task a bar stands for: by the id the source gives it, else by its place (Mermaid
   // draws the bars in source order and makes up ids for tasks without one).
@@ -324,6 +324,61 @@ export function GanttGuiPanel({
     if (outcome !== "applied") return;
     setSelectionKey((key) => key + 1);
     setSelection(null);
+  }
+
+  // A section row: the stripe behind a task row stands for that task's section.
+  function sectionOf(hit: DiagramHit): GanttSectionView | undefined {
+    if (hit.kind !== "section" || hit.ordinal === undefined || view === null) {
+      return undefined;
+    }
+    const task = view.tasks[hit.ordinal];
+    return task === undefined ? undefined : view.sections[task.sectionIndex];
+  }
+
+  function sectionSelection(section: GanttSectionView): GanttSelection {
+    return {
+      kind: "section",
+      index: section.target.index,
+      name: section.target.name,
+    };
+  }
+
+  async function editSectionFromDiagram(
+    section: GanttSectionView,
+  ): Promise<void> {
+    await select(sectionSelection(section));
+    // The editor appears with the selection; its name field takes the focus then.
+    requestAnimationFrame(() => editorNameRef.current?.focus());
+  }
+
+  async function deleteSectionFromDiagram(
+    section: GanttSectionView,
+  ): Promise<void> {
+    const outcome = await run({
+      kind: "deleteSection",
+      target: section.target,
+    });
+    if (outcome !== "applied") return;
+    setSelectionKey((key) => key + 1);
+    setSelection(null);
+  }
+
+  function shapeEntries(hit: DiagramHit): readonly PopupMenuEntry[] {
+    const section = sectionOf(hit);
+    if (section === undefined) return taskEntries(hit);
+    return [
+      {
+        id: "editSection",
+        label: text.editSectionMenu,
+        onSelect: () => void editSectionFromDiagram(section),
+      },
+      {
+        id: "deleteSection",
+        label: text.deleteSectionMenu,
+        disabled: busy || section.deleteRestriction !== null,
+        onSelect: () => void deleteSectionFromDiagram(section),
+      },
+    ];
   }
 
   function taskEntries(hit: DiagramHit): readonly PopupMenuEntry[] {
@@ -360,10 +415,12 @@ export function GanttGuiPanel({
       className="diagram-gui__gantt"
       state={layout}
       source={source}
-      shapeEntries={taskEntries}
+      shapeEntries={shapeEntries}
       onPickShape={(hit) => {
+        const section = sectionOf(hit);
         const task = taskOf(hit);
-        if (task !== undefined) void select(taskSelection(task));
+        if (section !== undefined) void select(sectionSelection(section));
+        else if (task !== undefined) void select(taskSelection(task));
       }}
       toolbarLabel={gui.addToolbarLabel}
       tabListLabel={gui.listTabsLabel}

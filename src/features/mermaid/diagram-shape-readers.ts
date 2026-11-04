@@ -9,6 +9,7 @@ import type {
   DiagramWedge,
 } from "./diagram-shapes";
 import {
+  boxOfPoints,
   colorKey,
   offsetOf,
   pathSegments,
@@ -117,6 +118,39 @@ function readFlowchart(root: Element): DiagramLayers {
 
 // ---- sequence diagram ----
 
+const SEQUENCE_ROLE = "sequence";
+
+// The blocks (loop, alt, opt ... and the coloured rect) as areas, numbered in source order of
+// their headers. Mermaid numbers a block by its `end`, so the order comes from the drawing
+// instead: a later block starts lower, and a block inside another starts below the outer
+// one's top (on a tie the larger, outer block comes first).
+function sequenceBlocks(root: Element): DiagramShape[] {
+  const framed = [
+    ...root.querySelectorAll("g[data-et='control-structure']"),
+  ].flatMap((group) => {
+    const points = [...group.querySelectorAll("line")].flatMap((line) =>
+      placedLinePoints(line),
+    );
+    const box = boxOfPoints(points);
+    return box === null || box.width <= 0 || box.height <= 0 ? [] : [box];
+  });
+  // `rect.rect` is the coloured block only in a sequence diagram.
+  const coloured =
+    root.getAttribute("aria-roledescription") === SEQUENCE_ROLE
+      ? [...root.querySelectorAll("rect.rect")].flatMap((rect) => {
+          const box = placedBox(rect);
+          return box === null ? [] : [box];
+        })
+      : [];
+  return [...framed, ...coloured]
+    .sort(
+      (first, second) =>
+        first.y - second.y ||
+        second.width * second.height - first.width * first.height,
+    )
+    .map((box, ordinal) => ({ hit: { kind: "block", id: "", ordinal }, box }));
+}
+
 function readSequence(root: Element): DiagramLayers {
   // A participant is drawn at the top and again at the bottom, each box named by its id.
   const boxes = [...root.querySelectorAll("rect.actor[name]")].flatMap((rect) =>
@@ -162,7 +196,7 @@ function readSequence(root: Element): DiagramLayers {
     // Messages first: at the same distance from a message and a lifeline, the message is
     // meant (the nearest line wins otherwise).
     lines: [...messages, ...lifelines.filter((line) => line.hit.id !== "")],
-    areas: [],
+    areas: sequenceBlocks(root),
   };
 }
 
@@ -175,7 +209,12 @@ function readGantt(root: Element): DiagramLayers {
     (rect, ordinal) =>
       boxShape({ kind: "task", id: ownId(root, rect) ?? "", ordinal }, rect),
   );
-  return { shapes: tasks, wedges: [], lines: [], areas: [] };
+  // Behind each task row is a stripe of its section's colour, one per task in the same
+  // order: a click on the row away from the bar means the task's section.
+  const rows = [...root.querySelectorAll("rect.section")].flatMap(
+    (rect, ordinal) => boxShape({ kind: "section", id: "", ordinal }, rect),
+  );
+  return { shapes: tasks, wedges: [], lines: [], areas: rows };
 }
 
 // ---- pie chart ----
