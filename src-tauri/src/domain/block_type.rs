@@ -22,6 +22,9 @@ pub struct BlockTypeDefinition {
     pub location: ContentLocation,
     /// Lowercase, without the dot; matched case-insensitively.
     pub extensions: &'static [&'static str],
+    /// Whether the Block is a figure that may carry a caption (a diagram or an image; a
+    /// text Block is not).
+    pub captionable: bool,
 }
 
 /// Add a row here to introduce a new block type; do not branch on identifiers elsewhere.
@@ -31,18 +34,21 @@ pub const BLOCK_TYPE_DEFINITIONS: [BlockTypeDefinition; 3] = [
         identifier: "markdown",
         location: ContentLocation::SheetBlocks,
         extensions: &["md"],
+        captionable: false,
     },
     BlockTypeDefinition {
         block_type: BlockType::Mermaid,
         identifier: "mermaid",
         location: ContentLocation::SheetBlocks,
         extensions: &["mmd"],
+        captionable: true,
     },
     BlockTypeDefinition {
         block_type: BlockType::Image,
         identifier: "image",
         location: ContentLocation::Assets,
         extensions: &["png", "jpg", "jpeg", "webp", "svg", "gif"],
+        captionable: true,
     },
 ];
 

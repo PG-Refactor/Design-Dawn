@@ -22,7 +22,8 @@ unbounded in every direction. Read top-down: getProject, getDocument, getSheet, 
 for a Block's text. To change a Block's text, call getBlock first and pass its contentHash as \
 expectedContentHash to updateBlock; a conflict result means someone changed it since, so read \
 it again and redo the change on the new text. Prefer small changes to one Block over rewriting \
-many. A Mermaid Block holds Mermaid source; keep it valid Mermaid. Changes appear in the \
+many. A Mermaid Block holds Mermaid source; keep it valid Mermaid. A figure (a Mermaid or Image \
+Block) may have a one-line caption, set with updateBlockCaption. Changes appear in the \
 Design Dawn app at once if it has the Project open; they cannot be undone through this \
 server, but the user can review them with Git. Never guess IDs: take them from the read tools."
     };

@@ -15,10 +15,11 @@ use serde_json::{json, Map, Value};
 use crate::application::authoring::{
     create_listed_document, create_listed_sheet, create_text_block, delete_block, find_block,
     image_natural_size, move_block, read_text_block, rename_document, rename_sheet,
-    update_text_block, BlockGeometry,
+    set_block_caption, update_text_block, BlockGeometry,
 };
 use crate::application::local_state::ai_access::{listed_project_name, AiAccessList};
 use crate::application::snapshot::EntityState;
+use crate::domain::caption::CaptionPosition;
 use crate::domain::entity_id::ProjectId;
 use crate::infrastructure::file_format::dto::{BlockDto, SheetDto};
 use crate::infrastructure::file_format::image_validation::ImageFormat;
@@ -74,7 +75,8 @@ fn geometry_json(block: &BlockDto) -> Value {
     })
 }
 
-/// `z_index` counts from the back: the last Block of the Sheet is in front.
+/// `z_index` counts from the back: the last Block of the Sheet is in front. A figure's
+/// caption is included when it has one (the position defaults to below, as in the file).
 fn block_json(z_index: usize, block: &BlockDto) -> Value {
     let mut value = json!({
         "blockId": block.block_id,
@@ -83,6 +85,16 @@ fn block_json(z_index: usize, block: &BlockDto) -> Value {
     });
     if let (Some(target), Value::Object(geometry)) = (value.as_object_mut(), geometry_json(block)) {
         target.extend(geometry);
+        if let Some(caption) = &block.caption {
+            target.insert("caption".to_owned(), json!(caption));
+            target.insert(
+                "captionPosition".to_owned(),
+                json!(block
+                    .caption_position
+                    .as_deref()
+                    .unwrap_or(CaptionPosition::Below.as_str())),
+            );
+        }
     }
     value
 }
@@ -246,6 +258,7 @@ listProjects and selectProject",
             names::UPDATE_SHEET => self.update_sheet(&arguments),
             names::UPDATE_BLOCK => self.update_block(&arguments),
             names::MOVE_BLOCK => self.move_block(&arguments),
+            names::UPDATE_BLOCK_CAPTION => self.update_block_caption(&arguments),
             names::DELETE_BLOCK => self.delete_block(&arguments),
             other => Err(ToolError::new(
                 KIND_INTERNAL,
@@ -610,6 +623,33 @@ listProjects",
             .position(|candidate| candidate.block_id == moved.block_id)
             .unwrap_or_default();
         Ok(block_json(z_index, &moved))
+    }
+
+    fn update_block_caption(&self, arguments: &Arguments) -> Result<Value, ToolError> {
+        let caption = arguments.string("caption")?;
+        let position = arguments
+            .optional_string("position")?
+            .map(CaptionPosition::parse)
+            .transpose()?;
+        let mut workspace = self.workspace()?;
+        let document = workspace.load_document(arguments.string("documentId")?)?;
+        let sheet = find_sheet(&document, arguments.string("sheetId")?)?;
+        let changed = set_block_caption(
+            &mut workspace.sessions,
+            &workspace.project_id,
+            &document.document.document_id,
+            sheet,
+            arguments.string("blockId")?,
+            // An empty caption is how the app removes one too.
+            (!caption.is_empty()).then_some(caption),
+            position,
+        )?;
+        let z_index = sheet
+            .blocks
+            .iter()
+            .position(|candidate| candidate.block_id == changed.block_id)
+            .unwrap_or_default();
+        Ok(block_json(z_index, &changed))
     }
 
     fn delete_block(&self, arguments: &Arguments) -> Result<Value, ToolError> {

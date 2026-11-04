@@ -17,7 +17,11 @@ pub const UPDATE_DOCUMENT: &str = "updateDocument";
 pub const UPDATE_SHEET: &str = "updateSheet";
 pub const UPDATE_BLOCK: &str = "updateBlock";
 pub const MOVE_BLOCK: &str = "moveBlock";
+pub const UPDATE_BLOCK_CAPTION: &str = "updateBlockCaption";
 pub const DELETE_BLOCK: &str = "deleteBlock";
+
+/// Where a caption can be shown, as `updateBlockCaption` takes it.
+pub const CAPTION_POSITIONS: [&str; 2] = ["below", "above"];
 
 /// Block types a tool can create from text. Images are not offered: they would need the
 /// server to read an arbitrary file.
@@ -183,8 +187,8 @@ projectId to follow the Project open in the app again. Only for this session.",
         ),
         read(
             GET_SHEET,
-            "A Sheet: its Blocks with type, position, size and stacking order (back to front). \
-Block text is not included; use getBlock.",
+            "A Sheet: its Blocks with type, position, size, stacking order (back to front) and \
+caption. Block text is not included; use getBlock.",
             vec![
                 id("documentId", true, DOCUMENT_ID_HELP),
                 id("sheetId", true, SHEET_ID_HELP),
@@ -314,6 +318,32 @@ conflict) if the text changed since you read it.",
                     "width",
                     "height",
                     &format!("{WORLD_UNITS_HELP}, at least 1"),
+                ),
+            ],
+        ),
+        write(
+            UPDATE_BLOCK_CAPTION,
+            "Sets or removes the caption of a figure (a Mermaid or Image Block): one line of \
+up to 500 characters shown under (or above) it. An empty caption removes it. Markdown Blocks \
+have no caption.",
+            false,
+            vec![
+                id("documentId", true, DOCUMENT_ID_HELP),
+                id("sheetId", true, SHEET_ID_HELP),
+                id("blockId", true, BLOCK_ID_HELP),
+                text(
+                    "caption",
+                    true,
+                    "the caption text; an empty string removes the caption",
+                ),
+                property(
+                    "position",
+                    false,
+                    json!({
+                        "type": "string",
+                        "enum": CAPTION_POSITIONS,
+                        "description": "where it is shown; omit to keep the current place (below for a new caption)",
+                    }),
                 ),
             ],
         ),

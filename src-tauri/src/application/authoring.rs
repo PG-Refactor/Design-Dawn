@@ -24,10 +24,11 @@ use super::session::ProjectSessions;
 use super::sheet_operations::{create_sheet, delete_sheet, save_sheet};
 use super::snapshot::{DocumentSnapshot, ProjectSnapshot, SheetSnapshot};
 use crate::domain::block_type::BlockType;
+use crate::domain::caption::{Caption, CaptionPosition};
 use crate::domain::constants::CURRENT_FOLDER_SCHEMA_VERSION;
 use crate::domain::display_name::DisplayName;
 use crate::domain::entity_id::{BlockId, DocumentId};
-use crate::domain::error::DomainError;
+use crate::domain::error::{DomainError, DomainErrorKind};
 use crate::domain::geometry::{Position, Size};
 use crate::infrastructure::error::{PersistenceError, PersistenceErrorKind};
 use crate::infrastructure::file_format::constants::ASSET_MAX_BYTES;
@@ -423,6 +424,59 @@ pub fn move_block(
     moved.to_domain()?;
     save_sheet(sessions, project_id, document_id, &moved)?;
     Ok(moved
+        .blocks
+        .into_iter()
+        .find(|block| block.block_id == target)
+        .expect("the block was found above"))
+}
+
+/// Sets or removes the caption of a figure (a Mermaid or Image Block). `None` removes it
+/// (with its position). `position` `None` keeps the current one (below for a new caption);
+/// below is the default and is not written to the file, as the app does.
+pub fn set_block_caption(
+    sessions: &mut ProjectSessions,
+    project_id: &str,
+    document_id: &str,
+    sheet: &SheetDto,
+    block_id: &str,
+    caption: Option<&str>,
+    position: Option<CaptionPosition>,
+) -> AuthoringResult<BlockDto> {
+    let target = find_block(sheet, block_id)?.block_id.clone();
+    let mut changed = sheet.clone();
+    let block = changed
+        .blocks
+        .iter_mut()
+        .find(|block| block.block_id == target)
+        .expect("find_block just found this block in the same sheet");
+    if !BlockType::parse(&block.block_type)?
+        .definition()
+        .captionable
+    {
+        return Err(AuthoringError::Failed(
+            DomainError::new(
+                DomainErrorKind::InvalidCaption,
+                "only a figure (a Mermaid or Image Block) has a caption",
+            )
+            .into(),
+        ));
+    }
+    match caption {
+        None => {
+            block.caption = None;
+            block.caption_position = None;
+        }
+        Some(text) => {
+            block.caption = Some(Caption::new(text)?.as_str().to_owned());
+            if let Some(position) = position {
+                block.caption_position =
+                    (position != CaptionPosition::Below).then(|| position.as_str().to_owned());
+            }
+        }
+    }
+    changed.to_domain()?;
+    save_sheet(sessions, project_id, document_id, &changed)?;
+    Ok(changed
         .blocks
         .into_iter()
         .find(|block| block.block_id == target)

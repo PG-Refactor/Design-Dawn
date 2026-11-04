@@ -180,7 +180,8 @@ screen also removes a Project from the list.
 
 - **Tools**: `listProjects`, `selectProject`, `getProject`, `getDocument`, `getSheet`, `getBlock`;
   for writable Projects also `createDocument`, `createSheet`, `createBlock` (Markdown or Mermaid),
-  `updateDocument`, `updateSheet`, `updateBlock`, `moveBlock`, `deleteBlock`.
+  `updateDocument`, `updateSheet`, `updateBlock`, `moveBlock`, `updateBlockCaption` (the caption
+  of a Mermaid or Image block), `deleteBlock`.
 - To change a block's text, the AI reads it with `getBlock` and passes its `contentHash` as
   `expectedContentHash`; if the text changed in the meantime the call returns `conflict`.
 - It cannot delete documents, sheets or projects, import files from disk, run commands, use Git or
