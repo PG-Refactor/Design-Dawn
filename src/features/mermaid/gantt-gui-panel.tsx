@@ -19,6 +19,7 @@ import {
   readGanttMoveTargets,
   readGanttView,
 } from "../../domain/diagram/gantt/gantt-view";
+import type { PopupMenuEntry } from "../../shared/menu/popup-menu";
 import { useMessages } from "../workspace/use-messages";
 import {
   DiagramGuiLayout,
@@ -26,6 +27,7 @@ import {
   useGuiLayoutState,
 } from "./diagram-gui-layout";
 import { describeRefusal, describeRestriction } from "./diagram-gui-text";
+import type { DiagramHit } from "./diagram-shapes";
 import { GanttAddSection } from "./gantt-add-section";
 import { GanttAddTask } from "./gantt-add-task";
 import { GanttSectionEditor } from "./gantt-section-editor";
@@ -289,6 +291,59 @@ export function GanttGuiPanel({
     [source, selectedTask],
   );
 
+  // ---- the diagram picture: right-click and click on a task bar ----
+
+  // The task a bar stands for: by the id the source gives it, else by its place (Mermaid
+  // draws the bars in source order and makes up ids for tasks without one).
+  function taskOf(hit: DiagramHit): GanttTaskView | undefined {
+    if (hit.kind !== "task" || view === null) return undefined;
+    const byId = view.tasks.find(
+      (task) => task.id !== null && task.id === hit.id,
+    );
+    if (byId !== undefined) return byId;
+    return hit.ordinal === undefined ? undefined : view.tasks[hit.ordinal];
+  }
+
+  function taskSelection(task: GanttTaskView): GanttSelection {
+    return {
+      kind: "task",
+      index: task.target.index,
+      name: task.target.name,
+      id: task.id,
+    };
+  }
+
+  async function editTaskFromDiagram(task: GanttTaskView): Promise<void> {
+    await select(taskSelection(task));
+    // The editor appears with the selection; its name field takes the focus then.
+    requestAnimationFrame(() => editorNameRef.current?.focus());
+  }
+
+  async function deleteTaskFromDiagram(task: GanttTaskView): Promise<void> {
+    const outcome = await run({ kind: "deleteTask", target: task.target });
+    if (outcome !== "applied") return;
+    setSelectionKey((key) => key + 1);
+    setSelection(null);
+  }
+
+  function taskEntries(hit: DiagramHit): readonly PopupMenuEntry[] {
+    const task = taskOf(hit);
+    if (task === undefined) return [];
+    return [
+      {
+        id: "editTask",
+        label: text.editTaskMenu,
+        onSelect: () => void editTaskFromDiagram(task),
+      },
+      {
+        id: "deleteTask",
+        label: text.deleteTaskMenu,
+        disabled: busy || task.deleteRestriction !== null,
+        onSelect: () => void deleteTaskFromDiagram(task),
+      },
+    ];
+  }
+
   if (view === null) return null;
   const refusal =
     operation.refusal === null
@@ -305,6 +360,11 @@ export function GanttGuiPanel({
       className="diagram-gui__gantt"
       state={layout}
       source={source}
+      shapeEntries={taskEntries}
+      onPickShape={(hit) => {
+        const task = taskOf(hit);
+        if (task !== undefined) void select(taskSelection(task));
+      }}
       toolbarLabel={gui.addToolbarLabel}
       tabListLabel={gui.listTabsLabel}
       listsLabel={gui.listsSummary}
