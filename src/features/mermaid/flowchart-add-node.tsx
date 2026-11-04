@@ -19,6 +19,7 @@ import {
 import type { FlowchartOperation } from "../../domain/diagram/flowchart/flowchart-operations";
 import type { BlockId, DocumentId } from "../../domain/shared/entity-id";
 import { useMessages } from "../workspace/use-messages";
+import { useAddDialogForm } from "./add-dialog-form";
 import { GuiButton, GuiSelect, GuiTextField } from "./gui-controls";
 import { useGuiFieldDraft } from "./use-gui-field-draft";
 
@@ -75,6 +76,29 @@ export function FlowchartAddNode({
   const leaveUnchanged = async () => true;
   const hasPending = () => labelRef.current !== "" || idRef.current !== "";
 
+  // The operation the fields describe; null while something it needs is missing.
+  function buildOperation(): FlowchartOperation | null {
+    if (labelRef.current.trim() === "") return null;
+    const typedId = idRef.current.trim();
+    return {
+      kind: "addNode",
+      label: labelRef.current,
+      shape: shapeRef.current,
+      ...(typedId === "" ? {} : { id: typedId }),
+    };
+  }
+  // The add dialog previews this operation and clears the fields when it is cancelled.
+  const pendingOperation = buildOperation();
+  const dialog = useAddDialogForm(
+    pendingOperation === null
+      ? null
+      : { diagram: "flowchart", operation: pendingOperation },
+    () => {
+      setLabel("");
+      setId("");
+    },
+  );
+
   async function addPending(explicit: boolean): Promise<OperationResult<void>> {
     if (!explicit && !hasPending()) return operationOk(undefined);
     if (labelRef.current.trim() === "") {
@@ -85,12 +109,11 @@ export function FlowchartAddNode({
       );
     }
     const typedId = idRef.current.trim();
-    const result = await runDraft({
-      kind: "addNode",
-      label: labelRef.current,
-      shape: shapeRef.current,
-      ...(typedId === "" ? {} : { id: typedId }),
-    });
+    const operation = buildOperation();
+    // Unreachable after the checks above; nothing is added without the required fields.
+    if (operation === null) return operationOk(undefined);
+    const result = await runDraft(operation);
+    if (result.ok) dialog.added();
     if (!result.ok) return result;
     setLabel("");
     setId("");

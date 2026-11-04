@@ -335,6 +335,7 @@ export function FlowchartGuiPanel({
     <DiagramGuiLayout
       className="diagram-gui__flowchart"
       state={layout}
+      source={source}
       shapeEntries={nodeEntries}
       onPickShape={(hit) => {
         if (view.nodes.some((node) => node.id === hit.id)) {

@@ -50,20 +50,21 @@ const FLOWCHART = [
 ].join("\n");
 
 async function openGui() {
+  const renderer = createFakeRenderer();
   const rendered = await renderOpenedCanvas(
     (harness: ActionsHarness): void => {
       const blocks = [makeBlockAt(1, 10, 20, "mermaid")];
       seedSheetBlocks(harness, DOCUMENT_A, SHEET_A1, blocks);
       harness.gateway.files.set(blocks[0]?.contentPath ?? "", FLOWCHART);
     },
-    { mermaidRenderer: createFakeRenderer() },
+    { mermaidRenderer: renderer },
   );
   fireEvent.doubleClick(blockOption(0));
   await rendered.shell.user.click(
     screen.getByRole("button", { name: GUI.modeGui }),
   );
   await act(settle);
-  return rendered;
+  return { ...rendered, renderer };
 }
 
 const toolbar = () =>
@@ -211,5 +212,72 @@ describe("the layout of the diagram GUI", () => {
     expect(
       within(settings).getByRole("combobox", { name: TEXT.directionLabel }),
     ).toBeTruthy();
+  });
+
+  it("adds in a dialog that previews the diagram after the add", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const rendered = await openGui();
+    await rendered.shell.user.click(toggle(TEXT.addNodeToggle));
+    const dialog = screen.getByRole("dialog", { name: TEXT.addNodeHeading });
+    expect(within(dialog).getByText(GUI.addPreviewHeading)).toBeTruthy();
+    await rendered.shell.user.type(
+      within(dialog).getByRole("textbox", { name: TEXT.newNodeLabel }),
+      "Pay",
+    );
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await settle();
+    });
+    // The preview draws the text with the new node, before anything is added.
+    expect(
+      rendered.renderer.calls.some((call) => call.source.includes('"Pay"')),
+    ).toBe(true);
+    const blockId = rendered.canvas.blocksOfSheetA1()[0]?.blockId;
+    if (blockId === undefined) throw new Error("the block is expected");
+    expect(rendered.canvas.session.getState().contents.get(blockId)).toBe(
+      FLOWCHART,
+    );
+    await rendered.shell.user.click(
+      within(dialog).getByRole("button", { name: TEXT.addNode }),
+    );
+    await act(settle);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(toggle(TEXT.addNodeToggle));
+    // The editor is still open.
+    expect(
+      screen.getByRole("toolbar", { name: GUI.addToolbarLabel }),
+    ).toBeTruthy();
+    vi.useRealTimers();
+  });
+
+  it("clears the form and closes on Cancel, so Source is not blocked", async () => {
+    const rendered = await openGui();
+    await rendered.shell.user.click(toggle(TEXT.addNodeToggle));
+    const dialog = screen.getByRole("dialog");
+    await rendered.shell.user.type(
+      within(dialog).getByRole("textbox", { name: TEXT.newNodeLabel }),
+      "Half",
+    );
+    await rendered.shell.user.click(
+      within(dialog).getByRole("button", { name: GUI.addCancel }),
+    );
+    await act(settle);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await rendered.shell.user.click(toggle(TEXT.addNodeToggle));
+    expect(
+      (
+        screen.getByRole("textbox", {
+          name: TEXT.newNodeLabel,
+        }) as HTMLTextAreaElement
+      ).value,
+    ).toBe("");
+    await rendered.shell.user.keyboard("{Escape}");
+    await act(settle);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await rendered.shell.user.click(
+      screen.getByRole("button", { name: GUI.modeSource }),
+    );
+    await act(settle);
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });

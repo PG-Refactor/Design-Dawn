@@ -21,6 +21,7 @@ import type { SequenceOperation } from "../../domain/diagram/sequence/sequence-o
 import type { SequenceParticipantView } from "../../domain/diagram/sequence/sequence-view";
 import type { BlockId, DocumentId } from "../../domain/shared/entity-id";
 import { useMessages } from "../workspace/use-messages";
+import { useAddDialogForm } from "./add-dialog-form";
 import { GuiButton, GuiSelect, GuiTextField } from "./gui-controls";
 import { oneLine } from "./sequence-entry-text";
 import { useGuiFieldDraft } from "./use-gui-field-draft";
@@ -92,6 +93,38 @@ export function SequenceAddMessage({
     toRef.current !== NO_PARTICIPANT ||
     messageRef.current !== "";
 
+  // The operation the fields describe; null while something it needs is missing.
+  function buildOperation(): SequenceOperation | null {
+    if (
+      fromRef.current === NO_PARTICIPANT ||
+      toRef.current === NO_PARTICIPANT
+    ) {
+      return null;
+    }
+    const after =
+      positionRef.current === POSITION_AFTER ? afterRef.current : null;
+    return {
+      kind: "addMessage",
+      from: fromRef.current,
+      to: toRef.current,
+      arrow: arrowRef.current,
+      text: messageRef.current,
+      ...(after === null ? {} : { after }),
+    };
+  }
+  // The add dialog previews this operation and clears the fields when it is cancelled.
+  const pendingOperation = buildOperation();
+  const dialog = useAddDialogForm(
+    pendingOperation === null
+      ? null
+      : { diagram: "sequence", operation: pendingOperation },
+    () => {
+      setFrom(NO_PARTICIPANT);
+      setTo(NO_PARTICIPANT);
+      setMessage("");
+    },
+  );
+
   async function addPending(explicit: boolean): Promise<OperationResult<void>> {
     if (!explicit && !hasPending()) return operationOk(undefined);
     if (
@@ -104,16 +137,11 @@ export function SequenceAddMessage({
         "endpointsRequired: the new message needs a sender and a receiver",
       );
     }
-    const after =
-      positionRef.current === POSITION_AFTER ? afterRef.current : null;
-    const result = await runDraft({
-      kind: "addMessage",
-      from: fromRef.current,
-      to: toRef.current,
-      arrow: arrowRef.current,
-      text: messageRef.current,
-      ...(after === null ? {} : { after }),
-    });
+    const operation = buildOperation();
+    // Unreachable after the checks above; nothing is added without the required fields.
+    if (operation === null) return operationOk(undefined);
+    const result = await runDraft(operation);
+    if (result.ok) dialog.added();
     if (!result.ok) return result;
     setFrom(NO_PARTICIPANT);
     setTo(NO_PARTICIPANT);

@@ -1,0 +1,74 @@
+/* The add dialog of the diagram GUI: centred over the page with a dimmed background, the
+   form on the left and the preview of the diagram after the add on the right (below on
+   a narrow window). */
+.diagram-add-dialog__layer {
+  position: fixed;
+  z-index: 90;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  /* The same veil as the other dialogs. */
+  background: color-mix(in srgb, var(--color-background) 70%, transparent);
+}
+
+.diagram-add-dialog__layer[hidden] {
+  display: none;
+}
+
+.diagram-add-dialog {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  box-sizing: border-box;
+  width: min(60rem, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-raised);
+  color: var(--color-text);
+}
+
+.diagram-add-dialog__form {
+  display: flex;
+  flex: 1 1 18rem;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.diagram-add-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+}
+
+.diagram-add-dialog__preview {
+  display: flex;
+  flex: 2 1 22rem;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+}
+
+.diagram-add-dialog__preview-heading {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.diagram-add-dialog__preview-image {
+  height: 20rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  background: var(--color-canvas-background);
+}
+
+.diagram-add-dialog__preview-note {
+  margin: 0;
+  color: var(--color-warning);
+}

@@ -208,6 +208,7 @@ export function PieGuiPanel({
     <DiagramGuiLayout
       className="diagram-gui__pie"
       state={layout}
+      source={source}
       toolbarLabel={gui.addToolbarLabel}
       tabListLabel={gui.listTabsLabel}
       listsLabel={gui.listsSummary}

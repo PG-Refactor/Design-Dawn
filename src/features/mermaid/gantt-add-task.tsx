@@ -19,6 +19,7 @@ import type { GanttOperation } from "../../domain/diagram/gantt/gantt-operations
 import type { GanttSectionView } from "../../domain/diagram/gantt/gantt-view";
 import type { BlockId, DocumentId } from "../../domain/shared/entity-id";
 import { useMessages } from "../workspace/use-messages";
+import { useAddDialogForm } from "./add-dialog-form";
 import { GuiButton, GuiSelect, GuiTextField } from "./gui-controls";
 import { useGuiFieldDraft } from "./use-gui-field-draft";
 
@@ -83,6 +84,42 @@ export function GanttAddTask({
     startRef.current !== "" ||
     endRef.current !== "";
 
+  // The operation the fields describe; null while something it needs is missing.
+  function buildOperation(): GanttOperation | null {
+    if (
+      nameRef.current.trim() === "" ||
+      startRef.current.trim() === "" ||
+      endRef.current.trim() === ""
+    ) {
+      return null;
+    }
+    const typedId = idRef.current.trim();
+    const sectionIndex = sections.findIndex(
+      (candidate) => String(candidate.target.index) === sectionRef.current,
+    );
+    return {
+      kind: "addTask",
+      name: nameRef.current,
+      start: ganttStartInputOf(startRef.current),
+      end: ganttEndInputOf(endRef.current),
+      ...(typedId === "" ? {} : { id: typedId }),
+      ...(sectionIndex < 0 ? {} : { sectionIndex }),
+    };
+  }
+  // The add dialog previews this operation and clears the fields when it is cancelled.
+  const pendingOperation = buildOperation();
+  const dialog = useAddDialogForm(
+    pendingOperation === null
+      ? null
+      : { diagram: "gantt", operation: pendingOperation },
+    () => {
+      setName("");
+      setId("");
+      setStart("");
+      setEnd("");
+    },
+  );
+
   async function addPending(explicit: boolean): Promise<OperationResult<void>> {
     if (!explicit && !hasPending()) return operationOk(undefined);
     const missing =
@@ -100,18 +137,11 @@ export function GanttAddTask({
         `${missing.code}: the new task needs a name, a start and an end`,
       );
     }
-    const typedId = idRef.current.trim();
-    const sectionIndex = sections.findIndex(
-      (candidate) => String(candidate.target.index) === sectionRef.current,
-    );
-    const result = await runDraft({
-      kind: "addTask",
-      name: nameRef.current,
-      start: ganttStartInputOf(startRef.current),
-      end: ganttEndInputOf(endRef.current),
-      ...(typedId === "" ? {} : { id: typedId }),
-      ...(sectionIndex < 0 ? {} : { sectionIndex }),
-    });
+    const operation = buildOperation();
+    // Unreachable after the checks above; nothing is added without the required fields.
+    if (operation === null) return operationOk(undefined);
+    const result = await runDraft(operation);
+    if (result.ok) dialog.added();
     if (!result.ok) return result;
     setName("");
     setId("");

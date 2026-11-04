@@ -304,6 +304,7 @@ export function GanttGuiPanel({
     <DiagramGuiLayout
       className="diagram-gui__gantt"
       state={layout}
+      source={source}
       toolbarLabel={gui.addToolbarLabel}
       tabListLabel={gui.listTabsLabel}
       listsLabel={gui.listsSummary}

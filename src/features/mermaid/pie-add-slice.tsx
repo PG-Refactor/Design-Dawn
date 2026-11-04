@@ -14,6 +14,7 @@ import {
 import type { PieOperation } from "../../domain/diagram/pie/pie-operations";
 import type { BlockId, DocumentId } from "../../domain/shared/entity-id";
 import { useMessages } from "../workspace/use-messages";
+import { useAddDialogForm } from "./add-dialog-form";
 import { GuiButton, GuiTextField } from "./gui-controls";
 import { useGuiFieldDraft } from "./use-gui-field-draft";
 
@@ -69,6 +70,27 @@ export function PieAddSlice({
 
   // `explicit`: the user pressed Enter / the button, so an empty form is a mistake to
   // report; for save-all and closing an empty form is simply nothing pending.
+  // The operation the fields describe; null while something it needs is missing.
+  function buildOperation(): PieOperation | null {
+    if (labelRef.current.trim() === "") return null;
+    return {
+      kind: "addSlice",
+      label: labelRef.current,
+      valueText: valueRef.current,
+    };
+  }
+  // The add dialog previews this operation and clears the fields when it is cancelled.
+  const pendingOperation = buildOperation();
+  const dialog = useAddDialogForm(
+    pendingOperation === null
+      ? null
+      : { diagram: "pie", operation: pendingOperation },
+    () => {
+      setLabel("");
+      setValue("");
+    },
+  );
+
   async function addPending(explicit: boolean): Promise<OperationResult<void>> {
     if (!explicit && !hasPending()) return operationOk(undefined);
     if (labelRef.current.trim() === "") {
@@ -78,11 +100,11 @@ export function PieAddSlice({
         "labelRequired: the new slice has no label",
       );
     }
-    const result = await runDraft({
-      kind: "addSlice",
-      label: labelRef.current,
-      valueText: valueRef.current,
-    });
+    const operation = buildOperation();
+    // Unreachable after the checks above; nothing is added without the required fields.
+    if (operation === null) return operationOk(undefined);
+    const result = await runDraft(operation);
+    if (result.ok) dialog.added();
     if (!result.ok) return result;
     setLabel("");
     setValue("");

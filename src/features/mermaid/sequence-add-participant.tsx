@@ -17,6 +17,7 @@ import {
 import type { SequenceOperation } from "../../domain/diagram/sequence/sequence-operations";
 import type { BlockId, DocumentId } from "../../domain/shared/entity-id";
 import { useMessages } from "../workspace/use-messages";
+import { useAddDialogForm } from "./add-dialog-form";
 import { GuiButton, GuiSelect, GuiTextField } from "./gui-controls";
 import { useGuiFieldDraft } from "./use-gui-field-draft";
 
@@ -69,15 +70,37 @@ export function SequenceAddParticipant({
   const leaveUnchanged = async () => true;
   const hasPending = () => labelRef.current !== "" || idRef.current !== "";
 
-  async function addPending(explicit: boolean): Promise<OperationResult<void>> {
-    if (!explicit && !hasPending()) return operationOk(undefined);
+  // The operation the fields describe; null while something it needs is missing.
+  function buildOperation(): SequenceOperation | null {
+    if (!hasPending()) return null;
     const typedId = idRef.current.trim();
-    const result = await runDraft({
+    return {
       kind: "addParticipant",
       participantKind: kindRef.current,
       label: labelRef.current,
       ...(typedId === "" ? {} : { id: typedId }),
-    });
+    };
+  }
+  // The add dialog previews this operation and clears the fields when it is cancelled.
+  const pendingOperation = buildOperation();
+  const dialog = useAddDialogForm(
+    pendingOperation === null
+      ? null
+      : { diagram: "sequence", operation: pendingOperation },
+    () => {
+      setLabel("");
+      setId("");
+    },
+  );
+
+  async function addPending(explicit: boolean): Promise<OperationResult<void>> {
+    if (!explicit && !hasPending()) return operationOk(undefined);
+    const typedId = idRef.current.trim();
+    const operation = buildOperation();
+    // Unreachable after the checks above; nothing is added without the required fields.
+    if (operation === null) return operationOk(undefined);
+    const result = await runDraft(operation);
+    if (result.ok) dialog.added();
     if (!result.ok) return result;
     setLabel("");
     setId("");
