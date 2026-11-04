@@ -78,6 +78,8 @@ export const GATEWAY_METHOD_KINDS = {
   writeBlockContent: "write",
   deleteBlockContent: "write",
   restoreBlockContent: "write",
+  // Only records the chosen files (like a drop); the import writes.
+  selectImageFiles: "read",
   importDroppedImages: "write",
   copyAssetToDocument: "write",
 } as const satisfies Record<keyof PersistenceGateway, "write" | "read">;

@@ -4,6 +4,7 @@ import {
   type Ref,
   useEffect,
   useRef,
+  useState,
 } from "react";
 
 export interface PopupMenuItem {
@@ -23,7 +24,18 @@ export interface PopupMenuSeparator {
   readonly separator: true;
 }
 
-export type PopupMenuEntry = PopupMenuItem | PopupMenuSeparator;
+// An item that opens a nested menu beside it (a group of rarely needed items kept out of
+// the way, such as the templates).
+export interface PopupMenuSubmenu {
+  readonly id: string;
+  readonly label: string;
+  readonly entries: readonly PopupMenuEntry[];
+}
+
+export type PopupMenuEntry =
+  | PopupMenuItem
+  | PopupMenuSeparator
+  | PopupMenuSubmenu;
 
 export function isSeparator(
   entry: PopupMenuEntry,
@@ -31,13 +43,23 @@ export function isSeparator(
   return "separator" in entry;
 }
 
+export function isSubmenu(entry: PopupMenuEntry): entry is PopupMenuSubmenu {
+  return "entries" in entry;
+}
+
 const KEYS = {
   escape: "Escape",
   arrowDown: "ArrowDown",
   arrowUp: "ArrowUp",
+  arrowRight: "ArrowRight",
+  arrowLeft: "ArrowLeft",
   home: "Home",
   end: "End",
 } as const;
+
+// The items of this list only, not those of a nested menu inside it.
+const OWN_ITEMS =
+  ':scope > [role="menuitem"], :scope > .popup-menu__submenu > [role="menuitem"]';
 
 export interface MenuListProps {
   readonly label: string;
@@ -49,11 +71,14 @@ export interface MenuListProps {
   readonly className?: string;
   readonly style?: CSSProperties;
   readonly listRef?: Ref<HTMLDivElement>;
+  // A nested menu: ArrowLeft goes back to the item that opened it, like Escape.
+  readonly nested?: boolean;
 }
 
 // The open list of a menu (WAI-ARIA menu pattern), shared by the menu button and the
 // context menu: the first item gets focus when it appears; arrow keys and Home / End move
-// (wrapping), Enter / click chooses, Escape dismisses.
+// (wrapping), Enter / click chooses, Escape dismisses. A submenu item opens its menu beside
+// it on click, ArrowRight or hover; Escape or ArrowLeft there goes back to the item.
 export function MenuList({
   label,
   entries,
@@ -62,13 +87,15 @@ export function MenuList({
   className,
   style,
   listRef,
+  nested = false,
 }: MenuListProps) {
   const ownRef = useRef<HTMLDivElement | null>(null);
+  const [openSubmenuId, setOpenSubmenuId] = useState<string | null>(null);
+  const submenuItemRefs = useRef(new Map<string, HTMLButtonElement>());
 
   function itemElements(): HTMLElement[] {
     return [
-      ...(ownRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ??
-        []),
+      ...(ownRef.current?.querySelectorAll<HTMLElement>(OWN_ITEMS) ?? []),
     ];
   }
 
@@ -78,35 +105,50 @@ export function MenuList({
   }
 
   useEffect(() => {
-    ownRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    ownRef.current?.querySelector<HTMLElement>(OWN_ITEMS)?.focus();
   }, []);
 
+  function closeSubmenu(id: string): void {
+    setOpenSubmenuId(null);
+    submenuItemRefs.current.get(id)?.focus();
+  }
+
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
-    const current = itemElements().indexOf(
-      document.activeElement as HTMLElement,
-    );
+    const own = itemElements();
+    const current = own.indexOf(document.activeElement as HTMLElement);
+    // Keys pressed inside an open submenu are its own (it handles them and stops them).
+    if (current === -1 && openSubmenuId !== null) return;
+    const handled = (): void => {
+      event.preventDefault();
+      // The menu may sit inside something that also uses these keys (a dialog, an outer
+      // menu).
+      event.stopPropagation();
+    };
     switch (event.key) {
       case KEYS.escape:
-        event.preventDefault();
-        // The menu may sit inside something that also closes on Escape (a dialog).
-        event.stopPropagation();
+        handled();
+        onDismiss();
+        return;
+      case KEYS.arrowLeft:
+        if (!nested) return;
+        handled();
         onDismiss();
         return;
       case KEYS.arrowDown:
-        event.preventDefault();
+        handled();
         focusItem(current + 1);
         return;
       case KEYS.arrowUp:
-        event.preventDefault();
+        handled();
         focusItem(current - 1);
         return;
       case KEYS.home:
-        event.preventDefault();
+        handled();
         focusItem(0);
         return;
       case KEYS.end:
-        event.preventDefault();
-        focusItem(itemElements().length - 1);
+        handled();
+        focusItem(own.length - 1);
         return;
     }
   }
@@ -124,10 +166,54 @@ export function MenuList({
       style={style}
       onKeyDown={onKeyDown}
     >
-      {entries.map((entry) =>
-        isSeparator(entry) ? (
-          <hr key={entry.id} className="popup-menu__separator" />
-        ) : (
+      {entries.map((entry) => {
+        if (isSeparator(entry)) {
+          return <hr key={entry.id} className="popup-menu__separator" />;
+        }
+        if (isSubmenu(entry)) {
+          const open = openSubmenuId === entry.id;
+          return (
+            <div key={entry.id} className="popup-menu__submenu">
+              <button
+                ref={(element) => {
+                  if (element === null)
+                    submenuItemRefs.current.delete(entry.id);
+                  else submenuItemRefs.current.set(entry.id, element);
+                }}
+                type="button"
+                role="menuitem"
+                className="popup-menu__item popup-menu__item--submenu"
+                aria-haspopup="menu"
+                aria-expanded={open}
+                // Opens, never toggles: the pointer reaching the item already opened it.
+                onClick={() => setOpenSubmenuId(entry.id)}
+                onPointerEnter={() => setOpenSubmenuId(entry.id)}
+                onKeyDown={(event) => {
+                  if (event.key !== KEYS.arrowRight) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setOpenSubmenuId(entry.id);
+                }}
+              >
+                <span>{entry.label}</span>
+                <span aria-hidden="true" className="popup-menu__submenu-marker">
+                  ▸
+                </span>
+              </button>
+              {open && (
+                <MenuList
+                  label={entry.label}
+                  entries={entry.entries}
+                  onDismiss={() => closeSubmenu(entry.id)}
+                  onChoose={onChoose}
+                  className="popup-menu__list--nested"
+                  nested
+                />
+              )}
+            </div>
+          );
+        }
+        return (
           <button
             key={entry.id}
             type="button"
@@ -136,6 +222,8 @@ export function MenuList({
             aria-disabled={entry.disabled === true ? true : undefined}
             aria-description={entry.hint}
             title={entry.hint}
+            // Moving to another item closes an open submenu, like a desktop menu.
+            onPointerEnter={() => setOpenSubmenuId(null)}
             onClick={() => {
               if (entry.disabled === true) return;
               onChoose(entry);
@@ -143,8 +231,8 @@ export function MenuList({
           >
             {entry.label}
           </button>
-        ),
-      )}
+        );
+      })}
     </div>
   );
 }

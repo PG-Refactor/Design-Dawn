@@ -3,8 +3,16 @@
 
 import type { ContentPath } from "../../domain/block/content-path";
 import type { DocumentId, ProjectId } from "../../domain/shared/entity-id";
-import { toCopiedAsset, toDropImportResult } from "./asset-payloads";
-import type { CopiedAsset, DropImportResult } from "./asset-types";
+import {
+  toCopiedAsset,
+  toDropImportResult,
+  toImageSelection,
+} from "./asset-payloads";
+import type {
+  CopiedAsset,
+  DropImportResult,
+  ImageSelection,
+} from "./asset-types";
 import { COMMANDS } from "./command-constants";
 import type { CommandResult } from "./command-error";
 import { call } from "./invoke-command";
@@ -37,4 +45,10 @@ export function copyAssetToDocument(
     { projectId, sourceDocumentId, contentPath, targetDocumentId },
     toCopiedAsset,
   );
+}
+
+// Opens the OS dialog for image files (in Rust). The chosen files become this window's
+// latest drop: they are imported with `importDroppedImages(dropId, ...)`.
+export function selectImageFiles(): Promise<CommandResult<ImageSelection>> {
+  return call(COMMANDS.selectImageFiles, {}, toImageSelection);
 }

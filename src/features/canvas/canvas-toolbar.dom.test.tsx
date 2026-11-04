@@ -51,41 +51,88 @@ describe("+ Block menu", () => {
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
-  it("opens a menu of the creatable types and the Mermaid templates, focusing the first item", async () => {
+  it("opens a menu of the creatable types, the templates and images, focusing the first item", async () => {
     const { shell } = await renderOpenedCanvas();
     await shell.user.click(addButton());
     expect(addButton().getAttribute("aria-expanded")).toBe("true");
     const menu = screen.getByRole("menu", { name: "追加するBlockの種類" });
-    const items = within(screen.getByRole("menu")).getAllByRole("menuitem");
+    const items = within(menu).getAllByRole("menuitem");
+    // The templates stay in their submenu until it is opened.
     expect(items.map((item) => item.textContent)).toEqual([
       "Markdown",
       "Mermaid",
-      "Mermaid: シーケンス図",
-      "Mermaid: ガントチャート",
-      "Mermaid: 円グラフ",
-      "Mermaid: クラス図",
-      "Mermaid: 状態遷移図",
-      "Mermaid: ER図",
+      "Mermaidテンプレート▸",
+      "画像…",
     ]);
-    expect(menu.contains(items[0] ?? null)).toBe(true);
     await act(settle);
     expect(document.activeElement).toBe(items[0]);
   });
 
-  it("creates a Mermaid block from a template, with the template's text", async () => {
+  it("creates a Mermaid block from a template in the submenu, with the template's text", async () => {
     const { shell, canvas } = await renderOpenedCanvas();
     await shell.user.click(addButton());
     await shell.user.click(
-      within(screen.getByRole("menu")).getByRole("menuitem", {
-        name: "Mermaid: シーケンス図",
-      }),
+      screen.getByRole("menuitem", { name: /Mermaidテンプレート/ }),
+    );
+    const templates = screen.getByRole("menu", { name: "Mermaidテンプレート" });
+    expect(
+      within(templates)
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent),
+    ).toEqual([
+      "シーケンス図",
+      "ガントチャート",
+      "円グラフ",
+      "クラス図",
+      "状態遷移図",
+      "ER図",
+    ]);
+    await shell.user.click(
+      within(templates).getByRole("menuitem", { name: "シーケンス図" }),
     );
     await act(settle);
+    expect(screen.queryByRole("menu")).toBeNull();
     const created = canvas.blocksOfSheetA1().at(-1);
     expect(created?.blockType).toBe("mermaid");
     expect(
       canvas.session.getState().contents.get(created?.blockId ?? blockIdOf(0)),
     ).toBe(MERMAID_TEMPLATES.sequence);
+  });
+
+  it("opens the template submenu with ArrowRight and goes back with ArrowLeft", async () => {
+    const { shell } = await renderOpenedCanvas();
+    await shell.user.click(addButton());
+    await act(settle);
+    await shell.user.keyboard("{ArrowDown}{ArrowDown}");
+    const opener = screen.getByRole("menuitem", {
+      name: /Mermaidテンプレート/,
+    });
+    expect(document.activeElement).toBe(opener);
+    await shell.user.keyboard("{ArrowRight}");
+    await act(settle);
+    expect(document.activeElement?.textContent).toBe("シーケンス図");
+    // Inside the submenu the arrows move through its own items only.
+    await shell.user.keyboard("{ArrowDown}");
+    expect(document.activeElement?.textContent).toBe("ガントチャート");
+    await shell.user.keyboard("{ArrowLeft}");
+    expect(
+      screen.queryByRole("menu", { name: "Mermaidテンプレート" }),
+    ).toBeNull();
+    expect(document.activeElement).toBe(opener);
+    // The outer menu is still open.
+    expect(
+      screen.getByRole("menu", { name: "追加するBlockの種類" }),
+    ).toBeTruthy();
+  });
+
+  it("opens the image dialog from the menu", async () => {
+    const { shell } = await renderOpenedCanvas();
+    await shell.user.click(addButton());
+    await shell.user.click(screen.getByRole("menuitem", { name: "画像…" }));
+    await act(settle);
+    expect(shell.gateway.methods("selectImageFiles")).toEqual([
+      "selectImageFiles",
+    ]);
   });
 
   it("closes with Escape and returns focus to the button", async () => {

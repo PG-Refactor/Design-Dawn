@@ -34,3 +34,18 @@ export interface CopiedAsset {
   readonly naturalWidth: number;
   readonly naturalHeight: number;
 }
+
+// The image file dialog (Rust): the chosen files are recorded like a drop, so they are
+// imported with `importDroppedImages(dropId, ...)`. Cancelling is an ok result.
+export const IMAGE_SELECTION_STATUS = {
+  selected: "selected",
+  cancelled: "cancelled",
+} as const;
+
+export type ImageSelection =
+  | {
+      readonly status: typeof IMAGE_SELECTION_STATUS.selected;
+      readonly dropId: string;
+      readonly fileCount: number;
+    }
+  | { readonly status: typeof IMAGE_SELECTION_STATUS.cancelled };

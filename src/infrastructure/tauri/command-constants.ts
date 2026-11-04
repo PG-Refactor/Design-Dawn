@@ -34,6 +34,7 @@ export const COMMANDS = {
   getSheetViewport: "get_sheet_viewport",
   saveSheetViewport: "save_sheet_viewport",
   importDroppedImages: "import_dropped_images",
+  selectImageFiles: "select_image_files",
   copyAssetToDocument: "copy_asset_to_document",
   subscribeDropNotifications: "subscribe_drop_notifications",
   subscribeCloseRequests: "subscribe_close_requests",

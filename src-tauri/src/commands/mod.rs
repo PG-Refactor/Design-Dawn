@@ -40,6 +40,9 @@ use crate::application::git_discard;
 use crate::application::git_history;
 use crate::application::git_operations::{self, GitStatusResult};
 use crate::application::git_remote;
+use crate::application::image_selection::{
+    select_image_files as select_images, ImagePicker, ImageSelection,
+};
 use crate::application::load_issue_repair::{self, RepairAction, RepairIssueRef, RepairOutcome};
 use crate::application::local_state::operations::{AppSettings, LocalState, SheetViewportResult};
 use crate::application::open_request::{self, OpenRequest, OpenedRequest, PendingOpenRequests};
@@ -62,8 +65,9 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 65] = [
+pub const COMMAND_NAMES: [&str; 66] = [
     "select_project_folder",
+    "select_image_files",
     "create_project",
     "open_project",
     "reload_project",
@@ -134,7 +138,7 @@ pub use app_channel::{AppNotification, AppNotificationSink, AppRequestHub, AppRe
 pub use asset_protocol::{respond_to_asset_request, ASSET_URL_SCHEME};
 pub use drag_drop::{DropNotification, DropSubscriber};
 pub use external_watch::install_external_change_watching;
-pub use folder_picker::DialogFolderPicker;
+pub use folder_picker::{DialogFolderPicker, DialogImagePicker};
 pub use open_dispatch::{
     dispatch_in_background, hand_over_document, handle_second_launch, placement_following,
     reroute_transfers, reroute_unacknowledged, route_external_request, route_open_request,
@@ -266,6 +270,9 @@ fn settle_open<R: Runtime, T>(
 /// The folder dialog as managed state. Production registers the real dialog-backed picker;
 /// integration tests register a fake, so the command itself runs unchanged in both.
 pub type SharedFolderPicker = Arc<dyn FolderPicker>;
+
+/// The image file dialog as managed state, like `SharedFolderPicker`.
+pub type SharedImagePicker = Arc<dyn ImagePicker>;
 
 type SessionState<'a> = State<'a, Mutex<ProjectSessions>>;
 type FolderSelectionStateHandle<'a> = State<'a, Mutex<FolderSelectionState>>;
@@ -424,6 +431,34 @@ pub async fn select_project_folder<R: Runtime>(
         ApplicationError::new(
             ErrorKind::DialogFailed,
             format!("folder dialog task failed: {error}"),
+        )
+    })?
+}
+
+/// Opens the image file dialog; the chosen files become the window's latest drop, imported
+/// with `import_dropped_images`. Runs on the blocking pool like the folder dialog.
+#[tauri::command]
+pub async fn select_image_files<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+) -> Result<ImageSelection, ApplicationError> {
+    let window_label = window.label().to_owned();
+    tauri::async_runtime::spawn_blocking(move || {
+        let picker = app.try_state::<SharedImagePicker>().ok_or_else(|| {
+            ApplicationError::new(ErrorKind::DialogFailed, "no image picker is registered")
+        })?;
+        let drops = app.state::<Mutex<DroppedFilesState>>();
+        log_failure(select_images(
+            picker.inner().as_ref(),
+            &drops,
+            &window_label,
+        ))
+    })
+    .await
+    .map_err(|error| {
+        ApplicationError::new(
+            ErrorKind::DialogFailed,
+            format!("image dialog task failed: {error}"),
         )
     })?
 }

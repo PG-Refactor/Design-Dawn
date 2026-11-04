@@ -18,7 +18,7 @@ const MERMAID_MESSAGES_JA = {
   previewLabel: (shortId: string): string => `Mermaidプレビュー（${shortId}）`,
   sourceLabel: (shortId: string): string => `Mermaidソース（${shortId}）`,
   editorLabel: (shortId: string): string => `Mermaid編集（${shortId}）`,
-  // Names of the templates in the add menus ("Mermaid: <name>").
+  // Names of the templates in the add menus.
   templates: {
     sequence: "シーケンス図",
     gantt: "ガントチャート",
@@ -27,7 +27,6 @@ const MERMAID_MESSAGES_JA = {
     state: "状態遷移図",
     er: "ER図",
   },
-  templateItem: (name: string): string => `Mermaid: ${name}`,
   gui: {
     modeGroup: "編集モード",
     modeGui: "GUI",
@@ -703,7 +702,6 @@ const MERMAID_MESSAGES_EN: MermaidMessages = {
     state: "State Diagram",
     er: "ER Diagram",
   },
-  templateItem: (name) => `Mermaid: ${name}`,
   gui: {
     modeGroup: "Editor mode",
     modeGui: "GUI",

@@ -99,7 +99,14 @@ export function CanvasToolbar({
       aria-label={messages.toolbar.label}
       className="canvas-toolbar"
     >
-      <BlockCreateMenu onCreate={createBlock} />
+      <BlockCreateMenu
+        onCreate={createBlock}
+        onAddImage={() =>
+          void canvasActions.addImagesFromFiles({
+            viewportSize: measureCanvas(),
+          })
+        }
+      />
       <PopupMenu
         className="align-menu"
         triggerLabel={messages.align.menuButton}

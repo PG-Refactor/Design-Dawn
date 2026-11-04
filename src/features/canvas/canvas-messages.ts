@@ -13,6 +13,8 @@ const CANVAS_MESSAGES_JA = {
     label: "Canvasツールバー",
     addBlock: "+ Block",
     blockTypeMenuLabel: "追加するBlockの種類",
+    image: "画像…",
+    templates: "Mermaidテンプレート",
   },
   reorder: {
     menuButton: "重なり順",
@@ -43,6 +45,9 @@ const CANVAS_MESSAGES_JA = {
     duplicate: "複製",
     delete: "削除",
     editCaption: "キャプションを編集…",
+    addImage: "画像を追加…",
+    // The submenu that holds the Mermaid templates.
+    templates: "Mermaidテンプレートから追加",
   },
   caption: {
     dialogTitle: "キャプション",
@@ -64,6 +69,8 @@ const CANVAS_MESSAGES_EN: CanvasMessages = {
     label: "Canvas toolbar",
     addBlock: "+ Block",
     blockTypeMenuLabel: "Block type to add",
+    image: "Image…",
+    templates: "Mermaid Template",
   },
   reorder: {
     menuButton: "Arrange",
@@ -94,6 +101,8 @@ const CANVAS_MESSAGES_EN: CanvasMessages = {
     duplicate: "Duplicate",
     delete: "Delete",
     editCaption: "Edit Caption…",
+    addImage: "Add Image…",
+    templates: "Add from Mermaid Template",
   },
   caption: {
     dialogTitle: "Caption",

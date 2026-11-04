@@ -53,7 +53,7 @@ async function choose(rendered: RenderedCanvas, name: string): Promise<void> {
   await act(settle);
 }
 
-const itemNamed = (name: string) =>
+const itemNamed = (name: string | RegExp) =>
   within(screen.getByRole("menu")).getByRole("menuitem", { name });
 
 describe("the right-click menu of a block", () => {
@@ -139,10 +139,54 @@ describe("the right-click menu of the empty canvas", () => {
     ).toEqual([
       LABELS.addBlock("Markdown"),
       LABELS.addBlock("Mermaid"),
-      ...MERMAID_TEMPLATE_IDS.map((template) =>
-        LABELS.addBlock(`Mermaid: ${MERMAID_MESSAGES.ja.templates[template]}`),
-      ),
+      `${LABELS.templates}▸`,
+      LABELS.addImage,
       LABELS.paste,
     ]);
+  });
+
+  it("keeps the templates in a submenu that opens on hover", async () => {
+    const rendered = await renderOpenedCanvas();
+    rightClick(canvasElement(), 900, 700);
+    fireEvent.pointerEnter(itemNamed(new RegExp(LABELS.templates)));
+    const templates = screen.getByRole("menu", { name: LABELS.templates });
+    expect(
+      within(templates)
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent),
+    ).toEqual(
+      MERMAID_TEMPLATE_IDS.map(
+        (template) => MERMAID_MESSAGES.ja.templates[template],
+      ),
+    );
+    await rendered.shell.user.click(
+      within(templates).getByRole("menuitem", {
+        name: MERMAID_MESSAGES.ja.templates.pie,
+      }),
+    );
+    await act(settle);
+    const added = rendered.canvas.blocksOfSheetA1().at(-1);
+    expect(added?.blockType).toBe("mermaid");
+    expect(added?.position).toEqual({ x: 900, y: 700 });
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("adds images chosen in the dialog where the menu was opened", async () => {
+    const rendered = await renderOpenedCanvas();
+    rendered.shell.gateway.scriptDrop("chosen", [
+      {
+        fileName: "photo.png",
+        naturalWidth: 200,
+        naturalHeight: 100,
+        initialWidth: 200,
+        initialHeight: 100,
+      },
+    ]);
+    rendered.shell.gateway.scriptImageSelection("chosen");
+    rightClick(canvasElement(), 480, 240);
+    await choose(rendered, LABELS.addImage);
+    const added = rendered.canvas.blocksOfSheetA1().at(-1);
+    expect(added?.blockType).toBe("image");
+    expect(added?.position).toEqual({ x: 480, y: 240 });
   });
 });

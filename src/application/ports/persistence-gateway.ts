@@ -12,7 +12,11 @@ import type {
   SheetId,
 } from "../../domain/shared/entity-id";
 import type { Sheet } from "../../domain/sheet/sheet";
-import type { CopiedAsset, DropImportResult } from "./asset-types";
+import type {
+  CopiedAsset,
+  DropImportResult,
+  ImageSelection,
+} from "./asset-types";
 import type { OperationResult } from "./operation-error";
 import type {
   BlockContentComparison,
@@ -197,6 +201,9 @@ export interface PersistenceGateway {
     contentPath: ContentPath,
     text: string,
   ): Promise<OperationResult<void>>;
+  // The OS dialog for image files runs in Rust; the chosen files become this window's
+  // latest drop, imported with `importDroppedImages`. Cancelling is an ok result.
+  selectImageFiles(): Promise<OperationResult<ImageSelection>>;
   // Imports the files of the latest drop into the Document's assets. The dropped paths
   // stay in Rust; `dropId` is the only handle. Rejected files are part of the ok result;
   // an unknown or replaced `dropId` is `invalidDropSelection`.
