@@ -338,3 +338,24 @@ describe("sequence blocks and Gantt section rows", () => {
     expect(shapeAt(diagram, { x: 110, y: 10 }, shown)?.kind).toBe("task");
   });
 });
+
+describe("an empty subgraph", () => {
+  it("is found around its title, though its frame has no height", () => {
+    // Mermaid's output: the frame at y = 20 from x -12 to 36, the title on it.
+    const diagram =
+      readDiagramShapes(`<svg xmlns="http://www.w3.org/2000/svg" id="dawn-mermaid-1" viewBox="-20 0 100 100">
+      <g class="clusters"><g class="cluster" id="dawn-mermaid-1-empty1">
+        <rect x="-12" y="20" width="48" height="0"/>
+        <g class="cluster-label" transform="translate(-8, 20)"><text y="-10.1">Empty</text></g>
+      </g></g>
+    </svg>`);
+    if (diagram === null) throw new Error("not read");
+    const shown = { width: 100, height: 100 };
+    // (0, 20) on screen is (-20 + 0, 20) in the drawing: left of the frame.
+    expect(shapeAt(diagram, { x: 10, y: 22 }, shown)).toEqual({
+      kind: "subgraph",
+      id: "empty1",
+    });
+    expect(shapeAt(diagram, { x: 10, y: 60 }, shown)).toBeNull();
+  });
+});

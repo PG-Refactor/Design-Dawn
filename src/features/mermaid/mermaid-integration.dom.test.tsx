@@ -214,7 +214,17 @@ describe("consecutive edits and the history", () => {
     text: string,
   ): Promise<void> {
     fireEvent.doubleClick(blockOption(MERMAID_OPTION));
-    const box = screen.getByRole("textbox", {
+    // A diagram the GUI can edit opens in the GUI; this edits the Source.
+    if (
+      screen.queryByRole("textbox", {
+        name: MESSAGES.sourceLabel("00000001"),
+      }) === null
+    ) {
+      fireEvent.click(
+        screen.getByRole("button", { name: MESSAGES.gui.modeSource }),
+      );
+    }
+    const box = await screen.findByRole("textbox", {
       name: MESSAGES.sourceLabel("00000001"),
     });
     await rendered.shell.user.clear(box);

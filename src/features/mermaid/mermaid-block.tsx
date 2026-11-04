@@ -1,5 +1,9 @@
 import { useMemo } from "react";
-import { MERMAID_EDITOR_INITIAL_VIEW } from "../../config/mermaid-gui-config";
+import {
+  MERMAID_EDITOR_FALLBACK_VIEW,
+  MERMAID_EDITOR_INITIAL_VIEW,
+} from "../../config/mermaid-gui-config";
+import { analyzeDiagramSource } from "../../domain/diagram/diagram-source";
 import type { BlockRendererProps } from "../canvas/block-renderer";
 import { shortBlockId } from "../canvas/canvas-messages";
 import { TextBlockEditor } from "../text-block/text-block-editor";
@@ -28,6 +32,14 @@ export function MermaidBlock({
     documentId,
     sheetId,
     blockId,
+  );
+  // Read when the editor opens: the GUI for a diagram it can edit, Source otherwise.
+  const initialView = useMemo(
+    () =>
+      text !== undefined && analyzeDiagramSource(text).editability.editable
+        ? MERMAID_EDITOR_INITIAL_VIEW
+        : MERMAID_EDITOR_FALLBACK_VIEW,
+    [text],
   );
 
   if (status?.status !== "loaded" || text === undefined) {
@@ -62,7 +74,7 @@ export function MermaidBlock({
               gui: messages.gui.modeGui,
               source: messages.gui.modeSource,
             },
-            initialView: MERMAID_EDITOR_INITIAL_VIEW,
+            initialView,
             committedText: text,
             render: ({ committedText, showSource, leaveRef }) => (
               <DiagramGuiPanel
