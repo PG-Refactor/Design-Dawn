@@ -227,18 +227,12 @@ export function FlowchartGuiPanel({
     setSelection(null);
   }
 
-  // ---- the diagram picture: right-click and click on a node ----
+  // ---- the diagram picture: right-click and click on a node, an edge or a subgraph ----
 
   const [edgeStartPreset, setEdgeStartPreset] = useState<{
     readonly nodeId: string;
     readonly serial: number;
   } | null>(null);
-
-  async function editNodeFromDiagram(nodeId: string): Promise<void> {
-    await select({ kind: "node", id: nodeId });
-    // The editor appears with the selection; its label field takes the focus then.
-    requestAnimationFrame(() => editorLabelRef.current?.focus());
-  }
 
   async function deleteNodeFromDiagram(nodeId: string): Promise<void> {
     const outcome = await run({ kind: "deleteNode", nodeId });
@@ -249,20 +243,69 @@ export function FlowchartGuiPanel({
     }
   }
 
-  function nodeEntries(hit: DiagramHit): readonly PopupMenuEntry[] {
-    if (view?.nodes.some((node) => node.id === hit.id) !== true) return [];
+  async function deleteEdgeFromDiagram(edge: {
+    readonly index: number;
+    readonly id: string;
+  }): Promise<void> {
+    const outcome = await run({ kind: "deleteEdge", target: edge });
+    if (outcome !== "applied") return;
+    if (selection?.kind === "edge" && selection.id === edge.id) {
+      setSelectionKey((key) => key + 1);
+      setSelection(null);
+    }
+  }
+
+  async function dissolveSubgraphFromDiagram(
+    subgraphId: string,
+  ): Promise<void> {
+    const outcome = await run({ kind: "dissolveSubgraph", subgraphId });
+    if (outcome !== "applied") return;
+    if (selection?.kind === "subgraph" && selection.id === subgraphId) {
+      setSelectionKey((key) => key + 1);
+      setSelection(null);
+    }
+  }
+
+  // The element the diagram picture points at, as a selection, when the text still has it.
+  function selectionOf(hit: DiagramHit): FlowchartSelection | null {
+    if (view === null) return null;
+    switch (hit.kind) {
+      case "node":
+        return view.nodes.some((node) => node.id === hit.id)
+          ? { kind: "node", id: hit.id }
+          : null;
+      case "subgraph":
+        return view.subgraphs.some((subgraph) => subgraph.id === hit.id)
+          ? { kind: "subgraph", id: hit.id }
+          : null;
+      case "edge": {
+        const edge = view.edges.find((candidate) => candidate.id === hit.id);
+        return edge === undefined
+          ? null
+          : { kind: "edge", index: edge.index, id: edge.id };
+      }
+    }
+  }
+
+  async function editFromDiagram(next: FlowchartSelection): Promise<void> {
+    await select(next);
+    // The editor appears with the selection; its label field takes the focus then.
+    requestAnimationFrame(() => editorLabelRef.current?.focus());
+  }
+
+  function nodeEntries(nodeId: string): readonly PopupMenuEntry[] {
     return [
       {
         id: "editNode",
         label: text.editNodeMenu,
-        onSelect: () => void editNodeFromDiagram(hit.id),
+        onSelect: () => void editFromDiagram({ kind: "node", id: nodeId }),
       },
       {
         id: "addEdgeFromNode",
         label: text.addEdgeFromNodeMenu,
         onSelect: () => {
           setEdgeStartPreset((previous) => ({
-            nodeId: hit.id,
+            nodeId,
             serial: (previous?.serial ?? 0) + 1,
           }));
           layout.openAdd(ADD.edge, true);
@@ -272,9 +315,62 @@ export function FlowchartGuiPanel({
         id: "deleteNode",
         label: text.deleteNodeMenu,
         disabled: busy,
-        onSelect: () => void deleteNodeFromDiagram(hit.id),
+        onSelect: () => void deleteNodeFromDiagram(nodeId),
       },
     ];
+  }
+
+  function edgeEntries(index: number, id: string): readonly PopupMenuEntry[] {
+    // An edge the GUI cannot change (an `&` list ...) is only shown in the editor.
+    const restricted =
+      view?.edges.find((edge) => edge.id === id)?.restriction != null;
+    return [
+      {
+        id: "editEdge",
+        label: text.editEdgeMenu,
+        onSelect: () => void editFromDiagram({ kind: "edge", index, id }),
+      },
+      {
+        id: "deleteEdge",
+        label: text.deleteEdgeMenu,
+        disabled: busy || restricted,
+        onSelect: () => void deleteEdgeFromDiagram({ index, id }),
+      },
+    ];
+  }
+
+  function subgraphEntries(subgraphId: string): readonly PopupMenuEntry[] {
+    const subgraph = view?.subgraphs.find(
+      (candidate) => candidate.id === subgraphId,
+    );
+    return [
+      {
+        id: "editSubgraph",
+        label: text.editSubgraphMenu,
+        onSelect: () =>
+          void editFromDiagram({ kind: "subgraph", id: subgraphId }),
+      },
+      {
+        id: "dissolveSubgraph",
+        label: text.dissolveSubgraphMenu,
+        disabled: busy || subgraph?.dissolveRestriction != null,
+        onSelect: () => void dissolveSubgraphFromDiagram(subgraphId),
+      },
+    ];
+  }
+
+  function shapeEntries(hit: DiagramHit): readonly PopupMenuEntry[] {
+    const target = selectionOf(hit);
+    switch (target?.kind) {
+      case "node":
+        return nodeEntries(target.id);
+      case "edge":
+        return edgeEntries(target.index, target.id);
+      case "subgraph":
+        return subgraphEntries(target.id);
+      default:
+        return [];
+    }
   }
 
   if (view === null) return null;
@@ -336,11 +432,10 @@ export function FlowchartGuiPanel({
       className="diagram-gui__flowchart"
       state={layout}
       source={source}
-      shapeEntries={nodeEntries}
+      shapeEntries={shapeEntries}
       onPickShape={(hit) => {
-        if (view.nodes.some((node) => node.id === hit.id)) {
-          void select({ kind: "node", id: hit.id });
-        }
+        const picked = selectionOf(hit);
+        if (picked !== null) void select(picked);
       }}
       toolbarLabel={gui.addToolbarLabel}
       tabListLabel={gui.listTabsLabel}

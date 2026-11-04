@@ -45,6 +45,7 @@ const CANVAS_MESSAGES_JA = {
     duplicate: "複製",
     delete: "削除",
     editCaption: "キャプションを編集…",
+    removeCaption: "キャプションを削除",
     addImage: "画像を追加…",
     // The submenu that holds the Mermaid templates.
     templates: "Mermaidテンプレートから追加",
@@ -103,6 +104,7 @@ const CANVAS_MESSAGES_EN: CanvasMessages = {
     duplicate: "Duplicate",
     delete: "Delete",
     editCaption: "Edit Caption…",
+    removeCaption: "Remove Caption",
     addImage: "Add Image…",
     templates: "Add from Mermaid Template",
   },

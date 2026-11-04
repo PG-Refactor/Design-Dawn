@@ -67,15 +67,37 @@ const DIAGRAM = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100">
 </svg>`;
 const SHOWN = { left: 0, top: 0, width: 200, height: 100 };
 
-async function openGui() {
+// The same nodes with A and B in a subgraph, and the two edges drawn as lines: A -> B
+// along y = 15 between x 80 and 100, B -> C down x = 140 from y 30 to 50. The subgraph's
+// area is (0..190, 0..45).
+const GROUPED_FLOWCHART = [
+  "flowchart LR",
+  "  subgraph grp [Group]",
+  '    A["Start"] --> B(End)',
+  "  end",
+  "  B -.-> C{Choice}",
+  "",
+].join("\n");
+const GROUPED_DIAGRAM = `<svg xmlns="http://www.w3.org/2000/svg" id="m" viewBox="0 0 200 100">
+  <g class="clusters">
+    <g class="cluster" id="m-grp"><rect x="0" y="0" width="190" height="45"/></g>
+  </g>
+  <g class="edgePaths">
+    <path d="M80,15L100,15" data-edge="true" data-id="L_A_B_0"/>
+    <path d="M140,30L140,50" data-edge="true" data-id="L_B_C_0"/>
+  </g>
+  ${DIAGRAM.slice(DIAGRAM.indexOf('<g class="nodes">'), DIAGRAM.lastIndexOf("</svg>"))}
+</svg>`;
+
+async function openGui(source = FLOWCHART, svg = DIAGRAM) {
   const rendered = await renderOpenedCanvas(
     (harness: ActionsHarness): void => {
       const blocks = [makeBlockAt(1, 10, 20, "mermaid")];
       seedSheetBlocks(harness, DOCUMENT_A, SHEET_A1, blocks);
-      harness.gateway.files.set(blocks[0]?.contentPath ?? "", FLOWCHART);
+      harness.gateway.files.set(blocks[0]?.contentPath ?? "", source);
     },
     {
-      mermaidRenderer: createFakeRenderer(() => ({ ok: true, svg: DIAGRAM })),
+      mermaidRenderer: createFakeRenderer(() => ({ ok: true, svg })),
     },
   );
   fireEvent.doubleClick(blockOption(0));
@@ -202,5 +224,48 @@ describe("right-clicking the diagram in the GUI editor", () => {
     );
     await act(settle);
     expect(rightClick(await picture(), 20, 10)).toBeNull();
+  });
+
+  it("offers an edge's actions on its line, and deletes it", async () => {
+    const rendered = await openGui(GROUPED_FLOWCHART, GROUPED_DIAGRAM);
+    const menu = rightClick(await picture(), 90, 17);
+    if (menu === null) throw new Error("no menu");
+    expect(itemNames(menu).slice(0, 2)).toEqual([
+      TEXT.editEdgeMenu,
+      TEXT.deleteEdgeMenu,
+    ]);
+    await rendered.shell.user.click(
+      within(menu).getByRole("menuitem", { name: TEXT.deleteEdgeMenu }),
+    );
+    await act(settle);
+    expect(storedText(rendered)).not.toContain("-->");
+    expect(storedText(rendered)).toContain("B -.-> C");
+    expect(await rendered.canvas.undoDepth()).toBe(1);
+  });
+
+  it("offers a subgraph's actions on its area, and removes it keeping its nodes", async () => {
+    const rendered = await openGui(GROUPED_FLOWCHART, GROUPED_DIAGRAM);
+    const menu = rightClick(await picture(), 90, 40);
+    if (menu === null) throw new Error("no menu");
+    expect(itemNames(menu).slice(0, 2)).toEqual([
+      TEXT.editSubgraphMenu,
+      TEXT.dissolveSubgraphMenu,
+    ]);
+    await rendered.shell.user.click(
+      within(menu).getByRole("menuitem", { name: TEXT.dissolveSubgraphMenu }),
+    );
+    await act(settle);
+    expect(storedText(rendered)).not.toContain("subgraph");
+    expect(storedText(rendered)).toContain('A["Start"] --> B(End)');
+  });
+
+  it("selects a subgraph clicked in the diagram", async () => {
+    await openGui(GROUPED_FLOWCHART, GROUPED_DIAGRAM);
+    fireEvent.click(await picture(), { clientX: 90, clientY: 40 });
+    await act(settle);
+    const title = screen.getByRole("textbox", {
+      name: TEXT.subgraphTitleField,
+    }) as HTMLInputElement;
+    expect(title.value).toBe("Group");
   });
 });

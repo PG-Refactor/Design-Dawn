@@ -26,6 +26,8 @@ export interface BlockMenuCommands {
   readonly edit: () => void;
   // Absent when the block is not a figure (no caption to edit).
   readonly editCaption?: () => void;
+  // Absent when the figure has no caption to remove.
+  readonly removeCaption?: () => void;
   readonly cut: () => void;
   readonly copy: () => void;
   readonly paste: () => void;
@@ -55,6 +57,15 @@ export function blockMenuEntries(
             id: "editCaption",
             label: labels.editCaption,
             onSelect: commands.editCaption,
+          },
+        ]),
+    ...(commands.removeCaption === undefined
+      ? []
+      : [
+          {
+            id: "removeCaption",
+            label: labels.removeCaption,
+            onSelect: commands.removeCaption,
           },
         ]),
     { id: "editSeparator", separator: true },
