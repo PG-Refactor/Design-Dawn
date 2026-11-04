@@ -93,6 +93,7 @@
 
 .ai-access__project-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
 }
@@ -115,11 +116,21 @@
   overflow-wrap: anywhere;
 }
 
-.ai-access__project-actions {
+/* The name with its permission on the same line; the folder with "remove" below. */
+.ai-access__project-head .ai-access__check {
+  margin-left: auto;
+}
+
+.ai-access__project-foot {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.ai-access__add {
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
 }
 

@@ -23,6 +23,7 @@ import {
   nullable,
   objectOf,
 } from "./payload-decoder";
+import { selectProjectFolder } from "./persistence-client";
 import { toVoidResult } from "./persistence-payloads";
 
 const PAYLOAD_ROOT = "payload";
@@ -46,6 +47,12 @@ const decodeProjectId: Decoder<AiProjectAccess["projectId"]> = (
 };
 
 const decodeOverview = objectOf<AiAccessOverview>({
+  openProject: nullable(
+    objectOf<NonNullable<AiAccessOverview["openProject"]>>({
+      projectId: decodeProjectId,
+      listed: decodeBoolean,
+    }),
+  ),
   mcpServer: objectOf<AiAccessOverview["mcpServer"]>({
     displayPath: decodeString,
     found: decodeBoolean,
@@ -82,6 +89,22 @@ export function createTauriAiAccessGateway(): AiAccessGateway {
   return {
     overview: () =>
       call(COMMANDS.aiAccessOverview, {}, toAiAccessOverviewResult),
+    addOpenProject: async () => {
+      const result = await call(COMMANDS.addOpenProjectToAi, {}, toVoidResult);
+      return result.ok ? commandOk(discard()) : result;
+    },
+    // The folder is chosen in Rust's dialog; only its selection id comes back here.
+    addProjectFolder: async () => {
+      const selection = await selectProjectFolder();
+      if (!selection.ok) return selection;
+      if (selection.value.status === "cancelled") return commandOk("cancelled");
+      const added = await call(
+        COMMANDS.addAiProjectFolder,
+        { selectionId: selection.value.selectionId },
+        toVoidResult,
+      );
+      return added.ok ? commandOk("added") : added;
+    },
     setWriteAccess: async (projectId, allowWrite) => {
       const result = await call(
         COMMANDS.setAiWriteAccess,

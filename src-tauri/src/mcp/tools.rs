@@ -211,11 +211,18 @@ Design Dawn's AI integration screen to check it",
 opened one yet; call listProjects and selectProject",
                         )
                     })?;
+                let chosen = Self::selected(selected).is_some();
                 let entry = list.find(&project_id).ok_or_else(|| {
                     ToolError::new(
                         KIND_PROJECT_NOT_LISTED,
-                        "the Project is no longer offered to AI by Design Dawn; call \
-listProjects and selectProject",
+                        if chosen {
+                            "the Project is no longer offered to AI by Design Dawn; call \
+listProjects and selectProject"
+                        } else {
+                            "the Project open in Design Dawn is not offered to AI; the user can \
+add it in Design Dawn's AI integration screen, or call listProjects and selectProject for \
+another one"
+                        },
                     )
                 })?;
                 Ok(Resolved {

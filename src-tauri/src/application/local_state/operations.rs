@@ -367,6 +367,14 @@ impl LocalState {
         })
     }
 
+    /// Offers a Project to AI (read-only until the user allows changes).
+    pub fn add_ai_project(&self, project_id: ProjectId, folder: &Path) -> ApplicationResult<()> {
+        self.update_ai_access(|list| {
+            list.add(project_id, folder);
+            Ok(())
+        })
+    }
+
     pub fn set_ai_write_access(
         &self,
         project_id: &str,

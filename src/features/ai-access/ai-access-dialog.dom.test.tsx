@@ -52,7 +52,7 @@ async function openDialog(): Promise<{
       harness.aiAccess.projects = projects();
     },
   });
-  await chooseMenuItem(shell.user, TOP_BAR.helpMenu, JA.menuItem);
+  await chooseMenuItem(shell.user, TOP_BAR.fileMenu, JA.menuItem);
   await act(settle);
   return { shell, dialog: screen.getByRole("dialog", { name: JA.title }) };
 }
@@ -148,12 +148,85 @@ describe("the AI integration screen", () => {
         harness.aiAccess.serverFound = false;
       },
     });
-    await chooseMenuItem(shell.user, TOP_BAR.helpMenu, JA.menuItem);
+    await chooseMenuItem(shell.user, TOP_BAR.fileMenu, JA.menuItem);
     await act(settle);
     const dialog = screen.getByRole("dialog", { name: JA.title });
     expect(within(dialog).getByText(JA.serverMissing)).toBeTruthy();
     expect(within(dialog).getByText(JA.projectsEmpty)).toBeTruthy();
     await shell.user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("adds the Project open in this window, read-only, and then says it is added", async () => {
+    const shell = await renderShell({
+      systemLanguages: ["ja"],
+      seed: (harness) => {
+        harness.aiAccess.openProject = {
+          projectId: ORDER,
+          name: "Order Service",
+          folderDisplay: "/work/order-service",
+          allowWrite: false,
+          current: true,
+        };
+      },
+    });
+    await chooseMenuItem(shell.user, TOP_BAR.fileMenu, JA.menuItem);
+    await act(settle);
+    const dialog = screen.getByRole("dialog", { name: JA.title });
+    expect(within(dialog).getByText(JA.projectsEmpty)).toBeTruthy();
+    await shell.user.click(
+      within(dialog).getByRole("button", { name: JA.addOpenProject }),
+    );
+    await act(settle);
+    expect(shell.aiAccess.projects.map((project) => project.projectId)).toEqual(
+      [ORDER],
+    );
+    expect(
+      (
+        within(dialog).getByRole("checkbox", {
+          name: JA.allowWriteLabel("Order Service"),
+        }) as HTMLInputElement
+      ).checked,
+    ).toBe(false);
+    expect(
+      (
+        within(dialog).getByRole("button", {
+          name: JA.addOpenProject,
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    expect(within(dialog).getByText(JA.openProjectListed)).toBeTruthy();
+  });
+
+  it("adds a Project from a folder, and does nothing when the dialog is cancelled", async () => {
+    const { shell, dialog } = await openDialog();
+    expect(within(dialog).getByText(JA.noOpenProject)).toBeTruthy();
+    await shell.user.click(
+      within(dialog).getByRole("button", { name: JA.addProjectFolder }),
+    );
+    await act(settle);
+    expect(shell.aiAccess.projects).toHaveLength(2);
+
+    shell.aiAccess.nextFolderProject = {
+      projectId: "01928f3a-0000-7000-8000-000000000003" as ProjectId,
+      name: "Docs",
+      folderDisplay: "/work/docs",
+      allowWrite: true,
+      current: false,
+    };
+    await shell.user.click(
+      within(dialog).getByRole("button", { name: JA.addProjectFolder }),
+    );
+    await act(settle);
+    expect(shell.aiAccess.projects[0]?.name).toBe("Docs");
+    expect(shell.aiAccess.projects[0]?.allowWrite).toBe(false);
+    expect(within(dialog).getAllByRole("listitem")).toHaveLength(3);
+
+    shell.aiAccess.failNextChange = true;
+    await shell.user.click(
+      within(dialog).getByRole("button", { name: JA.addProjectFolder }),
+    );
+    await act(settle);
+    expect(within(dialog).getByText(JA.addFailed)).toBeTruthy();
   });
 });

@@ -178,10 +178,9 @@ fn without_a_project_it_serves_the_project_open_in_the_app() {
     let (_temp, root) = project_copy();
     let config = TempDir::new();
     let mut list = design_dawn_lib::application::local_state::ai_access::AiAccessList::default();
-    list.record_used(
-        design_dawn_lib::domain::entity_id::ProjectId::parse(PROJECT_ID).unwrap(),
-        &root,
-    );
+    let project_id = design_dawn_lib::domain::entity_id::ProjectId::parse(PROJECT_ID).unwrap();
+    list.add(project_id, &root);
+    list.record_used(project_id, &root);
     list.write(config.path()).unwrap();
 
     let mut input = handshake();
