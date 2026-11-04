@@ -5,6 +5,9 @@
   "windows": ["main", "window-*"],
   "permissions": [
     "allow-select-project-folder",
+    "allow-ai-access-overview",
+    "allow-set-ai-write-access",
+    "allow-remove-ai-project",
     "allow-select-image-files",
     "allow-default-project-location",
     "allow-set-default-project-location",

@@ -18,6 +18,7 @@ import {
   type LanguageController,
 } from "../application/language/language-controller";
 import type { LoadIssueRepairController } from "../application/load-issue-repair/load-issue-repair-controller";
+import type { AiAccessGateway } from "../application/ports/ai-access-gateway";
 import type { AppRequestSource } from "../application/ports/app-request-source";
 import type { AssetUrlResolver } from "../application/ports/asset-url-resolver";
 import type { DropEventSource } from "../application/ports/drop-event-source";
@@ -80,6 +81,7 @@ import {
 } from "../features/workspace/workspace-actions";
 import { createMatchMediaOsThemeSource } from "../infrastructure/browser/match-media-os-theme-source";
 import { createNavigatorSystemLanguageSource } from "../infrastructure/browser/navigator-system-language-source";
+import { createTauriAiAccessGateway } from "../infrastructure/tauri/ai-access-client";
 import { createTauriAppRequestSource } from "../infrastructure/tauri/tauri-app-request-source";
 import { createTauriAppSettingsGateway } from "../infrastructure/tauri/tauri-app-settings-gateway";
 import { createTauriAssetUrlResolver } from "../infrastructure/tauri/tauri-asset-url-resolver";
@@ -123,6 +125,8 @@ export interface AppServices {
   readonly layoutSettingsController: LayoutSettingsController;
   // The UI text size app setting.
   readonly textSizeController: TextSizeController;
+  // Which Projects an AI may use through the MCP server.
+  readonly aiAccess: AiAccessGateway;
   // The open Project's Git state (runtime only; refreshed when a Project is installed).
   // No UI shows it yet.
   readonly gitController: GitController;
@@ -258,6 +262,7 @@ export function createAppServices(): AppServices {
     gitRefreshScheduler: createTimeoutScheduler(),
     externalChangeController,
     loadIssueRepairController,
+    aiAccess: createTauriAiAccessGateway(),
     disconnectUiState,
   };
 }

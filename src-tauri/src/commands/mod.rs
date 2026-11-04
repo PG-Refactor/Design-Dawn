@@ -44,6 +44,9 @@ use crate::application::image_selection::{
     select_image_files as select_images, ImagePicker, ImageSelection,
 };
 use crate::application::load_issue_repair::{self, RepairAction, RepairIssueRef, RepairOutcome};
+use crate::application::local_state::ai_access::{
+    ai_access_overview as ai_access_overview_of, mcp_server_path, AiAccessList, AiAccessOverview,
+};
 use crate::application::local_state::operations::{AppSettings, LocalState, SheetViewportResult};
 use crate::application::open_request::{self, OpenRequest, OpenedRequest, PendingOpenRequests};
 use crate::application::project_operations as projects;
@@ -66,8 +69,11 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 68] = [
+pub const COMMAND_NAMES: [&str; 71] = [
     "select_project_folder",
+    "ai_access_overview",
+    "set_ai_write_access",
+    "remove_ai_project",
     "select_image_files",
     "default_project_location",
     "set_default_project_location",
@@ -167,6 +173,7 @@ pub fn handle_window_event<R: Runtime>(window: &Window<R>, event: &tauri::Window
         }
         tauri::WindowEvent::Focused(true) => {
             lock_registry(&window.state::<Mutex<WindowRegistry>>()).touch_focus(window.label());
+            note_ai_project(window);
         }
         tauri::WindowEvent::Destroyed => release_window_state(window),
         _ => {}
@@ -499,6 +506,7 @@ pub fn create_project<R: Runtime>(
     };
     let opened = settle_open(&window, outcome)?;
     remember_project_folder(&window, &project_root);
+    note_ai_project(&window);
     Ok(opened)
 }
 
@@ -522,6 +530,7 @@ pub fn open_project<R: Runtime>(
     };
     let opened = settle_open(&window, outcome)?;
     remember_project_folder(&window, &project_root);
+    note_ai_project(&window);
     Ok(opened)
 }
 
@@ -556,6 +565,69 @@ pub fn set_default_project_location<R: Runtime>(
             .set_default_project_location(&folder)
             .map(|_| ())
     })
+}
+
+/// The AI integration screen: where the MCP server is and which Projects an AI may use.
+#[tauri::command]
+pub fn ai_access_overview<R: Runtime>(app: AppHandle<R>) -> AiAccessOverview {
+    let mcp_server = std::env::current_exe()
+        .map(|executable| mcp_server_path(&executable))
+        .unwrap_or_default();
+    let list = app.try_state::<LocalState>().map_or_else(
+        || Ok(AiAccessList::default()),
+        |local_state| local_state.ai_access_list(),
+    );
+    ai_access_overview_of(list, &mcp_server)
+}
+
+/// Whether an AI may change the Project. Only the app changes this; the MCP server reads it.
+#[tauri::command]
+pub fn set_ai_write_access<R: Runtime>(
+    app: AppHandle<R>,
+    project_id: String,
+    allow_write: bool,
+) -> Result<(), ApplicationError> {
+    with_local_state(&app, |local_state| {
+        local_state.set_ai_write_access(&project_id, allow_write)
+    })
+}
+
+/// Stops offering the Project to an AI (until the app opens it again).
+#[tauri::command]
+pub fn remove_ai_project<R: Runtime>(
+    app: AppHandle<R>,
+    project_id: String,
+) -> Result<(), ApplicationError> {
+    with_local_state(&app, |local_state| {
+        local_state.remove_ai_project(&project_id)
+    })
+}
+
+/// Records the Project of `window` as the one an AI uses unless it chooses another: called
+/// when a window opens a Project and when a window comes to the front. Failing to write it
+/// only loses that convenience, so it is logged.
+fn note_ai_project<R: Runtime>(window: &Window<R>) {
+    let (Some(sessions), Some(registry), Some(local_state)) = (
+        window.try_state::<Mutex<ProjectSessions>>(),
+        window.try_state::<Mutex<WindowRegistry>>(),
+        window.try_state::<LocalState>(),
+    ) else {
+        return;
+    };
+    let target = {
+        // Sessions first, then the registry (the order every command uses).
+        let sessions = sessions.lock().unwrap_or_else(PoisonError::into_inner);
+        let registry = lock_registry(&registry);
+        registry.project_of(window.label()).and_then(|project_id| {
+            sessions
+                .get(&project_id)
+                .ok()
+                .map(|session| (project_id, session.root().to_path_buf()))
+        })
+    };
+    if let Some((project_id, root)) = target {
+        let _ = log_failure(local_state.record_ai_project(project_id, &root));
+    }
 }
 
 /// Keeps the folder of a Project opened or created from the folder dialog, so the next
@@ -1495,7 +1567,9 @@ pub fn take_open_request<R: Runtime>(
             window.label(),
         )
     };
-    settle_open(&window, outcome)
+    let opened = settle_open(&window, outcome)?;
+    note_ai_project(&window);
+    Ok(opened)
 }
 
 /// Replaces the calling window's app channel (its latest subscription wins) and sends it

@@ -4,6 +4,7 @@ import type { GitController } from "../../application/git/git-controller";
 import type { ProjectWriteSignal } from "../../application/git/project-write-signal";
 import type { LanguageController } from "../../application/language/language-controller";
 import type { LoadIssueRepairController } from "../../application/load-issue-repair/load-issue-repair-controller";
+import type { AiAccessGateway } from "../../application/ports/ai-access-gateway";
 import type { AppRequestSource } from "../../application/ports/app-request-source";
 import type { AssetUrlResolver } from "../../application/ports/asset-url-resolver";
 import type { DropEventSource } from "../../application/ports/drop-event-source";
@@ -85,6 +86,8 @@ export interface WorkspaceServices {
   // Confirming and running the repair of a Load Issue, reading files again, and "update all
   // now" for older file formats.
   readonly loadIssueRepairController: LoadIssueRepairController;
+  // Which Projects an AI may use through the MCP server (the AI integration screen).
+  readonly aiAccess: AiAccessGateway;
 }
 
 const WorkspaceServicesContext = createContext<WorkspaceServices | null>(null);

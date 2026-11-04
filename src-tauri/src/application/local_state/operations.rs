@@ -9,6 +9,7 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 use serde::Serialize;
 use serde_json::{Number, Value};
 
+use super::ai_access::AiAccessList;
 use super::constants::{DEFAULT_AUTO_SAVE, DEFAULT_PROJECT_TREE_WIDTH, MAX_SHEET_VIEWPORT_ENTRIES};
 use super::language::LanguagePreference;
 use super::layout::parse_project_tree_width;
@@ -18,6 +19,7 @@ use super::viewport::{SheetViewportKey, Viewport};
 use super::window_size::{parse_window_size, WindowSize};
 use crate::application::error::{ApplicationError, ApplicationResult};
 use crate::domain::constants::MIN_SCHEMA_VERSION;
+use crate::domain::entity_id::ProjectId;
 use crate::domain::error::{DomainError, DomainErrorKind};
 use crate::infrastructure::file_format::dto::{parse_dto, schema_version_value};
 use crate::infrastructure::local_state::constants::{
@@ -97,6 +99,7 @@ pub struct LocalState {
     directories: LocalStateDirectories,
     settings_lock: Mutex<()>,
     viewports_lock: Mutex<()>,
+    ai_access_lock: Mutex<()>,
 }
 
 // The guarded data is `()`: a poisoned lock protects no broken invariant, and a panic in
@@ -106,7 +109,7 @@ fn acquire(lock: &Mutex<()>) -> MutexGuard<'_, ()> {
 }
 
 /// Accepts exactly the versions this app understands (1..=current).
-fn check_schema_version(number: &Number, current: u32) -> ApplicationResult<()> {
+pub(super) fn check_schema_version(number: &Number, current: u32) -> ApplicationResult<()> {
     let version = schema_version_value(number);
     if version < MIN_SCHEMA_VERSION {
         return Err(DomainError::new(
@@ -172,6 +175,7 @@ impl LocalState {
             directories,
             settings_lock: Mutex::new(()),
             viewports_lock: Mutex::new(()),
+            ai_access_lock: Mutex::new(()),
         }
     }
 
@@ -330,6 +334,51 @@ impl LocalState {
 
     pub fn set_last_project_folder(&self, folder: &Path) -> ApplicationResult<AppSettings> {
         self.update_settings(|settings| settings.last_project_folder = Some(folder.to_path_buf()))
+    }
+
+    /// The AI access list, or the problem that makes the file unusable.
+    pub fn ai_access_list(&self) -> ApplicationResult<AiAccessList> {
+        let _guard = acquire(&self.ai_access_lock);
+        AiAccessList::read(&self.directories.config_dir)
+    }
+
+    /// Read-modify-write of the AI access list. An unreadable file is replaced, like the
+    /// settings: it is app-owned, and the problem was shown by the last read.
+    fn update_ai_access(
+        &self,
+        update: impl FnOnce(&mut AiAccessList) -> ApplicationResult<()>,
+    ) -> ApplicationResult<()> {
+        let _guard = acquire(&self.ai_access_lock);
+        let mut list = AiAccessList::read(&self.directories.config_dir).unwrap_or_default();
+        let before = list.clone();
+        update(&mut list)?;
+        // Focusing a window records the same Project again and again; only a change is
+        // written.
+        if list != before {
+            list.write(&self.directories.config_dir)?;
+        }
+        Ok(())
+    }
+
+    pub fn record_ai_project(&self, project_id: ProjectId, folder: &Path) -> ApplicationResult<()> {
+        self.update_ai_access(|list| {
+            list.record_used(project_id, folder);
+            Ok(())
+        })
+    }
+
+    pub fn set_ai_write_access(
+        &self,
+        project_id: &str,
+        allow_write: bool,
+    ) -> ApplicationResult<()> {
+        let project_id = ProjectId::parse(project_id)?;
+        self.update_ai_access(|list| list.set_allow_write(&project_id, allow_write))
+    }
+
+    pub fn remove_ai_project(&self, project_id: &str) -> ApplicationResult<()> {
+        let project_id = ProjectId::parse(project_id)?;
+        self.update_ai_access(|list| list.remove(&project_id))
     }
 
     pub fn get_sheet_viewport(

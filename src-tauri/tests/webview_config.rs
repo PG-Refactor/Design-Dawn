@@ -57,3 +57,13 @@ fn the_webview_has_no_global_tauri_object_and_no_asset_protocol() {
     let enabled = &config["app"]["security"]["assetProtocol"]["enable"];
     assert_ne!(*enabled, Value::Bool(true));
 }
+
+#[test]
+fn the_mcp_server_looks_for_the_app_settings_under_the_configured_identifier() {
+    // The MCP server finds `ai-access.json` in `<config folder>/<identifier>`, where Tauri
+    // keeps the app's settings.
+    assert_eq!(
+        config()["identifier"],
+        design_dawn_lib::application::local_state::constants::APP_IDENTIFIER
+    );
+}

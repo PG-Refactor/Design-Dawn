@@ -1,8 +1,14 @@
 //! Tool handlers. Each call reads the Project afresh (`Workspace`), does its one job through
-//! the Application layer and answers with JSON. Reads never write; write tools are refused
-//! unless the server was started with `--allow-write`.
+//! the Application layer and answers with JSON. Reads never write.
+//!
+//! Which Project a call works on: with `--project`, always that one, writable only with
+//! `--allow-write`. Otherwise the server follows the app: the Project the AI chose with
+//! selectProject, or else the one used last in the app, among the Projects the app lists in
+//! its AI access list; a Project is writable when the user allowed it there. The list is
+//! read on every call, so a change made in the app applies at once.
 
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, PoisonError};
 
 use serde_json::{json, Map, Value};
 
@@ -11,25 +17,50 @@ use crate::application::authoring::{
     image_natural_size, move_block, read_text_block, rename_document, rename_sheet,
     update_text_block, BlockGeometry,
 };
+use crate::application::local_state::ai_access::{listed_project_name, AiAccessList};
 use crate::application::snapshot::EntityState;
+use crate::domain::entity_id::ProjectId;
 use crate::infrastructure::file_format::dto::{BlockDto, SheetDto};
 use crate::infrastructure::file_format::image_validation::ImageFormat;
 
 use super::arguments::Arguments;
 use super::config::{
-    CONTENT_HASH_HEX_LENGTH, DEFAULT_BLOCK_GAP, DEFAULT_BLOCK_HEIGHT, DEFAULT_BLOCK_WIDTH,
-    DEFAULT_BLOCK_X, DEFAULT_BLOCK_Y,
+    APP_MODE_INSTRUCTIONS, CONTENT_HASH_HEX_LENGTH, DEFAULT_BLOCK_GAP, DEFAULT_BLOCK_HEIGHT,
+    DEFAULT_BLOCK_WIDTH, DEFAULT_BLOCK_X, DEFAULT_BLOCK_Y, FIXED_PROJECT_INSTRUCTIONS,
 };
 use super::protocol::{ToolHost, ToolOutput};
 use super::tool_definitions::{self as names, tool_definitions, ToolDefinition};
-use super::tool_error::{ToolError, KIND_INTERNAL, KIND_WRITE_DISABLED};
+use super::tool_error::{
+    ToolError, KIND_ACCESS_LIST_UNREADABLE, KIND_INTERNAL, KIND_NO_PROJECT,
+    KIND_PROJECT_NOT_LISTED, KIND_WRITE_DISABLED,
+};
 use super::workspace::{find_sheet, Workspace};
 
 pub struct ToolContext {
+    target: Target,
+    definitions: Vec<ToolDefinition>,
+}
+
+enum Target {
+    /// `--project`: one Project for the whole session.
+    Fixed {
+        root: PathBuf,
+        project_id: String,
+        allow_write: bool,
+    },
+    /// No `--project`: the Projects of the app's AI access list in `config_dir`.
+    FollowApp {
+        config_dir: PathBuf,
+        /// The Project chosen with selectProject; `None` follows the app.
+        selected: Mutex<Option<ProjectId>>,
+    },
+}
+
+/// The Project one call works on.
+struct Resolved {
     root: PathBuf,
     project_id: String,
     allow_write: bool,
-    definitions: Vec<ToolDefinition>,
 }
 
 fn entity_state(state: EntityState) -> Value {
@@ -97,15 +128,96 @@ impl ToolContext {
         let mut sessions = crate::application::session::ProjectSessions::default();
         let project = crate::application::project_operations::open_project(&mut sessions, &root)?;
         Ok(Self {
-            root,
-            project_id: project.project.project_id,
-            allow_write,
+            target: Target::Fixed {
+                root,
+                project_id: project.project.project_id,
+                allow_write,
+            },
             definitions: tool_definitions(),
         })
     }
 
+    /// Follows the app whose settings are in `config_dir`. Nothing is read yet: the app may
+    /// not have been started, and every call reads the list afresh.
+    pub fn follow_app(config_dir: &Path) -> Self {
+        Self {
+            target: Target::FollowApp {
+                config_dir: config_dir.to_path_buf(),
+                selected: Mutex::new(None),
+            },
+            definitions: tool_definitions(),
+        }
+    }
+
+    pub fn instructions(&self) -> &'static str {
+        match self.target {
+            Target::Fixed { .. } => FIXED_PROJECT_INSTRUCTIONS,
+            Target::FollowApp { .. } => APP_MODE_INSTRUCTIONS,
+        }
+    }
+
+    fn follows_app(&self) -> bool {
+        matches!(self.target, Target::FollowApp { .. })
+    }
+
+    fn access_list(config_dir: &Path) -> Result<AiAccessList, ToolError> {
+        AiAccessList::read(config_dir).map_err(|_| {
+            ToolError::new(
+                KIND_ACCESS_LIST_UNREADABLE,
+                "the list of Projects that Design Dawn offers to AI cannot be read; open \
+Design Dawn's AI integration screen to check it",
+            )
+        })
+    }
+
+    fn selected(selected: &Mutex<Option<ProjectId>>) -> Option<ProjectId> {
+        *selected.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn resolve(&self) -> Result<Resolved, ToolError> {
+        match &self.target {
+            Target::Fixed {
+                root,
+                project_id,
+                allow_write,
+            } => Ok(Resolved {
+                root: root.clone(),
+                project_id: project_id.clone(),
+                allow_write: *allow_write,
+            }),
+            Target::FollowApp {
+                config_dir,
+                selected,
+            } => {
+                let list = Self::access_list(config_dir)?;
+                let project_id = Self::selected(selected)
+                    .or(list.current_project_id)
+                    .ok_or_else(|| {
+                        ToolError::new(
+                            KIND_NO_PROJECT,
+                            "no Project is chosen: none was selected and Design Dawn has not \
+opened one yet; call listProjects and selectProject",
+                        )
+                    })?;
+                let entry = list.find(&project_id).ok_or_else(|| {
+                    ToolError::new(
+                        KIND_PROJECT_NOT_LISTED,
+                        "the Project is no longer offered to AI by Design Dawn; call \
+listProjects and selectProject",
+                    )
+                })?;
+                Ok(Resolved {
+                    root: entry.folder.clone(),
+                    project_id: project_id.to_string(),
+                    allow_write: entry.allow_write,
+                })
+            }
+        }
+    }
+
     fn workspace(&self) -> Result<Workspace, ToolError> {
-        Workspace::open(&self.root, &self.project_id)
+        let resolved = self.resolve()?;
+        Workspace::open(&resolved.root, &resolved.project_id)
     }
 
     fn definition(&self, name: &str) -> Option<&ToolDefinition> {
@@ -121,6 +233,8 @@ impl ToolContext {
     ) -> Result<Value, ToolError> {
         let arguments = Arguments::new(arguments, definition)?;
         match definition.name {
+            names::LIST_PROJECTS => self.list_projects(),
+            names::SELECT_PROJECT => self.select_project(&arguments),
             names::GET_PROJECT => self.get_project(),
             names::GET_DOCUMENT => self.get_document(&arguments),
             names::GET_SHEET => self.get_sheet(&arguments),
@@ -140,7 +254,75 @@ impl ToolContext {
         }
     }
 
+    fn list_projects(&self) -> Result<Value, ToolError> {
+        let Target::FollowApp {
+            config_dir,
+            selected,
+        } = &self.target
+        else {
+            return Err(fixed_project_only());
+        };
+        let list = Self::access_list(config_dir)?;
+        let selected = Self::selected(selected);
+        let in_use = selected.or(list.current_project_id);
+        let projects: Vec<Value> = list
+            .projects
+            .iter()
+            .map(|entry| {
+                let name = listed_project_name(entry);
+                json!({
+                    "projectId": entry.project_id.to_string(),
+                    "name": name,
+                    // The folder's own name tells apart two Projects with the same name,
+                    // without handing the AI a path.
+                    "folderName": entry.folder.file_name().map(|name| name.to_string_lossy()),
+                    "available": name.is_some(),
+                    "openInApp": list.current_project_id == Some(entry.project_id),
+                    "inUse": in_use == Some(entry.project_id),
+                    "writable": entry.allow_write,
+                })
+            })
+            .collect();
+        Ok(json!({
+            "projects": projects,
+            "selectedProjectId": selected.map(|id| id.to_string()),
+        }))
+    }
+
+    fn select_project(&self, arguments: &Arguments) -> Result<Value, ToolError> {
+        let Target::FollowApp {
+            config_dir,
+            selected,
+        } = &self.target
+        else {
+            return Err(fixed_project_only());
+        };
+        let Some(project_id) = arguments.optional_string("projectId")? else {
+            *selected.lock().unwrap_or_else(PoisonError::into_inner) = None;
+            return Ok(json!({ "selectedProjectId": null, "followsApp": true }));
+        };
+        let project_id = ProjectId::parse(project_id)?;
+        let list = Self::access_list(config_dir)?;
+        let entry = list.find(&project_id).ok_or_else(|| {
+            ToolError::new(
+                KIND_PROJECT_NOT_LISTED,
+                "Design Dawn does not offer this Project to AI; use a projectId from \
+listProjects",
+            )
+        })?;
+        // Checked now, so a Project that moved away fails here rather than on the next call.
+        Workspace::open(&entry.folder, &project_id.to_string())?;
+        *selected.lock().unwrap_or_else(PoisonError::into_inner) = Some(project_id);
+        Ok(json!({
+            "selectedProjectId": project_id.to_string(),
+            "name": listed_project_name(entry),
+            "writable": entry.allow_write,
+            "followsApp": false,
+        }))
+    }
+
     fn get_project(&self) -> Result<Value, ToolError> {
+        let writable = self.resolve()?.allow_write;
         let workspace = self.workspace()?;
         let project = &workspace.project;
         let folders: Vec<Value> = project
@@ -175,6 +357,7 @@ impl ToolContext {
             "folders": folders,
             "documents": documents,
             "issues": project.issues,
+            "writable": writable,
         }))
     }
 
@@ -450,25 +633,60 @@ impl ToolContext {
 }
 
 impl ToolHost for ToolContext {
+    fn instructions(&self) -> &'static str {
+        ToolContext::instructions(self)
+    }
+
     fn list_tools(&self) -> Vec<Value> {
         self.definitions
             .iter()
-            .filter(|definition| self.allow_write || !definition.writes)
+            .filter(|definition| match &self.target {
+                // The session's permission is fixed, so a tool it can never use is hidden.
+                Target::Fixed { allow_write, .. } => {
+                    !definition.project_choice && (*allow_write || !definition.writes)
+                }
+                // Write permission is per Project and can change while the session runs, so
+                // every tool is listed and a write is refused when it is not allowed.
+                Target::FollowApp { .. } => true,
+            })
             .map(ToolDefinition::to_value)
             .collect()
     }
 
     fn call_tool(&self, name: &str, arguments: &Map<String, Value>) -> Option<ToolOutput> {
         let definition = self.definition(name)?;
-        if definition.writes && !self.allow_write {
-            return Some(ToolOutput::failure(&ToolError::new(
-                KIND_WRITE_DISABLED,
-                "this server is read-only; it was not started with --allow-write",
-            )));
+        if definition.project_choice && !self.follows_app() {
+            return None;
+        }
+        if definition.writes {
+            match self.resolve() {
+                Ok(resolved) if resolved.allow_write => {}
+                Ok(_) => return Some(ToolOutput::failure(&write_disabled(self.follows_app()))),
+                Err(error) => return Some(ToolOutput::failure(&error)),
+            }
         }
         Some(match self.run(definition, arguments) {
             Ok(value) => ToolOutput::success(value),
             Err(error) => ToolOutput::failure(&error),
         })
     }
+}
+
+fn write_disabled(follows_app: bool) -> ToolError {
+    ToolError::new(
+        KIND_WRITE_DISABLED,
+        if follows_app {
+            "this Project is read-only for AI; the user can allow changes in Design Dawn's AI \
+integration screen"
+        } else {
+            "this server is read-only; it was not started with --allow-write"
+        },
+    )
+}
+
+fn fixed_project_only() -> ToolError {
+    ToolError::new(
+        KIND_INTERNAL,
+        "this server was started for one Project with --project",
+    )
 }

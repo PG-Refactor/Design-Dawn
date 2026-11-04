@@ -25,6 +25,10 @@ imagesize = "0.15"
 uuid = { version = "1", features = ["v7"] }
 # File watching for external changes. CC0-1.0.
 notify = "=8.2.0"
+# The OS config folder, where the MCP server finds the app's settings (the same lookup
+# Tauri uses for app_config_dir, already in the dependency tree through Tauri).
+# MIT OR Apache-2.0.
+dirs = "7"
 
 # Desktop only: the plugin has no mobile implementation. A second launch is handed to the
 # running instance instead of opening a second process on the same Project files.

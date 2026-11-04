@@ -15,6 +15,9 @@ pub const KIND_CONFLICT: &str = "conflict";
 pub const KIND_CONTENT_TOO_LARGE: &str = "contentTooLarge";
 pub const KIND_PROJECT_CHANGED: &str = "projectChanged";
 pub const KIND_SHEET_NOT_LOADED: &str = "sheetNotLoaded";
+pub const KIND_NO_PROJECT: &str = "noProject";
+pub const KIND_PROJECT_NOT_LISTED: &str = "projectNotListed";
+pub const KIND_ACCESS_LIST_UNREADABLE: &str = "accessListUnreadable";
 pub const KIND_INTERNAL: &str = "internalError";
 
 #[derive(Debug, Clone, PartialEq, Eq)]

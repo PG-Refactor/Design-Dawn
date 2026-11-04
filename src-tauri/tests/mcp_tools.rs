@@ -8,8 +8,10 @@ use std::fs;
 use std::path::Path;
 
 use design_dawn_lib::application::document_operations::load_document;
+use design_dawn_lib::application::local_state::ai_access::AiAccessList;
 use design_dawn_lib::application::project_operations::load_project;
 use design_dawn_lib::application::session::ProjectSessions;
+use design_dawn_lib::domain::entity_id::ProjectId;
 use design_dawn_lib::infrastructure::filesystem::hashing::sha256_hex;
 use design_dawn_lib::mcp::protocol::ToolHost;
 use design_dawn_lib::mcp::tools::ToolContext;
@@ -1136,4 +1138,174 @@ fn a_whole_authoring_session_leaves_a_project_the_loader_reads_without_issues() 
     )
     .ok();
     assert_loads_without_issues(&root);
+}
+
+// ---- following the app (no --project) ----
+
+/// The app's AI access list in a temporary settings folder: `projects` in the order the app
+/// used them (the last one is open in the app), with their write permission.
+fn app_list(config_dir: &Path, projects: &[(&str, &Path, bool)]) {
+    let mut list = AiAccessList::default();
+    for (project_id, folder, _) in projects {
+        list.record_used(ProjectId::parse(project_id).unwrap(), folder);
+    }
+    for (project_id, _, allow_write) in projects {
+        list.set_allow_write(&ProjectId::parse(project_id).unwrap(), *allow_write)
+            .unwrap();
+    }
+    list.write(config_dir).unwrap();
+}
+
+#[test]
+fn following_the_app_uses_the_project_open_in_the_app() {
+    let (_first_temp, sample) = project_copy();
+    let (_second_temp, folders) = folders_project_copy();
+    let config = TempDir::new();
+    app_list(
+        config.path(),
+        &[
+            (PROJECT_ID, &sample, false),
+            (FOLDERS_PROJECT_ID, &folders, false),
+        ],
+    );
+    let context = ToolContext::follow_app(config.path());
+
+    let mut expected: Vec<&str> = vec!["listProjects", "selectProject"];
+    expected.extend(READ_TOOLS);
+    expected.extend(WRITE_TOOLS);
+    assert_eq!(tool_names(&context), expected);
+    assert!(context.instructions().contains("listProjects"));
+
+    // The Project used last in the app.
+    let project = call(&context, "getProject", json!({})).ok();
+    assert_eq!(project["projectId"], FOLDERS_PROJECT_ID);
+    assert_eq!(project["writable"], false);
+
+    let listed = call(&context, "listProjects", json!({})).ok();
+    let projects = listed["projects"].as_array().unwrap();
+    assert_eq!(projects.len(), 2);
+    assert_eq!(projects[0]["projectId"], FOLDERS_PROJECT_ID);
+    assert_eq!(projects[0]["openInApp"], true);
+    assert_eq!(projects[0]["inUse"], true);
+    assert_eq!(projects[1]["available"], true);
+    assert!(projects[1]["name"].is_string());
+    // No path reaches the AI: only the folder's own name.
+    assert!(!listed.to_string().contains(sample.to_str().unwrap()));
+}
+
+#[test]
+fn the_ai_chooses_another_listed_project_and_can_follow_the_app_again() {
+    let (_first_temp, sample) = project_copy();
+    let (_second_temp, folders) = folders_project_copy();
+    let config = TempDir::new();
+    app_list(
+        config.path(),
+        &[
+            (PROJECT_ID, &sample, false),
+            (FOLDERS_PROJECT_ID, &folders, false),
+        ],
+    );
+    let context = ToolContext::follow_app(config.path());
+
+    let selected = call(
+        &context,
+        "selectProject",
+        json!({ "projectId": PROJECT_ID }),
+    )
+    .ok();
+    assert_eq!(selected["followsApp"], false);
+    assert_eq!(
+        call(&context, "getProject", json!({})).ok()["projectId"],
+        PROJECT_ID
+    );
+    assert_eq!(
+        call(&context, "listProjects", json!({})).ok()["selectedProjectId"],
+        PROJECT_ID
+    );
+
+    // An unlisted or malformed id is refused and the choice stays.
+    assert_eq!(
+        call(
+            &context,
+            "selectProject",
+            json!({ "projectId": UNKNOWN_ID })
+        )
+        .error_kind(),
+        "projectNotListed"
+    );
+    assert_eq!(
+        call(&context, "selectProject", json!({ "projectId": "../x" })).error_kind(),
+        "invalidEntityId"
+    );
+    assert_eq!(
+        call(&context, "getProject", json!({})).ok()["projectId"],
+        PROJECT_ID
+    );
+
+    call(&context, "selectProject", json!({})).ok();
+    assert_eq!(
+        call(&context, "getProject", json!({})).ok()["projectId"],
+        FOLDERS_PROJECT_ID
+    );
+}
+
+#[test]
+fn writes_follow_the_permission_the_user_set_in_the_app_at_each_call() {
+    let (_temp, root) = project_copy();
+    let config = TempDir::new();
+    app_list(config.path(), &[(PROJECT_ID, &root, false)]);
+    let context = ToolContext::follow_app(config.path());
+    let before = tree_snapshot(&root);
+    let create = json!({ "documentId": DOCUMENT_ID, "name": "From AI" });
+    assert_eq!(
+        call(&context, "createSheet", create.clone()).error_kind(),
+        "writeDisabled"
+    );
+    assert_eq!(tree_snapshot(&root), before);
+
+    // Allowed in the app while the session runs: the next call may write.
+    app_list(config.path(), &[(PROJECT_ID, &root, true)]);
+    call(&context, "createSheet", create).ok();
+    assert_eq!(
+        call(&context, "getProject", json!({})).ok()["writable"],
+        true
+    );
+    assert_loads_without_issues(&root);
+}
+
+#[test]
+fn following_the_app_before_it_opened_anything_or_after_a_project_moved_explains_itself() {
+    let config = TempDir::new();
+    let context = ToolContext::follow_app(config.path());
+    assert_eq!(
+        call(&context, "getProject", json!({})).error_kind(),
+        "noProject"
+    );
+    assert!(call(&context, "listProjects", json!({})).ok()["projects"]
+        .as_array()
+        .unwrap()
+        .is_empty());
+
+    let (temp, root) = project_copy();
+    app_list(config.path(), &[(PROJECT_ID, &root, true)]);
+    drop(temp);
+    let listed = call(&context, "listProjects", json!({})).ok();
+    assert_eq!(listed["projects"][0]["available"], false);
+    assert!(call(&context, "getProject", json!({})).is_error);
+
+    fs::write(config.path().join("ai-access.json"), "not json").unwrap();
+    assert_eq!(
+        call(&context, "getProject", json!({})).error_kind(),
+        "accessListUnreadable"
+    );
+}
+
+#[test]
+fn a_fixed_project_offers_no_project_choice() {
+    let (_temp, root) = project_copy();
+    let context = context_for(&root, true);
+    assert!(context
+        .call_tool("listProjects", &serde_json::Map::new())
+        .is_none());
+    assert!(!context.instructions().contains("listProjects"));
 }
