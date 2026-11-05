@@ -122,6 +122,8 @@ export interface ActionsHarness extends WorkspaceHarness {
   readonly closeRequestSource: FakeCloseRequestSource;
   // What the window's title bar was told to show, in order (null: no Project).
   readonly windowTitles: (string | null)[];
+  // What the title bar was told about the theme, in order.
+  readonly windowThemes: string[];
   readonly appRequestSource: FakeAppRequestSource;
   readonly viewportGateway: FakeViewportGateway;
   // Its own clock, so viewport saves are advanced independently of auto-save.
@@ -182,6 +184,7 @@ export function createActionsHarness(
   const dropEventSource = createFakeDropEventSource();
   const closeRequestSource = createFakeCloseRequestSource();
   const windowTitles: (string | null)[] = [];
+  const windowThemes: string[] = [];
   const aiAccess = createFakeAiAccessGateway();
   const appRequestSource = createFakeAppRequestSource();
   const viewportGateway = createFakeViewportGateway();
@@ -253,6 +256,7 @@ export function createActionsHarness(
     dropEventSource,
     closeRequestSource,
     windowTitles,
+    windowThemes,
     appRequestSource,
     aiAccess,
     viewportGateway,
@@ -269,6 +273,10 @@ export function createActionsHarness(
       windowTitle: {
         showProject: (projectName) => {
           windowTitles.push(projectName);
+          return Promise.resolve(operationOk(undefined));
+        },
+        applyTheme: (preference) => {
+          windowThemes.push(preference);
           return Promise.resolve(operationOk(undefined));
         },
       },

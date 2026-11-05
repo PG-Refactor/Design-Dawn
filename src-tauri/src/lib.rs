@@ -122,6 +122,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::list_project_windows,
             commands::project_window_at,
             commands::show_project_in_title,
+            commands::apply_window_theme,
             commands::git_status,
             commands::git_stage,
             commands::git_unstage,

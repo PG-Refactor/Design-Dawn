@@ -3,6 +3,7 @@
 // Declaring the commands here makes Tauri require an explicit permission for each one.
 const APP_COMMANDS: &[&str] = &[
     "select_project_folder",
+    "apply_window_theme",
     "ai_access_overview",
     "answer_ai_access_request",
     "add_open_project_to_ai",

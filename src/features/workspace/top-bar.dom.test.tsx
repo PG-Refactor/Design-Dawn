@@ -45,6 +45,29 @@ describe("top bar as a menu bar", () => {
   });
 });
 
+describe("the window's title bar and the theme", () => {
+  it("is drawn like the chosen theme, and left to the OS for System", async () => {
+    const shell = await renderShell();
+    await act(async () => {
+      await shell.themeController.initialize();
+    });
+    const chooseTheme = async (name: string) => {
+      const menu = await openMenu(shell.user, JA.viewMenu);
+      const theme = within(menu).getByRole("group", { name: JA.themeLegend });
+      await shell.user.click(
+        within(theme).getByRole("menuitemradio", { name }),
+      );
+    };
+    await waitFor(() => expect(shell.windowThemes.at(-1)).toBe("system"));
+    await chooseTheme(JA.themeDark);
+    await waitFor(() => expect(shell.windowThemes.at(-1)).toBe("dark"));
+    await chooseTheme(JA.themeLight);
+    await waitFor(() => expect(shell.windowThemes.at(-1)).toBe("light"));
+    await chooseTheme(JA.systemOption);
+    await waitFor(() => expect(shell.windowThemes.at(-1)).toBe("system"));
+  });
+});
+
 describe("File menu", () => {
   it("lists the items in order, with Save showing the shortcut and Auto Save a checkbox", async () => {
     const shell = await renderShell({ systemLanguages: ["en"] });

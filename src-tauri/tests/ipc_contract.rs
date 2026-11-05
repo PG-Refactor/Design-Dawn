@@ -1639,3 +1639,26 @@ fn only_the_users_answer_in_the_app_grants_an_ais_request() {
     assert!(entry.allow_write);
     assert!(entry.until_app_exits);
 }
+
+#[test]
+fn the_window_theme_takes_a_theme_preference_only() {
+    let temp = TempDir::new();
+    let app = build_app(Vec::new(), local_state_directories(temp.path()));
+    let window = main_window(&app);
+    for preference in ["system", "light", "dark"] {
+        invoke(
+            &window,
+            "apply_window_theme",
+            &serde_json::json!({ "themePreference": preference }),
+        )
+        .unwrap_or_else(|error| panic!("{preference}: {error:?}"));
+    }
+    assert_eq!(
+        error_kind(invoke(
+            &window,
+            "apply_window_theme",
+            &serde_json::json!({ "themePreference": "Dark" }),
+        )),
+        "invalidThemePreference"
+    );
+}
