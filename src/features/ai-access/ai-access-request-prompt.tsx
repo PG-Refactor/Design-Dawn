@@ -57,6 +57,8 @@ export function AiAccessRequestPrompt() {
       onCancel={() => void answer("deny")}
       initialFocusRef={denyRef}
       busy={busy}
+      // Room for the three answers on one line.
+      wide
     >
       <h2 id={titleId} className="modal__title">
         {texts.requestTitle}
