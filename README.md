@@ -7,7 +7,7 @@ A document is a set of sheets; each sheet holds freely placed blocks of **Markdo
 diagrams** and **images**. Everything is stored as ordinary files and folders, so the same project
 can be read and edited by people, reviewed with Git, and changed safely by AI tools.
 
-![A design document with Markdown and a Mermaid flowchart on the canvas](assets/screenshots/overview-dark.png)
+![A design document with Markdown and a captioned Mermaid flowchart on the canvas](assets/screenshots/overview-dark.png)
 
 > **Status**: pre-release, developed and tested on Linux (WSL2 + WSLg). Windows and macOS builds
 > have not been verified yet.
@@ -22,9 +22,10 @@ can be read and edited by people, reviewed with Git, and changed safely by AI to
 - **Mermaid blocks** — any Mermaid 12 diagram, rendered locally and sanitised (no network, no
   scripts).
 - **Mermaid GUI editor** — edit pie charts, flowcharts, sequence diagrams and gantt charts with
-  lists and property fields instead of syntax. The Mermaid source stays the single source of
-  truth: each GUI edit changes only the bytes it must, is checked by re-reading the result and
-  rendering it, and is one undo step. Anything the editor does not fully understand stays
+  lists and property fields instead of syntax; right-click a shape in the diagram to edit or
+  delete it, and add elements in a dialog with a preview. Diagrams and images can have a caption.
+  The Mermaid source stays the single source of truth: each GUI edit changes only the bytes it
+  must, is checked by re-reading the result and rendering it, and is one undo step. Anything the editor does not fully understand stays
   read-only rather than being rewritten.
 - **Image blocks** — PNG, JPEG, WebP, SVG and GIF, added by drag and drop.
 - **Git integration** — status, stage/unstage, commit, history, side-by-side diffs in tabs,
@@ -32,8 +33,9 @@ can be read and edited by people, reviewed with Git, and changed safely by AI to
 - **External changes** — edits made by another editor, Git or an AI tool are detected; documents
   without unsaved work reload automatically, otherwise you choose to reload, keep your version or
   compare.
-- **AI / MCP** — `design-dawn-mcp`, a local MCP server (stdio only, read-only by default) that lets
-  AI clients such as Claude Code read and edit documents, sheets and blocks.
+- **AI / MCP** — `design-dawn-mcp`, a local MCP server (stdio only) that lets AI tools such as
+  Claude, Codex, GitHub Copilot or Cursor read and edit the projects you offer to them. Every
+  project is read-only for AI until you allow editing, in the app or when the AI asks.
 - **Load issue repair and format migration** — inconsistencies found when a project is opened
   (missing or unlisted items, duplicate IDs, orphan files, leftovers of an interrupted save) can be
   repaired from the notification panel; files written by older versions are read and upgraded on
@@ -42,7 +44,7 @@ can be read and edited by people, reviewed with Git, and changed safely by AI to
 
 | Flowchart GUI editor | Sequence diagram GUI editor |
 |---|---|
-| ![Flowchart editor with node list and property panel](assets/screenshots/flowchart-gui.png) | ![Sequence diagram editor with participants and messages](assets/screenshots/sequence-gui.png) |
+| ![Flowchart GUI editor with its node list and the right-click menu of a node](assets/screenshots/flowchart-gui.png) | ![Sequence diagram GUI editor with a selected message and its right-click menu](assets/screenshots/sequence-gui.png) |
 
 | Markdown editing | Git diff |
 |---|---|
@@ -51,6 +53,10 @@ can be read and edited by people, reviewed with Git, and changed safely by AI to
 | Gantt and pie charts | Light theme |
 |---|---|
 | ![Gantt chart and pie chart on a sheet](assets/screenshots/plan.png) | ![The overview sheet in the light theme](assets/screenshots/light-theme.png) |
+
+| AI integration (MCP) | An AI asks for edit permission |
+|---|---|
+| ![AI Integration screen with the command to register and the projects offered to AI](assets/screenshots/ai-integration.png) | ![The app asking whether an AI may edit a project](assets/screenshots/ai-request.png) |
 
 ## How a project is stored
 
@@ -175,11 +181,15 @@ is added. The AI can list the added Projects (`listProjects`) and choose one (`s
 so "summarize the order-service Project" works without registering anything again.
 
 **Permissions**: an added Project is read-only for AI until you tick **Allow editing by AI**
-next to it. Only the app changes this list (it is kept in the app's settings folder as
+next to it. An AI can also ask (`requestWriteAccess`): the app then asks you to **Allow**,
+**Allow This Time** (until the app closes) or **Don't Allow**, and only your answer counts. The
+Project open in the app can be asked for too; allowing it adds it to the list. After a "no",
+requests for that Project are ignored for a while. Only the app changes this list (it is kept in the app's settings folder as
 `ai-access.json`, never inside a Project), so an AI cannot add a Project or grant itself
 access. The screen also removes a Project from the list.
 
-- **Tools**: `listProjects`, `selectProject`, `getProject`, `getDocument`, `getSheet`, `getBlock`;
+- **Tools**: `listProjects`, `selectProject`, `requestWriteAccess`, `getProject`, `getDocument`,
+  `getSheet`, `getBlock`;
   for writable Projects also `createDocument`, `createSheet`, `createBlock` (Markdown or Mermaid),
   `updateDocument`, `updateSheet`, `updateBlock`, `moveBlock`, `updateBlockCaption` (the caption
   of a Mermaid or Image block), `deleteBlock`.
