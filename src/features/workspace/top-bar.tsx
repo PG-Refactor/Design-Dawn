@@ -298,7 +298,8 @@ export function TopBar() {
 
   return (
     <header className="top-bar">
-      {/* The Project's name is in the window's own title bar ("Design Dawn (name)"). */}
+      {/* The app and Project names are in the window's own title bar ("Design Dawn (name)");
+          this heading is for assistive technology only. */}
       <h1 className="top-bar__app-name">{APP_CONFIG.displayName}</h1>
       <MenuBar label={topBar.menubarLabel} menus={menus} />
       <div className="top-bar__spacer" />
