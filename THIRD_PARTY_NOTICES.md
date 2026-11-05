@@ -8,7 +8,7 @@ Design Dawn includes third-party software. This file lists it together with the 
 - Rust: the non-development crates of `src-tauri` for the shipped desktop targets (Linux, Windows, macOS) according to `cargo-about`. Compile-time-only crates that `cargo-about` cannot tell apart from runtime crates (for example proc-macro dependencies) may be listed as well.
 - Regenerate with `npm run licenses:generate`; `npm run licenses:check` fails when this file is stale.
 
-Contents: 64 JavaScript packages, 340 Rust crates.
+Contents: 64 JavaScript packages, 344 Rust crates.
 
 ## Source availability for EPL-2.0 code
 
@@ -7191,12 +7191,16 @@ Used by:
 - windows-numerics 0.3.1
 - windows-result 0.4.1
 - windows-strings 0.5.1
+- windows-sys 0.59.0
 - windows-sys 0.60.2
 - windows-sys 0.61.2
+- windows-targets 0.52.6
 - windows-targets 0.53.5
 - windows-threading 0.2.1
 - windows-version 0.1.7
+- windows_x86_64_gnu 0.52.6
 - windows_x86_64_gnu 0.53.1
+- windows_x86_64_msvc 0.52.6
 - windows_x86_64_msvc 0.53.1
 
 ```text
@@ -7224,7 +7228,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 Used by:
 
-- tokio 1.53.1
+- tokio 1.53.3
 
 ```text
 MIT License
@@ -7418,7 +7422,7 @@ Used by:
 - adler2 2.0.1
 - anyhow 1.0.104
 - async-channel 2.5.0
-- async-executor 1.14.0
+- async-executor 1.14.1
 - async-io 2.6.0
 - async-lock 3.4.2
 - async-process 2.5.0
