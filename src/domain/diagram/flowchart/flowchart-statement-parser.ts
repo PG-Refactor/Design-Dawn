@@ -528,12 +528,6 @@ function parseVertexStatement(scan: Scan, lineIndex: number): SegmentParse {
     if (cursor >= scan.text.length) break;
     const link = readLink(scan, cursor);
     if (!link.ok) return { ok: false, reason: link.reason };
-    if (
-      link.value.edgeId !== null &&
-      group.value.terms.some((term) => term.atBlock !== null)
-    ) {
-      return { ok: false, reason: "atBlockBeforeEdgeId" };
-    }
     links.push(link.value);
     cursor = skipBlanks(scan.text, link.end);
   }

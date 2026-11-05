@@ -67,10 +67,10 @@ const EXPECTED_COUNTS: Readonly<Record<string, SetCounts>> = {
   },
   c2: {
     inputs: 97,
-    fullyRead: 67,
+    fullyRead: 68,
     mismatch: 0,
     overAccept: 0,
-    opaqueButMermaidAccepts: 21,
+    opaqueButMermaidAccepts: 20,
     bothReject: 9,
     renderFailuresAmongFullyRead: 0,
   },
