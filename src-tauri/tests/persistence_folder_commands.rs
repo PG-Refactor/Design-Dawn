@@ -1,5 +1,11 @@
 //! Folder commands: create, save, move and delete Folders, and
 //! Documents created in or moved between Folders. The commands never touch order arrays.
+// Some tests here need Unix (permissions, symlinks, shell scripts as a fake git) and are
+// compiled only there; on other platforms their helpers are unused.
+#![cfg_attr(
+    not(unix),
+    allow(dead_code, unused_imports, unused_variables, unused_mut)
+)]
 
 mod support;
 

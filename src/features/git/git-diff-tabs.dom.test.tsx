@@ -130,7 +130,7 @@ describe("preview tab", () => {
     const shell = await openChanges({}, ...CHANGED);
     await click(shell, "変更", "変更 a.md");
     await click(shell, "変更", "変更 b.md");
-    expect(diffTabs().map((tab) => tab.textContent)).toEqual(["±" + B]);
+    expect(diffTabs().map((tab) => tab.textContent)).toEqual([`±${B}`]);
     expect(isPreview(diffTab(B))).toBe(true);
   });
 

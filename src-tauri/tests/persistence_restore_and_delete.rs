@@ -1,5 +1,11 @@
 //! Block content numbering ("largest number + 1"),
 //! `restore_block_content`, `delete_sheet` and `delete_document`.
+// Some tests here need Unix (permissions, symlinks, shell scripts as a fake git) and are
+// compiled only there; on other platforms their helpers are unused.
+#![cfg_attr(
+    not(unix),
+    allow(dead_code, unused_imports, unused_variables, unused_mut)
+)]
 
 mod support;
 

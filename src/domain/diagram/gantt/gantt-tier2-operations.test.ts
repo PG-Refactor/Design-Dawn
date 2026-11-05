@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { applyTextEdits, type TextEdit } from "../text-edit";
+import {
+  GANTT_AXIS_FORMAT_MAX_LENGTH,
+  GANTT_LINK_URL_MAX_LENGTH,
+} from "./gantt-config";
 import { ganttMeaningOf, resolveGanttSchedule } from "./gantt-meaning";
 import {
   type GanttOperation,
@@ -720,6 +724,29 @@ describe("setExcludes and clearExcludes", () => {
 });
 
 describe("addLink and removeLink", () => {
+  it("accepts an axis format and a link URL exactly at their length limits, not one more", () => {
+    const format = `%m${"-".repeat(GANTT_AXIS_FORMAT_MAX_LENGTH - 2)}`;
+    expect(run(REFERENCE, { kind: "setAxisFormat", format }).text).toContain(
+      `axisFormat ${format}\n`,
+    );
+    expect(
+      refusal(REFERENCE, { kind: "setAxisFormat", format: `${format}-` }),
+    ).toMatch(/^\w+: /);
+
+    const prefix = "https://example.com/";
+    const url = `${prefix}${"a".repeat(GANTT_LINK_URL_MAX_LENGTH - prefix.length)}`;
+    expect(
+      run(REFERENCE, { kind: "addLink", target: task(2, "Code"), url }).text,
+    ).toContain(`href "${url}"`);
+    expect(
+      refusal(REFERENCE, {
+        kind: "addLink",
+        target: task(2, "Code"),
+        url: `${url}a`,
+      }),
+    ).toMatch(/^\w+: /);
+  });
+
   it("writes a click line below the task and takes it away again", () => {
     const { text } = run(REFERENCE, {
       kind: "addLink",

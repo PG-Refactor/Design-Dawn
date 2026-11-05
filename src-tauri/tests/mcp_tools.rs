@@ -1527,3 +1527,38 @@ fn a_fixed_project_has_no_write_request() {
         .call_tool("requestWriteAccess", &serde_json::Map::new())
         .is_none());
 }
+
+#[test]
+fn a_text_of_exactly_the_limit_is_written_and_read_back() {
+    let (_temp, root) = project_copy();
+    let context = context_for(&root, true);
+    let limit_text = "x".repeat(TEXT_LIMIT_PLUS_ONE - 1);
+    let created = call(
+        &context,
+        "createBlock",
+        with(
+            overview_ids(),
+            json!({ "type": "markdown", "text": limit_text }),
+        ),
+    )
+    .ok();
+    let block_id = created["blockId"].as_str().unwrap().to_owned();
+    let read = call(&context, "getBlock", block_arguments(&block_id, json!({}))).ok();
+    assert_eq!(
+        read["text"].as_str().unwrap().len(),
+        TEXT_LIMIT_PLUS_ONE - 1
+    );
+
+    // Replacing it with another text of the limit is accepted as well.
+    let replaced = call(
+        &context,
+        "updateBlock",
+        block_arguments(
+            &block_id,
+            json!({ "text": "y".repeat(TEXT_LIMIT_PLUS_ONE - 1), "expectedContentHash": read["contentHash"] }),
+        ),
+    )
+    .ok();
+    assert_eq!(replaced["written"], true);
+    assert_loads_without_issues(&root);
+}

@@ -1,6 +1,6 @@
 //! Atomic Save and create-only writes.
 
-use std::fs::{self, File, OpenOptions};
+use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -37,7 +37,7 @@ fn temp_path_for(target: &Path) -> Result<PathBuf, PersistenceError> {
 // rename is still atomic, only its durability across power loss is weaker.
 #[cfg(unix)]
 fn sync_directory(directory: &Path) -> Result<(), PersistenceError> {
-    File::open(directory)
+    fs::File::open(directory)
         .and_then(|handle| handle.sync_all())
         .map_err(|error| {
             PersistenceError::from_io(format!("sync directory {}", directory.display()), &error)

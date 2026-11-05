@@ -2,6 +2,12 @@
 //! operation must work at the bottom of a long chain. The chain's relative paths exceed the
 //! classic Windows MAX_PATH; Linux does not enforce it, so these tests only document the
 //! scenario. The real Windows behaviour must be verified on Windows.
+// Some tests here need Unix (permissions, symlinks, shell scripts as a fake git) and are
+// compiled only there; on other platforms their helpers are unused.
+#![cfg_attr(
+    not(unix),
+    allow(dead_code, unused_imports, unused_variables, unused_mut)
+)]
 
 mod support;
 

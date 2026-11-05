@@ -2,6 +2,12 @@
 //! `git` in temporary repositories.
 //! Every git process runs with a hermetic configuration (no user or system config, a
 //! throwaway HOME). Tests are skipped, with a message, when no `git` is installed.
+// Some tests here need Unix (permissions, symlinks, shell scripts as a fake git) and are
+// compiled only there; on other platforms their helpers are unused.
+#![cfg_attr(
+    not(unix),
+    allow(dead_code, unused_imports, unused_variables, unused_mut)
+)]
 
 mod support;
 
