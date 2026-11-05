@@ -1,4 +1,4 @@
-// TEST ONLY. Reads what Mermaid 12.1.0 itself holds after reading a gantt chart, through its
+// TEST ONLY. Reads what Mermaid 12.3.0 itself holds after reading a gantt chart, through its
 // internal diagram API (`mermaid.mermaidAPI.getDiagramFromText(...).db`). That API is not
 // public and may change with the library version; nothing in the app uses it. It is the
 // independent reference the domain's GanttMeaning and static dates are compared against. If

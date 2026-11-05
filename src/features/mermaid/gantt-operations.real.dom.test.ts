@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The gantt operations (src/domain/diagram/gantt/gantt-operations.ts) against the real
-// mermaid 12.1.0: every candidate a plan produces must be
+// mermaid 12.3.0: every candidate a plan produces must be
 // accepted by Mermaid, drawn by the same render check the app uses, hold exactly the meaning
 // the operation promised, and put every task where the editor's own date resolution says. The
 // db is read through an internal API and only here, in tests, with Mermaid's module state
@@ -444,7 +444,7 @@ const SCENARIOS: readonly Scenario[] = [
   },
 ];
 
-describe("gantt operations against mermaid 12.1.0: scenarios", () => {
+describe("gantt operations against mermaid 12.3.0: scenarios", () => {
   for (const scenario of SCENARIOS) {
     it(
       scenario.name,
@@ -558,7 +558,7 @@ const NAIVE_EDITS: readonly NaiveEdit[] = [
   },
 ];
 
-describe("gantt operations against mermaid 12.1.0: why a plain edit is not enough", () => {
+describe("gantt operations against mermaid 12.3.0: why a plain edit is not enough", () => {
   for (const naive of NAIVE_EDITS) {
     it(
       naive.name,
@@ -644,7 +644,7 @@ async function editableStartingCharts(): Promise<readonly GanttCorpusCase[]> {
   return charts;
 }
 
-describe("gantt operations against mermaid 12.1.0: random operation sequences", () => {
+describe("gantt operations against mermaid 12.3.0: random operation sequences", () => {
   it(
     "every plan is refused or reads back, in mermaid, exactly as promised",
     async () => {

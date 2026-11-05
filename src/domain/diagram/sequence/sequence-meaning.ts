@@ -9,7 +9,7 @@ import {
 } from "./sequence-config";
 import type { SequenceStatement } from "./sequence-types";
 
-// What Mermaid 12.1.0 holds after reading a sequence diagram (its sequence db), derived from
+// What Mermaid 12.3.0 holds after reading a sequence diagram (its sequence db), derived from
 // the recognised statements by replaying Mermaid's own rules.
 // It is built only when the whole text was understood: never a partial meaning.
 // Items are Mermaid's flat message list: a `+` or `-` on a message adds an activation entry

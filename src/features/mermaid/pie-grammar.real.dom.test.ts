@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Evidence for the pie reader: how mermaid 12.1.0 reads pie charts, and which
+// Evidence for the pie reader: how mermaid 12.3.0 reads pie charts, and which
 // of those inputs the domain (src/domain/diagram/pie/) calls editable. Each case names a
 // fact; the test name is the evidence cited in the table. jsdom cannot lay text out, so
 // "renders" means the real renderer and the SVG sanitiser accept it, not how it looks.
@@ -19,7 +19,7 @@ const renderCheck = createDiagramRenderCheck(mermaidRenderer);
 interface GrammarCase {
   readonly name: string;
   readonly source: string;
-  // Does mermaid 12.1.0 accept the text?
+  // Does mermaid 12.3.0 accept the text?
   readonly mermaid: boolean;
   // Does the domain call it editable? (false for an accepted input = "recognised, not
   // editable", stated on purpose.)
@@ -654,7 +654,7 @@ const CASES: readonly GrammarCase[] = [
   },
 ];
 
-describe("pie grammar of mermaid 12.1.0", () => {
+describe("pie grammar of mermaid 12.3.0", () => {
   it.each(CASES.map((entry) => [entry.name, entry] as const))(
     "%s",
     async (_name, entry) => {

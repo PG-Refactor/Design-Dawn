@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The pie operations against the real mermaid 12.1.0: every
+// The pie operations against the real mermaid 12.3.0: every
 // candidate an operation produces must be drawn by the real renderer (through the same
 // render check the app uses), and mermaid's own pie db must hold exactly the meaning the
 // operation promised. The db is read through an internal API and only here, in tests.
@@ -138,7 +138,7 @@ async function expectCandidateIsRight(source: string, candidate: Candidate) {
   return "done" as const;
 }
 
-describe("pie operations against mermaid 12.1.0", () => {
+describe("pie operations against mermaid 12.3.0", () => {
   it.each(Object.entries(REPRESENTATIVE_SOURCES))(
     "%s: every produced candidate draws and Mermaid reads the promised meaning",
     async (name, source) => {

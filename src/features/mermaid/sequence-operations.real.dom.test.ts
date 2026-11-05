@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The sequence operations (src/domain/diagram/sequence/sequence-operations.ts) against the
-// real Mermaid library (12.1.0): the Tier 1 scenarios of the earlier research (what a naive
+// real Mermaid library (12.3.0): the Tier 1 scenarios of the earlier research (what a naive
 // hand-made edit did, and what the editor does instead) and seeded random operation
 // sequences. For every plan that is handed out, Mermaid itself must accept the new text,
 // read it as the meaning the operation promised, and the app must be able to draw it; the
@@ -405,7 +405,7 @@ const INTENTS: Readonly<Record<string, (source: string) => Outcome>> = {
     plan({ kind: "deleteMessage", target: targetOf(s, message("again")) }),
 };
 
-describe("sequence operations: research scenarios against mermaid 12.1.0", () => {
+describe("sequence operations: research scenarios against mermaid 12.3.0", () => {
   const scenarios = loadSequenceScenarios();
 
   it("has the scenarios the table below is about", () => {
@@ -630,7 +630,7 @@ function randomOperation(
   }
 }
 
-describe("sequence operations: seeded random sequences against mermaid 12.1.0", () => {
+describe("sequence operations: seeded random sequences against mermaid 12.3.0", () => {
   const SEEDS_PER_DIAGRAM = 12;
   const STEPS_PER_SEQUENCE = 12;
 

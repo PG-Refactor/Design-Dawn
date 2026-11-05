@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // A few flowchart operations run through the whole Application gate
-// (`applyValidatedDiagramOperation`) with the REAL render check (mermaid 12.1.0): the
+// (`applyValidatedDiagramOperation`) with the REAL render check (mermaid 12.3.0): the
 // candidate is read, drawn and sanitised, then committed as one undo entry.
 // The 1,106-operation proof of the plans themselves is
 // flowchart-operations.real.dom.test.ts.

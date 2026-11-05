@@ -1,4 +1,4 @@
-// TEST ONLY. Checks a plan of a sequence operation against the real Mermaid 12.1.0: it must
+// TEST ONLY. Checks a plan of a sequence operation against the real Mermaid 12.3.0: it must
 // accept the new text, read it as the meaning the operation promised, draw it (the app's
 // render check), and the edits must be undoable to the exact old text.
 

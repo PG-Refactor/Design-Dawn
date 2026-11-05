@@ -47,14 +47,18 @@ const LICENSE_FILE_IGNORED_EXTENSIONS = new Set([
 // which terms the app relies on. The other license text is still shown if the package ships it.
 const CHOSEN_LICENSE = new Map([
   ["dompurify", "Apache-2.0"],
+  // From 0.12 elkjs is offered as EPL-2.0 OR GPL-3.0-or-later; it is used under the EPL-2.0.
+  ["elkjs", "EPL-2.0"],
   ["@tauri-apps/api", "Apache-2.0 or MIT (either may be used)"],
 ]);
 
 // EPL-2.0 source availability. A version missing here makes `check` fail, so a bump of
 // elkjs forces the source offer to be reviewed instead of silently going stale.
 const ELKJS_PACKAGE_NAME = "elkjs";
+// Checked against both the git tag and the `gitHead` of the npm package.
 const ELKJS_KNOWN_TAG_COMMITS = new Map([
   ["0.9.3", "a8304cf79fde75bc2ab1a89d28320f53f8637436"],
+  ["0.12.1", "624ae90aa37110033a8af59c5ccbb292708b4317"],
 ]);
 const ELKJS_REPOSITORY = "https://github.com/kieler/elkjs";
 const ELKJS_TARBALL_BASE = "https://registry.npmjs.org/elkjs/-/";
@@ -290,11 +294,19 @@ function collectMplCrates(licenses) {
 
 // ---- Rendering --------------------------------------------------------------------
 
+// How elkjs is licensed, and under which license it is used when it is offered under more.
+function offered(elkjs) {
+  const epl = "the Eclipse Public License 2.0 (EPL-2.0)";
+  return elkjs.identifier === "EPL-2.0"
+    ? `licensed under ${epl}`
+    : `offered under ${elkjs.identifier}; Design Dawn uses it under ${epl}`;
+}
+
 function renderElkjsNotice(elkjs) {
   const commit = ELKJS_KNOWN_TAG_COMMITS.get(elkjs.version);
   return `## Source availability for EPL-2.0 code
 
-\`${elkjs.name}\` ${elkjs.version} (the Eclipse Layout Kernel compiled to JavaScript, used by Mermaid) is licensed under the Eclipse Public License 2.0 (EPL-2.0). The full license text is included in the JavaScript section below.
+\`${elkjs.name}\` ${elkjs.version} (the Eclipse Layout Kernel compiled to JavaScript, used by Mermaid) is ${offered(elkjs)}. The full license text is included in the JavaScript section below.
 
 It is included **unmodified**. Its source code is available from:
 

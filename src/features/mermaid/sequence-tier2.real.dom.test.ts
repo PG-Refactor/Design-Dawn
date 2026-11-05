@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The Tier 2 sequence operations against the real Mermaid
-// library (12.1.0): fixed cases for every operation, the arrow / sign grid of the activation
+// library (12.3.0): fixed cases for every operation, the arrow / sign grid of the activation
 // toggle, and seeded random operation sequences that mix Tier 1 and Tier 2 operations. For
 // every plan that is handed out, Mermaid itself must accept the new text, read it as the
 // meaning the operation promised, and the app must be able to draw it; the edits must be
@@ -417,7 +417,7 @@ const CASES: readonly Case[] = [
   },
 ];
 
-describe("sequence Tier 2 operations: fixed cases against mermaid 12.1.0", () => {
+describe("sequence Tier 2 operations: fixed cases against mermaid 12.3.0", () => {
   it(
     "every planned case is accepted, read and drawn by Mermaid as promised and undoable",
     async () => {
@@ -590,7 +590,7 @@ const INTENTS: Readonly<Record<string, (source: string) => Outcome>> = {
   "SQE-B12": () => refuse(NOT_EDITABLE, ANY),
 };
 
-describe("sequence Tier 2 operations: research scenarios against mermaid 12.1.0", () => {
+describe("sequence Tier 2 operations: research scenarios against mermaid 12.3.0", () => {
   it(
     "plans or refuses every Tier 2 scenario as intended, and the naive edit was wrong",
     async () => {
@@ -761,7 +761,7 @@ function randomOperation(
   }
 }
 
-describe("sequence Tier 2 operations: seeded random sequences against mermaid 12.1.0", () => {
+describe("sequence Tier 2 operations: seeded random sequences against mermaid 12.3.0", () => {
   const SEEDS_PER_DIAGRAM = 14;
   const STEPS_PER_SEQUENCE = 14;
 

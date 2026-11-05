@@ -2,7 +2,7 @@ import { type DomainResult, err, ok } from "../../shared/domain-result";
 import { pieEditability } from "./pie-editability";
 import type { ParsedPie } from "./pie-parser";
 
-// What Mermaid 12.1.0 holds after reading a pie chart (its pie db), derived from the parse.
+// What Mermaid 12.3.0 holds after reading a pie chart (its pie db), derived from the parse.
 export interface PieSliceMeaning {
   // The key Mermaid stores the slice under: the label as written between the quotes.
   // Entities such as #quot; are still encoded here; Mermaid decodes them only when it draws,

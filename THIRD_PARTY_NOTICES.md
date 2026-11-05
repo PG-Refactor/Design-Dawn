@@ -12,12 +12,12 @@ Contents: 64 JavaScript packages, 340 Rust crates.
 
 ## Source availability for EPL-2.0 code
 
-`elkjs` 0.9.3 (the Eclipse Layout Kernel compiled to JavaScript, used by Mermaid) is licensed under the Eclipse Public License 2.0 (EPL-2.0). The full license text is included in the JavaScript section below.
+`elkjs` 0.12.1 (the Eclipse Layout Kernel compiled to JavaScript, used by Mermaid) is offered under EPL-2.0 OR GPL-3.0-or-later; Design Dawn uses it under the Eclipse Public License 2.0 (EPL-2.0). The full license text is included in the JavaScript section below.
 
 It is included **unmodified**. Its source code is available from:
 
-- https://github.com/kieler/elkjs (tag `0.9.3`, commit `a8304cf79fde75bc2ab1a89d28320f53f8637436`)
-- https://registry.npmjs.org/elkjs/-/elkjs-0.9.3.tgz (the exact package that is bundled)
+- https://github.com/kieler/elkjs (tag `0.12.1`, commit `624ae90aa37110033a8af59c5ccbb292708b4317`)
+- https://registry.npmjs.org/elkjs/-/elkjs-0.12.1.tgz (the exact package that is bundled)
 - Eclipse Layout Kernel, the origin of the compiled code: https://github.com/eclipse-elk/elk
 
 ## Source availability for MPL-2.0 code
@@ -2612,9 +2612,9 @@ Exhibit B - "Incompatible With Secondary Licenses" Notice
   defined by the Mozilla Public License, v. 2.0.
 ```
 
-### elkjs@0.9.3
+### elkjs@0.12.1
 
-License: EPL-2.0
+License: EPL-2.0 OR GPL-3.0-or-later; used under EPL-2.0
 
 `LICENSE.md`
 
@@ -2871,8 +2871,7 @@ No third-party beneficiary rights are created under this Agreement.
 
 “This Source Code may also be made available under the following
 Secondary Licenses when the conditions for such availability set forth
-in the Eclipse Public License, v. 2.0 are satisfied: {name license(s),
-version(s), and exceptions or additional permissions here}.”
+in the Eclipse Public License, v. 2.0 are satisfied: GNU General Public License v3.0 or later”
 
 > Simply including a copy of this Agreement, including this Exhibit A is
 > not sufficient to license the Source Code under Secondary Licenses.
@@ -3001,7 +3000,7 @@ TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ```
 
-### katex@0.16.47
+### katex@0.18.10
 
 License: MIT
 
@@ -3346,7 +3345,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 ```
 
-### mermaid@12.1.0
+### mermaid@12.3.0
 
 License: MIT
 

@@ -9,9 +9,6 @@ can be read and edited by people, reviewed with Git, and changed safely by AI to
 
 ![A design document with Markdown and a captioned Mermaid flowchart on the canvas](assets/screenshots/overview-dark.png)
 
-> **Status**: version 1.0.0. Developed and tested on Linux (WSL2 + WSLg); Windows 11 builds are
-> checked by hand. macOS builds have not been verified.
-
 ## Features
 
 - **Free-form canvas** — pan, zoom, select, move, resize, align, z-order, copy/paste, and undo/redo

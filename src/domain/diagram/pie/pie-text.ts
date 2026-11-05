@@ -6,7 +6,7 @@ import {
   PIE_QUOTE_ENTITY,
 } from "./pie-config";
 
-// Text rules of the pie editor. They mirror what Mermaid 12.1.0 does to the text before and
+// Text rules of the pie editor. They mirror what Mermaid 12.3.0 does to the text before and
 // while it reads a pie chart, because a label or title is only
 // safe to write if Mermaid reads back exactly what was written.
 

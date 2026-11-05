@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Evidence for the flowchart reader: how mermaid 12.1.0 reads flowcharts, and which of
+// Evidence for the flowchart reader: how mermaid 12.3.0 reads flowcharts, and which of
 // those inputs the domain (src/domain/diagram/flowchart/) calls editable. Each case names a
 // fact; the test name states the evidence. jsdom cannot lay text out, so
 // "draws" means the real renderer and the SVG sanitiser accept it, not how it looks.
@@ -23,7 +23,7 @@ const renderCheck = createDiagramRenderCheck(mermaidRenderer);
 interface GrammarCase {
   readonly name: string;
   readonly source: string;
-  // Does mermaid 12.1.0 accept the text?
+  // Does mermaid 12.3.0 accept the text?
   readonly mermaid: boolean;
   // Does the domain call it editable? (false for an accepted input = "recognised, not
   // editable" or "refused", stated on purpose.)
@@ -691,7 +691,8 @@ const CASES: readonly GrammarCase[] = [
     f("A e1@--> B\ne1@{ color: red }"),
     "atBlockUnsupportedKey",
   ),
-  bad(
+  // Rejected by mermaid 12.1.0, accepted since 12.3.0; the reader keeps refusing it.
+  opaque(
     "edge id: node block before an edge id",
     f("A@{ shape: cyl } e1@--> B"),
     "atBlockBeforeEdgeId",
@@ -732,7 +733,7 @@ const CASES: readonly GrammarCase[] = [
   },
 ];
 
-describe("flowchart grammar of mermaid 12.1.0", () => {
+describe("flowchart grammar of mermaid 12.3.0", () => {
   it("has unique case names", () => {
     const names = CASES.map((entry) => entry.name);
     expect(new Set(names).size).toBe(names.length);
