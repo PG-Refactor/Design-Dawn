@@ -39,7 +39,7 @@ import type {
 } from "./flowchart-types";
 
 // Parsers for the pieces a node is written with: id, bracket shape and label, `@{}` block,
-// `:::class`. Written from the behaviour measured against Mermaid 12.1.0,
+// `:::class`. Written from the behaviour measured against Mermaid 12.3.0,
 // anything not understood is a failure with a reason.
 
 // The reason a character that cannot start or continue an id is reported with.

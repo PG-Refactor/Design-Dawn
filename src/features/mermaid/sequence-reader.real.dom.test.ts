@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Differential test of the sequence reader (src/domain/diagram/sequence/) against the real
-// Mermaid library (12.1.0): for every input, does Mermaid accept it, does the app draw it, did
+// Mermaid library (12.3.0): for every input, does Mermaid accept it, does the app draw it, did
 // the reader fully read it, and do the two meanings agree? The reader may refuse (opaque)
 // what Mermaid accepts; it must never fully read what Mermaid rejects (over-accept) and never
 // read something other than Mermaid reads (mismatch). Layout values come from a fake in
@@ -170,7 +170,7 @@ function casesWithPrefix(prefix: string): readonly SequenceCorpusCase[] {
   return corpus.cases.filter((entry) => entry.id.startsWith(prefix));
 }
 
-describe("sequence reader against mermaid 12.1.0", () => {
+describe("sequence reader against mermaid 12.3.0", () => {
   it("has the corpus the counts below are about", () => {
     expect(corpus.cases.length).toBe(580);
     expect(mermaid).toBeDefined();

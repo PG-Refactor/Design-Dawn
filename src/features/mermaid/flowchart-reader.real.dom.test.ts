@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Differential test of the flowchart reader (src/domain/diagram/flowchart/) against the real
-// Mermaid library (12.1.0): for every input, does Mermaid accept it, does the app draw it, did
+// Mermaid library (12.3.0): for every input, does Mermaid accept it, does the app draw it, did
 // the reader fully read it, and do the two meanings agree? The reader may refuse (opaque)
 // what Mermaid accepts; it must never fully read what Mermaid rejects (over-accept) and never
 // read something other than Mermaid reads (mismatch). Layout values come from a fake in
@@ -70,8 +70,8 @@ const EXPECTED_COUNTS: Readonly<Record<string, SetCounts>> = {
     fullyRead: 67,
     mismatch: 0,
     overAccept: 0,
-    opaqueButMermaidAccepts: 20,
-    bothReject: 10,
+    opaqueButMermaidAccepts: 21,
+    bothReject: 9,
     renderFailuresAmongFullyRead: 0,
   },
   R: {
@@ -198,7 +198,7 @@ function casesWithPrefix(prefix: string): readonly FlowchartCorpusCase[] {
   return corpus.cases.filter((entry) => entry.id.startsWith(prefix));
 }
 
-describe("flowchart reader against mermaid 12.1.0", () => {
+describe("flowchart reader against mermaid 12.3.0", () => {
   it("has the corpus the counts below are about", () => {
     expect(corpus.cases.length).toBe(472);
     expect(corpus.skippedScenarios).toBe(0);

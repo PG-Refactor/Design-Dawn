@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The flowchart Tier 1 operations (src/domain/diagram/flowchart/flowchart-operations.ts)
-// against the real mermaid 12.1.0: every candidate a plan
+// against the real mermaid 12.3.0: every candidate a plan
 // produces must be accepted by Mermaid, drawn by the same render check the app uses, and
 // Mermaid's own flow db must hold exactly the meaning the operation promised. The db is read
 // through an internal API and only here, in tests.
@@ -258,7 +258,7 @@ const CASES: readonly ScenarioCase[] = [
 
 const scenarios = loadFlowchartScenarios();
 
-describe("the research scenarios against mermaid 12.1.0", () => {
+describe("the research scenarios against mermaid 12.3.0", () => {
   it("has a product operation for every scenario of the fixture, and no other", () => {
     expect(scenarios.map((scenario) => scenario.id).sort()).toEqual(
       CASES.map((entry) => entry.id).sort(),

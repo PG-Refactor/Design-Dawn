@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Cross-check of src/domain/diagram/diagram-type.ts against the real Mermaid library
-// (12.1.0): what the domain calls a type must be what Mermaid itself detects. `mermaid.parse`
+// (12.3.0): what the domain calls a type must be what Mermaid itself detects. `mermaid.parse`
 // needs no layout, so nothing is faked here. This does not check rendering or any browser.
 import mermaid from "mermaid";
 import { describe, expect, it } from "vitest";
@@ -51,7 +51,7 @@ const MERMAID_ID_TO_TYPE: Readonly<Record<string, DiagramType>> = {
   railroad: "railroad",
 };
 
-// The smallest body each keyword's grammar accepts in 12.1.0. A bare keyword is not enough
+// The smallest body each keyword's grammar accepts in 12.3.0. A bare keyword is not enough
 // for several grammars, and a keyword Mermaid's grammar rejects must not be in the table.
 const MINIMAL_BODY: Readonly<Record<string, string>> = {
   "flowchart-elk": " TD\nA-->B",
@@ -93,7 +93,7 @@ async function mermaidDiagramType(source: string): Promise<string | null> {
   }
 }
 
-describe("diagram keywords against Mermaid 12.1.0", () => {
+describe("diagram keywords against Mermaid 12.3.0", () => {
   it.each(
     DIAGRAM_KEYWORDS.map((entry) => [entry.keyword, entry.type] as const),
   )("%s is accepted by Mermaid as %s", async (keyword, type) => {
@@ -112,7 +112,7 @@ describe("diagram keywords against Mermaid 12.1.0", () => {
   });
 });
 
-describe("the mermaid-gui fixtures against Mermaid 12.1.0", () => {
+describe("the mermaid-gui fixtures against Mermaid 12.3.0", () => {
   const fixtures = loadMermaidGuiFixtures();
 
   it.each(fixtures.map((fixture) => [fixture.id, fixture] as const))(

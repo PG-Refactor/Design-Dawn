@@ -1,5 +1,5 @@
 // Syntax and policy values of the gantt editor. Every one of them was checked against
-// Mermaid 12.1.0; nothing here is a guess about newer versions.
+// Mermaid 12.3.0; nothing here is a guess about newer versions.
 
 export const GANTT_HEADER_KEYWORD = "gantt";
 

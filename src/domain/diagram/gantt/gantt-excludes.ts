@@ -11,7 +11,7 @@ import {
 } from "./gantt-config";
 import { formatGanttDate } from "./gantt-date";
 
-// How Mermaid 12.1.0 decides that a day is excluded (`isInvalidDate` in its gantt db), for
+// How Mermaid 12.3.0 decides that a day is excluded (`isInvalidDate` in its gantt db), for
 // the part of it the editor models: the `weekends` token and weekday names (both with the
 // `weekend` statement), and date tokens written as `YYYY-MM-DD` or in the chart's dateFormat.
 // `includes` overrides exclusion and is not modelled (the schedule is then unknown).

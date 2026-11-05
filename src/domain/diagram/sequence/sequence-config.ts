@@ -1,4 +1,4 @@
-// Syntax values of Mermaid 12.1.0's `sequenceDiagram` that the reader and the operations
+// Syntax values of Mermaid 12.3.0's `sequenceDiagram` that the reader and the operations
 // share. What is only needed to WRITE text lives in
 // sequence-operation-config.ts.
 
@@ -65,7 +65,7 @@ export function isSequenceReservedWord(word: string): boolean {
 
 // The ten arrows the editor reads and writes. Longest first, so that a regular expression
 // built from the list prefers `-->>` to `->`. The half arrows (`-|\`, `/|-` ...) and the
-// central connection `()` of Mermaid 12.1.0 are not here: a diagram that has one is
+// central connection `()` of Mermaid 12.3.0 are not here: a diagram that has one is
 // read-only in this version.
 export const SEQUENCE_ARROWS = [
   "<<-->>",

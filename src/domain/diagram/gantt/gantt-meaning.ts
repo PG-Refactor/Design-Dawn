@@ -18,7 +18,7 @@ import {
 } from "./gantt-excludes";
 import type { GanttEnd, GanttStart, ParsedGantt } from "./gantt-types";
 
-// What Mermaid 12.1.0 holds after reading a gantt chart, derived from the parse: the title,
+// What Mermaid 12.3.0 holds after reading a gantt chart, derived from the parse: the title,
 // the sections in order, every task with its section, name, id (null when written without
 // one), tags and the start and end as written, the click links and the settings. Dates are
 // kept as the text that was written; `resolveGanttSchedule` computes them.

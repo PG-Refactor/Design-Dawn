@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Evidence for the gantt reader: how mermaid 12.1.0 reads gantt charts, and which
+// Evidence for the gantt reader: how mermaid 12.3.0 reads gantt charts, and which
 // of those inputs the domain (src/domain/diagram/gantt/) calls editable. Each case names a
 // fact; the test name states the evidence. "mermaid" means that Mermaid
 // accepts the text AND the app's render check draws it (jsdom cannot lay text out, so
@@ -23,7 +23,7 @@ const renderCheck = createDiagramRenderCheck(mermaidRenderer);
 interface GrammarCase {
   readonly name: string;
   readonly source: string;
-  // Does mermaid 12.1.0 accept the text and does the app draw it?
+  // Does mermaid 12.3.0 accept the text and does the app draw it?
   readonly mermaid: boolean;
   readonly editable: boolean;
 }
@@ -167,7 +167,7 @@ const CASES: readonly GrammarCase[] = [
     editable: false,
   },
   {
-    name: "settings: topAxis throws in 12.1.0",
+    name: "settings: topAxis throws in 12.3.0",
     source: `${HEAD}  topAxis\n  section S\n${FIRST}`,
     mermaid: false,
     editable: false,
@@ -515,7 +515,7 @@ async function mermaidDraws(source: string): Promise<boolean> {
   return (await renderCheck(source)).ok;
 }
 
-describe("gantt grammar against mermaid 12.1.0", () => {
+describe("gantt grammar against mermaid 12.3.0", () => {
   for (const entry of CASES) {
     it(entry.name, async () => {
       expect(await mermaidDraws(entry.source), "mermaid draws it").toBe(

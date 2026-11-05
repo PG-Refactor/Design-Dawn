@@ -1,5 +1,5 @@
 // Syntax and policy values of the flowchart reader. Every one of them was measured against
-// Mermaid 12.1.0; nothing here is a guess about newer
+// Mermaid 12.3.0; nothing here is a guess about newer
 // versions. Values that the reader, the meaning and the editability all need live here so
 // they cannot drift apart.
 
@@ -198,7 +198,7 @@ export const FLOWCHART_BRACKET_FORMS: readonly FlowchartBracketForm[] = [
 ];
 // `[|key:value|text]` (a node with properties) parses but is not read.
 export const FLOWCHART_PROPS_SHAPE_OPENER = "[|";
-// The ellipse parses but Mermaid 12.1.0 cannot draw it ("No such shape: ellipse"), so no
+// The ellipse parses but Mermaid 12.3.0 cannot draw it ("No such shape: ellipse"), so no
 // later step may offer it.
 export const FLOWCHART_UNDRAWABLE_SHAPES: readonly FlowchartBracketShapeName[] =
   ["ellipse"];

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Differential test of the gantt reader (src/domain/diagram/gantt/) against the real Mermaid
-// library (12.1.0): for every input, does Mermaid accept it and draw it, does the reader call
+// library (12.3.0): for every input, does Mermaid accept it and draw it, does the reader call
 // it editable, and do the meanings (and the dates, where the editor predicts them) agree? The
 // reader may refuse what Mermaid accepts; it must never call editable what Mermaid rejects or
 // cannot draw (over-accept) and never read something other than Mermaid reads (mismatch).
@@ -205,7 +205,7 @@ function casesOf(...groups: readonly string[]): readonly GanttCorpusCase[] {
   return corpus.cases.filter((entry) => groups.includes(entry.group));
 }
 
-describe("gantt reader against mermaid 12.1.0", () => {
+describe("gantt reader against mermaid 12.3.0", () => {
   it("has the corpus the counts below are about", () => {
     expect(corpus.cases.length).toBe(417);
     expect(mermaid).toBeDefined();

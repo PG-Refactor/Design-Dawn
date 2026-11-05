@@ -272,7 +272,7 @@ describe("real Mermaid: directives cannot turn HTML labels or the security level
       `---\nconfig:\n  flowchart:\n    htmlLabels: true\n---\n${LABEL_SOURCE}`,
     ],
   ])(
-    "records what the diagram-specific htmlLabels from %s does (measured with Mermaid 12.1.0: nothing, the labels stay SVG text)",
+    "records what the diagram-specific htmlLabels from %s does (measured with Mermaid 12.3.0: nothing, the labels stay SVG text)",
     async (_name, source) => {
       const { raw, clean } = await renderRawAndClean(source);
       // If a future Mermaid honours this and emits foreignObject, the sanitiser must

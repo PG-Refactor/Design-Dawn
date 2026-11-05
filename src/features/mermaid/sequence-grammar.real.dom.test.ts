@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Evidence for the sequence reader: how mermaid 12.1.0 reads sequence diagrams, and
+// Evidence for the sequence reader: how mermaid 12.3.0 reads sequence diagrams, and
 // which of those inputs the domain (src/domain/diagram/sequence/) calls editable. Each case
 // names a fact; the test name states the evidence. jsdom cannot lay text out,
 // so "draws" means the real renderer and the SVG sanitiser accept it, not how it looks.
@@ -24,7 +24,7 @@ const renderCheck = createDiagramRenderCheck(mermaidRenderer);
 interface GrammarCase {
   readonly name: string;
   readonly source: string;
-  // Does mermaid 12.1.0 accept the text?
+  // Does mermaid 12.3.0 accept the text?
   readonly mermaid: boolean;
   // Does the domain call it editable? (false for an accepted input = "recognised, not
   // editable" or "refused", stated on purpose.)
@@ -443,7 +443,7 @@ const CASES: readonly GrammarCase[] = [
   },
 ];
 
-describe("sequence grammar of mermaid 12.1.0", () => {
+describe("sequence grammar of mermaid 12.3.0", () => {
   it("has unique case names", () => {
     const names = CASES.map((entry) => entry.name);
     expect(new Set(names).size).toBe(names.length);

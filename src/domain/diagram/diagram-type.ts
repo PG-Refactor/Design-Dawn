@@ -5,7 +5,7 @@ import {
   scanLines,
 } from "./source-lines";
 
-// Diagram types of Mermaid 12.1.0, named by this app (not by Mermaid's internal ids).
+// Diagram types of Mermaid 12.3.0, named by this app (not by Mermaid's internal ids).
 // Several keywords can map to one type, for example `graph` and `flowchart`.
 export type DiagramType =
   | "flowchart"
@@ -50,7 +50,7 @@ export interface DiagramKeyword {
 }
 
 // Data only. The set was taken from the detector regular expressions in
-// node_modules/mermaid 12.1.0 and each keyword was confirmed with `mermaid.parse` in
+// node_modules/mermaid 12.3.0 and each keyword was confirmed with `mermaid.parse` in
 // diagram-type.real.dom.test.ts. Mermaid matches by prefix; this table needs a whole token
 // instead, so a typo such as `graphX` is "unknown" here even if Mermaid would accept it.
 export const DIAGRAM_KEYWORDS: readonly DiagramKeyword[] = [

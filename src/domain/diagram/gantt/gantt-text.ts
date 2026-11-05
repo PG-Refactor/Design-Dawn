@@ -21,7 +21,7 @@ import {
 } from "./gantt-config";
 import { isGanttDuration, parseGanttDate } from "./gantt-date";
 
-// Text rules of the gantt editor. They mirror what Mermaid 12.1.0 does to a line before and
+// Text rules of the gantt editor. They mirror what Mermaid 12.3.0 does to a line before and
 // while it reads it, because a name, title or id is only safe to
 // write if Mermaid reads back exactly what was written.
 

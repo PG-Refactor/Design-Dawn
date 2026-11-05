@@ -1,4 +1,4 @@
-// TEST ONLY. Checks a plan of a gantt operation against the real Mermaid 12.1.0: it must
+// TEST ONLY. Checks a plan of a gantt operation against the real Mermaid 12.3.0: it must
 // accept the new text, draw it with the app's render check, read it as the meaning the
 // operation promised, put every task where the editor's resolver says, and the edits must be
 // undoable to the exact old text. For the operations that promise no date moves (moves,

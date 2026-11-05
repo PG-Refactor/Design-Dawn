@@ -3,7 +3,7 @@
 
 import type { MermaidThemeValues } from "./mermaid-renderer-types";
 
-// Mermaid 12.1.0's own default `secure` list (defaultConfig in
+// Mermaid 12.3.0's own default `secure` list (defaultConfig in
 // node_modules/mermaid/dist/chunks/mermaid.core/chunk-VPRB5NB3.mjs). Setting `secure`
 // replaces the default instead of extending it, so the defaults are repeated here; a test
 // keeps the two lists in step with what Mermaid exposes.

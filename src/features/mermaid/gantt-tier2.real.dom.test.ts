@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The Tier 2 gantt operations against the real Mermaid 12.1.0:
+// The Tier 2 gantt operations against the real Mermaid 12.3.0:
 // fixed cases for every operation, and seeded random operation sequences that mix Tier 1 and
 // Tier 2 operations on every editable chart of the corpus. For every plan that is handed out
 // Mermaid itself must accept the new text, read it as the promised meaning, compute the dates
@@ -235,7 +235,7 @@ const CASES: readonly Case[] = [
   },
 ];
 
-describe("gantt Tier 2 operations against mermaid 12.1.0: fixed cases", () => {
+describe("gantt Tier 2 operations against mermaid 12.3.0: fixed cases", () => {
   for (const entry of CASES) {
     it(
       entry.label,
@@ -326,7 +326,7 @@ async function editableStartingCharts(): Promise<readonly GanttCorpusCase[]> {
   return charts;
 }
 
-describe("gantt Tier 2 operations against mermaid 12.1.0: random operation sequences", () => {
+describe("gantt Tier 2 operations against mermaid 12.3.0: random operation sequences", () => {
   it(
     "every plan is refused or reads back, in mermaid, exactly as promised",
     async () => {

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The flowchart Tier 2 operations against the real mermaid
-// 12.1.0: every candidate a plan produces must be accepted by Mermaid, drawn by the same
+// 12.3.0: every candidate a plan produces must be accepted by Mermaid, drawn by the same
 // render check the app uses, and Mermaid's own flow db must hold exactly the meaning the
 // operation promised (node order, members of every subgraph, edge order and ids, linkStyle
 // numbers). The db is read through an internal API and only here, in tests.
@@ -225,7 +225,7 @@ const SCENARIOS: readonly Scenario[] = [
   ),
 ];
 
-describe("the Tier 2 scenarios against mermaid 12.1.0", () => {
+describe("the Tier 2 scenarios against mermaid 12.3.0", () => {
   it.each(SCENARIOS.map((entry) => [entry.id, entry] as const))(
     "%s",
     async (_id, entry) => {
