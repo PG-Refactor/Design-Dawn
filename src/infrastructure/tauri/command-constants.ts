@@ -58,6 +58,7 @@ export const COMMANDS = {
   listProjectWindows: "list_project_windows",
   projectWindowAt: "project_window_at",
   showProjectInTitle: "show_project_in_title",
+  applyWindowTheme: "apply_window_theme",
   gitStatus: "git_status",
   gitStage: "git_stage",
   gitUnstage: "git_unstage",

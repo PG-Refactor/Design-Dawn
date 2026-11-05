@@ -5,6 +5,7 @@
   "windows": ["main", "window-*"],
   "permissions": [
     "allow-select-project-folder",
+    "allow-apply-window-theme",
     "allow-ai-access-overview",
     "allow-answer-ai-access-request",
     "allow-add-open-project-to-ai",

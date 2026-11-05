@@ -7,6 +7,9 @@ pub const THEME_SYSTEM: &str = "system";
 /// Theme definition table: adding a theme means adding its id here (`ThemePreference` is
 /// `system` plus these ids). Mirrors `THEME_DEFINITIONS` in `src/application/local-state/theme.ts`.
 pub const THEME_IDS: [&str; 2] = ["light", "dark"];
+/// The themes drawn on a dark base: the window's own title bar (the OS part with the close
+/// button) is dark for them, light for the other themes, and follows the OS for `system`.
+pub const DARK_THEME_IDS: [&str; 1] = ["dark"];
 pub const DEFAULT_THEME_PREFERENCE: &str = THEME_SYSTEM;
 
 /// Preference that follows the WebView's language (resolved in the Frontend).

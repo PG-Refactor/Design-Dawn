@@ -10,5 +10,9 @@ export function createTauriWindowTitle(): WindowTitle {
       call(COMMANDS.showProjectInTitle, { projectName }, () =>
         commandOk(undefined),
       ),
+    applyTheme: (themePreference) =>
+      call(COMMANDS.applyWindowTheme, { themePreference }, () =>
+        commandOk(undefined),
+      ),
   };
 }

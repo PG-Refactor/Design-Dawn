@@ -49,6 +49,7 @@ use crate::application::local_state::ai_access::{
     ai_access_overview as ai_access_overview_of, mcp_server_path, AiAccessList, AiAccessOverview,
 };
 use crate::application::local_state::operations::{AppSettings, LocalState, SheetViewportResult};
+use crate::application::local_state::theme::{ThemePreference, WindowAppearance};
 use crate::application::open_request::{self, OpenRequest, OpenedRequest, PendingOpenRequests};
 use crate::application::project_operations as projects;
 use crate::application::session::ProjectSessions;
@@ -70,8 +71,9 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 74] = [
+pub const COMMAND_NAMES: [&str; 75] = [
     "select_project_folder",
+    "apply_window_theme",
     "ai_access_overview",
     "answer_ai_access_request",
     "add_open_project_to_ai",
@@ -1809,6 +1811,29 @@ pub fn show_project_in_title<R: Runtime>(
         )
     });
     log_failure(shown)
+}
+
+/// Draws the calling window's own title bar (with the close button) light or dark to match
+/// the theme; `system` leaves it to the OS. On Linux and macOS the OS applies it app-wide.
+#[tauri::command]
+pub fn apply_window_theme<R: Runtime>(
+    window: Window<R>,
+    theme_preference: String,
+) -> Result<(), ApplicationError> {
+    let preference = ThemePreference::parse(&theme_preference)?;
+    let theme = preference
+        .window_appearance()
+        .map(|appearance| match appearance {
+            WindowAppearance::Light => tauri::Theme::Light,
+            WindowAppearance::Dark => tauri::Theme::Dark,
+        });
+    let applied = window.set_theme(theme).map_err(|error| {
+        ApplicationError::persistence(
+            PersistenceErrorKind::IoError,
+            format!("failed to set the window theme: {error}"),
+        )
+    });
+    log_failure(applied)
 }
 
 /// A window of the calling window's Project, for "move to window …".
