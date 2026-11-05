@@ -691,11 +691,20 @@ const CASES: readonly GrammarCase[] = [
     f("A e1@--> B\ne1@{ color: red }"),
     "atBlockUnsupportedKey",
   ),
-  // Rejected by mermaid 12.1.0, accepted since 12.3.0; the reader keeps refusing it.
-  opaque(
-    "edge id: node block before an edge id",
-    f("A@{ shape: cyl } e1@--> B"),
-    "atBlockBeforeEdgeId",
+  // A node's attribute block right before an edge id: rejected by mermaid 12.1.0, read
+  // since 12.3.0.
+  good("edge id: node block before an edge id", f("A@{ shape: cyl } e1@--> B")),
+  good(
+    "edge id: node blocks on both ends of an edge with an id",
+    f('A@{ shape: cyl } e1@--> B@{ label: "Done" }'),
+  ),
+  good(
+    "edge id: a chain with node blocks and edge ids",
+    f("A@{ shape: cyl } e1@--> B@{ shape: diam } e2@-.-> C"),
+  ),
+  good(
+    "edge id: node block before an edge id with a label",
+    f('A@{ label: "Start" } e1@-->|go| B'),
   ),
   // ---- text rewriting by mermaid
   refused(

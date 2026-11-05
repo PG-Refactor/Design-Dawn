@@ -276,7 +276,6 @@ export const FLOWCHART_OPAQUE_REASONS = [
   "atBlockUnsupportedValue",
   "atBlockMalformed",
   "atBlockOnSubgraph",
-  "atBlockBeforeEdgeId",
   "unknownShape",
   "edgeIdSwallowsNode",
   "unsupportedClassDef",

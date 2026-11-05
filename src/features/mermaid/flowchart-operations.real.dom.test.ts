@@ -599,11 +599,11 @@ describe("random operation sequences", () => {
 // Fixed on purpose (seeded run): when the operations, the reader or Mermaid change, the
 // numbers move. Update them only after looking at why.
 const EXPECTED_SEQUENCE_COUNTS: SequenceCounts = {
-  inputs: 411,
-  operations: 1106,
-  planned: 775,
-  refused: 331,
-  noChange: 117,
+  inputs: 412,
+  operations: 1109,
+  planned: 776,
+  refused: 333,
+  noChange: 107,
   mermaidDisagrees: 0,
   verifyRejects: 0,
   undrawableInputs: 0,

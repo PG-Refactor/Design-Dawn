@@ -337,7 +337,6 @@ const OPAQUE_SAMPLES: Readonly<Record<FlowchartOpaqueReason, string>> = {
   atBlockUnsupportedValue: f("A@{ label: x y }"),
   atBlockMalformed: f("A@{ }"),
   atBlockOnSubgraph: f('subgraph S\nA\nend\nS@{ label: "x" }'),
-  atBlockBeforeEdgeId: f("A@{ shape: cyl } e1@--> B"),
   unknownShape: f("A@{ shape: nope }"),
   edgeIdSwallowsNode: f('A e1@--> B\ne1["X"]'),
   unsupportedClassDef: f("classDef k"),

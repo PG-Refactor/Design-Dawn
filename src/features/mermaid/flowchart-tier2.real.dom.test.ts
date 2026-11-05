@@ -495,26 +495,26 @@ describe("random operation sequences with the Tier 2 operations", () => {
 // Fixed on purpose (seeded run): when the operations, the reader or Mermaid change, the
 // numbers move. Update them only after looking at why.
 const EXPECTED_SEQUENCE_COUNTS: SequenceCounts = {
-  inputs: 419,
-  operations: 1098,
-  planned: 935,
-  refused: 163,
-  noChange: 48,
+  inputs: 420,
+  operations: 1095,
+  planned: 933,
+  refused: 162,
+  noChange: 51,
   mermaidDisagrees: 0,
   verifyRejects: 0,
 };
 // Plans that changed the text, by operation.
 const EXPECTED_KIND_COUNTS: Record<string, number> = {
-  addEdge: 130,
-  addNode: 119,
-  createSubgraph: 96,
-  deleteEdge: 83,
-  deleteNode: 157,
-  dissolveSubgraph: 37,
-  moveNodeToSubgraph: 21,
+  addEdge: 131,
+  addNode: 117,
+  createSubgraph: 98,
+  deleteEdge: 81,
+  deleteNode: 158,
+  dissolveSubgraph: 34,
+  moveNodeToSubgraph: 22,
   reconnectEdge: 40,
   removeNodeFromSubgraph: 10,
-  setNodeLabel: 125,
-  setSubgraphDirection: 39,
-  setSubgraphTitle: 30,
+  setNodeLabel: 122,
+  setSubgraphDirection: 38,
+  setSubgraphTitle: 31,
 };
