@@ -22,13 +22,15 @@ use crate::application::local_state::ai_requests::{request_write_access, AiReque
 use crate::application::snapshot::EntityState;
 use crate::domain::caption::CaptionPosition;
 use crate::domain::entity_id::ProjectId;
+use crate::domain::error::DomainErrorKind;
 use crate::infrastructure::file_format::dto::{BlockDto, SheetDto};
 use crate::infrastructure::file_format::image_validation::ImageFormat;
 
 use super::arguments::Arguments;
 use super::config::{
-    APP_MODE_INSTRUCTIONS, CONTENT_HASH_HEX_LENGTH, DEFAULT_BLOCK_GAP, DEFAULT_BLOCK_HEIGHT,
-    DEFAULT_BLOCK_WIDTH, DEFAULT_BLOCK_X, DEFAULT_BLOCK_Y, FIXED_PROJECT_INSTRUCTIONS,
+    APP_MODE_INSTRUCTIONS, BLOCK_MIN_HEIGHT, BLOCK_MIN_WIDTH, CONTENT_HASH_HEX_LENGTH,
+    DEFAULT_BLOCK_GAP, DEFAULT_BLOCK_HEIGHT, DEFAULT_BLOCK_WIDTH, DEFAULT_BLOCK_X, DEFAULT_BLOCK_Y,
+    FIXED_PROJECT_INSTRUCTIONS,
 };
 use super::protocol::{ToolHost, ToolOutput};
 use super::tool_definitions::{self as names, tool_definitions, ToolDefinition};
@@ -105,6 +107,24 @@ fn is_content_hash(text: &str) -> bool {
         && text
             .bytes()
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+/// Refuses a size below the smallest Block the app lets anyone make (a larger bound than the
+/// file format's). Refused rather than enlarged, so the AI is not left with a size it did
+/// not ask for.
+fn check_block_size(size: Option<(i64, i64)>) -> Result<(), ToolError> {
+    match size {
+        Some((width, height)) if width < BLOCK_MIN_WIDTH || height < BLOCK_MIN_HEIGHT => {
+            Err(ToolError::new(
+                DomainErrorKind::InvalidSize.as_str(),
+                format!(
+                    "a Block must be at least {BLOCK_MIN_WIDTH} x {BLOCK_MIN_HEIGHT} \
+(width x height); got {width} x {height}"
+                ),
+            ))
+        }
+        _ => Ok(()),
+    }
 }
 
 /// Below the lowest Block, so a new Block does not cover an existing one.
@@ -561,6 +581,7 @@ the user can add it in Design Dawn's AI integration screen",
         let text = arguments.string("text")?;
         let position = arguments.optional_pair("position", "x", "y")?;
         let size = arguments.optional_pair("size", "width", "height")?;
+        check_block_size(size)?;
         let mut workspace = self.workspace()?;
         let document = workspace.load_document(arguments.string("documentId")?)?;
         let sheet = find_sheet(&document, arguments.string("sheetId")?)?;
@@ -656,6 +677,7 @@ the user can add it in Design Dawn's AI integration screen",
     fn move_block(&self, arguments: &Arguments) -> Result<Value, ToolError> {
         let position = arguments.pair("position", "x", "y")?;
         let size = arguments.optional_pair("size", "width", "height")?;
+        check_block_size(size)?;
         let mut workspace = self.workspace()?;
         let document = workspace.load_document(arguments.string("documentId")?)?;
         let sheet = find_sheet(&document, arguments.string("sheetId")?)?;

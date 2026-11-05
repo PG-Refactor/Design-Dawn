@@ -10,8 +10,6 @@
   background: var(--color-surface);
   box-shadow: var(--shadow-subtle);
   color: var(--color-text);
-  /* Lets the resize grip measure the block (its size is always set explicitly). */
-  container-type: size;
 }
 
 /* A selected block keeps its own background (a large diagram would otherwise be tinted
@@ -42,14 +40,13 @@
      so the colour stays a theme token. The stops place the lines inside the rounded
      corner. */
   --resize-grip-color: var(--color-border-strong);
-  /* A fixed size on screen, but never larger than the block: a block made tiny in its file
-     (the format allows 1 x 1) would otherwise have the grip sticking out of it. */
-  --resize-grip-size: min(calc(14px / var(--canvas-zoom, 1)), 100cqw, 100cqh);
   position: absolute;
   right: 0;
   bottom: 0;
-  width: var(--resize-grip-size);
-  height: var(--resize-grip-size);
+  width: 14px;
+  height: 14px;
+  transform: scale(calc(1 / var(--canvas-zoom, 1)));
+  transform-origin: bottom right;
   padding: 0;
   border: none;
   background: linear-gradient(

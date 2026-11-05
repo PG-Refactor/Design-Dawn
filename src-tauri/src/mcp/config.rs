@@ -66,6 +66,13 @@ pub const DEFAULT_BLOCK_X: i64 = DEFAULT_NEW_BLOCK_X;
 pub const DEFAULT_BLOCK_GAP: i64 = DEFAULT_NEW_BLOCK_GAP;
 pub const DEFAULT_BLOCK_Y: i64 = DEFAULT_NEW_BLOCK_Y;
 
+/// The smallest Block an AI may make: the same lower bound as resizing in the app
+/// (`CANVAS_CONFIG.block.minSize` in the Frontend), so an AI cannot make a Block the app
+/// itself would not. A file edited by hand may still hold a smaller one (the format accepts
+/// any size from 1); it is shown and can be resized back.
+pub const BLOCK_MIN_WIDTH: i64 = 48;
+pub const BLOCK_MIN_HEIGHT: i64 = 32;
+
 /// The SHA-256 hex digest used as `contentHash`.
 pub const CONTENT_HASH_HEX_LENGTH: usize = 64;
 
