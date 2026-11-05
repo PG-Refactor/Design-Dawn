@@ -9,8 +9,8 @@ export const TEXT_SIZES = ["small", "medium", "large", "xlarge"] as const;
 export type TextSize = (typeof TEXT_SIZES)[number];
 
 // "medium" is the size of desktop tools such as VS Code (13px UI text), which suits a
-// Windows screen with its display scaling (user decision, 2026-11-03). Under WSLg on a 4K
-// screen, which applies no scaling, "large" and above make it readable.
+// screen with display scaling (the usual Windows setup). On a high-resolution screen without
+// scaling, "large" and above make it readable.
 export const DEFAULT_TEXT_SIZE: TextSize = "medium";
 
 // The root font size each setting applies; every UI size is in rem, so this scales the UI.

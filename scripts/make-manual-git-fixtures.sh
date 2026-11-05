@@ -6,6 +6,13 @@
 set -eu
 BASE="${MANUAL_GIT_BASE:-$HOME/manual-git}"
 SRC=/workspace/fixtures/projects/basic
+# The folder is deleted and made again: refuse anything that is not a folder of its own.
+case "$BASE" in
+  "" | / | "$HOME" | "$HOME/" | /workspace | /workspace/*)
+    echo "refusing to use $BASE as the output folder" >&2
+    exit 1
+    ;;
+esac
 rm -rf "$BASE"
 mkdir -p "$BASE"
 

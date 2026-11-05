@@ -36,7 +36,7 @@ const identity = <Value,>(value: Value): Value => value;
 // the ones that cannot be chosen are disabled and say why (the current parent is disabled
 // because moving there would change nothing). Everything starts expanded so the current
 // parent and every other target are visible without clicking; folding is local to the
-// dialog. A click highlights a row; "ここに移動", Enter or a double-click moves there.
+// dialog. A click highlights a row; "Move Here", Enter or a double-click moves there.
 export function MoveDialog({
   entryId,
   name,

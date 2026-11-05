@@ -13,7 +13,7 @@
   outline: none;
 }
 
-/* After the source and before the preview in the DOM (Tab goes source -> 完了), but drawn
+/* After the source and before the preview in the DOM (Tab goes source -> Done), but drawn
    as the header row. */
 .text-block-editor__bar {
   display: flex;
