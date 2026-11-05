@@ -9,8 +9,8 @@ can be read and edited by people, reviewed with Git, and changed safely by AI to
 
 ![A design document with Markdown and a captioned Mermaid flowchart on the canvas](assets/screenshots/overview-dark.png)
 
-> **Status**: pre-release, developed and tested on Linux (WSL2 + WSLg). Windows and macOS builds
-> have not been verified yet.
+> **Status**: version 1.0.0. Developed and tested on Linux (WSL2 + WSLg); Windows 11 builds are
+> checked by hand. macOS builds have not been verified.
 
 ## Features
 
@@ -21,13 +21,14 @@ can be read and edited by people, reviewed with Git, and changed safely by AI to
 - **Markdown blocks** — rendered view on the canvas; a split source/preview editor while editing.
 - **Mermaid blocks** — any Mermaid 12 diagram, rendered locally and sanitised (no network, no
   scripts).
-- **Mermaid GUI editor** — edit pie charts, flowcharts, sequence diagrams and gantt charts with
+- **Mermaid GUI editor** — edit pie charts, flowcharts, sequence diagrams and Gantt charts with
   lists and property fields instead of syntax; right-click a shape in the diagram to edit or
-  delete it, and add elements in a dialog with a preview. Diagrams and images can have a caption.
-  The Mermaid source stays the single source of truth: each GUI edit changes only the bytes it
-  must, is checked by re-reading the result and rendering it, and is one undo step. Anything the editor does not fully understand stays
-  read-only rather than being rewritten.
-- **Image blocks** — PNG, JPEG, WebP, SVG and GIF, added by drag and drop.
+  delete it, and add elements in a dialog with a preview. The Mermaid source stays the single
+  source of truth: each GUI edit changes only the bytes it must, is checked by re-reading the
+  result and rendering it, and is one undo step. Anything the editor does not fully understand
+  stays read-only rather than being rewritten.
+- **Image blocks** — PNG, JPEG, WebP, SVG and GIF, added by drag and drop or from a file dialog.
+- **Captions** — diagrams and images can have a one-line caption above or below them.
 - **Git integration** — status, stage/unstage, commit, history, side-by-side diffs in tabs,
   discard, fetch/pull/push, branch display.
 - **External changes** — edits made by another editor, Git or an AI tool are detected; documents
@@ -40,7 +41,8 @@ can be read and edited by people, reviewed with Git, and changed safely by AI to
   (missing or unlisted items, duplicate IDs, orphan files, leftovers of an interrupted save) can be
   repaired from the notification panel; files written by older versions are read and upgraded on
   the next save.
-- **Light / dark theme** and **English / Japanese** UI, with a compact File / View / Help menu bar (version and license information under Help).
+- **Light / dark theme** and **English / Japanese** UI, with a compact File / View / Help menu bar
+  (version and license information under Help).
 
 | Flowchart GUI editor | Sequence diagram GUI editor |
 |---|---|
@@ -144,7 +146,8 @@ Results:
 - `src-tauri\target\release\bundle\nsis\Design Dawn_<version>_x64-setup.exe`: NSIS installer
 - `src-tauri\target\release\bundle\msi\Design Dawn_<version>_x64_en-US.msi`: MSI installer
 - `src-tauri\target\release\design-dawn-mcp.exe`: the MCP server. The installers do not include it
-  yet; put it anywhere and register that path with the AI client (see below).
+  yet; put it next to the installed `design-dawn.exe` (where the AI Integration screen looks for
+  it) and register that path with the AI tool (see below).
 
 Tauri downloads NSIS and WiX on the first build. `npm run tauri build -- --bundles nsis` builds only
 the NSIS installer.
@@ -156,7 +159,7 @@ yourself or got from a source you trust.
 ## Using it with AI (MCP)
 
 `design-dawn-mcp` is a local MCP server that lets an AI tool (Claude, Codex, GitHub Copilot,
-Cursor or any other MCP client) read and edit Design Dawn Projects. It speaks MCP over
+Cursor or any other MCP client) read and edit Design Dawn projects. It speaks MCP over
 stdin/stdout only, opens no network port, and works whether or not the app is running.
 
 **Set-up (once per AI tool)**: in the app, open **File → AI Integration (MCP)**. It shows the
@@ -172,25 +175,24 @@ the common JSON form:
 ```
 
 Register it the way your AI tool adds MCP servers (for Claude Code:
-`claude mcp add design-dawn -- <command>`). No Project is named in the registration.
+`claude mcp add design-dawn -- <command>`). No project is named in the registration.
 
-**Which Projects the AI may use**: only the ones you add in the AI Integration screen (**Add
-the Open Project**, or **Add a Folder…** for any Project folder). By default the AI works on the
-Project open in the app (the window used last; the last one used when the app is closed), if it
-is added. The AI can list the added Projects (`listProjects`) and choose one (`selectProject`),
-so "summarize the order-service Project" works without registering anything again.
+**Which projects the AI may use**: only the ones you add in the AI Integration screen (**Add
+the Open Project**, or **Add a Folder…** for any project folder). By default the AI works on the
+project open in the app (the window used last; the last one used when the app is closed), if it
+is added. The AI can list the added projects (`listProjects`) and choose one (`selectProject`),
+so "summarize the order-service project" works without registering anything again.
 
-**Permissions**: an added Project is read-only for AI until you tick **Allow editing by AI**
+**Permissions**: an added project is read-only for AI until you tick **Allow editing by AI**
 next to it. An AI can also ask (`requestWriteAccess`): the app then asks you to **Allow**,
 **Allow This Time** (until the app closes) or **Don't Allow**, and only your answer counts. The
-Project open in the app can be asked for too; allowing it adds it to the list. After a "no",
-requests for that Project are ignored for a while. Only the app changes this list (it is kept in the app's settings folder as
-`ai-access.json`, never inside a Project), so an AI cannot add a Project or grant itself
-access. The screen also removes a Project from the list.
+project open in the app can be asked for too; allowing it adds it to the list. After a "no",
+requests for that project are ignored for a while. Only the app changes this list (it is kept in
+the app's settings folder as `ai-access.json`, never inside a project), so an AI cannot add a
+project or grant itself access. The screen also removes a project from the list.
 
 - **Tools**: `listProjects`, `selectProject`, `requestWriteAccess`, `getProject`, `getDocument`,
-  `getSheet`, `getBlock`;
-  for writable Projects also `createDocument`, `createSheet`, `createBlock` (Markdown or Mermaid),
+  `getSheet`, `getBlock`; for writable projects also `createDocument`, `createSheet`, `createBlock` (Markdown or Mermaid),
   `updateDocument`, `updateSheet`, `updateBlock`, `moveBlock`, `updateBlockCaption` (the caption
   of a Mermaid or Image block), `deleteBlock`.
 - To change a block's text, the AI reads it with `getBlock` and passes its `contentHash` as
@@ -198,7 +200,7 @@ access. The screen also removes a Project from the list.
 - It cannot delete documents, sheets or projects, import files from disk, run commands, use Git or
   open network connections. If the app has the project open, it shows the changes at once.
 
-**One fixed Project** (without the app's list): start it with
+**One fixed project** (without the app's list): start it with
 `--project <folder holding project.json>`, and add `--allow-write` to allow changes:
 
 ```sh

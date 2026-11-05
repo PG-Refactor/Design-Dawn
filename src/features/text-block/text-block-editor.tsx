@@ -79,7 +79,7 @@ export interface TextBlockEditorProps {
 // preview), never the application state, the history or the save queue. The draft becomes
 // the block's text in ONE command when the edit is committed:
 //   - focus leaves the editor to somewhere outside it, or
-//   - the "完了" button is used, or
+//   - the "Done" button is used, or
 //   - the editor goes away while the draft differs from the last committed text (switching
 //     the sheet; a safety net so a draft is not dropped silently).
 // There is no discard: Escape does nothing special here, so a draft is never lost to a
@@ -130,7 +130,7 @@ export function TextBlockEditor({
   }, [view, guiCommittedText]);
 
   // Applies the draft as ONE command without ending the edit or touching the textarea.
-  // Shared by every commit path (focus out, 完了, unmount, save-all), so two of them never
+  // Shared by every commit path (focus out, Done, unmount, save-all), so two of them never
   // run a command for the same text: a caller that finds a commit in flight waits for it
   // and then re-checks, which finds the text already committed. A failed commit leaves
   // the draft and the edit mode as they are; the action has recorded the error.
@@ -241,7 +241,7 @@ export function TextBlockEditor({
 
   function onBlur(event: FocusEvent<HTMLDivElement>) {
     const next = event.relatedTarget;
-    // Focus moving inside the editor (source -> preview -> 完了) is not leaving it. The
+    // Focus moving inside the editor (source -> preview -> Done) is not leaving it. The
     // container itself is focusable, so a click on non-focusable preview content lands
     // on it instead of on the page body.
     if (next instanceof Node && event.currentTarget.contains(next)) return;

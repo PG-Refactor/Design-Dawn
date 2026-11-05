@@ -42,6 +42,48 @@ pub struct AiRequestPrompts {
     denied: HashMap<ProjectId, Instant>,
 }
 
+/// What to do with a request that is waiting.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PromptDecision {
+    /// Ask the user.
+    Show,
+    /// It is on screen already.
+    Wait,
+    /// The user just said no to this Project: the request is dropped.
+    Drop,
+}
+
+impl AiRequestPrompts {
+    pub fn decide(&mut self, project_id: &ProjectId, now: Instant) -> PromptDecision {
+        let max_age = Duration::from_secs(AI_REQUEST_MAX_AGE_SECS);
+        let cooldown = Duration::from_secs(AI_REQUEST_DENIED_COOLDOWN_SECS);
+        // A question that was shown long ago (and never answered, e.g. its window closed)
+        // may be asked again; a "no" holds for the cooldown.
+        self.shown
+            .retain(|_, at| now.saturating_duration_since(*at) < max_age);
+        self.denied
+            .retain(|_, at| now.saturating_duration_since(*at) < cooldown);
+        if self.denied.contains_key(project_id) {
+            PromptDecision::Drop
+        } else if self.shown.contains_key(project_id) {
+            PromptDecision::Wait
+        } else {
+            PromptDecision::Show
+        }
+    }
+
+    pub fn shown(&mut self, project_id: ProjectId, now: Instant) {
+        self.shown.insert(project_id, now);
+    }
+
+    pub fn answered(&mut self, project_id: &ProjectId, answer: AiRequestAnswer, now: Instant) {
+        self.shown.remove(project_id);
+        if answer == AiRequestAnswer::Deny {
+            self.denied.insert(*project_id, now);
+        }
+    }
+}
+
 fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(PoisonError::into_inner)
 }
@@ -91,18 +133,12 @@ fn show_new_requests<R: Runtime>(app: &AppHandle<R>) {
         return;
     };
     let config_dir = local_state.config_dir().to_path_buf();
-    let max_age = Duration::from_secs(AI_REQUEST_MAX_AGE_SECS);
-    let cooldown = Duration::from_secs(AI_REQUEST_DENIED_COOLDOWN_SECS);
     for project_id in pending_requests(&config_dir, unix_now()) {
-        {
-            let mut prompts = lock(&prompts);
-            prompts.denied.retain(|_, at| at.elapsed() < cooldown);
-            prompts.shown.retain(|_, at| at.elapsed() < max_age);
-            if prompts.denied.contains_key(&project_id) {
+        match lock(&prompts).decide(&project_id, Instant::now()) {
+            PromptDecision::Show => {}
+            PromptDecision::Wait => continue,
+            PromptDecision::Drop => {
                 let _ = remove_request(&config_dir, &project_id);
-                continue;
-            }
-            if prompts.shown.contains_key(&project_id) {
                 continue;
             }
         }
@@ -126,7 +162,7 @@ fn show_new_requests<R: Runtime>(app: &AppHandle<R>) {
             folder_display: plain_path(&folder).to_string_lossy().into_owned(),
         };
         if hub.send_untracked(&window_label, notification) {
-            lock(&prompts).shown.insert(project_id, Instant::now());
+            lock(&prompts).shown(project_id, Instant::now());
         }
     }
 }
@@ -153,13 +189,7 @@ pub fn answer_ai_access_request<R: Runtime>(
     let local_state = app
         .try_state::<LocalState>()
         .ok_or_else(|| ApplicationError::entity_not_found("no local state"))?;
-    {
-        let mut prompts = lock(&prompts);
-        prompts.shown.remove(&project_id);
-        if answer == AiRequestAnswer::Deny {
-            prompts.denied.insert(project_id, Instant::now());
-        }
-    }
+    lock(&prompts).answered(&project_id, answer, Instant::now());
     let result = match answer {
         AiRequestAnswer::Deny => Ok(()),
         AiRequestAnswer::Allow | AiRequestAnswer::AllowUntilAppExits => {
@@ -174,4 +204,56 @@ pub fn answer_ai_access_request<R: Runtime>(
     };
     let _ = remove_request(local_state.config_dir(), &project_id);
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const PROJECT: &str = "01928f3a-0000-7000-8000-000000000001";
+
+    #[test]
+    fn a_request_is_shown_once_and_asked_again_only_after_it_got_old() {
+        let project = ProjectId::parse(PROJECT).unwrap();
+        let start = Instant::now();
+        let mut prompts = AiRequestPrompts::default();
+        assert_eq!(prompts.decide(&project, start), PromptDecision::Show);
+        prompts.shown(project, start);
+        let max_age = Duration::from_secs(AI_REQUEST_MAX_AGE_SECS);
+        assert_eq!(
+            prompts.decide(&project, start + max_age - Duration::from_millis(1)),
+            PromptDecision::Wait
+        );
+        assert_eq!(
+            prompts.decide(&project, start + max_age),
+            PromptDecision::Show
+        );
+    }
+
+    #[test]
+    fn a_no_drops_requests_for_the_cooldown_and_not_longer() {
+        let project = ProjectId::parse(PROJECT).unwrap();
+        let start = Instant::now();
+        let mut prompts = AiRequestPrompts::default();
+        prompts.shown(project, start);
+        prompts.answered(&project, AiRequestAnswer::Deny, start);
+        let cooldown = Duration::from_secs(AI_REQUEST_DENIED_COOLDOWN_SECS);
+        assert_eq!(prompts.decide(&project, start), PromptDecision::Drop);
+        assert_eq!(
+            prompts.decide(&project, start + cooldown - Duration::from_millis(1)),
+            PromptDecision::Drop
+        );
+        assert_eq!(
+            prompts.decide(&project, start + cooldown),
+            PromptDecision::Show
+        );
+
+        // An allowed request does not hold anything back.
+        prompts.shown(project, start + cooldown);
+        prompts.answered(&project, AiRequestAnswer::Allow, start + cooldown);
+        assert_eq!(
+            prompts.decide(&project, start + cooldown),
+            PromptDecision::Show
+        );
+    }
 }

@@ -268,4 +268,22 @@ mod tests {
         let new: String = (0..2500).map(|n| format!("new {n}\n")).collect();
         assert_eq!(diff(&old, &new), LineDiff::TooLarge);
     }
+
+    #[test]
+    fn a_comparison_up_to_the_cell_limit_is_made_and_one_line_more_is_refused() {
+        // Every line differs, so the whole text is the middle: old x new cells.
+        let lines = |count: usize, tag: &str| -> String {
+            (0..count).map(|index| format!("{tag}{index}\n")).collect()
+        };
+        let side = 2000;
+        assert_eq!(side * side, DIFF_MAX_CELLS);
+        assert!(matches!(
+            diff(&lines(side, "a"), &lines(side, "b")),
+            LineDiff::Text(_)
+        ));
+        assert_eq!(
+            diff(&lines(side + 1, "a"), &lines(side, "b")),
+            LineDiff::TooLarge
+        );
+    }
 }

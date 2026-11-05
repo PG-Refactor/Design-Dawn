@@ -6,9 +6,9 @@ Design Dawn は、ブロックを自由に配置できるキャンバスの上�
 ドキュメントは複数のシートからなり、各シートに **Markdown**・**Mermaid の図**・**画像** のブロックを自由に配置できます。
 すべてが通常のファイルとフォルダとして保存されるため、人が読み書きでき、Git でレビューでき、AI ツールも安全に変更できます。
 
-![Markdown と Mermaid のフローチャートを置いた設計ドキュメント](assets/screenshots/overview-dark.png)
+![Markdown とキャプション付きの Mermaid フローチャートを置いた設計ドキュメント](assets/screenshots/overview-dark.png)
 
-> **状態**: 公開前の開発版です。Linux（WSL2 + WSLg）で開発・確認しています。Windows・macOS 向けのビルドはまだ確認していません。
+> **状態**: バージョン 1.0.0。Linux（WSL2 + WSLg）で開発・確認し、Windows 11 向けのビルドは手作業で確認しています。macOS 向けのビルドは確認していません。
 
 ## 機能
 
@@ -16,17 +16,18 @@ Design Dawn は、ブロックを自由に配置できるキャンバスの上�
 - **Project → Document → Sheet → Block** — フォルダつきの Project ツリー、Document タブ、Sheet タブ。複数の Document（と複数のウィンドウ）を同時に開けます。
 - **Markdown ブロック** — キャンバス上では表示結果、編集中はソースとプレビューの分割表示。
 - **Mermaid ブロック** — Mermaid 12 のすべての図を、ローカルで描画・サニタイズして表示します（ネットワーク・スクリプトなし）。
-- **Mermaid の GUI 編集** — 円グラフ・フローチャート・シーケンス図・ガントチャートを、構文を書かずに一覧とプロパティ欄で編集できます。正本は Mermaid のソースのままで、GUI の1回の操作は必要な部分だけを書き換え、結果を読み直して描画できることを確かめてから確定し、Undo 1回で戻せます。完全に理解できない構文を含む図は、書き換えずに読み取り専用にします。
-- **画像ブロック** — PNG・JPEG・WebP・SVG・GIF をドラッグ & ドロップで追加。
+- **Mermaid の GUI 編集** — 円グラフ・フローチャート・シーケンス図・ガントチャートを、構文を書かずに一覧とプロパティ欄で編集できます。図の上の図形を右クリックして編集・削除でき、要素の追加はプレビュー付きのダイアログで行います。正本は Mermaid のソースのままで、GUI の1回の操作は必要な部分だけを書き換え、結果を読み直して描画できることを確かめてから確定し、Undo 1回で戻せます。完全に理解できない構文を含む図は、書き換えずに読み取り専用にします。
+- **画像ブロック** — PNG・JPEG・WebP・SVG・GIF をドラッグ & ドロップまたはファイル選択で追加。
+- **キャプション** — 図と画像に、上または下に表示する1行のキャプションを付けられます。
 - **Git 連携** — 状態・ステージ / 解除・コミット・履歴・タブで開く左右比較の差分・変更の破棄・フェッチ / プル / プッシュ・ブランチ表示。
 - **外部変更の検知** — 他のエディタ・Git・AI ツールによる変更を検知します。未保存の変更が無い Document は自動で読み直し、ある場合は「読み直す / 今の内容を維持 / 比較」から選べます。
-- **AI / MCP** — `design-dawn-mcp`：Claude Code などの AI クライアントが Document・Sheet・Block を読み書きできるローカルの MCP サーバー（標準入出力のみ、既定は読み取り専用）。
+- **AI / MCP** — `design-dawn-mcp`：Claude・Codex・GitHub Copilot・Cursor などの AI ツールが、あなたが許可した Project を読み書きできるローカルの MCP サーバー（標準入出力のみ）。どの Project も、アプリで（または AI からの依頼に答えて）編集を許可するまでは読み取り専用です。
 - **読み込み時の問題の修復と形式の移行** — Project を開いたときに見つかった不整合（一覧に無い / 存在しない項目、ID の重複、使われていないファイル、中断した保存の残り）を通知パネルから修復できます。古い版で書かれたファイルは読み込み時に変換し、次の保存で新しい形式になります。
 - **ライト / ダークのテーマ**、**英語 / 日本語** の表示。上部は「ファイル / 表示 / ヘルプ」のメニューバーにまとめています（バージョンとライセンスはヘルプから確認できます）。
 
 | フローチャートの GUI 編集 | シーケンス図の GUI 編集 |
 |---|---|
-| ![ノード一覧とプロパティ欄のあるフローチャートの編集](assets/screenshots/flowchart-gui.png) | ![参加者とメッセージの一覧があるシーケンス図の編集](assets/screenshots/sequence-gui.png) |
+| ![ノード一覧と、ノードの右クリックメニューを出したフローチャートの GUI 編集](assets/screenshots/flowchart-gui.png) | ![メッセージを選び、その右クリックメニューを出したシーケンス図の GUI 編集](assets/screenshots/sequence-gui.png) |
 
 | Markdown の編集 | Git の差分 |
 |---|---|
@@ -35,6 +36,12 @@ Design Dawn は、ブロックを自由に配置できるキャンバスの上�
 | ガントチャートと円グラフ | ライトテーマ |
 |---|---|
 | ![シート上のガントチャートと円グラフ](assets/screenshots/plan.png) | ![ライトテーマの概要シート](assets/screenshots/light-theme.png) |
+
+| AI 連携（MCP） | AI からの編集許可の依頼 |
+|---|---|
+| ![登録するコマンドと AI に見せる Project の一覧がある AI 連携の画面](assets/screenshots/ai-integration.png) | ![AI が Project を編集してよいかをアプリが確認する画面](assets/screenshots/ai-request.png) |
+
+（画面写真は英語表示です。）
 
 ## Project の保存形式
 
@@ -83,35 +90,69 @@ docker compose exec dev npm run tauri:build:windows   # Windows の .exe（ク�
 
 - `node_modules` と Rust のビルド出力は Docker の名前付きボリュームに置き、ソースツリーには入れません。
 - ウィンドウは WSLg の X11 で表示します（`compose.yaml` の `GDK_BACKEND=x11`）。
-- `tauri:build:windows` は [cargo-xwin](https://github.com/rust-cross/cargo-xwin) で `design-dawn.exe` と `design-dawn-mcp.exe` を `src-tauri/target/x86_64-pc-windows-msvc/release/` にクロスビルドします。初回は Microsoft の CRT と Windows SDK（約 1 GB、Microsoft のライセンス）を Docker のボリュームにダウンロードします。`.exe` を Windows の任意の場所にコピーすれば実行できます（WebView2 ランタイムが必要で、Windows 11 には標準で入っています）。Tauri はこのビルド方法を試験的としているため、配布用のインストーラーは Windows 上で作ってください。
+- `tauri:build:windows` は [cargo-xwin](https://github.com/rust-cross/cargo-xwin) で `design-dawn.exe` と `design-dawn-mcp.exe` を `src-tauri/target/x86_64-pc-windows-msvc/release/` にクロスビルドします。初回は Microsoft の CRT と Windows SDK（約 1 GB、Microsoft のライセンス）を Docker のボリュームにダウンロードします。`.exe` を Windows の任意の場所にコピーすれば実行できます（WebView2 ランタイムが必要で、Windows 11 には標準で入っています）。Tauri はこのビルド方法を試験的としているため、配布用のインストーラーは Windows 上で作ってください（[Windows のインストーラーを作る](#windows-のインストーラーを作る)）。
 - リポジトリを Windows のドライブからマウントしている場合は、ファイル変更の通知が届かないことがあるため `DAWN_WATCH_POLLING=true` を設定してください。
+
+## Windows のインストーラーを作る
+
+インストーラーは Windows 上で作ります（開発コンテナでクロスビルドできるのは `.exe` だけです）。現時点ではコード署名をしていません。
+
+**前提**（Windows 上）:
+
+- [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)（「C++ によるデスクトップ開発」ワークロード）
+- [Rust](https://rustup.rs/)（MSVC ツールチェーン。`rust-toolchain.toml` のバージョンは初回のビルドで自動的に入ります）
+- [Node.js](https://nodejs.org/) 24 以上
+- WebView2 ランタイム（Windows 11 には標準で入っています）
+
+**ビルド**（PowerShell で、リポジトリを clone したフォルダで）:
+
+```powershell
+npm ci
+npm run tauri build                                                   # アプリのインストーラー
+cargo build --release --manifest-path src-tauri/Cargo.toml --bin design-dawn-mcp   # MCP サーバー
+```
+
+できるもの:
+
+- `src-tauri\target\release\bundle\nsis\Design Dawn_<version>_x64-setup.exe`: NSIS のインストーラー
+- `src-tauri\target\release\bundle\msi\Design Dawn_<version>_x64_en-US.msi`: MSI のインストーラー
+- `src-tauri\target\release\design-dawn-mcp.exe`: MCP サーバー。まだインストーラーには含まれません。インストールした `design-dawn.exe` と同じフォルダに置き（AI 連携の画面はそこを探します）、そのパスを AI ツールに登録してください（下記）。
+
+NSIS と WiX は初回のビルドで Tauri がダウンロードします。NSIS のインストーラーだけを作るときは `npm run tauri build -- --bundles nsis` を使います。
+
+**署名なしのビルド**: 署名していないインストーラーを起動すると、Windows SmartScreen が「Windows によって PC が保護されました」と警告します。「詳細情報」から「実行」を選んでください。自分でビルドしたもの、または信頼できる入手元のものだけで行ってください。
 
 ## AI（MCP）から使う
 
-```sh
-docker compose exec dev cargo build --release --manifest-path src-tauri/Cargo.toml --bin design-dawn-mcp
-claude mcp add design-dawn -- /path/to/design-dawn-mcp --project /path/to/my-project
-```
+`design-dawn-mcp` は、AI ツール（Claude・Codex・GitHub Copilot・Cursor などの MCP クライアント）が Design Dawn の Project を読み書きするためのローカルの MCP サーバーです。標準入出力だけで MCP を話し、ネットワークのポートは開かず、アプリが起動していなくても使えます。
 
-標準入出力だけで MCP を話し、アプリが起動していなくても使えます。
-
-- **読み取り**: `getProject`、`getDocument`、`getSheet`、`getBlock`。
-- **書き込み**（`--allow-write` のときだけ）: `createDocument`、`createSheet`、`createBlock`（Markdown / Mermaid）、`updateDocument`、`updateSheet`、`updateBlock`、`moveBlock`、`deleteBlock`。
-- Block の本文を変えるときは、`getBlock` で読んだ `contentHash` を `expectedContentHash` として渡します。その間に本文が変わっていれば `conflict` が返ります。
-- Document・Sheet・Project の削除、ディスク上のファイルの取り込み、コマンドの実行、Git の操作、ネットワーク接続はできません。アプリがその Project を開いていれば、変更は外部変更として取り込まれます。
-
-Claude Desktop（`claude_desktop_config.json`）:
+**設定（AI ツールごとに1回）**: アプリで **ファイル → AI連携（MCP）** を開くと、登録するコマンド（アプリと同じフォルダの `design-dawn-mcp`）がコピーボタン付きで表示され、同じ内容を共通の JSON 形式でも表示します。
 
 ```json
 {
   "mcpServers": {
-    "design-dawn": {
-      "command": "/path/to/design-dawn-mcp",
-      "args": ["--project", "/path/to/my-project"]
-    }
+    "design-dawn": { "command": "C:\\path\\to\\design-dawn-mcp.exe" }
   }
 }
 ```
+
+AI ツールの MCP サーバーの追加方法で登録してください（Claude Code の場合: `claude mcp add design-dawn -- <コマンド>`）。登録に Project を書く必要はありません。
+
+**AI が使える Project**: AI 連携の画面で追加したものだけです（**今開いているProjectを追加**、または任意の Project フォルダを **フォルダを指定して追加…**）。AI はふだん、アプリで開いている Project（最後に使ったウィンドウのもの。アプリを閉じているときは最後に使ったもの）が追加されていればそれを扱います。AI は追加された Project の一覧を見て（`listProjects`）選べる（`selectProject`）ので、「order-service の Project を要約して」のような依頼も登録し直さずに使えます。
+
+**権限**: 追加した Project は、横の **AIによる編集を許可** にチェックを入れるまで、AI からは読み取り専用です。AI から依頼することもでき（`requestWriteAccess`）、そのときはアプリが **許可する** / **今回だけ許可**（アプリを閉じるまで） / **許可しない** を尋ね、あなたの答えだけが反映されます。アプリで開いている Project も依頼の対象になり、許可すると一覧に追加されます。「許可しない」と答えた Project の依頼は、しばらく無視されます。この一覧を変えられるのはアプリだけで（アプリの設定フォルダの `ai-access.json` に保存し、Project の中には置きません）、AI が自分で Project を追加したり権限を与えたりすることはできません。画面から Project を一覧から外すこともできます。
+
+- **ツール**: `listProjects`、`selectProject`、`requestWriteAccess`、`getProject`、`getDocument`、`getSheet`、`getBlock`。編集できる Project では、さらに `createDocument`、`createSheet`、`createBlock`（Markdown / Mermaid）、`updateDocument`、`updateSheet`、`updateBlock`、`moveBlock`、`updateBlockCaption`（Mermaid / 画像ブロックのキャプション）、`deleteBlock`。
+- Block の本文を変えるときは、AI が `getBlock` で読んだ `contentHash` を `expectedContentHash` として渡します。その間に本文が変わっていれば `conflict` が返ります。
+- Document・Sheet・Project の削除、ディスク上のファイルの取り込み、コマンドの実行、Git の操作、ネットワーク接続はできません。アプリがその Project を開いていれば、変更はすぐに表示されます。
+
+**1つの Project に固定する**（アプリの一覧を使わない）: `--project <project.json があるフォルダ>` を付けて起動し、編集を許可するときは `--allow-write` も付けます。
+
+```sh
+claude mcp add design-dawn -- /path/to/design-dawn-mcp --project /path/to/my-project
+```
+
+サーバーだけをビルドする: `cargo build --release --manifest-path src-tauri/Cargo.toml --bin design-dawn-mcp`
 
 ## ライセンス
 

@@ -136,6 +136,23 @@ mod tests {
     }
 
     #[test]
+    fn whole_values_are_integers_up_to_the_last_exact_one() {
+        let last_exact = MAX_EXACT_INTEGER_F64 - 1.0;
+        assert_eq!(
+            number_from_f64(last_exact).unwrap().to_string(),
+            "9007199254740991"
+        );
+        assert_eq!(
+            number_from_f64(-last_exact).unwrap().to_string(),
+            "-9007199254740991"
+        );
+        // From 2^53 on, a whole value is kept as a float, never as a wrong integer.
+        let float = number_from_f64(MAX_EXACT_INTEGER_F64).unwrap();
+        assert!(float.is_f64());
+        assert_eq!(float.as_f64(), Some(MAX_EXACT_INTEGER_F64));
+    }
+
+    #[test]
     fn non_finite_values_are_rejected() {
         assert!(number_from_f64(f64::NAN).is_err());
         assert!(number_from_f64(f64::INFINITY).is_err());

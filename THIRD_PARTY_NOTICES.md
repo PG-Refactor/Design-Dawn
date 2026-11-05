@@ -2024,7 +2024,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### dompurify@3.4.16
+### dompurify@3.4.17
 
 License: (MPL-2.0 OR Apache-2.0); used under Apache-2.0
 
@@ -3208,7 +3208,7 @@ licenses; we recommend you read them, as their terms may differ from the
 terms above.
 ```
 
-### markdown-it@15.0.2
+### markdown-it@15.0.3
 
 License: MIT
 
