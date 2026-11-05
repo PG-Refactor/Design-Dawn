@@ -4,6 +4,8 @@
 
 use serde_json::{json, Map, Value};
 
+use super::config::{BLOCK_MIN_HEIGHT, BLOCK_MIN_WIDTH};
+
 pub const LIST_PROJECTS: &str = "listProjects";
 pub const SELECT_PROJECT: &str = "selectProject";
 pub const REQUEST_WRITE_ACCESS: &str = "requestWriteAccess";
@@ -272,7 +274,7 @@ blockId and contentHash. To give a Mermaid Block a caption, call updateBlockCapt
                     false,
                     "width",
                     "height",
-                    &format!("{WORLD_UNITS_HELP}, at least 1"),
+                    &format!("{WORLD_UNITS_HELP}, at least {BLOCK_MIN_WIDTH} x {BLOCK_MIN_HEIGHT}"),
                 ),
             ],
         ),
@@ -334,7 +336,7 @@ createBlock / updateBlock for text you wrote yourself",
                     false,
                     "width",
                     "height",
-                    &format!("{WORLD_UNITS_HELP}, at least 1"),
+                    &format!("{WORLD_UNITS_HELP}, at least {BLOCK_MIN_WIDTH} x {BLOCK_MIN_HEIGHT}"),
                 ),
             ],
         ),

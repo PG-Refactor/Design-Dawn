@@ -26,7 +26,9 @@ export const CANVAS_CONFIG = {
     dragThresholdPx: 4,
   },
   block: {
-    // UI-only lower bound of a resize (world units). The domain accepts any size >= 1.
+    // Lower bound of a resize in the app and of a size set by AI (world units; the MCP
+    // server's `BLOCK_MIN_WIDTH` / `BLOCK_MIN_HEIGHT` mirror it). The file format accepts any
+    // size >= 1, so a file edited by hand may hold a smaller Block.
     minSize: { width: 48, height: 32 },
     // Characters of the block id shown in the placeholder and in accessible names. The
     // tail is used because the head of a UUIDv7 is a timestamp shared by nearby blocks.

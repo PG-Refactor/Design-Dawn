@@ -13,6 +13,7 @@ use design_dawn_lib::application::project_operations::load_project;
 use design_dawn_lib::application::session::ProjectSessions;
 use design_dawn_lib::domain::entity_id::ProjectId;
 use design_dawn_lib::infrastructure::filesystem::hashing::sha256_hex;
+use design_dawn_lib::mcp::config::{BLOCK_MIN_HEIGHT, BLOCK_MIN_WIDTH};
 use design_dawn_lib::mcp::protocol::ToolHost;
 use design_dawn_lib::mcp::tools::ToolContext;
 use serde_json::{json, Value};
@@ -475,9 +476,12 @@ fn create_block_refuses_images_unknown_types_bad_geometry_and_huge_text_without_
         .error_kind(),
         "unsupportedBlockType"
     );
+    // Below the app's resize minimum on either axis (the file format alone would take 1).
     for size in [
         json!({"width": 0, "height": 10}),
         json!({"width": 10, "height": -1}),
+        json!({"width": BLOCK_MIN_WIDTH - 1, "height": BLOCK_MIN_HEIGHT}),
+        json!({"width": BLOCK_MIN_WIDTH, "height": BLOCK_MIN_HEIGHT - 1}),
     ] {
         assert_eq!(
             call(
@@ -707,6 +711,26 @@ fn move_block_changes_position_and_optionally_size_keeping_z_order() {
     .ok();
     assert_eq!(resized["size"], json!({ "width": 50, "height": 60 }));
     assert_eq!(resized["zIndex"], 0);
+    let smallest = json!({ "width": BLOCK_MIN_WIDTH, "height": BLOCK_MIN_HEIGHT });
+    let at_minimum = call(
+        &context,
+        "moveBlock",
+        block_arguments(
+            OVERVIEW_MARKDOWN_BLOCK_ID,
+            json!({ "position": { "x": 0, "y": 0 }, "size": smallest }),
+        ),
+    )
+    .ok();
+    assert_eq!(at_minimum["size"], smallest);
+    let refused = call(
+        &context,
+        "moveBlock",
+        block_arguments(
+            OVERVIEW_MARKDOWN_BLOCK_ID,
+            json!({ "position": { "x": 0, "y": 0 }, "size": { "width": 1, "height": 1 } }),
+        ),
+    );
+    assert_eq!(refused.error_kind(), "invalidSize");
     assert_loads_without_issues(&root);
 }
 
