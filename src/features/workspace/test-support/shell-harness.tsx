@@ -115,22 +115,21 @@ function rowElement(row: TreeRow): HTMLElement {
   return typeof row === "string" ? treeItemNamed(row) : row;
 }
 
-// The "⋮" button of the row itself ("<name> のメニュー"). A row's own button comes
-// first in document order; the ones of nested rows follow.
-export function rowMenuButton(row: TreeRow): HTMLElement {
-  const [own] = within(rowElement(row)).getAllByRole("button", {
-    name: /のメニュー$/,
-  });
-  if (own === undefined) throw new Error("the row has no menu button");
-  return own;
+// The label of the row itself (not of a nested row), where a right-click lands.
+export function rowLabel(row: TreeRow): HTMLElement {
+  const label = rowElement(row).querySelector<HTMLElement>(
+    ":scope > .tree-item__row > .tree-item__label",
+  );
+  if (label === null) throw new Error("the row has no label");
+  return label;
 }
 
-// Opens the row menu and returns it.
+// Opens the row's right-click menu and returns it.
 export async function openRowMenu(
   user: UserSession,
   row: TreeRow,
 ): Promise<HTMLElement> {
-  await user.click(rowMenuButton(row));
+  await user.pointer({ keys: "[MouseRight]", target: rowLabel(row) });
   return screen.getByRole("menu");
 }
 

@@ -130,19 +130,6 @@
   font-size: 0.8125rem;
 }
 
-/* The menu button is always in the DOM and the accessibility tree; it is only revealed
-   on hover and focus. Opacity (not display) keeps it focusable. */
-.tree-item__menu .popup-menu__trigger {
-  opacity: 0;
-}
-
-.tree-item__row:hover .popup-menu__trigger,
-.tree-item__row:focus-within .popup-menu__trigger,
-.tree-item:focus > .tree-item__row .popup-menu__trigger,
-.tree-item__menu .popup-menu__trigger[aria-expanded="true"] {
-  opacity: 1;
-}
-
 /* The buttons that add a folder / document where the tree cursor is (VS Code's Explorer). */
 .project-tree__toolbar {
   display: flex;

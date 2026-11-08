@@ -175,7 +175,7 @@ describe("flattenProjectTree with folders", () => {
 describe("selectMoveTargets", () => {
   it("lists the project root and every folder depth first, disabling the current parent", async () => {
     const { store } = await openedFolderDiskWorkspace();
-    const targets = selectMoveTargets(store.getState(), DOCUMENT_A);
+    const targets = selectMoveTargets(store.getState(), [DOCUMENT_A]);
     expect(
       targets.map((target) => [
         target.parentFolderId,
@@ -191,7 +191,7 @@ describe("selectMoveTargets", () => {
 
   it("disables a folder and everything inside it as targets of that folder", async () => {
     const { store } = await openedFolderDiskWorkspace();
-    const targets = selectMoveTargets(store.getState(), FOLDER_1);
+    const targets = selectMoveTargets(store.getState(), [FOLDER_1]);
     expect(
       targets.map((target) => [target.parentFolderId, target.disabledReason]),
     ).toEqual([
@@ -203,7 +203,7 @@ describe("selectMoveTargets", () => {
 
   it("disables the current parent of a nested document and offers the others", async () => {
     const { store } = await openedFolderDiskWorkspace();
-    const targets = selectMoveTargets(store.getState(), DOCUMENT_D);
+    const targets = selectMoveTargets(store.getState(), [DOCUMENT_D]);
     expect(
       targets.map((target) => [target.parentFolderId, target.disabledReason]),
     ).toEqual([
@@ -215,13 +215,13 @@ describe("selectMoveTargets", () => {
 
   it("is empty for an unknown entry and without a project", async () => {
     const { store } = await openedFolderDiskWorkspace();
-    expect(selectMoveTargets(store.getState(), folderIdOf(99))).toEqual([]);
-    expect(selectMoveTargets({ project: null }, DOCUMENT_A)).toEqual([]);
+    expect(selectMoveTargets(store.getState(), [folderIdOf(99)])).toEqual([]);
+    expect(selectMoveTargets({ project: null }, [DOCUMENT_A])).toEqual([]);
   });
 
   it("links rows to their parents and reports which rows have child folders", async () => {
     const { store } = await openedFolderDiskWorkspace();
-    const targets = selectMoveTargets(store.getState(), DOCUMENT_A);
+    const targets = selectMoveTargets(store.getState(), [DOCUMENT_A]);
     expect(
       targets.map((target) => [
         target.key,
@@ -237,7 +237,7 @@ describe("selectMoveTargets", () => {
 
   it("hides the rows below a folded row", async () => {
     const { store } = await openedFolderDiskWorkspace();
-    const targets = selectMoveTargets(store.getState(), DOCUMENT_A);
+    const targets = selectMoveTargets(store.getState(), [DOCUMENT_A]);
     const keysOf = (expanded: string[]) =>
       visibleMoveTargets(targets, new Set(expanded)).map(
         (target) => target.key,
@@ -258,7 +258,7 @@ describe("selectMoveTargets", () => {
 
   it("allows a new folder in the current parent but not in the moved folder or its descendants", async () => {
     const { store } = await openedFolderDiskWorkspace();
-    const targets = selectMoveTargets(store.getState(), FOLDER_1);
+    const targets = selectMoveTargets(store.getState(), [FOLDER_1]);
     expect(targets.map(canCreateFolderIn)).toEqual([true, false, false]);
   });
 });

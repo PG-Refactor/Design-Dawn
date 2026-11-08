@@ -16,7 +16,11 @@ import {
   type TreeRowDrag,
 } from "./tree-entries";
 import { NewDocumentIcon, NewFolderIcon, ProjectIcon } from "./tree-icons";
-import { type TreeChooseMode, TreeItem } from "./tree-item";
+import {
+  type TreeChooseMode,
+  type TreeContextMenuHandler,
+  TreeItem,
+} from "./tree-item";
 import { useMessages } from "./use-messages";
 import { type TreeRowKind, useTreeDrag } from "./use-tree-drag";
 import { treeNavigation } from "./view-models/keyboard-navigation";
@@ -247,6 +251,59 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
       : canvasActions.redo(documentId));
   }
 
+  // The chosen rows' entries (the Project row is not an entry).
+  function chosenEntries(): readonly TreeEntryNode[] {
+    return selection.keys.flatMap((key) => {
+      const entry = findEntryByKey(model.entries, key);
+      return entry === null ? [] : [entry];
+    });
+  }
+
+  // A right-click on one of several chosen rows offers what applies to all of them: move
+  // and delete (a name cannot be given to several at once). Any other row has its own menu.
+  const openRowMenu: TreeContextMenuHandler = (
+    event,
+    itemKey,
+    label,
+    entries,
+    anchorElement,
+  ) => {
+    const chosen = chosenEntries();
+    if (!(selection.keys.length > 1 && selection.keys.includes(itemKey))) {
+      contextMenu.openFromEvent(event, label, entries, anchorElement);
+      return;
+    }
+    const movable = movableKeys(model, selection.keys).flatMap((key) => {
+      const entry = findEntryByKey(model.entries, key);
+      return entry === null ? [] : [entryIdOf(entry)];
+    });
+    const nonEmptyFolder = chosen.some(
+      (entry) => entry.kind === "folder" && entry.children.length > 0,
+    );
+    contextMenu.openFromEvent(
+      event,
+      messages.tree.chosenMenuLabel(chosen.length),
+      [
+        {
+          id: "moveChosen",
+          label: messages.tree.moveTo,
+          disabled: movable.length === 0,
+          onSelect: () => actions.requestMoveEntries(movable),
+        },
+        {
+          id: "deleteChosen",
+          label: messages.tree.deleteChosen,
+          disabled: chosen.length === 0 || nonEmptyFolder,
+          hint: nonEmptyFolder
+            ? messages.tree.deleteFolderNotEmptyHint
+            : undefined,
+          onSelect: () => actions.requestDeleteEntries(chosen.map(entryIdOf)),
+        },
+      ],
+      anchorElement,
+    );
+  };
+
   const handlers: TreeHandlers = {
     actions,
     renaming,
@@ -256,7 +313,7 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
     register,
     onChoose: choose,
     onNavigate: handleNavigate,
-    onContextMenu: contextMenu.openFromEvent,
+    onContextMenu: openRowMenu,
     drag,
   };
 
@@ -363,7 +420,7 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
             register={register}
             onChoose={(mode) => choose(PROJECT_TREE_KEY, mode)}
             onNavigate={handleNavigate}
-            onContextMenu={contextMenu.openFromEvent}
+            onContextMenu={openRowMenu}
             menuItems={[
               ...createAtTopLevel,
               {
@@ -380,7 +437,6 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
             ) : (
               <EntryItems
                 entries={model.entries}
-                parentFolderId={null}
                 level={PROJECT_ENTRY_LEVEL}
                 handlers={handlers}
               />

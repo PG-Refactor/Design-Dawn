@@ -370,3 +370,75 @@ describe("an empty folder", () => {
     expect(row.querySelector("ul, p")).toBeNull();
   });
 });
+
+describe("the right-click menu of several chosen rows", () => {
+  async function chooseAAndB(harness: ShellHarness) {
+    await clickRow(harness, "Document A");
+    await clickRow(harness, "Document B", "Control");
+    await harness.user.pointer({
+      keys: "[MouseRight]",
+      target: within(treeItemNamed("Document B")).getByText("Document B"),
+    });
+    return screen.getByRole("menu", { name: TREE.chosenMenuLabel(2) });
+  }
+
+  it("offers moving and deleting them all (no renaming)", async () => {
+    const harness = await openedShell();
+    const menu = await chooseAAndB(harness);
+    expect(menuItemNames(menu)).toEqual([TREE.moveTo, TREE.deleteChosen]);
+  });
+
+  it("moves them all to the folder picked in the move dialog", async () => {
+    const harness = await openedShell();
+    const menu = await chooseAAndB(harness);
+    await harness.user.click(
+      within(menu).getByRole("menuitem", { name: TREE.moveTo }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: MESSAGES.moveEntriesTitle(2),
+    });
+    await harness.user.click(within(dialog).getByText("Folder 2"));
+    await harness.user.click(
+      within(dialog).getByRole("button", {
+        name: MESSAGES.dialogs.moveEntry.choose,
+      }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(harness.gateway.disk.documentParents.get(DOCUMENT_A)).toBe(FOLDER_2);
+    expect(harness.gateway.disk.documentParents.get(DOCUMENT_B)).toBe(FOLDER_2);
+  });
+
+  it("deletes them all after one confirmation", async () => {
+    const harness = await openedShell();
+    const menu = await chooseAAndB(harness);
+    await harness.user.click(
+      within(menu).getByRole("menuitem", { name: TREE.deleteChosen }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: MESSAGES.deleteEntriesTitle(2),
+    });
+    await harness.user.click(
+      within(dialog).getByRole("button", { name: MESSAGES.dialogs.delete }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(harness.gateway.methods("deleteDocument")).toHaveLength(2);
+    expect(screen.queryByRole("treeitem", { name: "Document A" })).toBeNull();
+    expect(screen.queryByRole("treeitem", { name: "Document B" })).toBeNull();
+  });
+
+  it("cannot delete them when a chosen folder is not empty", async () => {
+    const harness = await openedShell();
+    await clickRow(harness, "Document A");
+    await clickRow(harness, "Folder 2", "Control");
+    await harness.user.pointer({
+      keys: "[MouseRight]",
+      target: within(treeItemNamed("Document A")).getByText("Document A"),
+    });
+    const menu = screen.getByRole("menu", { name: TREE.chosenMenuLabel(2) });
+    const remove = within(menu).getByRole("menuitem", {
+      name: TREE.deleteChosen,
+    });
+    expect(remove.getAttribute("aria-disabled")).toBe("true");
+    expect(remove.getAttribute("title")).toBe(TREE.deleteFolderNotEmptyHint);
+  });
+});

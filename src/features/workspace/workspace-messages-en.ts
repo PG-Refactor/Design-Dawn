@@ -246,18 +246,19 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     openProjectInNewWindow: "Open Project in New Window",
     createFolder: "New Folder",
     createDocument: "New Document",
-    createSheet: "New Sheet",
     toolbarLabel: "Project actions",
     createFolderIn: (location: string) => `New Folder in "${location}"`,
     createDocumentIn: (location: string) => `New Document in "${location}"`,
     deleteFolder: "Delete Folder",
     deleteDocument: "Delete Document",
+    openInNewWindow: "Open in New Window",
+    deleteChosen: "Delete",
+    chosenMenuLabel: (count: number): string => `Menu of ${count} items`,
     moveTo: "Move to…",
     deleteFolderNotEmptyHint: "Only empty folders can be deleted",
     folderExpandedMarker: "▾",
     folderCollapsedMarker: "▸",
     rename: "Rename",
-    menuButtonText: "⋮",
     unnamedEntity: "(name cannot be loaded)",
     loadFailedMarker: "Load failed",
     loadFailedHint:
@@ -471,6 +472,8 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     delete: "Delete",
     undoNotice: "This operation cannot be undone.",
     deleteFolderConsequence: "This folder (empty) will be deleted.",
+    deleteEntriesConsequence:
+      "The chosen Documents (with their Sheets, block text files and Assets) and empty folders will all be deleted.",
     deleteDocumentConsequence:
       "All Sheets, block text files and Assets of this Document will also be deleted.",
     createProject: {
@@ -534,6 +537,7 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
   documentSourceLabel: (name) => `Document: ${name}`,
   moveEntryTitle: (name) => `Move ${quoted(name)}…`,
   moveEntriesTitle: (count: number): string => `Move ${count} items`,
+  deleteEntriesTitle: (count: number): string => `Delete ${count} items?`,
   closeDocumentConfirmationTitle: (name) => `Close ${quoted(name)}`,
   deleteConfirmationTitle: (name) => `Delete ${quoted(name)}?`,
   operationFailure: (subject, headline, errorText) =>

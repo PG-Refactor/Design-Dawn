@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   DOCUMENT_A,
@@ -13,7 +13,6 @@ import {
   applyOutsideUi,
   chooseRowMenuItem,
   renderShell,
-  rowMenuButton,
   type ShellHarness,
 } from "./test-support/shell-harness";
 
@@ -61,10 +60,10 @@ describe("name dialog", () => {
     expect(treeItem("Design").getAttribute("aria-selected")).toBe("true");
   });
 
-  it("cancels with Escape and returns focus to the button that opened it", async () => {
+  it("cancels with Escape and returns focus to the row whose menu opened it", async () => {
     const harness = await renderShell();
     await harness.openProjectInUi();
-    const opener = rowMenuButton("Project");
+    const opener = treeItem("Project");
     await chooseRowMenuItem(harness.user, "Project", "Documentを作成");
     await screen.findByRole("dialog");
 
@@ -79,7 +78,9 @@ describe("name dialog", () => {
     const harness = await renderShell();
     await harness.openProjectInUi();
 
-    await chooseRowMenuItem(harness.user, "Document B", "Sheetを作成");
+    await act(async () => {
+      await harness.actions.requestCreateSheet(DOCUMENT_B);
+    });
 
     const dialog = await screen.findByRole("dialog", { name: "Sheetを作成" });
     expect(harness.store.getState().documents.has(DOCUMENT_B)).toBe(true);

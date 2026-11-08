@@ -179,7 +179,7 @@ describe("row menus", () => {
     expect(menuItemNames(menu)).toEqual([
       TREE.rename,
       TREE.moveTo,
-      TREE.createSheet,
+      TREE.openInNewWindow,
       TREE.deleteDocument,
     ]);
     expect(menuItem(menu, TREE.moveTo).getAttribute("aria-disabled")).toBe(
@@ -500,24 +500,16 @@ describe("the right-click menu of the tree", () => {
     );
   });
 
-  it("creates a document beside the right-clicked document, in its folder", async () => {
+  it("offers a document no creating, but opening it in a new window", async () => {
     const harness = await openedShell();
     const menu = await rightClick(harness, "Document D");
-    // A document's menu makes another document beside it, but no folder.
-    expect(menuItemNames(menu)[0]).toBe(TREE.createDocument);
-    expect(menuItemNames(menu)).not.toContain(TREE.createFolder);
-    await harness.user.click(menuItem(menu, TREE.createDocument));
-    const dialog = screen.getByRole("dialog", {
-      name: MESSAGES.dialogs.createDocument.title,
-    });
-    await harness.user.type(
-      within(dialog).getByRole("textbox", {
-        name: MESSAGES.dialogs.createDocument.nameLabel,
-      }),
-      "Sibling{Enter}",
-    );
-    await screen.findByRole("tab", { name: /Sibling/ });
-    expect(level("Sibling")).toBe(level("Document D"));
+    expect(menuItemNames(menu)).toEqual([
+      TREE.rename,
+      TREE.moveTo,
+      TREE.openInNewWindow,
+      TREE.deleteDocument,
+    ]);
+    await harness.user.keyboard("{Escape}");
   });
 
   it("opens the nearest row's menu only, and Escape gives focus back", async () => {

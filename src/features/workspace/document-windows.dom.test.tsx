@@ -37,6 +37,33 @@ function openTabMenu(name: RegExp): HTMLElement {
 }
 
 describe("the Project window", () => {
+  it("opens a Document that is not open in a new window from its tree menu", async () => {
+    const first = createWorkspaceHarness();
+    const windows = createFakeDocumentWindows(first.gateway);
+    const shell = await renderShell({
+      workspace: {
+        sharedGateway: first.gateway,
+        windows: windows.gatewayFor("main"),
+      },
+    });
+    await shell.openProjectInUi();
+    await shell.user.pointer({
+      keys: "[MouseRight]",
+      target: within(treeItemNamed("Document A")).getByText("Document A"),
+    });
+    await shell.user.click(
+      within(screen.getByRole("menu")).getByRole("menuitem", {
+        name: MESSAGES.tree.openInNewWindow,
+      }),
+    );
+    await waitFor(() =>
+      expect(windows.sent.map((sent) => sent.target.kind)).toEqual([
+        "newWindow",
+      ]),
+    );
+    expect(documentTab(/Document A/)).toBeNull();
+  });
+
   it("moves a Document tab to a new window from its menu", async () => {
     const first = createWorkspaceHarness();
     const windows = createFakeDocumentWindows(first.gateway);
