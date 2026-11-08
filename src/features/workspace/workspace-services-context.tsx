@@ -45,7 +45,10 @@ export interface WorkspaceServices {
   // look at it.
   readonly windowTitle?: WindowTitle;
   // Only `flush` is used: written before the window closes.
-  readonly viewportPersistence: Pick<ViewportPersistence, "flush">;
+  readonly viewportPersistence: Pick<
+    ViewportPersistence,
+    "flush" | "waitForSaves"
+  >;
   // The `src` of an image block's `<img>`.
   readonly assetUrlResolver: AssetUrlResolver;
   // `applyExternal`: settings another window changed (see `createSettingsChangeHandler`).

@@ -46,7 +46,7 @@ function setup(
       }
       return saveResult;
     },
-    flushViewport: async () => {
+    finishViewportSaves: async () => {
       calls.push("flush");
       if (options.flushFails === true) throw new Error("viewport");
     },

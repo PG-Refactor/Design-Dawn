@@ -8,7 +8,9 @@ import type { UnsavedCloseChoice } from "./workspace-actions";
 export interface WindowCloseDependencies {
   // Read at request time, so the controller always uses the latest services.
   readonly saveAll: () => Promise<OperationResult<void>>;
-  readonly flushViewport: () => Promise<void>;
+  // Waits for the views being saved with the Documents (unsaved views are not saved:
+  // closing without saving leaves the view as it was saved last).
+  readonly finishViewportSaves: () => Promise<void>;
   readonly closeRequestSource: CloseRequestSource;
   // Auto-save off with unsaved changes: the user is asked before anything happens.
   readonly needsConfirmation: () => boolean;
@@ -48,7 +50,7 @@ export function createWindowCloseHandler(
     processing = true;
     const {
       saveAll,
-      flushViewport,
+      finishViewportSaves,
       closeRequestSource,
       needsConfirmation,
       askUnsavedClose,
@@ -71,7 +73,7 @@ export function createWindowCloseHandler(
         }
       }
       try {
-        await flushViewport();
+        await finishViewportSaves();
       } catch {
         // The viewport is local, re-creatable state, not document data: losing it must not
         // keep the window open once the document is saved.
