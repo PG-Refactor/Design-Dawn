@@ -31,8 +31,6 @@ function documentNode(documentId: DocumentNode["documentId"]): DocumentNode {
     state: "loaded",
     isOpen: false,
     isActive: false,
-    canMoveUp: false,
-    canMoveDown: false,
   };
 }
 
@@ -49,8 +47,6 @@ function folderNode(
     state,
     // Collapsed on purpose: the cursor row decides, not what is visible below it.
     isExpanded: false,
-    canMoveUp: false,
-    canMoveDown: false,
     children,
   };
 }

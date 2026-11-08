@@ -81,27 +81,7 @@ describe("selectProjectTree with folders", () => {
     expect(folderNode(model, FOLDER_2).isExpanded).toBe(false);
   });
 
-  it("computes move limits against each entry's own parent order", async () => {
-    const { store } = await openedFolderDiskWorkspace();
-    const model = selectProjectTree(store.getState(), createInitialUiState());
-    const [folder, documentA, documentB] = model?.entries ?? [];
-    expect(
-      [folder, documentA, documentB].map((n) => [n?.canMoveUp, n?.canMoveDown]),
-    ).toEqual([
-      [false, true],
-      [true, true],
-      [true, false],
-    ]);
-    const [folder2, documentC] = folderNode(model, FOLDER_1).children;
-    expect(
-      [folder2, documentC].map((n) => [n?.canMoveUp, n?.canMoveDown]),
-    ).toEqual([
-      [false, true],
-      [true, false],
-    ]);
-  });
-
-  it("shows a folder that failed to load, with no children and no moves", async () => {
+  it("shows a folder that failed to load, with no children", async () => {
     const harness = await openedFolderDiskWorkspace();
     const failed = folderIdOf(7);
     harness.gateway.seedFolder({ folderId: failed, state: "loadFailed" });
@@ -120,8 +100,6 @@ describe("selectProjectTree with folders", () => {
     expect(node).toMatchObject({
       state: "loadFailed",
       children: [],
-      canMoveUp: false,
-      canMoveDown: false,
     });
   });
 });

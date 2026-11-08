@@ -15,7 +15,9 @@ import {
 } from "./tree-item";
 import { type RenamingTarget, sameRenamingTarget } from "./ui-state/ui-state";
 import { useMessages } from "./use-messages";
-import { MOVE_DIRECTIONS, type MoveDirection } from "./view-models/reorder";
+import type { TreeRowPointerHandlers } from "./use-tree-drag";
+import type { MoveDirection } from "./view-models/reorder";
+import type { TreeDropPosition } from "./view-models/tree-drag";
 import { documentTreeKey, folderTreeKey } from "./view-models/tree-items";
 import type {
   DocumentNode,
@@ -23,7 +25,6 @@ import type {
   TreeEntryNode,
 } from "./view-models/tree-model";
 import type { WorkspaceActions } from "./workspace-actions";
-import type { WorkspaceMessages } from "./workspace-messages";
 
 export interface TreeHandlers {
   readonly actions: WorkspaceActions;
@@ -32,6 +33,8 @@ export interface TreeHandlers {
   // can drop focus.
   readonly keepFocus: (move: Promise<unknown>) => void;
   readonly rovingKey: string;
+  // The row chosen in the tree (null: none).
+  readonly selectionKey: string | null;
   readonly register: (key: string, element: HTMLLIElement | null) => void;
   readonly onFocusItem: (key: string) => void;
   readonly onNavigate: (
@@ -39,6 +42,30 @@ export interface TreeHandlers {
     key: string,
   ) => void;
   readonly onContextMenu: TreeContextMenuHandler;
+  readonly drag: TreeRowDrag;
+}
+
+// What the rows need from the tree's drag: the pointer handlers of a draggable row, the
+// drop indicator to draw on a row, and the click that ends a drag.
+export interface TreeRowDrag {
+  readonly handlersFor: (key: string) => TreeRowPointerHandlers;
+  readonly markerFor: (key: string) => TreeDropPosition | null;
+  readonly draggedKey: string | null;
+  readonly consumeClickSuppression: () => boolean;
+}
+
+function dragProps(
+  handlers: TreeHandlers,
+  itemKey: string,
+  draggable: boolean,
+) {
+  const { drag } = handlers;
+  return {
+    dragHandlers: draggable ? drag.handlersFor(itemKey) : undefined,
+    dropMarker: drag.markerFor(itemKey),
+    dragged: drag.draggedKey === itemKey,
+    ignoreClick: drag.consumeClickSuppression,
+  };
 }
 
 // The Project row is level 1; every nesting step adds one.
@@ -54,28 +81,6 @@ function renamingProps(
         onCancel: actions.cancelRename,
       }
     : undefined;
-}
-
-function moveMenuItems(
-  messages: WorkspaceMessages,
-  canMoveUp: boolean,
-  canMoveDown: boolean,
-  move: (direction: MoveDirection) => void,
-): PopupMenuItem[] {
-  return [
-    {
-      id: "moveUp",
-      label: messages.tree.moveUp,
-      disabled: !canMoveUp,
-      onSelect: () => move(MOVE_DIRECTIONS.up),
-    },
-    {
-      id: "moveDown",
-      label: messages.tree.moveDown,
-      disabled: !canMoveDown,
-      onSelect: () => move(MOVE_DIRECTIONS.down),
-    },
-  ];
 }
 
 function DocumentTreeItem({
@@ -109,12 +114,6 @@ function DocumentTreeItem({
       disabled: failed,
       onSelect: rename,
     },
-    ...moveMenuItems(
-      messages,
-      documentNode.canMoveUp,
-      documentNode.canMoveDown,
-      move,
-    ),
     {
       id: "moveTo",
       label: messages.tree.moveTo,
@@ -134,17 +133,13 @@ function DocumentTreeItem({
       onSelect: () => actions.requestDeleteDocument(documentId),
     },
   ];
-  // Right-clicking a document also creates beside it, in the folder that holds it.
+  // Right-clicking a document also creates another one beside it, in the folder that holds
+  // it. Folders are made from a folder's menu or the empty part of the tree.
   const contextMenuItems: PopupMenuEntry[] = [
     {
       id: "createDocument",
       label: messages.tree.createDocument,
       onSelect: () => actions.requestCreateDocument(parentFolderId),
-    },
-    {
-      id: "createFolder",
-      label: messages.tree.createFolder,
-      onSelect: () => actions.requestCreateFolder(parentFolderId),
     },
     { id: "createSeparator", separator: true },
     ...menuItems,
@@ -155,7 +150,9 @@ function DocumentTreeItem({
       label={documentNode.name ?? messages.tree.unnamedEntity}
       level={level}
       isRoving={handlers.rovingKey === itemKey}
-      selected={documentNode.isActive}
+      selected={handlers.selectionKey === itemKey}
+      renameOnReclick={documentNode.isActive}
+      {...dragProps(handlers, itemKey, !failed)}
       icon={<DocumentIcon />}
       failed={failed}
       register={handlers.register}
@@ -215,12 +212,6 @@ function FolderTreeItem({
       disabled: failed,
       onSelect: rename,
     },
-    ...moveMenuItems(
-      messages,
-      folderNode.canMoveUp,
-      folderNode.canMoveDown,
-      move,
-    ),
     {
       id: "moveTo",
       label: messages.tree.moveTo,
@@ -241,6 +232,8 @@ function FolderTreeItem({
       label={folderNode.name ?? messages.tree.unnamedEntity}
       level={level}
       isRoving={handlers.rovingKey === itemKey}
+      selected={handlers.selectionKey === itemKey}
+      {...dragProps(handlers, itemKey, !failed)}
       expanded={folderNode.isExpanded}
       leadingMarker={
         folderNode.isExpanded

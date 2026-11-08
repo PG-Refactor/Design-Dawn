@@ -99,21 +99,3 @@ describe("flattenProjectTree", () => {
     expect(items[3]?.opensOnExpand).toBe(false);
   });
 });
-
-describe("selectProjectTree move availability", () => {
-  it("disables up for the first and down for the last, counting entries that failed to load", async () => {
-    const { store } = await openedWorkspace();
-    const model = selectProjectTree(store.getState(), createInitialUiState());
-    const moves = rootDocuments(model).map((node) => [
-      node.canMoveUp,
-      node.canMoveDown,
-    ]);
-    // A, B, failed: the failed one is the last position but cannot move itself, while B
-    // can still move down past it.
-    expect(moves).toEqual([
-      [false, true],
-      [true, true],
-      [false, false],
-    ]);
-  });
-});

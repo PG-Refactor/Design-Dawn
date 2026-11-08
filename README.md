@@ -13,8 +13,9 @@ can be read and edited by people, reviewed with Git, and changed safely by AI to
 
 - **Free-form canvas** — pan, zoom, select, move, resize, align, z-order, copy/paste, and undo/redo
   for every edit.
-- **Project → Document → Sheet → Block** — a project tree with folders, document tabs and sheet
-  tabs; several documents (and windows) open at once.
+- **Project → Document → Sheet → Block** — a project tree with folders (drag rows to reorder or
+  move them), document tabs and sheet tabs; several documents (and windows) open at once. The
+  sidebar can be folded away.
 - **Markdown blocks** — rendered view on the canvas; a split source/preview editor while editing.
 - **Mermaid blocks** — any Mermaid 12 diagram, rendered locally and sanitised (no network, no
   scripts).

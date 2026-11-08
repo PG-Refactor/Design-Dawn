@@ -19,9 +19,13 @@
   cursor: pointer;
 }
 
+/* Rows are dragged, so a press-and-move must not select their text (the rename input is
+   an editable field and still selects). */
 .tree-item__row {
   position: relative;
   display: flex;
+  -webkit-user-select: none;
+  user-select: none;
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-2);
@@ -145,4 +149,31 @@
   justify-content: flex-end;
   gap: var(--space-1);
   margin-bottom: var(--space-1);
+}
+
+/* The tree with the empty space below its rows, which fills the rest of the sidebar so a
+   click, a right-click or a drop there reaches it. */
+.project-tree-area {
+  flex: 1 0 auto;
+  outline: none;
+}
+
+/* A row being dragged fades, like a dragged tab. */
+.tree-item--dragged > .tree-item__row {
+  opacity: 0.6;
+}
+
+/* Where a drop would put the entry: a bar above or below the row, or the row outlined when
+   the entry would go inside it (a folder, or the Project for the top level). */
+.tree-item--drop-before > .tree-item__row {
+  box-shadow: inset 0 3px 0 var(--color-accent);
+}
+
+.tree-item--drop-after > .tree-item__row {
+  box-shadow: inset 0 -3px 0 var(--color-accent);
+}
+
+.tree-item--drop-inside > .tree-item__row {
+  outline: 2px dashed var(--color-accent);
+  outline-offset: -2px;
 }

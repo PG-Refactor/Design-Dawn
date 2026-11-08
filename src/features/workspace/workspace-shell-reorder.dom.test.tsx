@@ -18,12 +18,16 @@ import {
 import { reopenedWorkspace, undoDepth } from "./test-support/actions-harness";
 import {
   applyOutsideUi,
-  chooseRowMenuItem,
   openRowMenu,
   renderShell,
   type ShellHarness,
   treeItemNamed,
 } from "./test-support/shell-harness";
+import {
+  dragTreeRow,
+  treeRowOf,
+  yOnRow,
+} from "./test-support/tree-drag-helpers";
 import { WORKSPACE_MESSAGES } from "./workspace-messages";
 
 const MESSAGES = WORKSPACE_MESSAGES.ja;
@@ -78,8 +82,21 @@ async function openDocumentByClick(harness: ShellHarness, name: string) {
 const menuItemOf = (menu: HTMLElement, name: string) =>
   within(menu).getByRole("menuitem", { name });
 
+// Drags `name` in front of `target` (the top of its row) / after it (the bottom).
+const dragBefore = (
+  harness: ShellHarness,
+  name: TreeRowArg,
+  target: TreeRowArg,
+) => dragTreeRow(harness.user, name, yOnRow(target, 0.1));
+const dragAfter = (
+  harness: ShellHarness,
+  name: TreeRowArg,
+  target: TreeRowArg,
+) => dragTreeRow(harness.user, name, yOnRow(target, 0.9));
+type TreeRowArg = string | HTMLElement;
+
 describe("document reorder", () => {
-  it("moves up and down from the menu, saves the project, and creates no undo entry", async () => {
+  it("moves by dragging, saves the project, and creates no undo entry", async () => {
     const harness = await openedShell();
     await openDocumentByClick(harness, "Document A");
     expect(
@@ -87,7 +104,7 @@ describe("document reorder", () => {
     ).toEqual(["Document A", "Document B"]);
     harness.gateway.clearCalls();
 
-    await chooseRowMenuItem(harness.user, "Document B", MESSAGES.tree.moveUp);
+    await dragBefore(harness, "Document B", "Document A");
 
     await waitFor(() =>
       expect(storedDocumentOrder(harness)).toEqual([
@@ -105,7 +122,7 @@ describe("document reorder", () => {
     expect(harness.gateway.methods("saveProject")).toEqual(["saveProject"]);
     expect(await undoDepth(harness)).toBe(0);
 
-    await chooseRowMenuItem(harness.user, "Document B", MESSAGES.tree.moveDown);
+    await dragAfter(harness, "Document B", "Document A");
     await waitFor(() =>
       expect(storedDocumentOrder(harness)).toEqual([
         DOCUMENT_A,
@@ -115,6 +132,35 @@ describe("document reorder", () => {
     );
     expect(harness.gateway.methods("saveProject")).toHaveLength(2);
     expect(await undoDepth(harness)).toBe(0);
+  });
+
+  it("shows where the drop goes while dragging, and Escape cancels", async () => {
+    const harness = await openedShell();
+    harness.gateway.clearCalls();
+    await dragTreeRow(
+      harness.user,
+      "Document B",
+      yOnRow("Document A", 0.1),
+      false,
+    );
+    expect(
+      treeItemNamed("Document A").classList.contains("tree-item--drop-before"),
+    ).toBe(true);
+    expect(
+      treeItemNamed("Document B").classList.contains("tree-item--dragged"),
+    ).toBe(true);
+
+    await harness.user.keyboard("{Escape}");
+    expect(
+      document.querySelectorAll('[class*="tree-item--drop-"]'),
+    ).toHaveLength(0);
+    await harness.user.pointer({
+      keys: "[/MouseLeft]",
+      target: treeRowOf("Document B"),
+    });
+    expect(harness.gateway.calls).toEqual([]);
+    // The click that ends the drag neither opens nor selects the row.
+    expect(harness.store.getState().documents.size).toBe(0);
   });
 
   it("moves with Ctrl+Arrow and keeps focus on the moved row", async () => {
@@ -136,44 +182,23 @@ describe("document reorder", () => {
     expect(harness.gateway.methods("saveProject")).toHaveLength(2);
   });
 
-  it("is a no-op at the boundaries: items are disabled, nothing is saved", async () => {
+  it("is a no-op at the boundaries and where the entry already is: nothing is saved", async () => {
     const harness = await openedShell();
     harness.gateway.clearCalls();
 
-    const menu = await openRowMenu(harness.user, "Document A");
-    const up = menuItemOf(menu, MESSAGES.tree.moveUp);
-    expect(up.getAttribute("aria-disabled")).toBe("true");
-    expect(
-      menuItemOf(menu, MESSAGES.tree.moveDown).getAttribute("aria-disabled"),
-    ).toBeNull();
-    await harness.user.click(up);
-    await harness.user.keyboard("{Escape}");
-
     treeItemNamed("Document A").focus();
     await harness.user.keyboard(CTRL_UP);
+    // Dropped on its own row, or right after the row in front of it: it stays.
+    await dragAfter(harness, "Document B", "Document B");
+    await dragAfter(harness, "Document B", "Document A");
 
-    // Document B down, then it is last: down is disabled and a no-op.
-    await chooseRowMenuItem(harness.user, "Document B", MESSAGES.tree.moveDown);
-    await waitFor(() =>
-      expect(harness.gateway.methods("saveProject")).toHaveLength(1),
-    );
-    const lastMenu = await openRowMenu(harness.user, "Document B");
-    expect(
-      menuItemOf(lastMenu, MESSAGES.tree.moveDown).getAttribute(
-        "aria-disabled",
-      ),
-    ).toBe("true");
-    await harness.user.keyboard("{Escape}");
-    treeItemNamed("Document B").focus();
-    await harness.user.keyboard(CTRL_DOWN);
-
-    expect(harness.gateway.methods("saveProject")).toHaveLength(1);
+    expect(harness.gateway.methods("saveProject")).toHaveLength(0);
     expect(harness.uiStateStore.getState().operationErrors).toEqual([]);
   });
 
   it("moves past a document that failed to load, which keeps its place and cannot be moved", async () => {
     const harness = await openedShell();
-    await chooseRowMenuItem(harness.user, "Document B", MESSAGES.tree.moveDown);
+    await dragAfter(harness, "Document B", treeItemNamed(/読み込み失敗/));
     await waitFor(() =>
       expect(storedDocumentOrder(harness)).toEqual([
         DOCUMENT_A,
@@ -190,11 +215,7 @@ describe("document reorder", () => {
 
     const failed = treeItemNamed(/読み込み失敗/);
     const menu = await openRowMenu(harness.user, failed);
-    for (const name of [
-      MESSAGES.tree.rename,
-      MESSAGES.tree.moveUp,
-      MESSAGES.tree.moveDown,
-    ]) {
+    for (const name of [MESSAGES.tree.rename, MESSAGES.tree.moveTo]) {
       expect(menuItemOf(menu, name).getAttribute("aria-disabled")).toBe("true");
     }
     expect(
@@ -206,6 +227,8 @@ describe("document reorder", () => {
     harness.gateway.clearCalls();
     failed.focus();
     await harness.user.keyboard(CTRL_UP + CTRL_DOWN);
+    // A row that failed to load cannot be dragged either.
+    await dragBefore(harness, failed, "Document A");
     expect(harness.gateway.calls).toEqual([]);
   });
 
@@ -215,7 +238,7 @@ describe("document reorder", () => {
     await openDocumentByClick(harness, "Document B");
     expect(documentTabNames()).toEqual(["Document A", "Document B"]);
 
-    await chooseRowMenuItem(harness.user, "Document B", MESSAGES.tree.moveUp);
+    await dragBefore(harness, "Document B", "Document A");
     await waitFor(() =>
       expect(documentRowLabels()).toEqual(["Document B", "Document A"]),
     );
@@ -224,7 +247,7 @@ describe("document reorder", () => {
 
   it("works for open and unopened documents without opening anything", async () => {
     const harness = await openedShell();
-    await chooseRowMenuItem(harness.user, "Document B", MESSAGES.tree.moveUp);
+    await dragBefore(harness, "Document B", "Document A");
     await waitFor(() =>
       expect(storedDocumentOrder(harness)?.[0]).toBe(DOCUMENT_B),
     );
@@ -234,7 +257,7 @@ describe("document reorder", () => {
 
   it("is saved at once: a new workspace over the same disk has the order", async () => {
     const harness = await openedShell();
-    await chooseRowMenuItem(harness.user, "Document B", MESSAGES.tree.moveUp);
+    await dragBefore(harness, "Document B", "Document A");
     await waitFor(() =>
       expect(harness.gateway.methods("saveProject")).toHaveLength(1),
     );
@@ -250,7 +273,7 @@ describe("document reorder", () => {
   it("reports a failed save as an operation error", async () => {
     const harness = await openedShell();
     harness.gateway.failOn("saveProject", "ioError");
-    await chooseRowMenuItem(harness.user, "Document B", MESSAGES.tree.moveUp);
+    await dragBefore(harness, "Document B", "Document A");
     await waitFor(() =>
       expect(harness.uiStateStore.getState().operationErrors).toMatchObject([
         { operation: "moveDocument", error: { kind: "ioError" } },
@@ -660,8 +683,6 @@ describe("row menu accessibility", () => {
     const items = within(menu).getAllByRole("menuitem");
     expect(items.map((item) => item.textContent)).toEqual([
       MESSAGES.tree.rename,
-      MESSAGES.tree.moveUp,
-      MESSAGES.tree.moveDown,
       MESSAGES.tree.moveTo,
       MESSAGES.tree.createSheet,
       MESSAGES.tree.deleteDocument,
@@ -671,11 +692,11 @@ describe("row menu accessibility", () => {
     await harness.user.keyboard("{ArrowDown}");
     expect(document.activeElement).toBe(items[1]);
     await harness.user.keyboard("{End}");
-    expect(document.activeElement).toBe(items[5]);
+    expect(document.activeElement).toBe(items[3]);
     await harness.user.keyboard("{ArrowDown}");
     expect(document.activeElement).toBe(items[0]);
     await harness.user.keyboard("{ArrowUp}");
-    expect(document.activeElement).toBe(items[5]);
+    expect(document.activeElement).toBe(items[3]);
     await harness.user.keyboard("{Home}");
     expect(document.activeElement).toBe(items[0]);
 

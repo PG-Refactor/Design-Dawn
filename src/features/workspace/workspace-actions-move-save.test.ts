@@ -77,6 +77,7 @@ describe("moving with unsaved changes", () => {
       entryId: FOLDER_1,
       name: "Folder 1",
       targetParentFolderId: null,
+      beforeEntryId: null,
     });
     expect(harness.gateway.calls).toEqual([]);
   });

@@ -13,14 +13,11 @@ import {
 } from "../../application/test-support/workspace-harness";
 import { undoDepth } from "./test-support/actions-harness";
 import {
-  chooseRowMenuItem,
   renderShell,
   type ShellHarness,
   treeItemNamed,
 } from "./test-support/shell-harness";
-import { WORKSPACE_MESSAGES } from "./workspace-messages";
-
-const MESSAGES = WORKSPACE_MESSAGES.ja;
+import { dragTreeRow, yOnRow } from "./test-support/tree-drag-helpers";
 
 afterEach(() => {
   cleanup();
@@ -172,7 +169,7 @@ describe("Document Tabs reorder", () => {
     );
     expect(storedDocumentOrder(harness)).toEqual(treeOrderBefore);
 
-    await chooseRowMenuItem(harness.user, "Document B", MESSAGES.tree.moveUp);
+    await dragTreeRow(harness.user, "Document B", yOnRow("Document A", 0.1));
     await waitFor(() =>
       expect(storedDocumentOrder(harness)?.[0]).toBe(DOCUMENT_B),
     );

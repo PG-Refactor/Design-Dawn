@@ -139,6 +139,8 @@ export type DialogState =
       readonly entryId: EntryId;
       readonly name: EntityName;
       readonly targetParentFolderId: FolderId | null;
+      // The sibling to stand in front of in the target; null = last.
+      readonly beforeEntryId: EntryId | null;
     }
   | {
       readonly kind: "confirmUnsavedClose";
@@ -337,6 +339,10 @@ export interface UiState {
   // Folders the user folded in the Project Tree. Folders are expanded by default, so the
   // set holds the exceptions; like the rest of the tree's presentation it is not persisted.
   readonly collapsedFolderIds: ReadonlySet<FolderId>;
+  // The row chosen in the Project Tree (its tree key), as in VS Code's Explorer: new
+  // folders and Documents go there, and it follows the active Document. null: nothing is
+  // chosen (new entries go to the Project's top level). Dropped with the Project.
+  readonly treeSelectionKey: string | null;
   readonly viewportBySheet: ReadonlyMap<SheetId, Viewport>;
   // Image blocks whose picture could not be loaded by the `<img>` (the browser reports it,
   // so only the UI knows). Listed in the notifications; cleared when a later load works.
@@ -354,6 +360,9 @@ export interface UiState {
   // Project Tree or Git panel in the sidebar. Kept across Project changes (only the Git
   // content follows the Project).
   readonly leftPanelMode: LeftPanelMode;
+  // The sidebar (Project Tree / Git panel) is folded away, leaving the document area the
+  // whole width. A view choice of this window, kept across Project changes; never saved.
+  readonly sidebarCollapsed: boolean;
   // Side-by-side or inline diff. A view preference of this window shared by all diff tabs;
   // kept across Project changes (like `leftPanelMode`) and never saved.
   readonly diffViewMode: DiffViewMode;
@@ -443,6 +452,7 @@ export function createInitialUiState(): UiState {
     editingBlock: null,
     renaming: null,
     collapsedFolderIds: new Set(),
+    treeSelectionKey: null,
     viewportBySheet: new Map(),
     imageLoadFailures: new Map(),
     fileDragActive: false,
@@ -454,6 +464,7 @@ export function createInitialUiState(): UiState {
     nextNoticeId: 1,
     busy: false,
     leftPanelMode: DEFAULT_LEFT_PANEL_MODE,
+    sidebarCollapsed: false,
     diffViewMode: DEFAULT_DIFF_VIEW_MODE,
     diffTabs: [],
     activeMainTab: DOCUMENT_MAIN_TAB,

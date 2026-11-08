@@ -1,4 +1,11 @@
-import { type KeyboardEvent, useMemo, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  type MouseEvent,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
+import type { EntryId } from "../../domain/shared/entity-id";
 import { useContextMenu } from "../../shared/menu/context-menu";
 import { CANVAS_KEY_COMMANDS, keyCommandOf } from "../canvas/canvas-keyboard";
 import { restoreFocus } from "./focus-utils";
@@ -6,11 +13,14 @@ import {
   EntryItems,
   PROJECT_ENTRY_LEVEL,
   type TreeHandlers,
+  type TreeRowDrag,
 } from "./tree-entries";
 import { NewDocumentIcon, NewFolderIcon, ProjectIcon } from "./tree-icons";
 import { TreeItem } from "./tree-item";
 import { useMessages } from "./use-messages";
+import { type TreeRowKind, useTreeDrag } from "./use-tree-drag";
 import { treeNavigation } from "./view-models/keyboard-navigation";
+import { type TreeDropRow, treeMoveTargetOf } from "./view-models/tree-drag";
 import {
   creationTargetOf,
   documentTreeKey,
@@ -26,21 +36,6 @@ import {
 import { useUiState, useWorkspaceModel } from "./workspace-hooks";
 import { useWorkspaceServices } from "./workspace-services-context";
 import "./project-tree.css";
-
-// The key of the item that is currently selected, where the tab stop starts. Only the
-// items that are visible count: the active document inside a folded folder is not.
-function activeKeyOf(entries: readonly TreeEntryNode[]): string | null {
-  for (const entry of entries) {
-    if (entry.kind === "folder") {
-      const inside = entry.isExpanded ? activeKeyOf(entry.children) : null;
-      if (inside !== null) return inside;
-      continue;
-    }
-    if (!entry.isActive) continue;
-    return documentTreeKey(entry.documentId);
-  }
-  return null;
-}
 
 // Finds the node a navigation key landed on, to act on it.
 function findEntryByKey(
@@ -61,18 +56,98 @@ function findEntryByKey(
   return null;
 }
 
+function entryIdOf(entry: TreeEntryNode): EntryId {
+  return entry.kind === "folder" ? entry.folderId : entry.documentId;
+}
+
+// Whether a pointer event happened on a row (or inside one) rather than on the empty part
+// of the tree.
+function isOnRow(target: EventTarget): boolean {
+  return (
+    target instanceof Element && target.closest('[role="treeitem"]') !== null
+  );
+}
+
 function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
   const messages = useMessages().workspace;
   const { actions, canvasActions, uiStateStore } = useWorkspaceServices();
   const renaming = useUiState((ui) => ui.renaming);
+  const storedSelection = useUiState((ui) => ui.treeSelectionKey);
+  const activeDocumentId = useUiState((ui) => ui.activeDocumentId);
   const items = useMemo(() => flattenProjectTree(model), [model]);
   const itemElements = useRef(new Map<string, HTMLLIElement>());
-  const [focusedKey, setFocusedKey] = useState<string | null>(null);
+  const areaElement = useRef<HTMLDivElement | null>(null);
   const contextMenu = useContextMenu();
-  const rovingKey =
-    focusedKey !== null && items.some((item) => item.key === focusedKey)
-      ? focusedKey
-      : (activeKeyOf(model.entries) ?? PROJECT_TREE_KEY);
+  // A row that is gone (deleted, or inside a folded folder) is not selected any more.
+  const selectionKey =
+    storedSelection !== null &&
+    items.some((item) => item.key === storedSelection)
+      ? storedSelection
+      : null;
+  const rovingKey = selectionKey ?? PROJECT_TREE_KEY;
+
+  // The selection follows the active Document (a tab chosen, a Document opened), as the
+  // Explorer of VS Code does. Choosing another row or the empty space changes it again.
+  useEffect(() => {
+    if (activeDocumentId !== null) {
+      actions.selectTreeRow(documentTreeKey(activeDocumentId));
+    }
+  }, [activeDocumentId, actions]);
+
+  const rowKinds = useMemo(() => {
+    const kinds = new Map<string, TreeRowKind>();
+    for (const item of items) {
+      kinds.set(
+        item.key,
+        item.key === PROJECT_TREE_KEY
+          ? "project"
+          : item.folderState === "expanded"
+            ? "folder"
+            : item.folderState === "collapsed"
+              ? "folderCollapsed"
+              : "document",
+      );
+    }
+    return kinds;
+  }, [items]);
+
+  const treeDrag = useTreeDrag({
+    getRows: () =>
+      items.flatMap((item): TreeDropRow[] => {
+        const row = itemElements.current
+          .get(item.key)
+          ?.querySelector(":scope > .tree-item__row");
+        if (row === null || row === undefined) return [];
+        const rect = row.getBoundingClientRect();
+        return [{ key: item.key, top: rect.top, bottom: rect.bottom }];
+      }),
+    rowKind: (key) => rowKinds.get(key) ?? "document",
+    resolveTarget: (key, hit) => treeMoveTargetOf(model, key, hit),
+    onDrop: (key, target) => {
+      const entry = findEntryByKey(model.entries, key);
+      if (entry === null) return;
+      keepFocus(
+        actions.placeEntry(
+          entryIdOf(entry),
+          target.parentFolderId,
+          target.beforeEntryId,
+        ),
+      );
+    },
+  });
+  const { dragState } = treeDrag;
+  const drag: TreeRowDrag = {
+    handlersFor: treeDrag.handlersFor,
+    draggedKey: dragState?.key ?? null,
+    markerFor: (key) => {
+      const hit = dragState?.hit ?? null;
+      if (hit === null) return null;
+      // The empty space below the rows means the Project's top level.
+      if (hit.key === null) return key === PROJECT_TREE_KEY ? "inside" : null;
+      return hit.key === key ? hit.position : null;
+    },
+    consumeClickSuppression: treeDrag.consumeClickSuppression,
+  };
 
   function register(key: string, element: HTMLLIElement | null): void {
     if (element === null) itemElements.current.delete(key);
@@ -93,6 +168,7 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
     const target = items[navigation.index];
     if (target === undefined) return;
     if (navigation.action === "focus") {
+      // Focusing a row selects it (`onFocusItem`).
       itemElements.current.get(target.key)?.focus();
       return;
     }
@@ -131,18 +207,57 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
       : canvasActions.redo(documentId));
   }
 
+  // A row that gets focus (a click, the arrow keys, a right-click) becomes the selection.
+  const selectRow = (key: string) => actions.selectTreeRow(key);
+
   const handlers: TreeHandlers = {
     actions,
     renaming,
     keepFocus,
     rovingKey,
+    selectionKey,
     register,
-    onFocusItem: setFocusedKey,
+    onFocusItem: selectRow,
     onNavigate: handleNavigate,
     onContextMenu: contextMenu.openFromEvent,
+    drag,
   };
 
-  const creationTarget = creationTargetOf(model, rovingKey);
+  const createAtTopLevel = [
+    {
+      id: "createFolder",
+      label: messages.tree.createFolder,
+      onSelect: () => actions.requestCreateFolder(null),
+    },
+    {
+      id: "createDocument",
+      label: messages.tree.createDocument,
+      onSelect: () => actions.requestCreateDocument(null),
+    },
+  ];
+
+  // A click on the empty part of the tree clears the selection (new entries then go to the
+  // top level); the tree area keeps focus so the keyboard still works from the top.
+  function handleAreaClick(event: MouseEvent<HTMLDivElement>): void {
+    if (isOnRow(event.target)) return;
+    actions.selectTreeRow(null);
+    areaElement.current?.focus({ preventScroll: true });
+  }
+
+  // The empty part of the tree offers what the Project row does for its top level.
+  function handleAreaContextMenu(event: MouseEvent<HTMLDivElement>): void {
+    if (isOnRow(event.target)) return;
+    contextMenu.openFromEvent(
+      event,
+      messages.treeMenuLabel(model.projectName),
+      createAtTopLevel,
+    );
+  }
+
+  const creationTarget = creationTargetOf(
+    model,
+    selectionKey ?? PROJECT_TREE_KEY,
+  );
   const creationLocation =
     creationTarget.parentFolderId === null
       ? model.projectName
@@ -182,65 +297,104 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
           <NewDocumentIcon />
         </button>
       </div>
-      <ul
-        // biome-ignore lint/a11y/noNoninteractiveElementToInteractiveRole: the ARIA tree pattern puts role="tree" on a list.
-        role="tree"
-        aria-label={messages.appRegionTreeLabel}
-        className="project-tree"
-        onKeyDown={handleHistoryKey}
+      {/* The empty space around the rows: a click clears the selection, a right-click
+          creates at the top level, a drop moves to the top level. The rows (and their
+          keyboard handling) are the tree inside it. */}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: pointer-only conveniences; the same actions are on the Project row and in the toolbar. */}
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: see above. */}
+      <div
+        ref={areaElement}
+        className="project-tree-area"
+        tabIndex={-1}
+        onClick={handleAreaClick}
+        onContextMenu={handleAreaContextMenu}
       >
-        <TreeItem
-          itemKey={PROJECT_TREE_KEY}
-          label={model.projectName}
-          level={1}
-          isRoving={rovingKey === PROJECT_TREE_KEY}
-          expanded
-          icon={<ProjectIcon />}
-          register={register}
-          onFocusItem={setFocusedKey}
-          onNavigate={handleNavigate}
-          onContextMenu={contextMenu.openFromEvent}
-          menuItems={[
-            {
-              id: "createFolder",
-              label: messages.tree.createFolder,
-              onSelect: () => actions.requestCreateFolder(null),
-            },
-            {
-              id: "createDocument",
-              label: messages.tree.createDocument,
-              onSelect: () => actions.requestCreateDocument(null),
-            },
-            {
-              id: "openProjectInNewWindow",
-              label: messages.tree.openProjectInNewWindow,
-              onSelect: () => void actions.openProjectInNewWindowViaDialog(),
-            },
-          ]}
+        <ul
+          // biome-ignore lint/a11y/noNoninteractiveElementToInteractiveRole: the ARIA tree pattern puts role="tree" on a list.
+          role="tree"
+          aria-label={messages.appRegionTreeLabel}
+          className="project-tree"
+          onKeyDown={handleHistoryKey}
         >
-          {model.entries.length === 0 ? (
-            <p className="project-tree__empty">{messages.tree.emptyProject}</p>
-          ) : (
-            <EntryItems
-              entries={model.entries}
-              parentFolderId={null}
-              level={PROJECT_ENTRY_LEVEL}
-              handlers={handlers}
-            />
-          )}
-        </TreeItem>
-      </ul>
+          <TreeItem
+            itemKey={PROJECT_TREE_KEY}
+            label={model.projectName}
+            level={1}
+            isRoving={rovingKey === PROJECT_TREE_KEY}
+            selected={selectionKey === PROJECT_TREE_KEY}
+            dropMarker={drag.markerFor(PROJECT_TREE_KEY)}
+            ignoreClick={drag.consumeClickSuppression}
+            expanded
+            icon={<ProjectIcon />}
+            register={register}
+            onFocusItem={selectRow}
+            onNavigate={handleNavigate}
+            onContextMenu={contextMenu.openFromEvent}
+            menuItems={[
+              ...createAtTopLevel,
+              {
+                id: "openProjectInNewWindow",
+                label: messages.tree.openProjectInNewWindow,
+                onSelect: () => void actions.openProjectInNewWindowViaDialog(),
+              },
+            ]}
+          >
+            {model.entries.length === 0 ? (
+              <p className="project-tree__empty">
+                {messages.tree.emptyProject}
+              </p>
+            ) : (
+              <EntryItems
+                entries={model.entries}
+                parentFolderId={null}
+                level={PROJECT_ENTRY_LEVEL}
+                handlers={handlers}
+              />
+            )}
+          </TreeItem>
+        </ul>
+      </div>
+      {contextMenu.element}
+    </>
+  );
+}
+
+// Without a Project, the tree area offers to make or open one (as the File menu does).
+function NoProjectTree() {
+  const messages = useMessages().workspace;
+  const { actions } = useWorkspaceServices();
+  const busy = useUiState((ui) => ui.busy);
+  const contextMenu = useContextMenu();
+  return (
+    <>
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: a pointer convenience; the same actions are in the File menu and on the main panel. */}
+      <div
+        className="project-tree-area"
+        onContextMenu={(event) =>
+          contextMenu.openFromEvent(event, messages.tree.noProjectMenuLabel, [
+            {
+              id: "createProject",
+              label: messages.topBar.createProject,
+              disabled: busy,
+              onSelect: actions.requestCreateProject,
+            },
+            {
+              id: "openProject",
+              label: messages.topBar.openProject,
+              disabled: busy,
+              onSelect: () => void actions.openProjectViaDialog(),
+            },
+          ])
+        }
+      >
+        <p className="project-tree__empty">{messages.tree.noProject}</p>
+      </div>
       {contextMenu.element}
     </>
   );
 }
 
 export function ProjectTree() {
-  const messages = useMessages().workspace;
   const model = useWorkspaceModel(selectProjectTree);
-  return model === null ? (
-    <p className="project-tree__empty">{messages.tree.noProject}</p>
-  ) : (
-    <ProjectTreeView model={model} />
-  );
+  return model === null ? <NoProjectTree /> : <ProjectTreeView model={model} />;
 }
