@@ -190,7 +190,7 @@ describe("moving entries", () => {
     harness.actions.requestMoveEntry(DOCUMENT_A);
     expect(state(harness).dialog).toMatchObject({
       kind: "moveEntry",
-      entryId: DOCUMENT_A,
+      entryIds: [DOCUMENT_A],
       name: "Document A",
     });
     harness.actions.cancelDialog();
@@ -205,7 +205,7 @@ describe("moving entries", () => {
       harness.actions.requestMoveEntry(entryId);
       expect(state(harness).dialog).toMatchObject({
         kind: "moveEntry",
-        entryId,
+        entryIds: [entryId],
       });
       harness.actions.cancelDialog();
     }

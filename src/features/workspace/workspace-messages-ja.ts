@@ -247,18 +247,19 @@ export const WORKSPACE_MESSAGES_JA = {
     openProjectInNewWindow: "新しいウィンドウでProjectを開く",
     createFolder: "フォルダを作成",
     createDocument: "Documentを作成",
-    createSheet: "Sheetを作成",
     toolbarLabel: "Projectの操作",
     createFolderIn: (location: string) => `「${location}」にフォルダを作成`,
     createDocumentIn: (location: string) => `「${location}」にDocumentを作成`,
     deleteFolder: "フォルダを削除",
     deleteDocument: "Documentを削除",
+    openInNewWindow: "新しいウィンドウで開く",
+    deleteChosen: "削除",
+    chosenMenuLabel: (count: number): string => `${count}件のメニュー`,
     moveTo: "移動…",
     deleteFolderNotEmptyHint: "空のフォルダだけ削除できます",
     folderExpandedMarker: "▾",
     folderCollapsedMarker: "▸",
     rename: "名前変更",
-    menuButtonText: "⋮",
     unnamedEntity: "（名前を読み込めません）",
     loadFailedMarker: "読み込み失敗",
     loadFailedHint: "読み込みに失敗したため開けません（削除はできます）",
@@ -472,6 +473,8 @@ export const WORKSPACE_MESSAGES_JA = {
     delete: "削除",
     undoNotice: "この操作はUndoできません。",
     deleteFolderConsequence: "このフォルダ（空）が削除されます。",
+    deleteEntriesConsequence:
+      "選んだDocument（Sheet、Block本文ファイル、Assetを含む）と空のフォルダがすべて削除されます。",
     deleteDocumentConsequence:
       "このDocumentのSheet、Block本文ファイル、Assetもすべて削除されます。",
     createProject: {
@@ -535,6 +538,7 @@ export const WORKSPACE_MESSAGES_JA = {
   documentSourceLabel: (name: string): string => `Document: ${name}`,
   moveEntryTitle: (name: string): string => `${quoted(name)}移動…`,
   moveEntriesTitle: (count: number): string => `${count}件を移動`,
+  deleteEntriesTitle: (count: number): string => `${count}件を削除しますか？`,
   closeDocumentConfirmationTitle: (name: string): string =>
     `${quoted(name)}を閉じる`,
   deleteConfirmationTitle: (name: string): string =>

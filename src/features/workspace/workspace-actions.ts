@@ -199,6 +199,18 @@ export interface WorkspaceActions {
   requestDeleteFolder(folderId: FolderId): void;
   // Opens the target picker for a Document / a loaded Folder (open Documents move too).
   requestMoveEntry(entryId: EntryId): void;
+  // The same picker for several entries chosen in the tree (those that failed to load are
+  // left out; nothing opens when none is left).
+  requestMoveEntries(entryIds: readonly EntryId[]): void;
+  // Asks once, then deletes several entries chosen in the tree: Documents (closing them
+  // when open) and empty Folders. Nothing is asked when a chosen Folder is not empty (the
+  // menu item is disabled).
+  requestDeleteEntries(entryIds: readonly EntryId[]): void;
+  // Opens the Document in a window of its own: opened here first when it is not open, then
+  // moved to a new window (as the Document tab's "Move to New Window").
+  openDocumentInNewWindow(
+    documentId: DocumentId,
+  ): Promise<OperationResult<void>>;
   // Moves the entry into `targetParentFolderId` (null = Project root), last or in front of
   // `beforeEntryId`, and closes the picker. When a Document that moves has unsaved changes
   // it asks first (see `confirmMoveSave`) and moves nothing yet.
@@ -819,6 +831,36 @@ export function createWorkspaceActions(
     return runBusy(() => selectAndOpenProject(false));
   }
 
+  // Documents first, so a Folder that holds only chosen Documents is empty when its turn
+  // comes. Stops at the first failure (what was deleted before it stays deleted).
+  async function deleteEntriesConfirmed(
+    entryIds: readonly EntryId[],
+  ): Promise<OperationResult<void>> {
+    const project = applicationStore.getState().project;
+    if (project === null) return operationOk(undefined);
+    const found = entryIds.flatMap((entryId) => {
+      const entry = findProjectEntry(project, entryId);
+      return entry === null ? [] : [entry];
+    });
+    for (const entry of found) {
+      if (entry.kind !== "document") continue;
+      const deleted = await deleteDocumentConfirmed(
+        entry.entry.documentId,
+        entry.entry.name,
+      );
+      if (!deleted.ok) return deleted;
+    }
+    for (const entry of found) {
+      if (entry.kind !== "folder") continue;
+      const deleted = await deleteFolderConfirmed(
+        entry.entry.folderId,
+        entry.entry.name,
+      );
+      if (!deleted.ok) return deleted;
+    }
+    return operationOk(undefined);
+  }
+
   async function deleteDocumentConfirmed(
     documentId: DocumentId,
     name: string | null,
@@ -1199,17 +1241,52 @@ export function createWorkspaceActions(
       );
     },
     requestMoveEntry(entryId) {
+      actions.requestMoveEntries([entryId]);
+    },
+    requestMoveEntries(entryIds) {
       const project = applicationStore.getState().project;
-      const found =
-        project === null ? null : findProjectEntry(project, entryId);
-      if (found === null || found.entry.state !== "loaded") return;
+      if (project === null) return;
+      const movable = entryIds.filter(
+        (entryId) =>
+          findProjectEntry(project, entryId)?.entry.state === "loaded",
+      );
+      const [first] = movable;
+      if (first === undefined) return;
       uiStateStore.setState((state) =>
         openDialog(state, {
           kind: "moveEntry",
-          entryId,
-          name: found.entry.name,
+          entryIds: movable,
+          name: entryNameOf(first),
         }),
       );
+    },
+    requestDeleteEntries(entryIds) {
+      const project = applicationStore.getState().project;
+      if (project === null || entryIds.length === 0) return;
+      const deletable = entryIds.every((entryId) => {
+        const found = findProjectEntry(project, entryId);
+        if (found === null) return false;
+        return (
+          found.kind === "document" ||
+          !hasChildren(project, found.entry.folderId)
+        );
+      });
+      if (!deletable) return;
+      uiStateStore.setState((state) =>
+        openDialog(state, { kind: "confirmDeleteEntries", entryIds }),
+      );
+    },
+    async openDocumentInNewWindow(documentId) {
+      if (uiStateStore.getState().busy) return operationOk(undefined);
+      const opened = await ensureOpen(documentId);
+      // Not opened here (it failed to load, or another window holds it and was shown).
+      if (!opened.ok || !opened.value)
+        return opened.ok ? operationOk(undefined) : opened;
+      return moveDocumentToWindowNow(documentId, {
+        kind: "newWindow",
+        screenX: null,
+        screenY: null,
+      });
     },
     moveEntryTo: (entryId, targetParentFolderId, beforeEntryId = null) =>
       requestPlacement([entryId], targetParentFolderId, beforeEntryId),
@@ -1266,6 +1343,14 @@ export function createWorkspaceActions(
     confirmDelete() {
       const { dialog, busy } = uiStateStore.getState();
       if (busy) return Promise.resolve(operationOk(undefined));
+      if (dialog.kind === "confirmDeleteEntries") {
+        const { entryIds } = dialog;
+        return runBusy(async () => {
+          const result = await deleteEntriesConfirmed(entryIds);
+          uiStateStore.setState(closeDialog);
+          return result;
+        });
+      }
       if (
         dialog.kind !== "confirmDeleteDocument" &&
         dialog.kind !== "confirmDeleteSheet" &&

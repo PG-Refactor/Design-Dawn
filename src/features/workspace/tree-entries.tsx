@@ -2,11 +2,7 @@
 // from `project-tree.tsx` so the tree view keeps to focus handling and shortcuts.
 
 import type { KeyboardEvent } from "react";
-import type { FolderId } from "../../domain/shared/entity-id";
-import type {
-  PopupMenuEntry,
-  PopupMenuItem,
-} from "../../shared/menu/popup-menu";
+import type { PopupMenuItem } from "../../shared/menu/popup-menu";
 import { DocumentIcon, FolderIcon, FolderOpenIcon } from "./tree-icons";
 import {
   type TreeChooseMode,
@@ -87,13 +83,10 @@ function renamingProps(
 
 function DocumentTreeItem({
   documentNode,
-  parentFolderId,
   level,
   handlers,
 }: {
   readonly documentNode: DocumentNode;
-  // The folder holding the document (null: the top level), where "create" puts new rows.
-  readonly parentFolderId: FolderId | null;
   readonly level: number;
   readonly handlers: TreeHandlers;
 }) {
@@ -123,28 +116,16 @@ function DocumentTreeItem({
       onSelect: () => actions.requestMoveEntry(documentId),
     },
     {
-      id: "createSheet",
-      label: messages.tree.createSheet,
-      // A document that failed to load has no sheets to add to.
+      id: "openInNewWindow",
+      label: messages.tree.openInNewWindow,
       disabled: failed,
-      onSelect: () => void actions.requestCreateSheet(documentId),
+      onSelect: () => void actions.openDocumentInNewWindow(documentId),
     },
     {
       id: "delete",
       label: messages.tree.deleteDocument,
       onSelect: () => actions.requestDeleteDocument(documentId),
     },
-  ];
-  // Right-clicking a document also creates another one beside it, in the folder that holds
-  // it. Folders are made from a folder's menu or the empty part of the tree.
-  const contextMenuItems: PopupMenuEntry[] = [
-    {
-      id: "createDocument",
-      label: messages.tree.createDocument,
-      onSelect: () => actions.requestCreateDocument(parentFolderId),
-    },
-    { id: "createSeparator", separator: true },
-    ...menuItems,
   ];
   return (
     <TreeItem
@@ -169,7 +150,6 @@ function DocumentTreeItem({
       onMove={failed ? undefined : move}
       renaming={renamingProps(actions, isRenaming)}
       menuItems={menuItems}
-      contextMenuItems={contextMenuItems}
       onContextMenu={handlers.onContextMenu}
     />
   );
@@ -261,7 +241,6 @@ function FolderTreeItem({
       {folderNode.isExpanded && !isEmpty ? (
         <EntryItems
           entries={folderNode.children}
-          parentFolderId={folderId}
           level={level + 1}
           handlers={handlers}
         />
@@ -272,12 +251,10 @@ function FolderTreeItem({
 
 export function EntryItems({
   entries,
-  parentFolderId,
   level,
   handlers,
 }: {
   readonly entries: readonly TreeEntryNode[];
-  readonly parentFolderId: FolderId | null;
   readonly level: number;
   readonly handlers: TreeHandlers;
 }) {
@@ -296,7 +273,6 @@ export function EntryItems({
           <DocumentTreeItem
             key={entry.documentId}
             documentNode={entry}
-            parentFolderId={parentFolderId}
             level={level}
             handlers={handlers}
           />

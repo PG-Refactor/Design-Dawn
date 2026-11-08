@@ -156,10 +156,10 @@ describe("activating documents", () => {
         .getByRole("menuitem", { name: "Documentを削除" })
         .getAttribute("aria-disabled"),
     ).toBeNull();
-    // Nothing can be added to a document that did not load.
+    // A document that did not load cannot be opened anywhere.
     expect(
       within(menu)
-        .getByRole("menuitem", { name: "Sheetを作成" })
+        .getByRole("menuitem", { name: "新しいウィンドウで開く" })
         .getAttribute("aria-disabled"),
     ).toBe("true");
   });

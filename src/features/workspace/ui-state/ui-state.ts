@@ -134,8 +134,15 @@ export type DialogState =
   // The target picker of "move to..." for a Document or a Folder.
   | {
       readonly kind: "moveEntry";
-      readonly entryId: EntryId;
+      // What moves: one entry, or several chosen in the tree.
+      readonly entryIds: readonly EntryId[];
+      // The name of the first one (the title names it when it is the only one).
       readonly name: EntityName;
+    }
+  // Several entries chosen in the tree are deleted together, after one confirmation.
+  | {
+      readonly kind: "confirmDeleteEntries";
+      readonly entryIds: readonly EntryId[];
     }
   // Asked after a target was picked while a Document that would move has unsaved changes.
   | {

@@ -101,12 +101,16 @@ export function WorkspaceDialogs() {
     case "moveEntry":
       return (
         <MoveDialog
-          entryId={dialog.entryId}
-          name={nameOf(dialog.name)}
+          entryIds={dialog.entryIds}
+          title={
+            dialog.entryIds.length > 1
+              ? messages.moveEntriesTitle(dialog.entryIds.length)
+              : messages.moveEntryTitle(nameOf(dialog.name))
+          }
           busy={busy}
           onCancel={actions.cancelDialog}
           onChoose={(target) =>
-            void actions.moveEntryTo(dialog.entryId, target)
+            void actions.placeEntries(dialog.entryIds, target, null)
           }
           onCreateFolder={actions.createFolderForMove}
         />
@@ -170,6 +174,18 @@ export function WorkspaceDialogs() {
         />
       );
     }
+    case "confirmDeleteEntries":
+      return (
+        <ConfirmDialog
+          title={messages.deleteEntriesTitle(dialog.entryIds.length)}
+          paragraphs={[texts.undoNotice, texts.deleteEntriesConsequence]}
+          cancelLabel={texts.cancel}
+          confirmLabel={texts.delete}
+          busy={busy}
+          onCancel={actions.cancelDialog}
+          onConfirm={() => void actions.confirmDelete()}
+        />
+      );
     case "confirmDeleteDocument":
       return (
         <ConfirmDialog

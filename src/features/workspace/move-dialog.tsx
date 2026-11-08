@@ -16,8 +16,10 @@ import {
 import { useWorkspaceServices } from "./workspace-services-context";
 
 export interface MoveDialogProps {
-  readonly entryId: EntryId;
-  readonly name: string;
+  // What moves: one entry, or several chosen in the tree.
+  readonly entryIds: readonly EntryId[];
+  // The dialog's title (it names the entry, or counts them).
+  readonly title: string;
   readonly busy: boolean;
   readonly onCancel: () => void;
   // null = the Project root.
@@ -38,8 +40,8 @@ const identity = <Value,>(value: Value): Value => value;
 // parent and every other target are visible without clicking; folding is local to the
 // dialog. A click highlights a row; "Move Here", Enter or a double-click moves there.
 export function MoveDialog({
-  entryId,
-  name,
+  entryIds,
+  title,
   busy,
   onCancel,
   onChoose,
@@ -48,14 +50,14 @@ export function MoveDialog({
   const messages = useMessages().workspace;
   const { applicationStore } = useWorkspaceServices();
   const application = useStoreSelector(applicationStore, identity);
-  const targets = selectMoveTargets(application, entryId);
+  const targets = selectMoveTargets(application, entryIds);
   const titleId = useId();
   const descriptionId = useId();
   const initialFocusRef = useRef<HTMLElement | null>(null);
   const [expandedKeys, setExpandedKeys] = useState<ReadonlySet<string>>(
     () =>
       new Set(
-        selectMoveTargets(application, entryId)
+        selectMoveTargets(application, entryIds)
           .filter((target) => target.hasChildFolders)
           .map((target) => target.key),
       ),
@@ -119,7 +121,7 @@ export function MoveDialog({
       busy={busy}
     >
       <h2 id={titleId} className="modal__title">
-        {messages.moveEntryTitle(name)}
+        {title}
       </h2>
       <p id={descriptionId} className="modal__body">
         {messages.dialogs.moveEntry.description}

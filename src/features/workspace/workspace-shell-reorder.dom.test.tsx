@@ -664,27 +664,19 @@ describe("sheet that failed to load", () => {
 });
 
 describe("row menu accessibility", () => {
-  it("has a labelled menu button per row, menu semantics, arrow keys, Escape and focus return", async () => {
+  it("opens on a right-click or from the keyboard, with menu semantics, arrow keys, Escape and focus return", async () => {
     const harness = await openedShell();
     const tree = screen.getByRole("tree");
-    expect(
-      within(tree).getAllByRole("button", { name: /のメニュー$/ }),
-    ).toHaveLength(4);
+    // The menus are opened by right-click only: rows have no "⋮" buttons.
+    expect(within(tree).queryAllByRole("button")).toHaveLength(0);
 
-    const button = within(treeItemNamed("Document A")).getByRole("button", {
-      name: "Document A のメニュー",
-    });
-    expect(button.getAttribute("aria-haspopup")).toBe("menu");
-    expect(button.getAttribute("aria-expanded")).toBe("false");
-
-    await harness.user.click(button);
-    expect(button.getAttribute("aria-expanded")).toBe("true");
-    const menu = screen.getByRole("menu", { name: "Document A のメニュー" });
+    const menu = await openRowMenu(harness.user, "Document A");
+    expect(menu.getAttribute("aria-label")).toBe("Document A のメニュー");
     const items = within(menu).getAllByRole("menuitem");
     expect(items.map((item) => item.textContent)).toEqual([
       MESSAGES.tree.rename,
       MESSAGES.tree.moveTo,
-      MESSAGES.tree.createSheet,
+      MESSAGES.tree.openInNewWindow,
       MESSAGES.tree.deleteDocument,
     ]);
     expect(document.activeElement).toBe(items[0]);
@@ -695,15 +687,20 @@ describe("row menu accessibility", () => {
     expect(document.activeElement).toBe(items[3]);
     await harness.user.keyboard("{ArrowDown}");
     expect(document.activeElement).toBe(items[0]);
-    await harness.user.keyboard("{ArrowUp}");
-    expect(document.activeElement).toBe(items[3]);
     await harness.user.keyboard("{Home}");
     expect(document.activeElement).toBe(items[0]);
 
     await harness.user.keyboard("{Escape}");
     expect(screen.queryByRole("menu")).toBeNull();
-    expect(document.activeElement).toBe(button);
-    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(treeItemNamed("Document A"));
+
+    // Shift+F10 and the Menu key make the browser send a contextmenu event without a
+    // pointer position (jsdom does not, so it is sent here).
+    fireEvent.contextMenu(treeItemNamed("Document A"));
+    expect(
+      screen.getByRole("menu", { name: "Document A のメニュー" }),
+    ).toBeTruthy();
+    await harness.user.keyboard("{Escape}");
   });
 
   it("closes when focus leaves and offers the project row the create actions and open in a new window", async () => {

@@ -5,11 +5,7 @@ import {
   useId,
   useRef,
 } from "react";
-import {
-  PopupMenu,
-  type PopupMenuEntry,
-  type PopupMenuItem,
-} from "../../shared/menu/popup-menu";
+import type { PopupMenuEntry } from "../../shared/menu/popup-menu";
 import { FOCUS_FALLBACK_ATTRIBUTE } from "./focus-utils";
 import { TreeRenameInput } from "./tree-rename-input";
 import { useMessages } from "./use-messages";
@@ -68,10 +64,8 @@ export interface TreeItemProps {
   // Ctrl/Cmd+ArrowUp / ArrowDown. Undefined: the row cannot be moved.
   readonly onMove?: (direction: MoveDirection) => void;
   readonly renaming?: TreeItemRenaming;
-  readonly menuItems: readonly PopupMenuItem[];
-  // The right-click menu: the "⋮" menu, or more where the row offers more (a document
-  // also creates next to itself).
-  readonly contextMenuItems?: readonly PopupMenuEntry[];
+  // The row's right-click menu (also opened with the Menu key or Shift+F10).
+  readonly menuItems: readonly PopupMenuEntry[];
   readonly onContextMenu: TreeContextMenuHandler;
   readonly children?: ReactNode;
 }
@@ -82,6 +76,8 @@ export type TreeChooseMode = "replace" | "toggle" | "range" | "context";
 
 export type TreeContextMenuHandler = (
   event: MouseEvent,
+  // The row the menu is for (the tree may offer a menu for all chosen rows instead).
+  itemKey: string,
   label: string,
   entries: readonly PopupMenuEntry[],
   anchorElement: Element | null,
@@ -129,7 +125,6 @@ export function TreeItem({
   onMove,
   renaming,
   menuItems,
-  contextMenuItems,
   onContextMenu,
   children,
 }: TreeItemProps) {
@@ -149,8 +144,9 @@ export function TreeItem({
     onChoose?.("context");
     onContextMenu(
       event,
+      itemKey,
       messages.treeMenuLabel(label),
-      contextMenuItems ?? menuItems,
+      menuItems,
       rowElement.current,
     );
   }
@@ -280,14 +276,6 @@ export function TreeItem({
             {`⚠ ${messages.tree.loadFailedMarker}`}
           </span>
         ) : null}
-        <PopupMenu
-          className="tree-item__menu"
-          triggerLabel={messages.treeMenuLabel(label)}
-          triggerContent={messages.tree.menuButtonText}
-          menuLabel={messages.treeMenuLabel(label)}
-          items={menuItems}
-          triggerTabIndex={isRoving ? 0 : -1}
-        />
       </div>
       {children}
     </li>

@@ -12,9 +12,9 @@ import {
 import type { EntryId, FolderId } from "../../../domain/shared/entity-id";
 
 export type MoveTargetDisabledReason =
-  // Moving to where the entry already is would change nothing.
+  // Moving to where the entries already are would change nothing.
   | "currentParent"
-  // The entry itself or something inside it.
+  // A moved folder itself or something inside it.
   | "selfOrDescendant"
   // A folder that failed to load cannot take new entries.
   | "notLoaded";
@@ -41,15 +41,26 @@ export interface MoveTarget {
   readonly disabledReason: MoveTargetDisabledReason | null;
 }
 
+// `entryIds`: what moves (one entry, or several chosen in the tree). The current parent is
+// disabled only when every entry is already directly in it.
 export function selectMoveTargets(
   application: Pick<ApplicationState, "project">,
-  entryId: EntryId,
+  entryIds: readonly EntryId[],
 ): readonly MoveTarget[] {
   const project = application.project;
   if (project === null) return [];
-  const moved = findProjectEntry(project, entryId);
-  if (moved === null) return [];
-  const currentParent = moved.entry.parentFolderId;
+  const moved = entryIds.flatMap((entryId) => {
+    const found = findProjectEntry(project, entryId);
+    return found === null ? [] : [found];
+  });
+  const [first] = moved;
+  if (first === undefined) return [];
+  const parents = new Set(moved.map((found) => found.entry.parentFolderId));
+  const currentParent =
+    parents.size === 1 ? first.entry.parentFolderId : undefined;
+  const movedFolderIds = moved.flatMap((found) =>
+    found.kind === "folder" ? [found.entry.folderId] : [],
+  );
   const targets: MoveTarget[] = [
     {
       parentFolderId: null,
@@ -76,9 +87,9 @@ export function selectMoveTargets(
         (first, second) => position(first.folderId) - position(second.folderId),
       );
     for (const folder of folders) {
-      const selfOrDescendant =
-        moved?.kind === "folder" &&
-        isFolderAtOrBelow(project, folder.folderId, moved.entry.folderId);
+      const selfOrDescendant = movedFolderIds.some((movedFolderId) =>
+        isFolderAtOrBelow(project, folder.folderId, movedFolderId),
+      );
       targets.push({
         parentFolderId: folder.folderId,
         key: moveTargetKey(folder.folderId),
