@@ -250,3 +250,88 @@ export function sortSiblings<
     entry.parentFolderId === parentId ? (sorted[next++] ?? entry) : entry,
   );
 }
+
+// One deletion of `deletionSteps`.
+export type DeletionStep =
+  | {
+      readonly kind: "document";
+      readonly documentId: DocumentId;
+      readonly name: string | null;
+    }
+  | {
+      readonly kind: "folder";
+      readonly folderId: FolderId;
+      readonly name: string | null;
+    };
+
+// What deleting these entries removes, in an order where every step is allowed: a Folder
+// only after everything inside it (its Documents, then its Folders the same way), in the
+// order of its `childOrder`. An entry inside a Folder that is also given is part of that
+// Folder's deletion and is listed once. Unknown ids are skipped. A Folder that failed to
+// load has no known contents: it is listed alone (the delete then reports what is left).
+export function deletionSteps(
+  project: OpenProjectState,
+  entryIds: readonly EntryId[],
+): readonly DeletionStep[] {
+  const given = new Set<EntryId>(entryIds);
+  const insideGivenFolder = (parentId: ParentId): boolean => {
+    let current = parentId;
+    while (current !== null) {
+      if (given.has(current)) return true;
+      current = findFolder(project, current)?.parentFolderId ?? null;
+    }
+    return false;
+  };
+  const steps: DeletionStep[] = [];
+  const addFolder = (folderId: FolderId): void => {
+    const folder = findFolder(project, folderId);
+    if (folder === undefined) return;
+    const order = folder.childOrder;
+    const position = (id: EntryId): number => {
+      const index = order.indexOf(id);
+      return index < 0 ? order.length : index;
+    };
+    const documents = project.documents
+      .filter((entry) => entry.parentFolderId === folderId)
+      .sort((a, b) => position(a.documentId) - position(b.documentId));
+    for (const entry of documents) {
+      steps.push({
+        kind: "document",
+        documentId: entry.documentId,
+        name: entry.name,
+      });
+    }
+    const folders = project.folders
+      .filter((entry) => entry.parentFolderId === folderId)
+      .sort((a, b) => position(a.folderId) - position(b.folderId));
+    for (const entry of folders) addFolder(entry.folderId);
+    steps.push({ kind: "folder", folderId, name: folder.name });
+  };
+  for (const entryId of entryIds) {
+    const found = findProjectEntry(project, entryId);
+    if (found === null || insideGivenFolder(found.entry.parentFolderId)) {
+      continue;
+    }
+    if (found.kind === "document") {
+      steps.push({
+        kind: "document",
+        documentId: found.entry.documentId,
+        name: found.entry.name,
+      });
+    } else {
+      addFolder(found.entry.folderId);
+    }
+  }
+  return steps;
+}
+
+// How many Documents and Folders `deletionSteps` removes.
+export function deletionCounts(steps: readonly DeletionStep[]): {
+  readonly documents: number;
+  readonly folders: number;
+} {
+  return {
+    documents: steps.filter((step) => step.kind === "document").length,
+    folders: steps.filter((step) => step.kind === "folder").length,
+  };
+}

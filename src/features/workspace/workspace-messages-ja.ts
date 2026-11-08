@@ -256,7 +256,6 @@ export const WORKSPACE_MESSAGES_JA = {
     deleteChosen: "削除",
     chosenMenuLabel: (count: number): string => `${count}件のメニュー`,
     moveTo: "移動…",
-    deleteFolderNotEmptyHint: "空のフォルダだけ削除できます",
     folderExpandedMarker: "▾",
     folderCollapsedMarker: "▸",
     rename: "名前変更",
@@ -473,8 +472,10 @@ export const WORKSPACE_MESSAGES_JA = {
     delete: "削除",
     undoNotice: "この操作はUndoできません。",
     deleteFolderConsequence: "このフォルダ（空）が削除されます。",
-    deleteEntriesConsequence:
-      "選んだDocument（Sheet、Block本文ファイル、Assetを含む）と空のフォルダがすべて削除されます。",
+    deleteFolderWithContents: (documents: number, folders: number): string =>
+      `このフォルダと、その中のDocument ${documents}件・フォルダ ${folders}件がすべて削除されます（DocumentのSheet、Block本文ファイル、Assetを含む）。`,
+    deleteEntriesConsequence: (documents: number, folders: number): string =>
+      `選んだものと、フォルダの中にあるものを合わせて、Document ${documents}件・フォルダ ${folders}件がすべて削除されます（DocumentのSheet、Block本文ファイル、Assetを含む）。`,
     deleteDocumentConsequence:
       "このDocumentのSheet、Block本文ファイル、Assetもすべて削除されます。",
     createProject: {

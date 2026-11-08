@@ -255,7 +255,6 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     deleteChosen: "Delete",
     chosenMenuLabel: (count: number): string => `Menu of ${count} items`,
     moveTo: "Move to…",
-    deleteFolderNotEmptyHint: "Only empty folders can be deleted",
     folderExpandedMarker: "▾",
     folderCollapsedMarker: "▸",
     rename: "Rename",
@@ -472,8 +471,10 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     delete: "Delete",
     undoNotice: "This operation cannot be undone.",
     deleteFolderConsequence: "This folder (empty) will be deleted.",
-    deleteEntriesConsequence:
-      "The chosen Documents (with their Sheets, block text files and Assets) and empty folders will all be deleted.",
+    deleteFolderWithContents: (documents: number, folders: number): string =>
+      `This folder and everything in it will be deleted: ${documents} Documents and ${folders} folders (with the Documents' Sheets, block text files and Assets).`,
+    deleteEntriesConsequence: (documents: number, folders: number): string =>
+      `The chosen items and everything in the chosen folders will be deleted: ${documents} Documents and ${folders} folders in all (with the Documents' Sheets, block text files and Assets).`,
     deleteDocumentConsequence:
       "All Sheets, block text files and Assets of this Document will also be deleted.",
     createProject: {

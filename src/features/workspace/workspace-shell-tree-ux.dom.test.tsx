@@ -426,7 +426,7 @@ describe("the right-click menu of several chosen rows", () => {
     expect(screen.queryByRole("treeitem", { name: "Document B" })).toBeNull();
   });
 
-  it("cannot delete them when a chosen folder is not empty", async () => {
+  it("deletes a chosen folder with its contents, counting everything in the question", async () => {
     const harness = await openedShell();
     await clickRow(harness, "Document A");
     await clickRow(harness, "Folder 2", "Control");
@@ -435,10 +435,23 @@ describe("the right-click menu of several chosen rows", () => {
       target: within(treeItemNamed("Document A")).getByText("Document A"),
     });
     const menu = screen.getByRole("menu", { name: TREE.chosenMenuLabel(2) });
-    const remove = within(menu).getByRole("menuitem", {
-      name: TREE.deleteChosen,
+    await harness.user.click(
+      within(menu).getByRole("menuitem", { name: TREE.deleteChosen }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: MESSAGES.deleteEntriesTitle(2),
     });
-    expect(remove.getAttribute("aria-disabled")).toBe("true");
-    expect(remove.getAttribute("title")).toBe(TREE.deleteFolderNotEmptyHint);
+    // Document A, and Folder 2 with Document D inside.
+    expect(dialog.textContent).toContain(
+      MESSAGES.dialogs.deleteEntriesConsequence(2, 1),
+    );
+    await harness.user.click(
+      within(dialog).getByRole("button", { name: MESSAGES.dialogs.delete }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    for (const name of ["Document A", "Folder 2", "Document D"]) {
+      expect(screen.queryByRole("treeitem", { name })).toBeNull();
+    }
+    expect(screen.getByRole("treeitem", { name: "Folder 1" })).toBeTruthy();
   });
 });
