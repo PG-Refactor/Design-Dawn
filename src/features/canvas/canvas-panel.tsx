@@ -2,7 +2,8 @@ import { useRef } from "react";
 import { sheetPanelId, sheetTabId } from "../workspace/tab-ids";
 import { useMessages } from "../workspace/use-messages";
 import { selectSheetTabs } from "../workspace/view-models/tabs-model";
-import { useWorkspaceModel } from "../workspace/workspace-hooks";
+import { useUiState, useWorkspaceModel } from "../workspace/workspace-hooks";
+import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import { Canvas } from "./canvas";
 import { CanvasToolbar } from "./canvas-toolbar";
 import "./canvas.css";
@@ -11,6 +12,8 @@ import "./canvas.css";
 // empty state when the document has no sheet to show.
 export function CanvasPanel() {
   const messages = useMessages();
+  const { actions } = useWorkspaceServices();
+  const busy = useUiState((ui) => ui.busy);
   const model = useWorkspaceModel(selectSheetTabs);
   const canvasHostRef = useRef<HTMLDivElement>(null);
   if (model === null) return null;
@@ -25,7 +28,19 @@ export function CanvasPanel() {
         : { "aria-labelledby": sheetTabId(activeTab.sheetId) })}
     >
       {activeTab === undefined ? (
-        <p className="document-panel__empty">{messages.canvas.noSheet}</p>
+        <div className="document-panel__start">
+          <p className="document-panel__empty">{messages.canvas.noSheet}</p>
+          <div className="document-panel__actions">
+            <button
+              type="button"
+              className="button button--primary"
+              disabled={busy}
+              onClick={() => void actions.requestCreateSheet(model.documentId)}
+            >
+              {messages.workspace.tabs.createSheet}
+            </button>
+          </div>
+        </div>
       ) : (
         <>
           <CanvasToolbar

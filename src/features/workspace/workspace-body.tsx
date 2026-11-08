@@ -25,7 +25,7 @@ const selectProjectTreeWidth = (state: LayoutSettingsState) =>
 // settings; while the user drags, a local live width is shown and stored only at the end.
 export function WorkspaceBody() {
   const messages = useMessages().workspace;
-  const { layoutSettingsController } = useWorkspaceServices();
+  const { layoutSettingsController, actions } = useWorkspaceServices();
   const storedWidth = useStoreSelector(
     layoutSettingsController.store,
     selectProjectTreeWidth,
@@ -34,6 +34,7 @@ export function WorkspaceBody() {
   const documentsOnly = useWorkspaceModel(
     (application) => application.windowRole === "document",
   );
+  const sidebarCollapsed = useUiState((ui) => ui.sidebarCollapsed);
   const [liveWidth, setLiveWidth] = useState<number | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   // Only the newest save may clear the live width: an older, slower one finishing later
@@ -84,13 +85,28 @@ export function WorkspaceBody() {
       className={
         documentsOnly
           ? "workspace-shell__body workspace-shell__body--documents-only"
-          : "workspace-shell__body"
+          : sidebarCollapsed
+            ? "workspace-shell__body workspace-shell__body--sidebar-collapsed"
+            : "workspace-shell__body"
       }
       style={style}
     >
       {/* A window of Documents moved out of another one has no tree: the Project window
           is where the tree is changed. */}
-      {documentsOnly ? null : (
+      {documentsOnly ? null : sidebarCollapsed ? (
+        // Folded away: only a narrow strip with the button that brings it back.
+        <div className="workspace-shell__sidebar-rail">
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={messages.leftPanel.expandSidebar}
+            title={messages.leftPanel.expandSidebar}
+            onClick={() => actions.setSidebarCollapsed(false)}
+          >
+            {messages.leftPanel.expandSidebarButtonText}
+          </button>
+        </div>
+      ) : (
         <>
           <aside
             className="workspace-shell__sidebar"

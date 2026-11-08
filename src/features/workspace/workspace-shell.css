@@ -20,9 +20,19 @@
 }
 
 .workspace-shell__sidebar {
+  display: flex;
+  flex-direction: column;
   padding: var(--space-2);
   overflow: auto;
   background: var(--color-surface);
+}
+
+/* The Project Tree / Git panel below the switch takes the rest of the height, so the empty
+   part of the tree is everything below its rows. */
+.workspace-shell__sidebar-panel {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
 }
 
 .workspace-shell__main {
@@ -45,6 +55,34 @@
   color: var(--color-text-muted);
 }
 
+/* An empty state with what to do next: the message, and the buttons below it. */
+.document-panel__start {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.document-panel__start > .document-panel__empty {
+  margin-bottom: var(--space-2);
+}
+
+.document-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* The sidebar folded away: a narrow strip with the button that brings it back. */
+.workspace-shell__body--sidebar-collapsed {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.workspace-shell__sidebar-rail {
+  padding: var(--space-2) var(--space-1);
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
 /* A Document window: no tree, the document area takes the whole width. */
 .workspace-shell__body--documents-only {
   grid-template-columns: minmax(0, 1fr);
@@ -61,6 +99,14 @@
   }
 }
 
-.left-panel-tabs {
+.left-panel-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
   margin-bottom: var(--space-2);
+}
+
+.left-panel-tabs {
+  flex: 1 1 auto;
+  min-width: 0;
 }

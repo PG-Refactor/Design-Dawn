@@ -185,6 +185,10 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     tabsLabel: "Switch the left panel",
     project: "Project",
     git: "Git",
+    collapseSidebar: "Hide the sidebar",
+    collapseSidebarButtonText: "«",
+    expandSidebarButtonText: "»",
+    expandSidebar: "Show the sidebar",
   },
   splitter: {
     label: "Project Tree width",
@@ -254,8 +258,6 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     folderCollapsedMarker: "▸",
     emptyFolder: "This folder is empty",
     rename: "Rename",
-    moveUp: "Move Up",
-    moveDown: "Move Down",
     menuButtonText: "⋮",
     unnamedEntity: "(name cannot be loaded)",
     loadFailedMarker: "Load failed",
@@ -263,6 +265,7 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
       "Cannot be opened because loading failed (it can be deleted)",
     emptyProject: "No Documents",
     noProject: "Open a Project or create a new one.",
+    noProjectMenuLabel: "Project menu",
   },
   tabs: {
     documentTabsLabel: "Document Tabs",

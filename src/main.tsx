@@ -4,6 +4,7 @@ import { App } from "./app/app";
 import { createAppServices } from "./app/create-app-services";
 import { startApp } from "./app/start-app";
 import { APP_CONFIG } from "./config/app-config";
+import { suppressDefaultContextMenu } from "./shared/menu/default-context-menu";
 import "./styles/theme-tokens.css";
 import "./styles/base.css";
 
@@ -11,6 +12,8 @@ const rootElement = document.getElementById(APP_CONFIG.rootElementId);
 if (rootElement === null) {
   throw new Error(`Root element #${APP_CONFIG.rootElementId} not found`);
 }
+
+suppressDefaultContextMenu(window);
 
 const services = createAppServices();
 const {

@@ -68,6 +68,8 @@ import {
   setBusy,
   setLeftPanelMode,
   setNotificationsOpen,
+  setSidebarCollapsed,
+  setTreeSelectionKey,
   showNotice,
 } from "./ui-state/shell-ui-state";
 import {
@@ -195,12 +197,20 @@ export interface WorkspaceActions {
   requestDeleteFolder(folderId: FolderId): void;
   // Opens the target picker for a Document / a loaded Folder (open Documents move too).
   requestMoveEntry(entryId: EntryId): void;
-  // Moves the entry into `targetParentFolderId` (null = Project root) and closes the
-  // picker. When a Document that moves has unsaved changes it asks first (see
-  // `confirmMoveSave`) and moves nothing yet.
+  // Moves the entry into `targetParentFolderId` (null = Project root), last or in front of
+  // `beforeEntryId`, and closes the picker. When a Document that moves has unsaved changes
+  // it asks first (see `confirmMoveSave`) and moves nothing yet.
   moveEntryTo(
     entryId: EntryId,
     targetParentFolderId: FolderId | null,
+    beforeEntryId?: EntryId | null,
+  ): Promise<OperationResult<void>>;
+  // A drop in the Project Tree: within the same parent it only reorders (saved at once,
+  // not undoable, like any reorder); into another parent it is `moveEntryTo`.
+  placeEntry(
+    entryId: EntryId,
+    targetParentFolderId: FolderId | null,
+    beforeEntryId: EntryId | null,
   ): Promise<OperationResult<void>>;
   // The answer "save and move": commits the drafts and saves only the Documents that move,
   // then moves. Any failure leaves everything in place (the errors stay visible) and
@@ -286,6 +296,9 @@ export interface WorkspaceActions {
   dismissOperationError(id: number): void;
   setNotificationsOpen(open: boolean): void;
   setLeftPanelMode(mode: LeftPanelMode): void;
+  setSidebarCollapsed(collapsed: boolean): void;
+  // The Project Tree row that is chosen (a tree key), or null for none.
+  selectTreeRow(key: string | null): void;
 }
 
 export interface WorkspaceActionsDependencies {
@@ -576,10 +589,35 @@ export function createWorkspaceActions(
     return result;
   }
 
+  // Reorders among the siblings of the entry's own parent.
+  async function reorderEntry(
+    entryId: EntryId,
+    beforeEntryId: EntryId | null,
+  ): Promise<OperationResult<void>> {
+    const project = applicationStore.getState().project;
+    const found = project === null ? null : findProjectEntry(project, entryId);
+    if (found === null) return operationOk(undefined);
+    if (found.kind === "folder") {
+      const result = await workspace.moveFolder(
+        found.entry.folderId,
+        beforeEntryId,
+      );
+      if (!result.ok) record("moveFolder", found.entry.name, result.error);
+      return result;
+    }
+    const result = await workspace.moveDocument(
+      found.entry.documentId,
+      beforeEntryId,
+    );
+    if (!result.ok) record("moveDocument", found.entry.name, result.error);
+    return result;
+  }
+
   async function performMove(
     entryId: EntryId,
     name: string | null,
     targetParentFolderId: FolderId | null,
+    beforeEntryId: EntryId | null,
   ): Promise<OperationResult<void>> {
     const result = await workspace.moveEntry(entryId, targetParentFolderId);
     if (!result.ok) {
@@ -587,7 +625,10 @@ export function createWorkspaceActions(
       return result;
     }
     expandFolder(targetParentFolderId);
-    return result;
+    // A move appends to the new parent; a place in front of a sibling is a second step.
+    return beforeEntryId === null
+      ? result
+      : reorderEntry(entryId, beforeEntryId);
   }
 
   function folderNameOf(folderId: FolderId): string | null {
@@ -815,7 +856,7 @@ export function createWorkspaceActions(
     return result;
   }
 
-  return {
+  const actions: WorkspaceActions = {
     openProjectInNewWindowViaDialog: () => {
       if (uiStateStore.getState().busy) {
         return Promise.resolve(operationOk(undefined));
@@ -1095,7 +1136,7 @@ export function createWorkspaceActions(
         }),
       );
     },
-    moveEntryTo(entryId, targetParentFolderId) {
+    moveEntryTo(entryId, targetParentFolderId, beforeEntryId = null) {
       if (uiStateStore.getState().busy) {
         return Promise.resolve(operationOk(undefined));
       }
@@ -1107,12 +1148,18 @@ export function createWorkspaceActions(
             entryId,
             name,
             targetParentFolderId,
+            beforeEntryId,
           }),
         );
         return Promise.resolve(operationOk(undefined));
       }
       return runBusy(async () => {
-        const result = await performMove(entryId, name, targetParentFolderId);
+        const result = await performMove(
+          entryId,
+          name,
+          targetParentFolderId,
+          beforeEntryId,
+        );
         uiStateStore.setState(closeDialog);
         return result;
       });
@@ -1122,7 +1169,7 @@ export function createWorkspaceActions(
       if (busy || dialog.kind !== "confirmMoveSave") {
         return Promise.resolve(operationOk(undefined));
       }
-      const { entryId, targetParentFolderId } = dialog;
+      const { entryId, targetParentFolderId, beforeEntryId } = dialog;
       const name = entryNameOf(entryId);
       return runBusy(async () => {
         // Only what moves is saved; other documents keep their own (auto-)save state.
@@ -1135,7 +1182,12 @@ export function createWorkspaceActions(
           uiStateStore.setState(closeDialog);
           return flushed;
         }
-        const result = await performMove(entryId, name, targetParentFolderId);
+        const result = await performMove(
+          entryId,
+          name,
+          targetParentFolderId,
+          beforeEntryId,
+        );
         uiStateStore.setState(closeDialog);
         return result;
       });
@@ -1262,6 +1314,25 @@ export function createWorkspaceActions(
       return renameThroughSession(target, parsed.value, current);
     },
 
+    placeEntry(entryId, targetParentFolderId, beforeEntryId) {
+      const project = applicationStore.getState().project;
+      const found =
+        project === null ? null : findProjectEntry(project, entryId);
+      if (found === null || found.entry.state !== "loaded") {
+        return Promise.resolve(operationOk(undefined));
+      }
+      if (found.entry.parentFolderId !== targetParentFolderId) {
+        return actions.moveEntryTo(
+          entryId,
+          targetParentFolderId,
+          beforeEntryId,
+        );
+      }
+      if (uiStateStore.getState().busy) {
+        return Promise.resolve(operationOk(undefined));
+      }
+      return reorderEntry(entryId, beforeEntryId);
+    },
     async moveDocumentBy(documentId, direction) {
       const project = applicationStore.getState().project;
       const entry = project?.documents.find(
@@ -1354,8 +1425,15 @@ export function createWorkspaceActions(
     setNotificationsOpen(open) {
       uiStateStore.setState((state) => setNotificationsOpen(state, open));
     },
+    setSidebarCollapsed(collapsed) {
+      uiStateStore.setState((state) => setSidebarCollapsed(state, collapsed));
+    },
+    selectTreeRow(key) {
+      uiStateStore.setState((state) => setTreeSelectionKey(state, key));
+    },
     setLeftPanelMode(mode) {
       uiStateStore.setState((state) => setLeftPanelMode(state, mode));
     },
   };
+  return actions;
 }

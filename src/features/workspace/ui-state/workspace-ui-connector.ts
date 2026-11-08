@@ -27,11 +27,12 @@ export function connectWorkspaceToUiState(
         );
         return;
       case "projectClosed":
-        // The left panel mode and the diff layout are view choices of this window, not
-        // Project data.
+        // The left panel mode, whether the sidebar is folded and the diff layout are view
+        // choices of this window, not Project data.
         uiStore.setState((state) => ({
           ...resetUiState(),
           leftPanelMode: state.leftPanelMode,
+          sidebarCollapsed: state.sidebarCollapsed,
           diffViewMode: state.diffViewMode,
         }));
         return;

@@ -42,40 +42,55 @@ export function Sidebar() {
 
   return (
     <>
-      <div
-        role="tablist"
-        aria-label={messages.leftPanel.tabsLabel}
-        className="tab-list left-panel-tabs"
-      >
-        {LEFT_PANEL_MODES.map((tabMode, index) => {
-          const isActive = tabMode === mode;
-          return (
-            <div key={tabMode} className={isActive ? "tab tab--active" : "tab"}>
-              <button
-                ref={(element) => {
-                  if (element === null) tabElements.current.delete(tabMode);
-                  else tabElements.current.set(tabMode, element);
-                }}
-                type="button"
-                role="tab"
-                id={leftPanelTabId(tabMode)}
-                aria-selected={isActive}
-                aria-controls={isActive ? LEFT_PANEL_PANEL_ID : undefined}
-                tabIndex={isActive ? 0 : -1}
-                className="tab__select"
-                onClick={() => actions.setLeftPanelMode(tabMode)}
-                onKeyDown={(event) => handleKeyDown(event, index)}
+      <div className="left-panel-header">
+        <div
+          role="tablist"
+          aria-label={messages.leftPanel.tabsLabel}
+          className="tab-list left-panel-tabs"
+        >
+          {LEFT_PANEL_MODES.map((tabMode, index) => {
+            const isActive = tabMode === mode;
+            return (
+              <div
+                key={tabMode}
+                className={isActive ? "tab tab--active" : "tab"}
               >
-                <span className="tab__name">{modeLabels[tabMode]}</span>
-              </button>
-            </div>
-          );
-        })}
+                <button
+                  ref={(element) => {
+                    if (element === null) tabElements.current.delete(tabMode);
+                    else tabElements.current.set(tabMode, element);
+                  }}
+                  type="button"
+                  role="tab"
+                  id={leftPanelTabId(tabMode)}
+                  aria-selected={isActive}
+                  aria-controls={isActive ? LEFT_PANEL_PANEL_ID : undefined}
+                  tabIndex={isActive ? 0 : -1}
+                  className="tab__select"
+                  onClick={() => actions.setLeftPanelMode(tabMode)}
+                  onKeyDown={(event) => handleKeyDown(event, index)}
+                >
+                  <span className="tab__name">{modeLabels[tabMode]}</span>
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          className="icon-button left-panel-header__collapse"
+          aria-label={messages.leftPanel.collapseSidebar}
+          title={messages.leftPanel.collapseSidebar}
+          onClick={() => actions.setSidebarCollapsed(true)}
+        >
+          {messages.leftPanel.collapseSidebarButtonText}
+        </button>
       </div>
       <div
         role="tabpanel"
         id={LEFT_PANEL_PANEL_ID}
         aria-labelledby={leftPanelTabId(mode)}
+        className="workspace-shell__sidebar-panel"
       >
         {mode === "git" ? <GitPanel /> : <ProjectTree />}
       </div>

@@ -16,6 +16,7 @@ import {
   type ShellHarness,
   treeItemNamed,
 } from "./test-support/shell-harness";
+import { dragTreeRow, yOnRow } from "./test-support/tree-drag-helpers";
 import { WORKSPACE_MESSAGES } from "./workspace-messages";
 
 const MESSAGES = WORKSPACE_MESSAGES.ja;
@@ -161,20 +162,12 @@ describe("row menus", () => {
       TREE.createFolder,
       TREE.createDocument,
       TREE.rename,
-      TREE.moveUp,
-      TREE.moveDown,
       TREE.moveTo,
       TREE.deleteFolder,
     ]);
     const remove = menuItem(menu, TREE.deleteFolder);
     expect(remove.getAttribute("aria-disabled")).toBe("true");
     expect(remove.getAttribute("title")).toBe(TREE.deleteFolderNotEmptyHint);
-    expect(menuItem(menu, TREE.moveUp).getAttribute("aria-disabled")).toBe(
-      "true",
-    );
-    expect(menuItem(menu, TREE.moveDown).getAttribute("aria-disabled")).toBe(
-      null,
-    );
     // Choosing the disabled item does nothing.
     await harness.user.click(remove);
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -185,8 +178,6 @@ describe("row menus", () => {
     const menu = await openRowMenu(harness.user, "Document A");
     expect(menuItemNames(menu)).toEqual([
       TREE.rename,
-      TREE.moveUp,
-      TREE.moveDown,
       TREE.moveTo,
       TREE.createSheet,
       TREE.deleteDocument,
@@ -359,9 +350,9 @@ describe("reordering", () => {
     await waitFor(() => expect(treeLabels()[1]).toBe("Folder 1"));
   });
 
-  it("moves a nested document with the menu, saving its folder", async () => {
+  it("moves a nested document by dragging it in front of its sibling, saving its folder", async () => {
     const harness = await openedShell();
-    await chooseRowMenuItem(harness.user, "Document C", TREE.moveUp);
+    await dragTreeRow(harness.user, "Document C", yOnRow("Folder 2", 0.1));
     await waitFor(() =>
       expect(treeLabels().indexOf("Document C")).toBeLessThan(
         treeLabels().indexOf("Folder 2"),
@@ -511,10 +502,9 @@ describe("the right-click menu of the tree", () => {
   it("creates a document beside the right-clicked document, in its folder", async () => {
     const harness = await openedShell();
     const menu = await rightClick(harness, "Document D");
-    expect(menuItemNames(menu).slice(0, 2)).toEqual([
-      TREE.createDocument,
-      TREE.createFolder,
-    ]);
+    // A document's menu makes another document beside it, but no folder.
+    expect(menuItemNames(menu)[0]).toBe(TREE.createDocument);
+    expect(menuItemNames(menu)).not.toContain(TREE.createFolder);
     await harness.user.click(menuItem(menu, TREE.createDocument));
     const dialog = screen.getByRole("dialog", {
       name: MESSAGES.dialogs.createDocument.title,

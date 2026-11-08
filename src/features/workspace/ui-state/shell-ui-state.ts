@@ -78,6 +78,24 @@ export function setLeftPanelMode(state: UiState, mode: LeftPanelMode): UiState {
     : { ...state, leftPanelMode: mode };
 }
 
+export function setSidebarCollapsed(
+  state: UiState,
+  collapsed: boolean,
+): UiState {
+  return state.sidebarCollapsed === collapsed
+    ? state
+    : { ...state, sidebarCollapsed: collapsed };
+}
+
+export function setTreeSelectionKey(
+  state: UiState,
+  key: string | null,
+): UiState {
+  return state.treeSelectionKey === key
+    ? state
+    : { ...state, treeSelectionKey: key };
+}
+
 export function setDiffViewMode(state: UiState, mode: DiffViewMode): UiState {
   return state.diffViewMode === mode ? state : { ...state, diffViewMode: mode };
 }

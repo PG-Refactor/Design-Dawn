@@ -14,7 +14,6 @@ import type {
   FolderId,
 } from "../../../domain/shared/entity-id";
 import type { UiState } from "../ui-state/ui-state";
-import { canMoveOneStep, MOVE_DIRECTIONS } from "./reorder";
 
 export interface DocumentNode {
   readonly kind: "document";
@@ -24,8 +23,6 @@ export interface DocumentNode {
   readonly state: EntityState;
   readonly isOpen: boolean;
   readonly isActive: boolean;
-  readonly canMoveUp: boolean;
-  readonly canMoveDown: boolean;
 }
 
 export interface FolderNode {
@@ -35,8 +32,6 @@ export interface FolderNode {
   readonly name: string | null;
   readonly state: EntityState;
   readonly isExpanded: boolean;
-  readonly canMoveUp: boolean;
-  readonly canMoveDown: boolean;
   readonly children: readonly TreeEntryNode[];
 }
 
@@ -59,7 +54,6 @@ export type TreeUiInput = Pick<
 
 function selectDocumentNode(
   entry: OpenProjectState["documents"][number],
-  order: readonly EntryId[],
   application: TreeStateInput,
   ui: TreeUiInput,
 ): DocumentNode {
@@ -73,12 +67,6 @@ function selectDocumentNode(
     state: entry.state,
     isOpen,
     isActive,
-    canMoveUp:
-      entry.state === "loaded" &&
-      canMoveOneStep(order, entry.documentId, MOVE_DIRECTIONS.up),
-    canMoveDown:
-      entry.state === "loaded" &&
-      canMoveOneStep(order, entry.documentId, MOVE_DIRECTIONS.down),
   };
 }
 
@@ -102,13 +90,13 @@ function selectChildren(
       .filter((entry) => entry.parentFolderId === parentId)
       .map((entry) => ({
         id: entry.folderId as EntryId,
-        node: selectFolderNode(project, entry, order, application, ui),
+        node: selectFolderNode(project, entry, application, ui),
       })),
     ...project.documents
       .filter((entry) => entry.parentFolderId === parentId)
       .map((entry) => ({
         id: entry.documentId as EntryId,
-        node: selectDocumentNode(entry, order, application, ui),
+        node: selectDocumentNode(entry, application, ui),
       })),
   ];
   return children
@@ -119,23 +107,15 @@ function selectChildren(
 function selectFolderNode(
   project: OpenProjectState,
   entry: OpenProjectState["folders"][number],
-  siblingOrder: readonly EntryId[],
   application: TreeStateInput,
   ui: TreeUiInput,
 ): FolderNode {
-  const loaded = entry.state === "loaded";
   return {
     kind: "folder",
     folderId: entry.folderId,
     name: entry.name,
     state: entry.state,
     isExpanded: !ui.collapsedFolderIds.has(entry.folderId),
-    canMoveUp:
-      loaded &&
-      canMoveOneStep(siblingOrder, entry.folderId, MOVE_DIRECTIONS.up),
-    canMoveDown:
-      loaded &&
-      canMoveOneStep(siblingOrder, entry.folderId, MOVE_DIRECTIONS.down),
     children: selectChildren(
       project,
       entry.folderId,

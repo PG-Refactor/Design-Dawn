@@ -13,8 +13,10 @@ import {
 import { FOCUS_FALLBACK_ATTRIBUTE } from "./focus-utils";
 import { TreeRenameInput } from "./tree-rename-input";
 import { useMessages } from "./use-messages";
+import type { TreeRowPointerHandlers } from "./use-tree-drag";
 import { NAVIGATION_KEYS } from "./view-models/keyboard-navigation";
 import { MOVE_DIRECTIONS, type MoveDirection } from "./view-models/reorder";
+import type { TreeDropPosition } from "./view-models/tree-drag";
 
 // Present while this row's name is being edited.
 export interface TreeItemRenaming {
@@ -49,9 +51,19 @@ export interface TreeItemProps {
     key: string,
   ) => void;
   readonly onActivate?: () => void;
-  // Starts the inline rename (F2, a second click on the selected row). Undefined: the
-  // row cannot be renamed.
+  // Starts the inline rename (F2, the menu). Undefined: the row cannot be renamed.
   readonly onRename?: () => void;
+  // A second click on this row while it is selected renames it (the active Document's
+  // row); otherwise every click activates.
+  readonly renameOnReclick?: boolean;
+  // Dragging the row moves the entry. Undefined: the row cannot be dragged.
+  readonly dragHandlers?: TreeRowPointerHandlers;
+  // Where a drop now would put the dragged entry relative to this row; drawn on the row.
+  readonly dropMarker?: TreeDropPosition | null;
+  // The row is the one being dragged.
+  readonly dragged?: boolean;
+  // True for a click the row must ignore (the end of a drag).
+  readonly ignoreClick?: () => boolean;
   // Ctrl/Cmd+ArrowUp / ArrowDown. Undefined: the row cannot be moved.
   readonly onMove?: (direction: MoveDirection) => void;
   readonly renaming?: TreeItemRenaming;
@@ -70,11 +82,18 @@ export type TreeContextMenuHandler = (
   anchorElement: Element | null,
 ) => void;
 
-function classNames(selected: boolean, failed: boolean): string {
+function classNames(
+  selected: boolean,
+  failed: boolean,
+  dragged: boolean,
+  dropMarker: TreeDropPosition | null,
+): string {
   return [
     "tree-item",
     selected ? "tree-item--selected" : "",
     failed ? "tree-item--failed" : "",
+    dragged ? "tree-item--dragged" : "",
+    dropMarker === null ? "" : `tree-item--drop-${dropMarker}`,
   ]
     .filter((name) => name !== "")
     .join(" ");
@@ -97,6 +116,11 @@ export function TreeItem({
   onNavigate,
   onActivate,
   onRename,
+  renameOnReclick = false,
+  dragHandlers,
+  dropMarker = null,
+  dragged = false,
+  ignoreClick,
   onMove,
   renaming,
   menuItems,
@@ -132,10 +156,12 @@ export function TreeItem({
     if (target.closest("button, input") !== null) return;
     if (target.closest('[role="treeitem"]') !== event.currentTarget) return;
     if (renaming !== undefined) return;
+    if (ignoreClick?.() === true) return;
     event.currentTarget.focus();
     // A second click on the row that is already selected renames it. The second half of
     // a double-click (detail > 1) is not that: it is the user hurrying, not asking.
     if (
+      renameOnReclick &&
       selected === true &&
       onRename !== undefined &&
       event.detail <= SINGLE_CLICK_DETAIL
@@ -197,7 +223,7 @@ export function TreeItem({
       aria-level={level}
       aria-disabled={failed ? true : undefined}
       tabIndex={isRoving ? 0 : -1}
-      className={classNames(selected === true, failed)}
+      className={classNames(selected === true, failed, dragged, dropMarker)}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       onContextMenu={handleContextMenu}
@@ -206,7 +232,7 @@ export function TreeItem({
       }}
       {...fallbackProps}
     >
-      <div ref={rowElement} className="tree-item__row">
+      <div ref={rowElement} className="tree-item__row" {...dragHandlers}>
         {leadingMarker === undefined && icon === undefined ? null : (
           <span className="tree-item__folder-marker" aria-hidden="true">
             {leadingMarker}
