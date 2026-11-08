@@ -1,7 +1,12 @@
 /* Fills the block; the block size never follows the content. */
+/* Source | divider | preview. The two shares come from the editor's style (the source's
+   share of the width; the divider can move it); half and half until then. */
 .text-block-editor {
+  --source-preview-divider-width: var(--space-2);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns:
+    minmax(0, var(--source-fr, 1fr)) var(--source-preview-divider-width)
+    minmax(0, var(--preview-fr, 1fr));
   grid-template-rows: auto minmax(0, 1fr);
   box-sizing: border-box;
   width: 100%;
@@ -30,7 +35,6 @@
   min-height: 0;
   padding: var(--space-2);
   border: none;
-  border-right: 1px solid var(--color-border-strong);
   background: var(--color-surface);
   color: var(--color-text);
   font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
@@ -47,21 +51,58 @@
 }
 
 .text-block-editor__preview {
-  grid-area: 2 / 2;
+  grid-area: 2 / 3;
   min-width: 0;
   min-height: 0;
 }
 
-/* Mode switch (Source / GUI) of editors that have a GUI view; the buttons sit at the start
-   of the bar and the done button stays at the end. */
-.text-block-editor__bar:has(.text-block-editor__modes) {
-  justify-content: space-between;
+/* The preview hidden: the source takes the whole width. */
+.text-block-editor--preview-hidden {
+  grid-template-columns: minmax(0, 1fr);
 }
+
+/* The border between source and preview, wider than it looks so it is easy to grab: a
+   line in the middle that turns to the accent colour under the pointer and with focus. */
+.text-block-editor__divider {
+  grid-area: 2 / 2;
+  position: relative;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.text-block-editor__divider::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--color-border-strong);
+  transform: translateX(-50%);
+}
+
+.text-block-editor__divider:hover::before,
+.text-block-editor__divider:focus-visible::before {
+  width: 3px;
+  background: var(--color-accent);
+}
+
+.text-block-editor__divider:focus-visible {
+  outline: none;
+}
+
+/* The bar's own buttons (preview switch, Done) sit together at the end. */
+.text-block-editor__bar {
+  gap: var(--space-1);
+}
+
+/* Mode switch (Source / GUI) of editors that have a GUI view: at the start of the bar, while
+   the preview switch and the done button stay at the end. */
 
 .text-block-editor__modes {
   display: flex;
   gap: var(--space-1);
-  margin: 0;
+  margin: 0 auto 0 0;
   padding: 0;
   border: none;
 }
@@ -75,6 +116,7 @@
 /* GUI view: the GUI panel and the preview side by side below the bar. The editor is the
    size container, so "narrow" means the block is narrow, not the window. */
 .text-block-editor--gui {
+  grid-template-columns: minmax(0, 1fr);
   container-type: inline-size;
   container-name: text-block-editor;
 }

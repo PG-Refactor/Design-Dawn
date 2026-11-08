@@ -33,6 +33,7 @@ export function connectWorkspaceToUiState(
           ...resetUiState(),
           leftPanelMode: state.leftPanelMode,
           sidebarCollapsed: state.sidebarCollapsed,
+          sourceEditorLayout: state.sourceEditorLayout,
           diffViewMode: state.diffViewMode,
         }));
         return;

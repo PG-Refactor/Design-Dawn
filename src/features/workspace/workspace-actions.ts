@@ -70,6 +70,7 @@ import {
   setLeftPanelMode,
   setNotificationsOpen,
   setSidebarCollapsed,
+  setSourceEditorLayout,
   setTreeSelection,
   showNotice,
 } from "./ui-state/shell-ui-state";
@@ -82,6 +83,7 @@ import {
   type OperationLabel,
   type OperationSubject,
   type RenamingTarget,
+  type SourceEditorLayout,
   setActiveDocument,
   setActiveSheet,
   setFolderCollapsed,
@@ -314,6 +316,9 @@ export interface WorkspaceActions {
   setNotificationsOpen(open: boolean): void;
   setLeftPanelMode(mode: LeftPanelMode): void;
   setSidebarCollapsed(collapsed: boolean): void;
+  // The Source | Preview split of the text block editors (share of the source, or the
+  // preview hidden). Kept within the configured limits.
+  setSourceEditorLayout(layout: SourceEditorLayout): void;
   // The rows chosen in the Project Tree.
   setTreeSelection(selection: TreeSelection): void;
   // Chooses the row of the Document the user is working on (a click or focus in its area),
@@ -1536,6 +1541,9 @@ export function createWorkspaceActions(
     },
     setNotificationsOpen(open) {
       uiStateStore.setState((state) => setNotificationsOpen(state, open));
+    },
+    setSourceEditorLayout(layout) {
+      uiStateStore.setState((state) => setSourceEditorLayout(state, layout));
     },
     setSidebarCollapsed(collapsed) {
       uiStateStore.setState((state) => setSidebarCollapsed(state, collapsed));
