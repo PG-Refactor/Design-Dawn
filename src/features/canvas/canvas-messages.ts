@@ -60,6 +60,14 @@ const CANVAS_MESSAGES_JA = {
     invalid: "キャプションは1行・500文字までで入力してください。",
   },
   dropHint: "ここに画像をドロップ",
+  zoom: {
+    group: "拡大率",
+    input: "拡大率（%）",
+    zoomIn: "拡大",
+    zoomOut: "縮小",
+    zoomInText: "+",
+    zoomOutText: "−",
+  },
   resizeHandleLabel: (blockName: string): string =>
     `${blockName} のサイズを変更`,
 } as const;
@@ -118,6 +126,14 @@ const CANVAS_MESSAGES_EN: CanvasMessages = {
     invalid: "A caption is one line of up to 500 characters.",
   },
   dropHint: "Drop images here",
+  zoom: {
+    group: "Zoom",
+    input: "Zoom (%)",
+    zoomIn: "Zoom in",
+    zoomOut: "Zoom out",
+    zoomInText: "+",
+    zoomOutText: "−",
+  },
   resizeHandleLabel: (blockName) => `Resize ${blockName}`,
 };
 

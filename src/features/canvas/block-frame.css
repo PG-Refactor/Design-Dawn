@@ -1,5 +1,6 @@
-/* Zoom-independent sizes: the world layer is scaled, so lines and the handle are divided
-   by the zoom that the canvas publishes as --canvas-zoom. */
+/* Zoom-independent lines: the world layer is scaled, so outlines are divided by the zoom
+   that the canvas publishes as --canvas-zoom. (The resize grip is not: it scales with the
+   block.) */
 .block-frame {
   position: absolute;
   display: flex;
@@ -40,13 +41,13 @@
      so the colour stays a theme token. The stops place the lines inside the rounded
      corner. */
   --resize-grip-color: var(--color-border-strong);
+  /* A size in world units, like the block: it grows and shrinks with the zoom, so it keeps
+     the same proportion to the block at every zoom. */
   position: absolute;
   right: 0;
   bottom: 0;
   width: 14px;
   height: 14px;
-  transform: scale(calc(1 / var(--canvas-zoom, 1)));
-  transform-origin: bottom right;
   padding: 0;
   border: none;
   background: linear-gradient(
