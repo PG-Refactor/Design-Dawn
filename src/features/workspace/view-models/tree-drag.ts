@@ -108,22 +108,46 @@ export function treeDropHitAt(
   return { key: row.key, position: "inside" };
 }
 
-// Inserts the dragged entry among `siblings` at the place the hit names and returns the
-// sibling it then stands in front of; null when it would be the last.
+// The rows a drag moves, in display order: the chosen rows that can move (loaded folders
+// and Documents; not the Project row), without those inside a chosen folder, which move
+// with it anyway.
+export function movableKeys(
+  model: ProjectTreeModel,
+  keys: readonly string[],
+): readonly string[] {
+  const chosen = new Set(keys);
+  const result: string[] = [];
+  function walk(entries: readonly TreeEntryNode[]): void {
+    for (const node of entries) {
+      const key = keyOf(node);
+      if (chosen.has(key)) {
+        if (node.state === "loaded") result.push(key);
+        // Whatever is inside moves with the folder.
+        continue;
+      }
+      if (node.kind === "folder") walk(node.children);
+    }
+  }
+  walk(model.entries);
+  return result;
+}
+
+// Inserts the dragged entries among `siblings` at the place the hit names and returns the
+// sibling they then stand in front of; null when they would be the last.
 function beforeOf(
   siblings: readonly TreeEntryNode[],
-  draggedKey: string,
+  draggedKeys: ReadonlySet<string>,
   hitKey: string,
   position: "before" | "after",
 ): EntryId | null {
-  const others = siblings.filter((node) => keyOf(node) !== draggedKey);
+  const others = siblings.filter((node) => !draggedKeys.has(keyOf(node)));
   const index = others.findIndex((node) => keyOf(node) === hitKey);
   const insertAt = position === "before" ? index : index + 1;
   const next = others[insertAt];
   return next === undefined ? null : idOf(next);
 }
 
-// Whether the entry would end up exactly where it is: same parent, same place.
+// Whether a single dragged entry would end up exactly where it is: same parent, same place.
 function staysInPlace(dragged: Located, target: TreeMoveTarget): boolean {
   if (dragged.parent !== target.parentFolderId) return false;
   const index = dragged.siblings.indexOf(dragged.node);
@@ -131,23 +155,29 @@ function staysInPlace(dragged: Located, target: TreeMoveTarget): boolean {
   return (next === undefined ? null : idOf(next)) === target.beforeEntryId;
 }
 
-// What dropping the dragged row on `hit` does, or null when it does nothing or is not
-// allowed: a folder into itself or one of its own folders, anything into a folder that failed
-// to load, an entry that failed to load, or a drop that leaves the entry where it is.
+// What dropping the dragged rows (`movableKeys`) on `hit` does, or null when it does nothing
+// or is not allowed: a folder into itself or one of its own folders, onto a row that is
+// itself dragged, anything into a folder that failed to load, an entry that failed to load,
+// or a drop that leaves a single entry where it is.
 export function treeMoveTargetOf(
   model: ProjectTreeModel,
-  draggedKey: string,
+  draggedKeys: readonly string[],
   hit: TreeDropHit | null,
 ): TreeMoveTarget | null {
-  if (hit === null) return null;
-  const dragged = locate(model.entries, draggedKey, null);
-  if (dragged === null || dragged.node.state !== "loaded") return null;
+  if (hit === null || draggedKeys.length === 0) return null;
+  const dragged: Located[] = [];
+  for (const key of draggedKeys) {
+    const found = locate(model.entries, key, null);
+    if (found === null || found.node.state !== "loaded") return null;
+    dragged.push(found);
+  }
   let target: TreeMoveTarget;
   if (hit.key === null || hit.key === PROJECT_TREE_KEY) {
     target = { parentFolderId: null, beforeEntryId: null };
   } else {
-    if (contains(dragged.node, hit.key)) return null;
-    const over = locate(model.entries, hit.key, null);
+    const hitKey = hit.key;
+    if (dragged.some((entry) => contains(entry.node, hitKey))) return null;
+    const over = locate(model.entries, hitKey, null);
     if (over === null) return null;
     if (hit.position === "inside") {
       if (over.node.kind !== "folder" || over.node.state !== "loaded") {
@@ -159,12 +189,20 @@ export function treeMoveTargetOf(
         parentFolderId: over.parent,
         beforeEntryId: beforeOf(
           over.siblings,
-          draggedKey,
-          hit.key,
+          new Set(draggedKeys),
+          hitKey,
           hit.position,
         ),
       };
     }
   }
-  return staysInPlace(dragged, target) ? null : target;
+  const [only] = dragged;
+  if (
+    dragged.length === 1 &&
+    only !== undefined &&
+    staysInPlace(only, target)
+  ) {
+    return null;
+  }
+  return target;
 }

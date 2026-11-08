@@ -17,6 +17,10 @@ import type {
   SheetId,
 } from "../../../domain/shared/entity-id";
 import { createStore, type Store } from "../../../shared/store/store";
+import {
+  EMPTY_TREE_SELECTION,
+  type TreeSelection,
+} from "../view-models/tree-selection";
 
 // Fractional values are allowed here; they are rounded when committed.
 export interface DragDelta {
@@ -136,7 +140,9 @@ export type DialogState =
   // Asked after a target was picked while a Document that would move has unsaved changes.
   | {
       readonly kind: "confirmMoveSave";
-      readonly entryId: EntryId;
+      // What moves, in order (one from the move picker, any number from a tree drag).
+      readonly entryIds: readonly EntryId[];
+      // The name of the first one (the title names it when it is the only one).
       readonly name: EntityName;
       readonly targetParentFolderId: FolderId | null;
       // The sibling to stand in front of in the target; null = last.
@@ -339,10 +345,11 @@ export interface UiState {
   // Folders the user folded in the Project Tree. Folders are expanded by default, so the
   // set holds the exceptions; like the rest of the tree's presentation it is not persisted.
   readonly collapsedFolderIds: ReadonlySet<FolderId>;
-  // The row chosen in the Project Tree (its tree key), as in VS Code's Explorer: new
-  // folders and Documents go there, and it follows the active Document. null: nothing is
-  // chosen (new entries go to the Project's top level). Dropped with the Project.
-  readonly treeSelectionKey: string | null;
+  // The rows chosen in the Project Tree, as in VS Code's Explorer: new folders and
+  // Documents go where the active one is, a drag moves them all, and the choice follows the
+  // Document being worked on. Nothing chosen: new entries go to the Project's top level.
+  // Dropped with the Project.
+  readonly treeSelection: TreeSelection;
   readonly viewportBySheet: ReadonlyMap<SheetId, Viewport>;
   // Image blocks whose picture could not be loaded by the `<img>` (the browser reports it,
   // so only the UI knows). Listed in the notifications; cleared when a later load works.
@@ -452,7 +459,7 @@ export function createInitialUiState(): UiState {
     editingBlock: null,
     renaming: null,
     collapsedFolderIds: new Set(),
-    treeSelectionKey: null,
+    treeSelection: EMPTY_TREE_SELECTION,
     viewportBySheet: new Map(),
     imageLoadFailures: new Map(),
     fileDragActive: false,

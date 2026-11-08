@@ -114,7 +114,11 @@ export function WorkspaceDialogs() {
     case "confirmMoveSave":
       return (
         <ConfirmDialog
-          title={messages.moveEntryTitle(nameOf(dialog.name))}
+          title={
+            dialog.entryIds.length > 1
+              ? messages.moveEntriesTitle(dialog.entryIds.length)
+              : messages.moveEntryTitle(nameOf(dialog.name))
+          }
           paragraphs={[texts.confirmMoveSave.body]}
           cancelLabel={texts.cancel}
           confirmLabel={texts.confirmMoveSave.confirm}

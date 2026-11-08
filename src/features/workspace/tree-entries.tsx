@@ -9,6 +9,7 @@ import type {
 } from "../../shared/menu/popup-menu";
 import { DocumentIcon, FolderIcon, FolderOpenIcon } from "./tree-icons";
 import {
+  type TreeChooseMode,
   type TreeContextMenuHandler,
   TreeItem,
   type TreeItemRenaming,
@@ -24,6 +25,7 @@ import type {
   FolderNode,
   TreeEntryNode,
 } from "./view-models/tree-model";
+import type { TreeSelection } from "./view-models/tree-selection";
 import type { WorkspaceActions } from "./workspace-actions";
 
 export interface TreeHandlers {
@@ -33,10 +35,10 @@ export interface TreeHandlers {
   // can drop focus.
   readonly keepFocus: (move: Promise<unknown>) => void;
   readonly rovingKey: string;
-  // The row chosen in the tree (null: none).
-  readonly selectionKey: string | null;
+  // The rows chosen in the tree.
+  readonly selection: TreeSelection;
   readonly register: (key: string, element: HTMLLIElement | null) => void;
-  readonly onFocusItem: (key: string) => void;
+  readonly onChoose: (key: string, mode: TreeChooseMode) => void;
   readonly onNavigate: (
     event: KeyboardEvent<HTMLLIElement>,
     key: string,
@@ -50,7 +52,7 @@ export interface TreeHandlers {
 export interface TreeRowDrag {
   readonly handlersFor: (key: string) => TreeRowPointerHandlers;
   readonly markerFor: (key: string) => TreeDropPosition | null;
-  readonly draggedKey: string | null;
+  readonly isDragged: (key: string) => boolean;
   readonly consumeClickSuppression: () => boolean;
 }
 
@@ -63,7 +65,7 @@ function dragProps(
   return {
     dragHandlers: draggable ? drag.handlersFor(itemKey) : undefined,
     dropMarker: drag.markerFor(itemKey),
-    dragged: drag.draggedKey === itemKey,
+    dragged: drag.isDragged(itemKey),
     ignoreClick: drag.consumeClickSuppression,
   };
 }
@@ -150,13 +152,15 @@ function DocumentTreeItem({
       label={documentNode.name ?? messages.tree.unnamedEntity}
       level={level}
       isRoving={handlers.rovingKey === itemKey}
-      selected={handlers.selectionKey === itemKey}
-      renameOnReclick={documentNode.isActive}
+      selected={handlers.selection.keys.includes(itemKey)}
+      renameOnReclick={
+        documentNode.isActive && handlers.selection.keys.length === 1
+      }
       {...dragProps(handlers, itemKey, !failed)}
       icon={<DocumentIcon />}
       failed={failed}
       register={handlers.register}
-      onFocusItem={handlers.onFocusItem}
+      onChoose={(mode) => handlers.onChoose(itemKey, mode)}
       onNavigate={handlers.onNavigate}
       onActivate={
         failed ? undefined : () => void actions.openDocument(documentId)
@@ -232,7 +236,7 @@ function FolderTreeItem({
       label={folderNode.name ?? messages.tree.unnamedEntity}
       level={level}
       isRoving={handlers.rovingKey === itemKey}
-      selected={handlers.selectionKey === itemKey}
+      selected={handlers.selection.keys.includes(itemKey)}
       {...dragProps(handlers, itemKey, !failed)}
       expanded={folderNode.isExpanded}
       leadingMarker={
@@ -243,7 +247,7 @@ function FolderTreeItem({
       icon={folderNode.isExpanded ? <FolderOpenIcon /> : <FolderIcon />}
       failed={failed}
       register={handlers.register}
-      onFocusItem={handlers.onFocusItem}
+      onChoose={(mode) => handlers.onChoose(itemKey, mode)}
       onNavigate={handlers.onNavigate}
       // A folder has nothing to open: choosing its row folds or unfolds it.
       onActivate={() => actions.toggleFolder(folderId)}
@@ -253,16 +257,15 @@ function FolderTreeItem({
       menuItems={menuItems}
       onContextMenu={handlers.onContextMenu}
     >
-      {!folderNode.isExpanded ? null : isEmpty ? (
-        <p className="project-tree__empty">{messages.tree.emptyFolder}</p>
-      ) : (
+      {/* An empty folder shows nothing below it (its open icon already says it is open). */}
+      {folderNode.isExpanded && !isEmpty ? (
         <EntryItems
           entries={folderNode.children}
           parentFolderId={folderId}
           level={level + 1}
           handlers={handlers}
         />
-      )}
+      ) : null}
     </TreeItem>
   );
 }

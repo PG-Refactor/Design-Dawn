@@ -368,6 +368,9 @@ export function DocumentTabs() {
               onClick={() => {
                 if (drag.consumeClickSuppression()) return;
                 void actions.openDocument(tab.documentId);
+                // Choosing the tab of the Document that is already active changes no
+                // active Document, so the tree is told directly.
+                actions.revealDocumentInTree(tab.documentId);
               }}
               onKeyDown={(event) => handleKeyDown(event, index)}
               {...pointerHandlers}

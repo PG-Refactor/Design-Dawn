@@ -3,6 +3,7 @@
 // each returns the same state object when nothing changes.
 
 import type { OperationError } from "../../../application/ports/operation-error";
+import type { TreeSelection } from "../view-models/tree-selection";
 import type {
   DialogState,
   DiffViewMode,
@@ -87,13 +88,17 @@ export function setSidebarCollapsed(
     : { ...state, sidebarCollapsed: collapsed };
 }
 
-export function setTreeSelectionKey(
+export function setTreeSelection(
   state: UiState,
-  key: string | null,
+  selection: TreeSelection,
 ): UiState {
-  return state.treeSelectionKey === key
-    ? state
-    : { ...state, treeSelectionKey: key };
+  const current = state.treeSelection;
+  const unchanged =
+    current.anchorKey === selection.anchorKey &&
+    current.activeKey === selection.activeKey &&
+    current.keys.length === selection.keys.length &&
+    current.keys.every((key, index) => key === selection.keys[index]);
+  return unchanged ? state : { ...state, treeSelection: selection };
 }
 
 export function setDiffViewMode(state: UiState, mode: DiffViewMode): UiState {
