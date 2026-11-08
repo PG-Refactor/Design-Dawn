@@ -32,6 +32,16 @@ function shown(harness: CanvasHarness, sheetId: SheetId) {
   return harness.uiStateStore.getState().viewportBySheet.get(sheetId);
 }
 
+// The canvas harness saves an identity view for the sheets of document A; these tests are
+// about sheets without a saved view.
+async function openedWithoutSavedViews(): Promise<CanvasHarness> {
+  const harness = createCanvasHarness();
+  harness.viewportGateway.storage.clear();
+  await harness.actions.openProjectViaDialog();
+  await harness.actions.openDocument(DOCUMENT_A);
+  return harness;
+}
+
 async function openedWithSaved(): Promise<CanvasHarness> {
   const harness = createCanvasHarness();
   harness.viewportGateway.storage.set(
@@ -54,7 +64,7 @@ describe("restoring", () => {
   });
 
   it("falls back to the default when nothing is saved", async () => {
-    const harness = await openedCanvasHarness();
+    const harness = await openedWithoutSavedViews();
     await settle();
     expect(shown(harness, SHEET_A1)).toEqual(DEFAULT_VIEWPORT);
     expect(harness.viewportGateway.saveCalls).toEqual([]);
@@ -88,6 +98,7 @@ describe("restoring", () => {
 
   it("records a load issue (damaged file) and still shows the default", async () => {
     const harness = createCanvasHarness();
+    harness.viewportGateway.storage.clear();
     harness.viewportGateway.loadIssue = { kind: "invalidJson", detail: "x" };
     await harness.actions.openProjectViaDialog();
     await harness.actions.openDocument(DOCUMENT_A);
@@ -180,7 +191,7 @@ describe("saving", () => {
   });
 
   it("keeps sheets and documents independent", async () => {
-    const harness = await openedCanvasHarness();
+    const harness = await openedWithoutSavedViews();
     await harness.actions.openDocument(DOCUMENT_B);
     await settle();
     pan(harness, SHEET_B1, 9);

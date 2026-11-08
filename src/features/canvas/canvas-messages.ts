@@ -60,6 +60,8 @@ const CANVAS_MESSAGES_JA = {
     invalid: "キャプションは1行・500文字までで入力してください。",
   },
   dropHint: "ここに画像をドロップ",
+  goToSheetStart: "シートの先頭へ",
+  goToSheetStartText: "↖ 先頭へ",
   zoom: {
     group: "拡大率",
     input: "拡大率（%）",
@@ -126,6 +128,8 @@ const CANVAS_MESSAGES_EN: CanvasMessages = {
     invalid: "A caption is one line of up to 500 characters.",
   },
   dropHint: "Drop images here",
+  goToSheetStart: "Go to the start of the sheet",
+  goToSheetStartText: "↖ Start",
   zoom: {
     group: "Zoom",
     input: "Zoom (%)",

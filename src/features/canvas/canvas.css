@@ -69,6 +69,26 @@
   min-height: 0;
 }
 
+/* Shown in the bottom-left corner while the sheet's top-left corner is out of view. */
+.canvas__go-to-start {
+  position: absolute;
+  left: var(--space-2);
+  bottom: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-subtle);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.canvas__go-to-start:hover {
+  background: var(--color-hover);
+}
+
 /* The zoom control in the bottom-right corner, over the canvas. */
 .zoom-control {
   position: absolute;

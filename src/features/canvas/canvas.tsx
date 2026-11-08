@@ -56,7 +56,11 @@ import { routePointerDown } from "./canvas-pointer-routing";
 import { CaptionDialog } from "./caption-dialog";
 import { displayedFrame, isInteracting } from "./geometry/preview-frame";
 import { normalizeRect } from "./geometry/range-selection";
-import { keepOriginInView, sheetOriginOf } from "./geometry/sheet-origin";
+import {
+  isOriginOutOfView,
+  keepOriginInView,
+  sheetOriginOf,
+} from "./geometry/sheet-origin";
 import {
   DEFAULT_VIEWPORT,
   type Point,
@@ -134,13 +138,10 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
   );
   // A viewport saved before the sheet's origin rule (or past blocks moved since) is shown
   // within it; the next pan / zoom saves the bounded one.
+  const origin = useMemo(() => sheetOriginOf(blocks), [blocks]);
   const viewport = useMemo(
-    () =>
-      keepOriginInView(
-        storedViewport ?? DEFAULT_VIEWPORT,
-        sheetOriginOf(blocks),
-      ),
-    [storedViewport, blocks],
+    () => keepOriginInView(storedViewport ?? DEFAULT_VIEWPORT, origin),
+    [storedViewport, origin],
   );
   const fileDragActive = useUiState((ui) => ui.fileDragActive);
 
@@ -554,10 +555,13 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
 
   const { interval: gridSize } = CANVAS_CONFIG.grid;
   // The grid follows the viewport, so panning and zooming are visible on an empty canvas.
+  // Each dot is drawn in the middle of its background tile, so the tiles are shifted by
+  // half a step: the dots then sit on the world grid that blocks snap to.
+  const cellSize = gridSize * viewport.zoom;
   const style = {
     "--canvas-zoom": viewport.zoom,
-    backgroundSize: `${gridSize * viewport.zoom}px ${gridSize * viewport.zoom}px`,
-    backgroundPosition: `${viewport.panX}px ${viewport.panY}px`,
+    backgroundSize: `${cellSize}px ${cellSize}px`,
+    backgroundPosition: `${viewport.panX - cellSize / 2}px ${viewport.panY - cellSize / 2}px`,
   } as CSSProperties;
 
   return (
@@ -621,6 +625,17 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
         )}
         {contextMenu.element}
       </div>
+      {isOriginOutOfView(viewport, origin) ? (
+        <button
+          type="button"
+          className="canvas__go-to-start"
+          aria-label={messages.goToSheetStart}
+          title={messages.goToSheetStart}
+          onClick={() => input.goToSheetStart()}
+        >
+          {messages.goToSheetStartText}
+        </button>
+      ) : null}
       <ZoomControl
         zoom={viewport.zoom}
         onZoom={(zoom) => {

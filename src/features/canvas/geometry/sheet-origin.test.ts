@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
+import { CANVAS_CONFIG } from "../../../config/canvas-config";
 import {
+  homeViewport,
+  isOriginOutOfView,
   keepMoveRightOfOrigin,
   keepOriginInView,
   sheetOriginOf,
 } from "./sheet-origin";
+
+const MARGIN = CANVAS_CONFIG.viewport.originMargin;
+
 import { clampViewport } from "./viewport-math";
 
 const block = (x: number, y: number) => ({
@@ -36,13 +42,16 @@ describe("keepOriginInView", () => {
     expect(keepOriginInView(viewport, ORIGIN)).toBe(viewport);
   });
 
-  it("stops the view at the origin, per axis, at any zoom", () => {
+  it("stops the view one margin inside the edge, per axis, scaled by the zoom", () => {
     expect(
       keepOriginInView(clampViewport({ panX: 30, panY: -10, zoom: 1 }), ORIGIN),
-    ).toEqual({ panX: 0, panY: -10, zoom: 1 });
+    ).toEqual({ panX: MARGIN, panY: -10, zoom: 1 });
     expect(
-      keepOriginInView(clampViewport({ panX: 5, panY: 7, zoom: 0.5 }), ORIGIN),
-    ).toEqual({ panX: 0, panY: 0, zoom: 0.5 });
+      keepOriginInView(
+        clampViewport({ panX: 50, panY: 70, zoom: 0.5 }),
+        ORIGIN,
+      ),
+    ).toEqual({ panX: MARGIN * 0.5, panY: MARGIN * 0.5, zoom: 0.5 });
   });
 
   it("lets the view reach a moved-out origin, scaled by the zoom", () => {
@@ -52,7 +61,33 @@ describe("keepOriginInView", () => {
         clampViewport({ panX: 2000, panY: 100, zoom: 2 }),
         origin,
       ),
-    ).toEqual({ panX: 1280, panY: 100, zoom: 2 });
+    ).toEqual({ panX: (640 + MARGIN) * 2, panY: 100, zoom: 2 });
+  });
+});
+
+describe("homeViewport and isOriginOutOfView", () => {
+  const ORIGIN = { x: 0, y: 0 };
+
+  it("puts the corner one margin inside the edge, keeping the zoom", () => {
+    expect(homeViewport(ORIGIN, 2)).toEqual({
+      panX: MARGIN * 2,
+      panY: MARGIN * 2,
+      zoom: 2,
+    });
+    expect(homeViewport({ x: -100, y: 0 }, 1)).toEqual({
+      panX: 100 + MARGIN,
+      panY: MARGIN,
+      zoom: 1,
+    });
+  });
+
+  it("tells when the corner was scrolled past on either axis", () => {
+    const view = (panX: number, panY: number) =>
+      clampViewport({ panX, panY, zoom: 1 });
+    expect(isOriginOutOfView(view(MARGIN, MARGIN), ORIGIN)).toBe(false);
+    expect(isOriginOutOfView(view(0, 0), ORIGIN)).toBe(false);
+    expect(isOriginOutOfView(view(-1, 0), ORIGIN)).toBe(true);
+    expect(isOriginOutOfView(view(0, -50), ORIGIN)).toBe(true);
   });
 });
 

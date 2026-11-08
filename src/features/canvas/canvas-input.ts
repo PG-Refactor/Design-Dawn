@@ -43,6 +43,7 @@ import {
 } from "./geometry/range-selection";
 import { boundsOfRects } from "./geometry/selection-bounds";
 import {
+  homeViewport,
   keepMoveRightOfOrigin,
   keepOriginInView,
   sheetOriginOf,
@@ -100,6 +101,8 @@ export interface CanvasInput {
   // The zoom control: sets the zoom, keeping the world point under `point` (the canvas
   // centre) where it is. Ignored during a gesture, like the wheel.
   zoomTo(point: Point, zoom: number): void;
+  // Brings the sheet's top-left corner back to its place, keeping the zoom.
+  goToSheetStart(): void;
   isGestureActive(): boolean;
 }
 
@@ -463,6 +466,11 @@ export function createCanvasInput(
           ? zoomByWheel(viewport, point, deltaY)
           : panBy(viewport, { x: -deltaX, y: -deltaY }),
       );
+    },
+
+    goToSheetStart() {
+      if (gesture !== null || committing) return;
+      setPan(homeViewport(sheetOriginOf(blocks()), currentViewport().zoom));
     },
 
     zoomTo(point, zoom) {

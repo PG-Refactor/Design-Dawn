@@ -455,3 +455,32 @@ describe("the zoom control", () => {
     expect(Number(zoomField().value)).toBeGreaterThan(100);
   });
 });
+
+describe("the grid and the start of the sheet", () => {
+  const goToStart = () =>
+    screen.queryByRole("button", { name: "シートの先頭へ" });
+
+  it("draws the dots on the grid that blocks snap to (half a tile back)", async () => {
+    await renderOpenedCanvas();
+    const { interval } = CANVAS_CONFIG.grid;
+    // Identity view: tiles start half a step before the origin, so dots sit on multiples.
+    expect(canvasElement().style.backgroundPosition).toBe(
+      `${-interval / 2}px ${-interval / 2}px`,
+    );
+  });
+
+  it("offers going back to the start only when the top-left corner is out of view", async () => {
+    const { shell } = await renderOpenedCanvas();
+    expect(goToStart()).toBeNull();
+    fireEvent.wheel(canvasElement(), { deltaX: 300, deltaY: 200 });
+    const button = goToStart();
+    expect(button).not.toBeNull();
+    if (button === null) return;
+    await shell.user.click(button);
+    const margin = CANVAS_CONFIG.viewport.originMargin;
+    expect(shell.uiStateStore.getState().viewportBySheet.get(SHEET_A1)).toEqual(
+      { panX: margin, panY: margin, zoom: 1 },
+    );
+    expect(goToStart()).toBeNull();
+  });
+});

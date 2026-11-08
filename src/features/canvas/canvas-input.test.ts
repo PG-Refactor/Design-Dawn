@@ -287,20 +287,34 @@ describe("pan and wheel", () => {
 });
 
 describe("the sheet's top-left origin", () => {
-  it("does not pan or scroll past the origin, like a spreadsheet", async () => {
+  it("does not pan or scroll past the origin, like a spreadsheet (one margin inside the edge)", async () => {
     const { harness, input } = await setup();
+    const margin = CANVAS_CONFIG.viewport.originMargin;
     input.pointerDownForPan(ORIGIN);
     input.pointerMove(moveBy(40, 25));
     expect(ui(harness).viewportBySheet.get(SHEET_A1)).toEqual({
-      panX: 0,
-      panY: 0,
+      panX: margin,
+      panY: margin,
       zoom: 1,
     });
     await input.pointerUp();
     input.wheel({ point: ORIGIN, deltaX: -10, deltaY: -30, zoom: false });
     expect(ui(harness).viewportBySheet.get(SHEET_A1)).toMatchObject({
-      panX: 0,
-      panY: 0,
+      panX: margin,
+      panY: margin,
+    });
+  });
+
+  it("goes back to the start of the sheet, keeping the zoom", async () => {
+    const { harness, input } = await setup();
+    input.wheel({ point: ORIGIN, deltaX: 300, deltaY: 200, zoom: false });
+    input.zoomTo(ORIGIN, 2);
+    input.goToSheetStart();
+    const margin = CANVAS_CONFIG.viewport.originMargin;
+    expect(ui(harness).viewportBySheet.get(SHEET_A1)).toEqual({
+      panX: margin * 2,
+      panY: margin * 2,
+      zoom: 2,
     });
   });
 
