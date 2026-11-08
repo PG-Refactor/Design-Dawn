@@ -1,8 +1,17 @@
-# Design Dawn
+# Design Dawn — Markdown と Mermaid で設計書を書く、自由配置キャンバスのデスクトップアプリ
 
-[English](README.md) | **日本語**
+[English](README.md) | **日本語** · [Web サイト](https://pg-refactor.github.io/Design-Dawn/ja/)
 
-Design Dawn は、ブロックを自由に配置できるキャンバスの上で設計ドキュメントを書くためのデスクトップアプリケーションです。
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/PG-Refactor/Design-Dawn)](https://github.com/PG-Refactor/Design-Dawn/releases/latest)
+![Platforms](https://img.shields.io/badge/platform-Windows%2011%20%7C%20Linux%20%28%E3%82%BD%E3%83%BC%E3%82%B9%E3%81%8B%E3%82%89%E3%83%93%E3%83%AB%E3%83%89%29-lightgrey.svg)
+![Built with Tauri 2](https://img.shields.io/badge/built%20with-Tauri%202-24C8DB.svg)
+![MCP server](https://img.shields.io/badge/AI-MCP%20server-8A2BE2.svg)
+
+**Design Dawn** は、設計書（設計ドキュメント・仕様書）を書くための無料・オープンソースのデスクトップアプリです（Tauri 2、Rust + TypeScript）。
+**Markdown エディタ**、GUI でも編集できる **Mermaid 作図ツール**、画像を同じシートに自由に配置でき、Git で差分を見られるテキストファイルとして保存します（Docs as Code）。
+**MCP サーバー**を備え、Claude・Codex・GitHub Copilot・Cursor などの AI ツールからも読み書きできます。
+
 ドキュメントは複数のシートからなり、各シートに **Markdown**・**Mermaid の図**・**画像** のブロックを自由に配置できます。
 すべてが通常のファイルとフォルダとして保存されるため、人が読み書きでき、Git でレビューでき、AI ツールも安全に変更できます。
 
@@ -40,6 +49,15 @@ Design Dawn は、ブロックを自由に配置できるキャンバスの上�
 | ![登録するコマンドと AI に見せる Project の一覧がある AI 連携の画面](assets/screenshots/ai-integration.png) | ![AI が Project を編集してよいかをアプリが確認する画面](assets/screenshots/ai-request.png) |
 
 （画面写真は英語表示です。）
+
+## Design Dawn を使う理由
+
+- **長い1本のページでも、ホワイトボードの独自ファイルでもない** — メモ・図・画面写真をホワイトボードのように並べつつ、各ブロックは `.md` / `.mmd` ファイルなので、プルリクエストで差分をレビューできます。
+- **構文を覚えなくても Mermaid** — フローチャート・シーケンス図・ガントチャートを GUI で編集でき、正本は Mermaid のソースのままです。
+- **AI エージェントにも安全** — AI はローカルの MCP サーバー経由で操作し、許可するまでは読み取り専用。同時の変更は黙って上書きされず衝突として検出されます。
+- **オフライン・ローカル完結** — アカウント不要、クラウド不要、描画にネットワークを使いません。
+
+主な用途：アーキテクチャ・システム設計書、API やシーケンスの設計、図入りの ADR、ガントチャートでの計画、Git での設計レビュー。
 
 ## Project の保存形式
 
