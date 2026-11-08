@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Design Dawn — Markdown と Mermaid で設計書を書く無料のデスクトップアプリ</title>
-  <meta name="description" content="Design Dawn は、Markdown・Mermaid の図・画像を自由配置キャンバスに並べて設計書（設計ドキュメント）を書く、無料・オープンソースのデスクトップアプリです。Git で差分を見られるテキスト保存、Mermaid の GUI 編集、AI 向け MCP サーバーに対応。">
+  <title>Design Dawn — 自由に並べて、AI と書く。| Markdown・Mermaid の設計書アプリ</title>
+  <meta name="description" content="Design Dawn は、Markdown のメモ・Mermaid の図・画像を自由配置キャンバスに並べて設計書（設計ドキュメント）を書き、AI ツールとも一緒に書ける、無料・オープンソースのデスクトップアプリです。AI は許可した範囲だけを手伝い、すべて普通のファイルとして保存されます。">
   <link rel="canonical" href="https://pg-refactor.github.io/Design-Dawn/ja/">
   <link rel="alternate" hreflang="en" href="https://pg-refactor.github.io/Design-Dawn/">
   <link rel="alternate" hreflang="ja" href="https://pg-refactor.github.io/Design-Dawn/ja/">
@@ -15,8 +15,8 @@
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Design Dawn">
-  <meta property="og:title" content="Design Dawn — 自由配置キャンバスで設計書を書く">
-  <meta property="og:description" content="Markdown・Mermaid の図・画像を1枚のキャンバスに。Git で差分を見られるテキストファイルで保存。Mermaid の GUI 編集と AI 向け MCP サーバー付き。">
+  <meta property="og:title" content="Design Dawn — 自由に並べて、AI と書く。">
+  <meta property="og:description" content="メモ・図・画像をシートの好きな場所に置いて設計書を書くデスクトップアプリ。AI は許可した範囲だけを手伝い、すべて普通のファイルとして手元に残ります。">
   <meta property="og:url" content="https://pg-refactor.github.io/Design-Dawn/ja/">
   <meta property="og:image" content="https://pg-refactor.github.io/Design-Dawn/images/og.png">
   <meta property="og:image:width" content="1280">
@@ -74,10 +74,11 @@
 <main>
   <div class="hero">
     <div class="wrap">
-      <h1><span class="glow">自由配置キャンバス</span>で設計書を書く</h1>
-      <p class="lead">Design Dawn は、ソフトウェアの設計書（設計ドキュメント）を書くための無料・オープンソースのデスクトップアプリです。
-        <strong>Markdown</strong>・<strong>Mermaid の図</strong>・<strong>画像</strong>をシート上の好きな位置に置けて、
-        すべてが普通のテキストファイルとして保存されるので、人が読め、Git で差分を見られ、AI ツールも安全に編集できます。</p>
+      <h1><span class="glow">自由に並べて、</span>AI と書く。</h1>
+      <p class="lead">Design Dawn は、設計書（設計ドキュメント）を書くための無料・オープンソースのデスクトップアプリです。
+        <strong>メモ</strong>（Markdown）・<strong>Mermaid の図</strong>・<strong>画像</strong>をシートの好きな場所に置き、
+        Claude・Codex・GitHub Copilot・Cursor などの AI ツールには、許可した範囲だけを手伝ってもらえます。
+        すべて普通のファイルとして手元に残ります。</p>
       <div class="cta">
         <a class="btn primary" href="https://github.com/PG-Refactor/Design-Dawn">GitHub で入手</a>
         <a class="btn" href="https://github.com/PG-Refactor/Design-Dawn/releases/latest">Windows 版をダウンロード</a>
@@ -124,10 +125,11 @@
   <section id="files">
     <div class="wrap two">
       <div>
-        <h2>Docs as Code：テキストで保存、読める差分</h2>
-        <p>配置は小さな JSON ファイルに、内容は <code>.md</code> と <code>.mmd</code> ファイルに保存されます。
-          設計の変更をプルリクエストでレビューでき、人や AI が1つのブロックだけを他に触れずに変更できます。
-          すべての JSON に <code>schemaVersion</code> があり、ID は変わらない UUID です。</p>
+        <h2>普通のファイルで保存。ソースコードと同じように変更を管理</h2>
+        <p>メモは <code>.md</code>、図は <code>.mmd</code> のファイルとして、配置は小さな JSON ファイルとして保存されます。
+          どのテキストエディタでも開け、Git を使えば設計のどこが変わったかを行単位で確認し、ソースコードと同じようにプルリクエストでレビューできます（「Docs as Code」と呼ばれる進め方です）。
+          人や AI が1つのブロックだけを、他に触れずに変更することもできます。
+          ドキュメント・シート・ブロックにはずっと変わらない ID が付いているので、名前を変えても周りのファイルが壊れることはありません。</p>
         <p>独自のデータベースは使わず、ロックインもありません。Design Dawn をやめても、ドキュメントは Markdown と Mermaid のまま残ります。</p>
       </div>
 <pre><code>my-project/
@@ -157,16 +159,6 @@
 <pre><code>claude mcp add design-dawn -- /path/to/design-dawn-mcp</code></pre>
       </div>
       <img class="shot" loading="lazy" src="../images/ai-request.png" width="1600" height="1000" alt="AI が Project を編集してよいかを確認する Design Dawn の画面">
-    </div>
-  </section>
-
-  <section id="faq">
-    <div class="wrap">
-      <h2>よくある質問</h2>
-      <details class="faq"><summary>無料ですか？</summary><p>はい。MIT ライセンスのオープンソースです。</p></details>
-      <details class="faq"><summary>対応 OS は？</summary><p>Windows 11 です（ダウンロードしてすぐ使えます）。Linux ではソースからビルドして使えます。Tauri 2（Rust と TypeScript）で作られています。</p></details>
-      <details class="faq"><summary>Markdown エディタやホワイトボードツールとの違いは？</summary><p>両方の良さを組み合わせています。ホワイトボードのように Markdown と Mermaid のブロックを自由に置けて、しかも保存はすべて Git やコードレビューで扱えるテキストファイルです。</p></details>
-      <details class="faq"><summary>インターネット接続は必要ですか？</summary><p>不要です。図はローカルで描画され、MCP サーバーもネットワークに接続しません。</p></details>
     </div>
   </section>
 </main>
