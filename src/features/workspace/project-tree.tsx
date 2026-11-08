@@ -277,9 +277,6 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
       const entry = findEntryByKey(model.entries, key);
       return entry === null ? [] : [entryIdOf(entry)];
     });
-    const nonEmptyFolder = chosen.some(
-      (entry) => entry.kind === "folder" && entry.children.length > 0,
-    );
     contextMenu.openFromEvent(
       event,
       messages.tree.chosenMenuLabel(chosen.length),
@@ -293,10 +290,7 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
         {
           id: "deleteChosen",
           label: messages.tree.deleteChosen,
-          disabled: chosen.length === 0 || nonEmptyFolder,
-          hint: nonEmptyFolder
-            ? messages.tree.deleteFolderNotEmptyHint
-            : undefined,
+          disabled: chosen.length === 0,
           onSelect: () => actions.requestDeleteEntries(chosen.map(entryIdOf)),
         },
       ],

@@ -153,7 +153,15 @@ export function WorkspaceDialogs() {
       return (
         <ConfirmDialog
           title={messages.deleteConfirmationTitle(nameOf(dialog.name))}
-          paragraphs={[texts.undoNotice, texts.deleteFolderConsequence]}
+          paragraphs={[
+            texts.undoNotice,
+            dialog.documentsInside === 0 && dialog.foldersInside === 0
+              ? texts.deleteFolderConsequence
+              : texts.deleteFolderWithContents(
+                  dialog.documentsInside,
+                  dialog.foldersInside,
+                ),
+          ]}
           cancelLabel={texts.cancel}
           confirmLabel={texts.delete}
           busy={busy}
@@ -178,7 +186,10 @@ export function WorkspaceDialogs() {
       return (
         <ConfirmDialog
           title={messages.deleteEntriesTitle(dialog.entryIds.length)}
-          paragraphs={[texts.undoNotice, texts.deleteEntriesConsequence]}
+          paragraphs={[
+            texts.undoNotice,
+            texts.deleteEntriesConsequence(dialog.documents, dialog.folders),
+          ]}
           cancelLabel={texts.cancel}
           confirmLabel={texts.delete}
           busy={busy}

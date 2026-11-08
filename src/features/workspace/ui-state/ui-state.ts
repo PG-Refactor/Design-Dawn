@@ -143,6 +143,9 @@ export type DialogState =
   | {
       readonly kind: "confirmDeleteEntries";
       readonly entryIds: readonly EntryId[];
+      // Everything that goes, the contents of chosen Folders included.
+      readonly documents: number;
+      readonly folders: number;
     }
   // Asked after a target was picked while a Document that would move has unsaved changes.
   | {
@@ -163,6 +166,9 @@ export type DialogState =
       readonly kind: "confirmDeleteFolder";
       readonly folderId: FolderId;
       readonly name: EntityName;
+      // What is inside and goes with it (0 and 0 for an empty folder).
+      readonly documentsInside: number;
+      readonly foldersInside: number;
     }
   | {
       readonly kind: "confirmDeleteDocument";

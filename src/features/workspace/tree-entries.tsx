@@ -205,8 +205,6 @@ function FolderTreeItem({
     {
       id: "delete",
       label: messages.tree.deleteFolder,
-      disabled: !isEmpty,
-      hint: isEmpty ? undefined : messages.tree.deleteFolderNotEmptyHint,
       onSelect: () => actions.requestDeleteFolder(folderId),
     },
   ];

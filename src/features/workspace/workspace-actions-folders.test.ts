@@ -239,13 +239,39 @@ describe("moving entries", () => {
 });
 
 describe("deleting folders", () => {
-  it("offers a confirmation only for an empty folder", async () => {
+  it("asks for a folder with contents too, counting what goes with it", async () => {
     const harness = await openedFolderActionsHarness();
     harness.actions.requestDeleteFolder(FOLDER_1);
-    expect(state(harness).dialog.kind).toBe("none");
+    expect(state(harness).dialog).toEqual({
+      kind: "confirmDeleteFolder",
+      folderId: FOLDER_1,
+      name: "Folder 1",
+      documentsInside: 2,
+      foldersInside: 1,
+    });
   });
 
-  it("deletes after the confirmation", async () => {
+  it("deletes a folder with everything inside it after the confirmation", async () => {
+    const harness = await openedFolderActionsHarness();
+    await harness.actions.openDocument(DOCUMENT_D);
+    harness.actions.requestDeleteFolder(FOLDER_1);
+    const result = await harness.actions.confirmDelete();
+    expect(result.ok).toBe(true);
+    expect(state(harness).dialog.kind).toBe("none");
+    expect(folderEntry(harness, FOLDER_1)).toBeUndefined();
+    expect(folderEntry(harness, FOLDER_2)).toBeUndefined();
+    const documents = harness.store
+      .getState()
+      .project?.documents.map((entry) => entry.documentId);
+    expect(documents).not.toContain(DOCUMENT_C);
+    expect(documents).not.toContain(DOCUMENT_D);
+    // The open Document inside was closed with it.
+    expect(harness.store.getState().documents.has(DOCUMENT_D)).toBe(false);
+    expect(harness.gateway.methods("deleteDocument")).toHaveLength(2);
+    expect(harness.gateway.methods("deleteFolder")).toHaveLength(2);
+  });
+
+  it("deletes an empty folder after the confirmation", async () => {
     const harness = await openedFolderActionsHarness();
     await harness.workspace.deleteDocument(DOCUMENT_D, {
       confirmedByUser: true,
@@ -255,11 +281,25 @@ describe("deleting folders", () => {
       kind: "confirmDeleteFolder",
       folderId: FOLDER_2,
       name: "Folder 2",
+      documentsInside: 0,
+      foldersInside: 0,
     });
     const result = await harness.actions.confirmDelete();
     expect(result.ok).toBe(true);
-    expect(state(harness).dialog.kind).toBe("none");
     expect(folderEntry(harness, FOLDER_2)).toBeUndefined();
+  });
+
+  it("stops at the first failure, keeping what was not deleted yet", async () => {
+    const harness = await openedFolderActionsHarness();
+    harness.gateway.failOn("deleteDocument", "ioError", 2);
+    harness.actions.requestDeleteFolder(FOLDER_1);
+    await harness.actions.confirmDelete();
+    expect(state(harness).operationErrors).toMatchObject([
+      { operation: "deleteDocument", error: { kind: "ioError" } },
+    ]);
+    expect(folderEntry(harness, FOLDER_1)).toBeDefined();
+    expect(folderEntry(harness, FOLDER_2)).toBeDefined();
+    expect(harness.gateway.methods("deleteFolder")).toEqual([]);
   });
 
   it("records a failed deletion", async () => {

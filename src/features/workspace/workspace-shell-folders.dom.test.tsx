@@ -155,7 +155,7 @@ describe("row menus", () => {
     ]);
   });
 
-  it("offers a folder every action, and delete only when it is empty", async () => {
+  it("offers a folder every action, delete included when it holds things", async () => {
     const harness = await openedShell();
     const menu = await openRowMenu(harness.user, "Folder 1");
     expect(menuItemNames(menu)).toEqual([
@@ -166,11 +166,23 @@ describe("row menus", () => {
       TREE.deleteFolder,
     ]);
     const remove = menuItem(menu, TREE.deleteFolder);
-    expect(remove.getAttribute("aria-disabled")).toBe("true");
-    expect(remove.getAttribute("title")).toBe(TREE.deleteFolderNotEmptyHint);
-    // Choosing the disabled item does nothing.
+    expect(remove.getAttribute("aria-disabled")).toBeNull();
     await harness.user.click(remove);
-    expect(screen.queryByRole("dialog")).toBeNull();
+    const dialog = screen.getByRole("dialog", {
+      name: MESSAGES.deleteConfirmationTitle("Folder 1"),
+    });
+    // The question says what goes with the folder.
+    expect(dialog.textContent).toContain(
+      MESSAGES.dialogs.deleteFolderWithContents(2, 1),
+    );
+    await harness.user.click(
+      within(dialog).getByRole("button", { name: MESSAGES.dialogs.delete }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    for (const name of ["Folder 1", "Folder 2", "Document C", "Document D"]) {
+      expect(screen.queryByRole("treeitem", { name })).toBeNull();
+    }
+    expect(screen.getByRole("treeitem", { name: "Document A" })).toBeTruthy();
   });
 
   it("offers a document the move item", async () => {

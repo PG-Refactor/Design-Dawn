@@ -39,9 +39,10 @@ import {
 } from "../../application/state/unsaved-changes";
 import {
   childOrderOf,
+  deletionCounts,
+  deletionSteps,
   findFolder,
   findProjectEntry,
-  hasChildren,
 } from "../../application/workspace/project-entries";
 import type {
   CloseOptions,
@@ -725,7 +726,15 @@ export function createWorkspaceActions(
       : (findFolder(project, folderId)?.name ?? null);
   }
 
-  async function deleteFolderConfirmed(
+  // A folder and everything inside it (the confirmation named what goes with it).
+  function deleteFolderConfirmed(
+    folderId: FolderId,
+  ): Promise<OperationResult<void>> {
+    return deleteEntriesConfirmed([folderId]);
+  }
+
+  // One Folder whose contents are already deleted.
+  async function deleteEmptyFolder(
     folderId: FolderId,
     name: string | null,
   ): Promise<OperationResult<void>> {
@@ -831,31 +840,19 @@ export function createWorkspaceActions(
     return runBusy(() => selectAndOpenProject(false));
   }
 
-  // Documents first, so a Folder that holds only chosen Documents is empty when its turn
-  // comes. Stops at the first failure (what was deleted before it stays deleted).
+  // Deletes the entries and everything inside the Folders among them, each Folder after
+  // its contents (`deletionSteps`). Stops at the first failure: what was deleted before it
+  // stays deleted, the rest stays, and the error is shown.
   async function deleteEntriesConfirmed(
     entryIds: readonly EntryId[],
   ): Promise<OperationResult<void>> {
     const project = applicationStore.getState().project;
     if (project === null) return operationOk(undefined);
-    const found = entryIds.flatMap((entryId) => {
-      const entry = findProjectEntry(project, entryId);
-      return entry === null ? [] : [entry];
-    });
-    for (const entry of found) {
-      if (entry.kind !== "document") continue;
-      const deleted = await deleteDocumentConfirmed(
-        entry.entry.documentId,
-        entry.entry.name,
-      );
-      if (!deleted.ok) return deleted;
-    }
-    for (const entry of found) {
-      if (entry.kind !== "folder") continue;
-      const deleted = await deleteFolderConfirmed(
-        entry.entry.folderId,
-        entry.entry.name,
-      );
+    for (const step of deletionSteps(project, entryIds)) {
+      const deleted =
+        step.kind === "document"
+          ? await deleteDocumentConfirmed(step.documentId, step.name)
+          : await deleteEmptyFolder(step.folderId, step.name);
       if (!deleted.ok) return deleted;
     }
     return operationOk(undefined);
@@ -1231,12 +1228,15 @@ export function createWorkspaceActions(
       if (project === null || findFolder(project, folderId) === undefined) {
         return;
       }
-      if (hasChildren(project, folderId)) return;
+      // What goes with it, besides the folder itself.
+      const counts = deletionCounts(deletionSteps(project, [folderId]));
       uiStateStore.setState((state) =>
         openDialog(state, {
           kind: "confirmDeleteFolder",
           folderId,
           name: folderNameOf(folderId),
+          documentsInside: counts.documents,
+          foldersInside: counts.folders - 1,
         }),
       );
     },
@@ -1262,18 +1262,15 @@ export function createWorkspaceActions(
     },
     requestDeleteEntries(entryIds) {
       const project = applicationStore.getState().project;
-      if (project === null || entryIds.length === 0) return;
-      const deletable = entryIds.every((entryId) => {
-        const found = findProjectEntry(project, entryId);
-        if (found === null) return false;
-        return (
-          found.kind === "document" ||
-          !hasChildren(project, found.entry.folderId)
-        );
-      });
-      if (!deletable) return;
+      if (project === null) return;
+      const steps = deletionSteps(project, entryIds);
+      if (steps.length === 0) return;
       uiStateStore.setState((state) =>
-        openDialog(state, { kind: "confirmDeleteEntries", entryIds }),
+        openDialog(state, {
+          kind: "confirmDeleteEntries",
+          entryIds,
+          ...deletionCounts(steps),
+        }),
       );
     },
     async openDocumentInNewWindow(documentId) {
@@ -1363,7 +1360,7 @@ export function createWorkspaceActions(
       return runBusy(async () => {
         const result =
           dialog.kind === "confirmDeleteFolder"
-            ? await deleteFolderConfirmed(dialog.folderId, dialog.name)
+            ? await deleteFolderConfirmed(dialog.folderId)
             : dialog.kind === "confirmDeleteDocument"
               ? await deleteDocumentConfirmed(dialog.documentId, dialog.name)
               : await deleteSheetConfirmed(
