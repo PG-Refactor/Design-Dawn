@@ -1,4 +1,5 @@
 import {
+  type CSSProperties,
   type FocusEvent,
   type MutableRefObject,
   type ReactNode,
@@ -24,7 +25,9 @@ import {
   BLOCK_EDITOR_ATTRIBUTE,
 } from "../canvas/block-dom";
 import { stopEditing } from "../workspace/ui-state/ui-state";
+import { useUiState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
+import { SourcePreviewDivider } from "./source-preview-divider";
 import "./text-block-editor.css";
 
 export interface TextBlockEditorLabels {
@@ -32,6 +35,10 @@ export interface TextBlockEditorLabels {
   readonly editor: string;
   readonly source: string;
   readonly done: string;
+  // The switch that hides / shows the preview next to the source, and the divider between.
+  readonly hidePreview: string;
+  readonly showPreview: string;
+  readonly divider: string;
 }
 
 // An optional second view next to the Source textarea (the Mermaid diagram GUI). The editor
@@ -56,6 +63,9 @@ export interface TextBlockGuiView {
     readonly leaveRef: MutableRefObject<GuiLeaveCheck | null>;
   }) => ReactNode;
 }
+
+// The custom properties that carry the Source | Preview split to the CSS.
+type SplitStyle = CSSProperties & Record<`--${string}`, string>;
 
 export interface TextBlockEditorProps {
   readonly documentId: DocumentId;
@@ -94,6 +104,8 @@ export function TextBlockEditor({
   guiView,
 }: TextBlockEditorProps) {
   const services = useWorkspaceServices();
+  const { actions } = services;
+  const sourceLayout = useUiState((ui) => ui.sourceEditorLayout);
   const { canvasActions, uiStateStore, applicationStore } = services;
   const [draft, setDraft] = useState(initialText);
   const [view, setView] = useState<TextBlockEditorView>(
@@ -257,6 +269,19 @@ export function TextBlockEditor({
     void finish(false);
   }
 
+  const sourceView = view === "source";
+  const showsPreview = !sourceView || !sourceLayout.previewHidden;
+  const setSourceShare = (sourceShare: number) =>
+    actions.setSourceEditorLayout({ ...sourceLayout, sourceShare });
+  // The split is drawn with fr units: the source's share and the rest for the preview.
+  const splitStyle: SplitStyle | undefined =
+    sourceView && showsPreview
+      ? {
+          "--source-fr": `${sourceLayout.sourceShare}fr`,
+          "--preview-fr": `${1 - sourceLayout.sourceShare}fr`,
+        }
+      : undefined;
+
   return (
     // biome-ignore lint/a11y/useSemanticElements: a fieldset would add form semantics to what is a focus-containment boundary.
     <div
@@ -268,8 +293,11 @@ export function TextBlockEditor({
       className={
         view === "gui"
           ? "text-block-editor text-block-editor--gui"
-          : "text-block-editor"
+          : showsPreview
+            ? "text-block-editor"
+            : "text-block-editor text-block-editor--preview-hidden"
       }
+      style={splitStyle}
       {...{ [BLOCK_EDITOR_ATTRIBUTE]: "" }}
       onBlur={onBlur}
     >
@@ -323,6 +351,23 @@ export function TextBlockEditor({
             </button>
           </fieldset>
         )}
+        {sourceView && (
+          <button
+            type="button"
+            className="button text-block-editor__preview-toggle"
+            aria-pressed={sourceLayout.previewHidden}
+            onClick={() =>
+              actions.setSourceEditorLayout({
+                ...sourceLayout,
+                previewHidden: !sourceLayout.previewHidden,
+              })
+            }
+          >
+            {sourceLayout.previewHidden
+              ? labels.showPreview
+              : labels.hidePreview}
+          </button>
+        )}
         <button
           type="button"
           className="button"
@@ -331,10 +376,18 @@ export function TextBlockEditor({
           {labels.done}
         </button>
       </div>
-      {view === "source" && (
-        <div className="text-block-editor__preview">
-          {renderPreview(draft, view)}
-        </div>
+      {sourceView && showsPreview && (
+        <>
+          <SourcePreviewDivider
+            label={labels.divider}
+            sourceShare={sourceLayout.sourceShare}
+            containerRef={containerRef}
+            onChange={setSourceShare}
+          />
+          <div className="text-block-editor__preview">
+            {renderPreview(draft, view)}
+          </div>
+        </>
       )}
     </div>
   );

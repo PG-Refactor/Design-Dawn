@@ -3,6 +3,7 @@
 // each returns the same state object when nothing changes.
 
 import type { OperationError } from "../../../application/ports/operation-error";
+import { LAYOUT_CONFIG } from "../../../config/layout-config";
 import type { TreeSelection } from "../view-models/tree-selection";
 import type {
   DialogState,
@@ -12,6 +13,7 @@ import type {
   NoticeKind,
   OperationLabel,
   OperationSubject,
+  SourceEditorLayout,
   UiState,
 } from "./ui-state";
 
@@ -86,6 +88,29 @@ export function setSidebarCollapsed(
   return state.sidebarCollapsed === collapsed
     ? state
     : { ...state, sidebarCollapsed: collapsed };
+}
+
+// Keeps the source share inside its limits.
+export function setSourceEditorLayout(
+  state: UiState,
+  layout: SourceEditorLayout,
+): UiState {
+  const { minSourceShare, maxSourceShare } = LAYOUT_CONFIG.sourceEditor;
+  const sourceShare = Math.min(
+    maxSourceShare,
+    Math.max(minSourceShare, layout.sourceShare),
+  );
+  const current = state.sourceEditorLayout;
+  return current.sourceShare === sourceShare &&
+    current.previewHidden === layout.previewHidden
+    ? state
+    : {
+        ...state,
+        sourceEditorLayout: {
+          sourceShare,
+          previewHidden: layout.previewHidden,
+        },
+      };
 }
 
 export function setTreeSelection(

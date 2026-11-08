@@ -292,6 +292,11 @@ describe("focus inside the editor does not end editing", () => {
     expect(canvas.session.getState().history.canUndo).toBe(false);
 
     await shell.user.click(box);
+    // Tab goes source -> preview switch -> Done.
+    await shell.user.tab();
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "プレビューを隠す" }),
+    );
     await shell.user.tab();
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "完了" }),
@@ -671,5 +676,88 @@ describe("a Markdown block outside edit mode", () => {
     });
     expect(canvas.blocksOfSheetA1()[0]?.position).toEqual({ x: 35, y: 30 });
     expect(await canvas.undoDepth()).toBe(1);
+  });
+});
+
+describe("the Source | Preview split", () => {
+  const divider = () =>
+    screen.getByRole("separator", { name: "ソースとプレビューの境界" });
+  const editorGroup = () =>
+    screen.getByRole("group", { name: "Markdown編集（00000001）" });
+  const shareShown = () => divider().getAttribute("aria-valuenow");
+
+  it("hides and shows the preview", async () => {
+    const { shell } = await renderOpenedCanvas();
+    await enterEditByDoubleClick();
+    await shell.user.click(
+      screen.getByRole("button", { name: "プレビューを隠す" }),
+    );
+    expect(
+      screen.queryByRole("region", { name: "Markdownプレビュー（00000001）" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("separator", { name: "ソースとプレビューの境界" }),
+    ).toBeNull();
+    expect(sourceBox()).toBeTruthy();
+
+    await shell.user.click(
+      screen.getByRole("button", { name: "プレビューを表示" }),
+    );
+    expect(previewOf("00000001")).toBeTruthy();
+  });
+
+  it("moves the divider with the keys, within limits, and back to the middle on a double-click", async () => {
+    const { shell } = await renderOpenedCanvas();
+    await enterEditByDoubleClick();
+    expect(shareShown()).toBe("50");
+    divider().focus();
+    await shell.user.keyboard("{ArrowRight}");
+    expect(shareShown()).toBe("55");
+    await shell.user.keyboard("{End}");
+    expect(shareShown()).toBe("80");
+    await shell.user.keyboard("{ArrowRight}");
+    expect(shareShown()).toBe("80");
+    await shell.user.keyboard("{Home}");
+    expect(shareShown()).toBe("20");
+    // Moving the divider is working in the editor: it stays open.
+    expect(sourceBox()).toBeTruthy();
+    await shell.user.dblClick(divider());
+    expect(shareShown()).toBe("50");
+  });
+
+  it("follows the pointer, measured against the editor's width", async () => {
+    const { shell } = await renderOpenedCanvas();
+    await enterEditByDoubleClick();
+    const EDITOR_WIDTH = 400;
+    editorGroup().getBoundingClientRect = () =>
+      ({
+        x: 100,
+        y: 0,
+        left: 100,
+        top: 0,
+        right: 100 + EDITOR_WIDTH,
+        bottom: 300,
+        width: EDITOR_WIDTH,
+        height: 300,
+        toJSON: () => ({}),
+      }) as DOMRect;
+    await shell.user.pointer([
+      { keys: "[MouseLeft>]", target: divider(), coords: { clientX: 300 } },
+      { target: divider(), coords: { clientX: 380 } },
+      { keys: "[/MouseLeft]", target: divider(), coords: { clientX: 380 } },
+    ]);
+    expect(shareShown()).toBe("70");
+  });
+
+  it("is kept for the next editor that opens", async () => {
+    const { shell } = await renderOpenedCanvas();
+    await enterEditByDoubleClick();
+    divider().focus();
+    await shell.user.keyboard("{ArrowLeft}");
+    await shell.user.click(screen.getByRole("button", { name: "完了" }));
+    await act(settle);
+    // The second block (the helper looks for the first block's source box).
+    fireEvent.doubleClick(blockOption(1));
+    expect(shareShown()).toBe("45");
   });
 });

@@ -21,4 +21,13 @@ export const LAYOUT_CONFIG = {
   noticeDurationMs: 4000,
   // A right-click menu is kept at least this far inside the window edges.
   contextMenuEdgeMarginPx: 4,
+  // The Source | Preview split of the Markdown / Mermaid editor: the share of the width the
+  // source takes. Kept inside the limits so neither side disappears (hiding the preview is
+  // its own switch); the divider moves by the step per arrow key.
+  sourceEditor: {
+    defaultSourceShare: 0.5,
+    minSourceShare: 0.2,
+    maxSourceShare: 0.8,
+    keyStepShare: 0.05,
+  },
 } as const;

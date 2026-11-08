@@ -37,6 +37,9 @@ export function MarkdownEditor({
         editor: messages.editorLabel(shortId),
         source: messages.sourceLabel(shortId),
         done: messages.done,
+        hidePreview: messages.hidePreview,
+        showPreview: messages.showPreview,
+        divider: messages.sourcePreviewDivider,
       }}
       renderPreview={(draft) => (
         <MarkdownDraftPreview

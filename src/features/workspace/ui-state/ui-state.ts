@@ -9,6 +9,7 @@
 import type { Viewport } from "../../../application/local-state/viewport";
 import type { OperationError } from "../../../application/ports/operation-error";
 import type { BlockContentComparison } from "../../../application/ports/persistence-types";
+import { LAYOUT_CONFIG } from "../../../config/layout-config";
 import type {
   BlockId,
   DocumentId,
@@ -383,6 +384,9 @@ export interface UiState {
   // The sidebar (Project Tree / Git panel) is folded away, leaving the document area the
   // whole width. A view choice of this window, kept across Project changes; never saved.
   readonly sidebarCollapsed: boolean;
+  // How the Markdown / Mermaid source editor splits its width with the preview, shared by
+  // every block. A view choice of this window, kept across Project changes; never saved.
+  readonly sourceEditorLayout: SourceEditorLayout;
   // Side-by-side or inline diff. A view preference of this window shared by all diff tabs;
   // kept across Project changes (like `leftPanelMode`) and never saved.
   readonly diffViewMode: DiffViewMode;
@@ -457,6 +461,17 @@ export type MainTabRef =
 export const DOCUMENT_MAIN_TAB: MainTabRef = { kind: "document" };
 export const COMPARE_MAIN_TAB: MainTabRef = { kind: "compare" };
 
+export interface SourceEditorLayout {
+  // The share of the width the source takes (LAYOUT_CONFIG.sourceEditor limits).
+  readonly sourceShare: number;
+  readonly previewHidden: boolean;
+}
+
+export const DEFAULT_SOURCE_EDITOR_LAYOUT: SourceEditorLayout = {
+  sourceShare: LAYOUT_CONFIG.sourceEditor.defaultSourceShare,
+  previewHidden: false,
+};
+
 export type UiStateStore = Store<UiState>;
 
 const IDLE: Interaction = { kind: "idle" };
@@ -485,6 +500,7 @@ export function createInitialUiState(): UiState {
     busy: false,
     leftPanelMode: DEFAULT_LEFT_PANEL_MODE,
     sidebarCollapsed: false,
+    sourceEditorLayout: DEFAULT_SOURCE_EDITOR_LAYOUT,
     diffViewMode: DEFAULT_DIFF_VIEW_MODE,
     diffTabs: [],
     activeMainTab: DOCUMENT_MAIN_TAB,
