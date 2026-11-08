@@ -262,6 +262,26 @@ describe("a Mermaid block outside edit mode", () => {
         .getAttribute("aria-pressed"),
     ).toBe("true");
   });
+
+  it("closes the GUI editor on a click outside, even when nothing in it was touched", async () => {
+    const { shell } = await opened();
+    fireEvent.pointerDown(blockOption(MERMAID_OPTION), pointer(5, 5));
+    fireEvent.pointerUp(canvasElement(), pointer(5, 5));
+    await press({ key: "Enter" });
+    const editor = screen.getByRole("group", {
+      name: MESSAGES.editorLabel("00000001"),
+    });
+    // Focus is inside the editor from the start, so it can leave it.
+    expect(editor.contains(document.activeElement)).toBe(true);
+
+    await shell.user.click(canvasElement());
+    await act(settle);
+
+    expect(
+      screen.queryByRole("group", { name: MESSAGES.editorLabel("00000001") }),
+    ).toBeNull();
+    expect(shell.uiStateStore.getState().editingBlock).toBeNull();
+  });
 });
 
 describe("editing a Mermaid block", () => {
