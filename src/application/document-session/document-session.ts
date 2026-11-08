@@ -208,6 +208,21 @@ export function createDocumentSession(
   );
   let undoStack: readonly HistoryEntry[] = seed?.undo ?? [];
   let redoStack: readonly HistoryEntry[] = seed?.redo ?? [];
+  // Every state the history can reach has a number, so a return to the last saved state
+  // can be recognised after undo / redo (as an editor's "saved version"). `undoStateIds`
+  // and `redoStateIds` run parallel to the stacks: the state an undo / a redo leads to.
+  let nextStateId = 0;
+  const newStateId = (): number => {
+    nextStateId += 1;
+    return nextStateId;
+  };
+  let currentStateId = newStateId();
+  let undoStateIds: readonly number[] = undoStack.map(newStateId);
+  let redoStateIds: readonly number[] = redoStack.map(newStateId);
+  // The state the files hold, or null when that is not known: a change outside the
+  // history, a save or a file-backed step that did not finish, files changed outside the
+  // app. Kept up to date by `publish` whenever nothing is dirty.
+  let savedStateId: number | null = currentStateId;
   let warnings: readonly OperationWarning[] = [];
   let closed = false;
   let queueTail: Promise<void> = Promise.resolve();
@@ -238,7 +253,13 @@ export function createDocumentSession(
     projectId,
     documentId,
     gateway,
-    flushPending: () => coordinator.saveDirty(),
+    // The files are about to be written directly; until the step succeeds (and `commit`
+    // publishes a clean state) they match no known state.
+    flushPending: async () => {
+      const flushed = await coordinator.saveDirty();
+      savedStateId = null;
+      return flushed;
+    },
   };
 
   function buildState(): DocumentSessionState {
@@ -301,15 +322,38 @@ export function createDocumentSession(
     return withContents(next, withText);
   }
 
+  // Writing is under way: what the files hold is in between. Nothing dirty and nothing
+  // being written: the files hold the current state.
+  function trackSavedState(): void {
+    const save = coordinator.getState();
+    if (save.saving) {
+      savedStateId = null;
+      return;
+    }
+    const clean =
+      !save.documentDirty &&
+      save.dirtySheetIds.size === 0 &&
+      save.dirtyContentBlockIds.size === 0;
+    if (clean) savedStateId = currentStateId;
+  }
+
   function publish(): void {
+    trackSavedState();
     current = buildState();
     options.onStateChange(current);
+  }
+
+  // A change that the history does not record: returning to the saved state by undo no
+  // longer means the data equals the files.
+  function markDirtyOutsideHistory(change: DocumentDataChange): void {
+    savedStateId = null;
+    coordinator.markDirty(change);
   }
 
   current = buildState();
   // A handed-over session's unsaved changes are its own now: they get the usual timer.
   if (seed !== undefined && hasChanges(seed.unsaved)) {
-    coordinator.markDirty(seed.unsaved);
+    markDirtyOutsideHistory(seed.unsaved);
   }
 
   function closedError<T>(): OperationResult<T> {
@@ -322,9 +366,33 @@ export function createDocumentSession(
     publish();
   }
 
+  // Moves the history position along with the stacks (whose new lengths are given; the
+  // undo stack drops its oldest entries beyond the limit).
+  function moveStatePosition(
+    move: Direction | "execute",
+    undoLength: number,
+  ): void {
+    if (move === "undo") {
+      redoStateIds = [...redoStateIds, currentStateId];
+      currentStateId = undoStateIds.at(-1) ?? newStateId();
+      undoStateIds = undoStateIds.slice(0, -1);
+      return;
+    }
+    const pushed = [...undoStateIds, currentStateId];
+    undoStateIds = pushed.slice(Math.max(0, pushed.length - undoLength));
+    if (move === "redo") {
+      currentStateId = redoStateIds.at(-1) ?? newStateId();
+      redoStateIds = redoStateIds.slice(0, -1);
+    } else {
+      currentStateId = newStateId();
+      redoStateIds = [];
+    }
+  }
+
   // Assigns the successful outcome and publishes exactly once.
   function commit(
     next: DocumentData,
+    move: Direction | "execute",
     stacks: { undo: readonly HistoryEntry[]; redo: readonly HistoryEntry[] },
     operationWarnings: readonly OperationWarning[],
     pending: DocumentDataChange,
@@ -332,11 +400,15 @@ export function createDocumentSession(
     data = next;
     undoStack = stacks.undo;
     redoStack = stacks.redo;
+    moveStatePosition(move, stacks.undo.length);
     warnings = operationWarnings;
-    if (hasChanges(pending)) {
-      coordinator.markDirty(pending);
-    } else {
+    if (!hasChanges(pending)) {
       publish();
+    } else if (move !== "execute" && savedStateId === currentStateId) {
+      // Undo / redo arrived back at what the files hold: nothing is unsaved.
+      coordinator.markClean();
+    } else {
+      coordinator.markDirty(pending);
     }
   }
 
@@ -367,6 +439,8 @@ export function createDocumentSession(
     command: FileBackedCommand,
   ): Promise<OperationResult<void>> {
     const outcome = await runFileBackedFirstTime(command);
+    // A failure may have left some files written.
+    if (!outcome.ok) savedStateId = null;
     if (!outcome.ok) return failWith(outcome.error);
     // Nothing was created or removed (empty request): not a history step.
     if (outcome.value.captured.length === 0) return operationOk(undefined);
@@ -384,6 +458,7 @@ export function createDocumentSession(
           ? withLoadedBlocks(replaced, outcome.value.captured)
           : replaced,
       ),
+      "execute",
       {
         undo: pushWithLimit(undoStack, entry, config.undoHistoryLimit),
         redo: [],
@@ -402,6 +477,7 @@ export function createDocumentSession(
     if (!hasChanges(applied.value.pending)) return operationOk(undefined);
     commit(
       applied.value.data,
+      "execute",
       {
         undo: pushWithLimit(
           undoStack,
@@ -426,7 +502,11 @@ export function createDocumentSession(
       sheet.value,
       entry,
     );
-    if (!toggled.ok) return failWith(toggled.error);
+    if (!toggled.ok) {
+      // A failure may have left some files written.
+      savedStateId = null;
+      return failWith(toggled.error);
+    }
     const replaced = replaceSheet(data, toggled.value.sheet);
     return operationOk({
       data: syncBlockState(
@@ -466,6 +546,7 @@ export function createDocumentSession(
     const remaining = source.slice(0, -1);
     commit(
       next,
+      direction,
       direction === "undo"
         ? { undo: remaining, redo: [...redoStack, updated] }
         : {
@@ -504,9 +585,11 @@ export function createDocumentSession(
     if (structuralOptions.clearHistory) {
       undoStack = [];
       redoStack = [];
+      undoStateIds = [];
+      redoStateIds = [];
     }
     if (structuralOptions.markDirty && hasChanges(pending)) {
-      coordinator.markDirty(pending);
+      markDirtyOutsideHistory(pending);
     } else {
       publish();
     }
@@ -516,7 +599,7 @@ export function createDocumentSession(
   const exclusiveScope: SessionExclusiveScope = {
     getData: () => data,
     saveDirty: () => coordinator.saveDirty(),
-    markDirty: (change) => coordinator.markDirty(change),
+    markDirty: markDirtyOutsideHistory,
     applyStructuralChange,
   };
 
@@ -587,11 +670,17 @@ export function createDocumentSession(
       ),
     flush: () => queued(() => coordinator.saveDirty()),
     resumeAutoSave: () => coordinator.resumeAutoSave(),
-    suspendSaving: (error) => coordinator.suspendSaving(error),
+    suspendSaving: (error) => {
+      // The files changed outside the app: they match no state of this session.
+      savedStateId = null;
+      coordinator.suspendSaving(error);
+    },
     resumeSaving: () => coordinator.resumeSaving(),
     clearHistory() {
       undoStack = [];
       redoStack = [];
+      undoStateIds = [];
+      redoStateIds = [];
       publish();
     },
     runExclusive: (task) =>
