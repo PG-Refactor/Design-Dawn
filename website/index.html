@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Design Dawn — Free-form canvas for design documents with Markdown &amp; Mermaid</title>
+  <meta name="description" content="Design Dawn is a free, open-source desktop app for writing design documents on a free-form canvas with Markdown, Mermaid diagrams and images. Git-friendly plain files, a Mermaid GUI editor, and an MCP server for AI tools.">
+  <link rel="canonical" href="https://pg-refactor.github.io/Design-Dawn/">
+  <link rel="alternate" hreflang="en" href="https://pg-refactor.github.io/Design-Dawn/">
+  <link rel="alternate" hreflang="ja" href="https://pg-refactor.github.io/Design-Dawn/ja/">
+  <link rel="alternate" hreflang="x-default" href="https://pg-refactor.github.io/Design-Dawn/">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+  <meta name="theme-color" content="#0e1220">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Design Dawn">
+  <meta property="og:title" content="Design Dawn — Design documents on a free-form canvas">
+  <meta property="og:description" content="Markdown, Mermaid diagrams and images on one canvas, stored as Git-friendly plain files. Includes a Mermaid GUI editor and an MCP server for AI tools.">
+  <meta property="og:url" content="https://pg-refactor.github.io/Design-Dawn/">
+  <meta property="og:image" content="https://pg-refactor.github.io/Design-Dawn/images/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta property="og:image:alt" content="Design Dawn: a design document with Markdown notes and a Mermaid flowchart on a canvas">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:locale:alternate" content="ja_JP">
+
+  <link rel="stylesheet" href="style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Design Dawn",
+    "description": "Desktop app for writing design documents on a free-form canvas with Markdown, Mermaid diagrams and images, stored as Git-friendly plain files, with a Mermaid GUI editor and a local MCP server for AI tools.",
+    "applicationCategory": "DeveloperApplication",
+    "applicationSubCategory": "Documentation tool",
+    "operatingSystem": "Windows 11; Linux (build from source)",
+    "license": "https://opensource.org/licenses/MIT",
+    "isAccessibleForFree": true,
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "url": "https://pg-refactor.github.io/Design-Dawn/",
+    "downloadUrl": "https://github.com/PG-Refactor/Design-Dawn/releases/latest",
+    "codeRepository": "https://github.com/PG-Refactor/Design-Dawn",
+    "image": "https://pg-refactor.github.io/Design-Dawn/images/og.png",
+    "screenshot": "https://pg-refactor.github.io/Design-Dawn/images/overview-dark.png",
+    "inLanguage": ["en", "ja"],
+    "featureList": [
+      "Free-form canvas with pan, zoom, align and undo/redo",
+      "Markdown blocks with split source/preview editing",
+      "Mermaid diagrams rendered locally",
+      "GUI editor for Mermaid flowcharts, sequence diagrams, Gantt and pie charts",
+      "Image blocks (PNG, JPEG, WebP, SVG, GIF)",
+      "Git integration: status, commit, history, side-by-side diffs, pull/push",
+      "Detection of external changes made by other editors, Git or AI tools",
+      "Local MCP server for Claude, Codex, GitHub Copilot and Cursor"
+    ]
+  }
+  </script>
+</head>
+<body>
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="images/icon-64.png" alt="" width="28" height="28">Design Dawn</a>
+    <nav class="top" aria-label="Main">
+      <a class="hide-sm" href="#features">Features</a>
+      <a class="hide-sm" href="#files">File format</a>
+      <a class="hide-sm" href="#ai">AI / MCP</a>
+      <a href="ja/" hreflang="ja" lang="ja">日本語</a>
+      <a href="https://github.com/PG-Refactor/Design-Dawn">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="wrap">
+      <h1>Design documents on a <span class="glow">free-form canvas</span></h1>
+      <p class="lead">Design Dawn is a free, open-source desktop app for writing software design documents.
+        Place <strong>Markdown</strong>, <strong>Mermaid diagrams</strong> and <strong>images</strong> anywhere on a sheet —
+        and keep everything as plain files that people can read, Git can diff, and AI tools can safely edit.</p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/PG-Refactor/Design-Dawn">Get it on GitHub</a>
+        <a class="btn" href="https://github.com/PG-Refactor/Design-Dawn/releases/latest">Download for Windows</a>
+        <a class="btn" href="https://github.com/PG-Refactor/Design-Dawn#building-and-running">Build from source</a>
+      </div>
+      <img class="shot" src="images/overview-dark.png" width="1600" height="1000"
+           alt="Design Dawn showing a design document with Markdown notes and a captioned Mermaid flowchart on the canvas">
+    </div>
+  </div>
+
+  <section id="features">
+    <div class="wrap">
+      <h2>A Markdown and Mermaid editor built for design docs</h2>
+      <p class="sub">A document is a set of sheets; each sheet holds freely placed blocks. Edit text, diagrams and screenshots side by side instead of in one long scroll.</p>
+      <div class="grid">
+        <div class="card"><h3>Free-form canvas</h3><p>Pan, zoom, select, move, resize, align and reorder blocks, with undo/redo for every edit.</p></div>
+        <div class="card"><h3>Project tree</h3><p>Documents in folders, several open at once; drag rows to reorder or move them.</p></div>
+        <div class="card"><h3>Markdown blocks</h3><p>Rendered on the canvas; split source/preview editor while you write.</p></div>
+        <div class="card"><h3>Mermaid diagrams</h3><p>Any Mermaid diagram, rendered locally and sanitised — no network, no scripts.</p></div>
+        <div class="card"><h3>Mermaid GUI editor</h3><p>Edit flowcharts, sequence diagrams, Gantt and pie charts with lists and property fields. The Mermaid source stays the single source of truth.</p></div>
+        <div class="card"><h3>Git integration</h3><p>Status, stage, commit, history, side-by-side diffs, fetch, pull and push without leaving the app.</p></div>
+        <div class="card"><h3>External change detection</h3><p>Edits from another editor, Git or an AI tool are picked up; reload, keep yours or compare.</p></div>
+        <div class="card"><h3>Images and captions</h3><p>PNG, JPEG, WebP, SVG and GIF by drag and drop, with one-line captions for figures.</p></div>
+        <div class="card"><h3>Light / dark, English / Japanese</h3><p>Both themes and both UI languages are built in.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="screens">
+    <div class="wrap">
+      <h2>Screenshots</h2>
+      <p class="sub">Diagrams you can edit without memorising syntax, and diffs that stay readable.</p>
+      <div class="gallery">
+        <figure><img class="shot" loading="lazy" src="images/flowchart-gui.png" width="1600" height="1000" alt="Mermaid flowchart GUI editor with a node list and a right-click menu"><figcaption>Flowchart GUI editor</figcaption></figure>
+        <figure><img class="shot" loading="lazy" src="images/sequence-gui.png" width="1600" height="1000" alt="Mermaid sequence diagram GUI editor with a selected message"><figcaption>Sequence diagram GUI editor</figcaption></figure>
+        <figure><img class="shot" loading="lazy" src="images/markdown-edit.png" width="1600" height="1000" alt="Markdown block in split source and preview mode"><figcaption>Markdown with live preview</figcaption></figure>
+        <figure><img class="shot" loading="lazy" src="images/git-diff.png" width="1600" height="1000" alt="Side-by-side Git diff of a Markdown block"><figcaption>Side-by-side Git diff</figcaption></figure>
+        <figure><img class="shot" loading="lazy" src="images/plan.png" width="1600" height="1000" alt="Mermaid Gantt chart and pie chart on a sheet"><figcaption>Gantt and pie charts</figcaption></figure>
+        <figure><img class="shot" loading="lazy" src="images/light-theme.png" width="1600" height="1000" alt="Design Dawn in the light theme"><figcaption>Light theme</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="files">
+    <div class="wrap two">
+      <div>
+        <h2>Docs as code: plain files, readable diffs</h2>
+        <p>Layout lives in small JSON files and content lives in <code>.md</code> and <code>.mmd</code> files.
+          Review design changes in pull requests, and let a person or an AI change one block without touching the rest.
+          Every JSON file carries a <code>schemaVersion</code>, and IDs are stable UUIDs.</p>
+        <p>No proprietary database and no lock-in: if you stop using Design Dawn, your documents are still Markdown and Mermaid.</p>
+      </div>
+<pre><code>my-project/
+├── project.json
+├── system-design.dawn
+└── documents/
+    └── system-design/
+        ├── document.json
+        ├── assets/
+        └── sheets/
+            └── overview/
+                ├── sheet.json
+                └── blocks/
+                    ├── markdown-1.md
+                    └── mermaid-1.mmd</code></pre>
+    </div>
+  </section>
+
+  <section id="ai">
+    <div class="wrap two">
+      <div>
+        <h2>Let AI read and edit your design docs (MCP)</h2>
+        <p><code>design-dawn-mcp</code> is a local MCP server (stdio only, no network port) that lets
+          <strong>Claude, Codex, GitHub Copilot, Cursor</strong> and other MCP clients read and edit the projects you offer to them.</p>
+        <p>Every project is read-only for AI until you allow editing. An AI can ask for write access, but only your answer in the app counts.
+          Edits use content hashes, so concurrent changes become conflicts instead of silent overwrites.</p>
+<pre><code>claude mcp add design-dawn -- /path/to/design-dawn-mcp</code></pre>
+      </div>
+      <img class="shot" loading="lazy" src="images/ai-request.png" width="1600" height="1000" alt="Design Dawn asking whether an AI tool may edit a project">
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="wrap">
+      <h2>FAQ</h2>
+      <details class="faq"><summary>Is Design Dawn free?</summary><p>Yes. It is open source under the MIT License.</p></details>
+      <details class="faq"><summary>Which platforms are supported?</summary><p>Windows 11, with a ready-to-run download. On Linux it can be built from source. It is built with Tauri 2 (Rust and TypeScript).</p></details>
+      <details class="faq"><summary>How is it different from a Markdown editor or a whiteboard tool?</summary><p>It combines both: Markdown and Mermaid blocks are placed freely on sheets like a whiteboard, but everything is saved as plain text files that work with Git and code review.</p></details>
+      <details class="faq"><summary>Does it need an internet connection?</summary><p>No. Diagrams are rendered locally, and the MCP server opens no network connections.</p></details>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span>Design Dawn · MIT License</span>
+    <span><a href="https://github.com/PG-Refactor/Design-Dawn">GitHub</a> · <a href="https://github.com/PG-Refactor/Design-Dawn/issues">Issues</a> · <a href="ja/" hreflang="ja" lang="ja">日本語</a></span>
+  </div>
+</footer>
+</body>
+</html>
