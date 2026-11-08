@@ -256,7 +256,6 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     deleteFolderNotEmptyHint: "Only empty folders can be deleted",
     folderExpandedMarker: "▾",
     folderCollapsedMarker: "▸",
-    emptyFolder: "This folder is empty",
     rename: "Rename",
     menuButtonText: "⋮",
     unnamedEntity: "(name cannot be loaded)",
@@ -534,6 +533,7 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
   skippedBlocks: (count) => (count === 1 ? "1 block" : `${count} blocks`),
   documentSourceLabel: (name) => `Document: ${name}`,
   moveEntryTitle: (name) => `Move ${quoted(name)}…`,
+  moveEntriesTitle: (count: number): string => `Move ${count} items`,
   closeDocumentConfirmationTitle: (name) => `Close ${quoted(name)}`,
   deleteConfirmationTitle: (name) => `Delete ${quoted(name)}?`,
   operationFailure: (subject, headline, errorText) =>

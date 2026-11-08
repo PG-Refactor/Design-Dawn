@@ -257,7 +257,6 @@ export const WORKSPACE_MESSAGES_JA = {
     deleteFolderNotEmptyHint: "空のフォルダだけ削除できます",
     folderExpandedMarker: "▾",
     folderCollapsedMarker: "▸",
-    emptyFolder: "空のフォルダです",
     rename: "名前変更",
     menuButtonText: "⋮",
     unnamedEntity: "（名前を読み込めません）",
@@ -535,6 +534,7 @@ export const WORKSPACE_MESSAGES_JA = {
   skippedBlocks: (count: number): string => `${count}個のBlock`,
   documentSourceLabel: (name: string): string => `Document: ${name}`,
   moveEntryTitle: (name: string): string => `${quoted(name)}移動…`,
+  moveEntriesTitle: (count: number): string => `${count}件を移動`,
   closeDocumentConfirmationTitle: (name: string): string =>
     `${quoted(name)}を閉じる`,
   deleteConfirmationTitle: (name: string): string =>

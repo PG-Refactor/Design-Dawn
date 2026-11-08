@@ -45,7 +45,8 @@ export interface TreeItemProps {
   // Failed to load: shown with a text marker, cannot be activated.
   readonly failed?: boolean;
   readonly register: (key: string, element: HTMLLIElement | null) => void;
-  readonly onFocusItem: (key: string) => void;
+  // A click (plain, Ctrl/Cmd or Shift) or right-click chooses the row.
+  readonly onChoose?: (mode: TreeChooseMode) => void;
   readonly onNavigate: (
     event: KeyboardEvent<HTMLLIElement>,
     key: string,
@@ -74,6 +75,10 @@ export interface TreeItemProps {
   readonly onContextMenu: TreeContextMenuHandler;
   readonly children?: ReactNode;
 }
+
+// How a pointer action chooses a row: alone (a plain click), added or removed (Ctrl/Cmd),
+// the range from the anchor (Shift), or for its right-click menu.
+export type TreeChooseMode = "replace" | "toggle" | "range" | "context";
 
 export type TreeContextMenuHandler = (
   event: MouseEvent,
@@ -112,7 +117,7 @@ export function TreeItem({
   icon,
   failed = false,
   register,
-  onFocusItem,
+  onChoose,
   onNavigate,
   onActivate,
   onRename,
@@ -139,8 +144,9 @@ export function TreeItem({
     if (event.target instanceof Element && event.target.closest("input")) {
       return;
     }
-    // The row the menu is for becomes the focused one (and the toolbar's target).
+    // The row the menu is for becomes the focused one, and chosen unless it already is.
     event.currentTarget.focus({ preventScroll: true });
+    onChoose?.("context");
     onContextMenu(
       event,
       messages.treeMenuLabel(label),
@@ -158,6 +164,14 @@ export function TreeItem({
     if (renaming !== undefined) return;
     if (ignoreClick?.() === true) return;
     event.currentTarget.focus();
+    const mode: TreeChooseMode = event.shiftKey
+      ? "range"
+      : event.ctrlKey || event.metaKey
+        ? "toggle"
+        : "replace";
+    onChoose?.(mode);
+    // Ctrl/Cmd and Shift only change which rows are chosen: nothing opens or folds.
+    if (mode !== "replace") return;
     // A second click on the row that is already selected renames it. The second half of
     // a double-click (detail > 1) is not that: it is the user hurrying, not asking.
     if (
@@ -227,9 +241,6 @@ export function TreeItem({
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       onContextMenu={handleContextMenu}
-      onFocus={(event) => {
-        if (event.target === event.currentTarget) onFocusItem(itemKey);
-      }}
       {...fallbackProps}
     >
       <div ref={rowElement} className="tree-item__row" {...dragHandlers}>

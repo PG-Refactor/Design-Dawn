@@ -69,7 +69,7 @@ import {
   setLeftPanelMode,
   setNotificationsOpen,
   setSidebarCollapsed,
-  setTreeSelectionKey,
+  setTreeSelection,
   showNotice,
 } from "./ui-state/shell-ui-state";
 import {
@@ -88,6 +88,8 @@ import {
   type UnsavedCloseTarget,
 } from "./ui-state/ui-state";
 import { type MoveDirection, oneStepMove } from "./view-models/reorder";
+import { documentTreeKey } from "./view-models/tree-items";
+import { selectOnly, type TreeSelection } from "./view-models/tree-selection";
 
 // A place a new Project can go in: a folder selection kept by Rust, and its path to show.
 export interface ProjectLocation {
@@ -205,10 +207,12 @@ export interface WorkspaceActions {
     targetParentFolderId: FolderId | null,
     beforeEntryId?: EntryId | null,
   ): Promise<OperationResult<void>>;
-  // A drop in the Project Tree: within the same parent it only reorders (saved at once,
-  // not undoable, like any reorder); into another parent it is `moveEntryTo`.
-  placeEntry(
-    entryId: EntryId,
+  // A drop in the Project Tree: puts the entries, in the order given, into the target in
+  // front of `beforeEntryId` (null = last). Within an entry's own parent that only reorders
+  // (saved at once, not undoable, like any reorder); into another parent it moves, asking
+  // once first when anything that moves has unsaved changes (see `confirmMoveSave`).
+  placeEntries(
+    entryIds: readonly EntryId[],
     targetParentFolderId: FolderId | null,
     beforeEntryId: EntryId | null,
   ): Promise<OperationResult<void>>;
@@ -297,8 +301,11 @@ export interface WorkspaceActions {
   setNotificationsOpen(open: boolean): void;
   setLeftPanelMode(mode: LeftPanelMode): void;
   setSidebarCollapsed(collapsed: boolean): void;
-  // The Project Tree row that is chosen (a tree key), or null for none.
-  selectTreeRow(key: string | null): void;
+  // The rows chosen in the Project Tree.
+  setTreeSelection(selection: TreeSelection): void;
+  // Chooses the row of the Document the user is working on (a click or focus in its area),
+  // unless it is already the only row chosen.
+  revealDocumentInTree(documentId: DocumentId): void;
 }
 
 export interface WorkspaceActionsDependencies {
@@ -611,6 +618,74 @@ export function createWorkspaceActions(
     );
     if (!result.ok) record("moveDocument", found.entry.name, result.error);
     return result;
+  }
+
+  // Puts each entry, in the order given, into the target in front of `beforeEntryId`: a
+  // reorder within its own parent, a move into another one. Stops at the first failure
+  // (what moved before it stays moved, like any move).
+  async function placeAll(
+    entryIds: readonly EntryId[],
+    targetParentFolderId: FolderId | null,
+    beforeEntryId: EntryId | null,
+  ): Promise<OperationResult<void>> {
+    for (const entryId of entryIds) {
+      const project = applicationStore.getState().project;
+      const found =
+        project === null ? null : findProjectEntry(project, entryId);
+      if (found === null || found.entry.state !== "loaded") continue;
+      const result =
+        found.entry.parentFolderId === targetParentFolderId
+          ? await reorderEntry(entryId, beforeEntryId)
+          : await performMove(
+              entryId,
+              found.entry.name,
+              targetParentFolderId,
+              beforeEntryId,
+            );
+      if (!result.ok) return result;
+    }
+    return operationOk(undefined);
+  }
+
+  // The open Documents that a move of these entries carries along.
+  function documentsMovedWith(entryIds: readonly EntryId[]): DocumentId[] {
+    return [
+      ...new Set(entryIds.flatMap((id) => workspace.openDocumentsUnder(id))),
+    ];
+  }
+
+  // Asks first (and moves nothing yet) when an open Document that moves has unsaved
+  // changes; otherwise places the entries and closes the move picker if it is open.
+  function requestPlacement(
+    entryIds: readonly EntryId[],
+    targetParentFolderId: FolderId | null,
+    beforeEntryId: EntryId | null,
+  ): Promise<OperationResult<void>> {
+    const [first] = entryIds;
+    if (uiStateStore.getState().busy || first === undefined) {
+      return Promise.resolve(operationOk(undefined));
+    }
+    if (hasUnsavedChangesIn(documentsMovedWith(entryIds))) {
+      uiStateStore.setState((state) =>
+        openDialog(state, {
+          kind: "confirmMoveSave",
+          entryIds,
+          name: entryNameOf(first),
+          targetParentFolderId,
+          beforeEntryId,
+        }),
+      );
+      return Promise.resolve(operationOk(undefined));
+    }
+    return runBusy(async () => {
+      const result = await placeAll(
+        entryIds,
+        targetParentFolderId,
+        beforeEntryId,
+      );
+      uiStateStore.setState(closeDialog);
+      return result;
+    });
   }
 
   async function performMove(
@@ -1136,44 +1211,17 @@ export function createWorkspaceActions(
         }),
       );
     },
-    moveEntryTo(entryId, targetParentFolderId, beforeEntryId = null) {
-      if (uiStateStore.getState().busy) {
-        return Promise.resolve(operationOk(undefined));
-      }
-      const name = entryNameOf(entryId);
-      if (hasUnsavedChangesIn(workspace.openDocumentsUnder(entryId))) {
-        uiStateStore.setState((state) =>
-          openDialog(state, {
-            kind: "confirmMoveSave",
-            entryId,
-            name,
-            targetParentFolderId,
-            beforeEntryId,
-          }),
-        );
-        return Promise.resolve(operationOk(undefined));
-      }
-      return runBusy(async () => {
-        const result = await performMove(
-          entryId,
-          name,
-          targetParentFolderId,
-          beforeEntryId,
-        );
-        uiStateStore.setState(closeDialog);
-        return result;
-      });
-    },
+    moveEntryTo: (entryId, targetParentFolderId, beforeEntryId = null) =>
+      requestPlacement([entryId], targetParentFolderId, beforeEntryId),
     confirmMoveSave() {
       const { dialog, busy } = uiStateStore.getState();
       if (busy || dialog.kind !== "confirmMoveSave") {
         return Promise.resolve(operationOk(undefined));
       }
-      const { entryId, targetParentFolderId, beforeEntryId } = dialog;
-      const name = entryNameOf(entryId);
+      const { entryIds, targetParentFolderId, beforeEntryId } = dialog;
       return runBusy(async () => {
         // Only what moves is saved; other documents keep their own (auto-)save state.
-        const affected = workspace.openDocumentsUnder(entryId);
+        const affected = documentsMovedWith(entryIds);
         const drafts = await draftRegistry.commitFor(affected);
         const flushed = drafts.ok
           ? await workspace.flushDocuments(affected)
@@ -1182,9 +1230,8 @@ export function createWorkspaceActions(
           uiStateStore.setState(closeDialog);
           return flushed;
         }
-        const result = await performMove(
-          entryId,
-          name,
+        const result = await placeAll(
+          entryIds,
           targetParentFolderId,
           beforeEntryId,
         );
@@ -1314,25 +1361,8 @@ export function createWorkspaceActions(
       return renameThroughSession(target, parsed.value, current);
     },
 
-    placeEntry(entryId, targetParentFolderId, beforeEntryId) {
-      const project = applicationStore.getState().project;
-      const found =
-        project === null ? null : findProjectEntry(project, entryId);
-      if (found === null || found.entry.state !== "loaded") {
-        return Promise.resolve(operationOk(undefined));
-      }
-      if (found.entry.parentFolderId !== targetParentFolderId) {
-        return actions.moveEntryTo(
-          entryId,
-          targetParentFolderId,
-          beforeEntryId,
-        );
-      }
-      if (uiStateStore.getState().busy) {
-        return Promise.resolve(operationOk(undefined));
-      }
-      return reorderEntry(entryId, beforeEntryId);
-    },
+    placeEntries: (entryIds, targetParentFolderId, beforeEntryId) =>
+      requestPlacement(entryIds, targetParentFolderId, beforeEntryId),
     async moveDocumentBy(documentId, direction) {
       const project = applicationStore.getState().project;
       const entry = project?.documents.find(
@@ -1428,8 +1458,13 @@ export function createWorkspaceActions(
     setSidebarCollapsed(collapsed) {
       uiStateStore.setState((state) => setSidebarCollapsed(state, collapsed));
     },
-    selectTreeRow(key) {
-      uiStateStore.setState((state) => setTreeSelectionKey(state, key));
+    setTreeSelection(selection) {
+      uiStateStore.setState((state) => setTreeSelection(state, selection));
+    },
+    revealDocumentInTree(documentId) {
+      uiStateStore.setState((state) =>
+        setTreeSelection(state, selectOnly(documentTreeKey(documentId))),
+      );
     },
     setLeftPanelMode(mode) {
       uiStateStore.setState((state) => setLeftPanelMode(state, mode));

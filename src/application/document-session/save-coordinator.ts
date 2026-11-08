@@ -62,6 +62,10 @@ export interface SaveCoordinator {
   retainContentBlocks(liveBlockIds: ReadonlySet<BlockId>): void;
   // Saves everything dirty now. Must be called from inside the session queue.
   saveDirty(): Promise<OperationResult<void>>;
+  // Forgets every dirty flag: the data is back to exactly what the files hold (an undo or
+  // redo returned to the last saved state). Stops the timer, clears the last save error
+  // (there is nothing left to save) and notifies. Not while saving is stopped.
+  markClean(): void;
   dispose(): void;
 }
 
@@ -245,6 +249,15 @@ export function createSaveCoordinator(
       );
     },
     saveDirty,
+    markClean() {
+      if (disposed || suspension !== null) return;
+      dirtySheetIds = new Set();
+      dirtyContentBlockIds = new Set();
+      documentDirty = false;
+      lastError = null;
+      stopTimer();
+      options.onChange();
+    },
     dispose() {
       disposed = true;
       stopTimer();

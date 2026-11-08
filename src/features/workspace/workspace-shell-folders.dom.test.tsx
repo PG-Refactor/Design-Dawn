@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   DOCUMENT_A,
@@ -277,8 +277,9 @@ describe("toolbar buttons that create where the cursor is", () => {
       { name },
     );
 
-  function putCursorOn(name: string): void {
-    act(() => treeItemNamed(name).focus());
+  // Chooses the row with a plain click (focus alone does not choose it).
+  async function putCursorOn(harness: ShellHarness, name: string) {
+    await harness.user.click(within(treeItemNamed(name)).getByText(name));
   }
 
   async function submitName(
@@ -296,7 +297,7 @@ describe("toolbar buttons that create where the cursor is", () => {
 
   it("creates a folder inside the folder the cursor is on", async () => {
     const harness = await openedShell();
-    putCursorOn("Folder 2");
+    await putCursorOn(harness, "Folder 2");
     await harness.user.click(toolbarButton(TREE.createFolderIn("Folder 2")));
     await submitName(harness, MESSAGES.dialogs.createFolder, "Inner");
     expect(level("Inner")).toBe("4");
@@ -305,7 +306,7 @@ describe("toolbar buttons that create where the cursor is", () => {
 
   it("creates a document next to the document the cursor is on, in its folder", async () => {
     const harness = await openedShell();
-    putCursorOn("Document D");
+    await putCursorOn(harness, "Document D");
     await harness.user.click(toolbarButton(TREE.createDocumentIn("Folder 2")));
     await submitName(harness, MESSAGES.dialogs.createDocument, "Sibling");
     await screen.findByRole("tab", { name: /Sibling/ });
@@ -314,7 +315,7 @@ describe("toolbar buttons that create where the cursor is", () => {
 
   it("creates at the top level from the Project row", async () => {
     const harness = await openedShell();
-    putCursorOn("Project");
+    await putCursorOn(harness, "Project");
     await harness.user.click(toolbarButton(TREE.createFolderIn("Project")));
     await submitName(harness, MESSAGES.dialogs.createFolder, "Top");
     expect(level("Top")).toBe("2");

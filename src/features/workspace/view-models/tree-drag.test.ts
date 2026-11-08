@@ -4,6 +4,7 @@ import {
   folderIdOf,
 } from "../../../application/test-support/fakes";
 import {
+  movableKeys,
   type TreeDropHit,
   type TreeDropRow,
   treeDropHitAt,
@@ -140,7 +141,7 @@ describe("treeDropHitAt", () => {
 
 describe("treeMoveTargetOf", () => {
   const target = (draggedKey: string, hit: TreeDropHit | null) =>
-    treeMoveTargetOf(MODEL, draggedKey, hit);
+    treeMoveTargetOf(MODEL, [draggedKey], hit);
 
   it("moves a document in front of another one in the same parent", () => {
     expect(
@@ -230,5 +231,45 @@ describe("treeMoveTargetOf", () => {
       target(folderTreeKey(BROKEN), rowBefore(documentTreeKey(DOC_1))),
     ).toBeNull();
     expect(target(documentTreeKey(DOC_1), null)).toBeNull();
+  });
+});
+
+describe("dragging several rows", () => {
+  it("moves the chosen rows that can move, in display order, without the ones inside a chosen folder", () => {
+    expect(
+      movableKeys(MODEL, [
+        documentTreeKey(DOC_3),
+        PROJECT_TREE_KEY,
+        documentTreeKey(IN_OUTER),
+        folderTreeKey(OUTER),
+        documentTreeKey(FAILED_DOC),
+        documentTreeKey(DOC_1),
+      ]),
+    ).toEqual([
+      documentTreeKey(DOC_1),
+      folderTreeKey(OUTER),
+      documentTreeKey(DOC_3),
+    ]);
+  });
+
+  it("puts them together in front of a row that is not dragged", () => {
+    const dragged = [documentTreeKey(DOC_1), documentTreeKey(DOC_3)];
+    expect(
+      treeMoveTargetOf(MODEL, dragged, rowAfter(documentTreeKey(DOC_2))),
+    ).toEqual({ parentFolderId: null, beforeEntryId: BROKEN });
+    expect(
+      treeMoveTargetOf(MODEL, dragged, rowAfter(folderTreeKey(BROKEN))),
+    ).toEqual({ parentFolderId: null, beforeEntryId: FAILED_DOC });
+  });
+
+  it("refuses a drop on a dragged row or into a dragged folder", () => {
+    const dragged = [documentTreeKey(DOC_1), folderTreeKey(OUTER)];
+    expect(
+      treeMoveTargetOf(MODEL, dragged, rowBefore(documentTreeKey(DOC_1))),
+    ).toBeNull();
+    expect(
+      treeMoveTargetOf(MODEL, dragged, rowInside(folderTreeKey(INNER))),
+    ).toBeNull();
+    expect(treeMoveTargetOf(MODEL, [], rowInside(null))).toBeNull();
   });
 });

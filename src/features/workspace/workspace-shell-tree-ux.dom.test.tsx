@@ -3,6 +3,8 @@ import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   DOCUMENT_A,
+  DOCUMENT_B,
+  DOCUMENT_C,
   DOCUMENT_D,
   FOLDER_1,
   FOLDER_2,
@@ -251,5 +253,120 @@ describe("a Document without Sheets", () => {
         ).getAllByRole("tab"),
       ).toHaveLength(1),
     );
+  });
+});
+
+const chosenNames = () =>
+  screen
+    .getAllByRole("treeitem")
+    .filter((item) => item.getAttribute("aria-selected") === "true")
+    .map(
+      (item) =>
+        item.querySelector(":scope > .tree-item__row > .tree-item__label")
+          ?.textContent,
+    );
+
+const clickRow = (harness: ShellHarness, name: string, keys = "") =>
+  keys === ""
+    ? harness.user.click(within(treeItemNamed(name)).getByText(name))
+    : harness.user.keyboard(`{${keys}>}`).then(async () => {
+        await harness.user.click(within(treeItemNamed(name)).getByText(name));
+        await harness.user.keyboard(`{/${keys}}`);
+      });
+
+describe("choosing several rows", () => {
+  it("adds and removes rows with Ctrl, without opening or folding them", async () => {
+    const harness = await openedShell();
+    await clickRow(harness, "Document A");
+    await clickRow(harness, "Document B", "Control");
+    await clickRow(harness, "Folder 2", "Control");
+    expect(chosenNames()).toEqual(["Folder 2", "Document A", "Document B"]);
+    expect(expanded("Folder 2")).toBe("true");
+    expect(harness.store.getState().documents.has(DOCUMENT_B)).toBe(false);
+
+    await clickRow(harness, "Document A", "Control");
+    expect(chosenNames()).toEqual(["Folder 2", "Document B"]);
+  });
+
+  it("chooses a range with Shift (click or arrow keys), from the last plain click", async () => {
+    const harness = await openedShell();
+    await clickRow(harness, "Document C");
+    await clickRow(harness, "Document B", "Shift");
+    expect(chosenNames()).toEqual(["Document C", "Document A", "Document B"]);
+
+    await clickRow(harness, "Document D");
+    await harness.user.keyboard("{Shift>}{ArrowDown}{ArrowDown}{/Shift}");
+    expect(chosenNames()).toEqual(["Document D", "Document C", "Document A"]);
+  });
+
+  it("goes back to one row on a plain click", async () => {
+    const harness = await openedShell();
+    await clickRow(harness, "Document A");
+    await clickRow(harness, "Document B", "Shift");
+    await clickRow(harness, "Document C");
+    expect(chosenNames()).toEqual(["Document C"]);
+  });
+
+  it("drags all chosen rows together, in tree order", async () => {
+    const harness = await openedShell();
+    await clickRow(harness, "Document B");
+    await clickRow(harness, "Document C", "Control");
+    await dragTreeRow(harness.user, "Document B", yOnRow("Folder 2", 0.6));
+    await waitFor(() =>
+      expect(
+        harness.store
+          .getState()
+          .project?.folders.find((folder) => folder.folderId === FOLDER_2)
+          ?.childOrder,
+      ).toEqual([DOCUMENT_D, DOCUMENT_C, DOCUMENT_B]),
+    );
+  });
+
+  it("keeps the choice for a right-click inside it, and replaces it outside", async () => {
+    const harness = await openedShell();
+    await clickRow(harness, "Document A");
+    await clickRow(harness, "Document B", "Control");
+    await harness.user.pointer({
+      keys: "[MouseRight]",
+      target: within(treeItemNamed("Document B")).getByText("Document B"),
+    });
+    expect(chosenNames()).toEqual(["Document A", "Document B"]);
+    await harness.user.keyboard("{Escape}");
+    await harness.user.pointer({
+      keys: "[MouseRight]",
+      target: within(treeItemNamed("Document C")).getByText("Document C"),
+    });
+    expect(chosenNames()).toEqual(["Document C"]);
+  });
+});
+
+describe("the tree follows the Document being worked on", () => {
+  it("chooses the Document's row again on a click in its area or on its tab", async () => {
+    const harness = await openedShell();
+    await act(async () => {
+      await harness.actions.openDocument(DOCUMENT_A);
+    });
+    await harness.user.click(treeArea());
+    expect(chosenNames()).toEqual([]);
+
+    const panel = document.querySelector<HTMLElement>(".document-panel");
+    if (panel === null) throw new Error("no document panel");
+    await harness.user.pointer({ keys: "[MouseLeft]", target: panel });
+    expect(chosenNames()).toEqual(["Document A"]);
+
+    await harness.user.click(treeArea());
+    await harness.user.click(screen.getByRole("tab", { name: /Document A/ }));
+    expect(chosenNames()).toEqual(["Document A"]);
+  });
+});
+
+describe("an empty folder", () => {
+  it("shows no line below its row", async () => {
+    const harness = await openedShell();
+    await act(async () => {
+      await harness.actions.createFolder("Empty", null);
+    });
+    const row = treeItemNamed("Empty");
+    expect(row.querySelector("ul, p")).toBeNull();
   });
 });

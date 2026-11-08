@@ -74,7 +74,7 @@ describe("moving with unsaved changes", () => {
     expect(result.ok).toBe(true);
     expect(state(harness).dialog).toEqual({
       kind: "confirmMoveSave",
-      entryId: FOLDER_1,
+      entryIds: [FOLDER_1],
       name: "Folder 1",
       targetParentFolderId: null,
       beforeEntryId: null,

@@ -16,11 +16,15 @@ import {
   type TreeRowDrag,
 } from "./tree-entries";
 import { NewDocumentIcon, NewFolderIcon, ProjectIcon } from "./tree-icons";
-import { TreeItem } from "./tree-item";
+import { type TreeChooseMode, TreeItem } from "./tree-item";
 import { useMessages } from "./use-messages";
 import { type TreeRowKind, useTreeDrag } from "./use-tree-drag";
 import { treeNavigation } from "./view-models/keyboard-navigation";
-import { type TreeDropRow, treeMoveTargetOf } from "./view-models/tree-drag";
+import {
+  movableKeys,
+  type TreeDropRow,
+  treeMoveTargetOf,
+} from "./view-models/tree-drag";
 import {
   creationTargetOf,
   documentTreeKey,
@@ -33,6 +37,13 @@ import {
   selectProjectTree,
   type TreeEntryNode,
 } from "./view-models/tree-model";
+import {
+  EMPTY_TREE_SELECTION,
+  selectOnly,
+  selectRange,
+  toggleSelected,
+  visibleSelection,
+} from "./view-models/tree-selection";
 import { useUiState, useWorkspaceModel } from "./workspace-hooks";
 import { useWorkspaceServices } from "./workspace-services-context";
 import "./project-tree.css";
@@ -72,27 +83,51 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
   const messages = useMessages().workspace;
   const { actions, canvasActions, uiStateStore } = useWorkspaceServices();
   const renaming = useUiState((ui) => ui.renaming);
-  const storedSelection = useUiState((ui) => ui.treeSelectionKey);
+  const storedSelection = useUiState((ui) => ui.treeSelection);
   const activeDocumentId = useUiState((ui) => ui.activeDocumentId);
   const items = useMemo(() => flattenProjectTree(model), [model]);
   const itemElements = useRef(new Map<string, HTMLLIElement>());
   const areaElement = useRef<HTMLDivElement | null>(null);
   const contextMenu = useContextMenu();
-  // A row that is gone (deleted, or inside a folded folder) is not selected any more.
-  const selectionKey =
-    storedSelection !== null &&
-    items.some((item) => item.key === storedSelection)
-      ? storedSelection
-      : null;
-  const rovingKey = selectionKey ?? PROJECT_TREE_KEY;
+  const visibleKeys = useMemo(() => items.map((item) => item.key), [items]);
+  // A row that is gone (deleted, or inside a folded folder) is not chosen any more.
+  const selection = visibleSelection(storedSelection, visibleKeys);
+  const rovingKey = selection.activeKey ?? PROJECT_TREE_KEY;
 
-  // The selection follows the active Document (a tab chosen, a Document opened), as the
+  // The choice follows the active Document (a tab chosen, a Document opened), as the
   // Explorer of VS Code does. Choosing another row or the empty space changes it again.
   useEffect(() => {
-    if (activeDocumentId !== null) {
-      actions.selectTreeRow(documentTreeKey(activeDocumentId));
-    }
+    if (activeDocumentId !== null)
+      actions.revealDocumentInTree(activeDocumentId);
   }, [activeDocumentId, actions]);
+
+  // How a click, a right-click or a key chooses rows.
+  function choose(key: string, mode: TreeChooseMode): void {
+    switch (mode) {
+      case "replace":
+        actions.setTreeSelection(selectOnly(key));
+        return;
+      case "toggle":
+        actions.setTreeSelection(toggleSelected(selection, key));
+        return;
+      case "range":
+        actions.setTreeSelection(selectRange(selection, key, visibleKeys));
+        return;
+      case "context":
+        // A right-click inside the choice keeps it; elsewhere it chooses that row.
+        if (!selection.keys.includes(key)) {
+          actions.setTreeSelection(selectOnly(key));
+        }
+        return;
+    }
+  }
+
+  // Dragging one of several chosen rows moves them all; any other row moves alone.
+  function draggedKeysFor(key: string): readonly string[] {
+    return selection.keys.length > 1 && selection.keys.includes(key)
+      ? movableKeys(model, selection.keys)
+      : [key];
+  }
 
   const rowKinds = useMemo(() => {
     const kinds = new Map<string, TreeRowKind>();
@@ -122,13 +157,16 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
         return [{ key: item.key, top: rect.top, bottom: rect.bottom }];
       }),
     rowKind: (key) => rowKinds.get(key) ?? "document",
-    resolveTarget: (key, hit) => treeMoveTargetOf(model, key, hit),
+    resolveTarget: (key, hit) =>
+      treeMoveTargetOf(model, draggedKeysFor(key), hit),
     onDrop: (key, target) => {
-      const entry = findEntryByKey(model.entries, key);
-      if (entry === null) return;
+      const entryIds = draggedKeysFor(key).flatMap((draggedKey) => {
+        const entry = findEntryByKey(model.entries, draggedKey);
+        return entry === null ? [] : [entryIdOf(entry)];
+      });
       keepFocus(
-        actions.placeEntry(
-          entryIdOf(entry),
+        actions.placeEntries(
+          entryIds,
           target.parentFolderId,
           target.beforeEntryId,
         ),
@@ -136,9 +174,10 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
     },
   });
   const { dragState } = treeDrag;
+  const draggedKeys = dragState === null ? [] : draggedKeysFor(dragState.key);
   const drag: TreeRowDrag = {
     handlersFor: treeDrag.handlersFor,
-    draggedKey: dragState?.key ?? null,
+    isDragged: (key) => draggedKeys.includes(key),
     markerFor: (key) => {
       const hit = dragState?.hit ?? null;
       if (hit === null) return null;
@@ -168,7 +207,8 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
     const target = items[navigation.index];
     if (target === undefined) return;
     if (navigation.action === "focus") {
-      // Focusing a row selects it (`onFocusItem`).
+      // Moving with the arrow keys chooses the row; with Shift it extends the range.
+      choose(target.key, event.shiftKey ? "range" : "replace");
       itemElements.current.get(target.key)?.focus();
       return;
     }
@@ -207,17 +247,14 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
       : canvasActions.redo(documentId));
   }
 
-  // A row that gets focus (a click, the arrow keys, a right-click) becomes the selection.
-  const selectRow = (key: string) => actions.selectTreeRow(key);
-
   const handlers: TreeHandlers = {
     actions,
     renaming,
     keepFocus,
     rovingKey,
-    selectionKey,
+    selection,
     register,
-    onFocusItem: selectRow,
+    onChoose: choose,
     onNavigate: handleNavigate,
     onContextMenu: contextMenu.openFromEvent,
     drag,
@@ -240,7 +277,7 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
   // top level); the tree area keeps focus so the keyboard still works from the top.
   function handleAreaClick(event: MouseEvent<HTMLDivElement>): void {
     if (isOnRow(event.target)) return;
-    actions.selectTreeRow(null);
+    actions.setTreeSelection(EMPTY_TREE_SELECTION);
     areaElement.current?.focus({ preventScroll: true });
   }
 
@@ -254,10 +291,7 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
     );
   }
 
-  const creationTarget = creationTargetOf(
-    model,
-    selectionKey ?? PROJECT_TREE_KEY,
-  );
+  const creationTarget = creationTargetOf(model, rovingKey);
   const creationLocation =
     creationTarget.parentFolderId === null
       ? model.projectName
@@ -321,13 +355,13 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
             label={model.projectName}
             level={1}
             isRoving={rovingKey === PROJECT_TREE_KEY}
-            selected={selectionKey === PROJECT_TREE_KEY}
+            selected={selection.keys.includes(PROJECT_TREE_KEY)}
             dropMarker={drag.markerFor(PROJECT_TREE_KEY)}
             ignoreClick={drag.consumeClickSuppression}
             expanded
             icon={<ProjectIcon />}
             register={register}
-            onFocusItem={selectRow}
+            onChoose={(mode) => choose(PROJECT_TREE_KEY, mode)}
             onNavigate={handleNavigate}
             onContextMenu={contextMenu.openFromEvent}
             menuItems={[

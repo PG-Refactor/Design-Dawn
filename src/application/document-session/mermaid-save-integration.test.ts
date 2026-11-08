@@ -58,21 +58,19 @@ describe("history of Mermaid edits", () => {
 });
 
 describe("undo and the auto-save timer", () => {
-  it("writes the undone (original) text when undo comes before the timer fires", async () => {
+  it("writes nothing when undo comes before the timer fires: the text is back to the file", async () => {
     const { session, gateway, scheduler } = await loadedMermaidSession();
     const original = textOf(MERMAID.blockId);
     await session.execute(edit(EDITED));
     await session.undo();
-    expect(gateway.methods()).toEqual([]);
+    // Back at the saved state: nothing is unsaved, so the timer has nothing to write.
+    expect(session.getState().save.dirtyContentBlockIds.size).toBe(0);
 
     scheduler.advance(TEST_AUTO_SAVE_DELAY_MS);
     await settle();
 
-    // The text is dirty again after the undo (the file is not known to match), so the
-    // original is written once; the edited text never reaches the disk.
-    expect(gateway.methods()).toEqual(["writeBlockContent"]);
+    expect(gateway.methods()).toEqual([]);
     expect(gateway.files.get(MERMAID.contentPath)).toBe(original);
-    expect(session.getState().save.dirtyContentBlockIds.size).toBe(0);
   });
 
   it("writes the original again when undo comes after the edit was auto-saved", async () => {

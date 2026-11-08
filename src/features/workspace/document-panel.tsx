@@ -69,6 +69,7 @@ function NoProjectPanel() {
 
 export function DocumentPanel() {
   const messages = useMessages().workspace;
+  const { actions } = useWorkspaceServices();
   const panel = useWorkspaceModel(selectPanel);
   if (panel.kind === "noProject") return <NoProjectPanel />;
   if (panel.kind === "noDocument") {
@@ -76,12 +77,18 @@ export function DocumentPanel() {
       <p className="document-panel__empty">{messages.placeholder.noDocument}</p>
     );
   }
+  const { documentId } = panel;
+  // Working in the Document (a click on its canvas or Sheet tabs, focus moving into it)
+  // chooses its row in the Project Tree, even after the tree's choice was moved elsewhere.
+  const reveal = () => actions.revealDocumentInTree(documentId);
   return (
     <div
       role="tabpanel"
       id={panel.panelId}
       aria-labelledby={panel.tabId}
       className="document-panel"
+      onPointerDownCapture={reveal}
+      onFocusCapture={reveal}
     >
       <ActiveDocumentBanner documentId={panel.documentId} />
       <CanvasPanel />
