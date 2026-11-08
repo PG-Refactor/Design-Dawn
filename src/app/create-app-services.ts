@@ -190,7 +190,6 @@ export function createAppServices(): AppServices {
   });
   const viewportPersistence = createViewportPersistence({
     gateway: createTauriViewportGateway(),
-    scheduler: createTimeoutScheduler(),
     applicationStore,
     uiStateStore,
   });

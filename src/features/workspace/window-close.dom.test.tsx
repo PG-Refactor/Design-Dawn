@@ -26,16 +26,19 @@ async function requestClose(
 }
 
 describe("save before the window closes", () => {
-  it("saves a dirty document, flushes the viewport, then confirms with the token", async () => {
+  it("saves a dirty document, waits for the view saved with it, then confirms with the token", async () => {
     const { shell } = await renderOpenedCanvas();
     await makeDocumentADirty(shell);
     shell.gateway.clearCalls();
+    const wait = vi.spyOn(shell.viewportPersistence, "waitForSaves");
     const flush = vi.spyOn(shell.viewportPersistence, "flush");
 
     await requestClose(shell);
 
     expect(shell.gateway.methods(...WRITE_METHODS).length).toBeGreaterThan(0);
-    expect(flush).toHaveBeenCalledTimes(1);
+    expect(wait).toHaveBeenCalledTimes(1);
+    // Closing does not save views by itself: an unsaved view is left as saved last.
+    expect(flush).not.toHaveBeenCalled();
     expect(shell.closeRequestSource.confirmedTokens).toEqual([TOKEN]);
   });
 

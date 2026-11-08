@@ -26,7 +26,8 @@ export function useWindowCloseSave(): WindowCloseStatus {
     () =>
       createWindowCloseHandler(() => ({
         saveAll: () => latest.current.actions.saveAll(),
-        flushViewport: () => latest.current.viewportPersistence.flush(),
+        finishViewportSaves: () =>
+          latest.current.viewportPersistence.waitForSaves(),
         closeRequestSource: latest.current.closeRequestSource,
         needsConfirmation: () =>
           latest.current.actions.windowCloseNeedsConfirmation(),

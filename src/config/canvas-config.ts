@@ -17,9 +17,6 @@ export const CANVAS_CONFIG = {
     // Shown for a sheet that has no saved viewport: 100 %, the top-left corner one margin
     // inside the edge.
     default: { panX: ORIGIN_MARGIN, panY: ORIGIN_MARGIN, zoom: 1 },
-    // Quiet period after the last viewport change before it is saved, so a pan or a
-    // wheel gesture produces one save instead of one per event.
-    saveDelayMs: 500,
   },
   zoom: {
     // Wheel zoom is exponential (factor = exp(-wheelDelta * wheelStep)) so zooming in and

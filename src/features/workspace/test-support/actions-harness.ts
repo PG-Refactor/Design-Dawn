@@ -127,7 +127,6 @@ export interface ActionsHarness extends WorkspaceHarness {
   readonly appRequestSource: FakeAppRequestSource;
   readonly viewportGateway: FakeViewportGateway;
   // Its own clock, so viewport saves are advanced independently of auto-save.
-  readonly viewportScheduler: FakeScheduler;
   readonly viewportPersistence: ViewportPersistence;
   readonly gitGateway: FakeGitGateway;
   readonly gitController: GitController;
@@ -188,10 +187,8 @@ export function createActionsHarness(
   const aiAccess = createFakeAiAccessGateway();
   const appRequestSource = createFakeAppRequestSource();
   const viewportGateway = createFakeViewportGateway();
-  const viewportScheduler = createFakeScheduler();
   const viewportPersistence = createViewportPersistence({
     gateway: viewportGateway,
-    scheduler: viewportScheduler,
     applicationStore: base.store,
     uiStateStore,
   });
@@ -260,7 +257,6 @@ export function createActionsHarness(
     appRequestSource,
     aiAccess,
     viewportGateway,
-    viewportScheduler,
     viewportPersistence,
     services: {
       applicationStore: base.store,

@@ -1,10 +1,14 @@
-// Restores and saves the per-sheet viewport. Framework-free:
-// it watches the UI state store, so it needs no component and cannot miss a change.
+// Restores and saves the per-sheet viewport (zoom and position). Framework-free: it watches
+// the UI state and application stores, so it needs no component and cannot miss a change.
 //
 // The viewport stays UI state. This controller only copies it to / from the viewport
 // gateway: a sheet that becomes visible without a viewport gets the saved one (or the
-// default), and changes are saved after a quiet period, latest value only. Saving is never
-// triggered per pointer move, and nothing here touches Domain values or undo history.
+// default). A change is kept as unsaved and saved together with its Document: when a save
+// of that Document completes (auto-save, a save on close, Ctrl+S), or on an explicit save
+// of everything (`flush`, which Ctrl+S and File > Save call even when no content changed).
+// A view that was never saved that way is gone when the Document closes or the app quits,
+// so the next time the sheet opens with the view saved last, as unsaved content would.
+// Nothing here touches Domain values or undo history.
 
 import type { Viewport } from "../../application/local-state/viewport";
 import {
@@ -12,10 +16,8 @@ import {
   type OperationResult,
   operationErr,
 } from "../../application/ports/operation-error";
-import type { Scheduler } from "../../application/ports/scheduler";
 import type { ViewportGateway } from "../../application/ports/viewport-gateway";
 import type { ApplicationStore } from "../../application/state/application-state";
-import { CANVAS_CONFIG } from "../../config/canvas-config";
 import type {
   DocumentId,
   ProjectId,
@@ -32,16 +34,19 @@ import { DEFAULT_VIEWPORT } from "./geometry/viewport-math";
 
 export interface ViewportPersistenceDependencies {
   readonly gateway: ViewportGateway;
-  readonly scheduler: Scheduler;
   readonly applicationStore: ApplicationStore;
   readonly uiStateStore: UiStateStore;
-  readonly saveDelayMs?: number;
 }
 
 export interface ViewportPersistence {
-  // Saves everything pending now and resolves when all saves have finished.
+  // Saves every unsaved viewport now (an explicit save) and resolves when all saves have
+  // finished.
   flush(): Promise<void>;
-  // Stops watching and drops timers WITHOUT saving; call `flush` first when needed.
+  // Waits for the saves already started (views taken along by a Document save) without
+  // saving anything that is still unsaved: what a closing window does.
+  waitForSaves(): Promise<void>;
+  // Stops watching and forgets what is unsaved WITHOUT saving; call `flush` first when
+  // needed.
   dispose(): void;
 }
 
@@ -52,22 +57,21 @@ interface SheetLocation {
 
 interface PendingSave extends SheetLocation {
   readonly viewport: Viewport;
-  readonly cancelTimer: () => void;
 }
 
 export function createViewportPersistence(
   dependencies: ViewportPersistenceDependencies,
 ): ViewportPersistence {
-  const { gateway, scheduler, applicationStore, uiStateStore } = dependencies;
-  const saveDelayMs =
-    dependencies.saveDelayMs ?? CANVAS_CONFIG.viewport.saveDelayMs;
+  const { gateway, applicationStore, uiStateStore } = dependencies;
 
   // Viewports already reconciled with the state: a change is anything not in here.
   const seen = new Map<SheetId, Viewport>();
   const pending = new Map<SheetId, PendingSave>();
   const loading = new Set<SheetId>();
   let previousViewports: UiState["viewportBySheet"] | null = null;
-  let visibleSheetId: SheetId | null = null;
+  // Documents that had something unsaved (or were saving) at the last look, to see a save
+  // of them complete.
+  const unsavedDocuments = new Set<DocumentId>();
   // Saves run one after another so an older value can never overwrite a newer one.
   let saveQueue: Promise<void> = Promise.resolve();
 
@@ -109,24 +113,6 @@ export function createViewportPersistence(
     );
   }
 
-  // True when the sheet (or its document) was deleted: its viewport is not worth saving.
-  // A closed document or project is not a deletion, so its last viewport is kept.
-  function wasDeleted(location: SheetLocation, sheetId: SheetId): boolean {
-    const { project, documentDetails } = applicationStore.getState();
-    if (project === null || project.projectId !== location.projectId) {
-      return false;
-    }
-    const documentListed = project.documents.some(
-      (entry) => entry.documentId === location.documentId,
-    );
-    if (!documentListed) return true;
-    const details = documentDetails.get(location.documentId);
-    return (
-      details !== undefined &&
-      !details.sheetEntries.some((entry) => entry.sheetId === sheetId)
-    );
-  }
-
   function enqueueSave(
     sheetId: SheetId,
     { projectId, documentId, viewport }: PendingSave,
@@ -152,28 +138,23 @@ export function createViewportPersistence(
   function flushSheet(sheetId: SheetId): void {
     const entry = pending.get(sheetId);
     if (entry === undefined) return;
-    entry.cancelTimer();
     pending.delete(sheetId);
     enqueueSave(sheetId, entry);
   }
 
-  function dropSheet(sheetId: SheetId): void {
-    pending.get(sheetId)?.cancelTimer();
-    pending.delete(sheetId);
+  function flushDocument(documentId: DocumentId): void {
+    for (const [sheetId, entry] of [...pending]) {
+      if (entry.documentId === documentId) flushSheet(sheetId);
+    }
   }
 
-  function scheduleSave(sheetId: SheetId, viewport: Viewport): void {
+  function keepUnsaved(sheetId: SheetId, viewport: Viewport): void {
     const location = locateSheet(sheetId) ?? pending.get(sheetId);
     if (location === undefined || location === null) return;
-    pending.get(sheetId)?.cancelTimer();
-    const cancelTimer = scheduler.schedule(saveDelayMs, () =>
-      flushSheet(sheetId),
-    );
     pending.set(sheetId, {
       projectId: location.projectId,
       documentId: location.documentId,
       viewport,
-      cancelTimer,
     });
   }
 
@@ -231,17 +212,14 @@ export function createViewportPersistence(
     for (const [sheetId, viewport] of viewports) {
       if (seen.get(sheetId) === viewport) continue;
       seen.set(sheetId, viewport);
-      scheduleSave(sheetId, viewport);
+      keepUnsaved(sheetId, viewport);
     }
     for (const sheetId of [...seen.keys()]) {
       if (viewports.has(sheetId)) continue;
       seen.delete(sheetId);
-      // The sheet / document was closed or removed: keep the last value unless the sheet
-      // itself was deleted.
-      const entry = pending.get(sheetId);
-      if (entry === undefined) continue;
-      if (wasDeleted(entry, sheetId)) dropSheet(sheetId);
-      else flushSheet(sheetId);
+      // The sheet or its document was closed or deleted. A save made while closing was
+      // seen before (and took the view along); anything still unsaved is dropped.
+      pending.delete(sheetId);
     }
   }
 
@@ -261,12 +239,6 @@ export function createViewportPersistence(
       reconcileViewports(ui.viewportBySheet);
     }
     const visible = currentVisibleSheet(ui);
-    const nextVisibleId = visible?.sheetId ?? null;
-    if (nextVisibleId !== visibleSheetId) {
-      // Switching away is a natural point to save instead of waiting for the timer.
-      if (visibleSheetId !== null) flushSheet(visibleSheetId);
-      visibleSheetId = nextVisibleId;
-    }
     if (
       visible !== null &&
       !ui.viewportBySheet.has(visible.sheetId) &&
@@ -277,18 +249,50 @@ export function createViewportPersistence(
     }
   }
 
-  const unsubscribe = uiStateStore.subscribe(onUiStateChange);
+  // A Document whose save just completed (it had something unsaved or was saving, and now
+  // has nothing unsaved and no error) takes its sheets' views along.
+  function onApplicationChange(): void {
+    const { documents } = applicationStore.getState();
+    for (const [documentId, session] of documents) {
+      const { save } = session;
+      const unsaved =
+        save.saving ||
+        save.documentDirty ||
+        save.dirtySheetIds.size > 0 ||
+        save.dirtyContentBlockIds.size > 0;
+      if (unsaved) {
+        unsavedDocuments.add(documentId);
+      } else if (
+        unsavedDocuments.delete(documentId) &&
+        save.lastError === null
+      ) {
+        flushDocument(documentId);
+      }
+    }
+    for (const documentId of [...unsavedDocuments]) {
+      if (!documents.has(documentId)) unsavedDocuments.delete(documentId);
+    }
+  }
+
+  const unsubscribeUi = uiStateStore.subscribe(onUiStateChange);
+  const unsubscribeApplication =
+    applicationStore.subscribe(onApplicationChange);
   // Another subscription may already have shown a sheet before this controller existed.
   onUiStateChange();
+  onApplicationChange();
 
   return {
     async flush() {
       for (const sheetId of [...pending.keys()]) flushSheet(sheetId);
       await saveQueue;
     },
+    async waitForSaves() {
+      await saveQueue;
+    },
     dispose() {
-      unsubscribe();
-      for (const sheetId of [...pending.keys()]) dropSheet(sheetId);
+      unsubscribeUi();
+      unsubscribeApplication();
+      pending.clear();
     },
   };
 }

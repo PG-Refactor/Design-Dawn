@@ -31,8 +31,6 @@ afterEach(() => {
   cleanup();
 });
 
-const { saveDelayMs } = CANVAS_CONFIG.viewport;
-
 interface Rendered {
   readonly shell: ShellHarness;
   readonly canvas: CanvasHarness;
@@ -330,16 +328,14 @@ describe("pan, zoom and viewport persistence", () => {
     expect(canvas.session.getState().history.canUndo).toBe(false);
   });
 
-  it("saves the viewport debounced, once, and restores it when the sheet is shown again", async () => {
+  it("saves the view on Ctrl+S, once, and restores it when the sheet is shown again", async () => {
     const { shell } = await renderOpenedCanvas();
     for (let step = 0; step < 5; step += 1) {
       fireEvent.wheel(canvasElement(), { deltaY: 10 });
     }
     expect(shell.viewportGateway.saveCalls).toEqual([]);
-    await act(async () => {
-      shell.viewportScheduler.advance(saveDelayMs);
-      await settle();
-    });
+    await shell.user.keyboard("{Control>}s{/Control}");
+    await act(settle);
     expect(shell.viewportGateway.saveCalls).toHaveLength(1);
     const saved = shell.viewportGateway.saveCalls[0]?.viewport;
     expect(saved?.panY).toBe(-50);
@@ -360,6 +356,34 @@ describe("pan, zoom and viewport persistence", () => {
         `translate(${saved?.panX}px, ${saved?.panY}px) scale(${saved?.zoom})`,
       ),
     );
+  });
+
+  it("goes back to the view saved last when the Document closes without a save", async () => {
+    const { shell } = await renderOpenedCanvas();
+    await shell.user.click(screen.getByRole("button", { name: "拡大" }));
+    expect(
+      shell.uiStateStore.getState().viewportBySheet.get(SHEET_A1)?.zoom,
+    ).toBe(1.1);
+    await shell.user.click(
+      screen.getByRole("button", { name: "Document Aを閉じる" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("listbox")).toBeNull());
+    await shell.user.click(
+      within(screen.getByRole("treeitem", { name: "Document A" })).getByText(
+        "Document A",
+      ),
+    );
+    await screen.findByRole("listbox", { name: "Sheet A1" });
+    await waitFor(() =>
+      expect(
+        (
+          screen.getByRole("spinbutton", {
+            name: "拡大率（%）",
+          }) as HTMLInputElement
+        ).value,
+      ).toBe("100"),
+    );
+    expect(shell.viewportGateway.saveCalls).toEqual([]);
   });
 
   it("restores a saved viewport from the gateway", async () => {

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { moveBlocksCommand } from "../../application/commands/block-commands";
 import { viewportKey } from "../../application/test-support/fake-viewport";
-import { PROJECT_ID, settle } from "../../application/test-support/fakes";
+import {
+  PROJECT_ID,
+  position,
+  settle,
+} from "../../application/test-support/fakes";
 import {
   CONFIRMED,
   DOCUMENT_A,
@@ -9,18 +14,17 @@ import {
   SHEET_A2,
   SHEET_B1,
 } from "../../application/test-support/workspace-harness";
-import { CANVAS_CONFIG } from "../../config/canvas-config";
 import type { SheetId } from "../../domain/shared/entity-id";
 import { setViewport } from "../workspace/ui-state/ui-state";
 import { clampViewport, DEFAULT_VIEWPORT } from "./geometry/viewport-math";
 import {
+  BLOCK_ONE,
   type CanvasHarness,
   createCanvasHarness,
   openedCanvasHarness,
 } from "./test-support/canvas-harness";
 
 const SAVED = clampViewport({ panX: 120, panY: -45.5, zoom: 2 });
-const { saveDelayMs } = CANVAS_CONFIG.viewport;
 
 function pan(harness: CanvasHarness, sheetId: SheetId, panX: number): void {
   harness.uiStateStore.setState((state) =>
@@ -58,7 +62,6 @@ describe("restoring", () => {
   it("uses the saved viewport when the sheet becomes visible and does not save it back", async () => {
     const harness = await openedWithSaved();
     expect(shown(harness, SHEET_A1)).toEqual(SAVED);
-    harness.viewportScheduler.advance(saveDelayMs * 2);
     await harness.viewportPersistence.flush();
     expect(harness.viewportGateway.saveCalls).toEqual([]);
   });
@@ -124,8 +127,9 @@ describe("restoring", () => {
     const harness = await openedCanvasHarness();
     await settle();
     pan(harness, SHEET_A1, 321);
-    await harness.actions.closeDocument(DOCUMENT_A);
+    // Saved explicitly (Ctrl+S); a view that was never saved would be dropped on close.
     await harness.viewportPersistence.flush();
+    await harness.actions.closeDocument(DOCUMENT_A);
     await harness.actions.openDocument(DOCUMENT_A);
     await settle();
     expect(shown(harness, SHEET_A1)?.panX).toBe(321);
@@ -133,61 +137,73 @@ describe("restoring", () => {
 });
 
 describe("saving", () => {
-  it("saves once, with the latest value, after the quiet period", async () => {
+  // A content change of document A that the session then saves.
+  async function editAndSaveDocumentA(harness: CanvasHarness): Promise<void> {
+    await harness.session.execute(
+      moveBlocksCommand(SHEET_A1, [
+        { blockId: BLOCK_ONE, position: position(48, 48) },
+      ]),
+    );
+    await harness.session.flush();
+    await settle();
+  }
+
+  it("keeps a change unsaved: nothing is written by panning or switching sheets", async () => {
     const harness = await openedCanvasHarness();
     await settle();
     for (let step = 1; step <= 20; step += 1) pan(harness, SHEET_A1, step);
-    expect(harness.viewportGateway.saveCalls).toEqual([]);
-
-    harness.viewportScheduler.advance(saveDelayMs);
+    await harness.actions.selectSheet(DOCUMENT_A, SHEET_A2);
     await settle();
-    expect(harness.viewportGateway.saveCalls).toHaveLength(1);
-    expect(harness.viewportGateway.saveCalls[0]?.viewport.panX).toBe(20);
+    expect(harness.viewportGateway.saveCalls).toEqual([]);
   });
 
-  it("waits for the delay and restarts it on every change", async () => {
+  it("saves the views of a Document, latest value only, when a save of it completes", async () => {
     const harness = await openedCanvasHarness();
     await settle();
-    pan(harness, SHEET_A1, 1);
-    harness.viewportScheduler.advance(saveDelayMs - 1);
-    pan(harness, SHEET_A1, 2);
-    harness.viewportScheduler.advance(saveDelayMs - 1);
-    await settle();
-    expect(harness.viewportGateway.saveCalls).toEqual([]);
-
-    harness.viewportScheduler.advance(1);
-    await settle();
+    for (let step = 1; step <= 20; step += 1) pan(harness, SHEET_A1, step);
+    await editAndSaveDocumentA(harness);
     expect(harness.viewportGateway.saveCalls).toHaveLength(1);
     expect(harness.viewportGateway.saveCalls[0]).toMatchObject({
       projectId: PROJECT_ID,
       documentId: DOCUMENT_A,
       sheetId: SHEET_A1,
-      viewport: { panX: 2 },
+      viewport: { panX: 20 },
     });
-    expect(harness.viewportScheduler.pendingCount()).toBe(0);
   });
 
-  it("flushes the pending save when the sheet is switched", async () => {
+  it("does not save the views of another Document with it", async () => {
+    const harness = await openedCanvasHarness();
+    await harness.actions.openDocument(DOCUMENT_B);
+    await settle();
+    pan(harness, SHEET_B1, 7);
+    await harness.actions.openDocument(DOCUMENT_A);
+    await settle();
+    await editAndSaveDocumentA(harness);
+    expect(harness.viewportGateway.saveCalls).toEqual([]);
+  });
+
+  it("saves every view on an explicit save, even with no content to save", async () => {
     const harness = await openedCanvasHarness();
     await settle();
-    pan(harness, SHEET_A1, 40);
-    await harness.actions.selectSheet(DOCUMENT_A, SHEET_A2);
-    await settle();
+    pan(harness, SHEET_A1, 30);
+    await harness.viewportPersistence.flush();
     expect(harness.viewportGateway.saveCalls).toMatchObject([
-      { sheetId: SHEET_A1, viewport: { panX: 40 } },
+      { sheetId: SHEET_A1, viewport: { panX: 30 } },
     ]);
-    expect(harness.viewportScheduler.pendingCount()).toBe(0);
+    // Saved once: a second explicit save has nothing new.
+    await harness.viewportPersistence.flush();
+    expect(harness.viewportGateway.saveCalls).toHaveLength(1);
   });
 
-  it("flushes the pending save when the document is closed", async () => {
-    const harness = await openedCanvasHarness();
-    await settle();
+  it("drops an unsaved view when the Document closes without a save, so it opens as saved last", async () => {
+    const harness = await openedWithSaved();
     pan(harness, SHEET_A1, 41);
     await harness.actions.closeDocument(DOCUMENT_A);
     await settle();
-    expect(harness.viewportGateway.saveCalls).toMatchObject([
-      { documentId: DOCUMENT_A, sheetId: SHEET_A1, viewport: { panX: 41 } },
-    ]);
+    expect(harness.viewportGateway.saveCalls).toEqual([]);
+    await harness.actions.openDocument(DOCUMENT_A);
+    await settle();
+    expect(shown(harness, SHEET_A1)).toEqual(SAVED);
   });
 
   it("keeps sheets and documents independent", async () => {
@@ -232,13 +248,13 @@ describe("saving", () => {
     expect(harness.viewportGateway.saveCalls).toEqual([]);
   });
 
-  it("stops watching after dispose", async () => {
+  it("stops watching after dispose and forgets what was unsaved", async () => {
     const harness = await openedCanvasHarness();
     await settle();
+    pan(harness, SHEET_A1, 4);
     harness.viewportPersistence.dispose();
     pan(harness, SHEET_A1, 5);
-    harness.viewportScheduler.advance(saveDelayMs * 2);
-    await settle();
+    await harness.viewportPersistence.flush();
     expect(harness.viewportGateway.saveCalls).toEqual([]);
   });
 });

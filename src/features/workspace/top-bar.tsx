@@ -19,6 +19,7 @@ import { type HelpDialogKind, HelpDialogs } from "../help/help-dialogs";
 import { MenuBar } from "../menu-bar/menu-bar";
 import type { MenuDefinition } from "../menu-bar/menu-bar-types";
 import { Notifications } from "./notifications";
+import { saveEverything } from "./save-everything";
 import { saveShortcutHint } from "./save-shortcut";
 import type { UiState } from "./ui-state/ui-state";
 import { useMessages } from "./use-messages";
@@ -85,6 +86,7 @@ export function TopBar() {
     languageController,
     textSizeController,
     autoSaveController,
+    viewportPersistence,
   } = useWorkspaceServices();
   const projectName = useWorkspaceModel(selectProjectName);
   const busy = useUiState(selectBusy);
@@ -162,7 +164,8 @@ export function TopBar() {
             shortcutKeys: SAVE_SHORTCUT_KEYS,
             disabled: !hasProject,
             // Failures are already recorded as operation / save errors by the action.
-            onSelect: () => void actions.saveAll(),
+            onSelect: () =>
+              void saveEverything({ actions, viewportPersistence }),
           },
           {
             kind: "checkbox",
@@ -279,6 +282,7 @@ export function TopBar() {
       topBar,
       aiAccessTexts,
       actions,
+      viewportPersistence,
       busy,
       hasProject,
       themeController,
