@@ -125,9 +125,19 @@ export function TextBlockEditor({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const guiLeaveRef = useRef<GuiLeaveCheck | null>(null);
 
-  // On mount, and again when the Source view comes back from the GUI.
+  // On mount and on every switch of view, focus goes into the editor: the textarea in the
+  // Source view, the editor itself in the GUI view (unless a GUI control already took it).
+  // Editing ends when focus leaves the editor, so without this a GUI editor that was never
+  // clicked would stay open after a click elsewhere: focus was never inside to leave.
   useEffect(() => {
-    if (view === "source") textareaRef.current?.focus({ preventScroll: true });
+    if (view === "source") {
+      textareaRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    const container = containerRef.current;
+    if (container !== null && !container.contains(document.activeElement)) {
+      container.focus({ preventScroll: true });
+    }
   }, [view]);
 
   // In the GUI view the application state is the only text there is: operations, undo and
