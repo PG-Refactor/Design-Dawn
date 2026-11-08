@@ -1,4 +1,4 @@
-# Design Dawn — free-form canvas for design documents with Markdown and Mermaid
+# Design Dawn — Lay it out freely. Write it with AI.
 
 **English** | [日本語](README.ja.md) · [Website](https://pg-refactor.github.io/Design-Dawn/)
 
@@ -8,10 +8,11 @@
 ![Built with Tauri 2](https://img.shields.io/badge/built%20with-Tauri%202-24C8DB.svg)
 ![MCP server](https://img.shields.io/badge/AI-MCP%20server-8A2BE2.svg)
 
-**Design Dawn** is a free, open-source desktop app (Tauri 2, Rust + TypeScript) for writing
-software design documents on a free-form canvas: a **Markdown editor**, a **Mermaid diagram editor**
-with a GUI, and image blocks on the same sheet, saved as Git-friendly plain files (docs as code), with
-an **MCP server** so AI tools such as Claude, Codex, GitHub Copilot and Cursor can read and edit them.
+**Design Dawn** is a free, open-source desktop app (Tauri 2, Rust + TypeScript) for design
+documents. Place notes (**Markdown**), **Mermaid diagrams** and **images** anywhere on a free-form
+canvas, and write them together with AI tools such as Claude, Codex, GitHub Copilot and Cursor through
+a local **MCP server** — only where you allow. Everything is saved as plain text files, so you can
+track changes with Git and review designs in pull requests just like code ("docs as code").
 
 A document is a set of sheets; each sheet holds freely placed blocks of **Markdown**, **Mermaid
 diagrams** and **images**. Everything is stored as ordinary files and folders, so the same project
@@ -74,10 +75,10 @@ can be read and edited by people, reviewed with Git, and changed safely by AI to
 - **Not a long scroll, not a whiteboard file** — arrange notes, diagrams and screenshots side by
   side like a whiteboard, but keep every block as a `.md` or `.mmd` file you can diff and review in
   a pull request.
+- **Write it with AI** — AI tools work through a local MCP server, read-only until you allow
+  editing, with conflict detection instead of silent overwrites.
 - **Mermaid without memorising syntax** — edit flowcharts, sequence diagrams and Gantt charts in a
   GUI while the Mermaid source stays the source of truth.
-- **Safe for AI agents** — AI tools work through a local MCP server, read-only until you allow
-  editing, with conflict detection instead of silent overwrites.
 - **Offline and local** — no account, no cloud, no network access for rendering.
 
 Typical uses: architecture and system design docs, API and sequence flows, ADRs with diagrams,

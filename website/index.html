@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Design Dawn — Free-form canvas for design documents with Markdown &amp; Mermaid</title>
-  <meta name="description" content="Design Dawn is a free, open-source desktop app for writing design documents on a free-form canvas with Markdown, Mermaid diagrams and images. Git-friendly plain files, a Mermaid GUI editor, and an MCP server for AI tools.">
+  <title>Design Dawn — Lay it out freely. Write it with AI. | Design docs with Markdown &amp; Mermaid</title>
+  <meta name="description" content="Design Dawn is a free, open-source desktop app for design documents: place Markdown notes, Mermaid diagrams and images anywhere on a free-form canvas, and write them together with AI tools through a local MCP server, only where you allow. Saved as plain files.">
   <link rel="canonical" href="https://pg-refactor.github.io/Design-Dawn/">
   <link rel="alternate" hreflang="en" href="https://pg-refactor.github.io/Design-Dawn/">
   <link rel="alternate" hreflang="ja" href="https://pg-refactor.github.io/Design-Dawn/ja/">
@@ -15,8 +15,8 @@
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Design Dawn">
-  <meta property="og:title" content="Design Dawn — Design documents on a free-form canvas">
-  <meta property="og:description" content="Markdown, Mermaid diagrams and images on one canvas, stored as Git-friendly plain files. Includes a Mermaid GUI editor and an MCP server for AI tools.">
+  <meta property="og:title" content="Design Dawn — Lay it out freely. Write it with AI.">
+  <meta property="og:description" content="A desktop canvas for design docs: place notes, diagrams and images anywhere, and let AI help — only where you allow. Everything stays as plain files on your machine.">
   <meta property="og:url" content="https://pg-refactor.github.io/Design-Dawn/">
   <meta property="og:image" content="https://pg-refactor.github.io/Design-Dawn/images/og.png">
   <meta property="og:image:width" content="1280">
@@ -74,10 +74,11 @@
 <main>
   <div class="hero">
     <div class="wrap">
-      <h1>Design documents on a <span class="glow">free-form canvas</span></h1>
-      <p class="lead">Design Dawn is a free, open-source desktop app for writing software design documents.
-        Place <strong>Markdown</strong>, <strong>Mermaid diagrams</strong> and <strong>images</strong> anywhere on a sheet —
-        and keep everything as plain files that people can read, Git can diff, and AI tools can safely edit.</p>
+      <h1><span class="glow">Lay it out freely.</span> Write it with AI.</h1>
+      <p class="lead">Design Dawn is a free, open-source desktop app for design documents.
+        Place <strong>notes</strong> (Markdown), <strong>Mermaid diagrams</strong> and <strong>images</strong> anywhere on a free-form canvas,
+        and let AI tools such as Claude, Codex, GitHub Copilot and Cursor help — only where you allow.
+        Everything stays as plain files on your machine.</p>
       <div class="cta">
         <a class="btn primary" href="https://github.com/PG-Refactor/Design-Dawn">Get it on GitHub</a>
         <a class="btn" href="https://github.com/PG-Refactor/Design-Dawn/releases/latest">Download for Windows</a>
@@ -124,10 +125,11 @@
   <section id="files">
     <div class="wrap two">
       <div>
-        <h2>Docs as code: plain files, readable diffs</h2>
-        <p>Layout lives in small JSON files and content lives in <code>.md</code> and <code>.mmd</code> files.
-          Review design changes in pull requests, and let a person or an AI change one block without touching the rest.
-          Every JSON file carries a <code>schemaVersion</code>, and IDs are stable UUIDs.</p>
+        <h2>Plain files you can track like source code</h2>
+        <p>Each note is saved as a <code>.md</code> file and each diagram as a <code>.mmd</code> file; the layout goes into small JSON files.
+          You can open them in any text editor, and with Git you can see exactly what changed in a design and review it in a pull request,
+          the same way teams review code (often called “docs as code”). A person or an AI can change one block without touching the rest.
+          Every document, sheet and block keeps the same ID for life, so renaming one never breaks the files around it.</p>
         <p>No proprietary database and no lock-in: if you stop using Design Dawn, your documents are still Markdown and Mermaid.</p>
       </div>
 <pre><code>my-project/
@@ -157,16 +159,6 @@
 <pre><code>claude mcp add design-dawn -- /path/to/design-dawn-mcp</code></pre>
       </div>
       <img class="shot" loading="lazy" src="images/ai-request.png" width="1600" height="1000" alt="Design Dawn asking whether an AI tool may edit a project">
-    </div>
-  </section>
-
-  <section id="faq">
-    <div class="wrap">
-      <h2>FAQ</h2>
-      <details class="faq"><summary>Is Design Dawn free?</summary><p>Yes. It is open source under the MIT License.</p></details>
-      <details class="faq"><summary>Which platforms are supported?</summary><p>Windows 11, with a ready-to-run download. On Linux it can be built from source. It is built with Tauri 2 (Rust and TypeScript).</p></details>
-      <details class="faq"><summary>How is it different from a Markdown editor or a whiteboard tool?</summary><p>It combines both: Markdown and Mermaid blocks are placed freely on sheets like a whiteboard, but everything is saved as plain text files that work with Git and code review.</p></details>
-      <details class="faq"><summary>Does it need an internet connection?</summary><p>No. Diagrams are rendered locally, and the MCP server opens no network connections.</p></details>
     </div>
   </section>
 </main>
