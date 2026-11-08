@@ -4,6 +4,7 @@
 // edited by hand / an AI tool) move that corner out, so they stay reachable.
 
 import type { Viewport } from "../../../application/local-state/viewport";
+import { CANVAS_CONFIG } from "../../../config/canvas-config";
 import { boundsOfRects } from "./selection-bounds";
 import {
   clampViewport,
@@ -27,10 +28,28 @@ export function sheetOriginOf(blocks: readonly Placed[]): Point {
   };
 }
 
+const { originMargin } = CANVAS_CONFIG.viewport;
+
+// The view with the sheet's top-left corner at its place: one margin inside the edge.
+export function homeViewport(origin: Point, zoom: number): Viewport {
+  return clampViewport({
+    panX: (originMargin - origin.x) * zoom + 0,
+    panY: (originMargin - origin.y) * zoom + 0,
+    zoom,
+  });
+}
+
+// Whether the sheet's top-left corner is out of the view (scrolled past on either axis).
+export function isOriginOutOfView(viewport: Viewport, origin: Point): boolean {
+  return (
+    origin.x * viewport.zoom + viewport.panX < 0 ||
+    origin.y * viewport.zoom + viewport.panY < 0
+  );
+}
+
 export function keepOriginInView(viewport: Viewport, origin: Point): Viewport {
-  // `+ 0` turns -0 into 0, so a view stopped at the origin compares equal to the default.
-  const maxPanX = -origin.x * viewport.zoom + 0;
-  const maxPanY = -origin.y * viewport.zoom + 0;
+  // The corner can come at most one margin inside the edge. `+ 0` turns -0 into 0.
+  const { panX: maxPanX, panY: maxPanY } = homeViewport(origin, viewport.zoom);
   if (viewport.panX <= maxPanX && viewport.panY <= maxPanY) return viewport;
   return clampViewport({
     panX: Math.min(viewport.panX, maxPanX),

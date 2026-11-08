@@ -272,8 +272,10 @@ describe("pasteClipboard into another sheet or document", () => {
     const blocks =
       harness.store.getState().documents.get(DOCUMENT_A)?.sheets.get(SHEET_A2)
         ?.blocks ?? [];
-    // 100 x 50 block in 800 x 600 -> (350, 275); the seeded block stays below.
-    expect(blocks.at(-1)?.position).toEqual({ x: 350, y: 275 });
+    // A sheet not shown yet has the default view, whose corner is one margin (24) inside
+    // the edge: 100 x 50 block in 800 x 600 -> (350 - 24, 275 - 24); the seeded block
+    // stays below.
+    expect(blocks.at(-1)?.position).toEqual({ x: 326, y: 251 });
     expect(blocks).toHaveLength(2);
     expect(harness.clipboard.read()?.pasteCount).toBe(0);
   });
@@ -293,10 +295,11 @@ describe("pasteClipboard into another sheet or document", () => {
     const blocks =
       harness.store.getState().documents.get(DOCUMENT_B)?.sheets.get(SHEET_B1)
         ?.blocks ?? [];
-    // Bounding box 390 x 70 at origin (10, 20): centred -> (205, 265).
+    // Bounding box 390 x 70 at origin (10, 20): centred in the default view (corner one
+    // margin, 24, inside the edge) -> (205 - 24, 265 - 24).
     expect(blocks.map((block) => block.position)).toEqual([
-      { x: 205, y: 265 },
-      { x: 495, y: 285 },
+      { x: 181, y: 241 },
+      { x: 471, y: 261 },
     ]);
     expect(harness.gateway.methods("createBlockContent")).toHaveLength(2);
     expect(harness.session.getState().history.canUndo).toBe(false);

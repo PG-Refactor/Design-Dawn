@@ -2,14 +2,21 @@
 // the local state parser and by Rust (`application/local_state/constants.rs`); the canvas
 // implementation in a later step must clamp to the same values. Shared fixtures
 // (fixtures/app-state/) keep the two languages in sync.
+// How far inside the canvas edge the sheet's top-left corner can be brought, in WORLD units:
+// one grid step (`grid.interval`), so blocks at the corner are not cut by the edge (their
+// outline and shadow are drawn outside them) and the corner sits on a grid dot.
+const ORIGIN_MARGIN = 24;
+
 export const CANVAS_CONFIG = {
   viewport: {
     // Large enough for the world coordinate range at the maximum zoom.
     panLimit: 100_000_000_000,
     zoomMin: 0.1,
     zoomMax: 8,
-    // Shown for a sheet that has no saved viewport (identity transform).
-    default: { panX: 0, panY: 0, zoom: 1 },
+    originMargin: ORIGIN_MARGIN,
+    // Shown for a sheet that has no saved viewport: 100 %, the top-left corner one margin
+    // inside the edge.
+    default: { panX: ORIGIN_MARGIN, panY: ORIGIN_MARGIN, zoom: 1 },
     // Quiet period after the last viewport change before it is saved, so a pan or a
     // wheel gesture produces one save instead of one per event.
     saveDelayMs: 500,
