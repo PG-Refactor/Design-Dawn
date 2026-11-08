@@ -63,9 +63,65 @@
 
 /* Wraps the canvas so the toolbar above can measure the area a new block lands in. */
 .canvas-panel__canvas {
+  position: relative;
   display: flex;
   flex: 1 1 auto;
   min-height: 0;
+}
+
+/* The zoom control in the bottom-right corner, over the canvas. */
+.zoom-control {
+  position: absolute;
+  right: var(--space-2);
+  bottom: var(--space-2);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-subtle);
+  color: var(--color-text);
+  font-size: 0.8125rem;
+}
+
+.zoom-control__button {
+  min-width: 1.75em;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 1.6;
+  cursor: pointer;
+}
+
+.zoom-control__button:hover:not(:disabled) {
+  background: var(--color-hover);
+}
+
+.zoom-control__button:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.zoom-control__field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.zoom-control__input {
+  width: 4ch;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  text-align: right;
 }
 
 /* Drop hint while files are dragged over the window. Decorative and see-through to

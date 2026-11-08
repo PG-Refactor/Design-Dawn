@@ -64,6 +64,7 @@ import {
   screenToWorld,
   worldLayerTransform,
 } from "./geometry/viewport-math";
+import { ZoomControl } from "./zoom-control";
 import "./canvas.css";
 
 const NO_BLOCKS: readonly Block[] = [];
@@ -620,6 +621,13 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
         )}
         {contextMenu.element}
       </div>
+      <ZoomControl
+        zoom={viewport.zoom}
+        onZoom={(zoom) => {
+          const size = canvasSize();
+          input.zoomTo({ x: size.width / 2, y: size.height / 2 }, zoom);
+        }}
+      />
       {/* Outside the canvas element: React events bubble through portals, and the
           canvas's pointer-down would take the focus and the pointer from the dialog's
           buttons (a click on Save would never arrive). */}

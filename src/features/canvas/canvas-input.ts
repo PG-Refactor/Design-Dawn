@@ -59,6 +59,7 @@ import {
   type Rect,
   screenDeltaToWorld,
   screenToWorld,
+  zoomAt,
   zoomByWheel,
 } from "./geometry/viewport-math";
 
@@ -96,6 +97,9 @@ export interface CanvasInput {
   // Abandons the gesture in progress; nothing is committed.
   cancel(): void;
   wheel(input: WheelInput): void;
+  // The zoom control: sets the zoom, keeping the world point under `point` (the canvas
+  // centre) where it is. Ignored during a gesture, like the wheel.
+  zoomTo(point: Point, zoom: number): void;
   isGestureActive(): boolean;
 }
 
@@ -459,6 +463,11 @@ export function createCanvasInput(
           ? zoomByWheel(viewport, point, deltaY)
           : panBy(viewport, { x: -deltaX, y: -deltaY }),
       );
+    },
+
+    zoomTo(point, zoom) {
+      if (gesture !== null || committing) return;
+      setPan(zoomAt(currentViewport(), point, zoom));
     },
 
     isGestureActive: () => gesture !== null || committing,

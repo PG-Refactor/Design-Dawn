@@ -19,6 +19,13 @@ export const CANVAS_CONFIG = {
     // out by the same wheel distance cancels out. 0.002 turns one typical mouse notch
     // (deltaY 100) into about 22 %.
     wheelStep: 0.002,
+    // The stops of the zoom control's - / + buttons (as in a browser): a button goes to the
+    // next stop below / above the current zoom, whatever the wheel left it at. Within the
+    // viewport limits; the first and last are those limits.
+    steps: [
+      0.1, 0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3,
+      4, 5, 6, 8,
+    ],
   },
   interaction: {
     // Screen pixels the pointer must travel before a press becomes a drag / resize / pan;

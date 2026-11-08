@@ -388,3 +388,70 @@ describe("pan, zoom and viewport persistence", () => {
     expect(shell.viewportGateway.saveCalls).toEqual([]);
   });
 });
+
+describe("the zoom control", () => {
+  const zoomField = () =>
+    screen.getByRole("spinbutton", { name: "拡大率（%）" }) as HTMLInputElement;
+  const zoomOf = (shell: ShellHarness) =>
+    shell.uiStateStore.getState().viewportBySheet.get(SHEET_A1)?.zoom ?? 1;
+
+  it("shows 100% for a sheet that was never zoomed", async () => {
+    await renderOpenedCanvas();
+    expect(zoomField().value).toBe("100");
+  });
+
+  it("steps with - and +, and stops at the limits", async () => {
+    const { shell } = await renderOpenedCanvas();
+    await shell.user.click(screen.getByRole("button", { name: "拡大" }));
+    expect(zoomOf(shell)).toBe(1.1);
+    expect(zoomField().value).toBe("110");
+    await shell.user.click(screen.getByRole("button", { name: "縮小" }));
+    await shell.user.click(screen.getByRole("button", { name: "縮小" }));
+    expect(zoomOf(shell)).toBe(0.9);
+
+    await shell.user.clear(zoomField());
+    await shell.user.type(zoomField(), "10{Enter}");
+    expect(
+      (screen.getByRole("button", { name: "縮小" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+  });
+
+  it("applies a typed percentage on Enter, and puts back what is shown for anything else", async () => {
+    const { shell } = await renderOpenedCanvas();
+    await shell.user.clear(zoomField());
+    await shell.user.type(zoomField(), "150{Enter}");
+    expect(zoomOf(shell)).toBe(1.5);
+    expect(worldLayer().style.transform).toContain("scale(1.5)");
+
+    await shell.user.clear(zoomField());
+    await shell.user.type(zoomField(), "abc{Enter}");
+    expect(zoomField().value).toBe("150");
+    expect(zoomOf(shell)).toBe(1.5);
+
+    await shell.user.clear(zoomField());
+    await shell.user.type(zoomField(), "80{Escape}");
+    expect(zoomField().value).toBe("150");
+  });
+
+  it("steps with the arrow keys in the field, and tells its value", async () => {
+    const { shell } = await renderOpenedCanvas();
+    zoomField().focus();
+    await shell.user.keyboard("{ArrowUp}");
+    expect(zoomOf(shell)).toBe(1.1);
+    expect(zoomField().getAttribute("aria-valuenow")).toBe("110");
+    await shell.user.keyboard("{ArrowDown}{ArrowDown}");
+    expect(zoomOf(shell)).toBe(0.9);
+  });
+
+  it("follows a zoom made with the wheel", async () => {
+    await renderOpenedCanvas();
+    fireEvent.wheel(canvasElement(), {
+      deltaY: -100,
+      ctrlKey: true,
+      clientX: 200,
+      clientY: 100,
+    });
+    expect(Number(zoomField().value)).toBeGreaterThan(100);
+  });
+});

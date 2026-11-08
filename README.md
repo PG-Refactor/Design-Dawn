@@ -11,12 +11,13 @@ can be read and edited by people, reviewed with Git, and changed safely by AI to
 
 ## Features
 
-- **Free-form canvas** — pan, zoom, select, move, resize, align, z-order, copy/paste, and undo/redo
-  for every edit.
+- **Free-form canvas** — pan, zoom (wheel, or the zoom control in the corner: - / + or a typed
+  percentage), select, move, resize, align, z-order, copy/paste, and undo/redo for every edit.
 - **Project → Document → Sheet → Block** — a project tree with folders (drag rows to reorder or
   move them), document tabs and sheet tabs; several documents (and windows) open at once. The
   sidebar can be folded away.
-- **Markdown blocks** — rendered view on the canvas; a split source/preview editor while editing.
+- **Markdown blocks** — rendered view on the canvas; a split source/preview editor while editing
+  (the divider moves, and the preview can be hidden; the same for Mermaid source).
 - **Mermaid blocks** — any Mermaid 12 diagram, rendered locally and sanitised (no network, no
   scripts).
 - **Mermaid GUI editor** — edit pie charts, flowcharts, sequence diagrams and Gantt charts with
