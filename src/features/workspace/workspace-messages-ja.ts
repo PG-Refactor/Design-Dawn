@@ -48,6 +48,8 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   createBlock: "Blockを追加できませんでした",
   importImages: "画像を取り込めませんでした",
   importSpreadsheet: "表計算ファイルから表を追加できませんでした",
+  searchProject: "Projectを検索できませんでした",
+  replaceText: "置換できませんでした",
   importImagesWithoutSheet: "画像を追加するにはSheetを開いてください",
   editBlockContent:
     "Blockの本文の編集を確定できませんでした（編集内容は画面に残っています）",
@@ -187,6 +189,7 @@ export const WORKSPACE_MESSAGES_JA = {
   leftPanel: {
     tabsLabel: "左パネルの表示切り替え",
     project: "Project",
+    search: "検索",
     git: "Git",
     collapseSidebar: "サイドバーを閉じる",
     collapseSidebarButtonText: "«",

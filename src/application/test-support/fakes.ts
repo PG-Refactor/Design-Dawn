@@ -68,6 +68,7 @@ import {
   type SheetSnapshot,
 } from "../ports/persistence-types";
 import type { Scheduler } from "../ports/scheduler";
+import type { SearchResult } from "../ports/search-types";
 
 export {
   blockIdOf,
@@ -317,6 +318,8 @@ export interface FakeGateway extends PersistenceGateway {
   scriptDrop(dropId: string, files: readonly FakeDroppedFile[]): void;
   // The answer of the next spreadsheet dialog.
   scriptSpreadsheet(selection: SpreadsheetSelection): void;
+  // What every following search returns (Rust's view of the files on disk).
+  scriptSearch(result: SearchResult): void;
   // What the next `selectImageFiles` returns: the id of a scripted drop (the chosen files),
   // or null for a cancelled dialog. Default: cancelled.
   scriptImageSelection(dropId: string | null): void;
@@ -344,6 +347,7 @@ export function createFakeGateway(
   const drops = new Map<string, readonly FakeDroppedFile[]>();
   let nextImageSelection: string | null = null;
   let nextSpreadsheet: SpreadsheetSelection | null = null;
+  let nextSearch: SearchResult | null = null;
   let nextSelection: FolderSelection = DEFAULT_SELECTION;
   // The default place for new Projects (its display path), as Rust keeps it.
   let defaultLocation: string | null = null;
@@ -952,6 +956,9 @@ export function createFakeGateway(
     scriptSpreadsheet(selection) {
       nextSpreadsheet = selection;
     },
+    scriptSearch(result) {
+      nextSearch = result;
+    },
     scriptDrop(dropId, files) {
       drops.set(dropId, files);
     },
@@ -1079,6 +1086,13 @@ export function createFakeGateway(
         }
         return operationOk({ imported, rejected });
       }),
+    // The scripted search result, else nothing found.
+    searchProject: (_project, text, matchCase) =>
+      enter("searchProject", `${text}:${matchCase}`, () =>
+        operationOk(
+          nextSearch ?? { matches: [], truncated: false, unreadableBlocks: 0 },
+        ),
+      ),
     // What the next "Table from Spreadsheet…" dialog returns (cancelled unless scripted).
     readSpreadsheetViaDialog: () =>
       enter("readSpreadsheetViaDialog", "", () => {

@@ -19,6 +19,7 @@ use crate::application::authoring::{
 };
 use crate::application::local_state::ai_access::{listed_project_name, AiAccessList};
 use crate::application::local_state::ai_requests::{request_write_access, AiRequestOutcome};
+use crate::application::project_search::{search_project, SearchQuery};
 use crate::application::snapshot::EntityState;
 use crate::domain::caption::CaptionPosition;
 use crate::domain::entity_id::ProjectId;
@@ -274,6 +275,7 @@ listProjects and selectProject for another one"
             names::GET_DOCUMENT => self.get_document(&arguments),
             names::GET_SHEET => self.get_sheet(&arguments),
             names::GET_BLOCK => self.get_block(&arguments),
+            names::SEARCH_PROJECT => self.search_project(&arguments),
             names::CREATE_DOCUMENT => self.create_document(&arguments),
             names::CREATE_SHEET => self.create_sheet(&arguments),
             names::CREATE_BLOCK => self.create_block(&arguments),
@@ -490,6 +492,18 @@ the user can add it in Design Dawn's AI integration screen",
             "name": sheet.name,
             "blocks": blocks,
         }))
+    }
+
+    fn search_project(&self, arguments: &Arguments) -> Result<Value, ToolError> {
+        let resolved = self.resolve()?;
+        let result = search_project(
+            &resolved.root,
+            SearchQuery {
+                text: arguments.string("query")?.to_owned(),
+                match_case: arguments.optional_bool("matchCase")?.unwrap_or(false),
+            },
+        )?;
+        Ok(serde_json::to_value(result).unwrap_or(Value::Null))
     }
 
     fn get_block(&self, arguments: &Arguments) -> Result<Value, ToolError> {

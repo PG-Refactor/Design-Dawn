@@ -45,6 +45,7 @@ const APP_COMMANDS: &[&str] = &[
     "import_dropped_images",
     "import_pasted_image",
     "read_spreadsheet_via_dialog",
+    "search_project",
     "copy_asset_to_document",
     "subscribe_drop_notifications",
     "subscribe_close_requests",

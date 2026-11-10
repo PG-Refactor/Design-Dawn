@@ -1,5 +1,6 @@
 import { type KeyboardEvent, useRef } from "react";
 import { GitPanel } from "../git/git-panel";
+import { SearchPanel } from "../search/search-panel";
 import { ProjectTree } from "./project-tree";
 import { LEFT_PANEL_PANEL_ID, leftPanelTabId } from "./tab-ids";
 import {
@@ -21,6 +22,7 @@ export function Sidebar() {
   const messages = useMessages().workspace;
   const modeLabels: Record<LeftPanelMode, string> = {
     project: messages.leftPanel.project,
+    search: messages.leftPanel.search,
     git: messages.leftPanel.git,
   };
   const { actions } = useWorkspaceServices();
@@ -92,7 +94,13 @@ export function Sidebar() {
         aria-labelledby={leftPanelTabId(mode)}
         className="workspace-shell__sidebar-panel"
       >
-        {mode === "git" ? <GitPanel /> : <ProjectTree />}
+        {mode === "git" ? (
+          <GitPanel />
+        ) : mode === "search" ? (
+          <SearchPanel />
+        ) : (
+          <ProjectTree />
+        )}
       </div>
     </>
   );

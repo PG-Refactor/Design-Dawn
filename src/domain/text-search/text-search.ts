@@ -1,0 +1,100 @@
+// Plain-text search and replace in a Block's text, the same rules the Rust search uses:
+// every non-overlapping occurrence, upper and lower case equal unless `matchCase`, compared
+// character by character so offsets are those of the original text.
+
+export interface TextMatch {
+  // 1-based line.
+  readonly line: number;
+  // Offsets in characters (code points) within the line.
+  readonly start: number;
+  readonly length: number;
+  readonly lineText: string;
+}
+
+const LINE_BREAK = /\r?\n/;
+
+function foldCharacters(text: string, matchCase: boolean): string[] {
+  return [...text].map((character) =>
+    matchCase ? character : ([...character.toLowerCase()][0] ?? character),
+  );
+}
+
+// Character offsets of every non-overlapping occurrence of `needle` in `haystack`.
+function occurrences(
+  haystack: readonly string[],
+  needle: readonly string[],
+): number[] {
+  const found: number[] = [];
+  if (needle.length === 0 || needle.length > haystack.length) return found;
+  let start = 0;
+  while (start + needle.length <= haystack.length) {
+    let equal = true;
+    for (let index = 0; index < needle.length; index += 1) {
+      if (haystack[start + index] !== needle[index]) {
+        equal = false;
+        break;
+      }
+    }
+    if (equal) {
+      found.push(start);
+      start += needle.length;
+    } else {
+      start += 1;
+    }
+  }
+  return found;
+}
+
+export function findMatches(
+  text: string,
+  query: string,
+  matchCase: boolean,
+): TextMatch[] {
+  const needle = foldCharacters(query, matchCase);
+  const length = needle.length;
+  const matches: TextMatch[] = [];
+  text.split(LINE_BREAK).forEach((lineText, index) => {
+    for (const start of occurrences(
+      foldCharacters(lineText, matchCase),
+      needle,
+    )) {
+      matches.push({ line: index + 1, start, length, lineText });
+    }
+  });
+  return matches;
+}
+
+export interface Replaced {
+  readonly text: string;
+  readonly count: number;
+}
+
+// Every occurrence replaced by `replacement` (taken literally). Line breaks are untouched
+// because a query never spans lines.
+export function replaceAll(
+  text: string,
+  query: string,
+  replacement: string,
+  matchCase: boolean,
+): Replaced {
+  const characters = [...text];
+  const found = occurrences(
+    foldCharacters(text, matchCase),
+    foldCharacters(query, matchCase),
+  );
+  const queryLength = [...query].length;
+  const spansLine = (start: number) =>
+    characters
+      .slice(start, start + queryLength)
+      .some((character) => character === "\n" || character === "\r");
+  const starts = found.filter((start) => !spansLine(start));
+  if (starts.length === 0) return { text, count: 0 };
+  let result = "";
+  let cursor = 0;
+  for (const start of starts) {
+    result += characters.slice(cursor, start).join("") + replacement;
+    cursor = start + queryLength;
+  }
+  result += characters.slice(cursor).join("");
+  return { text: result, count: starts.length };
+}

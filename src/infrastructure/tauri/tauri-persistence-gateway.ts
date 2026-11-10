@@ -41,6 +41,7 @@ import {
   updateOutdatedFiles,
   writeBlockContent,
 } from "./persistence-client";
+import { searchProject } from "./search-client";
 
 // Thin: maps the application port onto the Tauri client. `CommandResult` and
 // `OperationResult` share one shape, so only the save results (which carry a `written`
@@ -101,6 +102,7 @@ export function createTauriPersistenceGateway(): PersistenceGateway {
     importDroppedImages,
     importPastedImage,
     readSpreadsheetViaDialog,
+    searchProject,
     copyAssetToDocument,
     readBlockContent,
     writeBlockContent: async (projectId, documentId, contentPath, text) =>

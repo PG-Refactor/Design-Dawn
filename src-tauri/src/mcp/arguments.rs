@@ -44,6 +44,16 @@ impl<'a> Arguments<'a> {
         }
     }
 
+    pub fn optional_bool(&self, key: &str) -> Result<Option<bool>, ToolError> {
+        match self.values.get(key) {
+            None | Some(Value::Null) => Ok(None),
+            Some(Value::Bool(value)) => Ok(Some(*value)),
+            Some(_) => Err(ToolError::invalid_arguments(format!(
+                "{key} must be a boolean"
+            ))),
+        }
+    }
+
     /// An object of exactly two integer fields, such as `{ "x": 0, "y": 0 }`.
     pub fn optional_pair(
         &self,

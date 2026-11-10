@@ -46,6 +46,8 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   createBlock: "Could not add the block",
   importImages: "Could not import the images",
   importSpreadsheet: "Could not add the table from the spreadsheet",
+  searchProject: "Could not search the project",
+  replaceText: "Could not replace the text",
   importImagesWithoutSheet: "Open a Sheet to add images",
   editBlockContent:
     "Could not commit the edit of the block text (your edit is still on the screen)",
@@ -187,6 +189,7 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
   leftPanel: {
     tabsLabel: "Switch the left panel",
     project: "Project",
+    search: "Search",
     git: "Git",
     collapseSidebar: "Hide the sidebar",
     collapseSidebarButtonText: "«",

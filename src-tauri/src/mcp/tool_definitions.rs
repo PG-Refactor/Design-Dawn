@@ -13,6 +13,7 @@ pub const GET_PROJECT: &str = "getProject";
 pub const GET_DOCUMENT: &str = "getDocument";
 pub const GET_SHEET: &str = "getSheet";
 pub const GET_BLOCK: &str = "getBlock";
+pub const SEARCH_PROJECT: &str = "searchProject";
 pub const CREATE_DOCUMENT: &str = "createDocument";
 pub const CREATE_SHEET: &str = "createSheet";
 pub const CREATE_BLOCK: &str = "createBlock";
@@ -98,6 +99,14 @@ fn id(name: &'static str, required: bool, description: &str) -> Property {
         name,
         required,
         json!({ "type": "string", "description": description }),
+    )
+}
+
+fn flag(name: &'static str, description: &str) -> Property {
+    property(
+        name,
+        false,
+        json!({ "type": "boolean", "description": description }),
     )
 }
 
@@ -218,6 +227,24 @@ as expectedContentHash to updateBlock). Image Blocks include only file name, for
                 id("documentId", true, DOCUMENT_ID_HELP),
                 id("sheetId", true, SHEET_ID_HELP),
                 id("blockId", true, BLOCK_ID_HELP),
+            ],
+        ),
+        read(
+            SEARCH_PROJECT,
+            "Finds text in every Markdown and Mermaid Block and every caption of the Project: \
+each match with its documentId, sheetId, blockId, line and the line around it (at most 500; \
+truncated tells if there were more). Use it to find the Block to read with getBlock instead \
+of reading every Block.",
+            vec![
+                text(
+                    "query",
+                    true,
+                    "the text to find (plain text, not a pattern)",
+                ),
+                flag(
+                    "matchCase",
+                    "true to tell upper and lower case apart (default false)",
+                ),
             ],
         ),
         write(

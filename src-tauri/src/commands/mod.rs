@@ -53,6 +53,9 @@ use crate::application::local_state::operations::{AppSettings, LocalState, Sheet
 use crate::application::local_state::theme::{ThemePreference, WindowAppearance};
 use crate::application::open_request::{self, OpenRequest, OpenedRequest, PendingOpenRequests};
 use crate::application::project_operations as projects;
+use crate::application::project_search::{
+    search_project as search_in_project, SearchQuery, SearchResult,
+};
 use crate::application::session::ProjectSessions;
 use crate::application::sheet_operations as sheets;
 use crate::application::snapshot::{
@@ -73,7 +76,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 77] = [
+pub const COMMAND_NAMES: [&str; 78] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -117,6 +120,7 @@ pub const COMMAND_NAMES: [&str; 77] = [
     "import_dropped_images",
     "import_pasted_image",
     "read_spreadsheet_via_dialog",
+    "search_project",
     "copy_asset_to_document",
     "subscribe_drop_notifications",
     "subscribe_close_requests",
@@ -303,6 +307,29 @@ fn file_dialogs<R: Runtime>(app: &AppHandle<R>) -> ApplicationResult<SharedFileD
         .ok_or_else(|| {
             ApplicationError::new(ErrorKind::DialogFailed, "no file dialogs are registered")
         })
+}
+
+/// The Search panel: every match of `text` in the Project's text Blocks and captions, read
+/// from disk on the blocking pool through a session of its own (the window's session and
+/// its open Documents are not touched).
+#[tauri::command]
+pub async fn search_project<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    text: String,
+    match_case: bool,
+) -> Result<SearchResult, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    let root = {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        let guard = sessions.lock().unwrap_or_else(PoisonError::into_inner);
+        guard
+            .get(&ProjectId::parse(&project_id)?)?
+            .root()
+            .to_path_buf()
+    };
+    run_blocking(move || search_in_project(&root, SearchQuery { text, match_case })).await
 }
 
 /// "Table from Spreadsheet…": the OS dialog, then the values of every worksheet. Runs on the
