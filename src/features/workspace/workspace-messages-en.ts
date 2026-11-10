@@ -45,6 +45,7 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
     "Some blocks could not be duplicated (their text or image is not loaded)",
   createBlock: "Could not add the block",
   importImages: "Could not import the images",
+  importSpreadsheet: "Could not add the table from the spreadsheet",
   importImagesWithoutSheet: "Open a Sheet to add images",
   editBlockContent:
     "Could not commit the edit of the block text (your edit is still on the screen)",
@@ -122,6 +123,8 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
     "The selected folder is not valid. Please select it again.",
   invalidImageContent: "The file cannot be read as an image.",
   assetTooLarge: "The image file is too large (limit 20 MiB).",
+  invalidSpreadsheet:
+    "The spreadsheet could not be read (.xlsx, .xlsm, .xls, .xlsb or .ods, up to 20 MiB).",
   invalidDropSelection:
     "The dropped files are not valid. Please drop them again.",
   folderNotEmpty:

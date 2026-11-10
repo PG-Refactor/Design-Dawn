@@ -18,6 +18,7 @@ import type {
   DropImportResult,
   ImageSelection,
   ImportedImage,
+  SpreadsheetSelection,
 } from "./asset-types";
 import type { OperationResult } from "./operation-error";
 import type {
@@ -223,6 +224,9 @@ export interface PersistenceGateway {
     projectId: ProjectId,
     documentId: DocumentId,
   ): Promise<OperationResult<DropImportResult>>;
+  // The OS dialog for a spreadsheet runs in Rust, which reads the chosen file and returns
+  // the values of its sheets. Cancelling is an ok result.
+  readSpreadsheetViaDialog(): Promise<OperationResult<SpreadsheetSelection>>;
   // Stores image bytes that have no file behind them (pasted from the clipboard) in the
   // Document's assets, validated like a dropped file. `extension` is the claimed format.
   importPastedImage(

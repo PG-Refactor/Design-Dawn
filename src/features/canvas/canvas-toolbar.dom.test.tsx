@@ -63,6 +63,7 @@ describe("+ Block menu", () => {
       "Mermaid",
       "Mermaidテンプレート▸",
       "画像…",
+      "表計算ファイルから表…",
     ]);
     await act(settle);
     expect(document.activeElement).toBe(items[0]);

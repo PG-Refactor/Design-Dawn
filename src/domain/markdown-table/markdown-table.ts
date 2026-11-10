@@ -518,6 +518,16 @@ export function tableFromTabSeparated(text: string): MarkdownTable | null {
   const columnCount = Math.max(0, ...rows.map((row) => row.length));
   if (rows.length < MIN_PASTED_ROWS || columnCount < MIN_PASTED_COLUMNS)
     return null;
+  return tableFromCells(rows);
+}
+
+// A table of cell values (the first row is the header); rows are padded to the widest,
+// and each value is made safe for a cell. Null when there is no row at all.
+export function tableFromCells(
+  rows: readonly (readonly string[])[],
+): MarkdownTable | null {
+  const columnCount = Math.max(0, ...rows.map((row) => row.length));
+  if (rows.length === 0 || columnCount === 0) return null;
   const padded = rows.map((row) =>
     [...row, ...Array.from({ length: columnCount - row.length }, () => "")].map(
       markdownCell,

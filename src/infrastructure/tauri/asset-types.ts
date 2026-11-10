@@ -5,4 +5,6 @@ export type {
   ImageSelection,
   ImportedImage,
   RejectedFile,
+  SpreadsheetSelection,
+  SpreadsheetSheet,
 } from "../../application/ports/asset-types";

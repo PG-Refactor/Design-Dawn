@@ -372,6 +372,11 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
               viewportSize: canvasSize(),
               ...(at === undefined ? {} : { at }),
             }),
+          importSpreadsheet: () =>
+            void canvasActions.importSpreadsheet({
+              viewportSize: canvasSize(),
+              ...(at === undefined ? {} : { at }),
+            }),
           paste,
         }),
       );

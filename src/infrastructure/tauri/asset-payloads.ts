@@ -1,7 +1,12 @@
 // Decoders for the asset command payloads, in the same two steps as persistence-payloads:
 // check the shape, then run the domain parsers.
 
-import { IMAGE_SELECTION_STATUS } from "../../application/ports/asset-types";
+import {
+  IMAGE_SELECTION_STATUS,
+  SPREADSHEET_SELECTION_STATUS,
+  type SpreadsheetSelection,
+  type SpreadsheetSheet,
+} from "../../application/ports/asset-types";
 import { parseBlockType } from "../../domain/block/block-type";
 import { parseContentPath } from "../../domain/block/content-path";
 import type { DomainResult } from "../../domain/shared/domain-result";
@@ -23,6 +28,7 @@ import {
   arrayOf,
   type Decoded,
   type Decoder,
+  decodeBoolean,
   decodeNumber,
   decodeString,
   objectOf,
@@ -168,5 +174,40 @@ export function toImageSelection(
   const selected = decodePayload(rawSelectedImages, payload);
   return selected.ok
     ? commandOk({ status: IMAGE_SELECTION_STATUS.selected, ...selected.value })
+    : selected;
+}
+
+const rawSpreadsheetStatus = objectOf<{
+  readonly status: SpreadsheetSelection["status"];
+}>({
+  status: oneOf(Object.values(SPREADSHEET_SELECTION_STATUS)),
+});
+const rawSpreadsheetSheet = objectOf<SpreadsheetSheet>({
+  name: decodeString,
+  rows: arrayOf(arrayOf(decodeString)),
+  truncated: decodeBoolean,
+});
+const rawSelectedSpreadsheet = objectOf<{
+  readonly fileName: string;
+  readonly sheets: readonly SpreadsheetSheet[];
+}>({
+  fileName: decodeString,
+  sheets: arrayOf(rawSpreadsheetSheet),
+});
+
+export function toSpreadsheetSelection(
+  payload: unknown,
+): CommandResult<SpreadsheetSelection> {
+  const status = decodePayload(rawSpreadsheetStatus, payload);
+  if (!status.ok) return status;
+  if (status.value.status === SPREADSHEET_SELECTION_STATUS.cancelled) {
+    return commandOk({ status: SPREADSHEET_SELECTION_STATUS.cancelled });
+  }
+  const selected = decodePayload(rawSelectedSpreadsheet, payload);
+  return selected.ok
+    ? commandOk({
+        status: SPREADSHEET_SELECTION_STATUS.selected,
+        ...selected.value,
+      })
     : selected;
 }

@@ -38,7 +38,11 @@ import type { BlockSpec } from "../commands/command";
 import type { DocumentData } from "../commands/document-data";
 import { normalizeLineEndings } from "../commands/text-content";
 import type { IdGenerator } from "../id-generator";
-import type { ImportedImage, RejectedFile } from "../ports/asset-types";
+import type {
+  ImportedImage,
+  RejectedFile,
+  SpreadsheetSelection,
+} from "../ports/asset-types";
 import {
   type OperationErrorKind,
   type OperationResult,
@@ -311,6 +315,8 @@ export interface FakeGateway extends PersistenceGateway {
   // What the next `importDroppedImages(dropId, ...)` finds (each script is used once, like
   // a drop in Rust).
   scriptDrop(dropId: string, files: readonly FakeDroppedFile[]): void;
+  // The answer of the next spreadsheet dialog.
+  scriptSpreadsheet(selection: SpreadsheetSelection): void;
   // What the next `selectImageFiles` returns: the id of a scripted drop (the chosen files),
   // or null for a cancelled dialog. Default: cancelled.
   scriptImageSelection(dropId: string | null): void;
@@ -337,6 +343,7 @@ export function createFakeGateway(
   const assets = new Map<DocumentId, Map<string, FakeAsset>>();
   const drops = new Map<string, readonly FakeDroppedFile[]>();
   let nextImageSelection: string | null = null;
+  let nextSpreadsheet: SpreadsheetSelection | null = null;
   let nextSelection: FolderSelection = DEFAULT_SELECTION;
   // The default place for new Projects (its display path), as Rust keeps it.
   let defaultLocation: string | null = null;
@@ -942,6 +949,9 @@ export function createFakeGateway(
     scriptImageSelection(dropId) {
       nextImageSelection = dropId;
     },
+    scriptSpreadsheet(selection) {
+      nextSpreadsheet = selection;
+    },
     scriptDrop(dropId, files) {
       drops.set(dropId, files);
     },
@@ -1068,6 +1078,15 @@ export function createFakeGateway(
           });
         }
         return operationOk({ imported, rejected });
+      }),
+    // What the next "Table from Spreadsheet…" dialog returns (cancelled unless scripted).
+    readSpreadsheetViaDialog: () =>
+      enter("readSpreadsheetViaDialog", "", () => {
+        const next = nextSpreadsheet;
+        nextSpreadsheet = null;
+        return next === null
+          ? operationOk({ status: "cancelled" as const })
+          : operationOk(next);
       }),
     // Any bytes are "an image" of 1 x 1; the name is the fixed stem Rust uses.
     importPastedImage: (_project, documentId, _bytes, extension) =>

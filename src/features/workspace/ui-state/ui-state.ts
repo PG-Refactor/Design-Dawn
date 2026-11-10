@@ -252,6 +252,7 @@ export const OPERATION_LABELS = [
   "createBlock",
   "importImages",
   "importImagesWithoutSheet",
+  "importSpreadsheet",
   "editBlockContent",
   "setBlockCaption",
   "editDiagram",

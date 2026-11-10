@@ -85,6 +85,8 @@ export const GATEWAY_METHOD_KINDS = {
   setDefaultProjectLocation: "read",
   importDroppedImages: "write",
   importPastedImage: "write",
+  // Reads a file outside the Project; the blocks it becomes are written by a command.
+  readSpreadsheetViaDialog: "read",
   copyAssetToDocument: "write",
 } as const satisfies Record<keyof PersistenceGateway, "write" | "read">;
 

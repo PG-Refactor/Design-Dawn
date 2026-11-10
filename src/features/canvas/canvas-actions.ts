@@ -28,6 +28,7 @@ import {
 import type {
   ApplicationCommand,
   AssetBlockSpec,
+  TextBlockSpec,
 } from "../../application/commands/command";
 import { editBlockContentCommand } from "../../application/commands/content-commands";
 import {
@@ -39,7 +40,10 @@ import type { ApplyDiagramEditsOutcome } from "../../application/diagram/apply-d
 import { applyValidatedDiagramOperation } from "../../application/diagram/apply-validated-diagram-operation";
 import type { DiagramRenderCheck } from "../../application/diagram/diagram-render-check";
 import type { IdGenerator } from "../../application/id-generator";
-import { IMAGE_SELECTION_STATUS } from "../../application/ports/asset-types";
+import {
+  IMAGE_SELECTION_STATUS,
+  SPREADSHEET_SELECTION_STATUS,
+} from "../../application/ports/asset-types";
 import {
   failWith,
   fromDomainResult,
@@ -54,10 +58,18 @@ import type { ApplicationStore } from "../../application/state/application-state
 import type { Workspace } from "../../application/workspace/workspace";
 import { PASTE_OFFSET } from "../../config/canvas-config";
 import type { Block } from "../../domain/block/block";
-import type { BlockType } from "../../domain/block/block-type";
+import {
+  BLOCK_TYPE_DEFINITIONS,
+  type BlockType,
+} from "../../domain/block/block-type";
 import { type CaptionPosition, parseCaption } from "../../domain/block/caption";
 import type { ContentPath } from "../../domain/block/content-path";
 import type { DiagramOperation } from "../../domain/diagram/diagram-operation";
+import {
+  formatTable,
+  type MarkdownTable,
+  tableFromCells,
+} from "../../domain/markdown-table/markdown-table";
 import type {
   BlockId,
   DocumentId,
@@ -66,6 +78,7 @@ import type {
 } from "../../domain/shared/entity-id";
 import type { Position, Size } from "../../domain/shared/geometry";
 import { markdownAssetReferences } from "../markdown/markdown-asset-references";
+import { SPREADSHEET_BLOCK_SIZE } from "../markdown/markdown-block-defaults";
 import {
   MERMAID_TEMPLATES,
   type MermaidTemplateId,
@@ -237,6 +250,12 @@ export interface CanvasActions {
   importPastedImage(
     input: ImportPastedImageInput,
   ): Promise<OperationResult<ContentPath>>;
+  // "Table from Spreadsheet…": the OS dialog (in Rust), then one Markdown block per
+  // worksheet with values (its name as a heading and the values as a table), all in ONE
+  // command, selected afterwards. Cancelling does nothing.
+  importSpreadsheet(
+    input: AddImagesFromFilesInput,
+  ): Promise<OperationResult<void>>;
   // "Add Image…": the OS dialog for image files, then the same import as a drop into the
   // active sheet. Cancelling the dialog does nothing.
   addImagesFromFiles(
@@ -285,6 +304,28 @@ export interface CanvasActionsDependencies {
 }
 
 const NOTHING_TO_DO = operationOk(undefined);
+
+// Roughly the table's size, within the limits of SPREADSHEET_BLOCK_SIZE.
+function spreadsheetBlockSize(table: MarkdownTable): {
+  readonly width: number;
+  readonly height: number;
+} {
+  const limits = SPREADSHEET_BLOCK_SIZE;
+  const clamp = (value: number, min: number, max: number) =>
+    Math.min(Math.max(value, min), max);
+  return {
+    width: clamp(
+      table.header.length * limits.columnWidth,
+      limits.minWidth,
+      limits.maxWidth,
+    ),
+    height: clamp(
+      (table.rows.length + 1) * limits.rowHeight + limits.extraHeight,
+      limits.minHeight,
+      limits.maxHeight,
+    ),
+  };
+}
 
 // A text editor that writes references to images it is given (see
 // `registerTextImageTarget`).
@@ -877,6 +918,64 @@ export function createCanvasActions(
       if (!created.ok) return failWith(created.error);
       uiStateStore.setState((state) => selectBlocks(state, sheetId, [blockId]));
       return operationOk(blockId);
+    },
+
+    async importSpreadsheet({ viewportSize, at }) {
+      const target = activeSheetTarget();
+      if (target === null) {
+        return record(
+          "importSpreadsheet",
+          operationErr(
+            "entityNotFound",
+            "no sheet is open to receive the table",
+          ),
+        );
+      }
+      const read = record(
+        "importSpreadsheet",
+        await gateway.readSpreadsheetViaDialog(),
+      );
+      if (!read.ok) return failWith(read.error);
+      if (read.value.status === SPREADSHEET_SELECTION_STATUS.cancelled) {
+        return NOTHING_TO_DO;
+      }
+      const { documentId, sheetId } = target;
+      const specs: TextBlockSpec[] = [];
+      for (const worksheet of read.value.sheets) {
+        const table = tableFromCells(worksheet.rows);
+        if (table === null) continue;
+        const size = commitSize(spreadsheetBlockSize(table));
+        if (!size.ok)
+          return record("importSpreadsheet", fromDomainResult(size));
+        const position = newBlockPosition(
+          { documentId, sheetId, viewportSize, at },
+          size.value,
+          specs.map((spec) => spec.position),
+        );
+        if (!position.ok) return record("importSpreadsheet", position);
+        specs.push({
+          blockId: idGenerator.blockId(),
+          blockType: BLOCK_TYPE_DEFINITIONS.markdown.identifier,
+          position: position.value,
+          size: size.value,
+          text: `## ${worksheet.name}\n\n${formatTable(table).join("\n")}\n`,
+        });
+      }
+      if (specs.length === 0) return NOTHING_TO_DO;
+      const created = await execute(
+        "importSpreadsheet",
+        documentId,
+        createBlocksCommand(sheetId, specs),
+      );
+      if (!created.ok) return created;
+      uiStateStore.setState((state) =>
+        selectBlocks(
+          state,
+          sheetId,
+          specs.map((spec) => spec.blockId),
+        ),
+      );
+      return created;
     },
 
     async addImagesFromFiles({ viewportSize, at }) {

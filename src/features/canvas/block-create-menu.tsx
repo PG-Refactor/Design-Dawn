@@ -13,6 +13,8 @@ export interface BlockCreateMenuProps {
   ) => void;
   // Opens the image file dialog.
   readonly onAddImage: () => void;
+  // Opens the spreadsheet dialog (each sheet becomes a Markdown table block).
+  readonly onImportSpreadsheet: () => void;
 }
 
 const OPEN_KEY = "ArrowDown";
@@ -23,6 +25,7 @@ const OPEN_KEY = "ArrowDown";
 export function BlockCreateMenu({
   onCreate,
   onAddImage,
+  onImportSpreadsheet,
 }: BlockCreateMenuProps) {
   const messages = useMessages().canvas;
   const mermaidMessages = useMessages().mermaid;
@@ -90,6 +93,11 @@ export function BlockCreateMenu({
               id: "image",
               label: messages.toolbar.image,
               onSelect: onAddImage,
+            },
+            {
+              id: "spreadsheet",
+              label: messages.toolbar.spreadsheet,
+              onSelect: onImportSpreadsheet,
             },
           ]}
         />

@@ -30,6 +30,7 @@ use crate::application::document_transfer::DocumentTransfers;
 use crate::application::dropped_files::DroppedFilesState;
 use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
 use crate::application::external_change::{self, ExternalChanges};
+use crate::application::file_dialogs::FileDialogs;
 use crate::application::folder_operations as folders;
 use crate::application::folder_selection::{
     dialog_start_folder, register_known_folder, resolve_selection,
@@ -57,6 +58,7 @@ use crate::application::sheet_operations as sheets;
 use crate::application::snapshot::{
     DocumentSnapshot, FolderSnapshot, ProjectSnapshot, SaveResult, SheetSnapshot,
 };
+use crate::application::spreadsheet_import::{select_and_read_spreadsheet, SpreadsheetSelection};
 use crate::application::window_binding::{
     close_window_project, create_project_in_window, open_project_in_window,
     project_snapshot_for_window, release_window_project, reload_project_in_window, WindowOpenError,
@@ -71,7 +73,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 76] = [
+pub const COMMAND_NAMES: [&str; 77] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -114,6 +116,7 @@ pub const COMMAND_NAMES: [&str; 76] = [
     "save_sheet_viewport",
     "import_dropped_images",
     "import_pasted_image",
+    "read_spreadsheet_via_dialog",
     "copy_asset_to_document",
     "subscribe_drop_notifications",
     "subscribe_close_requests",
@@ -155,7 +158,7 @@ pub use app_channel::{AppNotification, AppNotificationSink, AppRequestHub, AppRe
 pub use asset_protocol::{respond_to_asset_request, ASSET_URL_SCHEME};
 pub use drag_drop::{DropNotification, DropSubscriber};
 pub use external_watch::install_external_change_watching;
-pub use folder_picker::{DialogFolderPicker, DialogImagePicker};
+pub use folder_picker::{DialogFiles, DialogFolderPicker, DialogImagePicker};
 pub use open_dispatch::{
     dispatch_in_background, hand_over_document, handle_second_launch, placement_following,
     reroute_transfers, reroute_unacknowledged, route_external_request, route_open_request,
@@ -291,6 +294,29 @@ pub type SharedFolderPicker = Arc<dyn FolderPicker>;
 
 /// The image file dialog as managed state, like `SharedFolderPicker`.
 pub type SharedImagePicker = Arc<dyn ImagePicker>;
+/// The open / save file dialogs, shared like the pickers (tests register fakes).
+pub type SharedFileDialogs = Arc<dyn FileDialogs>;
+
+fn file_dialogs<R: Runtime>(app: &AppHandle<R>) -> ApplicationResult<SharedFileDialogs> {
+    app.try_state::<SharedFileDialogs>()
+        .map(|state| Arc::clone(state.inner()))
+        .ok_or_else(|| {
+            ApplicationError::new(ErrorKind::DialogFailed, "no file dialogs are registered")
+        })
+}
+
+/// "Table from Spreadsheet…": the OS dialog, then the values of every worksheet. Runs on the
+/// blocking pool like the other dialogs; the chosen path never reaches the Frontend.
+#[tauri::command]
+pub async fn read_spreadsheet_via_dialog<R: Runtime>(
+    app: AppHandle<R>,
+) -> Result<SpreadsheetSelection, ApplicationError> {
+    run_blocking(move || {
+        let dialogs = file_dialogs(&app)?;
+        select_and_read_spreadsheet(dialogs.as_ref())
+    })
+    .await
+}
 
 type SessionState<'a> = State<'a, Mutex<ProjectSessions>>;
 type FolderSelectionStateHandle<'a> = State<'a, Mutex<FolderSelectionState>>;
