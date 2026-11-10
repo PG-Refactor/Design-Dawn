@@ -12,4 +12,52 @@
     <xhtml:link rel="alternate" hreflang="ja" href="https://pg-refactor.github.io/Design-Dawn/ja/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://pg-refactor.github.io/Design-Dawn/"/>
   </url>
+  <url>
+    <loc>https://pg-refactor.github.io/Design-Dawn/mermaid-gui-editor/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://pg-refactor.github.io/Design-Dawn/mermaid-gui-editor/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://pg-refactor.github.io/Design-Dawn/ja/mermaid-gui-editor/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://pg-refactor.github.io/Design-Dawn/mermaid-gui-editor/"/>
+  </url>
+  <url>
+    <loc>https://pg-refactor.github.io/Design-Dawn/ja/mermaid-gui-editor/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://pg-refactor.github.io/Design-Dawn/mermaid-gui-editor/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://pg-refactor.github.io/Design-Dawn/ja/mermaid-gui-editor/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://pg-refactor.github.io/Design-Dawn/mermaid-gui-editor/"/>
+  </url>
+  <url>
+    <loc>https://pg-refactor.github.io/Design-Dawn/docs-as-code/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://pg-refactor.github.io/Design-Dawn/docs-as-code/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://pg-refactor.github.io/Design-Dawn/ja/docs-as-code/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://pg-refactor.github.io/Design-Dawn/docs-as-code/"/>
+  </url>
+  <url>
+    <loc>https://pg-refactor.github.io/Design-Dawn/ja/docs-as-code/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://pg-refactor.github.io/Design-Dawn/docs-as-code/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://pg-refactor.github.io/Design-Dawn/ja/docs-as-code/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://pg-refactor.github.io/Design-Dawn/docs-as-code/"/>
+  </url>
+  <url>
+    <loc>https://pg-refactor.github.io/Design-Dawn/mcp/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://pg-refactor.github.io/Design-Dawn/mcp/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://pg-refactor.github.io/Design-Dawn/ja/mcp/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://pg-refactor.github.io/Design-Dawn/mcp/"/>
+  </url>
+  <url>
+    <loc>https://pg-refactor.github.io/Design-Dawn/ja/mcp/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://pg-refactor.github.io/Design-Dawn/mcp/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://pg-refactor.github.io/Design-Dawn/ja/mcp/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://pg-refactor.github.io/Design-Dawn/mcp/"/>
+  </url>
+  <url>
+    <loc>https://pg-refactor.github.io/Design-Dawn/download/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://pg-refactor.github.io/Design-Dawn/download/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://pg-refactor.github.io/Design-Dawn/ja/download/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://pg-refactor.github.io/Design-Dawn/download/"/>
+  </url>
+  <url>
+    <loc>https://pg-refactor.github.io/Design-Dawn/ja/download/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://pg-refactor.github.io/Design-Dawn/download/"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://pg-refactor.github.io/Design-Dawn/ja/download/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://pg-refactor.github.io/Design-Dawn/download/"/>
+  </url>
 </urlset>

@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>設計書を Git で管理する（Docs as Code）| Design Dawn</title>
+  <meta name="description" content="Design Dawn はメモを .md、図を .mmd のファイルとして保存します。設計書をソースコードと同じように Git で差分確認・コミット・レビューできます。">
+  <link rel="canonical" href="https://pg-refactor.github.io/Design-Dawn/ja/docs-as-code/">
+  <link rel="alternate" hreflang="en" href="https://pg-refactor.github.io/Design-Dawn/docs-as-code/">
+  <link rel="alternate" hreflang="ja" href="https://pg-refactor.github.io/Design-Dawn/ja/docs-as-code/">
+  <link rel="alternate" hreflang="x-default" href="https://pg-refactor.github.io/Design-Dawn/docs-as-code/">
+  <link rel="icon" type="image/png" href="../../favicon.png">
+  <link rel="apple-touch-icon" href="../../images/apple-touch-icon.png">
+  <meta name="theme-color" content="#0e1220">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Design Dawn">
+  <meta property="og:title" content="設計書を Git で管理する">
+  <meta property="og:description" content="Design Dawn はメモを .md、図を .mmd のファイルとして保存します。設計書をソースコードと同じように Git で差分確認・コミット・レビューできます。">
+  <meta property="og:url" content="https://pg-refactor.github.io/Design-Dawn/ja/docs-as-code/">
+  <meta property="og:image" content="https://pg-refactor.github.io/Design-Dawn/images/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta property="og:locale" content="ja_JP">
+
+  <link rel="stylesheet" href="../../style.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Design Dawn",
+      "item": "https://pg-refactor.github.io/Design-Dawn/ja/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "設計書を Git で管理",
+      "item": "https://pg-refactor.github.io/Design-Dawn/ja/docs-as-code/"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="../"><img src="../../images/icon-64.png" alt="" width="28" height="28">Design Dawn</a>
+    <nav class="top" aria-label="メイン">
+      <a class="hide-sm" href="../mermaid-gui-editor/">Mermaid GUI</a>
+      <a class="hide-sm" href="../docs-as-code/" aria-current="page">Git 管理</a>
+      <a class="hide-sm" href="../mcp/">AI / MCP</a>
+      <a class="hide-sm" href="../download/">ダウンロード</a>
+      <a href="../../docs-as-code/" hreflang="en" lang="en">English</a>
+      <a href="https://github.com/PG-Refactor/Design-Dawn">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <article class="article">
+    <div class="wrap narrow">
+      <nav class="crumbs" aria-label="パンくずリスト"><a href="../">ホーム</a> / <span>設計書を Git で管理</span></nav>
+      <h1>設計書を Git で管理する</h1>
+      <p class="lead">Design Dawn はデータベースも、1つにまとまったバイナリの文書ファイルも使いません。Project は小さなテキストファイルが入ったフォルダなので、Git・差分・プルリクエストといったソースコード用の道具が、設計書にもそのまま使えます。</p>
+
+      <h2>Project の保存形式</h2>
+<pre><code>my-project/
+├── project.json
+├── system-design.dawn
+└── documents/
+    └── system-design/
+        ├── document.json
+        ├── assets/
+        └── sheets/
+            └── overview/
+                ├── sheet.json
+                └── blocks/
+                    ├── markdown-1.md
+                    └── mermaid-1.mmd</code></pre>
+      <ul>
+        <li>Markdown ブロックは1つずつ <code>.md</code> ファイル、Mermaid ブロックは1つずつ <code>.mmd</code> ファイルになります。</li>
+        <li>位置・大きさ・並び順は、本文とは別の小さな JSON ファイル（<code>sheet.json</code>・<code>document.json</code>・<code>project.json</code>）に保存されます。</li>
+        <li>画像は、その Document の <code>assets/</code> フォルダにコピーされます。</li>
+        <li>すべての JSON に <code>schemaVersion</code> があります。Document・Sheet・Block には変わらない UUID が付き、アプリに表示される名前はフォルダ名とは独立しています。</li>
+      </ul>
+      <p>メモの文を直せば変わるのは1つの <code>.md</code> ファイルだけ、ブロックを動かせば変わるのは1つの <code>sheet.json</code> の数値だけです。差分が小さく読みやすいままなのは、このためです。</p>
+
+      <figure class="fig"><img class="shot" loading="lazy" src="../../images/git-diff.png" width="1600" height="1000" alt="Markdown ブロックの左右比較の Git 差分"><figcaption>タブで開いた、Markdown ブロックの左右比較の差分（画面は英語表示です）</figcaption></figure>
+
+      <h2>アプリの中でできる Git 操作</h2>
+      <p>Project のフォルダが Git リポジトリなら、サイドバーの Git タブで次のことができます。</p>
+      <ul>
+        <li>変更の一覧と、ステージ / ステージ解除</li>
+        <li>コミットと、直前のコミットの取り消し</li>
+        <li>履歴の表示</li>
+        <li>タブで開く左右比較の差分</li>
+        <li>変更の破棄</li>
+        <li>フェッチ / プル / プッシュと、リモートへのブランチの発行</li>
+        <li>現在のブランチ名の表示</li>
+      </ul>
+
+      <h2>Git 本体に任せていること</h2>
+      <ul>
+        <li>アプリは PC にインストールされた <code>git</code> コマンドを使います。Git の機能には <strong>Git 2.25 以上</strong>が必要です。Git が無くても、それ以外の機能は使えます。</li>
+        <li>リポジトリの作成はアプリでは行いません。<code>git init</code>（またはクローン）は普段のツールで行ってください。リポジトリでないフォルダは「Git で管理されていません」と表示されます。</li>
+        <li>ブランチの作成・切り替え、マージ、競合の解決は、アプリではなく普段の Git ツールで行います。</li>
+      </ul>
+
+      <h2>アプリの外でファイルが変わったとき</h2>
+      <p>プル、ターミナルでのチェックアウト、ほかのエディタ、AI ツールなどで、開いている Document のファイルが変わることがあります。Design Dawn はこれを検知します。未保存の変更が無い Document は自動で読み直し、ある場合は「読み直す / 今の内容を維持 / 比較」から選べます。</p>
+
+      <h2>設計をプルリクエストでレビューする</h2>
+      <p>メモも図もテキストなので、設計の変更をコードの変更と同じ流れでレビューできます。ブランチをプッシュしてプルリクエストを開けば、レビューする人は <code>.md</code> と <code>.mmd</code> の差分を読めます。Design Dawn を使うのをやめても、文書は普通の Markdown と Mermaid のファイルとして残ります。</p>
+      <p>同じファイルを、AI ツールは<a href="../mcp/">ローカルの MCP サーバー</a>経由で扱えます。図は <a href="../mermaid-gui-editor/">Mermaid の GUI 編集</a>で編集できます。</p>
+
+      <div class="cta-box">
+        <h2>Design Dawn を試す</h2>
+        <p>無料・オープンソース（MIT）です。Windows 版は zip ファイルで、登録は要りません。</p>
+        <div class="cta">
+          <a class="btn primary" href="https://github.com/PG-Refactor/Design-Dawn/releases/latest">Windows 版をダウンロード</a>
+          <a class="btn" href="https://github.com/PG-Refactor/Design-Dawn">GitHub で見る</a>
+        </div>
+        <p class="guides">ガイド: <a href="../mermaid-gui-editor/">Mermaid GUI</a> · <a href="../mcp/">AI / MCP</a> · <a href="../download/">ダウンロード</a></p>
+      </div>
+    </div>
+  </article>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span>Design Dawn · MIT ライセンス</span>
+    <span><a href="https://github.com/PG-Refactor/Design-Dawn">GitHub</a> · <a href="https://github.com/PG-Refactor/Design-Dawn/issues">Issues</a> · <a href="../../docs-as-code/" hreflang="en" lang="en">English</a></span>
+  </div>
+</footer>
+</body>
+</html>

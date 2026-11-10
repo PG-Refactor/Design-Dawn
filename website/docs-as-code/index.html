@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Manage design documents with Git (docs as code) | Design Dawn</title>
+  <meta name="description" content="Design Dawn saves every note as a .md file and every diagram as a .mmd file, so design documents can be diffed, committed and reviewed with Git like source code.">
+  <link rel="canonical" href="https://pg-refactor.github.io/Design-Dawn/docs-as-code/">
+  <link rel="alternate" hreflang="en" href="https://pg-refactor.github.io/Design-Dawn/docs-as-code/">
+  <link rel="alternate" hreflang="ja" href="https://pg-refactor.github.io/Design-Dawn/ja/docs-as-code/">
+  <link rel="alternate" hreflang="x-default" href="https://pg-refactor.github.io/Design-Dawn/docs-as-code/">
+  <link rel="icon" type="image/png" href="../favicon.png">
+  <link rel="apple-touch-icon" href="../images/apple-touch-icon.png">
+  <meta name="theme-color" content="#0e1220">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Design Dawn">
+  <meta property="og:title" content="Design documents you can manage with Git">
+  <meta property="og:description" content="Design Dawn saves every note as a .md file and every diagram as a .mmd file, so design documents can be diffed, committed and reviewed with Git like source code.">
+  <meta property="og:url" content="https://pg-refactor.github.io/Design-Dawn/docs-as-code/">
+  <meta property="og:image" content="https://pg-refactor.github.io/Design-Dawn/images/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta property="og:locale" content="en_US">
+
+  <link rel="stylesheet" href="../style.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Design Dawn",
+      "item": "https://pg-refactor.github.io/Design-Dawn/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Design docs in Git",
+      "item": "https://pg-refactor.github.io/Design-Dawn/docs-as-code/"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="../"><img src="../images/icon-64.png" alt="" width="28" height="28">Design Dawn</a>
+    <nav class="top" aria-label="Main">
+      <a class="hide-sm" href="../mermaid-gui-editor/">Mermaid GUI</a>
+      <a class="hide-sm" href="../docs-as-code/" aria-current="page">Git</a>
+      <a class="hide-sm" href="../mcp/">AI / MCP</a>
+      <a class="hide-sm" href="../download/">Download</a>
+      <a href="../ja/docs-as-code/" hreflang="ja" lang="ja">日本語</a>
+      <a href="https://github.com/PG-Refactor/Design-Dawn">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <article class="article">
+    <div class="wrap narrow">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="../">Home</a> / <span>Design docs in Git</span></nav>
+      <h1>Design documents you can manage with Git</h1>
+      <p class="lead">Design Dawn has no database and no single binary document file. A project is a folder of small text files, so the tools you already use for source code — Git, diffs, pull requests — work on your design documents too.</p>
+
+      <h2>How a project is stored</h2>
+<pre><code>my-project/
+├── project.json
+├── system-design.dawn
+└── documents/
+    └── system-design/
+        ├── document.json
+        ├── assets/
+        └── sheets/
+            └── overview/
+                ├── sheet.json
+                └── blocks/
+                    ├── markdown-1.md
+                    └── mermaid-1.mmd</code></pre>
+      <ul>
+        <li>Each Markdown block is one <code>.md</code> file and each Mermaid block is one <code>.mmd</code> file.</li>
+        <li>Positions, sizes and order live in small JSON files (<code>sheet.json</code>, <code>document.json</code>, <code>project.json</code>), separate from the text.</li>
+        <li>Images are copied into the document’s <code>assets/</code> folder.</li>
+        <li>Every JSON file carries a <code>schemaVersion</code>. Documents, sheets and blocks have stable UUIDs, and the names you see in the app are independent of folder names.</li>
+      </ul>
+      <p>Changing the wording of one note changes one <code>.md</code> file; moving a block changes a few numbers in one <code>sheet.json</code>. That is what keeps diffs small and readable.</p>
+
+      <figure class="fig"><img class="shot" loading="lazy" src="../images/git-diff.png" width="1600" height="1000" alt="Side-by-side Git diff of a Markdown block"><figcaption>A side-by-side diff of a Markdown block, opened in a tab</figcaption></figure>
+
+      <h2>Git inside the app</h2>
+      <p>When the project folder is a Git repository, the Git tab of the sidebar offers:</p>
+      <ul>
+        <li>the list of changes, with stage and unstage;</li>
+        <li>commit, and undo of the last commit;</li>
+        <li>history;</li>
+        <li>side-by-side diffs that open in tabs;</li>
+        <li>discarding changes;</li>
+        <li>fetch, pull and push, and publishing a branch to a remote;</li>
+        <li>the name of the current branch.</li>
+      </ul>
+
+      <h2>What the app leaves to Git itself</h2>
+      <ul>
+        <li>The app runs the <code>git</code> command installed on your computer. <strong>Git 2.25 or later</strong> is required for the Git features; everything else works without Git.</li>
+        <li>The app does not create a repository. Run <code>git init</code> (or clone one) with your usual tools; a folder that is not a repository is shown as “not managed by Git”.</li>
+        <li>Creating and switching branches, merging and resolving conflicts are done with your usual Git tools, not in the app.</li>
+      </ul>
+
+      <h2>When files change outside the app</h2>
+      <p>A pull, a checkout in a terminal, another editor or an AI tool can change the files while a document is open. Design Dawn detects this: a document without unsaved work reloads automatically; otherwise you choose to reload, keep your version, or compare the two.</p>
+
+      <h2>Reviewing a design in a pull request</h2>
+      <p>Because notes and diagrams are plain text, a design change can go through the same review as a code change: push a branch, open a pull request, and reviewers read the diff of the <code>.md</code> and <code>.mmd</code> files. If you stop using Design Dawn, the documents remain ordinary Markdown and Mermaid files.</p>
+      <p>AI tools can work on the same files through the <a href="../mcp/">local MCP server</a>, and diagrams can be edited in the <a href="../mermaid-gui-editor/">Mermaid GUI editor</a>.</p>
+
+      <div class="cta-box">
+        <h2>Try Design Dawn</h2>
+        <p>Free and open source (MIT). The Windows build is a zip file; nothing to sign up for.</p>
+        <div class="cta">
+          <a class="btn primary" href="https://github.com/PG-Refactor/Design-Dawn/releases/latest">Download for Windows</a>
+          <a class="btn" href="https://github.com/PG-Refactor/Design-Dawn">View on GitHub</a>
+        </div>
+        <p class="guides">Guides: <a href="../mermaid-gui-editor/">Mermaid GUI</a> · <a href="../mcp/">AI / MCP</a> · <a href="../download/">Download</a></p>
+      </div>
+    </div>
+  </article>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span>Design Dawn · MIT License</span>
+    <span><a href="https://github.com/PG-Refactor/Design-Dawn">GitHub</a> · <a href="https://github.com/PG-Refactor/Design-Dawn/issues">Issues</a> · <a href="../ja/docs-as-code/" hreflang="ja" lang="ja">日本語</a></span>
+  </div>
+</footer>
+</body>
+</html>

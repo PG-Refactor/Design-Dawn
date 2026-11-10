@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mermaid GUI editor: flowchart, sequence, Gantt, pie | Design Dawn</title>
+  <meta name="description" content="Edit Mermaid flowcharts, sequence diagrams, Gantt charts and pie charts with lists and fields instead of syntax. The Mermaid source stays the source of truth.">
+  <link rel="canonical" href="https://pg-refactor.github.io/Design-Dawn/mermaid-gui-editor/">
+  <link rel="alternate" hreflang="en" href="https://pg-refactor.github.io/Design-Dawn/mermaid-gui-editor/">
+  <link rel="alternate" hreflang="ja" href="https://pg-refactor.github.io/Design-Dawn/ja/mermaid-gui-editor/">
+  <link rel="alternate" hreflang="x-default" href="https://pg-refactor.github.io/Design-Dawn/mermaid-gui-editor/">
+  <link rel="icon" type="image/png" href="../favicon.png">
+  <link rel="apple-touch-icon" href="../images/apple-touch-icon.png">
+  <meta name="theme-color" content="#0e1220">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Design Dawn">
+  <meta property="og:title" content="A GUI editor for Mermaid diagrams">
+  <meta property="og:description" content="Edit Mermaid flowcharts, sequence diagrams, Gantt charts and pie charts with lists and fields instead of syntax. The Mermaid source stays the source of truth.">
+  <meta property="og:url" content="https://pg-refactor.github.io/Design-Dawn/mermaid-gui-editor/">
+  <meta property="og:image" content="https://pg-refactor.github.io/Design-Dawn/images/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta property="og:locale" content="en_US">
+
+  <link rel="stylesheet" href="../style.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Design Dawn",
+      "item": "https://pg-refactor.github.io/Design-Dawn/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Mermaid GUI editor",
+      "item": "https://pg-refactor.github.io/Design-Dawn/mermaid-gui-editor/"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="../"><img src="../images/icon-64.png" alt="" width="28" height="28">Design Dawn</a>
+    <nav class="top" aria-label="Main">
+      <a class="hide-sm" href="../mermaid-gui-editor/" aria-current="page">Mermaid GUI</a>
+      <a class="hide-sm" href="../docs-as-code/">Git</a>
+      <a class="hide-sm" href="../mcp/">AI / MCP</a>
+      <a class="hide-sm" href="../download/">Download</a>
+      <a href="../ja/mermaid-gui-editor/" hreflang="ja" lang="ja">日本語</a>
+      <a href="https://github.com/PG-Refactor/Design-Dawn">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <article class="article">
+    <div class="wrap narrow">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="../">Home</a> / <span>Mermaid GUI editor</span></nav>
+      <h1>A GUI editor for Mermaid diagrams</h1>
+      <p class="lead">In Design Dawn, a Mermaid block can be edited in two ways: as <strong>Source</strong> (the Mermaid text, with a live preview) or in a <strong>GUI</strong> with lists and property fields. The GUI covers four kinds of diagram today; every other kind is edited as Source.</p>
+
+      <figure class="fig"><img class="shot" loading="lazy" src="../images/flowchart-gui.png" width="1600" height="1000" alt="Flowchart GUI editor with its node list and the right-click menu of a node"><figcaption>The flowchart GUI editor: lists on the left, the diagram on the right</figcaption></figure>
+
+      <h2>What the GUI can edit</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Diagram</th><th>Edited in the GUI</th></tr></thead>
+        <tbody>
+          <tr><td>Flowchart</td><td>Direction (top-down, bottom-up, left-right, right-left); nodes with a label and a shape (rectangle, rounded, diamond, cylinder, hexagon and others); edges with a label and an arrow type; subgraphs and their members.</td></tr>
+          <tr><td>Sequence diagram</td><td>Participants and actors; messages; notes; blocks such as <code>loop</code>, <code>opt</code>, <code>alt</code>, <code>par</code>, <code>critical</code> and <code>break</code> with their branches; turning <code>autonumber</code> on or off.</td></tr>
+          <tr><td>Gantt chart</td><td>Sections; tasks and their state (<code>done</code>, <code>active</code>, <code>crit</code>, <code>milestone</code>); chart settings such as <code>axisFormat</code> and <code>excludes</code>.</td></tr>
+          <tr><td>Pie chart</td><td>The title; slices with a label and a value; the order of the slices.</td></tr>
+        </tbody>
+      </table></div>
+      <p>You can also right-click a shape in the diagram to edit or delete it, and new elements are added in a dialog that shows a preview of the result.</p>
+
+      <figure class="fig"><img class="shot" loading="lazy" src="../images/sequence-gui.png" width="1600" height="1000" alt="Sequence diagram GUI editor with a selected message and its right-click menu"><figcaption>The sequence diagram GUI editor</figcaption></figure>
+
+      <h2>Other diagram types</h2>
+      <p>Class diagrams, state diagrams, ER diagrams and the other diagram types of Mermaid are rendered on the canvas, but they have <strong>no GUI editor yet</strong>. You edit them as Mermaid source next to a live preview. The “+ Block” menu has starting templates for sequence, Gantt, pie, class, state and ER diagrams.</p>
+
+      <h2>The Mermaid source stays the source of truth</h2>
+      <p>The GUI does not keep a separate model of your diagram. Each diagram is one <code>.mmd</code> text file, and a GUI edit rewrites only the part of that text it has to. After each edit the app reads the result again and checks that Mermaid can render it. If the check fails, the change is not applied and the source is left as it was. Each GUI edit is one undo step.</p>
+      <p>Because of this, a diagram written by hand, by a colleague or by an AI tool opens in the same editor, and what the GUI writes is still ordinary Mermaid you can paste anywhere else.</p>
+
+      <h2>Limits you should know about</h2>
+      <ul>
+        <li>If a diagram contains statements the GUI does not fully understand, the GUI shows it read-only and tells you why; you switch to Source to edit it. The app does not rewrite what it does not understand.</li>
+        <li>Some constructs are edited only in Source, for example flowchart edges written as <code>A &amp; B</code> lists, nodes defined with <code>@{ ... }</code>, Markdown labels, and inline <code>%%{ ... }%%</code> directives.</li>
+        <li>The Gantt GUI needs a <code>dateFormat</code> line, in one of: <code>YYYY-MM-DD</code>, <code>YYYY/MM/DD</code>, <code>DD/MM/YYYY</code>, <code>MM/DD/YYYY</code>, <code>YYYY-MM-DD HH:mm</code>.</li>
+        <li>The GUI handles sources of up to 50,000 characters, and flowcharts of up to 500 edges.</li>
+      </ul>
+
+      <figure class="fig"><img class="shot" loading="lazy" src="../images/plan.png" width="1600" height="1000" alt="Gantt chart and pie chart on a sheet"><figcaption>A Gantt chart and a pie chart placed on one sheet</figcaption></figure>
+
+      <h2>Rendered on your machine</h2>
+      <p>Mermaid is bundled with the app. Diagrams are rendered locally with Mermaid’s strict security level and the resulting SVG is sanitised; rendering uses no network and runs no scripts from the diagram.</p>
+      <p>Diagrams sit on a free-form canvas next to Markdown notes and images, and can carry a one-line caption. See <a href="../docs-as-code/">how the files are stored and tracked with Git</a>.</p>
+
+      <div class="cta-box">
+        <h2>Try Design Dawn</h2>
+        <p>Free and open source (MIT). The Windows build is a zip file; nothing to sign up for.</p>
+        <div class="cta">
+          <a class="btn primary" href="https://github.com/PG-Refactor/Design-Dawn/releases/latest">Download for Windows</a>
+          <a class="btn" href="https://github.com/PG-Refactor/Design-Dawn">View on GitHub</a>
+        </div>
+        <p class="guides">Guides: <a href="../docs-as-code/">Git</a> · <a href="../mcp/">AI / MCP</a> · <a href="../download/">Download</a></p>
+      </div>
+    </div>
+  </article>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span>Design Dawn · MIT License</span>
+    <span><a href="https://github.com/PG-Refactor/Design-Dawn">GitHub</a> · <a href="https://github.com/PG-Refactor/Design-Dawn/issues">Issues</a> · <a href="../ja/mermaid-gui-editor/" hreflang="ja" lang="ja">日本語</a></span>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MCP server for design docs: Claude, Codex, Copilot, Cursor | Design Dawn</title>
+  <meta name="description" content="design-dawn-mcp is a local MCP server that lets AI tools read your Design Dawn projects and edit them only after you allow it. Stdio only, no network port.">
+  <link rel="canonical" href="https://pg-refactor.github.io/Design-Dawn/mcp/">
+  <link rel="alternate" hreflang="en" href="https://pg-refactor.github.io/Design-Dawn/mcp/">
+  <link rel="alternate" hreflang="ja" href="https://pg-refactor.github.io/Design-Dawn/ja/mcp/">
+  <link rel="alternate" hreflang="x-default" href="https://pg-refactor.github.io/Design-Dawn/mcp/">
+  <link rel="icon" type="image/png" href="../favicon.png">
+  <link rel="apple-touch-icon" href="../images/apple-touch-icon.png">
+  <meta name="theme-color" content="#0e1220">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Design Dawn">
+  <meta property="og:title" content="Write design documents with AI through a local MCP server">
+  <meta property="og:description" content="design-dawn-mcp is a local MCP server that lets AI tools read your Design Dawn projects and edit them only after you allow it. Stdio only, no network port.">
+  <meta property="og:url" content="https://pg-refactor.github.io/Design-Dawn/mcp/">
+  <meta property="og:image" content="https://pg-refactor.github.io/Design-Dawn/images/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta property="og:locale" content="en_US">
+
+  <link rel="stylesheet" href="../style.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Design Dawn",
+      "item": "https://pg-refactor.github.io/Design-Dawn/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "AI / MCP",
+      "item": "https://pg-refactor.github.io/Design-Dawn/mcp/"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="../"><img src="../images/icon-64.png" alt="" width="28" height="28">Design Dawn</a>
+    <nav class="top" aria-label="Main">
+      <a class="hide-sm" href="../mermaid-gui-editor/">Mermaid GUI</a>
+      <a class="hide-sm" href="../docs-as-code/">Git</a>
+      <a class="hide-sm" href="../mcp/" aria-current="page">AI / MCP</a>
+      <a class="hide-sm" href="../download/">Download</a>
+      <a href="../ja/mcp/" hreflang="ja" lang="ja">日本語</a>
+      <a href="https://github.com/PG-Refactor/Design-Dawn">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <article class="article">
+    <div class="wrap narrow">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="../">Home</a> / <span>AI / MCP</span></nav>
+      <h1>Write design documents with AI through a local MCP server</h1>
+      <p class="lead"><code>design-dawn-mcp</code> is a small program that comes with Design Dawn. It speaks the Model Context Protocol (MCP), so an AI tool such as Claude, Codex, GitHub Copilot, Cursor or any other MCP client can read your design documents and, when you allow it, edit them.</p>
+
+      <figure class="fig"><img class="shot" loading="lazy" src="../images/ai-integration.png" width="1600" height="1000" alt="AI Integration screen with the command to register and the projects offered to AI"><figcaption>File → AI Integration (MCP): the command to register and the projects offered to AI</figcaption></figure>
+
+      <h2>Set-up, once per AI tool</h2>
+      <p>In the app, open <strong>File → AI Integration (MCP)</strong>. It shows the command to register, with a Copy button, and the same thing in the common JSON form:</p>
+<pre><code>{
+  "mcpServers": {
+    "design-dawn": { "command": "C:\\path\\to\\design-dawn-mcp.exe" }
+  }
+}</code></pre>
+      <p>Register it the way your AI tool adds MCP servers. For Claude Code, for example:</p>
+<pre><code>claude mcp add design-dawn -- &lt;command&gt;</code></pre>
+      <p>The server talks over standard input and output only. It opens no network port, and it works whether or not the app is running.</p>
+
+      <h2>You choose which projects AI can see</h2>
+      <p>An AI tool can use only the projects you add in the AI Integration screen (<strong>Add the Open Project</strong>, or <strong>Add a Folder…</strong>). By default it works on the project open in the app, if that project has been added. It can list the added projects and pick one, so a request like “summarize the order-service project” needs no new registration.</p>
+
+      <h2>Read-only until you allow editing</h2>
+      <figure class="fig"><img class="shot" loading="lazy" src="../images/ai-request.png" width="1600" height="1000" alt="The app asking whether an AI may edit a project"><figcaption>An AI tool asks for edit permission; only your answer counts</figcaption></figure>
+      <p>An added project is read-only for AI until you tick <strong>Allow editing by AI</strong> next to it. An AI tool can also ask for it; the app then asks you to <strong>Allow</strong>, <strong>Allow This Time</strong> (until the app closes) or <strong>Don’t Allow</strong>. After a “no”, further requests for that project are ignored for a while.</p>
+      <p>The list of projects and permissions is kept in the app’s settings folder, never inside a project, and only the app changes it. An AI tool cannot add a project or give itself access.</p>
+
+      <h2>What an AI tool can do</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Projects</th><th>Tools</th></tr></thead>
+        <tbody>
+          <tr><td>Any added project</td><td><code>listProjects</code>, <code>selectProject</code>, <code>requestWriteAccess</code>, <code>getProject</code>, <code>getDocument</code>, <code>getSheet</code>, <code>getBlock</code></td></tr>
+          <tr><td>Projects you allowed editing for</td><td><code>createDocument</code>, <code>createSheet</code>, <code>createBlock</code>, <code>updateDocument</code>, <code>updateSheet</code>, <code>updateBlock</code>, <code>moveBlock</code>, <code>updateBlockCaption</code>, <code>deleteBlock</code></td></tr>
+        </tbody>
+      </table></div>
+      <ul>
+        <li><code>createBlock</code> makes Markdown or Mermaid blocks. <code>updateBlockCaption</code> sets the caption of a Mermaid or image block.</li>
+        <li>To change a block’s text, the AI reads it with <code>getBlock</code> and sends back its <code>contentHash</code>. If the text changed in the meantime, the call returns <code>conflict</code> instead of overwriting your edit.</li>
+        <li>If the app has the project open, changes made by the AI appear at once.</li>
+      </ul>
+
+      <h2>What it cannot do</h2>
+      <p>The server cannot delete documents, sheets or projects, import files from disk, run commands, use Git, or open network connections.</p>
+
+      <h2>One fixed project, without the app’s list</h2>
+      <p>For scripts or a single shared project, start the server with <code>--project</code>; add <code>--allow-write</code> to allow changes:</p>
+<pre><code>claude mcp add design-dawn -- /path/to/design-dawn-mcp --project /path/to/my-project</code></pre>
+      <p>The Windows download includes <code>design-dawn-mcp.exe</code> next to the app. See <a href="../download/">Download and first steps</a>, or how the files AI edits are <a href="../docs-as-code/">tracked with Git</a>.</p>
+
+      <div class="cta-box">
+        <h2>Try Design Dawn</h2>
+        <p>Free and open source (MIT). The Windows build is a zip file; nothing to sign up for.</p>
+        <div class="cta">
+          <a class="btn primary" href="https://github.com/PG-Refactor/Design-Dawn/releases/latest">Download for Windows</a>
+          <a class="btn" href="https://github.com/PG-Refactor/Design-Dawn">View on GitHub</a>
+        </div>
+        <p class="guides">Guides: <a href="../mermaid-gui-editor/">Mermaid GUI</a> · <a href="../docs-as-code/">Git</a> · <a href="../download/">Download</a></p>
+      </div>
+    </div>
+  </article>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span>Design Dawn · MIT License</span>
+    <span><a href="https://github.com/PG-Refactor/Design-Dawn">GitHub</a> · <a href="https://github.com/PG-Refactor/Design-Dawn/issues">Issues</a> · <a href="../ja/mcp/" hreflang="ja" lang="ja">日本語</a></span>
+  </div>
+</footer>
+</body>
+</html>

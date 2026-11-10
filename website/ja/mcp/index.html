@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI（MCP）で設計書を書く：Claude・Codex・Copilot・Cursor 対応 | Design Dawn</title>
+  <meta name="description" content="design-dawn-mcp は、AI ツールが Design Dawn の設計書を読み、許可した場合だけ編集できるローカルの MCP サーバーです。標準入出力のみで、ネットワークポートは開きません。">
+  <link rel="canonical" href="https://pg-refactor.github.io/Design-Dawn/ja/mcp/">
+  <link rel="alternate" hreflang="en" href="https://pg-refactor.github.io/Design-Dawn/mcp/">
+  <link rel="alternate" hreflang="ja" href="https://pg-refactor.github.io/Design-Dawn/ja/mcp/">
+  <link rel="alternate" hreflang="x-default" href="https://pg-refactor.github.io/Design-Dawn/mcp/">
+  <link rel="icon" type="image/png" href="../../favicon.png">
+  <link rel="apple-touch-icon" href="../../images/apple-touch-icon.png">
+  <meta name="theme-color" content="#0e1220">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Design Dawn">
+  <meta property="og:title" content="ローカルの MCP サーバーで、AI と設計書を書く">
+  <meta property="og:description" content="design-dawn-mcp は、AI ツールが Design Dawn の設計書を読み、許可した場合だけ編集できるローカルの MCP サーバーです。標準入出力のみで、ネットワークポートは開きません。">
+  <meta property="og:url" content="https://pg-refactor.github.io/Design-Dawn/ja/mcp/">
+  <meta property="og:image" content="https://pg-refactor.github.io/Design-Dawn/images/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta property="og:locale" content="ja_JP">
+
+  <link rel="stylesheet" href="../../style.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Design Dawn",
+      "item": "https://pg-refactor.github.io/Design-Dawn/ja/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "AI / MCP",
+      "item": "https://pg-refactor.github.io/Design-Dawn/ja/mcp/"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="../"><img src="../../images/icon-64.png" alt="" width="28" height="28">Design Dawn</a>
+    <nav class="top" aria-label="メイン">
+      <a class="hide-sm" href="../mermaid-gui-editor/">Mermaid GUI</a>
+      <a class="hide-sm" href="../docs-as-code/">Git 管理</a>
+      <a class="hide-sm" href="../mcp/" aria-current="page">AI / MCP</a>
+      <a class="hide-sm" href="../download/">ダウンロード</a>
+      <a href="../../mcp/" hreflang="en" lang="en">English</a>
+      <a href="https://github.com/PG-Refactor/Design-Dawn">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <article class="article">
+    <div class="wrap narrow">
+      <nav class="crumbs" aria-label="パンくずリスト"><a href="../">ホーム</a> / <span>AI / MCP</span></nav>
+      <h1>ローカルの MCP サーバーで、AI と設計書を書く</h1>
+      <p class="lead"><code>design-dawn-mcp</code> は Design Dawn に付属する小さなプログラムです。MCP（Model Context Protocol）に対応しているので、Claude・Codex・GitHub Copilot・Cursor などの MCP クライアントが設計書を読み、あなたが許可したときだけ編集できます。</p>
+
+      <figure class="fig"><img class="shot" loading="lazy" src="../../images/ai-integration.png" width="1600" height="1000" alt="登録するコマンドと AI に見せる Project の一覧がある AI 連携の画面"><figcaption>ファイル → AI連携（MCP）：登録するコマンドと、AI に見せる Project の一覧（画面は英語表示です）</figcaption></figure>
+
+      <h2>設定は AI ツールごとに1回</h2>
+      <p>アプリで <strong>ファイル → AI連携（MCP）</strong> を開くと、登録するコマンドがコピーボタン付きで表示されます。同じ内容が、共通の JSON 形式でも表示されます。</p>
+<pre><code>{
+  "mcpServers": {
+    "design-dawn": { "command": "C:\\path\\to\\design-dawn-mcp.exe" }
+  }
+}</code></pre>
+      <p>お使いの AI ツールの MCP サーバー追加の方法で登録してください。Claude Code の場合の例：</p>
+<pre><code>claude mcp add design-dawn -- &lt;コマンド&gt;</code></pre>
+      <p>サーバーは標準入出力だけで通信します。ネットワークポートは開かず、アプリが起動していなくても動きます。</p>
+
+      <h2>AI に見せる Project は自分で選ぶ</h2>
+      <p>AI ツールが使えるのは、AI 連携の画面で追加した Project だけです（<strong>今開いているProjectを追加</strong>、または <strong>フォルダを指定して追加…</strong>）。追加済みであれば、アプリで開いている Project が既定の対象になります。AI は追加済みの Project の一覧を取得して選べるので、「order-service の Project を要約して」のような依頼に、登録のやり直しは要りません。</p>
+
+      <h2>許可するまでは読み取り専用</h2>
+      <figure class="fig"><img class="shot" loading="lazy" src="../../images/ai-request.png" width="1600" height="1000" alt="AI が Project を編集してよいかをアプリが確認する画面"><figcaption>AI からの編集許可の依頼。反映されるのはあなたの答えだけです</figcaption></figure>
+      <p>追加した Project は、横の <strong>AIによる編集を許可</strong> にチェックを入れるまで、AI からは読み取り専用です。AI ツールから依頼することもでき、そのときはアプリが <strong>許可する</strong> / <strong>今回だけ許可</strong>（アプリを閉じるまで）/ <strong>許可しない</strong> を尋ねます。「許可しない」と答えた Project への依頼は、しばらく無視されます。</p>
+      <p>Project と権限の一覧はアプリの設定フォルダに保存され、Project の中には置かれません。変更できるのはアプリだけです。AI ツールが自分で Project を追加したり、権限を与えたりすることはできません。</p>
+
+      <h2>AI ツールにできること</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>対象の Project</th><th>ツール</th></tr></thead>
+        <tbody>
+          <tr><td>追加した Project すべて</td><td><code>listProjects</code>, <code>selectProject</code>, <code>requestWriteAccess</code>, <code>getProject</code>, <code>getDocument</code>, <code>getSheet</code>, <code>getBlock</code></td></tr>
+          <tr><td>編集を許可した Project</td><td><code>createDocument</code>, <code>createSheet</code>, <code>createBlock</code>, <code>updateDocument</code>, <code>updateSheet</code>, <code>updateBlock</code>, <code>moveBlock</code>, <code>updateBlockCaption</code>, <code>deleteBlock</code></td></tr>
+        </tbody>
+      </table></div>
+      <ul>
+        <li><code>createBlock</code> で作れるのは Markdown と Mermaid のブロックです。<code>updateBlockCaption</code> は Mermaid ブロックと画像ブロックのキャプションを設定します。</li>
+        <li>ブロックの本文を変えるとき、AI は <code>getBlock</code> で読んだ <code>contentHash</code> を一緒に送ります。その間に本文が変わっていれば、あなたの編集を上書きせず <code>conflict</code> を返します。</li>
+        <li>アプリがその Project を開いていれば、AI による変更はすぐ画面に反映されます。</li>
+      </ul>
+
+      <h2>できないこと</h2>
+      <p>このサーバーは、Document・Sheet・Project の削除、ディスク上のファイルの取り込み、コマンドの実行、Git の操作、ネットワーク接続を行えません。</p>
+
+      <h2>アプリの一覧を使わず、1つの Project に固定する</h2>
+      <p>スクリプトから使う場合などは、<code>--project</code> を付けて起動します。変更も許可する場合は <code>--allow-write</code> を加えます。</p>
+<pre><code>claude mcp add design-dawn -- /path/to/design-dawn-mcp --project /path/to/my-project</code></pre>
+      <p>Windows 版のダウンロードには、アプリと同じフォルダに <code>design-dawn-mcp.exe</code> が入っています。<a href="../download/">ダウンロードと始め方</a>、AI が編集したファイルを <a href="../docs-as-code/">Git で管理する方法</a>もご覧ください。</p>
+
+      <div class="cta-box">
+        <h2>Design Dawn を試す</h2>
+        <p>無料・オープンソース（MIT）です。Windows 版は zip ファイルで、登録は要りません。</p>
+        <div class="cta">
+          <a class="btn primary" href="https://github.com/PG-Refactor/Design-Dawn/releases/latest">Windows 版をダウンロード</a>
+          <a class="btn" href="https://github.com/PG-Refactor/Design-Dawn">GitHub で見る</a>
+        </div>
+        <p class="guides">ガイド: <a href="../mermaid-gui-editor/">Mermaid GUI</a> · <a href="../docs-as-code/">Git 管理</a> · <a href="../download/">ダウンロード</a></p>
+      </div>
+    </div>
+  </article>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span>Design Dawn · MIT ライセンス</span>
+    <span><a href="https://github.com/PG-Refactor/Design-Dawn">GitHub</a> · <a href="https://github.com/PG-Refactor/Design-Dawn/issues">Issues</a> · <a href="../../mcp/" hreflang="en" lang="en">English</a></span>
+  </div>
+</footer>
+</body>
+</html>

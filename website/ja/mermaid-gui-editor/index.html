@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mermaid を GUI で編集：フローチャート・シーケンス図・ガントチャート | Design Dawn</title>
+  <meta name="description" content="Mermaid のフローチャート・シーケンス図・ガントチャート・円グラフを、構文を書かずに一覧と入力欄で編集できます。正本は Mermaid のソースのままです。">
+  <link rel="canonical" href="https://pg-refactor.github.io/Design-Dawn/ja/mermaid-gui-editor/">
+  <link rel="alternate" hreflang="en" href="https://pg-refactor.github.io/Design-Dawn/mermaid-gui-editor/">
+  <link rel="alternate" hreflang="ja" href="https://pg-refactor.github.io/Design-Dawn/ja/mermaid-gui-editor/">
+  <link rel="alternate" hreflang="x-default" href="https://pg-refactor.github.io/Design-Dawn/mermaid-gui-editor/">
+  <link rel="icon" type="image/png" href="../../favicon.png">
+  <link rel="apple-touch-icon" href="../../images/apple-touch-icon.png">
+  <meta name="theme-color" content="#0e1220">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Design Dawn">
+  <meta property="og:title" content="Mermaid の図を GUI で編集する">
+  <meta property="og:description" content="Mermaid のフローチャート・シーケンス図・ガントチャート・円グラフを、構文を書かずに一覧と入力欄で編集できます。正本は Mermaid のソースのままです。">
+  <meta property="og:url" content="https://pg-refactor.github.io/Design-Dawn/ja/mermaid-gui-editor/">
+  <meta property="og:image" content="https://pg-refactor.github.io/Design-Dawn/images/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta property="og:locale" content="ja_JP">
+
+  <link rel="stylesheet" href="../../style.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Design Dawn",
+      "item": "https://pg-refactor.github.io/Design-Dawn/ja/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Mermaid の GUI 編集",
+      "item": "https://pg-refactor.github.io/Design-Dawn/ja/mermaid-gui-editor/"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="../"><img src="../../images/icon-64.png" alt="" width="28" height="28">Design Dawn</a>
+    <nav class="top" aria-label="メイン">
+      <a class="hide-sm" href="../mermaid-gui-editor/" aria-current="page">Mermaid GUI</a>
+      <a class="hide-sm" href="../docs-as-code/">Git 管理</a>
+      <a class="hide-sm" href="../mcp/">AI / MCP</a>
+      <a class="hide-sm" href="../download/">ダウンロード</a>
+      <a href="../../mermaid-gui-editor/" hreflang="en" lang="en">English</a>
+      <a href="https://github.com/PG-Refactor/Design-Dawn">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <article class="article">
+    <div class="wrap narrow">
+      <nav class="crumbs" aria-label="パンくずリスト"><a href="../">ホーム</a> / <span>Mermaid の GUI 編集</span></nav>
+      <h1>Mermaid の図を GUI で編集する</h1>
+      <p class="lead">Design Dawn の Mermaid ブロックは、<strong>ソース</strong>（Mermaid のテキストとプレビュー）と、一覧と入力欄で操作する <strong>GUI</strong> の2通りで編集できます。GUI で編集できるのは現在4種類の図で、それ以外の図はソースで編集します。</p>
+
+      <figure class="fig"><img class="shot" loading="lazy" src="../../images/flowchart-gui.png" width="1600" height="1000" alt="ノード一覧と、ノードの右クリックメニューを出したフローチャートの GUI 編集"><figcaption>フローチャートの GUI 編集：左に一覧、右に図（画面は英語表示です）</figcaption></figure>
+
+      <h2>GUI で編集できる内容</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>図の種類</th><th>GUI で編集できるもの</th></tr></thead>
+        <tbody>
+          <tr><td>フローチャート</td><td>向き（上から下・下から上・左から右・右から左）、ノードのラベルと形（四角・角丸・ひし形・円柱・六角形など）、エッジのラベルと矢印の種類、サブグラフとそのメンバー。</td></tr>
+          <tr><td>シーケンス図</td><td>参加者とアクター、メッセージ、注釈、<code>loop</code>・<code>opt</code>・<code>alt</code>・<code>par</code>・<code>critical</code>・<code>break</code> などのブロックと枝、<code>autonumber</code>（自動採番）のオン / オフ。</td></tr>
+          <tr><td>ガントチャート</td><td>セクション、タスクとその状態（<code>done</code>・<code>active</code>・<code>crit</code>・<code>milestone</code>）、<code>axisFormat</code> や <code>excludes</code> などのチャートの設定。</td></tr>
+          <tr><td>円グラフ</td><td>タイトル、スライスのラベルと値、スライスの並び順。</td></tr>
+        </tbody>
+      </table></div>
+      <p>図の上の図形を右クリックして編集・削除することもできます。要素の追加は、追加後の図をプレビューで確かめられるダイアログで行います。</p>
+
+      <figure class="fig"><img class="shot" loading="lazy" src="../../images/sequence-gui.png" width="1600" height="1000" alt="メッセージを選び、その右クリックメニューを出したシーケンス図の GUI 編集"><figcaption>シーケンス図の GUI 編集</figcaption></figure>
+
+      <h2>それ以外の図</h2>
+      <p>クラス図・状態遷移図・ER 図など、Mermaid のほかの種類の図もキャンバスに表示できますが、<strong>GUI 編集はまだありません</strong>。プレビューを見ながら Mermaid のソースで編集します。「+ Block」のメニューには、シーケンス図・ガントチャート・円グラフ・クラス図・状態遷移図・ER 図の書き出しのひな形があります。</p>
+
+      <h2>正本は Mermaid のソースのまま</h2>
+      <p>GUI は図の内容を別の形式で持ちません。図は1つの <code>.mmd</code> テキストファイルで、GUI の操作はそのテキストの必要な部分だけを書き換えます。操作のたびに、アプリは結果を読み直し、Mermaid で描画できることを確かめます。確かめられなかった変更は適用せず、ソースはそのまま残ります。GUI の1回の操作は、Undo 1回で戻せます。</p>
+      <p>そのため、手で書いた図も、同僚や AI ツールが書いた図も同じエディタで開けます。GUI が書いた結果も普通の Mermaid なので、ほかの場所にそのまま貼り付けられます。</p>
+
+      <h2>知っておいてほしい制限</h2>
+      <ul>
+        <li>GUI が完全には理解できない文を含む図は、GUI では読み取り専用になり、理由が表示されます。編集するときはソースに切り替えます。理解できないものをアプリが書き換えることはありません。</li>
+        <li>ソースでしか編集できない書き方があります。たとえば、フローチャートの <code>A &amp; B</code> のような一括指定のエッジ、<code>@{ ... }</code> で定義したノード、Markdown ラベル、<code>%%{ ... }%%</code> のディレクティブです。</li>
+        <li>ガントチャートの GUI には <code>dateFormat</code> の行が必要で、扱える形式は <code>YYYY-MM-DD</code>・<code>YYYY/MM/DD</code>・<code>DD/MM/YYYY</code>・<code>MM/DD/YYYY</code>・<code>YYYY-MM-DD HH:mm</code> です。</li>
+        <li>GUI で扱えるソースは 50,000 文字まで、フローチャートのエッジは 500 本までです。</li>
+      </ul>
+
+      <figure class="fig"><img class="shot" loading="lazy" src="../../images/plan.png" width="1600" height="1000" alt="シート上のガントチャートと円グラフ"><figcaption>1枚のシートに置いたガントチャートと円グラフ</figcaption></figure>
+
+      <h2>描画は手元の PC の中だけで</h2>
+      <p>Mermaid はアプリに同梱されています。図は Mermaid の strict セキュリティレベルでローカルに描画し、できた SVG はサニタイズします。描画にネットワークは使わず、図に書かれたスクリプトも動きません。</p>
+      <p>図は Markdown のメモや画像と同じキャンバスに自由に置け、1行のキャプションも付けられます。<a href="../docs-as-code/">ファイルの保存形式と Git での管理</a>もご覧ください。</p>
+
+      <div class="cta-box">
+        <h2>Design Dawn を試す</h2>
+        <p>無料・オープンソース（MIT）です。Windows 版は zip ファイルで、登録は要りません。</p>
+        <div class="cta">
+          <a class="btn primary" href="https://github.com/PG-Refactor/Design-Dawn/releases/latest">Windows 版をダウンロード</a>
+          <a class="btn" href="https://github.com/PG-Refactor/Design-Dawn">GitHub で見る</a>
+        </div>
+        <p class="guides">ガイド: <a href="../docs-as-code/">Git 管理</a> · <a href="../mcp/">AI / MCP</a> · <a href="../download/">ダウンロード</a></p>
+      </div>
+    </div>
+  </article>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span>Design Dawn · MIT ライセンス</span>
+    <span><a href="https://github.com/PG-Refactor/Design-Dawn">GitHub</a> · <a href="https://github.com/PG-Refactor/Design-Dawn/issues">Issues</a> · <a href="../../mermaid-gui-editor/" hreflang="en" lang="en">English</a></span>
+  </div>
+</footer>
+</body>
+</html>
