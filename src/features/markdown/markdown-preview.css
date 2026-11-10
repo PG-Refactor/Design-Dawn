@@ -105,6 +105,18 @@
   text-align: left;
 }
 
+.markdown-preview .markdown-align-left {
+  text-align: left;
+}
+
+.markdown-preview .markdown-align-center {
+  text-align: center;
+}
+
+.markdown-preview .markdown-align-right {
+  text-align: right;
+}
+
 .markdown-preview th {
   background: var(--color-background);
 }
