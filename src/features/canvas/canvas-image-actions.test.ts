@@ -597,3 +597,69 @@ describe("addImagesFromFiles", () => {
     );
   });
 });
+
+describe("images for a text editor", () => {
+  it("routes a drop to the registered text editor instead of creating blocks", async () => {
+    const harness = await openedCanvasHarness();
+    const received: string[][] = [];
+    const unregister = harness.canvasActions.registerTextImageTarget({
+      documentId: DOCUMENT_A,
+      insertImages: (paths) => received.push([...paths]),
+    });
+    const result = await drop(harness, [photoFile(), photoFile("chart.png")]);
+    expect(result.ok).toBe(true);
+    expect(received).toEqual([[PHOTO, "assets/chart.png"]]);
+    expect(imageBlocks(harness)).toHaveLength(0);
+
+    unregister();
+    await drop(harness, [photoFile("after.png")]);
+    expect(received).toHaveLength(1);
+    expect(imageBlocks(harness)).toHaveLength(1);
+  });
+
+  it("reports rejected files of a drop into a text editor and hands over the rest", async () => {
+    const harness = await openedCanvasHarness();
+    const received: string[][] = [];
+    harness.canvasActions.registerTextImageTarget({
+      documentId: DOCUMENT_A,
+      insertImages: (paths) => received.push([...paths]),
+    });
+    await drop(harness, [
+      photoFile(),
+      { fileName: "notes.txt", rejectKind: "invalidImageContent" },
+    ]);
+    expect(received).toEqual([[PHOTO]]);
+    expect(operationErrors(harness).map((error) => error.subject)).toContain(
+      "notes.txt",
+    );
+  });
+
+  it("an older registration cannot unregister a newer one", async () => {
+    const harness = await openedCanvasHarness();
+    const first: string[][] = [];
+    const second: string[][] = [];
+    const unregisterFirst = harness.canvasActions.registerTextImageTarget({
+      documentId: DOCUMENT_A,
+      insertImages: (paths) => first.push([...paths]),
+    });
+    harness.canvasActions.registerTextImageTarget({
+      documentId: DOCUMENT_A,
+      insertImages: (paths) => second.push([...paths]),
+    });
+    unregisterFirst();
+    await drop(harness, [photoFile()]);
+    expect(first).toEqual([]);
+    expect(second).toEqual([[PHOTO]]);
+  });
+
+  it("stores a pasted image in the Document's assets", async () => {
+    const harness = await openedCanvasHarness();
+    const pasted = await harness.canvasActions.importPastedImage({
+      documentId: DOCUMENT_A,
+      bytes: new Uint8Array([1, 2, 3]),
+      extension: "png",
+    });
+    expect(pasted).toEqual({ ok: true, value: "assets/pasted-image.png" });
+    expect(imageBlocks(harness)).toHaveLength(0);
+  });
+});

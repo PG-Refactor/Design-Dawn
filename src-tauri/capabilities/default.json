@@ -45,6 +45,7 @@
     "allow-get-sheet-viewport",
     "allow-save-sheet-viewport",
     "allow-import-dropped-images",
+    "allow-import-pasted-image",
     "allow-copy-asset-to-document",
     "allow-subscribe-drop-notifications",
     "allow-subscribe-close-requests",

@@ -19,6 +19,9 @@ export interface TextClipboardBlock extends ClipboardBlockBase {
   readonly kind: "text";
   readonly blockType: TextBlockType;
   readonly text: string;
+  // The file the text came from. Relative references in it (a Markdown image) are resolved
+  // from there; absent for text that never had a file.
+  readonly sourceContentPath?: ContentPath;
 }
 
 // A block that references an asset: only the Document-relative path is kept. Pasting into

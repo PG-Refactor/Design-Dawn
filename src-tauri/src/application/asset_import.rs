@@ -31,6 +31,9 @@ use crate::infrastructure::file_format::naming::asset_file_name;
 
 /// Shown for a dropped path that has no usable file name (never a directory or full path).
 const UNKNOWN_FILE_NAME: &str = "unknown";
+/// Name stem of an image that came from the clipboard, which has no file name. Collisions get
+/// `-2`, `-3`, ... like any other import.
+const PASTED_IMAGE_FILE_STEM: &str = "pasted-image";
 
 /// One imported asset, with the sizes the Frontend needs to create its Image Block.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -272,6 +275,39 @@ pub fn import_dropped_images(
         }
     }
     Ok(result)
+}
+
+/// Imports image bytes that have no file behind them (an image pasted from the clipboard)
+/// into the Document's `assets/`. `extension` names the format the bytes claim to be; the
+/// content must match it, exactly as for a file. The Document must be open and writable.
+pub fn import_image_bytes(
+    sessions: &Mutex<ProjectSessions>,
+    project_id: &str,
+    document_id: &str,
+    extension: &str,
+    bytes: Vec<u8>,
+) -> ApplicationResult<ImportedImage> {
+    let document_id = DocumentId::parse(document_id)?;
+    let file_name = format!("{PASTED_IMAGE_FILE_STEM}.{extension}");
+    if u64::try_from(bytes.len()).map_or(true, |length| length > ASSET_MAX_BYTES) {
+        return Err(too_large(&file_name));
+    }
+    let format = ImageFormat::from_file_name(&file_name).ok_or_else(|| {
+        DomainError::new(
+            DomainErrorKind::InvalidContentExtension,
+            format!("unsupported image extension: {file_name:?}"),
+        )
+    })?;
+    require_open_and_writable(
+        lock_sessions(sessions).session_mut(project_id)?,
+        &document_id,
+    )?;
+    // Validated without the session lock, like a dropped file.
+    let image = validate_image(format, bytes)?;
+    let mut guard = lock_sessions(sessions);
+    let session = guard.session_mut(project_id)?;
+    let content_path = store_image(session, &document_id, &file_name, &image.bytes)?;
+    Ok(imported_image(content_path, image.natural))
 }
 
 struct LocatedAsset {

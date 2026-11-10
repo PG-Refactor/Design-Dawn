@@ -33,6 +33,7 @@ import {
   pointer,
   previewOf,
   renderOpenedCanvas,
+  sheetA1Blocks,
   sourceBox,
 } from "./test-support/markdown-harness";
 
@@ -759,5 +760,62 @@ describe("the Source | Preview split", () => {
     // The second block (the helper looks for the first block's source box).
     fireEvent.doubleClick(blockOption(1));
     expect(shareShown()).toBe("45");
+  });
+});
+
+describe("images in the source", () => {
+  const PASTED_REFERENCE = "![pasted-image](../../../assets/pasted-image.png)";
+
+  function pasteEvent(files: File[], types: string[]) {
+    return { clipboardData: { files, types } };
+  }
+
+  it("stores a pasted clipboard image and writes its reference at the caret", async () => {
+    const { shell } = await renderOpenedCanvas();
+    const box = (await enterEditByDoubleClick()) as HTMLTextAreaElement;
+    await typeInto(shell, box, "before after");
+    box.setSelectionRange("before ".length, "before ".length);
+    const image = new File([new Uint8Array([1, 2, 3])], "image.png", {
+      type: "image/png",
+    });
+    fireEvent.paste(box, pasteEvent([image], ["Files"]));
+    await act(settle);
+    expect(box.value).toBe(`before ${PASTED_REFERENCE}after`);
+    expect(shell.gateway.methods("importPastedImage")).toHaveLength(1);
+    // The preview of the draft shows it as a picture of the Document.
+    const shown = previewOf().querySelector("img");
+    expect(shown?.getAttribute("src")).toContain("/assets/pasted-image.png");
+  });
+
+  it("treats a paste with text as text, even when it also carries a picture", async () => {
+    const { shell } = await renderOpenedCanvas();
+    const box = await enterEditByDoubleClick();
+    const image = new File([new Uint8Array([1])], "cells.png", {
+      type: "image/png",
+    });
+    fireEvent.paste(box, pasteEvent([image], ["text/plain", "Files"]));
+    await act(settle);
+    expect(shell.gateway.methods("importPastedImage")).toHaveLength(0);
+  });
+
+  it("writes the references of images dropped while the source is open", async () => {
+    const { shell } = await renderOpenedCanvas();
+    const box = (await enterEditByDoubleClick()) as HTMLTextAreaElement;
+    await typeInto(shell, box, "");
+    shell.gateway.scriptDrop("drop-md", [
+      { fileName: "flow.png", naturalWidth: 10, naturalHeight: 10 },
+      { fileName: "map.png", naturalWidth: 10, naturalHeight: 10 },
+    ]);
+    const blocksBefore = sheetA1Blocks(shell).length;
+    await act(async () => {
+      await shell.canvasActions.importDroppedImages({
+        dropId: "drop-md",
+        viewportSize: { width: 800, height: 600 },
+      });
+    });
+    expect(box.value).toBe(
+      "![flow](../../../assets/flow.png)\n![map](../../../assets/map.png)",
+    );
+    expect(sheetA1Blocks(shell)).toHaveLength(blocksBefore);
   });
 });

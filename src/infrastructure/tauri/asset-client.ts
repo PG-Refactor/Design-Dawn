@@ -7,15 +7,45 @@ import {
   toCopiedAsset,
   toDropImportResult,
   toImageSelection,
+  toImportedImageResult,
 } from "./asset-payloads";
 import type {
   CopiedAsset,
   DropImportResult,
   ImageSelection,
+  ImportedImage,
 } from "./asset-types";
 import { COMMANDS } from "./command-constants";
 import type { CommandResult } from "./command-error";
-import { call } from "./invoke-command";
+import { call, callWithBytes } from "./invoke-command";
+
+// Header names of `import_pasted_image`; they must match `PASTE_HEADER_*` in
+// `src-tauri/src/commands/mod.rs`.
+const PASTE_HEADERS = {
+  projectId: "x-dawn-project-id",
+  documentId: "x-dawn-document-id",
+  extension: "x-dawn-image-extension",
+} as const;
+
+// Stores image bytes from the clipboard in the Document's assets (validated like a dropped
+// file). `extension` is the format the bytes claim (`png`, `jpg` ...).
+export function importPastedImage(
+  projectId: ProjectId,
+  documentId: DocumentId,
+  bytes: Uint8Array,
+  extension: string,
+): Promise<CommandResult<ImportedImage>> {
+  return callWithBytes(
+    COMMANDS.importPastedImage,
+    bytes,
+    {
+      [PASTE_HEADERS.projectId]: projectId,
+      [PASTE_HEADERS.documentId]: documentId,
+      [PASTE_HEADERS.extension]: extension,
+    },
+    toImportedImageResult,
+  );
+}
 
 // Imports the files of the latest drop into the Document's assets. Files that fail
 // validation come back in `rejected`; an unknown or replaced `dropId` is the error kind

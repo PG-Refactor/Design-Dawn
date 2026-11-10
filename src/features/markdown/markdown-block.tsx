@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import type { BlockId } from "../../domain/shared/entity-id";
+import type { ContentPath } from "../../domain/block/content-path";
+import type { BlockId, DocumentId } from "../../domain/shared/entity-id";
 import type { BlockRendererProps } from "../canvas/block-renderer";
 import { shortBlockId } from "../canvas/canvas-messages";
 import { TextBlockState } from "../text-block/text-block-state";
@@ -8,6 +9,7 @@ import { useMessages } from "../workspace/use-messages";
 import { MarkdownEditor } from "./markdown-editor";
 import { MarkdownPreview } from "./markdown-preview";
 import { renderMarkdown } from "./render-markdown";
+import { useMarkdownImageContext } from "./use-markdown-image-context";
 
 // The renderer of a Markdown block: loading / failed states, the rendered preview, or the
 // split editor while the block is being edited.
@@ -33,22 +35,35 @@ export function MarkdownBlock({
         documentId={documentId}
         sheetId={sheetId}
         blockId={blockId}
+        contentPath={block.contentPath}
         initialText={text}
       />
     );
   }
-  return <RenderedMarkdown blockId={block.blockId} text={text} />;
+  return (
+    <RenderedMarkdown
+      documentId={documentId}
+      blockId={block.blockId}
+      contentPath={block.contentPath}
+      text={text}
+    />
+  );
 }
 
 function RenderedMarkdown({
+  documentId,
   blockId,
+  contentPath,
   text,
 }: {
+  readonly documentId: DocumentId;
   readonly blockId: BlockId;
+  readonly contentPath: ContentPath;
   readonly text: string;
 }) {
   const markdownMessages = useMessages().markdown;
-  const html = useMemo(() => renderMarkdown(text), [text]);
+  const images = useMarkdownImageContext(documentId, contentPath);
+  const html = useMemo(() => renderMarkdown(text, images), [text, images]);
   return (
     <MarkdownPreview
       html={html}

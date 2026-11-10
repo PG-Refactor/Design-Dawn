@@ -21,8 +21,8 @@ use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager, Runtime, State, Window};
 
 use crate::application::asset_import::{
-    copy_asset_to_document as copy_asset, import_dropped_images as import_dropped, CopiedAsset,
-    DropImportResult,
+    copy_asset_to_document as copy_asset, import_dropped_images as import_dropped,
+    import_image_bytes, CopiedAsset, DropImportResult, ImportedImage,
 };
 use crate::application::block_content_operations::{self as block_content, BlockContentComparison};
 use crate::application::document_operations as documents;
@@ -71,7 +71,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 75] = [
+pub const COMMAND_NAMES: [&str; 76] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -113,6 +113,7 @@ pub const COMMAND_NAMES: [&str; 75] = [
     "get_sheet_viewport",
     "save_sheet_viewport",
     "import_dropped_images",
+    "import_pasted_image",
     "copy_asset_to_document",
     "subscribe_drop_notifications",
     "subscribe_close_requests",
@@ -1290,6 +1291,50 @@ pub async fn import_dropped_images<R: Runtime>(
             &project_id,
             &document_id,
         )
+    })
+    .await
+}
+
+/// Headers of `import_pasted_image`. The image travels as the raw request body (as JSON it
+/// would be an array of numbers several times its size); the rest travels as headers.
+const PASTE_HEADER_PROJECT_ID: &str = "x-dawn-project-id";
+const PASTE_HEADER_DOCUMENT_ID: &str = "x-dawn-document-id";
+const PASTE_HEADER_EXTENSION: &str = "x-dawn-image-extension";
+
+fn malformed_paste(detail: &str) -> ApplicationError {
+    ApplicationError::new(
+        ErrorKind::InvalidImageContent,
+        format!("malformed paste request: {detail}"),
+    )
+}
+
+/// An image pasted from the clipboard into a Markdown block: stored in the Document's
+/// `assets/` like a dropped file, validated the same way.
+#[tauri::command]
+pub async fn import_pasted_image<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    request: tauri::ipc::Request<'_>,
+) -> Result<ImportedImage, ApplicationError> {
+    let header = |name: &str| {
+        request
+            .headers()
+            .get(name)
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_owned)
+            .ok_or_else(|| malformed_paste(name))
+    };
+    let project_id = header(PASTE_HEADER_PROJECT_ID)?;
+    let document_id = header(PASTE_HEADER_DOCUMENT_ID)?;
+    let extension = header(PASTE_HEADER_EXTENSION)?;
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+        return Err(malformed_paste("body is not raw bytes"));
+    };
+    let bytes = bytes.clone();
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        import_image_bytes(&sessions, &project_id, &document_id, &extension, bytes)
     })
     .await
 }

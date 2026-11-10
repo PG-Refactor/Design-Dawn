@@ -307,6 +307,85 @@ describe("pasteClipboard into another sheet or document", () => {
   });
 });
 
+describe("pasting a Markdown block that shows images", () => {
+  const REFERENCE = "![flow](../../../assets/flow.png)";
+
+  async function copyMarkdownWithImage(harness: CanvasHarness) {
+    const block = harness
+      .blocksOfSheetA1()
+      .find((candidate) => candidate.blockId === BLOCK_ONE);
+    if (block === undefined) throw new Error("block one is expected");
+    harness.gateway.files.set(block.contentPath, `see\n\n${REFERENCE}`);
+    harness.gateway.seedAsset(DOCUMENT_A, "assets/flow.png");
+    select(harness, BLOCK_ONE);
+    await harness.canvasActions.copySelection(SHEET_INPUT);
+  }
+
+  const pastedTextIn = (harness: CanvasHarness) => {
+    const document = harness.store.getState().documents.get(DOCUMENT_B);
+    const pasted = document?.sheets.get(SHEET_B1)?.blocks.at(-1);
+    return pasted === undefined
+      ? undefined
+      : document?.contents.get(pasted.blockId);
+  };
+
+  it("copies the images into the other Document and keeps the reference", async () => {
+    const harness = await openedCanvasHarness();
+    expect((await harness.actions.openDocument(DOCUMENT_B)).ok).toBe(true);
+    await copyMarkdownWithImage(harness);
+    const result = await harness.canvasActions.pasteClipboard({
+      documentId: DOCUMENT_B,
+      sheetId: SHEET_B1,
+      viewportSize: VIEWPORT_SIZE,
+    });
+    expect(result.ok).toBe(true);
+    expect(harness.gateway.hasAsset(DOCUMENT_B, "assets/flow.png")).toBe(true);
+    expect(pastedTextIn(harness)).toBe(`see\n\n${REFERENCE}`);
+  });
+
+  it("points the reference at the renamed copy when the name is taken", async () => {
+    const harness = await openedCanvasHarness();
+    expect((await harness.actions.openDocument(DOCUMENT_B)).ok).toBe(true);
+    harness.gateway.seedAsset(DOCUMENT_B, "assets/flow.png");
+    await copyMarkdownWithImage(harness);
+    await harness.canvasActions.pasteClipboard({
+      documentId: DOCUMENT_B,
+      sheetId: SHEET_B1,
+      viewportSize: VIEWPORT_SIZE,
+    });
+    expect(pastedTextIn(harness)).toBe(
+      "see\n\n![flow](../../../assets/flow-2.png)",
+    );
+  });
+
+  it("pastes the block even when an image cannot be copied, and reports it", async () => {
+    const harness = await openedCanvasHarness();
+    expect((await harness.actions.openDocument(DOCUMENT_B)).ok).toBe(true);
+    await copyMarkdownWithImage(harness);
+    harness.gateway.assets.get(DOCUMENT_A)?.delete("assets/flow.png");
+    const result = await harness.canvasActions.pasteClipboard({
+      documentId: DOCUMENT_B,
+      sheetId: SHEET_B1,
+      viewportSize: VIEWPORT_SIZE,
+    });
+    expect(result.ok).toBe(true);
+    expect(pastedTextIn(harness)).toBe(`see\n\n${REFERENCE}`);
+    expect(harness.uiStateStore.getState().operationErrors).not.toHaveLength(0);
+  });
+
+  it("copies nothing when pasting into the same Document", async () => {
+    const harness = await openedCanvasHarness();
+    await copyMarkdownWithImage(harness);
+    harness.gateway.clearCalls();
+    await harness.canvasActions.pasteClipboard({
+      documentId: DOCUMENT_A,
+      sheetId: SHEET_A1,
+      viewportSize: VIEWPORT_SIZE,
+    });
+    expect(harness.gateway.methods("copyAssetToDocument")).toHaveLength(0);
+  });
+});
+
 describe("duplicateSelection", () => {
   it("does nothing for an empty selection", async () => {
     const harness = await openedCanvasHarness();

@@ -11,16 +11,20 @@ const PATH_SEPARATOR = "/";
 // the separators to stay literal with only each segment encoded. Identifiers and the
 // Document-relative contentPath are all that go in: never an absolute path.
 export function createTauriAssetUrlResolver(): AssetUrlResolver {
+  function documentUrlPrefix(projectId: string, documentId: string): string {
+    const locator = [projectId, documentId]
+      .map(encodeURIComponent)
+      .join(PATH_SEPARATOR);
+    return `${convertFileSrc("", ASSET_URL_SCHEME)}${locator}${PATH_SEPARATOR}`;
+  }
   return {
     urlFor(projectId, documentId, contentPath) {
-      const locator = [
-        projectId,
-        documentId,
-        ...contentPath.split(PATH_SEPARATOR),
-      ]
+      const segments = contentPath
+        .split(PATH_SEPARATOR)
         .map(encodeURIComponent)
         .join(PATH_SEPARATOR);
-      return `${convertFileSrc("", ASSET_URL_SCHEME)}${locator}`;
+      return `${documentUrlPrefix(projectId, documentId)}${segments}`;
     },
+    documentUrlPrefix,
   };
 }

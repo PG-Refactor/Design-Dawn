@@ -1,10 +1,12 @@
 import {
+  type ClipboardEvent,
   type CSSProperties,
   type FocusEvent,
   type MutableRefObject,
   type ReactNode,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -13,6 +15,7 @@ import {
   operationOk,
 } from "../../application/ports/operation-error";
 import type { TextBlockEditorView } from "../../config/mermaid-gui-config";
+import type { ContentPath } from "../../domain/block/content-path";
 import type {
   BlockId,
   DocumentId,
@@ -27,6 +30,10 @@ import {
 import { stopEditing } from "../workspace/ui-state/ui-state";
 import { useUiState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
+import {
+  CLIPBOARD_TEXT_TYPE,
+  PASTED_IMAGE_EXTENSIONS,
+} from "./pasted-image-types";
 import { SourcePreviewDivider } from "./source-preview-divider";
 import "./text-block-editor.css";
 
@@ -81,6 +88,22 @@ export interface TextBlockEditorProps {
     view: TextBlockEditorView,
   ) => ReactNode;
   readonly guiView?: TextBlockGuiView;
+  // Set when the source can refer to images (Markdown): images dropped on the window or
+  // pasted while the Source view is shown are stored in the Document's assets, and the
+  // text this returns for them is inserted at the cursor.
+  readonly imageReferences?: (contentPaths: readonly ContentPath[]) => string;
+}
+
+// The pasted image in a clipboard, unless the paste is text (see CLIPBOARD_TEXT_TYPE).
+function pastedImage(
+  data: DataTransfer,
+): { readonly file: File; readonly extension: string } | null {
+  if (data.types.includes(CLIPBOARD_TEXT_TYPE)) return null;
+  for (const file of data.files) {
+    const extension = PASTED_IMAGE_EXTENSIONS[file.type];
+    if (extension !== undefined) return { file, extension };
+  }
+  return null;
 }
 
 // Split view shared by the text block types: source on the left, live preview on the right.
@@ -102,6 +125,7 @@ export function TextBlockEditor({
   labels,
   renderPreview,
   guiView,
+  imageReferences,
 }: TextBlockEditorProps) {
   const services = useWorkspaceServices();
   const { actions } = services;
@@ -124,6 +148,29 @@ export function TextBlockEditor({
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const guiLeaveRef = useRef<GuiLeaveCheck | null>(null);
+  // Where the caret goes after text is inserted; applied once the textarea shows the text.
+  const pendingCaretRef = useRef<number | null>(null);
+
+  // Inserts at the caret (replacing a selection) of the CURRENT draft: an image import may
+  // finish after more typing, and the reference then goes where the caret is now.
+  const insertAtCaret = useCallback((text: string) => {
+    const current = draftRef.current;
+    const textarea = textareaRef.current;
+    const start = textarea?.selectionStart ?? current.length;
+    const end = textarea?.selectionEnd ?? current.length;
+    const next = `${current.slice(0, start)}${text}${current.slice(end)}`;
+    draftRef.current = next;
+    pendingCaretRef.current = start + text.length;
+    setDraft(next);
+  }, []);
+
+  useLayoutEffect(() => {
+    const caret = pendingCaretRef.current;
+    const textarea = textareaRef.current;
+    if (caret === null || textarea === null || textarea.value !== draft) return;
+    pendingCaretRef.current = null;
+    textarea.setSelectionRange(caret, caret);
+  }, [draft]);
 
   // On mount and on every switch of view, focus goes into the editor: the textarea in the
   // Source view, the editor itself in the GUI view (unless a GUI control already took it).
@@ -280,6 +327,33 @@ export function TextBlockEditor({
   }
 
   const sourceView = view === "source";
+
+  // Only the Source view takes images: the GUI does not edit the text directly.
+  useEffect(() => {
+    if (!sourceView || imageReferences === undefined) return;
+    return canvasActions.registerTextImageTarget({
+      documentId,
+      insertImages: (contentPaths) =>
+        insertAtCaret(imageReferences(contentPaths)),
+    });
+  }, [sourceView, imageReferences, canvasActions, documentId, insertAtCaret]);
+
+  function onPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    if (imageReferences === undefined) return;
+    const image = pastedImage(event.clipboardData);
+    if (image === null) return;
+    event.preventDefault();
+    void (async () => {
+      const bytes = new Uint8Array(await image.file.arrayBuffer());
+      // A failure is reported by the action (shown in the notifications).
+      const imported = await canvasActions.importPastedImage({
+        documentId,
+        bytes,
+        extension: image.extension,
+      });
+      if (imported.ok) insertAtCaret(imageReferences([imported.value]));
+    })();
+  }
   const showsPreview = !sourceView || !sourceLayout.previewHidden;
   const setSourceShare = (sourceShare: number) =>
     actions.setSourceEditorLayout({ ...sourceLayout, sourceShare });
@@ -335,6 +409,7 @@ export function TextBlockEditor({
             draftRef.current = event.target.value;
             setDraft(event.target.value);
           }}
+          onPaste={onPaste}
         />
       )}
       <div className="text-block-editor__bar">

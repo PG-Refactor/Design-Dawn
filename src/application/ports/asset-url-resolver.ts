@@ -10,4 +10,7 @@ export interface AssetUrlResolver {
     documentId: DocumentId,
     contentPath: ContentPath,
   ): string;
+  // The start every `urlFor` result of one Document shares, so a URL can be checked to
+  // belong to that Document (images in Markdown may show nothing else).
+  documentUrlPrefix(projectId: ProjectId, documentId: DocumentId): string;
 }

@@ -84,6 +84,7 @@ export const GATEWAY_METHOD_KINDS = {
   defaultProjectLocation: "read",
   setDefaultProjectLocation: "read",
   importDroppedImages: "write",
+  importPastedImage: "write",
   copyAssetToDocument: "write",
 } as const satisfies Record<keyof PersistenceGateway, "write" | "read">;
 

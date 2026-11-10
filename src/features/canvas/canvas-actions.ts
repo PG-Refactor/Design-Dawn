@@ -56,6 +56,7 @@ import { PASTE_OFFSET } from "../../config/canvas-config";
 import type { Block } from "../../domain/block/block";
 import type { BlockType } from "../../domain/block/block-type";
 import { type CaptionPosition, parseCaption } from "../../domain/block/caption";
+import type { ContentPath } from "../../domain/block/content-path";
 import type { DiagramOperation } from "../../domain/diagram/diagram-operation";
 import type {
   BlockId,
@@ -64,6 +65,7 @@ import type {
   SheetId,
 } from "../../domain/shared/entity-id";
 import type { Position, Size } from "../../domain/shared/geometry";
+import { markdownAssetReferences } from "../markdown/markdown-asset-references";
 import {
   MERMAID_TEMPLATES,
   type MermaidTemplateId,
@@ -225,6 +227,16 @@ export interface CanvasActions {
   importDroppedImages(
     input: ImportDroppedImagesInput,
   ): Promise<OperationResult<void>>;
+  // While a text editor that takes images (a Markdown source) is registered, a drop goes
+  // there instead of the canvas: the images are imported into that editor's Document and
+  // handed to it to write their references. Registering again replaces the previous
+  // editor; the returned function unregisters (only if it is still the registered one).
+  registerTextImageTarget(target: TextImageTarget): () => void;
+  // An image pasted into a text editor: stored in the Document's assets. The editor writes
+  // the reference itself; failures are reported like a drop's.
+  importPastedImage(
+    input: ImportPastedImageInput,
+  ): Promise<OperationResult<ContentPath>>;
   // "Add Image…": the OS dialog for image files, then the same import as a drop into the
   // active sheet. Cancelling the dialog does nothing.
   addImagesFromFiles(
@@ -274,6 +286,20 @@ export interface CanvasActionsDependencies {
 
 const NOTHING_TO_DO = operationOk(undefined);
 
+// A text editor that writes references to images it is given (see
+// `registerTextImageTarget`).
+export interface TextImageTarget {
+  readonly documentId: DocumentId;
+  insertImages(contentPaths: readonly ContentPath[]): void;
+}
+
+export interface ImportPastedImageInput {
+  readonly documentId: DocumentId;
+  readonly bytes: Uint8Array;
+  // The format the clipboard names (`png`, `jpg` ...); Rust checks the bytes against it.
+  readonly extension: string;
+}
+
 // Outcomes of a GUI operation that are the user's input or a concurrent change, not a
 // malfunction: the GUI explains them inline, so a notification would say it twice.
 const DIAGRAM_REFUSAL_KINDS: readonly OperationErrorKind[] = [
@@ -295,6 +321,35 @@ export function createCanvasActions(
     gateway,
     clipboard,
   } = dependencies;
+
+  let textImageTarget: TextImageTarget | null = null;
+
+  // A drop into the registered text editor: no block is created, the editor gets the paths.
+  async function importDropIntoText(
+    dropId: string,
+    target: TextImageTarget,
+  ): Promise<OperationResult<void>> {
+    const projectId = currentProjectId();
+    if (projectId === null) {
+      return record(
+        "importImages",
+        operationErr("projectNotOpen", "no project is open"),
+      );
+    }
+    const imported = record(
+      "importImages",
+      await gateway.importDroppedImages(dropId, projectId, target.documentId),
+    );
+    if (!imported.ok) return failWith(imported.error);
+    for (const { fileName, error } of imported.value.rejected) {
+      uiStateStore.setState((state) =>
+        addOperationError(state, "importImages", fileName, error),
+      );
+    }
+    const paths = imported.value.imported.map((image) => image.contentPath);
+    if (paths.length > 0) target.insertImages(paths);
+    return NOTHING_TO_DO;
+  }
 
   function record<Value>(
     operation: OperationLabel,
@@ -633,6 +688,7 @@ export function createCanvasActions(
         projectId,
         content: copied,
         targetDocumentId: documentId,
+        textAssetReferences: markdownAssetReferences,
       });
       reportAssetFailures("pasteBlocks", resolved.failures);
       if (resolved.content.blocks.length === 0) return NOTHING_TO_DO;
@@ -843,7 +899,37 @@ export function createCanvasActions(
       });
     },
 
+    registerTextImageTarget(target) {
+      textImageTarget = target;
+      return () => {
+        if (textImageTarget === target) textImageTarget = null;
+      };
+    },
+
+    async importPastedImage({ documentId, bytes, extension }) {
+      const projectId = currentProjectId();
+      if (projectId === null) {
+        return record(
+          "importImages",
+          operationErr("projectNotOpen", "no project is open"),
+        );
+      }
+      const imported = record(
+        "importImages",
+        await gateway.importPastedImage(
+          projectId,
+          documentId,
+          bytes,
+          extension,
+        ),
+      );
+      return imported.ok ? operationOk(imported.value.contentPath) : imported;
+    },
+
     async importDroppedImages({ dropId, viewportSize, at }) {
+      if (textImageTarget !== null) {
+        return importDropIntoText(dropId, textImageTarget);
+      }
       const target = activeSheetTarget();
       if (target === null) {
         return record(

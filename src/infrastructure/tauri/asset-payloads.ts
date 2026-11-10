@@ -110,6 +110,13 @@ function toImportedImage(raw: RawImportedImage): CommandResult<ImportedImage> {
   });
 }
 
+export function toImportedImageResult(
+  payload: unknown,
+): CommandResult<ImportedImage> {
+  const raw = decodePayload(rawImportedImage, payload);
+  return raw.ok ? toImportedImage(raw.value) : raw;
+}
+
 export function toDropImportResult(
   payload: unknown,
 ): CommandResult<DropImportResult> {

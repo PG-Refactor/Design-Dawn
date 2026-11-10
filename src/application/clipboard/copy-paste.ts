@@ -2,6 +2,7 @@ import { PASTE_OFFSET } from "../../config/canvas-config";
 import type { Block } from "../../domain/block/block";
 import { isTextBlockType } from "../../domain/block/block-type";
 import { captionFieldsOf } from "../../domain/block/caption";
+import type { ContentPath } from "../../domain/block/content-path";
 import { type DomainResult, ok } from "../../domain/shared/domain-result";
 import type {
   BlockId,
@@ -32,6 +33,7 @@ import type {
   ClipboardBlock,
   ClipboardContent,
   ClipboardPort,
+  TextClipboardBlock,
 } from "./clipboard";
 
 export interface CopyRequest {
@@ -148,6 +150,7 @@ function readGroup(request: CopyRequest): OperationResult<{
           kind: "text" as const,
           blockType: block.blockType as TextBlockType,
           text: request.state.contents.get(block.blockId) ?? "",
+          sourceContentPath: block.contentPath,
         }
       : {
           ...base,
@@ -262,11 +265,52 @@ export interface PasteAssetsResolution {
   readonly failures: readonly OperationError[];
 }
 
+// Assets a text block refers to (the images of a Markdown block). The application layer
+// does not read Markdown: the feature that renders a block type supplies this.
+export interface TextAssetReferences {
+  // The Document-relative paths (`assets/<file>`) the text refers to, each once.
+  find(block: TextClipboardBlock): readonly ContentPath[];
+  // The text with each reference to a key of `renamed` pointing at its value instead.
+  rewrite(
+    block: TextClipboardBlock,
+    renamed: ReadonlyMap<ContentPath, ContentPath>,
+  ): string;
+}
+
 export interface PasteAssetsRequest {
   readonly gateway: PersistenceGateway;
   readonly projectId: ProjectId;
   readonly content: ClipboardContent;
   readonly targetDocumentId: DocumentId;
+  readonly textAssetReferences?: TextAssetReferences;
+}
+
+// The assets a text block refers to are copied with it. A text block is never left out:
+// a reference whose copy failed is reported and shows its alt text in the new Document.
+async function copyTextAssets(
+  request: PasteAssetsRequest,
+  block: TextClipboardBlock,
+  failures: OperationError[],
+): Promise<TextClipboardBlock> {
+  const references = request.textAssetReferences;
+  if (references === undefined) return block;
+  const renamed = new Map<ContentPath, ContentPath>();
+  for (const assetPath of references.find(block)) {
+    const copied = await request.gateway.copyAssetToDocument(
+      request.projectId,
+      request.content.source.documentId,
+      assetPath,
+      request.targetDocumentId,
+    );
+    if (!copied.ok) {
+      failures.push(copied.error);
+    } else if (copied.value.contentPath !== assetPath) {
+      renamed.set(assetPath, copied.value.contentPath);
+    }
+  }
+  return renamed.size === 0
+    ? block
+    : { ...block, text: references.rewrite(block, renamed) };
 }
 
 // Pasting into the Document the blocks came from reuses the asset files (nothing is
@@ -285,7 +329,7 @@ export async function resolvePasteAssets(
   const failures: OperationError[] = [];
   for (const block of content.blocks) {
     if (block.kind === "text") {
-      blocks.push(block);
+      blocks.push(await copyTextAssets(request, block, failures));
       continue;
     }
     const copied = await request.gateway.copyAssetToDocument(
