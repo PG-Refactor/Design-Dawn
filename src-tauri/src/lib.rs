@@ -111,6 +111,8 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::read_spreadsheet_via_dialog,
             commands::search_project,
             commands::export_document_markdown,
+            commands::export_file,
+            commands::asset_data_url,
             commands::copy_asset_to_document,
             commands::subscribe_drop_notifications,
             commands::subscribe_close_requests,

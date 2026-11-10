@@ -4,6 +4,7 @@ import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { DOCUMENT_A } from "../../application/test-support/workspace-harness";
 import { AI_ACCESS_MESSAGES } from "../ai-access/ai-access-messages";
+import { EXPORT_MESSAGES } from "../export/export-messages";
 import { makeDocumentADirty } from "./test-support/actions-harness";
 import {
   chooseMenuItem,
@@ -85,6 +86,9 @@ describe("File menu", () => {
       ["menuitem", `${EN.save}Ctrl+S`],
       ["menuitemcheckbox", EN.autoSave],
       ["menuitem", EN.exportMarkdown],
+      ["menuitem", EXPORT_MESSAGES.en.sheetHtml],
+      ["menuitem", EXPORT_MESSAGES.en.documentHtml],
+      ["menuitem", EXPORT_MESSAGES.en.print],
       ["menuitem", AI_ACCESS_MESSAGES.en.menuItem],
       ["menuitem", EN.closeProject],
     ]);

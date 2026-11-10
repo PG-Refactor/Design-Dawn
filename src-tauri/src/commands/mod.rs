@@ -21,19 +21,19 @@ use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager, Runtime, State, Window};
 
 use crate::application::asset_import::{
-    copy_asset_to_document as copy_asset, import_dropped_images as import_dropped,
-    import_image_bytes, CopiedAsset, DropImportResult, ImportedImage,
+    asset_data_url as read_asset_data_url, copy_asset_to_document as copy_asset,
+    import_dropped_images as import_dropped, import_image_bytes, CopiedAsset, DropImportResult,
+    ImportedImage,
 };
 use crate::application::block_content_operations::{self as block_content, BlockContentComparison};
 use crate::application::document_operations as documents;
 use crate::application::document_transfer::DocumentTransfers;
 use crate::application::dropped_files::DroppedFilesState;
 use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
-use crate::application::export_markdown::{
-    export_document_markdown as export_markdown_file, MarkdownExport,
-};
+use crate::application::export_file::{export_bytes, ExportKind};
+use crate::application::export_markdown::export_document_markdown as export_markdown_file;
 use crate::application::external_change::{self, ExternalChanges};
-use crate::application::file_dialogs::FileDialogs;
+use crate::application::file_dialogs::{FileDialogs, SaveOutcome};
 use crate::application::folder_operations as folders;
 use crate::application::folder_selection::{
     dialog_start_folder, register_known_folder, resolve_selection,
@@ -79,7 +79,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 79] = [
+pub const COMMAND_NAMES: [&str; 81] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -125,6 +125,8 @@ pub const COMMAND_NAMES: [&str; 79] = [
     "read_spreadsheet_via_dialog",
     "search_project",
     "export_document_markdown",
+    "export_file",
+    "asset_data_url",
     "copy_asset_to_document",
     "subscribe_drop_notifications",
     "subscribe_close_requests",
@@ -337,7 +339,7 @@ pub async fn export_document_markdown<R: Runtime>(
     window: Window<R>,
     project_id: String,
     document_id: String,
-) -> Result<MarkdownExport, ApplicationError> {
+) -> Result<SaveOutcome, ApplicationError> {
     ensure_window_project(&window, &project_id)?;
     let root = project_root(&app, &project_id)?;
     run_blocking(move || {
@@ -354,6 +356,65 @@ fn project_root<R: Runtime>(app: &AppHandle<R>, project_id: &str) -> Application
         .get(&ProjectId::parse(project_id)?)?
         .root()
         .to_path_buf())
+}
+
+const EXPORT_HEADER_KIND: &str = "x-dawn-export-kind";
+const EXPORT_HEADER_NAME: &str = "x-dawn-export-name";
+
+/// An export the Frontend prepared (a diagram as SVG / PNG, a sheet as HTML): the bytes are
+/// the raw request body, the kind and the suggested name (percent-encoded, headers are
+/// ASCII) travel as headers. Rust shows the save dialog and writes the file.
+#[tauri::command]
+pub async fn export_file<R: Runtime>(
+    app: AppHandle<R>,
+    request: tauri::ipc::Request<'_>,
+) -> Result<SaveOutcome, ApplicationError> {
+    let header = |name: &str| {
+        request
+            .headers()
+            .get(name)
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_owned)
+            .ok_or_else(|| {
+                ApplicationError::new(ErrorKind::ExportFailed, format!("missing {name}"))
+            })
+    };
+    let kind = ExportKind::parse(&header(EXPORT_HEADER_KIND)?)
+        .ok_or_else(|| ApplicationError::new(ErrorKind::ExportFailed, "unknown export kind"))?;
+    let name = percent_decoded(&header(EXPORT_HEADER_NAME)?);
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+        return Err(ApplicationError::new(
+            ErrorKind::ExportFailed,
+            "body is not raw bytes",
+        ));
+    };
+    let bytes = bytes.clone();
+    run_blocking(move || {
+        let dialogs = file_dialogs(&app)?;
+        export_bytes(dialogs.as_ref(), kind, &name, &bytes)
+    })
+    .await
+}
+
+/// `encodeURIComponent` undone; an invalid escape keeps the text as it was.
+fn percent_decoded(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        let escaped = (bytes[index] == b'%')
+            .then(|| text.get(index + 1..index + 3))
+            .flatten()
+            .and_then(|hex| u8::from_str_radix(hex, 16).ok());
+        if let Some(byte) = escaped {
+            decoded.push(byte);
+            index += 3;
+        } else {
+            decoded.push(bytes[index]);
+            index += 1;
+        }
+    }
+    String::from_utf8(decoded).unwrap_or_else(|_| text.to_owned())
 }
 
 /// "Table from Spreadsheet…": the OS dialog, then the values of every worksheet. Runs on the
@@ -1412,6 +1473,24 @@ pub async fn import_pasted_image<R: Runtime>(
     run_blocking(move || {
         let sessions = app.state::<Mutex<ProjectSessions>>();
         import_image_bytes(&sessions, &project_id, &document_id, &extension, bytes)
+    })
+    .await
+}
+
+/// An image of an opened Document as a `data:` URL, for an HTML export or a print page that
+/// carries its pictures inside it.
+#[tauri::command]
+pub async fn asset_data_url<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    document_id: String,
+    content_path: String,
+) -> Result<String, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        read_asset_data_url(&sessions, &project_id, &document_id, &content_path)
     })
     .await
 }

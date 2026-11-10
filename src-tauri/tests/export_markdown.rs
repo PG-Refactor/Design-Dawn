@@ -5,10 +5,8 @@ mod support;
 use std::fs;
 use std::path::PathBuf;
 
-use design_dawn_lib::application::export_markdown::{
-    document_markdown, export_document_markdown, MarkdownExport,
-};
-use design_dawn_lib::application::file_dialogs::{FileDialogs, FileFilter};
+use design_dawn_lib::application::export_markdown::{document_markdown, export_document_markdown};
+use design_dawn_lib::application::file_dialogs::{FileDialogs, FileFilter, SaveOutcome};
 use design_dawn_lib::application::folder_selection::FolderPickerError;
 use support::*;
 
@@ -56,7 +54,7 @@ fn the_file_is_written_with_its_images_beside_it() {
             .unwrap();
     assert_eq!(
         result,
-        MarkdownExport::Saved {
+        SaveOutcome::Saved {
             file_name: "design.md".to_owned()
         }
     );
@@ -71,6 +69,6 @@ fn a_cancelled_dialog_writes_nothing() {
     let opened = open_copy();
     assert_eq!(
         export_document_markdown(&SavingTo(None), &opened.root, DOCUMENT_ID).unwrap(),
-        MarkdownExport::Cancelled
+        SaveOutcome::Cancelled
     );
 }

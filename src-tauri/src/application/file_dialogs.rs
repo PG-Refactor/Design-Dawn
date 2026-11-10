@@ -4,7 +4,21 @@
 
 use std::path::PathBuf;
 
+use serde::Serialize;
+
 use super::folder_selection::FolderPickerError;
+
+/// The answer to a save dialog. Wire form: `{ status: "saved", fileName }` or
+/// `{ status: "cancelled" }`; only the chosen file's name reaches the Frontend.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "status", rename_all = "camelCase")]
+pub enum SaveOutcome {
+    #[serde(rename_all = "camelCase")]
+    Saved {
+        file_name: String,
+    },
+    Cancelled,
+}
 
 /// A file type filter of a dialog: the name the OS shows and the extensions (without dots).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

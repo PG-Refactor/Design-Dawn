@@ -9,6 +9,10 @@ import {
   CANVAS_MESSAGES,
   type CanvasMessages,
 } from "../canvas/canvas-messages";
+import {
+  EXPORT_MESSAGES,
+  type ExportMessages,
+} from "../export/export-messages";
 import { GIT_MESSAGES, type GitMessages } from "../git/git-messages";
 import { IMAGE_MESSAGES, type ImageMessages } from "../image/image-messages";
 import {
@@ -40,6 +44,7 @@ export interface Messages {
   readonly git: GitMessages;
   readonly aiAccess: AiAccessMessages;
   readonly search: SearchMessages;
+  readonly export: ExportMessages;
 }
 
 function collectMessages(language: DisplayLanguage): Messages {
@@ -52,6 +57,7 @@ function collectMessages(language: DisplayLanguage): Messages {
     git: GIT_MESSAGES[language],
     aiAccess: AI_ACCESS_MESSAGES[language],
     search: SEARCH_MESSAGES[language],
+    export: EXPORT_MESSAGES[language],
   };
 }
 

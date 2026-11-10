@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   THEME_PREFERENCES,
   type ThemePreference,
@@ -15,9 +15,11 @@ import { TEXT_SIZES, type TextSize } from "../../config/text-size-config";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { AiAccessDialog } from "../ai-access/ai-access-dialog";
 import { AiAccessRequestPrompt } from "../ai-access/ai-access-request-prompt";
+import { PrintDialog, type PrintTarget } from "../export/print-dialog";
 import { type HelpDialogKind, HelpDialogs } from "../help/help-dialogs";
 import { MenuBar } from "../menu-bar/menu-bar";
 import type { MenuDefinition } from "../menu-bar/menu-bar-types";
+import { useMermaidRenderer } from "../mermaid/mermaid-renderer-context";
 import { Notifications } from "./notifications";
 import { saveEverything } from "./save-everything";
 import { saveShortcutHint } from "./save-shortcut";
@@ -73,6 +75,7 @@ function languageLabel(
 
 const selectBusy = (ui: UiState) => ui.busy;
 const selectActiveDocumentId = (ui: UiState) => ui.activeDocumentId;
+const selectActiveSheets = (ui: UiState) => ui.activeSheetIdByDocument;
 const selectProjectName = (application: ApplicationState) =>
   application.project?.project.name ?? null;
 
@@ -89,8 +92,62 @@ export function TopBar() {
     autoSaveController,
     viewportPersistence,
     exportActions,
+    applicationStore,
   } = useWorkspaceServices();
   const activeDocumentId = useUiState(selectActiveDocumentId);
+  const activeSheets = useUiState(selectActiveSheets);
+  const exportMessages = allMessages.export;
+  const mermaidRenderer = useMermaidRenderer();
+  const [printTarget, setPrintTarget] = useState<PrintTarget | null>(null);
+
+  // The shown Document and sheet, with the names and order the exports need.
+  const shownTarget = useCallback((): PrintTarget | null => {
+    if (activeDocumentId === null) return null;
+    const sheetId = activeSheets.get(activeDocumentId);
+    const application = applicationStore.getState();
+    const document = application.documents.get(activeDocumentId);
+    const sheetIds = (
+      application.documentDetails.get(activeDocumentId)?.sheetEntries ?? []
+    )
+      .filter((entry) => entry.state === "loaded")
+      .map((entry) => entry.sheetId);
+    const sheet =
+      sheetId === undefined ? undefined : document?.sheets.get(sheetId);
+    if (
+      document === undefined ||
+      sheetId === undefined ||
+      sheet === undefined
+    ) {
+      return null;
+    }
+    return {
+      documentId: activeDocumentId,
+      documentName:
+        application.project?.documents.find(
+          (entry) => entry.documentId === activeDocumentId,
+        )?.name ?? "",
+      sheetId,
+      sheetName: sheet.name,
+      sheetIds,
+    };
+  }, [activeDocumentId, activeSheets, applicationStore]);
+
+  const exportHtml = useCallback(
+    (scope: "sheet" | "document"): void => {
+      const target = shownTarget();
+      if (target === null) return;
+      void exportActions.exportSheetsHtml({
+        renderer: mermaidRenderer,
+        documentId: target.documentId,
+        sheetIds: scope === "sheet" ? [target.sheetId] : target.sheetIds,
+        title:
+          scope === "sheet"
+            ? `${target.documentName} - ${target.sheetName}`
+            : target.documentName,
+      });
+    },
+    [shownTarget, exportActions, mermaidRenderer],
+  );
   const projectName = useWorkspaceModel(selectProjectName);
   const busy = useUiState(selectBusy);
   const themePreference = useStoreSelector(
@@ -192,6 +249,27 @@ export function TopBar() {
                 void exportActions.exportDocumentMarkdown(activeDocumentId);
               }
             },
+          },
+          {
+            kind: "item",
+            id: "exportSheetHtml",
+            label: exportMessages.sheetHtml,
+            disabled: activeDocumentId === null,
+            onSelect: () => exportHtml("sheet"),
+          },
+          {
+            kind: "item",
+            id: "exportDocumentHtml",
+            label: exportMessages.documentHtml,
+            disabled: activeDocumentId === null,
+            onSelect: () => exportHtml("document"),
+          },
+          {
+            kind: "item",
+            id: "print",
+            label: exportMessages.print,
+            disabled: activeDocumentId === null,
+            onSelect: () => setPrintTarget(shownTarget()),
           },
           { kind: "separator", id: "separator-ai" },
           {
@@ -299,7 +377,10 @@ export function TopBar() {
       actions,
       viewportPersistence,
       exportActions,
+      exportMessages,
       activeDocumentId,
+      exportHtml,
+      shownTarget,
       busy,
       hasProject,
       themeController,
@@ -330,6 +411,12 @@ export function TopBar() {
         <AiAccessDialog onClose={() => setAiAccessOpen(false)} />
       )}
       <AiAccessRequestPrompt />
+      {printTarget !== null && (
+        <PrintDialog
+          target={printTarget}
+          onClose={() => setPrintTarget(null)}
+        />
+      )}
     </header>
   );
 }

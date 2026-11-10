@@ -373,6 +373,45 @@ pub fn read_asset_for_url(
     })
 }
 
+const BASE64_ALPHABET: &[u8; 64] =
+    b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const BASE64_PADDING: char = '=';
+
+/// Standard base64 with padding (RFC 4648 section 4).
+fn base64(bytes: &[u8]) -> String {
+    let mut text = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let value = chunk.iter().enumerate().fold(0u32, |value, (index, byte)| {
+            value | (u32::from(*byte) << (16 - 8 * index))
+        });
+        for index in 0..4 {
+            if index <= chunk.len() {
+                let six = (value >> (18 - 6 * index)) & 0x3f;
+                text.push(char::from(BASE64_ALPHABET[six as usize]));
+            } else {
+                text.push(BASE64_PADDING);
+            }
+        }
+    }
+    text
+}
+
+/// One asset of an opened Document as a `data:` URL, for an export that must carry its
+/// images inside the file (an HTML page). Read like the `dawn-asset` protocol reads it.
+pub fn asset_data_url(
+    sessions: &Mutex<ProjectSessions>,
+    project_id: &str,
+    document_id: &str,
+    content_path: &str,
+) -> ApplicationResult<String> {
+    let asset = read_asset_for_url(sessions, project_id, document_id, content_path)?;
+    Ok(format!(
+        "data:{};base64,{}",
+        asset.format.mime_type(),
+        base64(&asset.bytes)
+    ))
+}
+
 /// Copies an asset into another Document of the same Project (Block copy / paste across
 /// Documents) under its own file name, with `-2`, `-3`, ... on collision. The source is
 /// validated like an import. Copying into the Document the asset already lives in copies
@@ -414,4 +453,18 @@ pub fn copy_asset_to_document(
         &image.bytes,
     )?;
     Ok(copied(stored))
+}
+
+#[cfg(test)]
+mod base64_tests {
+    use super::base64;
+
+    #[test]
+    fn encodes_like_rfc_4648() {
+        assert_eq!(base64(b""), "");
+        assert_eq!(base64(b"f"), "Zg==");
+        assert_eq!(base64(b"fo"), "Zm8=");
+        assert_eq!(base64(b"foo"), "Zm9v");
+        assert_eq!(base64(b"foobar"), "Zm9vYmFy");
+    }
 }

@@ -44,6 +44,8 @@ export const COMMANDS = {
   readSpreadsheetViaDialog: "read_spreadsheet_via_dialog",
   searchProject: "search_project",
   exportDocumentMarkdown: "export_document_markdown",
+  exportFile: "export_file",
+  assetDataUrl: "asset_data_url",
   selectImageFiles: "select_image_files",
   defaultProjectLocation: "default_project_location",
   setDefaultProjectLocation: "set_default_project_location",
