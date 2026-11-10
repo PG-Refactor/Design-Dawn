@@ -1091,6 +1091,13 @@ export function createFakeGateway(
       enter("exportDocumentMarkdown", documentId, () =>
         operationOk({ status: "saved" as const, fileName: `${documentId}.md` }),
       ),
+    exportFile: (kind, suggestedName, bytes) =>
+      enter("exportFile", `${kind}:${suggestedName}:${bytes.length}`, () =>
+        operationOk({
+          status: "saved" as const,
+          fileName: `${suggestedName}.${kind}`,
+        }),
+      ),
     // The scripted search result, else nothing found.
     searchProject: (_project, text, matchCase) =>
       enter("searchProject", `${text}:${matchCase}`, () =>

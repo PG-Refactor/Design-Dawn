@@ -13,6 +13,7 @@ import {
 import type { ApplicationState } from "../../application/state/application-state";
 import { CANVAS_CONFIG } from "../../config/canvas-config";
 import type { Block } from "../../domain/block/block";
+import { BLOCK_TYPE_DEFINITIONS } from "../../domain/block/block-type";
 import {
   DEFAULT_CAPTION_POSITION,
   figureCaptionOf,
@@ -24,6 +25,7 @@ import type {
 } from "../../domain/shared/entity-id";
 import { useContextMenu } from "../../shared/menu/context-menu";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
+import { useMermaidRenderer } from "../mermaid/mermaid-renderer-context";
 import {
   getSelection,
   selectBlocks as selectBlocksInUi,
@@ -120,8 +122,9 @@ export interface CanvasProps {
 export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
   const messages = useMessages().canvas;
   const mermaidMessages = useMessages().mermaid;
-  const { applicationStore, uiStateStore, canvasActions } =
+  const { applicationStore, uiStateStore, canvasActions, exportActions } =
     useWorkspaceServices();
+  const mermaidRenderer = useMermaidRenderer();
   const selectBlocks = useCallback(
     (application: ApplicationState): readonly Block[] =>
       application.documents.get(documentId)?.sheets.get(sheetId)?.blocks ??
@@ -427,6 +430,25 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
                     position:
                       onlyBlock.captionPosition ?? DEFAULT_CAPTION_POSITION,
                   }),
+              }
+            : {}),
+          ...(selectedIds.length === 1 &&
+          onlyBlock !== undefined &&
+          onlyBlock.blockType === BLOCK_TYPE_DEFINITIONS.mermaid.identifier
+            ? {
+                exportDiagram: (kind: "svg" | "png") => {
+                  const source = applicationStore
+                    .getState()
+                    .documents.get(documentId)
+                    ?.contents.get(onlyBlock.blockId);
+                  if (source === undefined) return;
+                  void exportActions.exportDiagram({
+                    renderer: mermaidRenderer,
+                    source,
+                    kind,
+                    name: figureCaptionOf(onlyBlock)?.text ?? "",
+                  });
+                },
               }
             : {}),
           cut: () => void canvasActions.cutSelection(selectionInput),

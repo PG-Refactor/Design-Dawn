@@ -3,6 +3,7 @@ import type { PersistenceGateway } from "../../application/ports/persistence-gat
 import {
   copyAssetToDocument,
   exportDocumentMarkdown,
+  exportFile,
   importDroppedImages,
   importPastedImage,
   readSpreadsheetViaDialog,
@@ -105,6 +106,7 @@ export function createTauriPersistenceGateway(): PersistenceGateway {
     readSpreadsheetViaDialog,
     searchProject,
     exportDocumentMarkdown,
+    exportFile,
     copyAssetToDocument,
     readBlockContent,
     writeBlockContent: async (projectId, documentId, contentPath, text) =>

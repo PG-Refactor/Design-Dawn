@@ -81,3 +81,7 @@ export const EXPORT_STATUS = {
 export type ExportOutcome =
   | { readonly status: typeof EXPORT_STATUS.saved; readonly fileName: string }
   | { readonly status: typeof EXPORT_STATUS.cancelled };
+
+// What the app hands Rust to write through the save dialog.
+export const EXPORT_FILE_KINDS = ["svg", "png", "html"] as const;
+export type ExportFileKind = (typeof EXPORT_FILE_KINDS)[number];

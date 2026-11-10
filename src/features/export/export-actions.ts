@@ -7,11 +7,30 @@ import { operationErr } from "../../application/ports/operation-error";
 import type { PersistenceGateway } from "../../application/ports/persistence-gateway";
 import type { ApplicationStore } from "../../application/state/application-state";
 import type { DocumentId } from "../../domain/shared/entity-id";
+import type { MermaidRenderer } from "../mermaid/mermaid-renderer-types";
 import { addOperationError } from "../workspace/ui-state/shell-ui-state";
 import type { UiStateStore } from "../workspace/ui-state/ui-state";
 import type { WorkspaceActions } from "../workspace/workspace-actions";
+import {
+  renderDiagramForExport,
+  svgFileText,
+  svgToPng,
+} from "./diagram-export";
+import { EXPORT_CONFIG } from "./export-config";
+
+export interface DiagramExportInput {
+  readonly renderer: MermaidRenderer;
+  readonly source: string;
+  readonly kind: "svg" | "png";
+  // The suggested file name (a caption); a fallback is used when it is empty.
+  readonly name: string;
+}
 
 export interface ExportActions {
+  // One Mermaid diagram as an SVG or PNG file, rendered in the light theme.
+  exportDiagram(
+    input: DiagramExportInput,
+  ): Promise<OperationResult<ExportOutcome>>;
   // Saves everything first (the export reads the files on disk), then asks where to write
   // the Document as one Markdown file.
   exportDocumentMarkdown(
@@ -44,6 +63,33 @@ export function createExportActions(
   }
 
   return {
+    async exportDiagram({ renderer, source, kind, name }) {
+      const rendered = await renderDiagramForExport(renderer, source);
+      if (!rendered.ok) {
+        return reported(operationErr("exportFailed", rendered.message));
+      }
+      const file = svgFileText(rendered.svg);
+      if (file === null) {
+        return reported(
+          operationErr("exportFailed", "the diagram has no size"),
+        );
+      }
+      let bytes: Uint8Array;
+      try {
+        bytes =
+          kind === "svg"
+            ? new TextEncoder().encode(file.text)
+            : await svgToPng(file, rendered.background);
+      } catch (error) {
+        return reported(operationErr("exportFailed", String(error)));
+      }
+      const suggested =
+        name.trim().length > 0
+          ? name.trim()
+          : EXPORT_CONFIG.diagramFallbackName;
+      return reported(await gateway.exportFile(kind, suggested, bytes));
+    },
+
     async exportDocumentMarkdown(documentId) {
       const projectId = applicationStore.getState().project?.projectId ?? null;
       if (projectId === null) {

@@ -16,6 +16,7 @@ import type { Sheet } from "../../domain/sheet/sheet";
 import type {
   CopiedAsset,
   DropImportResult,
+  ExportFileKind,
   ExportOutcome,
   ImageSelection,
   ImportedImage,
@@ -231,6 +232,12 @@ export interface PersistenceGateway {
   exportDocumentMarkdown(
     projectId: ProjectId,
     documentId: DocumentId,
+  ): Promise<OperationResult<ExportOutcome>>;
+  // The save dialog, then `bytes` written as a file of `kind` (an export the app prepared).
+  exportFile(
+    kind: ExportFileKind,
+    suggestedName: string,
+    bytes: Uint8Array,
   ): Promise<OperationResult<ExportOutcome>>;
   // Every match of `text` in the Project's text Blocks and captions, read from disk (not
   // from the app's open Documents).

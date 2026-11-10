@@ -12,7 +12,7 @@ use super::authoring::read_text_block;
 use super::block_content_operations::is_text_block_type;
 use super::document_operations::load_document;
 use super::error::{ApplicationError, ApplicationResult, ErrorKind};
-use super::file_dialogs::{FileDialogs, FileFilter};
+use super::file_dialogs::{FileDialogs, FileFilter, SaveOutcome};
 use super::project_operations::open_project;
 use super::session::ProjectSessions;
 use crate::domain::block_type::BlockType;
@@ -51,17 +51,6 @@ const FALLBACK_FILE_STEM: &str = "document";
 pub struct ExportedMarkdown {
     pub text: String,
     pub assets: Vec<String>,
-}
-
-/// Wire form: `{ status: "saved", fileName }` or `{ status: "cancelled" }`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(tag = "status", rename_all = "camelCase")]
-pub enum MarkdownExport {
-    #[serde(rename_all = "camelCase")]
-    Saved {
-        file_name: String,
-    },
-    Cancelled,
 }
 
 fn number(value: &serde_json::Number) -> f64 {
@@ -402,7 +391,7 @@ pub fn export_document_markdown(
     dialogs: &dyn FileDialogs,
     root: &Path,
     document_id: &str,
-) -> ApplicationResult<MarkdownExport> {
+) -> ApplicationResult<SaveOutcome> {
     let document_name = {
         let mut sessions = ProjectSessions::default();
         let project = open_project(&mut sessions, root)?;
@@ -412,7 +401,7 @@ pub fn export_document_markdown(
     };
     let Some(target) = dialogs.save_file(MARKDOWN_FILTER, &suggested_file_name(&document_name))?
     else {
-        return Ok(MarkdownExport::Cancelled);
+        return Ok(SaveOutcome::Cancelled);
     };
     let stem = target.file_stem().map_or_else(
         || FALLBACK_FILE_STEM.to_owned(),
@@ -445,7 +434,7 @@ pub fn export_document_markdown(
         }
     }
     write_file_atomically(&target, exported.text.as_bytes())?;
-    Ok(MarkdownExport::Saved {
+    Ok(SaveOutcome::Saved {
         file_name: target
             .file_name()
             .map_or_else(String::new, |name| name.to_string_lossy().into_owned()),

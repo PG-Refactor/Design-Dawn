@@ -14,6 +14,7 @@ import {
 import type {
   CopiedAsset,
   DropImportResult,
+  ExportFileKind,
   ExportOutcome,
   ImageSelection,
   ImportedImage,
@@ -22,6 +23,31 @@ import type {
 import { COMMANDS } from "./command-constants";
 import type { CommandResult } from "./command-error";
 import { call, callWithBytes } from "./invoke-command";
+
+// Header names of `export_file`; they must match `EXPORT_HEADER_*` in
+// `src-tauri/src/commands/mod.rs`. The name is percent-encoded: headers carry ASCII only.
+const EXPORT_HEADERS = {
+  kind: "x-dawn-export-kind",
+  name: "x-dawn-export-name",
+} as const;
+
+// An export the app prepared (a diagram's SVG / PNG, a sheet's HTML page): Rust shows the
+// save dialog, suggesting `suggestedName` plus the kind's extension, and writes `bytes`.
+export function exportFile(
+  kind: ExportFileKind,
+  suggestedName: string,
+  bytes: Uint8Array,
+): Promise<CommandResult<ExportOutcome>> {
+  return callWithBytes(
+    COMMANDS.exportFile,
+    bytes,
+    {
+      [EXPORT_HEADERS.kind]: kind,
+      [EXPORT_HEADERS.name]: encodeURIComponent(suggestedName),
+    },
+    toExportOutcome,
+  );
+}
 
 // Header names of `import_pasted_image`; they must match `PASTE_HEADER_*` in
 // `src-tauri/src/commands/mod.rs`.

@@ -49,6 +49,7 @@
     "allow-read-spreadsheet-via-dialog",
     "allow-search-project",
     "allow-export-document-markdown",
+    "allow-export-file",
     "allow-copy-asset-to-document",
     "allow-subscribe-drop-notifications",
     "allow-subscribe-close-requests",

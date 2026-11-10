@@ -28,6 +28,8 @@ export interface BlockMenuCommands {
   readonly editCaption?: () => void;
   // Absent when the figure has no caption to remove.
   readonly removeCaption?: () => void;
+  // Present for one selected diagram: writes it as an SVG or PNG file.
+  readonly exportDiagram?: (kind: "svg" | "png") => void;
   readonly cut: () => void;
   readonly copy: () => void;
   readonly paste: () => void;
@@ -66,6 +68,21 @@ export function blockMenuEntries(
             id: "removeCaption",
             label: labels.removeCaption,
             onSelect: commands.removeCaption,
+          },
+        ]),
+    ...(commands.exportDiagram === undefined
+      ? []
+      : [
+          { id: "exportSeparator", separator: true as const },
+          {
+            id: "exportSvg",
+            label: labels.exportSvg,
+            onSelect: () => commands.exportDiagram?.("svg"),
+          },
+          {
+            id: "exportPng",
+            label: labels.exportPng,
+            onSelect: () => commands.exportDiagram?.("png"),
           },
         ]),
     { id: "editSeparator", separator: true },
