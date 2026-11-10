@@ -663,3 +663,54 @@ describe("images for a text editor", () => {
     expect(imageBlocks(harness)).toHaveLength(0);
   });
 });
+
+describe("importSpreadsheet", () => {
+  it("adds one Markdown table block per sheet in one command, selected", async () => {
+    const harness = await openedCanvasHarness();
+    harness.gateway.scriptSpreadsheet({
+      status: "selected",
+      fileName: "design.xlsx",
+      sheets: [
+        {
+          name: "Tables",
+          rows: [
+            ["Name", "Type"],
+            ["id", "uuid | v7"],
+          ],
+          truncated: false,
+        },
+        { name: "Other", rows: [["only"]], truncated: false },
+      ],
+    });
+    const before = harness.blocksOfSheetA1().length;
+    const result = await harness.canvasActions.importSpreadsheet({
+      viewportSize: VIEWPORT_SIZE,
+    });
+    expect(result.ok).toBe(true);
+    const added = harness.blocksOfSheetA1().slice(before);
+    expect(added.map((block) => block.blockType)).toEqual([
+      "markdown",
+      "markdown",
+    ]);
+    const texts = [...harness.gateway.files.entries()]
+      .filter(([path]) => added.some((block) => block.contentPath === path))
+      .map(([, text]) => text);
+    expect(texts).toContain(
+      "## Tables\n\n| Name | Type       |\n| ---- | ---------- |\n| id   | uuid \\| v7 |\n",
+    );
+    expect([
+      ...getSelection(harness.uiStateStore.getState(), SHEET_A1),
+    ]).toEqual(added.map((block) => block.blockId));
+    expect(harness.session.getState().history.canUndo).toBe(true);
+  });
+
+  it("does nothing when the dialog is cancelled", async () => {
+    const harness = await openedCanvasHarness();
+    const before = harness.blocksOfSheetA1().length;
+    const result = await harness.canvasActions.importSpreadsheet({
+      viewportSize: VIEWPORT_SIZE,
+    });
+    expect(result.ok).toBe(true);
+    expect(harness.blocksOfSheetA1()).toHaveLength(before);
+  });
+});

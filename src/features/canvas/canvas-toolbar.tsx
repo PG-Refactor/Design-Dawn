@@ -106,6 +106,11 @@ export function CanvasToolbar({
             viewportSize: measureCanvas(),
           })
         }
+        onImportSpreadsheet={() =>
+          void canvasActions.importSpreadsheet({
+            viewportSize: measureCanvas(),
+          })
+        }
       />
       <PopupMenu
         className="align-menu"

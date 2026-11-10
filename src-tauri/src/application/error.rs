@@ -43,6 +43,8 @@ pub enum ErrorKind {
     InvalidImageContent,
     /// An asset larger than `ASSET_MAX_BYTES`.
     AssetTooLarge,
+    /// A chosen spreadsheet that cannot be read (not a workbook, damaged, too large).
+    InvalidSpreadsheet,
     /// A theme preference that is not `system` or a defined theme id.
     InvalidThemePreference,
     /// A language preference that is not `system`, `en` or `ja`.
@@ -137,6 +139,7 @@ impl ErrorKind {
             Self::InvalidDropSelection => "invalidDropSelection",
             Self::InvalidImageContent => "invalidImageContent",
             Self::AssetTooLarge => "assetTooLarge",
+            Self::InvalidSpreadsheet => "invalidSpreadsheet",
             Self::InvalidThemePreference => "invalidThemePreference",
             Self::InvalidLanguagePreference => "invalidLanguagePreference",
             Self::InvalidTextSize => "invalidTextSize",
@@ -191,6 +194,7 @@ impl ErrorKind {
             Self::InvalidDropSelection => "the dropped files selection is no longer valid",
             Self::InvalidImageContent => "the file is not a valid image",
             Self::AssetTooLarge => "the image file is too large",
+            Self::InvalidSpreadsheet => "the file is not a readable spreadsheet",
             Self::InvalidThemePreference => "the theme preference is not valid",
             Self::InvalidLanguagePreference => "the language preference is not valid",
             Self::InvalidTextSize => "the text size is not valid",
@@ -305,7 +309,7 @@ impl Serialize for ApplicationError {
 mod tests {
     use super::*;
 
-    const ALL_KINDS: [ErrorKind; 62] = [
+    const ALL_KINDS: [ErrorKind; 63] = [
         ErrorKind::Domain(DomainErrorKind::InvalidEntityId),
         ErrorKind::Domain(DomainErrorKind::InvalidDisplayName),
         ErrorKind::Domain(DomainErrorKind::InvalidCaption),
@@ -333,6 +337,7 @@ mod tests {
         ErrorKind::InvalidDropSelection,
         ErrorKind::InvalidImageContent,
         ErrorKind::AssetTooLarge,
+        ErrorKind::InvalidSpreadsheet,
         ErrorKind::InvalidThemePreference,
         ErrorKind::InvalidLanguagePreference,
         ErrorKind::InvalidTextSize,

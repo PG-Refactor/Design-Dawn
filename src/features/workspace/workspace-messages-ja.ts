@@ -47,6 +47,7 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
     "複製できないBlockがありました（本文または画像を読み込めていません）",
   createBlock: "Blockを追加できませんでした",
   importImages: "画像を取り込めませんでした",
+  importSpreadsheet: "表計算ファイルから表を追加できませんでした",
   importImagesWithoutSheet: "画像を追加するにはSheetを開いてください",
   editBlockContent:
     "Blockの本文の編集を確定できませんでした（編集内容は画面に残っています）",
@@ -122,6 +123,8 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
     "選択したフォルダが無効です。もう一度選択してください。",
   invalidImageContent: "画像として読み込めないファイルです。",
   assetTooLarge: "画像ファイルが大きすぎます（上限 20 MiB）。",
+  invalidSpreadsheet:
+    "表計算ファイルを読み込めませんでした（.xlsx / .xlsm / .xls / .xlsb / .ods、上限 20 MiB）。",
   invalidDropSelection:
     "ドロップしたファイルが無効です。もう一度ドロップしてください。",
   folderNotEmpty:

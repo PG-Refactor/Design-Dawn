@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Runtime};
 use tauri_plugin_dialog::DialogExt;
 
+use crate::application::file_dialogs::{FileDialogs, FileFilter};
 use crate::application::folder_selection::{FolderPicker, FolderPickerError};
 use crate::application::image_selection::ImagePicker;
 use crate::domain::block_type::BlockType;
@@ -77,5 +78,50 @@ impl<R: Runtime> ImagePicker for DialogImagePicker<R> {
                 })
             })
             .collect()
+    }
+}
+
+/// The real `FileDialogs`: the OS open / save dialogs.
+pub struct DialogFiles<R: Runtime> {
+    app: AppHandle<R>,
+}
+
+impl<R: Runtime> DialogFiles<R> {
+    pub fn new(app: AppHandle<R>) -> Self {
+        Self { app }
+    }
+}
+
+fn local_path(chosen: tauri_plugin_dialog::FilePath) -> Result<PathBuf, FolderPickerError> {
+    chosen.into_path().map_err(|error| {
+        FolderPickerError::new(format!("chosen file is not a local path: {error}"))
+    })
+}
+
+impl<R: Runtime> FileDialogs for DialogFiles<R> {
+    /// Blocks like the other dialogs, so it must never run on the main thread.
+    fn pick_file(&self, filter: FileFilter) -> Result<Option<PathBuf>, FolderPickerError> {
+        self.app
+            .dialog()
+            .file()
+            .add_filter(filter.name, filter.extensions)
+            .blocking_pick_file()
+            .map(local_path)
+            .transpose()
+    }
+
+    fn save_file(
+        &self,
+        filter: FileFilter,
+        default_name: &str,
+    ) -> Result<Option<PathBuf>, FolderPickerError> {
+        self.app
+            .dialog()
+            .file()
+            .add_filter(filter.name, filter.extensions)
+            .set_file_name(default_name)
+            .blocking_save_file()
+            .map(local_path)
+            .transpose()
     }
 }

@@ -92,6 +92,8 @@ export interface BackgroundMenuCommands {
   ) => void;
   // Opens the image file dialog; the first image goes where the menu was opened.
   readonly addImage: () => void;
+  // Opens the spreadsheet dialog; the first table goes where the menu was opened.
+  readonly importSpreadsheet: () => void;
   readonly paste: () => void;
 }
 
@@ -129,6 +131,11 @@ export function backgroundMenuEntries(
       id: "addImage",
       label: messages.contextMenu.addImage,
       onSelect: commands.addImage,
+    },
+    {
+      id: "importSpreadsheet",
+      label: messages.contextMenu.importSpreadsheet,
+      onSelect: commands.importSpreadsheet,
     },
     { id: "addSeparator", separator: true },
     {

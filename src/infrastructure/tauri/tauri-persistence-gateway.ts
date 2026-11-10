@@ -4,6 +4,7 @@ import {
   copyAssetToDocument,
   importDroppedImages,
   importPastedImage,
+  readSpreadsheetViaDialog,
   selectImageFiles,
 } from "./asset-client";
 import {
@@ -99,6 +100,7 @@ export function createTauriPersistenceGateway(): PersistenceGateway {
     selectImageFiles,
     importDroppedImages,
     importPastedImage,
+    readSpreadsheetViaDialog,
     copyAssetToDocument,
     readBlockContent,
     writeBlockContent: async (projectId, documentId, contentPath, text) =>

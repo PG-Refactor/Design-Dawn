@@ -29,6 +29,10 @@ notify = "=8.2.0"
 # Tauri uses for app_config_dir, already in the dependency tree through Tauri).
 # MIT OR Apache-2.0.
 dirs = "7"
+# Reading spreadsheets (.xlsx / .xls / .ods) to import their sheets as Markdown tables.
+# MIT; its dependency tree is MIT / Apache-2.0 / BSD-3-Clause / Zlib. `dates` (chrono,
+# MIT OR Apache-2.0) turns date cells into dates instead of serial numbers.
+calamine = { version = "=0.38.0", features = ["dates"] }
 
 # Desktop only: the plugin has no mobile implementation. A second launch is handed to the
 # running instance instead of opening a second process on the same Project files.

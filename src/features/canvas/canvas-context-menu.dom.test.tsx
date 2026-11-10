@@ -141,6 +141,7 @@ describe("the right-click menu of the empty canvas", () => {
       LABELS.addBlock("Mermaid"),
       `${LABELS.templates}▸`,
       LABELS.addImage,
+      LABELS.importSpreadsheet,
       LABELS.paste,
     ]);
   });

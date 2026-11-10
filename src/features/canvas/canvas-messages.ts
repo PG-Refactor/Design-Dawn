@@ -14,6 +14,7 @@ const CANVAS_MESSAGES_JA = {
     addBlock: "+ Block",
     blockTypeMenuLabel: "追加するBlockの種類",
     image: "画像…",
+    spreadsheet: "表計算ファイルから表…",
     templates: "Mermaidテンプレート",
   },
   reorder: {
@@ -47,6 +48,7 @@ const CANVAS_MESSAGES_JA = {
     editCaption: "キャプションを編集…",
     removeCaption: "キャプションを削除",
     addImage: "画像を追加…",
+    importSpreadsheet: "表計算ファイルから表を追加…",
     // The submenu that holds the Mermaid templates.
     templates: "Mermaidテンプレートから追加",
   },
@@ -83,6 +85,7 @@ const CANVAS_MESSAGES_EN: CanvasMessages = {
     addBlock: "+ Block",
     blockTypeMenuLabel: "Block type to add",
     image: "Image…",
+    spreadsheet: "Table from Spreadsheet…",
     templates: "Mermaid Template",
   },
   reorder: {
@@ -116,6 +119,7 @@ const CANVAS_MESSAGES_EN: CanvasMessages = {
     editCaption: "Edit Caption…",
     removeCaption: "Remove Caption",
     addImage: "Add Image…",
+    importSpreadsheet: "Add Table from Spreadsheet…",
     templates: "Add from Mermaid Template",
   },
   caption: {

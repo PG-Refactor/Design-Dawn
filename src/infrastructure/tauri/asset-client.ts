@@ -8,12 +8,14 @@ import {
   toDropImportResult,
   toImageSelection,
   toImportedImageResult,
+  toSpreadsheetSelection,
 } from "./asset-payloads";
 import type {
   CopiedAsset,
   DropImportResult,
   ImageSelection,
   ImportedImage,
+  SpreadsheetSelection,
 } from "./asset-types";
 import { COMMANDS } from "./command-constants";
 import type { CommandResult } from "./command-error";
@@ -81,4 +83,11 @@ export function copyAssetToDocument(
 // latest drop: they are imported with `importDroppedImages(dropId, ...)`.
 export function selectImageFiles(): Promise<CommandResult<ImageSelection>> {
   return call(COMMANDS.selectImageFiles, {}, toImageSelection);
+}
+
+// Opens the OS dialog for a spreadsheet (in Rust) and returns the values of its sheets.
+export function readSpreadsheetViaDialog(): Promise<
+  CommandResult<SpreadsheetSelection>
+> {
+  return call(COMMANDS.readSpreadsheetViaDialog, {}, toSpreadsheetSelection);
 }

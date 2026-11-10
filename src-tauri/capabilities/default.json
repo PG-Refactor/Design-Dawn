@@ -46,6 +46,7 @@
     "allow-save-sheet-viewport",
     "allow-import-dropped-images",
     "allow-import-pasted-image",
+    "allow-read-spreadsheet-via-dialog",
     "allow-copy-asset-to-document",
     "allow-subscribe-drop-notifications",
     "allow-subscribe-close-requests",

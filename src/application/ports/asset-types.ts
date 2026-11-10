@@ -49,3 +49,25 @@ export type ImageSelection =
       readonly fileCount: number;
     }
   | { readonly status: typeof IMAGE_SELECTION_STATUS.cancelled };
+
+// "Table from Spreadsheet…": the dialog runs in Rust, which reads the chosen file; only its
+// base name and the values come back. Cancelling is an ok result.
+export const SPREADSHEET_SELECTION_STATUS = {
+  selected: "selected",
+  cancelled: "cancelled",
+} as const;
+
+export interface SpreadsheetSheet {
+  readonly name: string;
+  readonly rows: readonly (readonly string[])[];
+  // Rows or columns beyond Rust's limits were left out.
+  readonly truncated: boolean;
+}
+
+export type SpreadsheetSelection =
+  | {
+      readonly status: typeof SPREADSHEET_SELECTION_STATUS.selected;
+      readonly fileName: string;
+      readonly sheets: readonly SpreadsheetSheet[];
+    }
+  | { readonly status: typeof SPREADSHEET_SELECTION_STATUS.cancelled };

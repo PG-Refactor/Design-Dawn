@@ -52,6 +52,8 @@ export const ASSET_ERROR_KINDS = [
   "invalidImageContent",
   "assetTooLarge",
   "invalidDropSelection",
+  // A chosen spreadsheet that cannot be read (not a workbook, damaged, too large).
+  "invalidSpreadsheet",
 ] as const;
 
 // Folder commands: deleting a folder that still holds
