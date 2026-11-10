@@ -195,6 +195,8 @@ export function createActionsHarness(
     applicationStore: base.store,
     uiStateStore,
     actions,
+    canvasActions,
+    assetUrlResolver: createFakeAssetUrlResolver(),
   });
   const dropEventSource = createFakeDropEventSource();
   const closeRequestSource = createFakeCloseRequestSource();

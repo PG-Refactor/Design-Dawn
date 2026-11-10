@@ -48,6 +48,7 @@ const APP_COMMANDS: &[&str] = &[
     "search_project",
     "export_document_markdown",
     "export_file",
+    "asset_data_url",
     "copy_asset_to_document",
     "subscribe_drop_notifications",
     "subscribe_close_requests",

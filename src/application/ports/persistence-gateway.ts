@@ -233,6 +233,12 @@ export interface PersistenceGateway {
     projectId: ProjectId,
     documentId: DocumentId,
   ): Promise<OperationResult<ExportOutcome>>;
+  // An image of an opened Document as a `data:` URL.
+  assetDataUrl(
+    projectId: ProjectId,
+    documentId: DocumentId,
+    contentPath: ContentPath,
+  ): Promise<OperationResult<string>>;
   // The save dialog, then `bytes` written as a file of `kind` (an export the app prepared).
   exportFile(
     kind: ExportFileKind,

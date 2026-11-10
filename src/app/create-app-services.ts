@@ -211,6 +211,8 @@ export function createAppServices(): AppServices {
     applicationStore,
     uiStateStore,
     actions,
+    canvasActions,
+    assetUrlResolver: createTauriAssetUrlResolver(),
   });
   const viewportPersistence = createViewportPersistence({
     gateway: createTauriViewportGateway(),

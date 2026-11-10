@@ -21,7 +21,7 @@ import type {
   SpreadsheetSelection,
 } from "./asset-types";
 import { COMMANDS } from "./command-constants";
-import type { CommandResult } from "./command-error";
+import { type CommandResult, commandErr, commandOk } from "./command-error";
 import { call, callWithBytes } from "./invoke-command";
 
 // Header names of `export_file`; they must match `EXPORT_HEADER_*` in
@@ -130,5 +130,21 @@ export function exportDocumentMarkdown(
     COMMANDS.exportDocumentMarkdown,
     { projectId, documentId },
     toExportOutcome,
+  );
+}
+
+// An image of an opened Document as a `data:` URL (for an export that carries it inside).
+export function assetDataUrl(
+  projectId: ProjectId,
+  documentId: DocumentId,
+  contentPath: ContentPath,
+): Promise<CommandResult<string>> {
+  return call(
+    COMMANDS.assetDataUrl,
+    { projectId, documentId, contentPath },
+    (payload) =>
+      typeof payload === "string"
+        ? commandOk(payload)
+        : commandErr("invalidCommandResponse", "expected a data URL"),
   );
 }

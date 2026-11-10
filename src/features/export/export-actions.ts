@@ -2,21 +2,26 @@
 // shows the save dialog and writes; the app only says what to write.
 
 import type { ExportOutcome } from "../../application/ports/asset-types";
+import type { AssetUrlResolver } from "../../application/ports/asset-url-resolver";
 import type { OperationResult } from "../../application/ports/operation-error";
 import { operationErr } from "../../application/ports/operation-error";
 import type { PersistenceGateway } from "../../application/ports/persistence-gateway";
 import type { ApplicationStore } from "../../application/state/application-state";
-import type { DocumentId } from "../../domain/shared/entity-id";
+import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
+import type { CanvasActions } from "../canvas/canvas-actions";
 import type { MermaidRenderer } from "../mermaid/mermaid-renderer-types";
 import { addOperationError } from "../workspace/ui-state/shell-ui-state";
 import type { UiStateStore } from "../workspace/ui-state/ui-state";
 import type { WorkspaceActions } from "../workspace/workspace-actions";
 import {
+  exportPalette,
   renderDiagramForExport,
   svgFileText,
   svgToPng,
 } from "./diagram-export";
 import { EXPORT_CONFIG } from "./export-config";
+import { buildExportHtml, type ExportLayout } from "./export-html";
+import { gatherSheets } from "./gather-sheets";
 
 export interface DiagramExportInput {
   readonly renderer: MermaidRenderer;
@@ -26,7 +31,23 @@ export interface DiagramExportInput {
   readonly name: string;
 }
 
+export interface SheetsExportInput {
+  readonly renderer: MermaidRenderer;
+  readonly documentId: DocumentId;
+  readonly sheetIds: readonly SheetId[];
+  // The page title and the suggested file name.
+  readonly title: string;
+}
+
 export interface ExportActions {
+  // Sheets as one self-contained HTML page (blocks at their places, pictures inside).
+  exportSheetsHtml(
+    input: SheetsExportInput,
+  ): Promise<OperationResult<ExportOutcome>>;
+  // The same page laid out for printing (one page per sheet, or cut into paper pages).
+  buildPrintPage(
+    input: SheetsExportInput & { readonly layout: ExportLayout },
+  ): Promise<OperationResult<string>>;
   // One Mermaid diagram as an SVG or PNG file, rendered in the light theme.
   exportDiagram(
     input: DiagramExportInput,
@@ -43,12 +64,48 @@ export interface ExportActionsDependencies {
   readonly applicationStore: ApplicationStore;
   readonly uiStateStore: UiStateStore;
   readonly actions: Pick<WorkspaceActions, "saveAll">;
+  readonly canvasActions: Pick<CanvasActions, "loadSheetContents">;
+  readonly assetUrlResolver: AssetUrlResolver;
 }
 
 export function createExportActions(
   dependencies: ExportActionsDependencies,
 ): ExportActions {
-  const { gateway, applicationStore, uiStateStore, actions } = dependencies;
+  const {
+    gateway,
+    applicationStore,
+    uiStateStore,
+    actions,
+    canvasActions,
+    assetUrlResolver,
+  } = dependencies;
+
+  async function pageOf(
+    input: SheetsExportInput,
+    layout: ExportLayout,
+  ): Promise<OperationResult<string>> {
+    const gathered = await gatherSheets(
+      {
+        gateway,
+        applicationStore,
+        canvasActions,
+        assetUrlResolver,
+        renderer: input.renderer,
+      },
+      input.documentId,
+      input.sheetIds,
+    );
+    if (!gathered.ok) return gathered;
+    return {
+      ok: true,
+      value: buildExportHtml({
+        title: input.title,
+        sheets: gathered.value,
+        palette: exportPalette(document.documentElement),
+        layout,
+      }),
+    };
+  }
 
   function reported<Value>(
     result: OperationResult<Value>,
@@ -63,6 +120,22 @@ export function createExportActions(
   }
 
   return {
+    async exportSheetsHtml(input) {
+      const page = await pageOf(input, { kind: "screen" });
+      if (!page.ok) return reported(page);
+      return reported(
+        await gateway.exportFile(
+          "html",
+          input.title,
+          new TextEncoder().encode(page.value),
+        ),
+      );
+    },
+
+    async buildPrintPage(input) {
+      return reported(await pageOf(input, input.layout));
+    },
+
     async exportDiagram({ renderer, source, kind, name }) {
       const rendered = await renderDiagramForExport(renderer, source);
       if (!rendered.ok) {

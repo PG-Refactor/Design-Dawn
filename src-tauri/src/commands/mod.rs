@@ -21,8 +21,9 @@ use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager, Runtime, State, Window};
 
 use crate::application::asset_import::{
-    copy_asset_to_document as copy_asset, import_dropped_images as import_dropped,
-    import_image_bytes, CopiedAsset, DropImportResult, ImportedImage,
+    asset_data_url as read_asset_data_url, copy_asset_to_document as copy_asset,
+    import_dropped_images as import_dropped, import_image_bytes, CopiedAsset, DropImportResult,
+    ImportedImage,
 };
 use crate::application::block_content_operations::{self as block_content, BlockContentComparison};
 use crate::application::document_operations as documents;
@@ -78,7 +79,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 80] = [
+pub const COMMAND_NAMES: [&str; 81] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -125,6 +126,7 @@ pub const COMMAND_NAMES: [&str; 80] = [
     "search_project",
     "export_document_markdown",
     "export_file",
+    "asset_data_url",
     "copy_asset_to_document",
     "subscribe_drop_notifications",
     "subscribe_close_requests",
@@ -1471,6 +1473,24 @@ pub async fn import_pasted_image<R: Runtime>(
     run_blocking(move || {
         let sessions = app.state::<Mutex<ProjectSessions>>();
         import_image_bytes(&sessions, &project_id, &document_id, &extension, bytes)
+    })
+    .await
+}
+
+/// An image of an opened Document as a `data:` URL, for an HTML export or a print page that
+/// carries its pictures inside it.
+#[tauri::command]
+pub async fn asset_data_url<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    document_id: String,
+    content_path: String,
+) -> Result<String, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        read_asset_data_url(&sessions, &project_id, &document_id, &content_path)
     })
     .await
 }

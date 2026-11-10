@@ -1091,6 +1091,12 @@ export function createFakeGateway(
       enter("exportDocumentMarkdown", documentId, () =>
         operationOk({ status: "saved" as const, fileName: `${documentId}.md` }),
       ),
+    assetDataUrl: (_project, documentId, contentPath) =>
+      enter("assetDataUrl", `${documentId}:${contentPath}`, () =>
+        assetsOf(documentId).has(contentPath)
+          ? operationOk(`data:image/png;base64,${contentPath}`)
+          : operationErr("fileNotFound", contentPath),
+      ),
     exportFile: (kind, suggestedName, bytes) =>
       enter("exportFile", `${kind}:${suggestedName}:${bytes.length}`, () =>
         operationOk({

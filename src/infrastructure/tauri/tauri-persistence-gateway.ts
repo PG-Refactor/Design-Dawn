@@ -1,6 +1,7 @@
 import { mapOperationResult } from "../../application/ports/operation-error";
 import type { PersistenceGateway } from "../../application/ports/persistence-gateway";
 import {
+  assetDataUrl,
   copyAssetToDocument,
   exportDocumentMarkdown,
   exportFile,
@@ -107,6 +108,7 @@ export function createTauriPersistenceGateway(): PersistenceGateway {
     searchProject,
     exportDocumentMarkdown,
     exportFile,
+    assetDataUrl,
     copyAssetToDocument,
     readBlockContent,
     writeBlockContent: async (projectId, documentId, contentPath, text) =>

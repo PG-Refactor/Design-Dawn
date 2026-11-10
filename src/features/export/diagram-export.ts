@@ -36,6 +36,43 @@ export function exportThemeValues(root: HTMLElement): {
   }
 }
 
+// Token of each colour of an export page (see ExportPalette).
+const PALETTE_TOKENS = {
+  text: "--color-text",
+  textMuted: "--color-text-muted",
+  border: "--color-border",
+  borderStrong: "--color-border-strong",
+  background: "--color-background",
+  surface: "--color-surface",
+  accent: "--color-accent",
+  captionBackground: "--color-caption-background",
+} as const;
+
+export type ExportPaletteValues = Record<keyof typeof PALETTE_TOKENS, string>;
+
+// The light theme's page colours, read the same way as the diagram theme.
+export function exportPalette(root: HTMLElement): ExportPaletteValues {
+  const previous = root.getAttribute(THEME_ATTRIBUTE_NAME);
+  root.setAttribute(THEME_ATTRIBUTE_NAME, EXPORT_CONFIG.theme);
+  try {
+    const style = getComputedStyle(root);
+    const read = (token: string) => style.getPropertyValue(token).trim();
+    return {
+      text: read(PALETTE_TOKENS.text),
+      textMuted: read(PALETTE_TOKENS.textMuted),
+      border: read(PALETTE_TOKENS.border),
+      borderStrong: read(PALETTE_TOKENS.borderStrong),
+      background: read(PALETTE_TOKENS.background),
+      surface: read(PALETTE_TOKENS.surface),
+      accent: read(PALETTE_TOKENS.accent),
+      captionBackground: read(PALETTE_TOKENS.captionBackground),
+    };
+  } finally {
+    if (previous === null) root.removeAttribute(THEME_ATTRIBUTE_NAME);
+    else root.setAttribute(THEME_ATTRIBUTE_NAME, previous);
+  }
+}
+
 export type DiagramRender =
   | { readonly ok: true; readonly svg: string; readonly background: string }
   | { readonly ok: false; readonly message: string };

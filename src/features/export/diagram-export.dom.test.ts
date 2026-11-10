@@ -64,3 +64,24 @@ describe("exportDiagram", () => {
     expect(harness.gateway.methods("exportFile")).toHaveLength(0);
   });
 });
+
+describe("exportSheetsHtml", () => {
+  it("writes the sheet's Markdown and diagrams into one HTML file", async () => {
+    const harness = await openedActionsHarness();
+    const { DOCUMENT_A, SHEET_A1 } = await import(
+      "../../application/test-support/workspace-harness"
+    );
+    await harness.actions.openDocument(DOCUMENT_A);
+    const result = await harness.services.exportActions.exportSheetsHtml({
+      renderer,
+      documentId: DOCUMENT_A,
+      sheetIds: [SHEET_A1],
+      title: "Document A - Sheet A1",
+    });
+    expect(result.ok).toBe(true);
+    const call = harness.gateway.calls.find(
+      (recorded) => recorded.method === "exportFile",
+    );
+    expect(call?.detail.startsWith("html:Document A - Sheet A1:")).toBe(true);
+  });
+});
