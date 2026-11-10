@@ -10,6 +10,7 @@ import { resolveMarkdownImagePath } from "../../domain/block/markdown-image-path
 import {
   LINK_URL_PATTERN,
   MARKDOWN_CLASS_NAMES,
+  TABLE_ALIGNMENTS,
   URL_SCHEME_PATTERN,
 } from "./markdown-config";
 import { type SanitizedHtml, sanitizeHtml } from "./sanitize-html";
@@ -42,6 +43,12 @@ function stringAttribute(token: Token, name: string): string | null {
   return typeof value === "string" ? value : null;
 }
 const LINK_TARGET_ATTRIBUTE = "href";
+const STYLE_ATTRIBUTE = "style";
+const CLASS_ATTRIBUTE = "class";
+const ALIGNMENT_STYLE = new RegExp(
+  `^text-align:(${TABLE_ALIGNMENTS.join("|")})$`,
+);
+const TABLE_CELL_OPEN_RULES = ["th_open", "td_open"] as const;
 
 // markdown-it asks one question (`validateLink`) for links and images alike. A relative
 // path has to pass it so that an image can point at an asset, but a relative LINK is still
@@ -105,6 +112,26 @@ function createMarkdownRenderer() {
   renderer.core.ruler.after("inline", "restore_unlinkable_links", (state) => {
     restoreUnlinkableLinks(state);
   });
+  // A column's alignment becomes a class: `style` stays forbidden everywhere.
+  for (const rule of TABLE_CELL_OPEN_RULES) {
+    renderer.renderer.rules[rule] = (tokens, index, options, _env, self) => {
+      const token = tokens[index];
+      if (token === undefined) return "";
+      const style = stringAttribute(token, STYLE_ATTRIBUTE);
+      if (style !== null) {
+        token.attrs =
+          token.attrs?.filter(([name]) => name !== STYLE_ATTRIBUTE) ?? null;
+        const alignment = ALIGNMENT_STYLE.exec(style)?.[1];
+        if (alignment !== undefined) {
+          token.attrJoin(
+            CLASS_ATTRIBUTE,
+            `${MARKDOWN_CLASS_NAMES.alignPrefix}${alignment}`,
+          );
+        }
+      }
+      return self.renderToken(tokens, index, options);
+    };
+  }
   // Only an asset of the block's own Document is shown, through the asset URL (no network
   // access from a note, no file access outside the Document). Any other image shows its
   // alt text instead.

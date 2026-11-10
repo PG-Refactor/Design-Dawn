@@ -19,7 +19,11 @@ export const URL_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
 
 export const MARKDOWN_CLASS_NAMES = {
   imageAlt: "markdown-image-alt",
+  // Followed by `left`, `center` or `right`: a table column's alignment.
+  alignPrefix: "markdown-align-",
 } as const;
+
+export const TABLE_ALIGNMENTS = ["left", "center", "right"] as const;
 
 // The image source attribute. It is not checked against the link pattern above: the
 // sanitiser keeps it only when it is an asset URL of the block's own Document (see
@@ -27,13 +31,14 @@ export const MARKDOWN_CLASS_NAMES = {
 export const IMAGE_SOURCE_ATTRIBUTE = "src";
 
 // The only class values that survive sanitising: the language class of a fenced code
-// block and the image-alt marker. Anything else is dropped even if markup carries it.
+// block, the image-alt marker and a table column's alignment. Anything else is dropped
+// even if markup carries it.
 export const ALLOWED_CLASS_PATTERN = new RegExp(
-  `^(?:language-[A-Za-z0-9_+#.-]+|${MARKDOWN_CLASS_NAMES.imageAlt})$`,
+  `^(?:language-[A-Za-z0-9_+#.-]+|${MARKDOWN_CLASS_NAMES.imageAlt}|${MARKDOWN_CLASS_NAMES.alignPrefix}(?:${TABLE_ALIGNMENTS.join("|")}))$`,
 );
 
-// What the markdown-it configuration can emit. Alignment (`style`) is deliberately not
-// part of it: tables lose their column alignment instead of allowing `style`.
+// What the markdown-it configuration can emit. Alignment is never `style`: the renderer
+// turns markdown-it's `style="text-align:…"` into an alignment class.
 export const SANITIZER_ALLOWED_TAGS = [
   "h1",
   "h2",

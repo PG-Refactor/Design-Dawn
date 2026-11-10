@@ -92,6 +92,23 @@ export interface TextBlockEditorProps {
   // pasted while the Source view is shown are stored in the Document's assets, and the
   // text this returns for them is inserted at the cursor.
   readonly imageReferences?: (contentPaths: readonly ContentPath[]) => string;
+  // Text a paste becomes instead of itself (a spreadsheet's cells become a Markdown
+  // table); null keeps the browser's own paste.
+  readonly pastedTextInsertion?: (
+    pasted: string,
+    source: string,
+    caret: number,
+  ) => string | null;
+  // Extra controls in the bar while the Source view is shown (the table tools). They see
+  // the draft and the caret and may replace the draft.
+  readonly renderSourceTools?: (context: SourceToolsContext) => ReactNode;
+}
+
+export interface SourceToolsContext {
+  readonly text: string;
+  readonly caret: number;
+  // Replaces the whole draft and puts the caret at `caret`.
+  readonly replaceText: (text: string, caret: number) => void;
 }
 
 // The pasted image in a clipboard, unless the paste is text (see CLIPBOARD_TEXT_TYPE).
@@ -126,6 +143,8 @@ export function TextBlockEditor({
   renderPreview,
   guiView,
   imageReferences,
+  pastedTextInsertion,
+  renderSourceTools,
 }: TextBlockEditorProps) {
   const services = useWorkspaceServices();
   const { actions } = services;
@@ -150,26 +169,38 @@ export function TextBlockEditor({
   const guiLeaveRef = useRef<GuiLeaveCheck | null>(null);
   // Where the caret goes after text is inserted; applied once the textarea shows the text.
   const pendingCaretRef = useRef<number | null>(null);
+  const [caret, setCaret] = useState(initialText.length);
+
+  const replaceText = useCallback((text: string, nextCaret: number) => {
+    draftRef.current = text;
+    pendingCaretRef.current = nextCaret;
+    setCaret(nextCaret);
+    setDraft(text);
+  }, []);
 
   // Inserts at the caret (replacing a selection) of the CURRENT draft: an image import may
   // finish after more typing, and the reference then goes where the caret is now.
-  const insertAtCaret = useCallback((text: string) => {
-    const current = draftRef.current;
-    const textarea = textareaRef.current;
-    const start = textarea?.selectionStart ?? current.length;
-    const end = textarea?.selectionEnd ?? current.length;
-    const next = `${current.slice(0, start)}${text}${current.slice(end)}`;
-    draftRef.current = next;
-    pendingCaretRef.current = start + text.length;
-    setDraft(next);
-  }, []);
+  const insertAtCaret = useCallback(
+    (text: string) => {
+      const current = draftRef.current;
+      const textarea = textareaRef.current;
+      const start = textarea?.selectionStart ?? current.length;
+      const end = textarea?.selectionEnd ?? current.length;
+      const next = `${current.slice(0, start)}${text}${current.slice(end)}`;
+      replaceText(next, start + text.length);
+    },
+    [replaceText],
+  );
 
   useLayoutEffect(() => {
-    const caret = pendingCaretRef.current;
+    const pendingCaret = pendingCaretRef.current;
     const textarea = textareaRef.current;
-    if (caret === null || textarea === null || textarea.value !== draft) return;
+    if (pendingCaret === null || textarea === null || textarea.value !== draft)
+      return;
     pendingCaretRef.current = null;
-    textarea.setSelectionRange(caret, caret);
+    // Back into the source after a tool button took the focus (still inside the editor).
+    textarea.focus({ preventScroll: true });
+    textarea.setSelectionRange(pendingCaret, pendingCaret);
   }, [draft]);
 
   // On mount and on every switch of view, focus goes into the editor: the textarea in the
@@ -339,6 +370,19 @@ export function TextBlockEditor({
   }, [sourceView, imageReferences, canvasActions, documentId, insertAtCaret]);
 
   function onPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    if (pastedTextInsertion !== undefined) {
+      const textarea = event.currentTarget;
+      const insertion = pastedTextInsertion(
+        event.clipboardData.getData(CLIPBOARD_TEXT_TYPE),
+        draftRef.current,
+        textarea.selectionStart,
+      );
+      if (insertion !== null) {
+        event.preventDefault();
+        insertAtCaret(insertion);
+        return;
+      }
+    }
     if (imageReferences === undefined) return;
     const image = pastedImage(event.clipboardData);
     if (image === null) return;
@@ -410,6 +454,7 @@ export function TextBlockEditor({
             setDraft(event.target.value);
           }}
           onPaste={onPaste}
+          onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
         />
       )}
       <div className="text-block-editor__bar">
@@ -436,6 +481,7 @@ export function TextBlockEditor({
             </button>
           </fieldset>
         )}
+        {sourceView && renderSourceTools?.({ text: draft, caret, replaceText })}
         {sourceView && (
           <button
             type="button"

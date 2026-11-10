@@ -767,7 +767,7 @@ describe("images in the source", () => {
   const PASTED_REFERENCE = "![pasted-image](../../../assets/pasted-image.png)";
 
   function pasteEvent(files: File[], types: string[]) {
-    return { clipboardData: { files, types } };
+    return { clipboardData: { files, types, getData: () => "" } };
   }
 
   it("stores a pasted clipboard image and writes its reference at the caret", async () => {
@@ -817,5 +817,50 @@ describe("images in the source", () => {
       "![flow](../../../assets/flow.png)\n![map](../../../assets/map.png)",
     );
     expect(sheetA1Blocks(shell)).toHaveLength(blocksBefore);
+  });
+});
+
+describe("tables in the source", () => {
+  const TABLE = "| a | b |\n| - | - |\n| 1 | 2 |";
+
+  it("turns cells pasted from a spreadsheet into a Markdown table", async () => {
+    const { shell } = await renderOpenedCanvas();
+    const box = (await enterEditByDoubleClick()) as HTMLTextAreaElement;
+    await typeInto(shell, box, "");
+    fireEvent.paste(box, {
+      clipboardData: {
+        types: ["text/plain", "Files"],
+        files: [],
+        getData: () => "Name\tType\r\nid\tuuid\r\n",
+      },
+    });
+    await act(settle);
+    expect(box.value).toBe(
+      "| Name | Type |\n| ---- | ---- |\n| id   | uuid |\n",
+    );
+    expect(previewOf().querySelectorAll("table tbody tr")).toHaveLength(1);
+  });
+
+  it("offers the table menu only while the caret is in a table", async () => {
+    const { shell } = await renderOpenedCanvas();
+    const box = (await enterEditByDoubleClick()) as HTMLTextAreaElement;
+    await typeInto(shell, box, `intro\n\n${TABLE}`);
+    box.setSelectionRange(0, 0);
+    fireEvent.select(box);
+    expect(screen.queryByRole("button", { name: "表" })).toBeNull();
+
+    const inCell = box.value.indexOf("1 |");
+    box.setSelectionRange(inCell, inCell);
+    fireEvent.select(box);
+    await shell.user.click(screen.getByRole("button", { name: "表" }));
+    await shell.user.click(
+      await screen.findByRole("menuitem", { name: "下に行を挿入" }),
+    );
+    await act(settle);
+    expect(box.value).toBe(
+      "intro\n\n| a   | b   |\n| --- | --- |\n| 1   | 2   |\n|     |     |",
+    );
+    // Still editing: the menu kept the focus inside the editor.
+    expect(screen.getByRole("textbox")).toBe(box);
   });
 });

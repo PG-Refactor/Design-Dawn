@@ -65,12 +65,24 @@ describe("rendering", () => {
     expect(unsafeFindings(document)).toEqual([]);
   });
 
-  it("renders tables (alignment is dropped, not turned into style)", () => {
-    const document = render("| a | b |\n|:--|--:|\n| 1 | 2 |");
-    expect(document.querySelectorAll("table thead th")).toHaveLength(2);
-    expect(document.querySelectorAll("table tbody td")).toHaveLength(2);
-    expect(document.querySelector("th")?.hasAttribute("style")).toBe(false);
+  it("renders tables with column alignment as classes, never as style", () => {
+    const document = render("| a | b | c |\n|:--|:-:|--:|\n| 1 | 2 | 3 |");
+    expect(document.querySelectorAll("table thead th")).toHaveLength(3);
+    const cells = [...document.querySelectorAll("table tbody td")];
+    expect(cells.map((cell) => cell.className)).toEqual([
+      "markdown-align-left",
+      "markdown-align-center",
+      "markdown-align-right",
+    ]);
+    expect(document.querySelector("[style]")).toBeNull();
     expect(unsafeFindings(document)).toEqual([]);
+  });
+
+  it("drops an alignment class that markup tries to bring in", () => {
+    const sanitized = parseHtml(
+      sanitizeHtml('<td class="markdown-align-justify">x</td>'),
+    );
+    expect(sanitized.querySelector("[class]")).toBeNull();
   });
 
   it("keeps Japanese text", () => {

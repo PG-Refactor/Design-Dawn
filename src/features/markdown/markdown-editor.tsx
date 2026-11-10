@@ -1,6 +1,10 @@
 import { useCallback, useMemo } from "react";
 import type { ContentPath } from "../../domain/block/content-path";
 import { markdownImageReference } from "../../domain/block/markdown-image-path";
+import {
+  tableFromTabSeparated,
+  tableInsertion,
+} from "../../domain/markdown-table/markdown-table";
 import type {
   BlockId,
   DocumentId,
@@ -10,6 +14,7 @@ import { shortBlockId } from "../canvas/canvas-messages";
 import { TextBlockEditor } from "../text-block/text-block-editor";
 import { useMessages } from "../workspace/use-messages";
 import { MarkdownPreview } from "./markdown-preview";
+import { MarkdownTableTools } from "./markdown-table-tools";
 import { type MarkdownImageContext, renderMarkdown } from "./render-markdown";
 import { useMarkdownImageContext } from "./use-markdown-image-context";
 
@@ -49,6 +54,10 @@ export function MarkdownEditor({
       blockId={blockId}
       initialText={initialText}
       imageReferences={imageReferences}
+      pastedTextInsertion={pastedTableInsertion}
+      renderSourceTools={(context) => (
+        <MarkdownTableTools context={context} messages={messages.table} />
+      )}
       labels={{
         editor: messages.editorLabel(shortId),
         source: messages.sourceLabel(shortId),
@@ -66,6 +75,16 @@ export function MarkdownEditor({
       )}
     />
   );
+}
+
+// Cells copied from a spreadsheet become a Markdown table; any other text pastes as is.
+function pastedTableInsertion(
+  pasted: string,
+  source: string,
+  caret: number,
+): string | null {
+  const table = tableFromTabSeparated(pasted);
+  return table === null ? null : tableInsertion(source, caret, table);
 }
 
 // A component of its own so the rendering only reruns when the draft changes.
