@@ -72,6 +72,7 @@ function languageLabel(
 }
 
 const selectBusy = (ui: UiState) => ui.busy;
+const selectActiveDocumentId = (ui: UiState) => ui.activeDocumentId;
 const selectProjectName = (application: ApplicationState) =>
   application.project?.project.name ?? null;
 
@@ -87,7 +88,9 @@ export function TopBar() {
     textSizeController,
     autoSaveController,
     viewportPersistence,
+    exportActions,
   } = useWorkspaceServices();
+  const activeDocumentId = useUiState(selectActiveDocumentId);
   const projectName = useWorkspaceModel(selectProjectName);
   const busy = useUiState(selectBusy);
   const themePreference = useStoreSelector(
@@ -177,6 +180,18 @@ export function TopBar() {
             // notification.
             onSelect: () =>
               void autoSaveController.setEnabled(!autoSaveEnabled),
+          },
+          { kind: "separator", id: "separator-export" },
+          {
+            kind: "item",
+            id: "exportMarkdown",
+            label: topBar.exportMarkdown,
+            disabled: activeDocumentId === null,
+            onSelect: () => {
+              if (activeDocumentId !== null) {
+                void exportActions.exportDocumentMarkdown(activeDocumentId);
+              }
+            },
           },
           { kind: "separator", id: "separator-ai" },
           {
@@ -283,6 +298,8 @@ export function TopBar() {
       aiAccessTexts,
       actions,
       viewportPersistence,
+      exportActions,
+      activeDocumentId,
       busy,
       hasProject,
       themeController,

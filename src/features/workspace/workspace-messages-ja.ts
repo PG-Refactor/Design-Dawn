@@ -50,6 +50,7 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   importSpreadsheet: "表計算ファイルから表を追加できませんでした",
   searchProject: "Projectを検索できませんでした",
   replaceText: "置換できませんでした",
+  exportDocument: "書き出せませんでした",
   importImagesWithoutSheet: "画像を追加するにはSheetを開いてください",
   editBlockContent:
     "Blockの本文の編集を確定できませんでした（編集内容は画面に残っています）",
@@ -125,6 +126,7 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
     "選択したフォルダが無効です。もう一度選択してください。",
   invalidImageContent: "画像として読み込めないファイルです。",
   assetTooLarge: "画像ファイルが大きすぎます（上限 20 MiB）。",
+  exportFailed: "選んだ場所に書き出せませんでした。",
   invalidSpreadsheet:
     "表計算ファイルを読み込めませんでした（.xlsx / .xlsm / .xls / .xlsb / .ods、上限 20 MiB）。",
   invalidDropSelection:
@@ -209,6 +211,7 @@ export const WORKSPACE_MESSAGES_JA = {
     closeProject: "Projectを閉じる",
     openProjectInNewWindow: "新しいウィンドウでProjectを開く…",
     autoSave: "自動保存",
+    exportMarkdown: "表示中のDocumentをMarkdownとして書き出す…",
     languageLegend: "言語",
     themeLegend: "テーマ",
     systemOption: "システム",
@@ -259,6 +262,7 @@ export const WORKSPACE_MESSAGES_JA = {
     deleteFolder: "フォルダを削除",
     deleteDocument: "Documentを削除",
     openInNewWindow: "新しいウィンドウで開く",
+    exportMarkdown: "Markdownとして書き出す…",
     deleteChosen: "削除",
     chosenMenuLabel: (count: number): string => `${count}件のメニュー`,
     moveTo: "移動…",

@@ -54,6 +54,8 @@ export const ASSET_ERROR_KINDS = [
   "invalidDropSelection",
   // A chosen spreadsheet that cannot be read (not a workbook, damaged, too large).
   "invalidSpreadsheet",
+  // An export (Markdown, image, HTML) could not be written where the user chose.
+  "exportFailed",
 ] as const;
 
 // Folder commands: deleting a folder that still holds

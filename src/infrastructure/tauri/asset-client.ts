@@ -6,6 +6,7 @@ import type { DocumentId, ProjectId } from "../../domain/shared/entity-id";
 import {
   toCopiedAsset,
   toDropImportResult,
+  toExportOutcome,
   toImageSelection,
   toImportedImageResult,
   toSpreadsheetSelection,
@@ -13,6 +14,7 @@ import {
 import type {
   CopiedAsset,
   DropImportResult,
+  ExportOutcome,
   ImageSelection,
   ImportedImage,
   SpreadsheetSelection,
@@ -90,4 +92,17 @@ export function readSpreadsheetViaDialog(): Promise<
   CommandResult<SpreadsheetSelection>
 > {
   return call(COMMANDS.readSpreadsheetViaDialog, {}, toSpreadsheetSelection);
+}
+
+// "Export as Markdown…": the save dialog and the writing happen in Rust, which reads the
+// Document from disk (save it first).
+export function exportDocumentMarkdown(
+  projectId: ProjectId,
+  documentId: DocumentId,
+): Promise<CommandResult<ExportOutcome>> {
+  return call(
+    COMMANDS.exportDocumentMarkdown,
+    { projectId, documentId },
+    toExportOutcome,
+  );
 }

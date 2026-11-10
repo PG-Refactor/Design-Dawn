@@ -100,6 +100,7 @@ import {
   createViewportPersistence,
   type ViewportPersistence,
 } from "../../canvas/viewport-persistence";
+import { createExportActions } from "../../export/export-actions";
 import { createAppExternalChangeController } from "../../external-change/create-external-change-controller";
 import { createAppLoadIssueRepairController } from "../../load-issue-repair/create-load-issue-repair-controller";
 import { createSearchActions } from "../../search/search-actions";
@@ -189,6 +190,12 @@ export function createActionsHarness(
     canvasActions,
     draftRegistry,
   });
+  const exportActions = createExportActions({
+    gateway: base.signalingGateway,
+    applicationStore: base.store,
+    uiStateStore,
+    actions,
+  });
   const dropEventSource = createFakeDropEventSource();
   const closeRequestSource = createFakeCloseRequestSource();
   const windowTitles: (string | null)[] = [];
@@ -273,6 +280,7 @@ export function createActionsHarness(
       actions,
       canvasActions,
       searchActions,
+      exportActions,
       draftRegistry,
       dropEventSource,
       closeRequestSource,

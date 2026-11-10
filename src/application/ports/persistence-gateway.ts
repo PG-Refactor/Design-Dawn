@@ -16,6 +16,7 @@ import type { Sheet } from "../../domain/sheet/sheet";
 import type {
   CopiedAsset,
   DropImportResult,
+  ExportOutcome,
   ImageSelection,
   ImportedImage,
   SpreadsheetSelection,
@@ -225,6 +226,12 @@ export interface PersistenceGateway {
     projectId: ProjectId,
     documentId: DocumentId,
   ): Promise<OperationResult<DropImportResult>>;
+  // The save dialog, then the Document (as saved on disk) as one Markdown file with its
+  // images beside it. Cancelling is an ok result.
+  exportDocumentMarkdown(
+    projectId: ProjectId,
+    documentId: DocumentId,
+  ): Promise<OperationResult<ExportOutcome>>;
   // Every match of `text` in the Project's text Blocks and captions, read from disk (not
   // from the app's open Documents).
   searchProject(

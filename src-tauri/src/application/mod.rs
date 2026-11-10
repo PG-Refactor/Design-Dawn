@@ -9,6 +9,7 @@ pub mod document_transfer;
 pub mod dropped_files;
 pub mod entity_id_generator;
 pub mod error;
+pub mod export_markdown;
 pub mod external_change;
 pub mod file_dialogs;
 pub mod folder_operations;
