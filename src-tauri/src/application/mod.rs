@@ -29,6 +29,7 @@ pub mod local_state;
 pub mod open_request;
 pub mod open_routing;
 pub mod project_operations;
+pub mod project_search;
 pub mod session;
 pub mod sheet_operations;
 pub mod snapshot;

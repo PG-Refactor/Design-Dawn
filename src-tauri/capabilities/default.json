@@ -47,6 +47,7 @@
     "allow-import-dropped-images",
     "allow-import-pasted-image",
     "allow-read-spreadsheet-via-dialog",
+    "allow-search-project",
     "allow-copy-asset-to-document",
     "allow-subscribe-drop-notifications",
     "allow-subscribe-close-requests",

@@ -102,6 +102,7 @@ import {
 } from "../../canvas/viewport-persistence";
 import { createAppExternalChangeController } from "../../external-change/create-external-change-controller";
 import { createAppLoadIssueRepairController } from "../../load-issue-repair/create-load-issue-repair-controller";
+import { createSearchActions } from "../../search/search-actions";
 import { createDraftRegistry, type DraftRegistry } from "../draft-registry";
 import { addOperationError } from "../ui-state/shell-ui-state";
 import { createUiStateStore, type UiStateStore } from "../ui-state/ui-state";
@@ -179,6 +180,14 @@ export function createActionsHarness(
     idGenerator: createSequentialIdGenerator(),
     gateway: base.signalingGateway,
     clipboard,
+  });
+  const searchActions = createSearchActions({
+    gateway: base.signalingGateway,
+    applicationStore: base.store,
+    uiStateStore,
+    actions,
+    canvasActions,
+    draftRegistry,
   });
   const dropEventSource = createFakeDropEventSource();
   const closeRequestSource = createFakeCloseRequestSource();
@@ -263,6 +272,7 @@ export function createActionsHarness(
       uiStateStore,
       actions,
       canvasActions,
+      searchActions,
       draftRegistry,
       dropEventSource,
       closeRequestSource,

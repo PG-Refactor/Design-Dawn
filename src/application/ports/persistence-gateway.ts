@@ -36,6 +36,7 @@ import type {
   RepairOutcome,
   SheetSnapshot,
 } from "./persistence-types";
+import type { SearchResult } from "./search-types";
 
 // What the document session needs from persistence. Implemented by the Tauri client
 // adapter in infrastructure; faked in tests. Expected failures are results, never throws.
@@ -224,6 +225,13 @@ export interface PersistenceGateway {
     projectId: ProjectId,
     documentId: DocumentId,
   ): Promise<OperationResult<DropImportResult>>;
+  // Every match of `text` in the Project's text Blocks and captions, read from disk (not
+  // from the app's open Documents).
+  searchProject(
+    projectId: ProjectId,
+    text: string,
+    matchCase: boolean,
+  ): Promise<OperationResult<SearchResult>>;
   // The OS dialog for a spreadsheet runs in Rust, which reads the chosen file and returns
   // the values of its sheets. Cancelling is an ok result.
   readSpreadsheetViaDialog(): Promise<OperationResult<SpreadsheetSelection>>;

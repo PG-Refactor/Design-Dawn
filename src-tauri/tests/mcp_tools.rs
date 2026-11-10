@@ -21,7 +21,13 @@ use support::*;
 
 const MERMAID_BLOCK_ID: &str = "01928f3a-a0b1-7c23-a456-789abcdef012";
 const IMAGE_BLOCK_ID: &str = "01928f3a-9fa0-7b12-9345-6789abcdef01";
-const READ_TOOLS: [&str; 4] = ["getProject", "getDocument", "getSheet", "getBlock"];
+const READ_TOOLS: [&str; 5] = [
+    "getProject",
+    "getDocument",
+    "getSheet",
+    "getBlock",
+    "searchProject",
+];
 const WRITE_TOOLS: [&str; 9] = [
     "createDocument",
     "createSheet",
@@ -205,6 +211,25 @@ fn get_block_returns_text_and_the_hash_of_the_file() {
         mermaid["text"].as_str().unwrap().contains("graph")
             || mermaid["text"].as_str().unwrap().contains("flowchart")
     );
+}
+
+#[test]
+fn search_project_finds_text_with_its_place() {
+    let (_temp, root) = project_copy();
+    let context = context_for(&root, false);
+    let found = call(&context, "searchProject", json!({ "query": "BASIC" })).ok();
+    let matches = found["matches"].as_array().unwrap();
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0]["blockId"], OVERVIEW_MARKDOWN_BLOCK_ID);
+    assert_eq!(matches[0]["line"], 3);
+    assert_eq!(found["truncated"], false);
+    let exact = call(
+        &context,
+        "searchProject",
+        json!({ "query": "BASIC", "matchCase": true }),
+    )
+    .ok();
+    assert!(exact["matches"].as_array().unwrap().is_empty());
 }
 
 #[test]

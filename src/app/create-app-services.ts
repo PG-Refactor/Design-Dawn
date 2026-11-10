@@ -66,6 +66,10 @@ import {
 import { createAppExternalChangeController } from "../features/external-change/create-external-change-controller";
 import { createAppLoadIssueRepairController } from "../features/load-issue-repair/create-load-issue-repair-controller";
 import {
+  createSearchActions,
+  type SearchActions,
+} from "../features/search/search-actions";
+import {
   createDraftRegistry,
   type DraftRegistry,
 } from "../features/workspace/draft-registry";
@@ -102,6 +106,7 @@ export interface AppServices {
   readonly actions: WorkspaceActions;
   // What the canvas calls to change documents (one gesture = one application command).
   readonly canvasActions: CanvasActions;
+  readonly searchActions: SearchActions;
   // Uncommitted editor drafts; `actions.saveAll` commits them before saving.
   readonly draftRegistry: DraftRegistry;
   // Files dropped on the window, and the URLs of image assets, for the image blocks.
@@ -188,6 +193,14 @@ export function createAppServices(): AppServices {
     // One clipboard for the whole app: copy in one sheet or document, paste in another.
     clipboard: createInMemoryClipboard(),
   });
+  const searchActions = createSearchActions({
+    gateway,
+    applicationStore,
+    uiStateStore,
+    actions,
+    canvasActions,
+    draftRegistry,
+  });
   const viewportPersistence = createViewportPersistence({
     gateway: createTauriViewportGateway(),
     applicationStore,
@@ -244,6 +257,7 @@ export function createAppServices(): AppServices {
     workspace,
     actions,
     canvasActions,
+    searchActions,
     draftRegistry,
     dropEventSource: createTauriDropEventSource(),
     assetUrlResolver: createTauriAssetUrlResolver(),

@@ -22,6 +22,7 @@ import type {
 import type { Store } from "../../shared/store/store";
 import type { CanvasActions } from "../canvas/canvas-actions";
 import type { ViewportPersistence } from "../canvas/viewport-persistence";
+import type { SearchActions } from "../search/search-actions";
 import type { DraftRegistry } from "./draft-registry";
 import type { UiStateStore } from "./ui-state/ui-state";
 import type { WorkspaceActions } from "./workspace-actions";
@@ -33,6 +34,8 @@ export interface WorkspaceServices {
   readonly uiStateStore: UiStateStore;
   readonly actions: WorkspaceActions;
   readonly canvasActions: CanvasActions;
+  // The Search panel: searching the Project, showing a match, replacing text.
+  readonly searchActions: SearchActions;
   // Markdown editors register their uncommitted drafts here (see `saveAll`).
   readonly draftRegistry: DraftRegistry;
   // Files dropped on the window (Rust reports ids and counts only).

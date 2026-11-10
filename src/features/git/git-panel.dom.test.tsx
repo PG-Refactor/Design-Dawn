@@ -86,10 +86,12 @@ describe("Project | Git switch", () => {
     await shell.openProjectInUi();
     modeTab("Project").focus();
     await shell.user.keyboard("{ArrowRight}");
-    expect(modeTab("Git").getAttribute("aria-selected")).toBe("true");
-    expect(document.activeElement).toBe(modeTab("Git"));
-    expect(modeTab("Git").tabIndex).toBe(0);
+    expect(modeTab("検索").getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(modeTab("検索"));
+    expect(modeTab("検索").tabIndex).toBe(0);
     expect(modeTab("Project").tabIndex).toBe(-1);
+    await shell.user.keyboard("{ArrowRight}");
+    expect(modeTab("Git").getAttribute("aria-selected")).toBe("true");
     await shell.user.keyboard("{ArrowRight}");
     expect(modeTab("Project").getAttribute("aria-selected")).toBe("true");
     expect(document.activeElement).toBe(modeTab("Project"));

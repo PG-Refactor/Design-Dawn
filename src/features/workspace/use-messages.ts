@@ -20,6 +20,10 @@ import {
   type MermaidMessages,
 } from "../mermaid/mermaid-messages";
 import {
+  SEARCH_MESSAGES,
+  type SearchMessages,
+} from "../search/search-messages";
+import {
   WORKSPACE_MESSAGES,
   type WorkspaceMessages,
 } from "./workspace-messages";
@@ -35,6 +39,7 @@ export interface Messages {
   readonly image: ImageMessages;
   readonly git: GitMessages;
   readonly aiAccess: AiAccessMessages;
+  readonly search: SearchMessages;
 }
 
 function collectMessages(language: DisplayLanguage): Messages {
@@ -46,6 +51,7 @@ function collectMessages(language: DisplayLanguage): Messages {
     image: IMAGE_MESSAGES[language],
     git: GIT_MESSAGES[language],
     aiAccess: AI_ACCESS_MESSAGES[language],
+    search: SEARCH_MESSAGES[language],
   };
 }
 

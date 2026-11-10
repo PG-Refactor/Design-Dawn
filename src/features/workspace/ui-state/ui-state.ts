@@ -253,6 +253,8 @@ export const OPERATION_LABELS = [
   "importImages",
   "importImagesWithoutSheet",
   "importSpreadsheet",
+  "searchProject",
+  "replaceText",
   "editBlockContent",
   "setBlockCaption",
   "editDiagram",
@@ -336,7 +338,7 @@ export type RenamingTarget =
     };
 
 // What the left panel shows. Window-local, never saved.
-export const LEFT_PANEL_MODES = ["project", "git"] as const;
+export const LEFT_PANEL_MODES = ["project", "search", "git"] as const;
 
 export type LeftPanelMode = (typeof LEFT_PANEL_MODES)[number];
 

@@ -42,6 +42,7 @@ export const COMMANDS = {
   importDroppedImages: "import_dropped_images",
   importPastedImage: "import_pasted_image",
   readSpreadsheetViaDialog: "read_spreadsheet_via_dialog",
+  searchProject: "search_project",
   selectImageFiles: "select_image_files",
   defaultProjectLocation: "default_project_location",
   setDefaultProjectLocation: "set_default_project_location",

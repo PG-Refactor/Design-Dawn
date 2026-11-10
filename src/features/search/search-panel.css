@@ -1,0 +1,120 @@
+/* Colours come from tokens only (theme-tokens.css). */
+.search-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.search-panel__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.search-panel__input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.search-panel__input:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+.search-panel__option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 0.8125rem;
+}
+
+.search-panel__status {
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.search-panel__status p {
+  margin: var(--space-1) 0 0;
+}
+
+.search-panel__empty {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.search-panel__results,
+.search-panel__matches {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.search-panel__group + .search-panel__group {
+  margin-top: var(--space-2);
+}
+
+.search-panel__group-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.search-panel__where {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-panel__replace {
+  flex: 0 0 auto;
+}
+
+.search-panel__match {
+  display: flex;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-1);
+  border: 0;
+  border-radius: var(--radius-medium);
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.search-panel__match:hover {
+  background: var(--color-hover);
+}
+
+.search-panel__line {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+}
+
+.search-panel__excerpt {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-panel__mark {
+  border-radius: var(--radius-medium);
+  background: var(--color-selection);
+  color: var(--color-text);
+  font-weight: 700;
+}
