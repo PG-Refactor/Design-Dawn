@@ -114,6 +114,15 @@
   border-top: 1px solid var(--color-border);
 }
 
+/* An image never widens the block; it scales down to the column. Dragging it would start
+   the browser's own image drag instead of moving the block. */
+.markdown-preview img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  -webkit-user-drag: none;
+}
+
 .markdown-image-alt {
   color: var(--color-text-muted);
   font-style: italic;

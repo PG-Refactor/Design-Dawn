@@ -107,6 +107,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::get_sheet_viewport,
             commands::save_sheet_viewport,
             commands::import_dropped_images,
+            commands::import_pasted_image,
             commands::copy_asset_to_document,
             commands::subscribe_drop_notifications,
             commands::subscribe_close_requests,

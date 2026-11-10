@@ -12,9 +12,19 @@ export const LINK_URL_PATTERN = new RegExp(
   "i",
 );
 
+// Any scheme at the start of a destination (`https:`, `javascript:`, `C:`). A destination
+// without one is a relative path: allowed for an image of the block's own Document, never
+// a link.
+export const URL_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
+
 export const MARKDOWN_CLASS_NAMES = {
   imageAlt: "markdown-image-alt",
 } as const;
+
+// The image source attribute. It is not checked against the link pattern above: the
+// sanitiser keeps it only when it is an asset URL of the block's own Document (see
+// `sanitizeHtml`), and drops it otherwise.
+export const IMAGE_SOURCE_ATTRIBUTE = "src";
 
 // The only class values that survive sanitising: the language class of a fenced code
 // block and the image-alt marker. Anything else is dropped even if markup carries it.
@@ -52,19 +62,30 @@ export const SANITIZER_ALLOWED_TAGS = [
   "th",
   "td",
   "span",
+  "img",
 ] as const;
 
-// `start` is the first number of an ordered list.
-export const SANITIZER_ALLOWED_ATTRIBUTES = ["href", "class", "start"] as const;
+// `start` is the first number of an ordered list; `src` and `alt` belong to an image.
+export const SANITIZER_ALLOWED_ATTRIBUTES = [
+  "href",
+  "class",
+  "start",
+  IMAGE_SOURCE_ATTRIBUTE,
+  "alt",
+] as const;
 
 // Attributes DOMPurify must treat as plain values instead of URLs (it tests every other
-// attribute value against the URL pattern above).
-export const SANITIZER_PLAIN_VALUE_ATTRIBUTES = ["start"] as const;
+// attribute value against the URL pattern above). `src` is listed because its own check
+// is stricter than the link pattern, and runs in the sanitiser's hook.
+export const SANITIZER_PLAIN_VALUE_ATTRIBUTES = [
+  "start",
+  "alt",
+  IMAGE_SOURCE_ATTRIBUTE,
+] as const;
 
 // Explicit even though they are not allowed: the deny list survives a careless edit of
 // the allow list.
 export const SANITIZER_FORBIDDEN_TAGS = [
-  "img",
   "svg",
   "math",
   "iframe",

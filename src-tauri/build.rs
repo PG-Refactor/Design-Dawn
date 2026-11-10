@@ -43,6 +43,7 @@ const APP_COMMANDS: &[&str] = &[
     "get_sheet_viewport",
     "save_sheet_viewport",
     "import_dropped_images",
+    "import_pasted_image",
     "copy_asset_to_document",
     "subscribe_drop_notifications",
     "subscribe_close_requests",

@@ -40,6 +40,7 @@ export const COMMANDS = {
   getSheetViewport: "get_sheet_viewport",
   saveSheetViewport: "save_sheet_viewport",
   importDroppedImages: "import_dropped_images",
+  importPastedImage: "import_pasted_image",
   selectImageFiles: "select_image_files",
   defaultProjectLocation: "default_project_location",
   setDefaultProjectLocation: "set_default_project_location",

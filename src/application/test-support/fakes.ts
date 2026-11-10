@@ -1069,6 +1069,20 @@ export function createFakeGateway(
         }
         return operationOk({ imported, rejected });
       }),
+    // Any bytes are "an image" of 1 x 1; the name is the fixed stem Rust uses.
+    importPastedImage: (_project, documentId, _bytes, extension) =>
+      enter("importPastedImage", `${documentId}:${extension}`, () => {
+        const path = freeAssetPath(documentId, `pasted-image.${extension}`);
+        assetsOf(documentId).set(path, { naturalWidth: 1, naturalHeight: 1 });
+        return operationOk({
+          contentPath: unwrap(parseContentPath(path)),
+          naturalWidth: 1,
+          naturalHeight: 1,
+          initialWidth: 1,
+          initialHeight: 1,
+          blockType: "image" as const,
+        });
+      }),
     copyAssetToDocument: (
       _project,
       sourceDocumentId,

@@ -17,6 +17,7 @@ import type {
   CopiedAsset,
   DropImportResult,
   ImageSelection,
+  ImportedImage,
 } from "./asset-types";
 import type { OperationResult } from "./operation-error";
 import type {
@@ -222,6 +223,14 @@ export interface PersistenceGateway {
     projectId: ProjectId,
     documentId: DocumentId,
   ): Promise<OperationResult<DropImportResult>>;
+  // Stores image bytes that have no file behind them (pasted from the clipboard) in the
+  // Document's assets, validated like a dropped file. `extension` is the claimed format.
+  importPastedImage(
+    projectId: ProjectId,
+    documentId: DocumentId,
+    bytes: Uint8Array,
+    extension: string,
+  ): Promise<OperationResult<ImportedImage>>;
   // Validates an image asset and, for another Document, copies it there (the name is kept,
   // `-2` on collision). Into the Document it already lives in nothing is copied: the same
   // contentPath comes back, so this doubles as the validity check of copy / duplicate.

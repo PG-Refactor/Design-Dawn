@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { renderMarkdown, renderMarkdownToHtml } from "./render-markdown";
+import type { ContentPath } from "../../domain/block/content-path";
+import {
+  type MarkdownImageContext,
+  renderMarkdown,
+  renderMarkdownToHtml,
+} from "./render-markdown";
 import { sanitizeHtml } from "./sanitize-html";
 import { parseHtml, unsafeFindings } from "./test-support/dom-assertions";
 
@@ -226,5 +231,80 @@ describe("the sanitizer on its own (without markdown-it in front)", () => {
     // Stage one's raw output is a string; the sanitizer result is what is displayed.
     expect(typeof renderMarkdownToHtml(hostile)).toBe("string");
     expect(unsafeFindings(render(hostile))).toEqual([]);
+  });
+});
+
+describe("images of the block's own Document", () => {
+  const PREFIX = "test-asset://project/document/";
+  const images: MarkdownImageContext = {
+    markdownContentPath: "sheets/overview/blocks/markdown-1.md",
+    urlFor: (assetContentPath: ContentPath) =>
+      `${PREFIX}${encodeURI(assetContentPath)}`,
+    urlPrefix: PREFIX,
+  };
+  const renderWithImages = (source: string) =>
+    parseHtml(renderMarkdown(source, images));
+
+  it("shows an asset written as a path relative to the Markdown file", () => {
+    const document = renderWithImages(
+      "![Order flow](../../../assets/flow.png)",
+    );
+    const image = document.querySelector("img");
+    expect(image?.getAttribute("src")).toBe(`${PREFIX}assets/flow.png`);
+    expect(image?.getAttribute("alt")).toBe("Order flow");
+    expect(unsafeFindings(document, PREFIX)).toEqual([]);
+  });
+
+  it("shows the alt text for anything that is not an asset of the Document", () => {
+    for (const source of [
+      "![remote](https://example.com/a.png)",
+      "![outside](../../../../other/assets/a.png)",
+      "![beside](a.png)",
+    ]) {
+      const document = renderWithImages(source);
+      expect(document.querySelector("img")).toBeNull();
+      expect(document.querySelector("span.markdown-image-alt")).not.toBeNull();
+    }
+    // A refused scheme is not even an image: the source stays as text, as before.
+    const data = renderWithImages("![data](data:image/png;base64,AAAA)");
+    expect(data.querySelector("img")).toBeNull();
+    expect(textOf(data)).toContain("![data](data:image/png;base64,AAAA)");
+  });
+
+  it("keeps the alt text without the context, even for an asset path", () => {
+    const document = render("![flow](../../../assets/flow.png)");
+    expect(document.querySelector("img")).toBeNull();
+    expect(document.querySelector("span.markdown-image-alt")?.textContent).toBe(
+      "flow",
+    );
+  });
+
+  it("removes an image whose source does not belong to the Document", () => {
+    const foreign = parseHtml(
+      sanitizeHtml(
+        '<img src="test-asset://project/other/assets/a.png" alt="x"><img src="https://example.com/a.png">',
+        { imageSourcePrefix: PREFIX },
+      ),
+    );
+    expect(foreign.querySelector("img")).toBeNull();
+    const withoutPrefix = parseHtml(
+      sanitizeHtml(`<img src="${PREFIX}assets/a.png" alt="x">`),
+    );
+    expect(withoutPrefix.querySelector("img")).toBeNull();
+  });
+
+  it("escapes markup in the alt text of a shown image", () => {
+    const document = renderWithImages(
+      '![<b>x</b>" onerror="alert(1)](../../../assets/flow.png)',
+    );
+    const image = document.querySelector("img");
+    expect(image?.getAttribute("onerror")).toBeNull();
+    expect(unsafeFindings(document, PREFIX)).toEqual([]);
+  });
+
+  it("still shows relative links as the text they were written as", () => {
+    const document = renderWithImages("[spec](../spec.md) and [top](#top)");
+    expect(document.querySelector("a")).toBeNull();
+    expect(textOf(document).trim()).toBe("[spec](../spec.md) and [top](#top)");
   });
 });

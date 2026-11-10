@@ -3,7 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { parseContentPath } from "../../domain/block/content-path";
 import { parseDocumentId, parseProjectId } from "../../domain/shared/entity-id";
 import { unwrap } from "../../domain/shared/test-support";
-import { copyAssetToDocument, importDroppedImages } from "./asset-client";
+import {
+  copyAssetToDocument,
+  importDroppedImages,
+  importPastedImage,
+} from "./asset-client";
 import { COMMANDS } from "./command-constants";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -157,5 +161,49 @@ describe("copyAssetToDocument", () => {
       otherDocumentId,
     );
     expect(!result.ok && result.error.kind).toBe("invalidCommandResponse");
+  });
+});
+
+describe("importPastedImage", () => {
+  it("sends the bytes as the raw body and the ids and format as headers", async () => {
+    invokeMock.mockResolvedValueOnce({
+      ...rawImported,
+      contentPath: "assets/pasted-image.png",
+    });
+    const bytes = new Uint8Array([137, 80, 78, 71]);
+
+    const result = await importPastedImage(projectId, documentId, bytes, "png");
+
+    expect(invokeMock.mock.calls).toStrictEqual([
+      [
+        COMMANDS.importPastedImage,
+        bytes,
+        {
+          headers: {
+            "x-dawn-project-id": PROJECT_ID,
+            "x-dawn-document-id": DOCUMENT_ID,
+            "x-dawn-image-extension": "png",
+          },
+        },
+      ],
+    ]);
+    expect(result.ok && result.value.contentPath).toBe(
+      "assets/pasted-image.png",
+    );
+  });
+
+  it("returns a rejected paste as an error", async () => {
+    invokeMock.mockRejectedValueOnce({
+      kind: "invalidImageContent",
+      detail: "not a png",
+    });
+    const result = await importPastedImage(
+      projectId,
+      documentId,
+      new Uint8Array([0]),
+      "png",
+    );
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error.kind).toBe("invalidImageContent");
   });
 });

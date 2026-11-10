@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use design_dawn_lib::application::asset_import::{
-    copy_asset_to_document, import_dropped_images, DropImportResult,
+    copy_asset_to_document, import_dropped_images, import_image_bytes, DropImportResult,
 };
 use design_dawn_lib::application::document_operations::{
     close_document, create_document, load_document,
@@ -975,4 +975,71 @@ mod symlinks {
         );
         assert!(!error.detail.contains(&fixture.temp_text()));
     }
+}
+
+#[test]
+fn a_pasted_image_is_stored_under_a_fixed_stem_with_a_suffix_on_collision() {
+    let fixture = Fixture::new();
+    let paste = || {
+        import_image_bytes(
+            &fixture.sessions,
+            PROJECT_ID,
+            DOCUMENT_ID,
+            "png",
+            png_bytes(4, 3),
+        )
+        .unwrap()
+    };
+    let first = paste();
+    let second = paste();
+    assert_eq!(first.content_path, "assets/pasted-image.png");
+    assert_eq!(second.content_path, "assets/pasted-image-2.png");
+    assert_eq!((first.natural_width, first.natural_height), (4, 3));
+    assert!(fixture.first_assets().join("pasted-image-2.png").is_file());
+}
+
+#[test]
+fn a_pasted_image_must_match_its_format_and_the_size_limit() {
+    let fixture = Fixture::new();
+    let paste = |extension: &str, bytes: Vec<u8>| {
+        import_image_bytes(&fixture.sessions, PROJECT_ID, DOCUMENT_ID, extension, bytes)
+            .unwrap_err()
+            .kind
+    };
+    assert_eq!(
+        paste("jpg", png_bytes(1, 1)),
+        ErrorKind::InvalidImageContent
+    );
+    assert_eq!(
+        paste("exe", png_bytes(1, 1)),
+        ErrorKind::Domain(DomainErrorKind::InvalidContentExtension)
+    );
+    let too_large = usize::try_from(ASSET_MAX_BYTES + 1).unwrap();
+    let mut oversized = png_bytes(1, 1);
+    oversized.resize(too_large, 0);
+    assert_eq!(paste("png", oversized), ErrorKind::AssetTooLarge);
+    assert!(!fixture.first_assets().join("pasted-image.png").exists());
+}
+
+#[test]
+fn a_pasted_image_needs_an_open_writable_document() {
+    let fixture = Fixture::new();
+    let paste = |project: &str, document: &str| {
+        import_image_bytes(&fixture.sessions, project, document, "png", png_bytes(1, 1))
+            .unwrap_err()
+            .kind
+    };
+    assert_eq!(paste(UNKNOWN_ID, DOCUMENT_ID), ErrorKind::ProjectNotOpen);
+    assert_eq!(paste(PROJECT_ID, UNKNOWN_ID), ErrorKind::EntityNotFound);
+    fixture.close(DOCUMENT_ID);
+    // A closed Document receives nothing, like a drop into it.
+    assert!(import_image_bytes(
+        &fixture.sessions,
+        PROJECT_ID,
+        DOCUMENT_ID,
+        "png",
+        png_bytes(1, 1)
+    )
+    .is_err());
+    assert!(!fixture.first_assets().join("pasted-image.png").exists());
 }

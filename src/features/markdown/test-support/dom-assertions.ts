@@ -29,8 +29,12 @@ function hrefHasAllowedScheme(href: string): boolean {
 
 // Everything the whole-document rule forbids, as readable messages (empty = safe): only
 // allow-listed tags and attributes, no `on*` attribute, no `style`, hrefs only with an
-// allowed scheme, none of the forbidden tags.
-export function unsafeFindings(document: Document): string[] {
+// allowed scheme, none of the forbidden tags, an image source only on `<img>` and only
+// under `imageSourcePrefix` (no prefix: no image source at all).
+export function unsafeFindings(
+  document: Document,
+  imageSourcePrefix?: string,
+): string[] {
   const findings: string[] = [];
   for (const element of document.body.querySelectorAll("*")) {
     const tag = element.tagName.toLowerCase();
@@ -47,6 +51,14 @@ export function unsafeFindings(document: Document): string[] {
       }
       if (name === "href" && !hrefHasAllowedScheme(attribute.value)) {
         findings.push(`href with a disallowed scheme: ${attribute.value}`);
+      }
+      if (
+        name === "src" &&
+        (tag !== "img" ||
+          imageSourcePrefix === undefined ||
+          !attribute.value.startsWith(imageSourcePrefix))
+      ) {
+        findings.push(`image source not allowed: ${attribute.value}`);
       }
     }
   }

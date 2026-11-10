@@ -42,5 +42,7 @@ export function createFakeAssetUrlResolver(): AssetUrlResolver {
   return {
     urlFor: (projectId, documentId, contentPath) =>
       `test-asset://${projectId}/${documentId}/${contentPath}`,
+    documentUrlPrefix: (projectId, documentId) =>
+      `test-asset://${projectId}/${documentId}/`,
   };
 }

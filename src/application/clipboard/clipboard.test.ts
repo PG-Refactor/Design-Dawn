@@ -78,6 +78,8 @@ describe("copyBlocks", () => {
           size: { width: 100, height: 50 },
           offset: { x: 0, y: 0 },
           text: textOf(blockIdOf(1)),
+          // Where the text came from, for its relative references (images).
+          sourceContentPath: BLOCKS[0]?.contentPath,
         },
         {
           kind: "text",
@@ -85,6 +87,7 @@ describe("copyBlocks", () => {
           size: { width: 100, height: 50 },
           offset: { x: 300, y: 200 },
           text: textOf(blockIdOf(3)),
+          sourceContentPath: BLOCKS[2]?.contentPath,
         },
       ],
     });
