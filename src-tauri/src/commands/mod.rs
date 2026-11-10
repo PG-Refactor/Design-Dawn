@@ -29,6 +29,9 @@ use crate::application::document_operations as documents;
 use crate::application::document_transfer::DocumentTransfers;
 use crate::application::dropped_files::DroppedFilesState;
 use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
+use crate::application::export_markdown::{
+    export_document_markdown as export_markdown_file, MarkdownExport,
+};
 use crate::application::external_change::{self, ExternalChanges};
 use crate::application::file_dialogs::FileDialogs;
 use crate::application::folder_operations as folders;
@@ -76,7 +79,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 78] = [
+pub const COMMAND_NAMES: [&str; 79] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -121,6 +124,7 @@ pub const COMMAND_NAMES: [&str; 78] = [
     "import_pasted_image",
     "read_spreadsheet_via_dialog",
     "search_project",
+    "export_document_markdown",
     "copy_asset_to_document",
     "subscribe_drop_notifications",
     "subscribe_close_requests",
@@ -321,15 +325,35 @@ pub async fn search_project<R: Runtime>(
     match_case: bool,
 ) -> Result<SearchResult, ApplicationError> {
     ensure_window_project(&window, &project_id)?;
-    let root = {
-        let sessions = app.state::<Mutex<ProjectSessions>>();
-        let guard = sessions.lock().unwrap_or_else(PoisonError::into_inner);
-        guard
-            .get(&ProjectId::parse(&project_id)?)?
-            .root()
-            .to_path_buf()
-    };
+    let root = project_root(&app, &project_id)?;
     run_blocking(move || search_in_project(&root, SearchQuery { text, match_case })).await
+}
+
+/// "Export as Markdown…": the save dialog, then the Document as one Markdown file with its
+/// images beside it. Reads the files on disk, so the Frontend saves the Document first.
+#[tauri::command]
+pub async fn export_document_markdown<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    document_id: String,
+) -> Result<MarkdownExport, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    let root = project_root(&app, &project_id)?;
+    run_blocking(move || {
+        let dialogs = file_dialogs(&app)?;
+        export_markdown_file(dialogs.as_ref(), &root, &document_id)
+    })
+    .await
+}
+
+fn project_root<R: Runtime>(app: &AppHandle<R>, project_id: &str) -> ApplicationResult<PathBuf> {
+    let sessions = app.state::<Mutex<ProjectSessions>>();
+    let guard = sessions.lock().unwrap_or_else(PoisonError::into_inner);
+    Ok(guard
+        .get(&ProjectId::parse(project_id)?)?
+        .root()
+        .to_path_buf())
 }
 
 /// "Table from Spreadsheet…": the OS dialog, then the values of every worksheet. Runs on the

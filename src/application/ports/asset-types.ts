@@ -71,3 +71,13 @@ export type SpreadsheetSelection =
       readonly sheets: readonly SpreadsheetSheet[];
     }
   | { readonly status: typeof SPREADSHEET_SELECTION_STATUS.cancelled };
+
+// An export written through the save dialog (Rust). Only the chosen file's name comes back.
+export const EXPORT_STATUS = {
+  saved: "saved",
+  cancelled: "cancelled",
+} as const;
+
+export type ExportOutcome =
+  | { readonly status: typeof EXPORT_STATUS.saved; readonly fileName: string }
+  | { readonly status: typeof EXPORT_STATUS.cancelled };

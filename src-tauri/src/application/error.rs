@@ -45,6 +45,8 @@ pub enum ErrorKind {
     AssetTooLarge,
     /// A chosen spreadsheet that cannot be read (not a workbook, damaged, too large).
     InvalidSpreadsheet,
+    /// An export (Markdown, image, HTML) could not be written where the user chose.
+    ExportFailed,
     /// A theme preference that is not `system` or a defined theme id.
     InvalidThemePreference,
     /// A language preference that is not `system`, `en` or `ja`.
@@ -140,6 +142,7 @@ impl ErrorKind {
             Self::InvalidImageContent => "invalidImageContent",
             Self::AssetTooLarge => "assetTooLarge",
             Self::InvalidSpreadsheet => "invalidSpreadsheet",
+            Self::ExportFailed => "exportFailed",
             Self::InvalidThemePreference => "invalidThemePreference",
             Self::InvalidLanguagePreference => "invalidLanguagePreference",
             Self::InvalidTextSize => "invalidTextSize",
@@ -195,6 +198,7 @@ impl ErrorKind {
             Self::InvalidImageContent => "the file is not a valid image",
             Self::AssetTooLarge => "the image file is too large",
             Self::InvalidSpreadsheet => "the file is not a readable spreadsheet",
+            Self::ExportFailed => "the export could not be written",
             Self::InvalidThemePreference => "the theme preference is not valid",
             Self::InvalidLanguagePreference => "the language preference is not valid",
             Self::InvalidTextSize => "the text size is not valid",
@@ -309,7 +313,7 @@ impl Serialize for ApplicationError {
 mod tests {
     use super::*;
 
-    const ALL_KINDS: [ErrorKind; 63] = [
+    const ALL_KINDS: [ErrorKind; 64] = [
         ErrorKind::Domain(DomainErrorKind::InvalidEntityId),
         ErrorKind::Domain(DomainErrorKind::InvalidDisplayName),
         ErrorKind::Domain(DomainErrorKind::InvalidCaption),
@@ -338,6 +342,7 @@ mod tests {
         ErrorKind::InvalidImageContent,
         ErrorKind::AssetTooLarge,
         ErrorKind::InvalidSpreadsheet,
+        ErrorKind::ExportFailed,
         ErrorKind::InvalidThemePreference,
         ErrorKind::InvalidLanguagePreference,
         ErrorKind::InvalidTextSize,

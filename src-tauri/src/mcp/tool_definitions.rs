@@ -14,6 +14,7 @@ pub const GET_DOCUMENT: &str = "getDocument";
 pub const GET_SHEET: &str = "getSheet";
 pub const GET_BLOCK: &str = "getBlock";
 pub const SEARCH_PROJECT: &str = "searchProject";
+pub const EXPORT_MARKDOWN: &str = "exportMarkdown";
 pub const CREATE_DOCUMENT: &str = "createDocument";
 pub const CREATE_SHEET: &str = "createSheet";
 pub const CREATE_BLOCK: &str = "createBlock";
@@ -246,6 +247,14 @@ of reading every Block.",
                     "true to tell upper and lower case apart (default false)",
                 ),
             ],
+        ),
+        read(
+            EXPORT_MARKDOWN,
+            "A whole Document as one Markdown text, to read it in one call: the Document name \
+as #, each Sheet as ##, the Blocks of a Sheet in reading order (rows from the top, left to \
+right), Mermaid as fenced code, images as image references and captions next to their figure. \
+Nothing is written.",
+            vec![id("documentId", true, DOCUMENT_ID_HELP)],
         ),
         write(
             CREATE_DOCUMENT,

@@ -88,6 +88,8 @@ export const GATEWAY_METHOD_KINDS = {
   // Reads a file outside the Project; the blocks it becomes are written by a command.
   readSpreadsheetViaDialog: "read",
   searchProject: "read",
+  // Writes outside the Project only.
+  exportDocumentMarkdown: "read",
   copyAssetToDocument: "write",
 } as const satisfies Record<keyof PersistenceGateway, "write" | "read">;
 

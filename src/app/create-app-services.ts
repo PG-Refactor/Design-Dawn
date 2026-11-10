@@ -63,6 +63,10 @@ import {
   createViewportPersistence,
   type ViewportPersistence,
 } from "../features/canvas/viewport-persistence";
+import {
+  createExportActions,
+  type ExportActions,
+} from "../features/export/export-actions";
 import { createAppExternalChangeController } from "../features/external-change/create-external-change-controller";
 import { createAppLoadIssueRepairController } from "../features/load-issue-repair/create-load-issue-repair-controller";
 import {
@@ -107,6 +111,7 @@ export interface AppServices {
   // What the canvas calls to change documents (one gesture = one application command).
   readonly canvasActions: CanvasActions;
   readonly searchActions: SearchActions;
+  readonly exportActions: ExportActions;
   // Uncommitted editor drafts; `actions.saveAll` commits them before saving.
   readonly draftRegistry: DraftRegistry;
   // Files dropped on the window, and the URLs of image assets, for the image blocks.
@@ -201,6 +206,12 @@ export function createAppServices(): AppServices {
     canvasActions,
     draftRegistry,
   });
+  const exportActions = createExportActions({
+    gateway,
+    applicationStore,
+    uiStateStore,
+    actions,
+  });
   const viewportPersistence = createViewportPersistence({
     gateway: createTauriViewportGateway(),
     applicationStore,
@@ -258,6 +269,7 @@ export function createAppServices(): AppServices {
     actions,
     canvasActions,
     searchActions,
+    exportActions,
     draftRegistry,
     dropEventSource: createTauriDropEventSource(),
     assetUrlResolver: createTauriAssetUrlResolver(),

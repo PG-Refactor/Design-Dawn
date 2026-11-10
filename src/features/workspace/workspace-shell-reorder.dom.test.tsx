@@ -677,6 +677,7 @@ describe("row menu accessibility", () => {
       MESSAGES.tree.rename,
       MESSAGES.tree.moveTo,
       MESSAGES.tree.openInNewWindow,
+      MESSAGES.tree.exportMarkdown,
       MESSAGES.tree.deleteDocument,
     ]);
     expect(document.activeElement).toBe(items[0]);
@@ -684,7 +685,7 @@ describe("row menu accessibility", () => {
     await harness.user.keyboard("{ArrowDown}");
     expect(document.activeElement).toBe(items[1]);
     await harness.user.keyboard("{End}");
-    expect(document.activeElement).toBe(items[3]);
+    expect(document.activeElement).toBe(items.at(-1));
     await harness.user.keyboard("{ArrowDown}");
     expect(document.activeElement).toBe(items[0]);
     await harness.user.keyboard("{Home}");

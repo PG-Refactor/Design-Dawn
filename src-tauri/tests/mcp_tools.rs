@@ -21,12 +21,13 @@ use support::*;
 
 const MERMAID_BLOCK_ID: &str = "01928f3a-a0b1-7c23-a456-789abcdef012";
 const IMAGE_BLOCK_ID: &str = "01928f3a-9fa0-7b12-9345-6789abcdef01";
-const READ_TOOLS: [&str; 5] = [
+const READ_TOOLS: [&str; 6] = [
     "getProject",
     "getDocument",
     "getSheet",
     "getBlock",
     "searchProject",
+    "exportMarkdown",
 ];
 const WRITE_TOOLS: [&str; 9] = [
     "createDocument",
@@ -230,6 +231,21 @@ fn search_project_finds_text_with_its_place() {
     )
     .ok();
     assert!(exact["matches"].as_array().unwrap().is_empty());
+}
+
+#[test]
+fn export_markdown_returns_the_document_as_one_text() {
+    let (_temp, root) = project_copy();
+    let context = context_for(&root, false);
+    let exported = call(
+        &context,
+        "exportMarkdown",
+        json!({ "documentId": DOCUMENT_ID }),
+    )
+    .ok();
+    let text = exported["markdown"].as_str().unwrap();
+    assert!(text.starts_with("# System Design"));
+    assert!(text.contains("](assets/pixel.png)"));
 }
 
 #[test]

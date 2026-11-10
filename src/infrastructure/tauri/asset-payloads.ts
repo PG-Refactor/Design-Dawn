@@ -2,6 +2,8 @@
 // check the shape, then run the domain parsers.
 
 import {
+  EXPORT_STATUS,
+  type ExportOutcome,
   IMAGE_SELECTION_STATUS,
   SPREADSHEET_SELECTION_STATUS,
   type SpreadsheetSelection,
@@ -210,4 +212,25 @@ export function toSpreadsheetSelection(
         ...selected.value,
       })
     : selected;
+}
+
+const rawExportStatus = objectOf<{ readonly status: ExportOutcome["status"] }>({
+  status: oneOf(Object.values(EXPORT_STATUS)),
+});
+const rawSavedExport = objectOf<{ readonly fileName: string }>({
+  fileName: decodeString,
+});
+
+export function toExportOutcome(
+  payload: unknown,
+): CommandResult<ExportOutcome> {
+  const status = decodePayload(rawExportStatus, payload);
+  if (!status.ok) return status;
+  if (status.value.status === EXPORT_STATUS.cancelled) {
+    return commandOk({ status: EXPORT_STATUS.cancelled });
+  }
+  const saved = decodePayload(rawSavedExport, payload);
+  return saved.ok
+    ? commandOk({ status: EXPORT_STATUS.saved, fileName: saved.value.fileName })
+    : saved;
 }

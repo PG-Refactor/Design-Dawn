@@ -255,6 +255,7 @@ export const OPERATION_LABELS = [
   "importSpreadsheet",
   "searchProject",
   "replaceText",
+  "exportDocument",
   "editBlockContent",
   "setBlockCaption",
   "editDiagram",

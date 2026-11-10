@@ -2,6 +2,7 @@
 export type {
   CopiedAsset,
   DropImportResult,
+  ExportOutcome,
   ImageSelection,
   ImportedImage,
   RejectedFile,

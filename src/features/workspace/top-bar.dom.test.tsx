@@ -84,10 +84,11 @@ describe("File menu", () => {
       ["menuitem", EN.openProjectInNewWindow],
       ["menuitem", `${EN.save}Ctrl+S`],
       ["menuitemcheckbox", EN.autoSave],
+      ["menuitem", EN.exportMarkdown],
       ["menuitem", AI_ACCESS_MESSAGES.en.menuItem],
       ["menuitem", EN.closeProject],
     ]);
-    expect(within(menu).getAllByRole("separator")).toHaveLength(3);
+    expect(within(menu).getAllByRole("separator")).toHaveLength(4);
   });
 
   it("opens the project via its item and shows the tree", async () => {

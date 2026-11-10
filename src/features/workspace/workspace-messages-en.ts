@@ -48,6 +48,7 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   importSpreadsheet: "Could not add the table from the spreadsheet",
   searchProject: "Could not search the project",
   replaceText: "Could not replace the text",
+  exportDocument: "Could not export",
   importImagesWithoutSheet: "Open a Sheet to add images",
   editBlockContent:
     "Could not commit the edit of the block text (your edit is still on the screen)",
@@ -125,6 +126,7 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
     "The selected folder is not valid. Please select it again.",
   invalidImageContent: "The file cannot be read as an image.",
   assetTooLarge: "The image file is too large (limit 20 MiB).",
+  exportFailed: "Could not write the export where you chose.",
   invalidSpreadsheet:
     "The spreadsheet could not be read (.xlsx, .xlsm, .xls, .xlsb or .ods, up to 20 MiB).",
   invalidDropSelection:
@@ -209,6 +211,7 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     closeProject: "Close Project",
     openProjectInNewWindow: "Open Project in New Window…",
     autoSave: "Auto Save",
+    exportMarkdown: "Export Document as Markdown…",
     languageLegend: "Language",
     themeLegend: "Theme",
     systemOption: "System",
@@ -258,6 +261,7 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     deleteFolder: "Delete Folder",
     deleteDocument: "Delete Document",
     openInNewWindow: "Open in New Window",
+    exportMarkdown: "Export as Markdown…",
     deleteChosen: "Delete",
     chosenMenuLabel: (count: number): string => `Menu of ${count} items`,
     moveTo: "Move to…",

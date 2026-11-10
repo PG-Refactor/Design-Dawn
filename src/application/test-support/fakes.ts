@@ -1086,6 +1086,11 @@ export function createFakeGateway(
         }
         return operationOk({ imported, rejected });
       }),
+    // Exports are "saved" as `<documentId>.md` unless the dialog is scripted to cancel.
+    exportDocumentMarkdown: (_project, documentId) =>
+      enter("exportDocumentMarkdown", documentId, () =>
+        operationOk({ status: "saved" as const, fileName: `${documentId}.md` }),
+      ),
     // The scripted search result, else nothing found.
     searchProject: (_project, text, matchCase) =>
       enter("searchProject", `${text}:${matchCase}`, () =>
