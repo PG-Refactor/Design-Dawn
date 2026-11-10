@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Download Design Dawn for Windows — free design docs app</title>
+  <meta name="description" content="Download Design Dawn for Windows 11 as a zip file, or build it from source on Linux. Free and open source (MIT). Requirements, first steps and known limits.">
+  <link rel="canonical" href="https://pg-refactor.github.io/Design-Dawn/download/">
+  <link rel="alternate" hreflang="en" href="https://pg-refactor.github.io/Design-Dawn/download/">
+  <link rel="alternate" hreflang="ja" href="https://pg-refactor.github.io/Design-Dawn/ja/download/">
+  <link rel="alternate" hreflang="x-default" href="https://pg-refactor.github.io/Design-Dawn/download/">
+  <link rel="icon" type="image/png" href="../favicon.png">
+  <link rel="apple-touch-icon" href="../images/apple-touch-icon.png">
+  <meta name="theme-color" content="#0e1220">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Design Dawn">
+  <meta property="og:title" content="Download Design Dawn and take the first steps">
+  <meta property="og:description" content="Download Design Dawn for Windows 11 as a zip file, or build it from source on Linux. Free and open source (MIT). Requirements, first steps and known limits.">
+  <meta property="og:url" content="https://pg-refactor.github.io/Design-Dawn/download/">
+  <meta property="og:image" content="https://pg-refactor.github.io/Design-Dawn/images/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta property="og:locale" content="en_US">
+
+  <link rel="stylesheet" href="../style.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Design Dawn",
+      "item": "https://pg-refactor.github.io/Design-Dawn/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Download",
+      "item": "https://pg-refactor.github.io/Design-Dawn/download/"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="../"><img src="../images/icon-64.png" alt="" width="28" height="28">Design Dawn</a>
+    <nav class="top" aria-label="Main">
+      <a class="hide-sm" href="../mermaid-gui-editor/">Mermaid GUI</a>
+      <a class="hide-sm" href="../docs-as-code/">Git</a>
+      <a class="hide-sm" href="../mcp/">AI / MCP</a>
+      <a class="hide-sm" href="../download/" aria-current="page">Download</a>
+      <a href="../ja/download/" hreflang="ja" lang="ja">日本語</a>
+      <a href="https://github.com/PG-Refactor/Design-Dawn">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <article class="article">
+    <div class="wrap narrow">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="../">Home</a> / <span>Download</span></nav>
+      <h1>Download Design Dawn and take the first steps</h1>
+      <p class="lead">Design Dawn is free and open source under the MIT License. A ready-made build is available for <strong>Windows 11 (64-bit)</strong>. On <strong>Linux</strong> it is built from source. There is no macOS build.</p>
+
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/PG-Refactor/Design-Dawn/releases/latest">Go to the latest release on GitHub</a>
+      </div>
+
+      <h2>Windows 11</h2>
+      <ol>
+        <li>On the <a href="https://github.com/PG-Refactor/Design-Dawn/releases/latest">latest release</a> page, download <code>DesignDawn-&lt;version&gt;-windows-x64.zip</code>.</li>
+        <li>Extract the zip anywhere. It contains the app (<code>design-dawn.exe</code>), the MCP server (<code>design-dawn-mcp.exe</code>), the license and the third-party notices.</li>
+        <li>Run <code>design-dawn.exe</code>. There is no installer.</li>
+      </ol>
+      <p class="note"><strong>The build is not code-signed.</strong> Windows SmartScreen may show “Windows protected your PC”. Choose “More info”, then “Run anyway”. Only do this for a file you downloaded from the project’s GitHub releases page or built yourself.</p>
+      <p>To update, extract a newer zip over the old files; your settings are kept. The app uses the WebView2 runtime, which Windows 11 includes.</p>
+
+      <h2>Linux</h2>
+      <p>There is no ready-made Linux package. The project builds inside a Docker dev container, and can produce a <code>.deb</code> package; the steps are in the <a href="https://github.com/PG-Refactor/Design-Dawn#building-and-running">README</a>.</p>
+
+      <h2>Optional: Git</h2>
+      <p>The built-in Git features use the <code>git</code> command on your computer and need Git 2.25 or later. Without Git, the rest of the app works as usual.</p>
+
+      <h2>First steps</h2>
+      <ol>
+        <li><strong>Create a project.</strong> Choose <strong>File → New Project…</strong> and pick a folder. A project is an ordinary folder on your disk.</li>
+        <li><strong>Add a document.</strong> Use <strong>New Document</strong> in the project tree. A document has one or more sheets; add more with <strong>New Sheet</strong>.</li>
+        <li><strong>Place blocks.</strong> <strong>+ Block</strong> adds a Markdown or Mermaid block. Images (PNG, JPEG, WebP, SVG, GIF) are added by dropping files onto the sheet or from a file dialog.</li>
+        <li><strong>Edit.</strong> Double-click a block to edit it. Markdown opens as source with a preview; a Mermaid diagram opens in the <a href="../mermaid-gui-editor/">GUI editor</a> when the GUI can edit it, otherwise as source.</li>
+        <li><strong>Save.</strong> Use <strong>File → Save</strong>, or turn on <strong>Auto Save</strong>.</li>
+      </ol>
+
+      <h2>Good to know</h2>
+      <ul>
+        <li>In a Markdown block, raw HTML is shown as text, and Markdown image syntax shows only its alt text. To show a picture, use an image block.</li>
+        <li>Links in a Markdown block are displayed but are not opened by the app.</li>
+        <li>The UI is available in English and Japanese, with light and dark themes.</li>
+      </ul>
+      <p>Next: <a href="../docs-as-code/">track the project with Git</a>, or <a href="../mcp/">connect an AI tool through MCP</a>.</p>
+
+      <div class="cta-box">
+        <h2>Try Design Dawn</h2>
+        <p>Free and open source (MIT). The Windows build is a zip file; nothing to sign up for.</p>
+        <div class="cta">
+          <a class="btn primary" href="https://github.com/PG-Refactor/Design-Dawn/releases/latest">Download for Windows</a>
+          <a class="btn" href="https://github.com/PG-Refactor/Design-Dawn">View on GitHub</a>
+        </div>
+        <p class="guides">Guides: <a href="../mermaid-gui-editor/">Mermaid GUI</a> · <a href="../docs-as-code/">Git</a> · <a href="../mcp/">AI / MCP</a></p>
+      </div>
+    </div>
+  </article>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span>Design Dawn · MIT License</span>
+    <span><a href="https://github.com/PG-Refactor/Design-Dawn">GitHub</a> · <a href="https://github.com/PG-Refactor/Design-Dawn/issues">Issues</a> · <a href="../ja/download/" hreflang="ja" lang="ja">日本語</a></span>
+  </div>
+</footer>
+</body>
+</html>

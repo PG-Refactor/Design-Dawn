@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Design Dawn — 自由に並べて、AI と書く。| Markdown・Mermaid の設計書アプリ</title>
-  <meta name="description" content="Design Dawn は、Markdown のメモ・Mermaid の図・画像を自由配置キャンバスに並べて設計書（設計ドキュメント）を書き、AI ツールとも一緒に書ける、無料・オープンソースのデスクトップアプリです。AI は許可した範囲だけを手伝い、すべて普通のファイルとして保存されます。">
+  <title>Design Dawn — Markdown・Mermaid で設計書を書く、自由配置キャンバスのアプリ</title>
+  <meta name="description" content="Markdown のメモ・Mermaid の図・画像を自由配置キャンバスに並べて設計書を書く、無料・オープンソースのデスクトップアプリ。普通のファイルで保存し、Git と AI ツールで扱えます。">
   <link rel="canonical" href="https://pg-refactor.github.io/Design-Dawn/ja/">
   <link rel="alternate" hreflang="en" href="https://pg-refactor.github.io/Design-Dawn/">
   <link rel="alternate" hreflang="ja" href="https://pg-refactor.github.io/Design-Dawn/ja/">
@@ -65,6 +65,7 @@
       <a class="hide-sm" href="#features">機能</a>
       <a class="hide-sm" href="#files">保存形式</a>
       <a class="hide-sm" href="#ai">AI / MCP</a>
+      <a class="hide-sm" href="download/">ダウンロード</a>
       <a href="../" hreflang="en" lang="en">English</a>
       <a href="https://github.com/PG-Refactor/Design-Dawn">GitHub</a>
     </nav>
@@ -74,6 +75,7 @@
 <main>
   <div class="hero">
     <div class="wrap">
+      <p class="eyebrow">設計書アプリ · Markdown · Mermaid · Git · MCP</p>
       <h1><span class="glow">自由に並べて、</span>AI と書く。</h1>
       <p class="lead">Design Dawn は、設計書（設計ドキュメント）を書くための無料・オープンソースのデスクトップアプリです。
         <strong>メモ</strong>（Markdown）・<strong>Mermaid の図</strong>・<strong>画像</strong>をシートの好きな場所に置き、
@@ -81,7 +83,7 @@
         すべて普通のファイルとして手元に残ります。</p>
       <div class="cta">
         <a class="btn primary" href="https://github.com/PG-Refactor/Design-Dawn">GitHub で入手</a>
-        <a class="btn" href="https://github.com/PG-Refactor/Design-Dawn/releases/latest">Windows 版をダウンロード</a>
+        <a class="btn" href="download/">Windows 版をダウンロード</a>
         <a class="btn" href="https://github.com/PG-Refactor/Design-Dawn/blob/main/README.ja.md">ビルド方法</a>
       </div>
       <img class="shot" src="../images/overview-dark.png" width="1600" height="1000"
@@ -98,8 +100,8 @@
         <div class="card"><h3>Project ツリー</h3><p>Document をフォルダで整理し、複数を同時に開けます。行のドラッグで並べ替え・移動できます。</p></div>
         <div class="card"><h3>Markdown ブロック</h3><p>キャンバス上では表示結果、編集中はソースとプレビューの分割表示。</p></div>
         <div class="card"><h3>Mermaid の図</h3><p>Mermaid のあらゆる図をローカルで描画・サニタイズ。ネットワークもスクリプトも使いません。</p></div>
-        <div class="card"><h3>Mermaid の GUI 編集</h3><p>フローチャート・シーケンス図・ガントチャート・円グラフを、構文を書かずに一覧とプロパティ欄で編集。正本は Mermaid のソースのままです。</p></div>
-        <div class="card"><h3>Git 連携</h3><p>状態・ステージ・コミット・履歴・左右比較の差分・フェッチ / プル / プッシュをアプリ内で。</p></div>
+        <div class="card"><h3><a href="mermaid-gui-editor/">Mermaid の GUI 編集</a></h3><p>フローチャート・シーケンス図・ガントチャート・円グラフを、構文を書かずに一覧とプロパティ欄で編集。正本は Mermaid のソースのままです。</p></div>
+        <div class="card"><h3><a href="docs-as-code/">Git 連携</a></h3><p>状態・ステージ・コミット・履歴・左右比較の差分・フェッチ / プル / プッシュをアプリ内で。</p></div>
         <div class="card"><h3>外部変更の検知</h3><p>他のエディタ・Git・AI ツールによる変更を検知。読み直す・維持する・比較するを選べます。</p></div>
         <div class="card"><h3>画像とキャプション</h3><p>PNG・JPEG・WebP・SVG・GIF をドラッグ & ドロップで。図には1行のキャプションを付けられます。</p></div>
         <div class="card"><h3>ライト / ダーク、日本語 / 英語</h3><p>2つのテーマと2つの表示言語に対応しています。</p></div>
@@ -131,6 +133,7 @@
           人や AI が1つのブロックだけを、他に触れずに変更することもできます。
           ドキュメント・シート・ブロックにはずっと変わらない ID が付いているので、名前を変えても周りのファイルが壊れることはありません。</p>
         <p>独自のデータベースは使わず、ロックインもありません。Design Dawn をやめても、ドキュメントは Markdown と Mermaid のまま残ります。</p>
+        <p class="more"><a href="docs-as-code/">設計書を Git で管理する方法 →</a></p>
       </div>
 <pre><code>my-project/
 ├── project.json
@@ -157,6 +160,7 @@
         <p>どの Project も、編集を許可するまでは AI からは読み取り専用です。AI は書き込みを依頼できますが、決めるのはアプリでのあなたの回答だけです。
           編集は内容のハッシュで確認されるため、同時の変更は黙って上書きされず衝突として返ります。</p>
 <pre><code>claude mcp add design-dawn -- /path/to/design-dawn-mcp</code></pre>
+        <p class="more"><a href="mcp/">設定・権限・ツールの一覧 →</a></p>
       </div>
       <img class="shot" loading="lazy" src="../images/ai-request.png" width="1600" height="1000" alt="AI が Project を編集してよいかを確認する Design Dawn の画面">
     </div>
@@ -165,6 +169,7 @@
 
 <footer>
   <div class="wrap foot">
+    <span class="foot-guides">ガイド: <a href="mermaid-gui-editor/">Mermaid の GUI 編集</a> · <a href="docs-as-code/">設計書を Git で管理</a> · <a href="mcp/">AI / MCP</a> · <a href="download/">ダウンロード</a></span>
     <span>Design Dawn · MIT ライセンス</span>
     <span><a href="https://github.com/PG-Refactor/Design-Dawn">GitHub</a> · <a href="https://github.com/PG-Refactor/Design-Dawn/issues">Issues</a> · <a href="../" hreflang="en" lang="en">English</a></span>
   </div>
