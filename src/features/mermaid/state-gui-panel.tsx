@@ -14,6 +14,7 @@ import {
 } from "./listed-gui";
 import { LISTED_GUI_MESSAGES } from "./listed-gui-messages";
 import type { DiagramOperationTarget } from "./use-diagram-operation";
+import { useListedPick } from "./use-listed-pick";
 import { useListedRun } from "./use-listed-run";
 import "./listed-gui.css";
 
@@ -42,6 +43,20 @@ export function StateGuiPanel({
   const state = meaning.states.find((candidate) => candidate.id === stateKey);
   const transitionIndex = transitionKey === null ? -1 : Number(transitionKey);
   const transition = meaning.transitions[transitionIndex];
+  useListedPick((hit) => {
+    if (
+      hit.kind === "state" &&
+      meaning.states.some((item) => item.id === hit.id)
+    ) {
+      setStateKey(hit.id);
+    } else if (
+      hit.kind === "transition" &&
+      hit.ordinal !== undefined &&
+      meaning.transitions[hit.ordinal] !== undefined
+    ) {
+      setTransitionKey(String(hit.ordinal));
+    }
+  });
   // Where a transition may start or end: every state, and the start / end point.
   const endPoints = [
     { value: STATE_TERMINAL, label: texts.terminal },

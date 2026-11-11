@@ -21,6 +21,7 @@ import {
 } from "./listed-gui";
 import { LISTED_GUI_MESSAGES } from "./listed-gui-messages";
 import type { DiagramOperationTarget } from "./use-diagram-operation";
+import { useListedPick } from "./use-listed-pick";
 import { useListedRun } from "./use-listed-run";
 import "./listed-gui.css";
 
@@ -73,6 +74,21 @@ export function ErGuiPanel({
   const relationshipIndex =
     relationshipKey === null ? -1 : Number(relationshipKey);
   const relationship = meaning.relationships[relationshipIndex];
+  useListedPick((hit) => {
+    if (
+      hit.kind === "entity" &&
+      meaning.entities.some((item) => item.name === hit.id)
+    ) {
+      setEntityKey(hit.id);
+      setAttributeKey(null);
+    } else if (
+      hit.kind === "relationship" &&
+      hit.ordinal !== undefined &&
+      meaning.relationships[hit.ordinal] !== undefined
+    ) {
+      setRelationshipKey(String(hit.ordinal));
+    }
+  });
 
   const attributeFields: readonly ListedField[] = [
     { id: "type", label: er.attributeType, kind: "text" },

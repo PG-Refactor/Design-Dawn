@@ -5,6 +5,7 @@
 import { EMPTY_SUBGRAPH_HIT_HEIGHT } from "../../config/mermaid-preview-config";
 import type {
   DiagramHit,
+  DiagramHitKind,
   DiagramLine,
   DiagramShape,
   DiagramWedge,
@@ -88,7 +89,22 @@ function emptySubgraphBox(rect: Element): DiagramBox | null {
   };
 }
 
+// Diagrams drawn by the same renderer as flowcharts, whose edges are marked alike; their own
+// readers name those edges.
+const NON_FLOWCHART_EDGE_ROLES: readonly string[] = [
+  "er",
+  "stateDiagram",
+  "classDiagram",
+];
+
 function readFlowchart(root: Element): DiagramLayers {
+  if (
+    NON_FLOWCHART_EDGE_ROLES.includes(
+      root.getAttribute("aria-roledescription") ?? "",
+    )
+  ) {
+    return EMPTY;
+  }
   const nodes = [...root.querySelectorAll("g.node")].flatMap((node) => {
     const id = FLOWCHART_NODE_ID.exec(node.getAttribute("id") ?? "")?.[1];
     if (id === undefined) return [];
@@ -294,7 +310,104 @@ function readPie(root: Element): DiagramLayers {
   return { shapes: legend, wedges, lines: [], areas: [] };
 }
 
-const READERS = [readFlowchart, readSequence, readGantt, readPie];
+// ---- ER, state and class diagrams ----
+
+// One drawing of these types: what its boxes are called (the name inside a node id), and
+// how its edges are numbered (the number in an edge's `data-id`, in source order with gaps
+// for edges the source does not list, such as a note's link).
+interface BoxAndLineDiagram {
+  readonly role: string;
+  readonly nodeId: RegExp;
+  readonly nodeKind: DiagramHitKind;
+  readonly edgeNumber: RegExp;
+  readonly edgeKind: DiagramHitKind;
+}
+
+const BOX_AND_LINE_DIAGRAMS: readonly BoxAndLineDiagram[] = [
+  {
+    role: "er",
+    // `<svg id>-entity-<name>-<counter>`
+    nodeId: /-entity-(.+)-\d+$/,
+    nodeKind: "entity",
+    // `id_entity-<from>-<n>_entity-<to>-<n>_<relationship number>`
+    edgeNumber: /_(\d+)$/,
+    edgeKind: "relationship",
+  },
+  {
+    role: "stateDiagram",
+    // `<svg id>-state-<id>-<counter>`; the start / end points and the parts of a note
+    // (`<id>----note`) are not states.
+    nodeId: /-state-(?!root_(?:start|end)-)((?:(?!----).)+)-\d+$/,
+    nodeKind: "state",
+    // `edge<number>`
+    edgeNumber: /^edge(\d+)$/,
+    edgeKind: "transition",
+  },
+  {
+    role: "classDiagram",
+    // `<svg id>-classId-<name>-<counter>`
+    nodeId: /-classId-(.+)-\d+$/,
+    nodeKind: "class",
+    // `id_<from>_<to>_<relationship number>`
+    edgeNumber: /_(\d+)$/,
+    edgeKind: "relationship",
+  },
+];
+
+function edgeNumberOf(element: Element, pattern: RegExp): number | null {
+  const found = pattern.exec(element.getAttribute("data-id") ?? "")?.[1];
+  return found === undefined ? null : Number(found);
+}
+
+function readBoxesAndLines(root: Element): DiagramLayers {
+  const diagram = BOX_AND_LINE_DIAGRAMS.find(
+    (candidate) => candidate.role === root.getAttribute("aria-roledescription"),
+  );
+  if (diagram === undefined) return EMPTY;
+  const nodes = [...root.querySelectorAll("g.node")].flatMap((node) => {
+    const id = diagram.nodeId.exec(node.getAttribute("id") ?? "")?.[1];
+    if (id === undefined) return [];
+    return boxShape(
+      { kind: diagram.nodeKind, id },
+      node.querySelector(NODE_OUTLINE_SELECTOR),
+    );
+  });
+  const paths = [...root.querySelectorAll(EDGE_PATH_SELECTOR)];
+  // Edge numbers in order: a line's place among them is its place in the source.
+  const numbers = [
+    ...new Set(
+      paths
+        .map((path) => edgeNumberOf(path, diagram.edgeNumber))
+        .filter((value): value is number => value !== null),
+    ),
+  ].sort((first, second) => first - second);
+  const hitOf = (element: Element): DiagramHit | null => {
+    const number = edgeNumberOf(element, diagram.edgeNumber);
+    const ordinal = number === null ? -1 : numbers.indexOf(number);
+    return ordinal < 0 ? null : { kind: diagram.edgeKind, id: "", ordinal };
+  };
+  const lines = paths.flatMap((path) => {
+    const hit = hitOf(path);
+    return hit === null ? [] : lineOf(hit, path);
+  });
+  const labels = [...root.querySelectorAll(EDGE_LABEL_SELECTOR)].flatMap(
+    (label) => {
+      const hit = hitOf(label);
+      return hit === null
+        ? []
+        : boxShape(hit, label.querySelector("rect, foreignObject"));
+    },
+  );
+  return { shapes: [...nodes, ...labels], wedges: [], lines, areas: [] };
+}
+
+const READERS = [
+  readFlowchart,
+  readSequence,
+  readGantt,
+  readPie,
+  readBoxesAndLines,
+];
 
 export function readDiagramLayers(root: Element): DiagramLayers {
   return READERS.map((read) => read(root)).reduce(

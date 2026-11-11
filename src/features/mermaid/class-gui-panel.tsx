@@ -16,6 +16,7 @@ import {
 } from "./listed-gui";
 import { LISTED_GUI_MESSAGES } from "./listed-gui-messages";
 import type { DiagramOperationTarget } from "./use-diagram-operation";
+import { useListedPick } from "./use-listed-pick";
 import { useListedRun } from "./use-listed-run";
 import "./listed-gui.css";
 
@@ -55,6 +56,21 @@ export function ClassGuiPanel({
   const relationshipIndex =
     relationshipKey === null ? -1 : Number(relationshipKey);
   const relationship = meaning.relationships[relationshipIndex];
+  useListedPick((hit) => {
+    if (
+      hit.kind === "class" &&
+      meaning.classes.some((candidate) => candidate.name === hit.id)
+    ) {
+      setClassKey(hit.id);
+      setMemberKey(null);
+    } else if (
+      hit.kind === "relationship" &&
+      hit.ordinal !== undefined &&
+      meaning.relationships[hit.ordinal] !== undefined
+    ) {
+      setRelationshipKey(String(hit.ordinal));
+    }
+  });
   const relationshipFields: readonly ListedField[] = [
     { id: "from", label: texts.from, kind: "text" },
     { id: "fromCardinality", label: texts.fromCardinality, kind: "text" },
