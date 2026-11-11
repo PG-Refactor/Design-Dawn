@@ -320,6 +320,9 @@ export interface FakeGateway extends PersistenceGateway {
   scriptSpreadsheet(selection: SpreadsheetSelection): void;
   // What every following search returns (Rust's view of the files on disk).
   scriptSearch(result: SearchResult): void;
+  // File names in the export folder (`<stem>.<format>`): written by the folder exports,
+  // reported by `exportFolderExisting`.
+  readonly exportFolderFiles: Set<string>;
   // What the next `selectImageFiles` returns: the id of a scripted drop (the chosen files),
   // or null for a cancelled dialog. Default: cancelled.
   scriptImageSelection(dropId: string | null): void;
@@ -342,6 +345,7 @@ export function createFakeGateway(
   const failures = new Map<string, Map<number, OperationErrorKind>>();
   const permanentFailures = new Map<string, OperationErrorKind>();
   const holds = new Map<string, Promise<void>>();
+  const exportFolderFiles = new Set<string>();
   let fileCounter = 0;
   const assets = new Map<DocumentId, Map<string, FakeAsset>>();
   const drops = new Map<string, readonly FakeDroppedFile[]>();
@@ -956,6 +960,7 @@ export function createFakeGateway(
     scriptSpreadsheet(selection) {
       nextSpreadsheet = selection;
     },
+    exportFolderFiles,
     scriptSearch(result) {
       nextSearch = result;
     },
@@ -1103,6 +1108,42 @@ export function createFakeGateway(
           status: "saved" as const,
           fileName: `${suggestedName}.${kind}`,
         }),
+      ),
+    // A folder named "exports" holding the files listed in `exportFolderFiles`.
+    chooseExportFolder: () =>
+      enter("chooseExportFolder", "", () =>
+        operationOk({
+          status: "chosen" as const,
+          token: "export-folder",
+          folderName: "exports",
+        }),
+      ),
+    exportFolderExisting: (_folder, files) =>
+      enter("exportFolderExisting", String(files.length), () =>
+        operationOk(
+          files
+            .map((file) => `${file.stem}.${file.format}`)
+            .filter((name) => exportFolderFiles.has(name)),
+        ),
+      ),
+    exportMarkdownIntoFolder: (_project, documentId, _folder, stem) =>
+      enter("exportMarkdownIntoFolder", `${documentId}:${stem}`, () => {
+        exportFolderFiles.add(`${stem}.md`);
+        return operationOk(`${stem}.md`);
+      }),
+    exportHtmlIntoFolder: (_folder, stem, bytes) =>
+      enter("exportHtmlIntoFolder", `${stem}:${bytes.length}`, () => {
+        exportFolderFiles.add(`${stem}.html`);
+        return operationOk(`${stem}.html`);
+      }),
+    exportPdfIntoFolder: (_folder, stem, html, page) =>
+      enter(
+        "exportPdfIntoFolder",
+        `${stem}:${html.length}:${page.width}x${page.height}`,
+        () => {
+          exportFolderFiles.add(`${stem}.pdf`);
+          return operationOk(`${stem}.pdf`);
+        },
       ),
     // The scripted search result, else nothing found.
     searchProject: (_project, text, matchCase) =>

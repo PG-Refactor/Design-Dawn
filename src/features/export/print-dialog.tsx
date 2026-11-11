@@ -1,22 +1,28 @@
 import { useId, useRef, useState } from "react";
+import {
+  ORIENTATIONS,
+  type Orientation,
+  PAPER_SCALES,
+  PAPER_SIZE_IDS,
+  PAPER_SIZES,
+  type PaperScale,
+  type PaperSettings,
+  type PaperSize,
+} from "../../domain/print/paper";
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
+import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { useMermaidRenderer } from "../mermaid/mermaid-renderer-context";
 import { Modal } from "../workspace/modal";
 import { useMessages } from "../workspace/use-messages";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
-import {
-  type ExportLayout,
-  type Orientation,
-  PAPER_SIZES,
-  type PaperScale,
-  type PaperSize,
-} from "./export-html";
+import type { ExportLayout } from "./export-html";
 import {
   discardFrame,
   type PreparedPrint,
   preparePrintFrame,
   printFrame,
 } from "./print-frame";
+import type { PrintMode } from "./print-settings";
 import "./print-dialog.css";
 
 export interface PrintTarget {
@@ -29,11 +35,6 @@ export interface PrintTarget {
 }
 
 type Scope = "sheet" | "document";
-type Mode = "fit" | "paper";
-
-const PAPER_SIZE_IDS = Object.keys(PAPER_SIZES) as PaperSize[];
-const ORIENTATIONS: readonly Orientation[] = ["portrait", "landscape"];
-const SCALES: readonly PaperScale[] = ["actual", "fitWidth", "fitPage"];
 
 type Status =
   | { readonly kind: "editing" }
@@ -57,10 +58,23 @@ export function PrintDialog({
   const descriptionId = useId();
   const printRef = useRef<HTMLButtonElement>(null);
   const [scope, setScope] = useState<Scope>("sheet");
-  const [mode, setMode] = useState<Mode>("fit");
-  const [paperSize, setPaperSize] = useState<PaperSize>("a4");
-  const [orientation, setOrientation] = useState<Orientation>("portrait");
-  const [scale, setScale] = useState<PaperScale>("fitWidth");
+  // The choices are kept for the next print and shown at once by the canvas page breaks.
+  const settings = useStoreSelector(
+    exportActions.printSettings,
+    (state) => state,
+  );
+  const { mode } = settings;
+  const { size: paperSize, orientation, scale } = settings.paper;
+  const setMode = (next: PrintMode) =>
+    exportActions.printSettings.setState((state) => ({ ...state, mode: next }));
+  const setPaper = (change: Partial<PaperSettings>) =>
+    exportActions.printSettings.setState((state) => ({
+      ...state,
+      paper: { ...state.paper, ...change },
+    }));
+  const setPaperSize = (size: PaperSize) => setPaper({ size });
+  const setOrientation = (next: Orientation) => setPaper({ orientation: next });
+  const setScale = (next: PaperScale) => setPaper({ scale: next });
   const [status, setStatus] = useState<Status>({ kind: "editing" });
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -171,6 +185,9 @@ export function PrintDialog({
             {messages.modePaper}
           </label>
           {mode === "paper" && (
+            <p className="print-dialog__note">{messages.printPaperNote}</p>
+          )}
+          {mode === "paper" && (
             <div className="print-dialog__paper">
               <label>
                 {messages.paperSize}
@@ -210,7 +227,7 @@ export function PrintDialog({
                 <select
                   value={scale}
                   onChange={(event) => {
-                    const next = SCALES.find(
+                    const next = PAPER_SCALES.find(
                       (value) => value === event.target.value,
                     );
                     if (next !== undefined) setScale(next);

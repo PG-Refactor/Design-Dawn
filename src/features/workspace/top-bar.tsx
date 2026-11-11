@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   THEME_PREFERENCES,
   type ThemePreference,
@@ -17,14 +17,18 @@ import { AiAccessDialog } from "../ai-access/ai-access-dialog";
 import { AiAccessRequestPrompt } from "../ai-access/ai-access-request-prompt";
 import { AiHistoryDialog } from "../ai-access/ai-history-dialog";
 import { AiImageRequestPrompt } from "../ai-access/ai-image-request-prompt";
+import { ExportDocumentsDialog } from "../export/export-documents-dialog";
 import { PrintDialog, type PrintTarget } from "../export/print-dialog";
+import { isPrintShortcut, PRINT_KEY } from "../export/print-shortcut";
 import { type HelpDialogKind, HelpDialogs } from "../help/help-dialogs";
 import { MenuBar } from "../menu-bar/menu-bar";
 import type { MenuDefinition } from "../menu-bar/menu-bar-types";
 import { useMermaidRenderer } from "../mermaid/mermaid-renderer-context";
+import { FIND_KEY } from "../search/find-shortcuts";
+import { requestFind } from "../search/find-store";
 import { Notifications } from "./notifications";
 import { saveEverything } from "./save-everything";
-import { saveShortcutHint } from "./save-shortcut";
+import { modifierShortcutHint, saveShortcutHint } from "./save-shortcut";
 import type { UiState } from "./ui-state/ui-state";
 import { useMessages } from "./use-messages";
 import { useUiState, useWorkspaceModel } from "./workspace-hooks";
@@ -33,6 +37,9 @@ import { useWorkspaceServices } from "./workspace-services-context";
 import "./top-bar.css";
 
 const SAVE_SHORTCUT_KEYS = "Control+S Meta+S";
+const PRINT_SHORTCUT_KEYS = "Control+P Meta+P";
+const FIND_SHORTCUT_KEYS = "Control+F Meta+F";
+const SEARCH_PROJECT_SHORTCUT_KEYS = "Control+Shift+F Meta+Shift+F";
 
 function themeLabel(
   topBar: WorkspaceMessages["topBar"],
@@ -94,6 +101,7 @@ export function TopBar() {
     autoSaveController,
     viewportPersistence,
     exportActions,
+    searchActions,
     applicationStore,
   } = useWorkspaceServices();
   const activeDocumentId = useUiState(selectActiveDocumentId);
@@ -101,6 +109,11 @@ export function TopBar() {
   const exportMessages = allMessages.export;
   const mermaidRenderer = useMermaidRenderer();
   const [printTarget, setPrintTarget] = useState<PrintTarget | null>(null);
+  const searchMessages = allMessages.search;
+  const showPageBreaks = useStoreSelector(
+    exportActions.printSettings,
+    (settings) => settings.showPageBreaks,
+  );
 
   // The shown Document and sheet, with the names and order the exports need.
   const shownTarget = useCallback((): PrintTarget | null => {
@@ -188,6 +201,7 @@ export function TopBar() {
   const [helpDialog, setHelpDialog] = useState<HelpDialogKind | null>(null);
   const [aiAccessOpen, setAiAccessOpen] = useState(false);
   const [aiHistoryOpen, setAiHistoryOpen] = useState(false);
+  const [exportDocumentsOpen, setExportDocumentsOpen] = useState(false);
 
   const menus = useMemo<readonly MenuDefinition[]>(
     () => [
@@ -272,15 +286,24 @@ export function TopBar() {
                 disabled: activeDocumentId === null,
                 onSelect: () => exportHtml("document"),
               },
-              { kind: "separator", id: "separator-print" },
+              { kind: "separator", id: "separator-documents" },
               {
                 kind: "item",
-                id: "print",
-                label: exportMessages.print,
-                disabled: activeDocumentId === null,
-                onSelect: () => setPrintTarget(shownTarget()),
+                id: "exportDocuments",
+                label: exportMessages.documentsMenu,
+                disabled: !hasProject,
+                onSelect: () => setExportDocumentsOpen(true),
               },
             ],
+          },
+          {
+            kind: "item",
+            id: "print",
+            label: exportMessages.print,
+            shortcutHint: modifierShortcutHint(navigator.platform, PRINT_KEY),
+            shortcutKeys: PRINT_SHORTCUT_KEYS,
+            disabled: activeDocumentId === null,
+            onSelect: () => setPrintTarget(shownTarget()),
           },
           { kind: "separator", id: "separator-ai" },
           {
@@ -324,6 +347,44 @@ export function TopBar() {
               const next = THEME_PREFERENCES.find((item) => item === value);
               if (next !== undefined) void themeController.setPreference(next);
             },
+          },
+          { kind: "separator", id: "separator-find" },
+          {
+            kind: "item",
+            id: "findInSheet",
+            label: searchMessages.findInSheetMenu,
+            shortcutHint: modifierShortcutHint(navigator.platform, FIND_KEY),
+            shortcutKeys: FIND_SHORTCUT_KEYS,
+            disabled: activeDocumentId === null,
+            onSelect: () => requestFind(searchActions.findStore, "sheet", null),
+          },
+          {
+            kind: "item",
+            id: "searchProject",
+            label: searchMessages.searchProjectMenu,
+            shortcutHint: modifierShortcutHint(
+              navigator.platform,
+              FIND_KEY,
+              true,
+            ),
+            shortcutKeys: SEARCH_PROJECT_SHORTCUT_KEYS,
+            disabled: !hasProject,
+            onSelect: () => {
+              actions.setSidebarCollapsed(false);
+              actions.setLeftPanelMode("search");
+              requestFind(searchActions.findStore, "project", null);
+            },
+          },
+          {
+            kind: "checkbox",
+            id: "showPageBreaks",
+            label: exportMessages.showPageBreaks,
+            checked: showPageBreaks,
+            onSelect: () =>
+              exportActions.printSettings.setState((state) => ({
+                ...state,
+                showPageBreaks: !state.showPageBreaks,
+              })),
           },
           { kind: "separator", id: "separator-text-size" },
           {
@@ -396,6 +457,9 @@ export function TopBar() {
       viewportPersistence,
       exportActions,
       exportMessages,
+      searchActions,
+      searchMessages,
+      showPageBreaks,
       activeDocumentId,
       exportHtml,
       shownTarget,
@@ -416,6 +480,20 @@ export function TopBar() {
     ],
   );
 
+  // Ctrl+P opens this dialog wherever the focus is (the webview would print the app's own
+  // page). Capture phase, as inputs stop propagation.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!isPrintShortcut(event)) return;
+      event.preventDefault();
+      const target = shownTarget();
+      if (target !== null) setPrintTarget(target);
+    };
+    window.addEventListener("keydown", onKeyDown, { capture: true });
+    return () =>
+      window.removeEventListener("keydown", onKeyDown, { capture: true });
+  }, [shownTarget]);
+
   return (
     <header className="top-bar">
       {/* The app and Project names are in the window's own title bar ("Design Dawn (name)");
@@ -432,6 +510,9 @@ export function TopBar() {
       <AiImageRequestPrompt />
       {aiHistoryOpen && (
         <AiHistoryDialog onClose={() => setAiHistoryOpen(false)} />
+      )}
+      {exportDocumentsOpen && (
+        <ExportDocumentsDialog onClose={() => setExportDocumentsOpen(false)} />
       )}
       {printTarget !== null && (
         <PrintDialog

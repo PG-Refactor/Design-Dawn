@@ -85,3 +85,33 @@ export type ExportOutcome =
 // What the app hands Rust to write through the save dialog.
 export const EXPORT_FILE_KINDS = ["svg", "png", "html"] as const;
 export type ExportFileKind = (typeof EXPORT_FILE_KINDS)[number];
+
+// "Export Documents…": the folder chosen in Rust's dialog, known to the app by a token.
+export const EXPORT_FOLDER_STATUS = {
+  chosen: "chosen",
+  cancelled: "cancelled",
+} as const;
+
+export type ExportFolderChoice =
+  | {
+      readonly status: typeof EXPORT_FOLDER_STATUS.chosen;
+      readonly token: string;
+      readonly folderName: string;
+    }
+  | { readonly status: typeof EXPORT_FOLDER_STATUS.cancelled };
+
+// What one Document becomes in the folder.
+export const EXPORT_FOLDER_FORMATS = ["md", "html", "pdf"] as const;
+export type ExportFolderFormat = (typeof EXPORT_FOLDER_FORMATS)[number];
+
+export interface ExportFolderFile {
+  // The Document's name; Rust makes it a safe file name and adds the extension.
+  readonly stem: string;
+  readonly format: ExportFolderFormat;
+}
+
+// The largest page of a PDF export in CSS pixels (Linux prints every page this size).
+export interface PdfPageExtent {
+  readonly width: number;
+  readonly height: number;
+}

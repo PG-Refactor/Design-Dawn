@@ -7,9 +7,11 @@ pub mod ai_requests;
 mod app_channel;
 mod asset_protocol;
 mod drag_drop;
+pub mod export_folder;
 mod external_watch;
 mod folder_picker;
 mod open_dispatch;
+mod pdf_printer;
 mod window_close;
 mod window_size;
 
@@ -81,7 +83,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 86] = [
+pub const COMMAND_NAMES: [&str; 91] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -128,6 +130,11 @@ pub const COMMAND_NAMES: [&str; 86] = [
     "search_project",
     "export_document_markdown",
     "export_file",
+    "choose_export_folder",
+    "export_folder_existing",
+    "export_markdown_into_folder",
+    "export_into_folder",
+    "export_pdf_into_folder",
     "asset_data_url",
     "ai_history",
     "ai_image_request_preview",

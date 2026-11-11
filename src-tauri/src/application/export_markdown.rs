@@ -385,24 +385,19 @@ pub fn write_file_atomically(target: &Path, bytes: &[u8]) -> ApplicationResult<(
     })
 }
 
-/// Asks where to save, then writes the Markdown file and copies the images it refers to into
-/// `<stem>-assets/` beside it. The paths stay in Rust; the Frontend gets the file's name.
-pub fn export_document_markdown(
-    dialogs: &dyn FileDialogs,
-    root: &Path,
-    document_id: &str,
-) -> ApplicationResult<SaveOutcome> {
-    let document_name = {
-        let mut sessions = ProjectSessions::default();
-        let project = open_project(&mut sessions, root)?;
+fn document_name(root: &Path, document_id: &str) -> ApplicationResult<String> {
+    let mut sessions = ProjectSessions::default();
+    let project = open_project(&mut sessions, root)?;
+    Ok(
         load_document(&mut sessions, &project.project.project_id, document_id)?
             .document
-            .name
-    };
-    let Some(target) = dialogs.save_file(MARKDOWN_FILTER, &suggested_file_name(&document_name))?
-    else {
-        return Ok(SaveOutcome::Cancelled);
-    };
+            .name,
+    )
+}
+
+/// Writes the Document as the Markdown file `target` and copies the images it refers to into
+/// `<stem>-assets/` beside it.
+fn write_document_markdown(root: &Path, document_id: &str, target: &Path) -> ApplicationResult<()> {
     let stem = target.file_stem().map_or_else(
         || FALLBACK_FILE_STEM.to_owned(),
         |stem| stem.to_string_lossy().into_owned(),
@@ -433,12 +428,48 @@ pub fn export_document_markdown(
                 .map_err(|error| write_error(format!("copy {file:?}: {error}")))?;
         }
     }
-    write_file_atomically(&target, exported.text.as_bytes())?;
+    write_file_atomically(target, exported.text.as_bytes())
+}
+
+fn file_name_of(target: &Path) -> String {
+    target
+        .file_name()
+        .map_or_else(String::new, |name| name.to_string_lossy().into_owned())
+}
+
+/// Asks where to save, then writes the Markdown file and copies the images it refers to into
+/// `<stem>-assets/` beside it. The paths stay in Rust; the Frontend gets the file's name.
+pub fn export_document_markdown(
+    dialogs: &dyn FileDialogs,
+    root: &Path,
+    document_id: &str,
+) -> ApplicationResult<SaveOutcome> {
+    let name = document_name(root, document_id)?;
+    let Some(target) = dialogs.save_file(MARKDOWN_FILTER, &suggested_file_name(&name))? else {
+        return Ok(SaveOutcome::Cancelled);
+    };
+    write_document_markdown(root, document_id, &target)?;
     Ok(SaveOutcome::Saved {
-        file_name: target
-            .file_name()
-            .map_or_else(String::new, |name| name.to_string_lossy().into_owned()),
+        file_name: file_name_of(&target),
     })
+}
+
+/// The Markdown file name an export into a folder gives a Document called `stem`.
+pub fn markdown_file_name(stem: &str) -> String {
+    suggested_file_name(stem)
+}
+
+/// Writes the Document into `folder` as `<stem>.md` (and `<stem>-assets/`), replacing a file
+/// of that name. Returns the file's name.
+pub fn export_document_markdown_into(
+    root: &Path,
+    document_id: &str,
+    folder: &Path,
+    stem: &str,
+) -> ApplicationResult<String> {
+    let target = folder.join(suggested_file_name(stem));
+    write_document_markdown(root, document_id, &target)?;
+    Ok(file_name_of(&target))
 }
 
 #[cfg(test)]

@@ -2,11 +2,13 @@
 // sanitised HTML the app shows, diagrams and images as data URLs. No script, no external
 // file. The same page is used for the HTML export and, with page rules, for printing.
 
+import { PRINT_CONFIG } from "../../config/print-config";
+import { contentBounds, type Rect } from "../../domain/print/page-layout";
 import {
-  contentBounds,
-  paginate,
-  type Rect,
-} from "../../domain/print/page-layout";
+  PAPER_SIZES,
+  type PaperSettings,
+  paperLayout,
+} from "../../domain/print/paper";
 
 export interface ExportBlock {
   readonly rect: Rect;
@@ -36,29 +38,16 @@ export interface ExportPalette {
   readonly captionBackground: string;
 }
 
-export const PAPER_SIZES = {
-  // At the CSS reference of 96 pixels per inch.
-  a4: { width: 794, height: 1123, name: "A4" },
-  a3: { width: 1123, height: 1587, name: "A3" },
-} as const;
-export type PaperSize = keyof typeof PAPER_SIZES;
-export type Orientation = "portrait" | "landscape";
-export type PaperScale = "actual" | "fitWidth" | "fitPage";
-
 export type ExportLayout =
   | { readonly kind: "screen" }
   // One page per sheet, as large as its content.
   | { readonly kind: "fit" }
-  | {
-      readonly kind: "paper";
-      readonly size: PaperSize;
-      readonly orientation: Orientation;
-      readonly scale: PaperScale;
-    };
+  // Cut into paper pages, each headed by the sheet's name.
+  | ({ readonly kind: "paper" } & PaperSettings);
 
-// Space around the blocks of a sheet, and the height of a sheet's title line.
-const SHEET_MARGIN = 24;
-const TITLE_HEIGHT = 48;
+const SHEET_MARGIN = PRINT_CONFIG.sheetMargin;
+const TITLE_HEIGHT = PRINT_CONFIG.sheetTitleHeight;
+const HEADING_HEIGHT = PRINT_CONFIG.paperHeadingHeight;
 
 const HTML_ESCAPES: Readonly<Record<string, string>> = {
   "&": "&amp;",
@@ -100,6 +89,9 @@ html,body{margin:0;background:var(--background);color:var(--text);font-family:"S
 .block__body .markdown-align-center{text-align:center;}.block__body .markdown-align-right{text-align:right;}
 .block__body .markdown-image-alt{color:var(--muted);font-style:italic;}
 .page{position:relative;overflow:hidden;break-after:page;}
+.page-heading{display:flex;justify-content:space-between;align-items:center;height:${HEADING_HEIGHT}px;padding:0 ${SHEET_MARGIN}px;border-bottom:1px solid var(--border);color:var(--muted);font-size:12px;}
+.page-heading__name{font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.page-body{position:absolute;left:0;top:${HEADING_HEIGHT}px;overflow:hidden;}
 .page:last-child{break-after:auto;}
 @media print{html,body{background:var(--surface);}}
 `;
@@ -133,35 +125,6 @@ function sheetCanvas(sheet: ExportSheet, bounds: Rect): string {
   return `<div class="sheet" style="width:${bounds.width}px;height:${bounds.height}px">${blocks}</div>`;
 }
 
-function paperDimensions(
-  size: PaperSize,
-  orientation: Orientation,
-): { readonly width: number; readonly height: number } {
-  const paper = PAPER_SIZES[size];
-  return orientation === "portrait"
-    ? { width: paper.width, height: paper.height }
-    : { width: paper.height, height: paper.width };
-}
-
-function paperScale(
-  scale: PaperScale,
-  bounds: Rect,
-  page: { width: number; height: number },
-): number {
-  switch (scale) {
-    case "actual":
-      return 1;
-    case "fitWidth":
-      return Math.min(1, page.width / bounds.width);
-    case "fitPage":
-      return Math.min(
-        1,
-        page.width / bounds.width,
-        page.height / bounds.height,
-      );
-  }
-}
-
 // What each sheet becomes, and the page rules that go with it.
 function sheetsMarkup(
   sheets: readonly ExportSheet[],
@@ -191,22 +154,26 @@ function sheetsMarkup(
       );
       return;
     }
-    const paper = paperDimensions(layout.size, layout.orientation);
-    const scale = paperScale(layout.scale, bounds, paper);
-    const pages = paginate(
-      bounds,
+    const paper = paperLayout(
       sheet.blocks.map((block) => block.rect),
-      paper.width / scale,
-      paper.height / scale,
+      layout,
+      SHEET_MARGIN,
+      HEADING_HEIGHT,
     );
+    if (paper === null) return;
     const canvas = sheetCanvas(sheet, bounds);
-    for (const page of pages) {
-      const left = -(page.x - bounds.x) * scale;
-      const top = -(page.y - bounds.y) * scale;
+    const name = escapeHtml(sheet.name);
+    paper.pages.forEach((page, pageIndex) => {
+      const left = -(page.x - bounds.x) * paper.scale;
+      const top = -(page.y - bounds.y) * paper.scale;
+      const number =
+        paper.pages.length > 1
+          ? `<span>${pageIndex + 1} / ${paper.pages.length}</span>`
+          : "";
       parts.push(
-        `<div class="page" style="width:${paper.width}px;height:${paper.height}px"><div style="position:absolute;left:${left}px;top:${top}px;transform:scale(${scale});transform-origin:0 0">${canvas}</div></div>`,
+        `<div class="page" style="width:${paper.paper.width}px;height:${paper.paper.height}px"><div class="page-heading"><span class="page-heading__name">${name}</span>${number}</div><div class="page-body" style="width:${paper.area.width}px;height:${paper.area.height}px"><div style="position:absolute;left:${left}px;top:${top}px;transform:scale(${paper.scale});transform-origin:0 0">${canvas}</div></div></div>`,
       );
-    }
+    });
   });
   if (layout.kind === "paper") {
     const paper = PAPER_SIZES[layout.size];
@@ -225,4 +192,25 @@ export function buildExportHtml(input: {
   return `<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(input.title)}</title><style>${styleOf(input.palette)}${pageRules}</style></head><body>${body}</body></html>
 `;
+}
+
+// The largest page of a "fit" layout (one page per sheet, its title above), or null when no
+// sheet has blocks.
+export function largestFitPage(
+  sheets: readonly ExportSheet[],
+): { readonly width: number; readonly height: number } | null {
+  const pages = sheets.flatMap((sheet) => {
+    const bounds = contentBounds(
+      sheet.blocks.map((block) => block.rect),
+      SHEET_MARGIN,
+    );
+    return bounds === null
+      ? []
+      : [{ width: bounds.width, height: bounds.height + TITLE_HEIGHT }];
+  });
+  if (pages.length === 0) return null;
+  return {
+    width: Math.max(...pages.map((page) => page.width)),
+    height: Math.max(...pages.map((page) => page.height)),
+  };
 }

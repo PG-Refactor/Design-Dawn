@@ -160,3 +160,31 @@
   font-weight: bold;
   pointer-events: none;
 }
+
+/* Page breaks (View > Show Page Breaks): drawn in world units, so the line and the label
+   are divided by the zoom to keep their size on screen. Never takes the pointer. */
+.canvas__page-breaks {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.canvas__page {
+  position: absolute;
+  box-sizing: border-box;
+  border: calc(1px * var(--page-break-scale)) dashed var(--color-text-muted);
+}
+
+.canvas__page-number {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: calc(2px * var(--page-break-scale))
+    calc(6px * var(--page-break-scale));
+  border-bottom-right-radius: calc(4px * var(--page-break-scale));
+  background: var(--color-surface-raised);
+  color: var(--color-text-muted);
+  font-size: calc(12px * var(--page-break-scale));
+  white-space: nowrap;
+}

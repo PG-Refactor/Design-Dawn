@@ -25,3 +25,27 @@
 .print-dialog__warning {
   color: var(--color-warning);
 }
+
+.print-dialog__note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.print-dialog__row {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.print-dialog__documents {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 12rem;
+  overflow-y: auto;
+}
+
+.print-dialog__files {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-4);
+}

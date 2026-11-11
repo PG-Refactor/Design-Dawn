@@ -208,6 +208,7 @@ export function createAppServices(): AppServices {
   });
   const exportActions = createExportActions({
     gateway,
+    workspace,
     applicationStore,
     uiStateStore,
     actions,

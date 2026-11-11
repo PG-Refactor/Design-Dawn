@@ -72,6 +72,7 @@ import {
   screenToWorld,
   worldLayerTransform,
 } from "./geometry/viewport-math";
+import { PageBreakOverlay } from "./page-break-overlay";
 import { ZoomControl } from "./zoom-control";
 import "./canvas.css";
 
@@ -654,6 +655,7 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
           data-testid="canvas-world"
           style={{ transform: worldLayerTransform(viewport) }}
         >
+          <PageBreakOverlay blocks={blocks} zoom={viewport.zoom} />
           {blocks.map((block) => {
             const frame = displayedFrame(block, interaction, sheetId);
             return (

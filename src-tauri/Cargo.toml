@@ -39,6 +39,17 @@ calamine = { version = "=0.38.0", features = ["dates"] }
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-single-instance = "2"
 
+# Printing an export page to PDF without the print dialog, through the webview Tauri
+# already uses (the same versions as in its dependency tree). MIT; `windows` MIT OR
+# Apache-2.0.
+[target.'cfg(windows)'.dependencies]
+webview2-com = "=0.39.1"
+windows = "=0.62.2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+webkit2gtk = "=2.0.2"
+gtk = "=0.18.2"
+
 [dev-dependencies]
 # `tauri::test` (mock runtime) for the command-boundary integration tests only. Cargo's
 # resolver 2 keeps dev-dependency features out of normal and release builds.

@@ -91,6 +91,11 @@ export const GATEWAY_METHOD_KINDS = {
   // Writes outside the Project only.
   exportDocumentMarkdown: "read",
   exportFile: "read",
+  chooseExportFolder: "read",
+  exportFolderExisting: "read",
+  exportMarkdownIntoFolder: "read",
+  exportHtmlIntoFolder: "read",
+  exportPdfIntoFolder: "read",
   assetDataUrl: "read",
   copyAssetToDocument: "write",
 } as const satisfies Record<keyof PersistenceGateway, "write" | "read">;

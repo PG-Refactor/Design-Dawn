@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildExportHtml, type ExportPalette, escapeHtml } from "./export-html";
+import {
+  buildExportHtml,
+  type ExportPalette,
+  escapeHtml,
+  largestFitPage,
+} from "./export-html";
 
 const PALETTE: ExportPalette = {
   text: "#000",
@@ -77,6 +82,44 @@ describe("buildExportHtml", () => {
     });
     expect(html).toContain("@page{size:A4 landscape;margin:0;}");
     expect(html).toContain('class="page" style="width:1123px;height:794px"');
+    // Every page is headed by the sheet's name; the content goes below the heading.
+    expect(html).toContain(
+      '<div class="page-heading"><span class="page-heading__name">Overview &lt;1&gt;</span></div>',
+    );
+    expect(html).toContain(
+      'class="page-body" style="width:1123px;height:762px"',
+    );
+  });
+
+  it("numbers the pages of a sheet cut into several", () => {
+    const html = buildExportHtml({
+      title: "t",
+      sheets: [
+        {
+          name: "Long",
+          blocks: [0, 1, 2].map((row) => ({
+            rect: { x: 0, y: row * 700, width: 300, height: 600 },
+            content: { kind: "html" as const, html: "<p>x</p>" },
+          })),
+        },
+      ],
+      palette: PALETTE,
+      layout: {
+        kind: "paper",
+        size: "a4",
+        orientation: "portrait",
+        scale: "actual",
+      },
+    });
+    expect(html).toContain("<span>1 / 3</span>");
+    expect(html).toContain("<span>3 / 3</span>");
+  });
+});
+
+describe("largestFitPage", () => {
+  it("is the widest and the tallest sheet page, title included", () => {
+    expect(largestFitPage(SHEETS)).toEqual({ width: 468, height: 148 + 48 });
+    expect(largestFitPage([{ name: "Empty", blocks: [] }])).toBeNull();
   });
 });
 

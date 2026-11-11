@@ -4,7 +4,7 @@
 import type { SaveShortcutEventLike } from "../workspace/save-shortcut";
 import type { FindTarget } from "./find-store";
 
-const FIND_KEY = "f";
+export const FIND_KEY = "f";
 
 // `event.key` is matched so the shortcut follows the printed letter on any layout; Alt
 // (AltGr types characters on some layouts) and IME composition are not a shortcut.
