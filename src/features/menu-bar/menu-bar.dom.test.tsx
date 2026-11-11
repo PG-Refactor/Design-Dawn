@@ -260,3 +260,50 @@ describe("MenuBar disabled items", () => {
     expect(screen.getByRole("menu")).toBeTruthy();
   });
 });
+
+describe("a submenu under the pointer", () => {
+  it("stays open while the pointer crosses another entry, and follows it after a moment", async () => {
+    const onExport = vi.fn();
+    render(
+      <MenuBar
+        label="Menu"
+        menus={[
+          {
+            id: "file",
+            label: "File",
+            entries: [
+              {
+                kind: "submenu",
+                id: "export",
+                label: "Export",
+                entries: [
+                  {
+                    kind: "item",
+                    id: "md",
+                    label: "Markdown",
+                    onSelect: onExport,
+                  },
+                ],
+              },
+              { kind: "item", id: "print", label: "Print", onSelect: vi.fn() },
+            ],
+          },
+        ]}
+      />,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("menuitem", { name: "File" }));
+    await user.hover(screen.getByRole("menuitem", { name: "Export" }));
+    expect(screen.getByRole("menu", { name: "Export" })).toBeTruthy();
+    // On the way to the submenu, the pointer passes over "Print".
+    await user.hover(screen.getByRole("menuitem", { name: "Print" }));
+    await user.click(screen.getByRole("menuitem", { name: "Markdown" }));
+    expect(onExport).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole("menuitem", { name: "File" }));
+    await user.hover(screen.getByRole("menuitem", { name: "Export" }));
+    await user.hover(screen.getByRole("menuitem", { name: "Print" }));
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(screen.queryByRole("menu", { name: "Export" })).toBeNull();
+  });
+});

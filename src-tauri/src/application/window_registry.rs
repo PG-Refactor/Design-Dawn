@@ -103,6 +103,18 @@ impl WindowRegistry {
         windows
     }
 
+    /// The windows a Document of `project` can be moved to: every window of the Project
+    /// except a Document window that holds nothing (it is closing; a move there would land
+    /// in a window that is going away).
+    pub fn move_targets_of_project(&self, project: &ProjectId) -> Vec<(String, WindowRole)> {
+        self.windows_of_project(project)
+            .into_iter()
+            .filter(|(label, role)| {
+                *role == WindowRole::Project || !self.documents_of(label).is_empty()
+            })
+            .collect()
+    }
+
     /// The window that holds the Document, if any.
     pub fn owner_of_document(&self, project: &ProjectId, document: &DocumentId) -> Option<&str> {
         self.windows
@@ -413,6 +425,22 @@ mod tests {
 
     fn document(number: u8) -> DocumentId {
         DocumentId::parse(&format!("01928f3a-0000-7000-8000-0000000001{number:02}")).unwrap()
+    }
+
+    #[test]
+    fn an_empty_document_window_is_no_move_target() {
+        let mut registry = WindowRegistry::default();
+        registry.bind("main", project(1)).unwrap();
+        registry.attach_document_window("window-1", project(1));
+        registry.attach_document_window("window-2", project(1));
+        registry.move_document(&project(1), document(1), "window-2");
+        assert_eq!(
+            registry.move_targets_of_project(&project(1)),
+            vec![
+                ("main".to_owned(), WindowRole::Project),
+                ("window-2".to_owned(), WindowRole::Document),
+            ]
+        );
     }
 
     #[test]

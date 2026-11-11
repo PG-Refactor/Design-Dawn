@@ -2025,7 +2025,7 @@ pub fn project_window_at<R: Runtime>(
         let registry = window.state::<Mutex<WindowRegistry>>();
         let registry = lock_registry(&registry);
         let mut labels: Vec<String> = registry
-            .windows_of_project(&project)
+            .move_targets_of_project(&project)
             .into_iter()
             .map(|(label, _)| label)
             .filter(|label| label != window.label())
@@ -2130,7 +2130,7 @@ pub fn list_project_windows<R: Runtime>(
     let registry = window.state::<Mutex<WindowRegistry>>();
     let registry = lock_registry(&registry);
     Ok(registry
-        .windows_of_project(&project)
+        .move_targets_of_project(&project)
         .into_iter()
         .map(|(label, role)| ProjectWindow {
             is_self: label == window.label(),

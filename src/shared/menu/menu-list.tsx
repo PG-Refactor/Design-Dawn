@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useSubmenuIntent } from "./submenu-intent";
 
 export interface PopupMenuItem {
   readonly id: string;
@@ -92,6 +93,7 @@ export function MenuList({
 }: MenuListProps) {
   const ownRef = useRef<HTMLDivElement | null>(null);
   const [openSubmenuId, setOpenSubmenuId] = useState<string | null>(null);
+  const intent = useSubmenuIntent(openSubmenuId, setOpenSubmenuId);
   const submenuItemRefs = useRef(new Map<string, HTMLButtonElement>());
 
   function itemElements(): HTMLElement[] {
@@ -191,7 +193,11 @@ export function MenuList({
         if (isSubmenu(entry)) {
           const open = openSubmenuId === entry.id;
           return (
-            <div key={entry.id} className="popup-menu__submenu">
+            <div
+              key={entry.id}
+              className="popup-menu__submenu"
+              onPointerEnter={open ? intent.keep : undefined}
+            >
               <button
                 ref={(element) => {
                   if (element === null)
@@ -205,7 +211,7 @@ export function MenuList({
                 aria-expanded={open}
                 // Opens, never toggles: the pointer reaching the item already opened it.
                 onClick={() => setOpenSubmenuId(entry.id)}
-                onPointerEnter={() => setOpenSubmenuId(entry.id)}
+                onPointerEnter={() => intent.change(entry.id)}
                 onKeyDown={(event) => {
                   if (event.key !== KEYS.arrowRight) return;
                   event.preventDefault();
@@ -240,8 +246,9 @@ export function MenuList({
             aria-disabled={entry.disabled === true ? true : undefined}
             aria-description={entry.hint}
             title={entry.hint}
-            // Moving to another item closes an open submenu, like a desktop menu.
-            onPointerEnter={() => setOpenSubmenuId(null)}
+            // Moving to another item closes an open submenu, like a desktop menu (after a
+            // moment, in case the pointer is only passing on its way into the submenu).
+            onPointerEnter={() => intent.change(null)}
             onClick={() => {
               if (entry.disabled === true) return;
               onChoose(entry);

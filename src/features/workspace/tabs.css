@@ -54,7 +54,15 @@
 
 .tab__control {
   padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-medium);
   color: var(--color-text-muted);
+}
+
+/* The x (and the other small tab buttons) show that the pointer is on them, apart from
+   the tab under it: a darker patch than the tab's own hover. */
+.tab__control:hover {
+  background: var(--color-border);
+  color: var(--color-text);
 }
 
 .save-status {
