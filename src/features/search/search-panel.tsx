@@ -207,6 +207,22 @@ export function SearchPanel() {
     );
   }
 
+  // The match in its Block's source editor (a caption match: the Block selected).
+  async function openMatch({ match, ordinal }: NumberedMatch): Promise<void> {
+    if (status.kind !== "done") return;
+    await searchActions.openMatch({
+      text: status.query,
+      matchCase: status.matchCase,
+      location: {
+        documentId: match.documentId,
+        sheetId: match.sheetId,
+        blockId: match.blockId,
+      },
+      place: match.place,
+      at: { line: match.line, ordinal },
+    });
+  }
+
   if (!hasProject) {
     return <p className="search-panel__empty">{messages.noProject}</p>;
   }
@@ -285,13 +301,7 @@ export function SearchPanel() {
                       <button
                         type="button"
                         className="search-panel__match"
-                        onClick={() =>
-                          void searchActions.revealBlock({
-                            documentId: match.documentId,
-                            sheetId: match.sheetId,
-                            blockId: match.blockId,
-                          })
-                        }
+                        onClick={() => void openMatch(numbered)}
                       >
                         <span className="search-panel__line">{lineLabel}</span>
                         <Excerpt match={match} />

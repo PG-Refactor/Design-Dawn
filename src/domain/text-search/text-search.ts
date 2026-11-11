@@ -139,3 +139,30 @@ export function replaceOccurrence(
   const after = lines.slice(at.line).join("");
   return { text: before + replacedLine + after, count: 1 };
 }
+
+// Where the occurrence at `at` is in the whole text, in UTF-16 code units (what a text
+// field's selection uses); null when the line no longer has it.
+export function occurrenceRange(
+  text: string,
+  query: string,
+  matchCase: boolean,
+  at: OccurrenceAt,
+): { readonly start: number; readonly end: number } | null {
+  const lines = text.match(LINE_WITH_BREAK) ?? [text];
+  const lineWithBreak = lines[at.line - 1];
+  if (lineWithBreak === undefined) return null;
+  const lineText = lineWithBreak.replace(TRAILING_BREAK, "");
+  const characters = [...lineText];
+  const start = occurrences(
+    foldCharacters(lineText, matchCase),
+    foldCharacters(query, matchCase),
+  )[at.ordinal];
+  if (start === undefined) return null;
+  const lineStart = lines.slice(0, at.line - 1).join("").length;
+  const before = characters.slice(0, start).join("").length;
+  const found = characters.slice(start, start + [...query].length).join("");
+  return {
+    start: lineStart + before,
+    end: lineStart + before + found.length,
+  };
+}

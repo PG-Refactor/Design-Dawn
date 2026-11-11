@@ -79,6 +79,13 @@ export interface ReplaceMatchInput extends SearchQueryInput {
   readonly at: OccurrenceAt;
 }
 
+export interface OpenMatchInput extends SearchQueryInput {
+  readonly location: BlockLocation;
+  readonly place: MatchPlace;
+  readonly at: OccurrenceAt;
+  readonly reveal?: RevealOptions;
+}
+
 export interface ReplaceOutcome {
   readonly replaced: number;
   // Captions left as they were because the result cannot be a caption (too long).
@@ -100,6 +107,9 @@ export interface SearchActions {
     location: BlockLocation,
     options?: RevealOptions,
   ): Promise<OperationResult<void>>;
+  // Shows a match: a match in a Block's text opens the Block's source editor with the match
+  // selected; a caption match only selects the Block.
+  openMatch(input: OpenMatchInput): Promise<OperationResult<void>>;
   // Replaces every occurrence in the text and / or caption of each Block: one undo step
   // for the text and one for the caption of each Block that changes.
   replaceInBlocks(
@@ -118,7 +128,10 @@ export interface SearchActionsDependencies {
   readonly actions: Pick<WorkspaceActions, "openDocument">;
   readonly canvasActions: Pick<
     CanvasActions,
-    "loadSheetContents" | "commitContentEdit" | "setBlockCaption"
+    | "loadSheetContents"
+    | "commitContentEdit"
+    | "setBlockCaption"
+    | "beginBlockEdit"
   >;
   readonly draftRegistry: Pick<DraftRegistry, "commitFor">;
 }
@@ -280,7 +293,7 @@ export function createSearchActions(
 
   const findStore = createFindStore();
 
-  return {
+  const self: SearchActions = {
     async search(query) {
       const projectId = applicationStore.getState().project?.projectId ?? null;
       if (projectId === null) {
@@ -348,6 +361,26 @@ export function createSearchActions(
       return operationOk(undefined);
     },
 
+    async openMatch({ text, matchCase, location, place, at, reveal }) {
+      const loaded = await ensureLoaded(location);
+      if (!loaded.ok) return loaded;
+      const shown = await self.revealBlock(location, reveal);
+      if (!shown.ok || place !== "text") return shown;
+      findStore.setState((state) => ({
+        ...state,
+        editorReveal: {
+          blockId: location.blockId,
+          query: text,
+          matchCase,
+          at,
+        },
+      }));
+      if (!canvasActions.beginBlockEdit(location)) {
+        findStore.setState((state) => ({ ...state, editorReveal: null }));
+      }
+      return operationOk(undefined);
+    },
+
     async replaceInBlocks({ text, matchCase, replacement, targets }) {
       let outcome = NOTHING_REPLACED;
       for (const target of targets) {
@@ -368,4 +401,5 @@ export function createSearchActions(
       );
     },
   };
+  return self;
 }

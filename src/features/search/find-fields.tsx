@@ -61,7 +61,9 @@ export function FindFieldsView({
         aria-controls={replaceRowId}
         onClick={() => onChange({ replaceShown: !fields.replaceShown })}
       >
-        <span aria-hidden="true">{fields.replaceShown ? "▾" : "▸"}</span>
+        <span aria-hidden="true" className="find-fields__icon">
+          {fields.replaceShown ? "▾" : "▸"}
+        </span>
       </button>
       <div className="find-fields__rows">
         <div className="find-fields__row">

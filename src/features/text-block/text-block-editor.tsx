@@ -21,12 +21,15 @@ import type {
   DocumentId,
   SheetId,
 } from "../../domain/shared/entity-id";
+import { occurrenceRange } from "../../domain/text-search/text-search";
 import { isInsideContextMenu } from "../../shared/menu/context-menu";
 import { isInsideEditorOverlay } from "../../shared/overlay/editor-overlay";
+import { useStoreSelector } from "../../shared/store/use-store-selector";
 import {
   BLOCK_BODY_ATTRIBUTE,
   BLOCK_EDITOR_ATTRIBUTE,
 } from "../canvas/block-dom";
+import type { FindState } from "../search/find-store";
 import { stopEditing } from "../workspace/ui-state/ui-state";
 import { useUiState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
@@ -123,6 +126,23 @@ function pastedImage(
   return null;
 }
 
+const selectEditorReveal = (state: FindState) => state.editorReveal;
+// How far down the textarea a revealed match is put (a share of its height).
+const REVEAL_POSITION = 1 / 3;
+
+// Puts the line holding `offset` about a third down the textarea (a selection made by
+// script is not scrolled into view everywhere). Proportional to the lines before it, which
+// is close enough with wrapped lines.
+function scrollToOffset(textarea: HTMLTextAreaElement, offset: number): void {
+  const lines = textarea.value.split("\n").length;
+  const before = textarea.value.slice(0, offset).split("\n").length - 1;
+  textarea.scrollTop = Math.max(
+    0,
+    (before / lines) * textarea.scrollHeight -
+      textarea.clientHeight * REVEAL_POSITION,
+  );
+}
+
 // Split view shared by the text block types: source on the left, live preview on the right.
 //
 // The draft is component state on purpose: typing changes only this component (and the
@@ -151,8 +171,14 @@ export function TextBlockEditor({
   const sourceLayout = useUiState((ui) => ui.sourceEditorLayout);
   const { canvasActions, uiStateStore, applicationStore } = services;
   const [draft, setDraft] = useState(initialText);
-  const [view, setView] = useState<TextBlockEditorView>(
-    guiView?.initialView ?? "source",
+  // A search that opened this editor to show a match (see `openMatch`): the source view,
+  // with the match selected.
+  const { findStore } = services.searchActions;
+  const editorReveal = useStoreSelector(findStore, selectEditorReveal);
+  const [view, setView] = useState<TextBlockEditorView>(() =>
+    findStore.getState().editorReveal?.blockId === blockId
+      ? "source"
+      : (guiView?.initialView ?? "source"),
   );
   const guiCommittedText = guiView?.committedText;
   // Latest values for async callbacks and the unmount cleanup, which must not see stale
@@ -217,6 +243,24 @@ export function TextBlockEditor({
       container.focus({ preventScroll: true });
     }
   }, [view]);
+
+  // After the focus effect above, so the selection is made in the focused textarea.
+  useEffect(() => {
+    if (editorReveal === null || editorReveal.blockId !== blockId) return;
+    findStore.setState((state) => ({ ...state, editorReveal: null }));
+    const textarea = textareaRef.current;
+    if (view !== "source" || textarea === null) return;
+    const range = occurrenceRange(
+      textarea.value,
+      editorReveal.query,
+      editorReveal.matchCase,
+      editorReveal.at,
+    );
+    if (range === null) return;
+    textarea.focus({ preventScroll: true });
+    textarea.setSelectionRange(range.start, range.end);
+    scrollToOffset(textarea, range.start);
+  }, [editorReveal, blockId, findStore, view]);
 
   // In the GUI view the application state is the only text there is: operations, undo and
   // redo change it, so the draft and the "last committed" text follow it. Without this the
