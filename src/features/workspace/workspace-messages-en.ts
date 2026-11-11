@@ -214,6 +214,7 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     closeProject: "Close Project",
     openProjectInNewWindow: "Open Project in New Window…",
     autoSave: "Auto Save",
+    exportMenu: "Export",
     exportMarkdown: "Export Document as Markdown…",
     languageLegend: "Language",
     themeLegend: "Theme",

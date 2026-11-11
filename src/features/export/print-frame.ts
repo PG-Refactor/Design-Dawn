@@ -8,8 +8,13 @@ const FRAME_STYLE =
 const BLOCK_BODY_SELECTOR = ".block__body";
 // A body counts as cut off only when more than this is hidden (rounding of borders).
 const OVERFLOW_TOLERANCE = 1;
-// How long the frame stays after printing started, for print engines that read it late.
+// How long the frame stays after printing started when the print engine never says it is
+// done (`afterprint`), for engines that read it late.
 const REMOVE_AFTER_MS = 60_000;
+const AFTER_PRINT_EVENT = "afterprint";
+
+// Frames whose print dialog may still be open.
+const printing = new Set<HTMLIFrameElement>();
 
 export interface PreparedPrint {
   readonly frame: HTMLIFrameElement;
@@ -51,11 +56,28 @@ export async function preparePrintFrame(html: string): Promise<PreparedPrint> {
   return { frame, overflowing };
 }
 
+function removeFrame(frame: HTMLIFrameElement): void {
+  printing.delete(frame);
+  frame.remove();
+}
+
 export function printFrame(prepared: PreparedPrint): void {
-  const view = prepared.frame.contentWindow;
+  const { frame } = prepared;
+  const view = frame.contentWindow;
+  printing.add(frame);
+  view?.addEventListener(AFTER_PRINT_EVENT, () => removeFrame(frame), {
+    once: true,
+  });
   view?.focus();
   view?.print();
-  setTimeout(() => prepared.frame.remove(), REMOVE_AFTER_MS);
+  setTimeout(() => removeFrame(frame), REMOVE_AFTER_MS);
+}
+
+// The print dialog of a webview covers the page and takes its input, so a question the
+// app asks meanwhile (save before closing?) could not be answered. Removing the frame
+// that is being printed ends its print dialog.
+export function abandonPendingPrints(): void {
+  for (const frame of [...printing]) removeFrame(frame);
 }
 
 export function discardFrame(prepared: PreparedPrint): void {

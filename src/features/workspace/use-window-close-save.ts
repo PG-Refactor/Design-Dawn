@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
+import { abandonPendingPrints } from "../export/print-frame";
 import {
   createWindowCloseHandler,
   type WindowCloseHandler,
@@ -39,6 +40,8 @@ export function useWindowCloseSave(): WindowCloseStatus {
   useEffect(
     () =>
       latest.current.closeRequestSource.subscribe((request) => {
+        // A print dialog left open would sit over the question about unsaved changes.
+        abandonPendingPrints();
         void handleRequest(request);
       }),
     [handleRequest],

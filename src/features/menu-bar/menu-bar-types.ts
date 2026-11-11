@@ -42,11 +42,21 @@ export interface MenuSeparator {
   readonly id: string;
 }
 
+// An item that opens a nested menu of plain items beside it (a group of related
+// commands, such as the exports, kept under one name).
+export interface MenuSubmenu {
+  readonly kind: "submenu";
+  readonly id: string;
+  readonly label: string;
+  readonly entries: readonly (MenuActionItem | MenuSeparator)[];
+}
+
 export type MenuEntry =
   | MenuActionItem
   | MenuCheckboxItem
   | MenuRadioGroup
-  | MenuSeparator;
+  | MenuSeparator
+  | MenuSubmenu;
 
 export interface MenuDefinition {
   readonly id: string;

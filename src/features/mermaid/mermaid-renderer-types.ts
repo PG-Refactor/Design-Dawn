@@ -22,6 +22,9 @@ export interface MermaidThemeValues {
   readonly actorBkg?: string;
   readonly actorBorder?: string;
   readonly labelBoxBorderColor?: string;
+  // Behind edge labels Mermaid's base theme puts the selection-like secondary colour,
+  // which reads as a highlight; the surface keeps the label plain and the line hidden.
+  readonly edgeLabelBackground?: string;
   readonly fontFamily?: string;
   // Categorical pie slices, then the colours of pie and gantt text, lines and bars.
   readonly pie1?: string;

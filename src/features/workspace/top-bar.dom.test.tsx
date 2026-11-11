@@ -85,15 +85,55 @@ describe("File menu", () => {
       ["menuitem", EN.openProjectInNewWindow],
       ["menuitem", `${EN.save}Ctrl+S`],
       ["menuitemcheckbox", EN.autoSave],
-      ["menuitem", EN.exportMarkdown],
-      ["menuitem", EXPORT_MESSAGES.en.sheetHtml],
-      ["menuitem", EXPORT_MESSAGES.en.documentHtml],
-      ["menuitem", EXPORT_MESSAGES.en.print],
+      ["menuitem", `${EN.exportMenu}▸`],
       ["menuitem", AI_ACCESS_MESSAGES.en.menuItem],
       ["menuitem", AI_ACCESS_MESSAGES.en.history.menuItem],
       ["menuitem", EN.closeProject],
     ]);
     expect(within(menu).getAllByRole("separator")).toHaveLength(4);
+  });
+
+  it("keeps every export under Export, opened by pointer or by the right arrow", async () => {
+    const shell = await renderShell({ systemLanguages: ["en"] });
+    await shell.openProjectInUi();
+    await act(async () => {
+      await shell.actions.openDocument(DOCUMENT_A);
+    });
+    const menu = await openMenu(shell.user, EN.fileMenu);
+    const exportItem = within(menu).getByRole("menuitem", {
+      name: EN.exportMenu,
+    });
+    expect(exportItem.getAttribute("aria-haspopup")).toBe("menu");
+    exportItem.focus();
+    await shell.user.keyboard("{ArrowRight}");
+    const submenu = await screen.findByRole("menu", { name: EN.exportMenu });
+    expect(
+      within(submenu)
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent),
+    ).toEqual([
+      EN.exportMarkdown,
+      EXPORT_MESSAGES.en.sheetHtml,
+      EXPORT_MESSAGES.en.documentHtml,
+      EXPORT_MESSAGES.en.print,
+    ]);
+    expect(document.activeElement?.textContent).toBe(EN.exportMarkdown);
+    await shell.user.keyboard("{ArrowDown}");
+    expect(document.activeElement?.textContent).toBe(
+      EXPORT_MESSAGES.en.sheetHtml,
+    );
+    await shell.user.keyboard("{ArrowLeft}");
+    expect(screen.queryByRole("menu", { name: EN.exportMenu })).toBeNull();
+    expect(document.activeElement).toBe(exportItem);
+
+    // Choosing an item of the submenu closes the whole menu.
+    await shell.user.click(exportItem);
+    await shell.user.click(
+      within(
+        await screen.findByRole("menu", { name: EN.exportMenu }),
+      ).getByRole("menuitem", { name: EN.exportMarkdown }),
+    );
+    expect(screen.queryByRole("menu")).toBeNull();
   });
 
   it("opens the project via its item and shows the tree", async () => {

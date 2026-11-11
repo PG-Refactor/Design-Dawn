@@ -49,6 +49,8 @@ const CANVAS_MESSAGES_JA = {
     removeCaption: "キャプションを削除",
     addImage: "画像を追加…",
     importSpreadsheet: "表計算ファイルから表を追加…",
+    fitToContent: "内容に合わせてサイズを調整",
+    exportMenu: "エクスポート",
     exportSvg: "SVGとして書き出す…",
     exportPng: "PNGとして書き出す…",
     // The submenu that holds the Mermaid templates.
@@ -122,6 +124,8 @@ const CANVAS_MESSAGES_EN: CanvasMessages = {
     removeCaption: "Remove Caption",
     addImage: "Add Image…",
     importSpreadsheet: "Add Table from Spreadsheet…",
+    fitToContent: "Fit Size to Content",
+    exportMenu: "Export",
     exportSvg: "Export as SVG…",
     exportPng: "Export as PNG…",
     templates: "Add from Mermaid Template",

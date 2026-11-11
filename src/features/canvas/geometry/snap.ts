@@ -73,3 +73,37 @@ export function snappedResizeFrame(
   }
   return { x: left, y: top, width: right - left, height: bottom - top };
 }
+
+// A bottom-right resize that keeps the frame's width : height (Shift held). The axis the
+// pointer pulled further, relative to the frame's size, decides the scale; with snapping
+// that axis's moving edge lands on the grid and the other follows. The scale never goes
+// below what keeps both sides at `minSize`.
+export function aspectResizeFrame(
+  startFrame: Rect,
+  rawWorldDelta: Point,
+  interval: number | null,
+  minSize: Extent = CANVAS_CONFIG.block.minSize,
+): Rect {
+  const horizontal =
+    (startFrame.width + rawWorldDelta.x) / startFrame.width >=
+    (startFrame.height + rawWorldDelta.y) / startFrame.height;
+  const pulled = horizontal
+    ? startFrame.x + startFrame.width + rawWorldDelta.x
+    : startFrame.y + startFrame.height + rawWorldDelta.y;
+  const edge = interval === null ? pulled : snapToGrid(pulled, interval);
+  const scale = horizontal
+    ? (edge - startFrame.x) / startFrame.width
+    : (edge - startFrame.y) / startFrame.height;
+  const smallest = Math.max(
+    minSize.width / startFrame.width,
+    minSize.height / startFrame.height,
+  );
+  const applied = Math.max(scale, smallest);
+  // Whole units keep the stored sizes readable; the ratio moves by under one unit.
+  return {
+    x: startFrame.x,
+    y: startFrame.y,
+    width: Math.max(minSize.width, Math.round(startFrame.width * applied)),
+    height: Math.max(minSize.height, Math.round(startFrame.height * applied)),
+  };
+}

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { boundsOfRects } from "./selection-bounds";
 import {
+  aspectResizeFrame,
   type ResizeEdges,
   snappedMoveDelta,
   snappedResizeFrame,
@@ -216,5 +217,38 @@ describe("snappedResizeFrame", () => {
       INTERVAL,
     );
     expect(frame).toMatchObject({ width: 48, height: 32 });
+  });
+});
+
+describe("aspectResizeFrame", () => {
+  const start = { x: 24, y: 48, width: 200, height: 100 };
+  const MIN = { width: 48, height: 32 };
+
+  it("keeps width : height, following the axis pulled further", () => {
+    expect(aspectResizeFrame(start, { x: 100, y: 0 }, null, MIN)).toEqual({
+      x: 24,
+      y: 48,
+      width: 300,
+      height: 150,
+    });
+    expect(aspectResizeFrame(start, { x: 0, y: 100 }, null, MIN)).toEqual({
+      x: 24,
+      y: 48,
+      width: 400,
+      height: 200,
+    });
+  });
+
+  it("puts the leading edge on the grid when snapping", () => {
+    // Right edge at 24 + 200 + 90 = 314 snaps to 312, so the width is 288.
+    const frame = aspectResizeFrame(start, { x: 90, y: 0 }, 24, MIN);
+    expect(frame.x + frame.width).toBe(312);
+    expect(frame.height).toBe(144);
+  });
+
+  it("stops shrinking where either side would go below the minimum", () => {
+    expect(aspectResizeFrame(start, { x: -1000, y: -1000 }, null, MIN)).toEqual(
+      { x: 24, y: 48, width: 64, height: 32 },
+    );
   });
 });
