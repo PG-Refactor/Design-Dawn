@@ -254,6 +254,8 @@ export interface CanvasActions {
   addImportedImage(
     input: AddImportedImageInput,
   ): Promise<OperationResult<void>>;
+  // Several text blocks at given places in ONE command (one undo step), e.g. a template.
+  addTextBlocks(input: AddTextBlocksInput): Promise<OperationResult<void>>;
   // An image pasted into a text editor: stored in the Document's assets. The editor writes
   // the reference itself; failures are reported like a drop's.
   importPastedImage(
@@ -341,6 +343,18 @@ function spreadsheetBlockSize(table: MarkdownTable): {
 export interface TextImageTarget {
   readonly documentId: DocumentId;
   insertImages(contentPaths: readonly ContentPath[]): void;
+}
+
+export interface AddTextBlocksInput {
+  readonly documentId: DocumentId;
+  readonly sheetId: SheetId;
+  readonly blocks: readonly {
+    readonly blockType: TextBlockSpec["blockType"];
+    readonly text: string;
+    readonly position: Point;
+    readonly size: Extent;
+    readonly caption?: string;
+  }[];
 }
 
 export interface AddImportedImageInput {
@@ -1015,6 +1029,33 @@ export function createCanvasActions(
         viewportSize,
         ...(at === undefined ? {} : { at }),
       });
+    },
+
+    async addTextBlocks({ documentId, sheetId, blocks }) {
+      const specs: TextBlockSpec[] = [];
+      for (const block of blocks) {
+        const position = commitPosition(block.position);
+        if (!position.ok)
+          return record("createBlock", fromDomainResult(position));
+        const size = commitSize(block.size);
+        if (!size.ok) return record("createBlock", fromDomainResult(size));
+        const caption =
+          block.caption === undefined ? null : parseCaption(block.caption);
+        specs.push({
+          blockId: idGenerator.blockId(),
+          blockType: block.blockType,
+          position: position.value,
+          size: size.value,
+          text: block.text,
+          ...(caption?.ok === true ? { caption: caption.value } : {}),
+        });
+      }
+      if (specs.length === 0) return NOTHING_TO_DO;
+      return execute(
+        "createBlock",
+        documentId,
+        createBlocksCommand(sheetId, specs),
+      );
     },
 
     async addImportedImage({

@@ -9,6 +9,10 @@ import {
 } from "../../domain/diagram/diagram-operation";
 import { analyzeDiagramSource } from "../../domain/diagram/diagram-source";
 import { applyTextEdits } from "../../domain/diagram/text-edit";
+import {
+  DESIGN_TEMPLATE_IDS,
+  DESIGN_TEMPLATES,
+} from "../templates/design-templates";
 import { createDiagramRenderCheck } from "./diagram-render-check";
 import { MERMAID_TEMPLATES } from "./mermaid-templates";
 import { mermaidRenderer } from "./render-mermaid";
@@ -166,4 +170,18 @@ describe("class operations", () => {
       },
     ]);
   });
+});
+
+describe("the diagrams of the design templates", () => {
+  it.each(DESIGN_TEMPLATE_IDS)(
+    "%s draws in both languages",
+    async (templateId) => {
+      for (const block of DESIGN_TEMPLATES[templateId].blocks) {
+        if (block.blockType !== "mermaid") continue;
+        for (const text of Object.values(block.text)) {
+          expect(await renderCheck(text), text).toEqual({ ok: true });
+        }
+      }
+    },
+  );
 });

@@ -288,6 +288,7 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     closeButtonText: "×",
     retrySave: "Retry",
     createSheet: "New Sheet",
+    createSheetFromTemplate: "New Sheet from Template",
     deleteSheet: "Delete Sheet",
     deleteSheetButtonText: "×",
     createSheetButtonText: "+",
