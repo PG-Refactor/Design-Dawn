@@ -34,7 +34,13 @@ export interface EditorReveal {
   readonly blockId: BlockId;
   readonly query: TextQuery;
   readonly at: OccurrenceAt;
+  // The focus stays where it is (the sheet's find box, while Enter moves on): the editor
+  // shows the selection without taking the focus.
+  readonly keepFocus: boolean;
 }
+
+// Marks the sheet's find box: an editor it opened does not end on a click inside it.
+export const FIND_BOX_ATTRIBUTE = "data-find-box";
 
 export interface FindState {
   readonly project: FindFields;

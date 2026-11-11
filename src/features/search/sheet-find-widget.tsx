@@ -16,7 +16,12 @@ import { useMessages } from "../workspace/use-messages";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import { FindFieldsView } from "./find-fields";
 import { clearFindHighlights, paintFindHighlights } from "./find-highlights";
-import type { FindFields, FindState, SheetFindState } from "./find-store";
+import {
+  FIND_BOX_ATTRIBUTE,
+  type FindFields,
+  type FindState,
+  type SheetFindState,
+} from "./find-store";
 import { type SheetMatch, sheetMatches } from "./sheet-find";
 import "./sheet-find-widget.css";
 
@@ -100,18 +105,27 @@ export function SheetFindWidget({
     }));
   }
 
-  function reveal(match: SheetMatch | undefined): void {
+  // A match in a Block's text is shown in its source editor, selected, with the focus kept
+  // in this box (Enter moves on); a caption match selects the Block.
+  async function reveal(
+    match: SheetMatch | undefined,
+    { keepFocus = true, with: withQuery = query } = {},
+  ): Promise<void> {
     if (match === undefined) return;
-    void searchActions.revealBlock(
-      { documentId, sheetId, blockId: match.blockId },
-      { keepIfVisibleIn: measureCanvas() },
-    );
+    await searchActions.openMatch({
+      ...withQuery,
+      location: { documentId, sheetId, blockId: match.blockId },
+      place: match.place,
+      at: { line: match.line, ordinal: match.ordinal },
+      reveal: { keepIfVisibleIn: measureCanvas() },
+      keepFocus,
+    });
   }
 
   function go(step: number): void {
     const next = wrap(currentIndex + step, matches.length);
     update({ current: next });
-    reveal(matches[next]);
+    void reveal(matches[next]);
   }
 
   function close(): void {
@@ -120,16 +134,19 @@ export function SheetFindWidget({
 
   // Escape, as in VS Code: the box closes and the current match is shown in its Block's
   // source editor (selected there), where the work goes on.
-  function closeIntoEditor(): void {
+  // The editor takes the focus before the box closes, so it does not end with the box.
+  async function closeIntoEditor(): Promise<void> {
+    await reveal(current, { keepFocus: false });
     close();
-    if (current === undefined) return;
-    void searchActions.openMatch({
-      ...query,
-      location: { documentId, sheetId, blockId: current.blockId },
-      place: current.place,
-      at: { line: current.line, ordinal: current.ordinal },
-      reveal: { keepIfVisibleIn: measureCanvas() },
-    });
+  }
+
+  // The match now at the current index (after a replace changed the text), shown again.
+  function showCurrentAgain(): void {
+    const latest = applicationStore.getState().documents.get(documentId);
+    const latestSheet = latest?.sheets.get(sheetId);
+    if (latest === undefined || latestSheet === undefined) return;
+    const fresh = sheetMatches(latestSheet.blocks, latest.contents, query);
+    void reveal(fresh[wrap(find.current, fresh.length)]);
   }
 
   // A new text starts again at the sheet's first match, as it is typed.
@@ -140,13 +157,14 @@ export function SheetFindWidget({
       change.regex !== undefined;
     update(searchChanged ? { ...change, current: 0 } : change);
     if (!searchChanged || sheet === undefined || document === undefined) return;
-    reveal(
-      sheetMatches(sheet.blocks, document.contents, {
-        text: change.query ?? find.query,
-        matchCase: change.matchCase ?? find.matchCase,
-        regex: change.regex ?? find.regex,
-      })[0],
-    );
+    const changed: TextQuery = {
+      text: change.query ?? find.query,
+      matchCase: change.matchCase ?? find.matchCase,
+      regex: change.regex ?? find.regex,
+    };
+    void reveal(sheetMatches(sheet.blocks, document.contents, changed)[0], {
+      with: changed,
+    });
   }
 
   async function replaceCurrent(): Promise<void> {
@@ -159,6 +177,7 @@ export function SheetFindWidget({
       place: current.place,
       at: { line: current.line, ordinal: current.ordinal },
     });
+    showCurrentAgain();
   }
 
   async function replaceAll(): Promise<void> {
@@ -186,7 +205,7 @@ export function SheetFindWidget({
     if (event.key === ESCAPE_KEY) {
       event.preventDefault();
       event.stopPropagation();
-      closeIntoEditor();
+      void closeIntoEditor();
     }
   }
 
@@ -201,7 +220,11 @@ export function SheetFindWidget({
           ? messages.noResults
           : messages.position(currentIndex + 1, matches.length);
   return (
-    <search className="sheet-find" aria-label={messages.sheetFindLabel}>
+    <search
+      {...{ [FIND_BOX_ATTRIBUTE]: "" }}
+      className="sheet-find"
+      aria-label={messages.sheetFindLabel}
+    >
       <FindFieldsView
         fields={find}
         labels={messages}
