@@ -5,7 +5,8 @@ use std::collections::HashSet;
 
 use super::constants::{
     ASSET_FALLBACK_STEM, BLOCK_CONTENT_FIRST_NUMBER, BLOCK_CONTENT_NUMBER_SEPARATOR,
-    COLLISION_FIRST_SUFFIX, FALLBACK_FIRST_NUMBER, SLUG_MAX_LENGTH, SLUG_SEPARATOR,
+    BLOCK_LABEL_MAX_LENGTH, COLLISION_FIRST_SUFFIX, FALLBACK_FIRST_NUMBER, MAX_HEADING_LEVEL,
+    SLUG_MAX_LENGTH, SLUG_SEPARATOR,
 };
 use crate::domain::block_type::{BlockType, ContentLocation};
 use crate::domain::constants::{EXTENSION_SEPARATOR, RESERVED_DEVICE_NAMES};
@@ -107,10 +108,20 @@ pub fn block_content_number(block_type: BlockType, file_name: &str) -> Option<u6
         .extensions
         .iter()
         .any(|allowed| allowed.eq_ignore_ascii_case(extension));
-    let (identifier, digits) = stem.rsplit_once(BLOCK_CONTENT_NUMBER_SEPARATOR)?;
+    let (identifier, rest) = stem.split_once(BLOCK_CONTENT_NUMBER_SEPARATOR)?;
+    // `<number>` or `<number>-<label>`: the label (from the block's first heading) is a slug.
+    let (digits, label) = match rest.split_once(BLOCK_CONTENT_NUMBER_SEPARATOR) {
+        Some((digits, label)) => (digits, Some(label)),
+        None => (rest, None),
+    };
     // `u64::from_str` would also accept a leading `+`, which is not part of the pattern.
     let is_number = !digits.is_empty() && digits.bytes().all(|byte| byte.is_ascii_digit());
-    if extension_matches && is_number && identifier.eq_ignore_ascii_case(block_type.as_str()) {
+    let label_ok = label.is_none_or(|label| !label.is_empty() && slugify(label) == label);
+    if extension_matches
+        && is_number
+        && label_ok
+        && identifier.eq_ignore_ascii_case(block_type.as_str())
+    {
         digits.parse().ok()
     } else {
         None
@@ -132,10 +143,38 @@ pub fn highest_block_content_number(
 /// never handed out again. The largest known number is the larger of
 /// the files on disk and `session_high_water` (what this Project Session has already
 /// issued, restored or deleted). A name that is nevertheless taken is skipped.
+/// The slug of the text a new Markdown block starts with in the app (`# New Markdown`, the
+/// Frontend's `MARKDOWN_BLOCK_DEFAULTS.initialText`): a placeholder is no name.
+const PLACEHOLDER_LABELS: &[&str] = &["new-markdown"];
+
+/// The label a new Markdown block's file name carries: the slug of its first ATX heading
+/// (`# Order flow` -> `order-flow`). `None` for other types, without a heading, or when the
+/// heading has no ASCII letters or digits (the name stays `markdown-<n>.md`).
+pub fn block_content_label(block_type: BlockType, text: &str) -> Option<String> {
+    if block_type != BlockType::Markdown {
+        return None;
+    }
+    let heading = text.lines().find_map(|line| {
+        let trimmed = line.trim_start();
+        let hashes = trimmed
+            .chars()
+            .take_while(|character| *character == '#')
+            .count();
+        ((1..=MAX_HEADING_LEVEL).contains(&hashes)
+            && trimmed[hashes..].starts_with(char::is_whitespace))
+        .then(|| trimmed[hashes..].trim().to_owned())
+    })?;
+    let mut slug = slugify(&heading);
+    slug.truncate(BLOCK_LABEL_MAX_LENGTH);
+    let slug = slug.trim_end_matches(SLUG_SEPARATOR).to_owned();
+    (!slug.is_empty() && !PLACEHOLDER_LABELS.contains(&slug.as_str())).then_some(slug)
+}
+
 pub fn block_content_file_name(
     block_type: BlockType,
     existing_names: &[String],
     session_high_water: Option<u64>,
+    label: Option<&str>,
 ) -> Result<String, DomainError> {
     let extension = text_content_extension(block_type)?;
     let highest = highest_block_content_number(block_type, existing_names).max(session_high_water);
@@ -145,8 +184,10 @@ pub fn block_content_file_name(
     let taken = lowercase_set(existing_names);
     (first_candidate..=u64::MAX)
         .map(|number| {
+            let suffix =
+                label.map_or_else(String::new, |label| format!("{BLOCK_CONTENT_NUMBER_SEPARATOR}{label}"));
             format!(
-                "{}{BLOCK_CONTENT_NUMBER_SEPARATOR}{number}{EXTENSION_SEPARATOR}{extension}",
+                "{}{BLOCK_CONTENT_NUMBER_SEPARATOR}{number}{suffix}{EXTENSION_SEPARATOR}{extension}",
                 block_type.as_str()
             )
         })
@@ -256,15 +297,15 @@ mod tests {
     fn block_content_names_use_the_largest_number_plus_one() {
         let existing = names(&["markdown-1.md", "Markdown-2.MD", "markdown-4.md"]);
         assert_eq!(
-            block_content_file_name(BlockType::Markdown, &existing, None).unwrap(),
+            block_content_file_name(BlockType::Markdown, &existing, None, None).unwrap(),
             "markdown-5.md"
         );
         assert_eq!(
-            block_content_file_name(BlockType::Mermaid, &existing, None).unwrap(),
+            block_content_file_name(BlockType::Mermaid, &existing, None, None).unwrap(),
             "mermaid-1.mmd"
         );
         assert_eq!(
-            block_content_file_name(BlockType::Markdown, &[], None).unwrap(),
+            block_content_file_name(BlockType::Markdown, &[], None, None).unwrap(),
             "markdown-1.md"
         );
     }
@@ -273,7 +314,7 @@ mod tests {
     fn gaps_are_not_filled() {
         let existing = names(&["markdown-1.md", "markdown-3.md"]);
         assert_eq!(
-            block_content_file_name(BlockType::Markdown, &existing, None).unwrap(),
+            block_content_file_name(BlockType::Markdown, &existing, None, None).unwrap(),
             "markdown-4.md"
         );
     }
@@ -282,15 +323,15 @@ mod tests {
     fn the_session_high_water_mark_wins_when_it_is_larger() {
         let existing = names(&["markdown-1.md", "markdown-3.md"]);
         assert_eq!(
-            block_content_file_name(BlockType::Markdown, &existing, Some(7)).unwrap(),
+            block_content_file_name(BlockType::Markdown, &existing, Some(7), None).unwrap(),
             "markdown-8.md"
         );
         assert_eq!(
-            block_content_file_name(BlockType::Markdown, &existing, Some(2)).unwrap(),
+            block_content_file_name(BlockType::Markdown, &existing, Some(2), None).unwrap(),
             "markdown-4.md"
         );
         assert_eq!(
-            block_content_file_name(BlockType::Markdown, &[], Some(4)).unwrap(),
+            block_content_file_name(BlockType::Markdown, &[], Some(4), None).unwrap(),
             "markdown-5.md"
         );
     }
@@ -318,7 +359,7 @@ mod tests {
             None
         );
         assert_eq!(
-            block_content_file_name(BlockType::Markdown, &ignored, None).unwrap(),
+            block_content_file_name(BlockType::Markdown, &ignored, None, None).unwrap(),
             "markdown-1.md"
         );
     }
@@ -343,7 +384,7 @@ mod tests {
     fn an_exhausted_number_space_is_an_error_not_a_wrap_around() {
         let existing = names(&["markdown-18446744073709551615.md"]);
         assert_eq!(
-            block_content_file_name(BlockType::Markdown, &existing, None)
+            block_content_file_name(BlockType::Markdown, &existing, None, None)
                 .unwrap_err()
                 .kind,
             DomainErrorKind::InvalidContentPath
@@ -352,7 +393,7 @@ mod tests {
 
     #[test]
     fn image_blocks_have_no_text_content_file() {
-        let error = block_content_file_name(BlockType::Image, &[], None).unwrap_err();
+        let error = block_content_file_name(BlockType::Image, &[], None, None).unwrap_err();
         assert_eq!(error.kind, DomainErrorKind::UnsupportedBlockType);
     }
 
@@ -589,6 +630,50 @@ mod tests {
         assert_eq!(
             asset_file_name("Design.png", &names(&["design.PNG"])).unwrap(),
             "design-2.png"
+        );
+    }
+}
+
+#[cfg(test)]
+mod label_tests {
+    use super::*;
+
+    #[test]
+    fn a_markdown_block_is_named_after_its_first_heading() {
+        assert_eq!(
+            block_content_label(BlockType::Markdown, "intro\n## Order Flow (v2)\n# Later"),
+            Some("order-flow-v2".to_owned())
+        );
+        assert_eq!(
+            block_content_label(BlockType::Markdown, "# 注文の流れ"),
+            None
+        );
+        assert_eq!(block_content_label(BlockType::Markdown, "#tag only"), None);
+        assert_eq!(block_content_label(BlockType::Mermaid, "# Title"), None);
+        assert_eq!(
+            block_content_label(BlockType::Markdown, "# New Markdown"),
+            None
+        );
+    }
+
+    #[test]
+    fn labelled_names_keep_their_number_and_take_the_next_one() {
+        assert_eq!(
+            block_content_number(BlockType::Markdown, "markdown-3-order-flow.md"),
+            Some(3)
+        );
+        assert_eq!(
+            block_content_number(BlockType::Markdown, "markdown-3-Order.md"),
+            None
+        );
+        assert_eq!(
+            block_content_number(BlockType::Markdown, "markdown-3-.md"),
+            None
+        );
+        let existing = vec!["markdown-3-order-flow.md".to_owned()];
+        assert_eq!(
+            block_content_file_name(BlockType::Markdown, &existing, None, Some("api")).unwrap(),
+            "markdown-4-api.md"
         );
     }
 }

@@ -691,7 +691,7 @@
           }
         },
         {
-          "name": "create_block_content: returns the next contentPath",
+          "name": "create_block_content: returns the next contentPath, named after the first heading",
           "request": {
             "command": "create_block_content",
             "args": {
@@ -703,7 +703,7 @@
             }
           },
           "expected": {
-            "ok": "sheets/overview/blocks/markdown-2.md"
+            "ok": "sheets/overview/blocks/markdown-2-new.md"
           }
         },
         {

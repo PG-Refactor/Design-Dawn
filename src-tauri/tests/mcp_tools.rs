@@ -459,8 +459,9 @@ fn create_block_writes_the_text_file_and_lists_the_block_in_front() {
     assert_eq!(created["zIndex"], 3);
     assert_eq!(created["position"], json!({ "x": -5, "y": 7 }));
     assert_eq!(created["size"], json!({ "width": 300, "height": 200 }));
-    // The hash is of the bytes on disk (CRLF stored as LF).
-    let file = fs::read(overview_file(&root, "blocks/markdown-2.md")).unwrap();
+    // The hash is of the bytes on disk (CRLF stored as LF); the file is named after the
+    // first heading.
+    let file = fs::read(overview_file(&root, "blocks/markdown-2-hello.md")).unwrap();
     assert_eq!(file, b"# Hello\nworld");
     assert_eq!(created["contentHash"], sha256_hex(&file));
 

@@ -45,6 +45,10 @@ pub const COLLISION_FIRST_SUFFIX: u32 = 2;
 /// Block content files are numbered from 1 (`markdown-1.md`).
 pub const BLOCK_CONTENT_FIRST_NUMBER: u64 = 1;
 pub const BLOCK_CONTENT_NUMBER_SEPARATOR: char = '-';
+/// The longest label (from the block's first heading) in a new block's file name.
+pub const BLOCK_LABEL_MAX_LENGTH: usize = 40;
+/// Markdown has six heading levels; more `#` is not a heading.
+pub const MAX_HEADING_LEVEL: usize = 6;
 
 // Image assets.
 const BYTES_PER_MEBIBYTE: u64 = 1024 * 1024;
