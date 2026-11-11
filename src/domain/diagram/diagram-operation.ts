@@ -10,6 +10,21 @@ import {
   verifyGanttCandidate,
 } from "./gantt/gantt-operations";
 import {
+  type ClassOperation,
+  planClassOperation,
+  verifyClassCandidate,
+} from "./listed/class-diagram";
+import {
+  type ErOperation,
+  planErOperation,
+  verifyErCandidate,
+} from "./listed/er-diagram";
+import {
+  planStateOperation,
+  type StateOperation,
+  verifyStateCandidate,
+} from "./listed/state-diagram";
+import {
   type PieOperation,
   planPieOperation,
   verifyPieCandidate,
@@ -39,7 +54,10 @@ export type DiagramOperation =
   | {
       readonly diagram: "gantt";
       readonly operation: GanttOperation;
-    };
+    }
+  | { readonly diagram: "er"; readonly operation: ErOperation }
+  | { readonly diagram: "state"; readonly operation: StateOperation }
+  | { readonly diagram: "class"; readonly operation: ClassOperation };
 
 export interface DiagramOperationPlan {
   readonly edits: readonly TextEdit[];
@@ -89,6 +107,45 @@ export function planDiagramOperation(
           edits,
           verify: (candidateSource) =>
             verifyGanttCandidate(candidateSource, expected),
+        },
+      };
+    }
+    case "er": {
+      const plan = planErOperation(source, request.operation);
+      if (!plan.ok) return plan;
+      const { edits, expected } = plan.value;
+      return {
+        ok: true,
+        value: {
+          edits,
+          verify: (candidateSource) =>
+            verifyErCandidate(candidateSource, expected),
+        },
+      };
+    }
+    case "state": {
+      const plan = planStateOperation(source, request.operation);
+      if (!plan.ok) return plan;
+      const { edits, expected } = plan.value;
+      return {
+        ok: true,
+        value: {
+          edits,
+          verify: (candidateSource) =>
+            verifyStateCandidate(candidateSource, expected),
+        },
+      };
+    }
+    case "class": {
+      const plan = planClassOperation(source, request.operation);
+      if (!plan.ok) return plan;
+      const { edits, expected } = plan.value;
+      return {
+        ok: true,
+        value: {
+          edits,
+          verify: (candidateSource) =>
+            verifyClassCandidate(candidateSource, expected),
         },
       };
     }

@@ -2,6 +2,9 @@ import type { DiagramType } from "./diagram-type";
 import { type DiagramTypeDetection, detectDiagramType } from "./diagram-type";
 import { FLOWCHART_EDITOR } from "./flowchart/flowchart-editor";
 import { GANTT_EDITOR } from "./gantt/gantt-editor";
+import { CLASS_EDITOR } from "./listed/class-diagram";
+import { ER_EDITOR } from "./listed/er-diagram";
+import { STATE_EDITOR } from "./listed/state-diagram";
 import { PIE_EDITOR } from "./pie/pie-editor";
 import { SEQUENCE_EDITOR } from "./sequence/sequence-editor";
 import {
@@ -36,6 +39,9 @@ export const DIAGRAM_EDITORS: Partial<Record<DiagramType, DiagramEditorEntry>> =
     flowchart: FLOWCHART_EDITOR,
     sequence: SEQUENCE_EDITOR,
     gantt: GANTT_EDITOR,
+    er: ER_EDITOR,
+    state: STATE_EDITOR,
+    class: CLASS_EDITOR,
   };
 
 export type NotEditableReason =

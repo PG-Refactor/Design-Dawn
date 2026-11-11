@@ -3,10 +3,13 @@ import { analyzeDiagramSource } from "../../domain/diagram/diagram-source";
 import { useMessages } from "../workspace/use-messages";
 import { describeNotEditable } from "./diagram-gui-text";
 import "./diagram-gui.css";
+import { ClassGuiPanel } from "./class-gui-panel";
+import { ErGuiPanel } from "./er-gui-panel";
 import { FlowchartGuiPanel } from "./flowchart-gui-panel";
 import { GanttGuiPanel } from "./gantt-gui-panel";
 import { PieGuiPanel } from "./pie-gui-panel";
 import { SequenceGuiPanel } from "./sequence-gui-panel";
+import { StateGuiPanel } from "./state-gui-panel";
 import type { DiagramOperationTarget } from "./use-diagram-operation";
 import type { GuiDraftCommit } from "./use-gui-field-draft";
 
@@ -58,6 +61,12 @@ export function DiagramGuiPanel({
           source={source}
           leaveRef={leaveRef}
         />
+      ) : editability.editable && editability.type === "er" ? (
+        <ErGuiPanel target={target} source={source} />
+      ) : editability.editable && editability.type === "state" ? (
+        <StateGuiPanel target={target} source={source} />
+      ) : editability.editable && editability.type === "class" ? (
+        <ClassGuiPanel target={target} source={source} />
       ) : editability.editable && editability.type === "gantt" ? (
         <GanttGuiPanel
           target={target}

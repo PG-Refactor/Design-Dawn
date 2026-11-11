@@ -4,12 +4,15 @@ import { DIAGRAM_KEYWORDS } from "./diagram-type";
 import { loadMermaidGuiFixtures } from "./test-fixtures";
 
 describe("analyzeDiagramSource", () => {
-  it("has the pie, flowchart, sequence and gantt editors registered and no other", () => {
+  it("has the pie, flowchart, sequence, gantt, ER, state and class editors registered and no other", () => {
     expect(Object.keys(DIAGRAM_EDITORS)).toEqual([
       "pie",
       "flowchart",
       "sequence",
       "gantt",
+      "er",
+      "state",
+      "class",
     ]);
   });
 
@@ -51,7 +54,10 @@ describe("analyzeDiagramSource", () => {
       } else if (
         type === "flowchart" ||
         type === "sequence" ||
-        type === "gantt"
+        type === "gantt" ||
+        type === "er" ||
+        type === "state" ||
+        type === "class"
       ) {
         // The keyword alone may be a header the type's editor refuses (e.g. an
         // unsupported variant); either way the editor, not the common layer, decides.

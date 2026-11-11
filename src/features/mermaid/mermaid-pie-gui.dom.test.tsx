@@ -138,7 +138,7 @@ describe("the mode switch", () => {
   });
 
   it("opens in Source for a diagram the GUI cannot edit", async () => {
-    await renderOpenedCanvas(seedMermaid("classDiagram\n  Animal <|-- Duck"), {
+    await renderOpenedCanvas(seedMermaid("journey\n  title A day"), {
       mermaidRenderer: createFakeRenderer(),
     });
     fireEvent.doubleClick(blockOption(0));
