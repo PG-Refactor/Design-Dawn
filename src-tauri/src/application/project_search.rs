@@ -4,12 +4,13 @@
 
 use std::path::Path;
 
+use regex::{Regex, RegexBuilder};
 use serde::Serialize;
 
 use super::authoring::read_text_block;
 use super::block_content_operations::is_text_block_type;
 use super::document_operations::load_document;
-use super::error::ApplicationResult;
+use super::error::{ApplicationError, ApplicationResult, ErrorKind};
 use super::project_operations::open_project;
 use super::session::ProjectSessions;
 use super::snapshot::EntityState;
@@ -19,12 +20,67 @@ use crate::domain::block_type::BlockType;
 pub const SEARCH_MAX_MATCHES: usize = 500;
 /// The line shown with a match is cut to about this many characters around it.
 pub const SEARCH_CONTEXT_CHARACTERS: usize = 160;
+/// The compiled size a search pattern may take; a larger one is refused.
+const PATTERN_SIZE_LIMIT_BYTES: usize = 1024 * 1024;
 const ELLIPSIS: &str = "…";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SearchQuery {
     pub text: String,
     pub match_case: bool,
+    /// `text` is a regular expression (Rust `regex` syntax), matched line by line.
+    pub regex: bool,
+}
+
+/// How a query finds its matches in one line: (start, length) in characters.
+enum Matcher {
+    Plain { needle: String, match_case: bool },
+    Pattern(Regex),
+}
+
+impl Matcher {
+    fn new(query: &SearchQuery) -> ApplicationResult<Self> {
+        if !query.regex {
+            return Ok(Self::Plain {
+                needle: query.text.clone(),
+                match_case: query.match_case,
+            });
+        }
+        RegexBuilder::new(&query.text)
+            .case_insensitive(!query.match_case)
+            .size_limit(PATTERN_SIZE_LIMIT_BYTES)
+            .build()
+            .map(Self::Pattern)
+            .map_err(|error| {
+                ApplicationError::new(ErrorKind::InvalidSearchPattern, error.to_string())
+            })
+    }
+
+    fn find(&self, line: &str) -> Vec<(usize, usize)> {
+        match self {
+            Self::Plain { needle, match_case } => {
+                let length = needle.chars().count();
+                find_in_line(line, needle, *match_case)
+                    .into_iter()
+                    .map(|start| (start, length))
+                    .collect()
+            }
+            Self::Pattern(pattern) => find_pattern_in_line(line, pattern),
+        }
+    }
+}
+
+/// Every non-empty match of `pattern` in `line`, as character offsets and lengths (an
+/// empty match marks no text).
+pub fn find_pattern_in_line(line: &str, pattern: &Regex) -> Vec<(usize, usize)> {
+    pattern
+        .find_iter(line)
+        .filter(|found| !found.is_empty())
+        .map(|found| {
+            let start = line[..found.start()].chars().count();
+            (start, found.as_str().chars().count())
+        })
+        .collect()
 }
 
 /// Where a match is: in a Block's text or in its caption.
@@ -124,7 +180,7 @@ struct BlockPlace<'a> {
 }
 
 struct Collector {
-    query: SearchQuery,
+    matcher: Matcher,
     result: SearchResult,
 }
 
@@ -134,9 +190,8 @@ impl Collector {
     }
 
     fn scan(&mut self, place: &BlockPlace<'_>, match_place: MatchPlace, text: &str) {
-        let length = self.query.text.chars().count();
         for (index, line) in text.lines().enumerate() {
-            for start in find_in_line(line, &self.query.text, self.query.match_case) {
+            for (start, length) in self.matcher.find(line) {
                 if self.result.matches.len() >= SEARCH_MAX_MATCHES {
                     self.result.truncated = true;
                     return;
@@ -161,22 +216,25 @@ impl Collector {
 }
 
 /// Searches the Project at `root` in Document, Sheet and back-to-front Block order. An empty
-/// query finds nothing. Documents and Sheets that fail to load are skipped.
+/// query finds nothing. Documents and Sheets that fail to load are skipped. An invalid
+/// regular expression is `InvalidSearchPattern`.
 pub fn search_project(root: &Path, query: SearchQuery) -> ApplicationResult<SearchResult> {
+    let empty = SearchResult {
+        matches: Vec::new(),
+        truncated: false,
+        unreadable_blocks: 0,
+    };
+    if query.text.is_empty() {
+        return Ok(empty);
+    }
+    let matcher = Matcher::new(&query)?;
     let mut sessions = ProjectSessions::default();
     let project = open_project(&mut sessions, root)?;
     let project_id = project.project.project_id.clone();
     let mut collector = Collector {
-        query,
-        result: SearchResult {
-            matches: Vec::new(),
-            truncated: false,
-            unreadable_blocks: 0,
-        },
+        matcher,
+        result: empty,
     };
-    if collector.query.text.is_empty() {
-        return Ok(collector.result);
-    }
     for entry in &project.documents {
         if entry.state != EntityState::Loaded || collector.full() {
             continue;
@@ -232,6 +290,36 @@ mod tests {
         assert_eq!(find_in_line("Order order ORDER", "order", true), [6]);
         assert_eq!(find_in_line("aaaa", "aa", false), [0, 2]);
         assert!(find_in_line("abc", "", false).is_empty());
+    }
+
+    #[test]
+    fn patterns_match_line_by_line_in_characters() {
+        let query = |text: &str, match_case| SearchQuery {
+            text: text.to_owned(),
+            match_case,
+            regex: true,
+        };
+        let Ok(matcher) = Matcher::new(&query(r"注文\d+", false)) else {
+            panic!("a valid pattern");
+        };
+        assert_eq!(matcher.find("設計 注文12 と 注文3"), [(3, 4), (10, 3)]);
+        let Ok(matcher) = Matcher::new(&query("ORDER", false)) else {
+            panic!("a valid pattern");
+        };
+        assert_eq!(matcher.find("order Order"), [(0, 5), (6, 5)]);
+        let Ok(matcher) = Matcher::new(&query("ORDER", true)) else {
+            panic!("a valid pattern");
+        };
+        assert!(matcher.find("order").is_empty());
+        // An empty match marks nothing.
+        let Ok(matcher) = Matcher::new(&query("x*", false)) else {
+            panic!("a valid pattern");
+        };
+        assert_eq!(matcher.find("axxb"), [(1, 2)]);
+        assert!(matches!(
+            Matcher::new(&query("(", false)),
+            Err(error) if error.kind == ErrorKind::InvalidSearchPattern
+        ));
     }
 
     #[test]

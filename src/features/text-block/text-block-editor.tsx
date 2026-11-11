@@ -253,7 +253,6 @@ export function TextBlockEditor({
     const range = occurrenceRange(
       textarea.value,
       editorReveal.query,
-      editorReveal.matchCase,
       editorReveal.at,
     );
     if (range === null) return;

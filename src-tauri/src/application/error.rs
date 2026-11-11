@@ -47,6 +47,8 @@ pub enum ErrorKind {
     InvalidSpreadsheet,
     /// An export (Markdown, image, HTML) could not be written where the user chose.
     ExportFailed,
+    /// A search asked for a regular expression that is not one (or is too large).
+    InvalidSearchPattern,
     /// A theme preference that is not `system` or a defined theme id.
     InvalidThemePreference,
     /// A language preference that is not `system`, `en` or `ja`.
@@ -143,6 +145,7 @@ impl ErrorKind {
             Self::AssetTooLarge => "assetTooLarge",
             Self::InvalidSpreadsheet => "invalidSpreadsheet",
             Self::ExportFailed => "exportFailed",
+            Self::InvalidSearchPattern => "invalidSearchPattern",
             Self::InvalidThemePreference => "invalidThemePreference",
             Self::InvalidLanguagePreference => "invalidLanguagePreference",
             Self::InvalidTextSize => "invalidTextSize",
@@ -199,6 +202,7 @@ impl ErrorKind {
             Self::AssetTooLarge => "the image file is too large",
             Self::InvalidSpreadsheet => "the file is not a readable spreadsheet",
             Self::ExportFailed => "the export could not be written",
+            Self::InvalidSearchPattern => "the search pattern is not a valid regular expression",
             Self::InvalidThemePreference => "the theme preference is not valid",
             Self::InvalidLanguagePreference => "the language preference is not valid",
             Self::InvalidTextSize => "the text size is not valid",
@@ -313,7 +317,7 @@ impl Serialize for ApplicationError {
 mod tests {
     use super::*;
 
-    const ALL_KINDS: [ErrorKind; 64] = [
+    const ALL_KINDS: [ErrorKind; 65] = [
         ErrorKind::Domain(DomainErrorKind::InvalidEntityId),
         ErrorKind::Domain(DomainErrorKind::InvalidDisplayName),
         ErrorKind::Domain(DomainErrorKind::InvalidCaption),
@@ -343,6 +347,7 @@ mod tests {
         ErrorKind::AssetTooLarge,
         ErrorKind::InvalidSpreadsheet,
         ErrorKind::ExportFailed,
+        ErrorKind::InvalidSearchPattern,
         ErrorKind::InvalidThemePreference,
         ErrorKind::InvalidLanguagePreference,
         ErrorKind::InvalidTextSize,

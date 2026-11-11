@@ -282,6 +282,9 @@ export interface PersistenceGateway {
     projectId: ProjectId,
     text: string,
     matchCase: boolean,
+    // `text` is a regular expression (Rust syntax); an invalid one is
+    // `invalidSearchPattern`.
+    regex: boolean,
   ): Promise<OperationResult<SearchResult>>;
   // The OS dialog for a spreadsheet runs in Rust, which reads the chosen file and returns
   // the values of its sheets. Cancelling is an ok result.

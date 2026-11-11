@@ -339,10 +339,21 @@ pub async fn search_project<R: Runtime>(
     project_id: String,
     text: String,
     match_case: bool,
+    regex: bool,
 ) -> Result<SearchResult, ApplicationError> {
     ensure_window_project(&window, &project_id)?;
     let root = project_root(&app, &project_id)?;
-    run_blocking(move || search_in_project(&root, SearchQuery { text, match_case })).await
+    run_blocking(move || {
+        search_in_project(
+            &root,
+            SearchQuery {
+                text,
+                match_case,
+                regex,
+            },
+        )
+    })
+    .await
 }
 
 /// "Export as Markdown…": the save dialog, then the Document as one Markdown file with its

@@ -792,6 +792,7 @@ dependencies = [
  "gtk",
  "imagesize",
  "notify",
+ "regex",
  "serde",
  "serde_json",
  "sha2",

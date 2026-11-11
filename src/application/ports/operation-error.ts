@@ -56,6 +56,8 @@ export const ASSET_ERROR_KINDS = [
   "invalidSpreadsheet",
   // An export (Markdown, image, HTML) could not be written where the user chose.
   "exportFailed",
+  // A search pattern that is not a valid regular expression.
+  "invalidSearchPattern",
 ] as const;
 
 // Folder commands: deleting a folder that still holds
