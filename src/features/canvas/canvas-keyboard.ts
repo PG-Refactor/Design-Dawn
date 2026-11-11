@@ -32,6 +32,7 @@ export interface KeyEventLike {
 
 const KEYS = {
   alt: "Alt",
+  shift: "Shift",
   escape: "Escape",
   delete: "Delete",
   backspace: "Backspace",
@@ -115,6 +116,11 @@ export function isPanModifierKey(event: {
 // The Alt key suspends the grid snap while a move / resize is in progress.
 export function isSnapSuspendKey(event: { readonly key: string }): boolean {
   return event.key === KEYS.alt;
+}
+
+// Shift during a resize keeps the block's proportions.
+export function isKeepAspectKey(event: { readonly key: string }): boolean {
+  return event.key === KEYS.shift;
 }
 
 const EDITABLE_TAG_NAMES: ReadonlySet<string> = new Set([

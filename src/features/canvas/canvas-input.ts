@@ -49,6 +49,7 @@ import {
   sheetOriginOf,
 } from "./geometry/sheet-origin";
 import {
+  aspectResizeFrame,
   type ResizeEdges,
   snappedMoveDelta,
   snappedResizeFrame,
@@ -89,11 +90,18 @@ export interface CanvasInput {
   pointerDownOnBackground(point: Point, additive?: boolean): void;
   // Space + left button or the middle button, anywhere: pan, never touching selection.
   pointerDownForPan(point: Point): void;
-  // `snapSuspended` (Alt held) switches the grid snap of a move / resize off.
-  pointerMove(point: Point, snapSuspended?: boolean): void;
+  // `snapSuspended` (Alt held) switches the grid snap of a move / resize off;
+  // `keepAspect` (Shift held) keeps a resized block's width : height.
+  pointerMove(
+    point: Point,
+    snapSuspended?: boolean,
+    keepAspect?: boolean,
+  ): void;
   // Alt pressed / released mid-gesture: the preview is recomputed from the last pointer
   // position. Issues no command. Does nothing outside a move / resize.
   setSnapSuspended(suspended: boolean): void;
+  // Shift pressed / released mid-gesture, the same way.
+  setKeepAspect(keep: boolean): void;
   pointerUp(): Promise<void>;
   // Abandons the gesture in progress; nothing is committed.
   cancel(): void;
@@ -164,6 +172,8 @@ export function createCanvasInput(
   let committing = false;
   // Alt held. Not persisted: it only lives as long as the gesture.
   let snapSuspended = false;
+  // Shift held, for a resize. Lives as long as the gesture, like `snapSuspended`.
+  let keepAspect = false;
   // Where the pointer last was, so toggling Alt can recompute the preview.
   let lastPoint: Point | null = null;
 
@@ -234,20 +244,27 @@ export function createCanvasInput(
       uiStateStore.setState((state) => updateDrag(state, bounded));
     } else if (gesture?.kind === "resizing") {
       const raw = worldDeltaFrom(gesture.start, point);
-      const frame = snapSuspended
-        ? resizePreviewFrame(gesture.startFrame, raw)
-        : snappedResizeFrame(
+      const frame = keepAspect
+        ? aspectResizeFrame(
             gesture.startFrame,
             raw,
-            RESIZE_HANDLE_EDGES,
-            CANVAS_CONFIG.grid.interval,
-          );
+            snapSuspended ? null : CANVAS_CONFIG.grid.interval,
+          )
+        : snapSuspended
+          ? resizePreviewFrame(gesture.startFrame, raw)
+          : snappedResizeFrame(
+              gesture.startFrame,
+              raw,
+              RESIZE_HANDLE_EDGES,
+              CANVAS_CONFIG.grid.interval,
+            );
       uiStateStore.setState((state) => updateResize(state, frame));
     }
   }
 
   function endGestureState(): void {
     snapSuspended = false;
+    keepAspect = false;
     lastPoint = null;
   }
 
@@ -298,9 +315,10 @@ export function createCanvasInput(
       };
     },
 
-    pointerMove(point, suspended = false) {
+    pointerMove(point, suspended = false, aspect = false) {
       if (gesture === null) return;
       snapSuspended = suspended;
+      keepAspect = aspect;
       lastPoint = point;
       switch (gesture.kind) {
         case "blockPress":
@@ -367,6 +385,11 @@ export function createCanvasInput(
 
     setSnapSuspended(suspended) {
       snapSuspended = suspended;
+      if (lastPoint !== null) updateMoveOrResizePreview(lastPoint);
+    },
+
+    setKeepAspect(keep) {
+      keepAspect = keep;
       if (lastPoint !== null) updateMoveOrResizePreview(lastPoint);
     },
 

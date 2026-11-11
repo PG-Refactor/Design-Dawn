@@ -580,6 +580,40 @@ describe("real Mermaid with the app's theme token values", () => {
     },
   );
 
+  it.each(["light", "dark"])(
+    "puts edge labels on the %s surface, not on a highlight colour",
+    async (themeId) => {
+      const theme = themeValuesOf(themeId);
+      const outcome = await mermaidRenderer.render(
+        "flowchart TD\n  A -->|yes| B",
+        theme,
+      );
+      expect(outcome.ok).toBe(true);
+      if (!outcome.ok) return;
+      const svg = sanitizeSvg(outcome.svg).toLowerCase();
+      const surface = (theme.edgeLabelBackground ?? "").toLowerCase();
+      expect(surface).toBe((theme.background ?? "").toLowerCase());
+      expect(svg).toMatch(
+        new RegExp(`\\.edgelabel rect\\s*\\{[^}]*${surface}`),
+      );
+    },
+  );
+
+  it("outlines sequence message text in the surface colour so lifelines do not cross it", async () => {
+    const theme = themeValuesOf("light");
+    const outcome = await mermaidRenderer.render(
+      "sequenceDiagram\n  participant A\n  participant B\n  participant C\n  A->>C: Charge card",
+      theme,
+    );
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    const svg = sanitizeSvg(outcome.svg).toLowerCase();
+    // Mermaid writes the colour in its own notation, so only the outline itself is checked.
+    expect(svg).toMatch(
+      /\.messagetext\s*\{[^}]*paint-order:\s*stroke;stroke:[^;]+;stroke-width/,
+    );
+  });
+
   it("fails to render when a token is a colour format Mermaid cannot parse (the regression signal for a token format change)", async () => {
     for (const unsupported of ["color-mix(in srgb, red, blue)", "var(--x)"]) {
       const outcome = await mermaidRenderer.render(LABEL_SOURCE, {

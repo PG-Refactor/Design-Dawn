@@ -7,9 +7,12 @@ import {
   useState,
 } from "react";
 import type {
+  MenuActionItem,
   MenuDefinition,
   MenuEntry,
   MenuRadioGroup,
+  MenuSeparator,
+  MenuSubmenu,
 } from "./menu-bar-types";
 import "./menu-bar.css";
 
@@ -29,10 +32,16 @@ interface OpenState {
   readonly focus: FocusTarget;
 }
 
+const MENU_SELECTOR = '[role="menu"]';
+const SUBMENU_SELECTOR = ".menu-bar__submenu";
+
+// The items of this menu, not those of a submenu inside it.
 function itemsOf(menu: HTMLElement | null): HTMLElement[] {
   return menu === null
     ? []
-    : [...menu.querySelectorAll<HTMLElement>(MENU_ITEM_SELECTOR)];
+    : [...menu.querySelectorAll<HTMLElement>(MENU_ITEM_SELECTOR)].filter(
+        (item) => item.parentElement?.closest(MENU_SELECTOR) === menu,
+      );
 }
 
 type ActivateHandler = (select: () => void, disabled: boolean) => void;
@@ -45,38 +54,182 @@ function onItemKeyDown(event: KeyboardEvent, activate: () => void) {
   activate();
 }
 
-function MenuEntryView({
+function ActionItemView({
   entry,
   onActivate,
 }: {
+  readonly entry: MenuActionItem | MenuSeparator;
+  readonly onActivate: ActivateHandler;
+}) {
+  if (entry.kind === "separator") return <hr className="menu-bar__separator" />;
+  const activate = () => onActivate(entry.onSelect, entry.disabled === true);
+  return (
+    <div
+      role="menuitem"
+      tabIndex={-1}
+      className="menu-bar__item"
+      aria-disabled={entry.disabled === true ? true : undefined}
+      aria-keyshortcuts={entry.shortcutKeys}
+      onClick={activate}
+      onKeyDown={(event) => onItemKeyDown(event, activate)}
+    >
+      <span>{entry.label}</span>
+      {entry.shortcutHint === undefined ? null : (
+        <span className="menu-bar__shortcut" aria-hidden="true">
+          {entry.shortcutHint}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// The nested menu opens on hover, click, Enter, Space or the right arrow, and its keys
+// stay inside it: up / down move, left and Escape go back to its item.
+function SubmenuView({
+  entry,
+  onActivate,
+  open,
+  setOpen,
+}: {
+  readonly entry: MenuSubmenu;
+  readonly onActivate: ActivateHandler;
+  readonly open: boolean;
+  readonly setOpen: (open: boolean) => void;
+}) {
+  const [focusFirst, setFocusFirst] = useState(false);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuId = useId();
+
+  useEffect(() => {
+    if (!open || !focusFirst) return;
+    itemsOf(menuRef.current)[0]?.focus();
+    setFocusFirst(false);
+  }, [open, focusFirst]);
+
+  const openWithFocus = () => {
+    setOpen(true);
+    setFocusFirst(true);
+  };
+  const closeToTrigger = () => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  };
+
+  const onTriggerKeyDown = (event: KeyboardEvent) => {
+    if (
+      event.key !== "Enter" &&
+      event.key !== " " &&
+      event.key !== "ArrowRight"
+    )
+      return;
+    event.preventDefault();
+    event.stopPropagation();
+    openWithFocus();
+  };
+
+  const onMenuKeyDown = (event: KeyboardEvent) => {
+    const items = itemsOf(menuRef.current);
+    const current = items.indexOf(document.activeElement as HTMLElement);
+    const moveTo = (target: number) =>
+      items[(target + items.length) % items.length]?.focus();
+    switch (event.key) {
+      case "ArrowDown":
+        moveTo(current + 1);
+        break;
+      case "ArrowUp":
+        moveTo(current < 0 ? -1 : current - 1);
+        break;
+      case "Home":
+        moveTo(0);
+        break;
+      case "End":
+        moveTo(-1);
+        break;
+      case "ArrowLeft":
+      case "Escape":
+        closeToTrigger();
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  return (
+    <div
+      role="none"
+      className="menu-bar__submenu"
+      onMouseEnter={() => setOpen(true)}
+    >
+      <div
+        ref={triggerRef}
+        role="menuitem"
+        tabIndex={-1}
+        className="menu-bar__item"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
+        onClick={openWithFocus}
+        onKeyDown={onTriggerKeyDown}
+      >
+        <span>{entry.label}</span>
+        <span className="menu-bar__shortcut" aria-hidden="true">
+          ▸
+        </span>
+      </div>
+      {open ? (
+        <div
+          ref={menuRef}
+          id={menuId}
+          role="menu"
+          aria-label={entry.label}
+          className="menu-bar__popup menu-bar__popup--nested"
+          onKeyDown={onMenuKeyDown}
+        >
+          {entry.entries.map((child) => (
+            <ActionItemView
+              key={child.id}
+              entry={child}
+              onActivate={onActivate}
+            />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+// Which submenu of the open menu is open (by entry id), shared by its entries so that
+// moving to another entry closes it, as in a desktop menu.
+interface SubmenuState {
+  readonly openId: string | null;
+  readonly setOpenId: (id: string | null) => void;
+}
+
+function MenuEntryView({
+  entry,
+  onActivate,
+  submenu,
+}: {
   readonly entry: MenuEntry;
   readonly onActivate: ActivateHandler;
+  readonly submenu: SubmenuState;
 }) {
   switch (entry.kind) {
     case "separator":
-      return <hr className="menu-bar__separator" />;
-    case "item": {
-      const activate = () =>
-        onActivate(entry.onSelect, entry.disabled === true);
+    case "item":
+      return <ActionItemView entry={entry} onActivate={onActivate} />;
+    case "submenu":
       return (
-        <div
-          role="menuitem"
-          tabIndex={-1}
-          className="menu-bar__item"
-          aria-disabled={entry.disabled === true ? true : undefined}
-          aria-keyshortcuts={entry.shortcutKeys}
-          onClick={activate}
-          onKeyDown={(event) => onItemKeyDown(event, activate)}
-        >
-          <span>{entry.label}</span>
-          {entry.shortcutHint === undefined ? null : (
-            <span className="menu-bar__shortcut" aria-hidden="true">
-              {entry.shortcutHint}
-            </span>
-          )}
-        </div>
+        <SubmenuView
+          entry={entry}
+          onActivate={onActivate}
+          open={submenu.openId === entry.id}
+          setOpen={(open) => submenu.setOpenId(open ? entry.id : null)}
+        />
       );
-    }
     case "checkbox": {
       const activate = () =>
         onActivate(entry.onSelect, entry.disabled === true);
@@ -143,6 +296,17 @@ export function MenuBar({
 }) {
   const baseId = useId();
   const [open, setOpen] = useState<OpenState | null>(null);
+  const [openSubmenuId, setOpenSubmenuId] = useState<string | null>(null);
+  // Pointing at or focusing another entry of the menu closes its open submenu.
+  const closeSubmenuOutside = (target: EventTarget) => {
+    if (target instanceof Element && target.closest(SUBMENU_SELECTOR) === null)
+      setOpenSubmenuId(null);
+  };
+  // A menu always opens (and closes) with its submenus closed.
+  const setMenuOpen = useCallback((next: OpenState | null) => {
+    setOpenSubmenuId(null);
+    setOpen(next);
+  }, []);
   // The title that is in the tab order (roving tabindex).
   const [activeIndex, setActiveIndex] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -159,7 +323,7 @@ export function MenuBar({
 
   const openMenu = (menuIndex: number, focus: FocusTarget) => {
     setActiveIndex(menuIndex);
-    setOpen({ menuIndex, focus });
+    setMenuOpen({ menuIndex, focus });
   };
 
   // Moves the focus into the menu that was just opened (its elements exist only after
@@ -178,12 +342,12 @@ export function MenuBar({
   useEffect(() => {
     if (!menuOpen) return;
     const closeOnOutsidePointer = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(null);
+      if (!rootRef.current?.contains(event.target as Node)) setMenuOpen(null);
     };
     document.addEventListener("pointerdown", closeOnOutsidePointer);
     return () =>
       document.removeEventListener("pointerdown", closeOnOutsidePointer);
-  }, [menuOpen]);
+  }, [menuOpen, setMenuOpen]);
 
   // F10 moves the focus to the menu bar from anywhere in the window.
   useEffect(() => {
@@ -198,19 +362,19 @@ export function MenuBar({
         return;
       }
       event.preventDefault();
-      setOpen(null);
+      setMenuOpen(null);
       triggerRefs.current[activeIndex]?.focus();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activeIndex]);
+  }, [activeIndex, setMenuOpen]);
 
   const menuCount = menus.length;
   const neighbour = (index: number, step: 1 | -1) =>
     (index + step + menuCount) % menuCount;
 
   const closeAndReturn = (index: number) => {
-    setOpen(null);
+    setMenuOpen(null);
     focusTrigger(index);
   };
 
@@ -245,7 +409,7 @@ export function MenuBar({
       case "Escape":
         if (open !== null) {
           event.preventDefault();
-          setOpen(null);
+          setMenuOpen(null);
         }
         return;
     }
@@ -277,7 +441,7 @@ export function MenuBar({
         return;
       case "Tab":
         // Leaves the menu; the focus then continues from the title.
-        setOpen(null);
+        setMenuOpen(null);
         focusTrigger(index);
         return;
       case "ArrowRight":
@@ -317,7 +481,7 @@ export function MenuBar({
               aria-expanded={expanded}
               aria-controls={expanded ? menuId(index) : undefined}
               onClick={() =>
-                expanded ? setOpen(null) : openMenu(index, "first")
+                expanded ? setMenuOpen(null) : openMenu(index, "first")
               }
               onKeyDown={(event) => onTriggerKeyDown(event, index)}
               onMouseEnter={() => {
@@ -334,12 +498,18 @@ export function MenuBar({
                 aria-labelledby={triggerId(index)}
                 className="menu-bar__popup"
                 onKeyDown={(event) => onMenuKeyDown(event, index)}
+                onMouseOver={(event) => closeSubmenuOutside(event.target)}
+                onFocus={(event) => closeSubmenuOutside(event.target)}
               >
                 {menu.entries.map((entry) => (
                   <MenuEntryView
                     key={entry.id}
                     entry={entry}
                     onActivate={activate(index)}
+                    submenu={{
+                      openId: openSubmenuId,
+                      setOpenId: setOpenSubmenuId,
+                    }}
                   />
                 ))}
               </div>

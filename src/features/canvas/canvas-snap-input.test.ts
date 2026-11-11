@@ -194,3 +194,31 @@ describe("grid snap of a resize", () => {
     }
   });
 });
+
+describe("Shift (keep proportions) during a resize", () => {
+  it("keeps width : height, snapping the leading edge, and toggles mid-gesture", async () => {
+    const { harness, input } = await setup();
+    input.pointerDownOnResizeHandle(BLOCK_ONE, ORIGIN);
+    // The block is 100 x 50; the pointer pulls 1.4x across and 1.5x down.
+    input.pointerMove(screenAt(40, 25), false, true);
+    // The bottom edge (20 + 75 = 95) snaps to 96: a scale of 1.52.
+    expect(ui(harness).interaction).toMatchObject({
+      frame: { x: 10, y: 20, width: 152, height: 76 },
+    });
+    input.setSnapSuspended(true);
+    expect(ui(harness).interaction).toMatchObject({
+      frame: { width: 150, height: 75 },
+    });
+    input.setKeepAspect(false);
+    expect(ui(harness).interaction).toMatchObject({
+      frame: { width: 140, height: 75 },
+    });
+    input.setKeepAspect(true);
+    await input.pointerUp();
+    expect(harness.blocksOfSheetA1()[0]?.size).toEqual({
+      width: 150,
+      height: 75,
+    });
+    expect(await harness.undoDepth()).toBe(1);
+  });
+});

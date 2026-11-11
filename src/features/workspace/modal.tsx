@@ -15,32 +15,60 @@ const INERT_ATTRIBUTE = "inert";
 const ARIA_HIDDEN_ATTRIBUTE = "aria-hidden";
 
 interface SavedAttributes {
-  readonly element: Element;
   readonly inert: string | null;
   readonly ariaHidden: string | null;
 }
 
-// Hides everything outside the dialog from assistive technology and from focus. The
-// previous attribute values are restored exactly when the dialog closes.
-function hideSiblings(host: Element): () => void {
-  const saved: SavedAttributes[] = [...document.body.children]
-    .filter((element) => element !== host)
-    .map((element) => ({
-      element,
-      inert: element.getAttribute(INERT_ATTRIBUTE),
-      ariaHidden: element.getAttribute(ARIA_HIDDEN_ATTRIBUTE),
-    }));
-  for (const { element } of saved) {
+// The open dialogs, newest last. Only the newest is usable; everything else in the body,
+// including an older dialog, is hidden from assistive technology and from focus. Dialogs
+// can close in any order (a close request can open a question over another dialog, and the
+// lower one may close first), so the state is recomputed from this stack instead of each
+// dialog restoring what it saw when it opened.
+const openHosts: Element[] = [];
+// What each hidden element carried before any dialog touched it.
+const originals = new Map<Element, SavedAttributes>();
+
+function restore(element: Element): void {
+  const saved = originals.get(element);
+  if (saved === undefined) return;
+  originals.delete(element);
+  if (saved.inert === null) element.removeAttribute(INERT_ATTRIBUTE);
+  else element.setAttribute(INERT_ATTRIBUTE, saved.inert);
+  if (saved.ariaHidden === null) element.removeAttribute(ARIA_HIDDEN_ATTRIBUTE);
+  else element.setAttribute(ARIA_HIDDEN_ATTRIBUTE, saved.ariaHidden);
+}
+
+function applyModalStack(): void {
+  const top = openHosts[openHosts.length - 1];
+  if (top === undefined) {
+    for (const element of [...originals.keys()]) restore(element);
+    return;
+  }
+  for (const element of [...document.body.children]) {
+    if (element === top) {
+      restore(element);
+      continue;
+    }
+    if (!originals.has(element)) {
+      originals.set(element, {
+        inert: element.getAttribute(INERT_ATTRIBUTE),
+        ariaHidden: element.getAttribute(ARIA_HIDDEN_ATTRIBUTE),
+      });
+    }
     element.setAttribute(INERT_ATTRIBUTE, "");
     element.setAttribute(ARIA_HIDDEN_ATTRIBUTE, "true");
   }
+}
+
+function hideSiblings(host: Element): () => void {
+  openHosts.push(host);
+  applyModalStack();
   return () => {
-    for (const { element, inert, ariaHidden } of saved) {
-      if (inert === null) element.removeAttribute(INERT_ATTRIBUTE);
-      else element.setAttribute(INERT_ATTRIBUTE, inert);
-      if (ariaHidden === null) element.removeAttribute(ARIA_HIDDEN_ATTRIBUTE);
-      else element.setAttribute(ARIA_HIDDEN_ATTRIBUTE, ariaHidden);
-    }
+    const index = openHosts.indexOf(host);
+    if (index >= 0) openHosts.splice(index, 1);
+    applyModalStack();
+    // The host leaves the body right after; what was saved for it is of no further use.
+    originals.delete(host);
   };
 }
 

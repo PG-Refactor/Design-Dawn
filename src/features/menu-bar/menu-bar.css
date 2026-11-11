@@ -115,3 +115,15 @@
   color: var(--color-text-muted);
   font-size: 0.8125rem;
 }
+
+.menu-bar__submenu {
+  position: relative;
+}
+
+/* Beside its item, level with it (the popup's own padding lines the first items up). */
+.menu-bar__popup.menu-bar__popup--nested {
+  top: calc(-1 * var(--space-1));
+  left: 100%;
+  margin-top: 0;
+  margin-left: var(--space-1);
+}

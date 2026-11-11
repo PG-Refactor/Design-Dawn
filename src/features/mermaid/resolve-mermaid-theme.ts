@@ -25,6 +25,7 @@ export const THEME_TOKENS: readonly (readonly [ThemeVariable, string])[] = [
   ["actorBkg", "--color-diagram-node-fill"],
   ["actorBorder", "--color-border-strong"],
   ["labelBoxBorderColor", "--color-border-strong"],
+  ["edgeLabelBackground", "--color-surface"],
   ["fontFamily", "--font-family-base"],
   // Mermaid's base theme derives pie1..pie12 and the gantt bars from the primary colours
   // (darkened on a dark surface, which made them near-black), so the diagram palette is

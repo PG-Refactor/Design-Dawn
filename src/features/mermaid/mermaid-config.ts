@@ -48,6 +48,18 @@ export interface MermaidInitializeConfig {
   readonly theme: "base";
   readonly secure: string[];
   readonly themeVariables: Record<string, string | boolean>;
+  readonly themeCSS?: string;
+}
+
+// Width of the outline drawn around message text in the surface colour, so a lifeline
+// that a message crosses does not run through its words.
+const TEXT_HALO_WIDTH_PX = 4;
+
+// Sequence message texts sit over the lifelines between their two participants and have
+// no box of their own; an outline in the background colour, painted under the letters,
+// keeps them readable.
+function textHaloCss(background: string): string {
+  return `.messageText{paint-order:stroke;stroke:${background};stroke-width:${TEXT_HALO_WIDTH_PX}px;stroke-linejoin:round;}`;
 }
 
 // Only resolved values go in: an empty string would override Mermaid's default with
@@ -69,9 +81,12 @@ function definedThemeVariables(
 export function buildMermaidConfig(
   theme: MermaidThemeValues,
 ): MermaidInitializeConfig {
-  return {
+  const config = {
     ...MERMAID_FIXED_CONFIG,
     secure: [...MERMAID_SECURE_KEYS],
     themeVariables: definedThemeVariables(theme),
   };
+  return theme.background === undefined || theme.background === ""
+    ? config
+    : { ...config, themeCSS: textHaloCss(theme.background) };
 }

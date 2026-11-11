@@ -243,36 +243,44 @@ export function TopBar() {
           },
           { kind: "separator", id: "separator-export" },
           {
-            kind: "item",
-            id: "exportMarkdown",
-            label: topBar.exportMarkdown,
-            disabled: activeDocumentId === null,
-            onSelect: () => {
-              if (activeDocumentId !== null) {
-                void exportActions.exportDocumentMarkdown(activeDocumentId);
-              }
-            },
-          },
-          {
-            kind: "item",
-            id: "exportSheetHtml",
-            label: exportMessages.sheetHtml,
-            disabled: activeDocumentId === null,
-            onSelect: () => exportHtml("sheet"),
-          },
-          {
-            kind: "item",
-            id: "exportDocumentHtml",
-            label: exportMessages.documentHtml,
-            disabled: activeDocumentId === null,
-            onSelect: () => exportHtml("document"),
-          },
-          {
-            kind: "item",
-            id: "print",
-            label: exportMessages.print,
-            disabled: activeDocumentId === null,
-            onSelect: () => setPrintTarget(shownTarget()),
+            kind: "submenu",
+            id: "export",
+            label: topBar.exportMenu,
+            entries: [
+              {
+                kind: "item",
+                id: "exportMarkdown",
+                label: topBar.exportMarkdown,
+                disabled: activeDocumentId === null,
+                onSelect: () => {
+                  if (activeDocumentId !== null) {
+                    void exportActions.exportDocumentMarkdown(activeDocumentId);
+                  }
+                },
+              },
+              {
+                kind: "item",
+                id: "exportSheetHtml",
+                label: exportMessages.sheetHtml,
+                disabled: activeDocumentId === null,
+                onSelect: () => exportHtml("sheet"),
+              },
+              {
+                kind: "item",
+                id: "exportDocumentHtml",
+                label: exportMessages.documentHtml,
+                disabled: activeDocumentId === null,
+                onSelect: () => exportHtml("document"),
+              },
+              { kind: "separator", id: "separator-print" },
+              {
+                kind: "item",
+                id: "print",
+                label: exportMessages.print,
+                disabled: activeDocumentId === null,
+                onSelect: () => setPrintTarget(shownTarget()),
+              },
+            ],
           },
           { kind: "separator", id: "separator-ai" },
           {

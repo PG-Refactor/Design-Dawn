@@ -50,12 +50,14 @@ import { createCanvasInput } from "./canvas-input";
 import {
   CANVAS_KEY_COMMANDS,
   isEditableTarget,
+  isKeepAspectKey,
   isPanModifierKey,
   isSnapSuspendKey,
   keyCommandOf,
 } from "./canvas-keyboard";
 import { routePointerDown } from "./canvas-pointer-routing";
 import { CaptionDialog } from "./caption-dialog";
+import { measureFittedBlockSize } from "./fit-block-size";
 import { displayedFrame, isInteracting } from "./geometry/preview-frame";
 import { normalizeRect } from "./geometry/range-selection";
 import {
@@ -285,6 +287,7 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
     input.pointerMove(
       pointRelativeTo(event.currentTarget, event),
       event.altKey,
+      event.shiftKey,
     );
   }
 
@@ -432,6 +435,24 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
                   }),
               }
             : {}),
+          ...(selectedIds.length === 1 && onlyBlock !== undefined
+            ? {
+                fitToContent: () => {
+                  const size = measureFittedBlockSize(onlyBlock.blockId);
+                  if (size === null) return;
+                  void canvasActions.commitResize({
+                    documentId,
+                    sheetId,
+                    blockId: onlyBlock.blockId,
+                    frame: {
+                      x: onlyBlock.position.x,
+                      y: onlyBlock.position.y,
+                      ...size,
+                    },
+                  });
+                },
+              }
+            : {}),
           ...(selectedIds.length === 1 &&
           onlyBlock !== undefined &&
           onlyBlock.blockType === BLOCK_TYPE_DEFINITIONS.mermaid.identifier
@@ -488,8 +509,23 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
     return true;
   }
 
+  // Shift toggles keeping the proportions of the resize in progress.
+  function onKeepAspectKey(
+    event: KeyboardEvent<HTMLDivElement>,
+    keep: boolean,
+  ): boolean {
+    if (!isKeepAspectKey(event)) return false;
+    if (isEditableTarget(event.target) || isInsideBlockEditor(event.target)) {
+      return false;
+    }
+    if (!input.isGestureActive()) return false;
+    input.setKeepAspect(keep);
+    return true;
+  }
+
   function onKeyUp(event: KeyboardEvent<HTMLDivElement>) {
     if (onSnapSuspendKey(event, false)) return;
+    if (onKeepAspectKey(event, false)) return;
     if (isPanModifierKey(event)) updateSpaceHeld(false);
   }
 
@@ -506,6 +542,7 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
       return;
     }
     if (onSnapSuspendKey(event, true)) return;
+    if (onKeepAspectKey(event, true)) return;
     if (isPanModifierKey(event)) {
       event.preventDefault();
       updateSpaceHeld(true);
