@@ -19,6 +19,8 @@ use crate::application::authoring::{
 };
 use crate::application::export_markdown::document_markdown;
 use crate::application::local_state::ai_access::{listed_project_name, AiAccessList};
+use crate::application::local_state::ai_history::{append as append_ai_history, AiHistoryEntry};
+use crate::application::local_state::ai_image_requests::{request_image, AiImageRequest};
 use crate::application::local_state::ai_requests::{request_write_access, AiRequestOutcome};
 use crate::application::project_search::{search_project, SearchQuery};
 
@@ -271,25 +273,125 @@ listProjects and selectProject for another one"
         arguments: &Map<String, Value>,
     ) -> Result<Value, ToolError> {
         let arguments = Arguments::new(arguments, definition)?;
+        // The text an update replaces, read first so the user can undo it from the app.
+        let before = (definition.name == names::UPDATE_BLOCK)
+            .then(|| self.block_text(&arguments).ok())
+            .flatten();
+        let result = self.dispatch(definition, &arguments);
+        // A request to add an image changes nothing yet: the app adds the Block if allowed.
+        if definition.writes && definition.name != names::REQUEST_IMAGE_IMPORT {
+            if let Ok(value) = &result {
+                self.record_history(definition.name, &arguments, before, value);
+            }
+        }
+        result
+    }
+
+    /// The current text of the Block the arguments name.
+    fn block_text(&self, arguments: &Arguments) -> Result<String, ToolError> {
+        let mut workspace = self.workspace()?;
+        let document = workspace.load_document(arguments.string("documentId")?)?;
+        let sheet = find_sheet(&document, arguments.string("sheetId")?)?;
+        let block = find_block(sheet, arguments.string("blockId")?)?;
+        Ok(read_text_block(
+            &mut workspace.sessions,
+            &workspace.project_id,
+            &document.document.document_id,
+            block,
+        )?
+        .text)
+    }
+
+    /// Adds the write to the app's AI history. Only a server that follows the app keeps one;
+    /// a failure to record is reported on stderr and does not undo the write.
+    fn record_history(
+        &self,
+        tool: &str,
+        arguments: &Arguments,
+        before: Option<String>,
+        result: &Value,
+    ) {
+        let Target::FollowApp { config_dir, .. } = &self.target else {
+            return;
+        };
+        let Ok(resolved) = self.resolve() else {
+            return;
+        };
+        let Ok(project_id) = ProjectId::parse(&resolved.project_id) else {
+            return;
+        };
+        let text = |key: &str| {
+            arguments
+                .optional_string(key)
+                .ok()
+                .flatten()
+                .map(str::to_owned)
+        };
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|elapsed| elapsed.as_secs())
+            .unwrap_or_default();
+        let entry = AiHistoryEntry {
+            at: now,
+            tool: tool.to_owned(),
+            document_id: text("documentId").or_else(|| {
+                result
+                    .get("documentId")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned)
+            }),
+            sheet_id: text("sheetId").or_else(|| {
+                result
+                    .get("sheetId")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned)
+            }),
+            block_id: text("blockId").or_else(|| {
+                result
+                    .get("blockId")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned)
+            }),
+            before,
+            after: text("text"),
+            after_hash: result
+                .get("contentHash")
+                .and_then(Value::as_str)
+                .map(str::to_owned),
+        };
+        if let Err(error) = append_ai_history(config_dir, &project_id, entry) {
+            eprintln!(
+                "design-dawn-mcp: could not record the AI history: {}",
+                error.detail
+            );
+        }
+    }
+
+    fn dispatch(
+        &self,
+        definition: &ToolDefinition,
+        arguments: &Arguments,
+    ) -> Result<Value, ToolError> {
         match definition.name {
             names::LIST_PROJECTS => self.list_projects(),
-            names::SELECT_PROJECT => self.select_project(&arguments),
-            names::REQUEST_WRITE_ACCESS => self.request_write_access(&arguments),
+            names::SELECT_PROJECT => self.select_project(arguments),
+            names::REQUEST_WRITE_ACCESS => self.request_write_access(arguments),
             names::GET_PROJECT => self.get_project(),
-            names::GET_DOCUMENT => self.get_document(&arguments),
-            names::GET_SHEET => self.get_sheet(&arguments),
-            names::GET_BLOCK => self.get_block(&arguments),
-            names::SEARCH_PROJECT => self.search_project(&arguments),
-            names::EXPORT_MARKDOWN => self.export_markdown(&arguments),
-            names::CREATE_DOCUMENT => self.create_document(&arguments),
-            names::CREATE_SHEET => self.create_sheet(&arguments),
-            names::CREATE_BLOCK => self.create_block(&arguments),
-            names::UPDATE_DOCUMENT => self.update_document(&arguments),
-            names::UPDATE_SHEET => self.update_sheet(&arguments),
-            names::UPDATE_BLOCK => self.update_block(&arguments),
-            names::MOVE_BLOCK => self.move_block(&arguments),
-            names::UPDATE_BLOCK_CAPTION => self.update_block_caption(&arguments),
-            names::DELETE_BLOCK => self.delete_block(&arguments),
+            names::GET_DOCUMENT => self.get_document(arguments),
+            names::GET_SHEET => self.get_sheet(arguments),
+            names::GET_BLOCK => self.get_block(arguments),
+            names::SEARCH_PROJECT => self.search_project(arguments),
+            names::EXPORT_MARKDOWN => self.export_markdown(arguments),
+            names::CREATE_DOCUMENT => self.create_document(arguments),
+            names::CREATE_SHEET => self.create_sheet(arguments),
+            names::CREATE_BLOCK => self.create_block(arguments),
+            names::UPDATE_DOCUMENT => self.update_document(arguments),
+            names::UPDATE_SHEET => self.update_sheet(arguments),
+            names::UPDATE_BLOCK => self.update_block(arguments),
+            names::MOVE_BLOCK => self.move_block(arguments),
+            names::UPDATE_BLOCK_CAPTION => self.update_block_caption(arguments),
+            names::DELETE_BLOCK => self.delete_block(arguments),
+            names::REQUEST_IMAGE_IMPORT => self.request_image_import(arguments),
             other => Err(ToolError::new(
                 KIND_INTERNAL,
                 format!("tool {other} has no handler"),
@@ -361,6 +463,51 @@ listProjects",
             "name": listed_project_name(entry),
             "writable": entry.allow_write,
             "followsApp": false,
+        }))
+    }
+
+    fn request_image_import(&self, arguments: &Arguments) -> Result<Value, ToolError> {
+        let Target::FollowApp { config_dir, .. } = &self.target else {
+            return Err(fixed_project_only());
+        };
+        let resolved = self.resolve()?;
+        let mut workspace = self.workspace()?;
+        let document = workspace.load_document(arguments.string("documentId")?)?;
+        let sheet = find_sheet(&document, arguments.string("sheetId")?)?;
+        let path = PathBuf::from(arguments.string("path")?);
+        let file_name = path
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        if !path.is_absolute()
+            || !path.is_file()
+            || ImageFormat::from_file_name(&file_name).is_none()
+        {
+            return Err(ToolError::invalid_arguments(
+                "path must be an absolute path of an existing PNG, JPEG, WebP, SVG or GIF file",
+            ));
+        }
+        let position = arguments.optional_pair("position", "x", "y")?;
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |elapsed| elapsed.as_secs());
+        request_image(
+            config_dir,
+            &AiImageRequest {
+                project_id: resolved.project_id,
+                document_id: document.document.document_id.clone(),
+                sheet_id: sheet.sheet_id.clone(),
+                path,
+                x: position.map(|(x, _)| x),
+                y: position.map(|(_, y)| y),
+                caption: arguments.optional_string("caption")?.map(str::to_owned),
+                requested_at: now,
+            },
+        )?;
+        Ok(json!({
+            "requested": true,
+            "message": "The user is asked in the Design Dawn app. Tell them; the Image Block \
+        appears on the Sheet only if they allow it.",
         }))
     }
 

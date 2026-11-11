@@ -3,9 +3,11 @@
 import type {
   AiAccessGateway,
   AiAccessOverview,
+  AiHistoryEntry,
   AiProjectAccess,
 } from "../../application/ports/ai-access-gateway";
 import { parseProjectId } from "../../domain/shared/entity-id";
+import { toImportedImageResult } from "./asset-payloads";
 import { COMMANDS } from "./command-constants";
 import {
   type CommandResult,
@@ -19,6 +21,7 @@ import {
   arrayOf,
   type Decoder,
   decodeBoolean,
+  decodeNumber,
   decodeString,
   nullable,
   objectOf,
@@ -85,8 +88,39 @@ export function toAiAccessOverviewResult(
 
 const discard = (): undefined => undefined;
 
+const rawHistory = arrayOf(
+  objectOf<AiHistoryEntry>({
+    at: decodeNumber,
+    tool: decodeString,
+    documentId: nullable(decodeString),
+    sheetId: nullable(decodeString),
+    blockId: nullable(decodeString),
+    before: nullable(decodeString),
+    after: nullable(decodeString),
+    afterHash: nullable(decodeString),
+  }),
+);
+
+function toHistory(payload: unknown): CommandResult<readonly AiHistoryEntry[]> {
+  const decoded = rawHistory(payload, PAYLOAD_ROOT);
+  return decoded.ok
+    ? commandOk(decoded.value)
+    : commandErr("invalidCommandResponse", decoded.detail);
+}
+
 export function createTauriAiAccessGateway(): AiAccessGateway {
   return {
+    history: (projectId) => call(COMMANDS.aiHistory, { projectId }, toHistory),
+    imageRequestPreview: (requestId) =>
+      call(COMMANDS.aiImageRequestPreview, { requestId }, (payload) =>
+        typeof payload === "string"
+          ? commandOk(payload)
+          : commandErr("invalidCommandResponse", "expected a data URL"),
+      ),
+    answerImageRequest: (requestId, allow) =>
+      call(COMMANDS.answerAiImageRequest, { requestId, allow }, (payload) =>
+        payload === null ? commandOk(null) : toImportedImageResult(payload),
+      ),
     overview: () =>
       call(COMMANDS.aiAccessOverview, {}, toAiAccessOverviewResult),
     addOpenProject: async () => {

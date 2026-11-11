@@ -15,6 +15,8 @@ import { TEXT_SIZES, type TextSize } from "../../config/text-size-config";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { AiAccessDialog } from "../ai-access/ai-access-dialog";
 import { AiAccessRequestPrompt } from "../ai-access/ai-access-request-prompt";
+import { AiHistoryDialog } from "../ai-access/ai-history-dialog";
+import { AiImageRequestPrompt } from "../ai-access/ai-image-request-prompt";
 import { PrintDialog, type PrintTarget } from "../export/print-dialog";
 import { type HelpDialogKind, HelpDialogs } from "../help/help-dialogs";
 import { MenuBar } from "../menu-bar/menu-bar";
@@ -185,6 +187,7 @@ export function TopBar() {
   const hasProject = projectName !== null;
   const [helpDialog, setHelpDialog] = useState<HelpDialogKind | null>(null);
   const [aiAccessOpen, setAiAccessOpen] = useState(false);
+  const [aiHistoryOpen, setAiHistoryOpen] = useState(false);
 
   const menus = useMemo<readonly MenuDefinition[]>(
     () => [
@@ -277,6 +280,13 @@ export function TopBar() {
             id: "aiAccess",
             label: aiAccessTexts.menuItem,
             onSelect: () => setAiAccessOpen(true),
+          },
+          {
+            kind: "item",
+            id: "aiHistory",
+            label: aiAccessTexts.history.menuItem,
+            disabled: !hasProject,
+            onSelect: () => setAiHistoryOpen(true),
           },
           { kind: "separator", id: "separator-close" },
           {
@@ -411,6 +421,10 @@ export function TopBar() {
         <AiAccessDialog onClose={() => setAiAccessOpen(false)} />
       )}
       <AiAccessRequestPrompt />
+      <AiImageRequestPrompt />
+      {aiHistoryOpen && (
+        <AiHistoryDialog onClose={() => setAiHistoryOpen(false)} />
+      )}
       {printTarget !== null && (
         <PrintDialog
           target={printTarget}

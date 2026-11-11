@@ -147,3 +147,23 @@ describe("the class diagram editor", () => {
     );
   });
 });
+
+describe("a diagram that no longer draws", () => {
+  it("is reported once when its text came from outside the app", async () => {
+    const rendered = await renderOpenedCanvas(
+      seedMermaid("graph TD\n  A -->"),
+      {
+        mermaidRenderer: createFakeRenderer(() => ({
+          ok: false,
+          message: "Parse error",
+        })),
+      },
+    );
+    await act(settle);
+    const errors = rendered.shell.uiStateStore
+      .getState()
+      .operationErrors.filter((entry) => entry.operation === "renderDiagram");
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.error.detail).toBe("Parse error");
+  });
+});

@@ -12,8 +12,12 @@ use serde::Deserialize;
 use tauri::{AppHandle, Manager, Runtime, State};
 
 use super::app_channel::{AppNotification, AppRequestSubscriber};
-use crate::application::error::ApplicationError;
+use crate::application::asset_import::{image_file_data_url, import_asset, ImportedImage};
+use crate::application::error::{ApplicationError, ErrorKind};
 use crate::application::local_state::ai_access::plain_path;
+use crate::application::local_state::ai_image_requests::{
+    peek_image_request, pending_image_requests, take_image_request,
+};
 use crate::application::local_state::ai_requests::{pending_requests, remove_request};
 use crate::application::local_state::constants::{
     AI_REQUEST_DENIED_COOLDOWN_SECS, AI_REQUEST_MAX_AGE_SECS, AI_REQUEST_POLL_INTERVAL_MS,
@@ -40,6 +44,8 @@ pub enum AiRequestAnswer {
 pub struct AiRequestPrompts {
     shown: HashMap<ProjectId, Instant>,
     denied: HashMap<ProjectId, Instant>,
+    /// Image requests on screen, by request id.
+    shown_images: HashMap<String, Instant>,
 }
 
 /// What to do with a request that is waiting.
@@ -167,6 +173,116 @@ fn show_new_requests<R: Runtime>(app: &AppHandle<R>) {
     }
 }
 
+/// One look for new requests to add an image.
+fn show_new_image_requests<R: Runtime>(app: &AppHandle<R>) {
+    let (Some(local_state), Some(prompts), Some(hub)) = (
+        app.try_state::<LocalState>(),
+        app.try_state::<Mutex<AiRequestPrompts>>(),
+        app.try_state::<AppRequestSubscriber>(),
+    ) else {
+        return;
+    };
+    let config_dir = local_state.config_dir().to_path_buf();
+    let max_age = Duration::from_secs(AI_REQUEST_MAX_AGE_SECS);
+    lock(&prompts)
+        .shown_images
+        .retain(|_, at| at.elapsed() < max_age);
+    for (request_id, request) in pending_image_requests(&config_dir, unix_now()) {
+        if lock(&prompts).shown_images.contains_key(&request_id) {
+            continue;
+        }
+        let Ok(project_id) = ProjectId::parse(&request.project_id) else {
+            continue;
+        };
+        let Some(window_label) = window_for(app, &project_id) else {
+            continue;
+        };
+        let notification = AppNotification::AiImageRequested {
+            request_id: request_id.clone(),
+            project_id: request.project_id.clone(),
+            document_id: request.document_id.clone(),
+            sheet_id: request.sheet_id.clone(),
+            file_name: request
+                .path
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+            x: request.x,
+            y: request.y,
+            caption: request.caption.clone(),
+        };
+        if hub.send_untracked(&window_label, notification) {
+            lock(&prompts)
+                .shown_images
+                .insert(request_id, Instant::now());
+        }
+    }
+}
+
+/// The picture an AI asks to add, read and validated like a dropped image.
+#[tauri::command]
+pub async fn ai_image_request_preview<R: Runtime>(
+    app: AppHandle<R>,
+    request_id: String,
+) -> Result<String, ApplicationError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let config_dir = config_dir_of(&app)?;
+        let request = peek_image_request(&config_dir, &request_id)
+            .ok_or_else(|| ApplicationError::entity_not_found("the request is gone"))?;
+        image_file_data_url(&request.path)
+    })
+    .await
+    .map_err(|error| ApplicationError::new(ErrorKind::DialogFailed, error.to_string()))?
+}
+
+/// The user's answer to an image request. "Allow" imports the file into the Document's
+/// assets (the Document must be open in this window) and returns the imported image for
+/// the window to place; the request is gone either way.
+#[tauri::command]
+pub async fn answer_ai_image_request<R: Runtime>(
+    app: AppHandle<R>,
+    window: tauri::Window<R>,
+    request_id: String,
+    allow: bool,
+) -> Result<Option<ImportedImage>, ApplicationError> {
+    let window_label = window.label().to_owned();
+    tauri::async_runtime::spawn_blocking(move || {
+        let config_dir = config_dir_of(&app)?;
+        let request = take_image_request(&config_dir, &request_id)
+            .ok_or_else(|| ApplicationError::entity_not_found("the request is gone"))?;
+        if let Some(prompts) = app.try_state::<Mutex<AiRequestPrompts>>() {
+            lock(&prompts).shown_images.remove(&request_id);
+        }
+        if !allow {
+            return Ok(None);
+        }
+        let project_id = ProjectId::parse(&request.project_id)?;
+        let registry = app.state::<Mutex<WindowRegistry>>();
+        if lock(&registry).find_window_by_project(&project_id) != Some(window_label.as_str()) {
+            return Err(ApplicationError::entity_not_found(
+                "the Project is not open in this window",
+            ));
+        }
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        let mut sessions = lock(&sessions);
+        import_asset(
+            &mut sessions,
+            &request.project_id,
+            &request.document_id,
+            &request.path,
+        )
+        .map(Some)
+    })
+    .await
+    .map_err(|error| ApplicationError::new(ErrorKind::DialogFailed, error.to_string()))?
+}
+
+fn config_dir_of<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, ApplicationError> {
+    app.try_state::<LocalState>()
+        .map(|local_state| local_state.config_dir().to_path_buf())
+        .ok_or_else(|| ApplicationError::new(ErrorKind::DialogFailed, "no settings folder"))
+}
+
 /// Starts the background look for requests (the running app only; tests start no threads).
 /// The prompts' state itself is managed with the other state (`configure`).
 pub fn install_ai_request_watch<R: Runtime>(app: &AppHandle<R>) {
@@ -174,6 +290,7 @@ pub fn install_ai_request_watch<R: Runtime>(app: &AppHandle<R>) {
     std::thread::spawn(move || loop {
         std::thread::sleep(Duration::from_millis(AI_REQUEST_POLL_INTERVAL_MS));
         show_new_requests(&app);
+        show_new_image_requests(&app);
     });
 }
 

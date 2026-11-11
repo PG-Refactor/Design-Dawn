@@ -63,6 +63,8 @@ export function useAppRequests(closeStatus: WindowCloseStatus): void {
               return;
             // Asked by the AI access prompt (`AiAccessRequestPrompt`).
             case "aiAccessRequested":
+            // Asked by `AiImageRequestPrompt`.
+            case "aiImageRequested":
               return;
           }
         });

@@ -61,6 +61,16 @@ pub const MCP_SERVER_EXECUTABLE_STEM: &str = "design-dawn-mcp";
 /// AI access list there. Must equal `identifier` in tauri.conf.json (checked by a test).
 pub const APP_IDENTIFIER: &str = "com.pgrefactor.designdawn";
 
+/// Where an AI's requests to add an image wait (inside the app's config directory).
+pub const AI_IMAGE_REQUESTS_DIRECTORY_NAME: &str = "ai-image-requests";
+
+/// What AI tools changed, one file per Project (inside the app's config directory).
+pub const AI_HISTORY_DIRECTORY_NAME: &str = "ai-history";
+/// The newest entries kept per Project.
+pub const AI_HISTORY_MAX_ENTRIES: usize = 200;
+/// A Block text larger than this is not kept in the history (the entry still is).
+pub const AI_HISTORY_MAX_TEXT_BYTES: usize = 256 * 1024;
+
 /// Where an AI's requests for write access wait (inside the app's config directory).
 pub const AI_REQUESTS_DIRECTORY_NAME: &str = "ai-requests";
 /// A request older than this is dropped: an AI that still wants access asks again, and a

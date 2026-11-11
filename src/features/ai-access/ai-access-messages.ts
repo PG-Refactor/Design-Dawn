@@ -5,6 +5,33 @@ import type { Widen } from "../../shared/i18n/catalog-types";
 
 const AI_ACCESS_MESSAGES_JA = {
   menuItem: "AI連携（MCP）…",
+  imageRequest: {
+    title: "AIが画像の追加を求めています",
+    description: (fileName: string, where: string): string =>
+      `AIツールが「${fileName}」を ${where} に画像ブロックとして追加しようとしています。許可するとファイルをDocumentの assets に取り込みます。`,
+    previewLabel: "追加される画像",
+    previewFailed:
+      "画像として読み込めないファイルです。許可しても追加されません。",
+    allow: "追加する",
+    deny: "追加しない",
+    failed: "追加できませんでした。",
+  },
+  history: {
+    menuItem: "AIの変更履歴…",
+    title: "AIの変更履歴",
+    description:
+      "AIツールがこのProjectに加えた変更です（新しい順、最大200件）。本文の変更は、その後に誰も変えていなければ元に戻せます。",
+    empty: "AIによる変更はありません。",
+    loadFailed: "履歴を読み込めませんでした。",
+    close: "閉じる",
+    revert: "元に戻す",
+    reverted: "元に戻しました（この操作も元に戻せます）。",
+    changedSince: "その後に変更されているため、元に戻せません。",
+    before: "変更前",
+    after: "変更後",
+    where: (document: string, sheet: string): string =>
+      `${document} / ${sheet}`,
+  },
   title: "AI連携（MCP）",
   registerHeading: "AIツールに登録する",
   registerIntro:
@@ -57,6 +84,32 @@ export type AiAccessMessages = Widen<typeof AI_ACCESS_MESSAGES_JA>;
 
 const AI_ACCESS_MESSAGES_EN: AiAccessMessages = {
   menuItem: "AI Integration (MCP)…",
+  imageRequest: {
+    title: "An AI wants to add an image",
+    description: (fileName, where) =>
+      `An AI tool wants to add “${fileName}” to ${where} as an Image Block. Allowing copies the file into the Document's assets.`,
+    previewLabel: "The image to add",
+    previewFailed:
+      "The file cannot be read as an image; allowing will not add it.",
+    allow: "Add",
+    deny: "Don't Add",
+    failed: "The image could not be added.",
+  },
+  history: {
+    menuItem: "AI Change History…",
+    title: "AI Change History",
+    description:
+      "Changes AI tools made to this Project (newest first, up to 200). A text change can be undone while nobody has changed the text since.",
+    empty: "No changes by AI.",
+    loadFailed: "The history could not be read.",
+    close: "Close",
+    revert: "Undo",
+    reverted: "Undone (this can be undone too).",
+    changedSince: "It was changed since, so it cannot be undone.",
+    before: "Before",
+    after: "After",
+    where: (document, sheet) => `${document} / ${sheet}`,
+  },
   title: "AI Integration (MCP)",
   registerHeading: "Register with an AI tool",
   registerIntro:

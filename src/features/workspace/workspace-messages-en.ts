@@ -49,6 +49,8 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   searchProject: "Could not search the project",
   replaceText: "Could not replace the text",
   exportDocument: "Could not export",
+  renderDiagram:
+    "A diagram changed outside the app (another editor, Git or an AI tool) can no longer be drawn",
   importImagesWithoutSheet: "Open a Sheet to add images",
   editBlockContent:
     "Could not commit the edit of the block text (your edit is still on the screen)",

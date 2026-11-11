@@ -52,6 +52,7 @@ use crate::application::load_issue_repair::{self, RepairAction, RepairIssueRef, 
 use crate::application::local_state::ai_access::{
     ai_access_overview as ai_access_overview_of, mcp_server_path, AiAccessList, AiAccessOverview,
 };
+use crate::application::local_state::ai_history::AiHistoryEntry;
 use crate::application::local_state::operations::{AppSettings, LocalState, SheetViewportResult};
 use crate::application::local_state::theme::{ThemePreference, WindowAppearance};
 use crate::application::open_request::{self, OpenRequest, OpenedRequest, PendingOpenRequests};
@@ -79,7 +80,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 81] = [
+pub const COMMAND_NAMES: [&str; 84] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -127,6 +128,9 @@ pub const COMMAND_NAMES: [&str; 81] = [
     "export_document_markdown",
     "export_file",
     "asset_data_url",
+    "ai_history",
+    "ai_image_request_preview",
+    "answer_ai_image_request",
     "copy_asset_to_document",
     "subscribe_drop_notifications",
     "subscribe_close_requests",
@@ -726,6 +730,21 @@ pub fn ai_access_overview<R: Runtime>(app: AppHandle<R>, window: Window<R>) -> A
     );
     let open_project = window_project(&window).map(|(project_id, _)| project_id);
     ai_access_overview_of(list, &mcp_server, open_project)
+}
+
+/// What AI tools changed in the Project the window has open, newest first.
+#[tauri::command]
+pub fn ai_history<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+) -> Result<Vec<AiHistoryEntry>, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    let project_id = ProjectId::parse(&project_id)?;
+    Ok(app
+        .try_state::<LocalState>()
+        .map(|local_state| local_state.ai_history(&project_id))
+        .unwrap_or_default())
 }
 
 /// The Project `window` has open and its folder.

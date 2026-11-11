@@ -90,6 +90,7 @@ describe("File menu", () => {
       ["menuitem", EXPORT_MESSAGES.en.documentHtml],
       ["menuitem", EXPORT_MESSAGES.en.print],
       ["menuitem", AI_ACCESS_MESSAGES.en.menuItem],
+      ["menuitem", AI_ACCESS_MESSAGES.en.history.menuItem],
       ["menuitem", EN.closeProject],
     ]);
     expect(within(menu).getAllByRole("separator")).toHaveLength(4);

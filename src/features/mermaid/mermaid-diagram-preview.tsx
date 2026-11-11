@@ -1,4 +1,4 @@
-import type { MouseEvent } from "react";
+import { type MouseEvent, useEffect } from "react";
 import type { ThemeState } from "../../application/theme/theme-controller";
 import { MERMAID_PREVIEW_DEBOUNCE_MS } from "../../config/mermaid-preview-config";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
@@ -18,6 +18,8 @@ export interface MermaidDiagramPreviewProps {
   readonly debounced: boolean;
   // The hint to double-click is pointless while the editor is already open.
   readonly showEditHint: boolean;
+  // Told once per source that fails to draw (the normal view reports it as a notification).
+  readonly onRenderFailed?: (message: string) => void;
 }
 
 const selectResolvedTheme = (state: ThemeState) => state.resolvedTheme;
@@ -30,6 +32,7 @@ export function MermaidDiagramPreview({
   shortId,
   debounced,
   showEditHint,
+  onRenderFailed,
 }: MermaidDiagramPreviewProps) {
   const messages = useMessages().mermaid;
   const renderer = useMermaidRenderer();
@@ -44,6 +47,9 @@ export function MermaidDiagramPreview({
     themeKey,
   });
   const failed = status === "error";
+  useEffect(() => {
+    if (failed) onRenderFailed?.(errorMessage ?? "");
+  }, [failed, errorMessage, onRenderFailed]);
 
   // The shape under the pointer, when the event is on the picture.
   function hitOf(event: MouseEvent<HTMLElement>): DiagramHit | null {

@@ -73,6 +73,19 @@ pub enum AppNotification {
         project_name: String,
         folder_display: String,
     },
+    /// An AI asks to add an image file to a Sheet. Only the file's name is sent; the
+    /// picture comes from `ai_image_request_preview`.
+    #[serde(rename_all = "camelCase")]
+    AiImageRequested {
+        request_id: String,
+        project_id: String,
+        document_id: String,
+        sheet_id: String,
+        file_name: String,
+        x: Option<i64>,
+        y: Option<i64>,
+        caption: Option<String>,
+    },
 }
 
 impl AppNotification {

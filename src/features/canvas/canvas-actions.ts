@@ -42,6 +42,7 @@ import type { DiagramRenderCheck } from "../../application/diagram/diagram-rende
 import type { IdGenerator } from "../../application/id-generator";
 import {
   IMAGE_SELECTION_STATUS,
+  type ImportedImage,
   SPREADSHEET_SELECTION_STATUS,
 } from "../../application/ports/asset-types";
 import {
@@ -245,6 +246,14 @@ export interface CanvasActions {
   // handed to it to write their references. Registering again replaces the previous
   // editor; the returned function unregisters (only if it is still the registered one).
   registerTextImageTarget(target: TextImageTarget): () => void;
+  // Whether `text` is the last text this window wrote into the block (so a problem with it
+  // is the user's own, already shown where they edited, and not news from outside).
+  wroteHere(blockId: BlockId, text: string): boolean;
+  // An image already imported into the Document's assets (one an AI asked to add and the
+  // user allowed): ONE image block at `at` (or where a new block goes), selected.
+  addImportedImage(
+    input: AddImportedImageInput,
+  ): Promise<OperationResult<void>>;
   // An image pasted into a text editor: stored in the Document's assets. The editor writes
   // the reference itself; failures are reported like a drop's.
   importPastedImage(
@@ -334,6 +343,15 @@ export interface TextImageTarget {
   insertImages(contentPaths: readonly ContentPath[]): void;
 }
 
+export interface AddImportedImageInput {
+  readonly documentId: DocumentId;
+  readonly sheetId: SheetId;
+  readonly image: ImportedImage;
+  readonly viewportSize: Extent;
+  readonly at?: Point;
+  readonly caption?: string;
+}
+
 export interface ImportPastedImageInput {
   readonly documentId: DocumentId;
   readonly bytes: Uint8Array;
@@ -364,6 +382,7 @@ export function createCanvasActions(
   } = dependencies;
 
   let textImageTarget: TextImageTarget | null = null;
+  const writtenHere = new Map<BlockId, string>();
 
   // A drop into the registered text editor: no block is created, the editor gets the paths.
   async function importDropIntoText(
@@ -998,6 +1017,46 @@ export function createCanvasActions(
       });
     },
 
+    async addImportedImage({
+      documentId,
+      sheetId,
+      image,
+      viewportSize,
+      at,
+      caption,
+    }) {
+      const size = commitSize({
+        width: image.initialWidth,
+        height: image.initialHeight,
+      });
+      if (!size.ok) return record("importImages", fromDomainResult(size));
+      const position = newBlockPosition(
+        { documentId, sheetId, viewportSize, at },
+        size.value,
+      );
+      if (!position.ok) return record("importImages", position);
+      const parsedCaption =
+        caption === undefined ? null : parseCaption(caption);
+      const spec: AssetBlockSpec = {
+        blockId: idGenerator.blockId(),
+        blockType: "image",
+        position: position.value,
+        size: size.value,
+        contentPath: image.contentPath,
+        ...(parsedCaption?.ok === true ? { caption: parsedCaption.value } : {}),
+      };
+      const created = await execute(
+        "importImages",
+        documentId,
+        createBlocksCommand(sheetId, [spec]),
+      );
+      if (!created.ok) return created;
+      uiStateStore.setState((state) =>
+        selectBlocks(state, sheetId, [spec.blockId]),
+      );
+      return created;
+    },
+
     registerTextImageTarget(target) {
       textImageTarget = target;
       return () => {
@@ -1143,12 +1202,17 @@ export function createCanvasActions(
       );
     },
 
-    commitContentEdit: ({ documentId, sheetId, blockId, text }) =>
-      execute(
+    async commitContentEdit({ documentId, sheetId, blockId, text }) {
+      const result = await execute(
         "editBlockContent",
         documentId,
         editBlockContentCommand({ sheetId, blockId, text }),
-      ),
+      );
+      if (result.ok) writtenHere.set(blockId, text);
+      return result;
+    },
+
+    wroteHere: (blockId, text) => writtenHere.get(blockId) === text,
 
     async applyDiagramOperation({
       documentId,

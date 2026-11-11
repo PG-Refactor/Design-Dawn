@@ -24,6 +24,7 @@ pub const UPDATE_BLOCK: &str = "updateBlock";
 pub const MOVE_BLOCK: &str = "moveBlock";
 pub const UPDATE_BLOCK_CAPTION: &str = "updateBlockCaption";
 pub const DELETE_BLOCK: &str = "deleteBlock";
+pub const REQUEST_IMAGE_IMPORT: &str = "requestImageImport";
 
 /// Where a caption can be shown, as `updateBlockCaption` takes it.
 pub const CAPTION_POSITIONS: [&str; 2] = ["below", "above"];
@@ -411,6 +412,31 @@ kept. This cannot be undone through this server.",
                 id("documentId", true, DOCUMENT_ID_HELP),
                 id("sheetId", true, SHEET_ID_HELP),
                 id("blockId", true, BLOCK_ID_HELP),
+            ],
+        ),
+        write(
+            REQUEST_IMAGE_IMPORT,
+            "Asks the user, in the Design Dawn app, to add an image file from this computer to \
+a Sheet as an Image Block. The app shows the picture; only if the user allows it is the file \
+imported (PNG, JPEG, WebP, SVG or GIF, up to 20 MiB) and the Block added. Nothing is added by \
+this call. Needs Design Dawn running (not available with --project).",
+            false,
+            vec![
+                id("documentId", true, DOCUMENT_ID_HELP),
+                id("sheetId", true, SHEET_ID_HELP),
+                text(
+                    "path",
+                    true,
+                    "absolute path of the image file on this computer",
+                ),
+                pair(
+                    "position",
+                    false,
+                    "x",
+                    "y",
+                    "where the image's top-left corner goes; omit to let the app choose",
+                ),
+                text("caption", false, "an optional one-line caption"),
             ],
         ),
     ]

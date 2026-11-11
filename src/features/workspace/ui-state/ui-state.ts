@@ -256,6 +256,7 @@ export const OPERATION_LABELS = [
   "searchProject",
   "replaceText",
   "exportDocument",
+  "renderDiagram",
   "editBlockContent",
   "setBlockCaption",
   "editDiagram",
