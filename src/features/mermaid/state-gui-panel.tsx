@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   readState,
   STATE_TERMINAL,
   type StateTransition,
 } from "../../domain/diagram/listed/state-diagram";
+import type { PopupMenuEntry } from "../../shared/menu/popup-menu";
 import { useDisplayLanguage } from "../workspace/use-messages";
+import type { DiagramHit } from "./diagram-shapes";
 import {
   type FieldValues,
   type ListedField,
@@ -14,7 +16,11 @@ import {
 } from "./listed-gui";
 import { LISTED_GUI_MESSAGES } from "./listed-gui-messages";
 import type { DiagramOperationTarget } from "./use-diagram-operation";
-import { useListedPick } from "./use-listed-pick";
+import {
+  focusFormLater,
+  useListedPick,
+  withAdditions,
+} from "./use-listed-pick";
 import { useListedRun } from "./use-listed-run";
 import "./listed-gui.css";
 
@@ -43,20 +49,88 @@ export function StateGuiPanel({
   const state = meaning.states.find((candidate) => candidate.id === stateKey);
   const transitionIndex = transitionKey === null ? -1 : Number(transitionKey);
   const transition = meaning.transitions[transitionIndex];
-  useListedPick((hit) => {
-    if (
-      hit.kind === "state" &&
-      meaning.states.some((item) => item.id === hit.id)
-    ) {
-      setStateKey(hit.id);
-    } else if (
-      hit.kind === "transition" &&
-      hit.ordinal !== undefined &&
-      meaning.transitions[hit.ordinal] !== undefined
-    ) {
-      setTransitionKey(String(hit.ordinal));
-    }
-  });
+  const rootRef = useRef<HTMLDivElement>(null);
+  const stateOf = (hit: DiagramHit | null) =>
+    hit?.kind === "state"
+      ? meaning.states.find((item) => item.id === hit.id)
+      : undefined;
+  const transitionIndexOf = (hit: DiagramHit | null) =>
+    hit?.kind === "transition" &&
+    hit.ordinal !== undefined &&
+    meaning.transitions[hit.ordinal] !== undefined
+      ? hit.ordinal
+      : null;
+  useListedPick(
+    (hit) => {
+      const picked = stateOf(hit);
+      const index = transitionIndexOf(hit);
+      if (picked !== undefined) setStateKey(picked.id);
+      else if (index !== null) setTransitionKey(String(index));
+    },
+    (hit) => {
+      const picked = stateOf(hit);
+      const index = transitionIndexOf(hit);
+      const own: PopupMenuEntry[] = [];
+      if (picked !== undefined) {
+        own.push(
+          {
+            id: "editState",
+            label: texts.editStateMenu,
+            onSelect: () => {
+              setStateKey(picked.id);
+              focusFormLater(rootRef, texts.editState);
+            },
+          },
+          {
+            id: "deleteState",
+            label: texts.deleteStateMenu,
+            onSelect: () => {
+              setStateKey(null);
+              void run({
+                diagram: "state",
+                operation: { kind: "deleteState", id: picked.id },
+              });
+            },
+          },
+        );
+      }
+      if (index !== null) {
+        own.push(
+          {
+            id: "editTransition",
+            label: texts.editTransitionMenu,
+            onSelect: () => {
+              setTransitionKey(String(index));
+              focusFormLater(rootRef, texts.editTransition);
+            },
+          },
+          {
+            id: "deleteTransition",
+            label: texts.deleteTransitionMenu,
+            onSelect: () => {
+              setTransitionKey(null);
+              void run({
+                diagram: "state",
+                operation: { kind: "deleteTransition", index },
+              });
+            },
+          },
+        );
+      }
+      return withAdditions(own, [
+        {
+          id: "addState",
+          label: texts.addState,
+          onSelect: () => focusFormLater(rootRef, texts.addState),
+        },
+        {
+          id: "addTransition",
+          label: texts.addTransition,
+          onSelect: () => focusFormLater(rootRef, texts.addTransition),
+        },
+      ]);
+    },
+  );
   // Where a transition may start or end: every state, and the start / end point.
   const endPoints = [
     { value: STATE_TERMINAL, label: texts.terminal },
@@ -69,7 +143,7 @@ export function StateGuiPanel({
   ];
 
   return (
-    <div className="listed-gui">
+    <div ref={rootRef} className="listed-gui">
       {status}
       <section className="listed-gui__section">
         <h4 className="diagram-gui__heading">{texts.states}</h4>

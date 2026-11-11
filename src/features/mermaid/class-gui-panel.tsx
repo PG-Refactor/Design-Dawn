@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   CLASS_ARROWS,
   type ClassArrow,
@@ -6,7 +6,9 @@ import {
   classRelationshipText,
   readClass,
 } from "../../domain/diagram/listed/class-diagram";
+import type { PopupMenuEntry } from "../../shared/menu/popup-menu";
 import { useDisplayLanguage } from "../workspace/use-messages";
+import type { DiagramHit } from "./diagram-shapes";
 import {
   type FieldValues,
   type ListedField,
@@ -16,7 +18,11 @@ import {
 } from "./listed-gui";
 import { LISTED_GUI_MESSAGES } from "./listed-gui-messages";
 import type { DiagramOperationTarget } from "./use-diagram-operation";
-import { useListedPick } from "./use-listed-pick";
+import {
+  focusFormLater,
+  useListedPick,
+  withAdditions,
+} from "./use-listed-pick";
 import { useListedRun } from "./use-listed-run";
 import "./listed-gui.css";
 
@@ -56,21 +62,92 @@ export function ClassGuiPanel({
   const relationshipIndex =
     relationshipKey === null ? -1 : Number(relationshipKey);
   const relationship = meaning.relationships[relationshipIndex];
-  useListedPick((hit) => {
-    if (
-      hit.kind === "class" &&
-      meaning.classes.some((candidate) => candidate.name === hit.id)
-    ) {
-      setClassKey(hit.id);
-      setMemberKey(null);
-    } else if (
-      hit.kind === "relationship" &&
-      hit.ordinal !== undefined &&
-      meaning.relationships[hit.ordinal] !== undefined
-    ) {
-      setRelationshipKey(String(hit.ordinal));
-    }
-  });
+  const rootRef = useRef<HTMLDivElement>(null);
+  const classOf = (hit: DiagramHit | null) =>
+    hit?.kind === "class"
+      ? meaning.classes.find((candidate) => candidate.name === hit.id)
+      : undefined;
+  const relationshipIndexOf = (hit: DiagramHit | null) =>
+    hit?.kind === "relationship" &&
+    hit.ordinal !== undefined &&
+    meaning.relationships[hit.ordinal] !== undefined
+      ? hit.ordinal
+      : null;
+  const selectClass = (name: string) => {
+    setClassKey(name);
+    setMemberKey(null);
+  };
+  useListedPick(
+    (hit) => {
+      const picked = classOf(hit);
+      const index = relationshipIndexOf(hit);
+      if (picked !== undefined) selectClass(picked.name);
+      else if (index !== null) setRelationshipKey(String(index));
+    },
+    (hit) => {
+      const picked = classOf(hit);
+      const index = relationshipIndexOf(hit);
+      const own: PopupMenuEntry[] = [];
+      if (picked !== undefined) {
+        own.push(
+          {
+            id: "editClass",
+            label: texts.editClassMenu,
+            onSelect: () => {
+              selectClass(picked.name);
+              focusFormLater(rootRef, texts.addMember);
+            },
+          },
+          {
+            id: "deleteClass",
+            label: texts.deleteClass,
+            onSelect: () => {
+              setClassKey(null);
+              void run({
+                diagram: "class",
+                operation: { kind: "deleteClass", name: picked.name },
+              });
+            },
+          },
+        );
+      }
+      if (index !== null) {
+        own.push(
+          {
+            id: "editRelationship",
+            label: texts.editRelationshipMenu,
+            onSelect: () => {
+              setRelationshipKey(String(index));
+              focusFormLater(rootRef, texts.editRelationship);
+            },
+          },
+          {
+            id: "deleteRelationship",
+            label: texts.deleteRelationshipMenu,
+            onSelect: () => {
+              setRelationshipKey(null);
+              void run({
+                diagram: "class",
+                operation: { kind: "deleteRelationship", index },
+              });
+            },
+          },
+        );
+      }
+      return withAdditions(own, [
+        {
+          id: "addClass",
+          label: texts.addClass,
+          onSelect: () => focusFormLater(rootRef, texts.addClass),
+        },
+        {
+          id: "addRelationship",
+          label: texts.addRelationship,
+          onSelect: () => focusFormLater(rootRef, texts.addRelationship),
+        },
+      ]);
+    },
+  );
   const relationshipFields: readonly ListedField[] = [
     { id: "from", label: texts.from, kind: "text" },
     { id: "fromCardinality", label: texts.fromCardinality, kind: "text" },
@@ -89,7 +166,7 @@ export function ClassGuiPanel({
   ];
 
   return (
-    <div className="listed-gui">
+    <div ref={rootRef} className="listed-gui">
       {status}
       <section className="listed-gui__section">
         <h4 className="diagram-gui__heading">{texts.classes}</h4>

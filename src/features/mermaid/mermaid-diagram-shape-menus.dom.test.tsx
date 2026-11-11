@@ -368,6 +368,29 @@ describe("clicking the shapes of list-edited diagrams", () => {
     ).toBe("true");
   });
 
+  it("offers an ER diagram's shapes on right-click and deletes a relationship", async () => {
+    const rendered = await openGui("erDiagram\n  A ||--o{ B : has\n", ER_SVG);
+    const onEntity = rightClick(await picture(), 150, 10);
+    expect(itemNames(onEntity)).toEqual([
+      LISTED.er.editEntityMenu,
+      LISTED.er.deleteEntity,
+      LISTED.er.addEntity,
+      LISTED.er.addRelationship,
+    ]);
+    await choose(rendered, onEntity, LISTED.er.editEntityMenu);
+    expect(
+      (document.activeElement as HTMLElement | null)
+        ?.closest("form")
+        ?.getAttribute("aria-label"),
+    ).toBe(LISTED.er.addAttribute);
+    await choose(
+      rendered,
+      rightClick(await picture(), 90, 61),
+      LISTED.er.deleteRelationshipMenu,
+    );
+    expect(storedText(rendered)).not.toContain("has");
+  });
+
   it("selects the state clicked in a state diagram", async () => {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" id="m" viewBox="0 0 200 100" aria-roledescription="stateDiagram">
       <g class="node" id="m-state-Idle-1"><rect x="0" y="0" width="60" height="20"/></g>
