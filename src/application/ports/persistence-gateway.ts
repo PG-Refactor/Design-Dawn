@@ -17,9 +17,12 @@ import type {
   CopiedAsset,
   DropImportResult,
   ExportFileKind,
+  ExportFolderChoice,
+  ExportFolderFile,
   ExportOutcome,
   ImageSelection,
   ImportedImage,
+  PdfPageExtent,
   SpreadsheetSelection,
 } from "./asset-types";
 import type { OperationResult } from "./operation-error";
@@ -245,6 +248,34 @@ export interface PersistenceGateway {
     suggestedName: string,
     bytes: Uint8Array,
   ): Promise<OperationResult<ExportOutcome>>;
+  // "Export Documents…": the folder dialog; the folder is then named by its token.
+  chooseExportFolder(): Promise<OperationResult<ExportFolderChoice>>;
+  // The file names of `files` already in the folder (they would be replaced).
+  exportFolderExisting(
+    folder: string,
+    files: readonly ExportFolderFile[],
+  ): Promise<OperationResult<string[]>>;
+  // The Document (as saved on disk) as `<stem>.md` and its images in the folder; returns
+  // the file name.
+  exportMarkdownIntoFolder(
+    projectId: ProjectId,
+    documentId: DocumentId,
+    folder: string,
+    stem: string,
+  ): Promise<OperationResult<string>>;
+  // An HTML page the app made, written into the folder as `<stem>.html`.
+  exportHtmlIntoFolder(
+    folder: string,
+    stem: string,
+    bytes: Uint8Array,
+  ): Promise<OperationResult<string>>;
+  // An HTML page printed to PDF without a dialog, written as `<stem>.pdf`.
+  exportPdfIntoFolder(
+    folder: string,
+    stem: string,
+    html: Uint8Array,
+    largestPage: PdfPageExtent,
+  ): Promise<OperationResult<string>>;
   // Every match of `text` in the Project's text Blocks and captions, read from disk (not
   // from the app's open Documents).
   searchProject(

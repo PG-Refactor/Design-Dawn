@@ -1,7 +1,8 @@
 /* The only file that contains colour values. The palette follows shadcn/ui's neutral
    (zinc) greys with a blue accent: quiet surfaces, thin borders, colour kept for the
    accent, the selection and states. --color-hover is the faint background of a control
-   under the pointer; --color-selection marks what is selected.
+   under the pointer; --color-selection marks what is selected. --color-find-match marks
+   text the find box found on the canvas, --color-find-match-current the current match.
 
    Readability comes before the light look: --color-border only divides the chrome, while
    anything that must be seen to be read or used (diagram outlines, form fields, table
@@ -33,6 +34,8 @@
   --color-hover: #f4f4f5;
   --color-caption-background: #f4f4f5;
   --color-selection: #e3edff;
+  --color-find-match: #fde68a;
+  --color-find-match-current: #f59e0b;
   --color-danger: #dc2626;
   --color-danger-contrast: #ffffff;
   --color-warning: #b45309;
@@ -84,6 +87,8 @@
   --color-hover: #232327;
   --color-caption-background: #232327;
   --color-selection: #1c2c4f;
+  --color-find-match: #5c4a12;
+  --color-find-match-current: #8a5a00;
   --color-danger: #f87171;
   --color-danger-contrast: #09090b;
   --color-warning: #fbbf24;

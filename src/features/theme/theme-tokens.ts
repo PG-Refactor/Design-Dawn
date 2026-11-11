@@ -26,6 +26,8 @@ export const COLOR_TOKEN_NAMES = [
   "--color-hover",
   "--color-caption-background",
   "--color-selection",
+  "--color-find-match",
+  "--color-find-match-current",
   "--color-danger",
   "--color-danger-contrast",
   "--color-warning",

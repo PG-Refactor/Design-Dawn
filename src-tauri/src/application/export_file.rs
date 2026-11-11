@@ -13,6 +13,7 @@ pub enum ExportKind {
     Svg,
     Png,
     Html,
+    Pdf,
 }
 
 const SVG_FILTER: FileFilter = FileFilter {
@@ -27,12 +28,17 @@ const HTML_FILTER: FileFilter = FileFilter {
     name: "HTML",
     extensions: &["html"],
 };
+const PDF_FILTER: FileFilter = FileFilter {
+    name: "PDF",
+    extensions: &["pdf"],
+};
 /// The largest export accepted: a sheet page with its images inlined can be big, but not
 /// unbounded.
 pub const EXPORT_MAX_BYTES: usize = 200 * 1024 * 1024;
 const UNSAFE_FILE_NAME_CHARACTERS: &[char] = &['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
 const FALLBACK_STEM: &str = "export";
 const PNG_SIGNATURE: &[u8] = b"\x89PNG\r\n\x1a\n";
+const PDF_SIGNATURE: &[u8] = b"%PDF-";
 
 impl ExportKind {
     pub fn parse(value: &str) -> Option<Self> {
@@ -40,6 +46,7 @@ impl ExportKind {
             "svg" => Some(Self::Svg),
             "png" => Some(Self::Png),
             "html" => Some(Self::Html),
+            "pdf" => Some(Self::Pdf),
             _ => None,
         }
     }
@@ -49,6 +56,7 @@ impl ExportKind {
             Self::Svg => SVG_FILTER,
             Self::Png => PNG_FILTER,
             Self::Html => HTML_FILTER,
+            Self::Pdf => PDF_FILTER,
         }
     }
 
@@ -61,6 +69,7 @@ impl ExportKind {
     fn matches(self, bytes: &[u8]) -> bool {
         match self {
             Self::Png => bytes.starts_with(PNG_SIGNATURE),
+            Self::Pdf => bytes.starts_with(PDF_SIGNATURE),
             Self::Svg | Self::Html => std::str::from_utf8(bytes).is_ok(),
         }
     }
@@ -92,18 +101,24 @@ pub fn suggested_name(stem: &str, kind: ExportKind) -> String {
     format!("{stem}.{}", kind.extension())
 }
 
-pub fn export_bytes(
-    dialogs: &dyn FileDialogs,
-    kind: ExportKind,
-    suggested_stem: &str,
-    bytes: &[u8],
-) -> ApplicationResult<SaveOutcome> {
+/// The size limit and a check that the bytes are what the kind says.
+pub fn check_export(kind: ExportKind, bytes: &[u8]) -> ApplicationResult<()> {
     if bytes.len() > EXPORT_MAX_BYTES {
         return Err(invalid("the export is too large"));
     }
     if !kind.matches(bytes) {
         return Err(invalid("the content does not match the file type"));
     }
+    Ok(())
+}
+
+pub fn export_bytes(
+    dialogs: &dyn FileDialogs,
+    kind: ExportKind,
+    suggested_stem: &str,
+    bytes: &[u8],
+) -> ApplicationResult<SaveOutcome> {
+    check_export(kind, bytes)?;
     let Some(target) = dialogs.save_file(kind.filter(), &suggested_name(suggested_stem, kind))?
     else {
         return Ok(SaveOutcome::Cancelled);

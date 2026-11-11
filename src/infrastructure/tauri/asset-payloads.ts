@@ -2,7 +2,9 @@
 // check the shape, then run the domain parsers.
 
 import {
+  EXPORT_FOLDER_STATUS,
   EXPORT_STATUS,
+  type ExportFolderChoice,
   type ExportOutcome,
   IMAGE_SELECTION_STATUS,
   SPREADSHEET_SELECTION_STATUS,
@@ -233,4 +235,40 @@ export function toExportOutcome(
   return saved.ok
     ? commandOk({ status: EXPORT_STATUS.saved, fileName: saved.value.fileName })
     : saved;
+}
+
+const rawFolderStatus = objectOf<{
+  readonly status: ExportFolderChoice["status"];
+}>({
+  status: oneOf(Object.values(EXPORT_FOLDER_STATUS)),
+});
+const rawChosenFolder = objectOf<{
+  readonly token: string;
+  readonly folderName: string;
+}>({
+  token: decodeString,
+  folderName: decodeString,
+});
+
+export function toExportFolderChoice(
+  payload: unknown,
+): CommandResult<ExportFolderChoice> {
+  const status = decodePayload(rawFolderStatus, payload);
+  if (!status.ok) return status;
+  if (status.value.status === EXPORT_FOLDER_STATUS.cancelled) {
+    return commandOk({ status: EXPORT_FOLDER_STATUS.cancelled });
+  }
+  const chosen = decodePayload(rawChosenFolder, payload);
+  return chosen.ok
+    ? commandOk({ status: EXPORT_FOLDER_STATUS.chosen, ...chosen.value })
+    : chosen;
+}
+
+export function toFileName(payload: unknown): CommandResult<string> {
+  return decodePayload(decodeString, payload);
+}
+
+export function toFileNames(payload: unknown): CommandResult<string[]> {
+  const decoded = decodePayload(arrayOf(decodeString), payload);
+  return decoded.ok ? commandOk([...decoded.value]) : decoded;
 }

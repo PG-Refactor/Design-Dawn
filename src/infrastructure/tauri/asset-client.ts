@@ -6,7 +6,10 @@ import type { DocumentId, ProjectId } from "../../domain/shared/entity-id";
 import {
   toCopiedAsset,
   toDropImportResult,
+  toExportFolderChoice,
   toExportOutcome,
+  toFileName,
+  toFileNames,
   toImageSelection,
   toImportedImageResult,
   toSpreadsheetSelection,
@@ -15,9 +18,12 @@ import type {
   CopiedAsset,
   DropImportResult,
   ExportFileKind,
+  ExportFolderChoice,
+  ExportFolderFile,
   ExportOutcome,
   ImageSelection,
   ImportedImage,
+  PdfPageExtent,
   SpreadsheetSelection,
 } from "./asset-types";
 import { COMMANDS } from "./command-constants";
@@ -146,5 +152,78 @@ export function assetDataUrl(
       typeof payload === "string"
         ? commandOk(payload)
         : commandErr("invalidCommandResponse", "expected a data URL"),
+  );
+}
+
+// Header names of the folder exports; they must match `HEADER_*` in
+// `src-tauri/src/commands/export_folder.rs`.
+const FOLDER_HEADERS = {
+  folder: "x-dawn-export-folder",
+  name: EXPORT_HEADERS.name,
+  kind: EXPORT_HEADERS.kind,
+  page: "x-dawn-export-page",
+} as const;
+const HTML_FORMAT = "html";
+
+// "Export Documents…": Rust's folder dialog; the folder is then named by its token.
+export function chooseExportFolder(): Promise<
+  CommandResult<ExportFolderChoice>
+> {
+  return call(COMMANDS.chooseExportFolder, {}, toExportFolderChoice);
+}
+
+export function exportFolderExisting(
+  folder: string,
+  files: readonly ExportFolderFile[],
+): Promise<CommandResult<string[]>> {
+  return call(COMMANDS.exportFolderExisting, { folder, files }, toFileNames);
+}
+
+// Rust reads the Document from disk (save it first).
+export function exportMarkdownIntoFolder(
+  projectId: ProjectId,
+  documentId: DocumentId,
+  folder: string,
+  stem: string,
+): Promise<CommandResult<string>> {
+  return call(
+    COMMANDS.exportMarkdownIntoFolder,
+    { projectId, documentId, folder, stem },
+    toFileName,
+  );
+}
+
+export function exportHtmlIntoFolder(
+  folder: string,
+  stem: string,
+  bytes: Uint8Array,
+): Promise<CommandResult<string>> {
+  return callWithBytes(
+    COMMANDS.exportIntoFolder,
+    bytes,
+    {
+      [FOLDER_HEADERS.folder]: folder,
+      [FOLDER_HEADERS.kind]: HTML_FORMAT,
+      [FOLDER_HEADERS.name]: encodeURIComponent(stem),
+    },
+    toFileName,
+  );
+}
+
+export function exportPdfIntoFolder(
+  folder: string,
+  stem: string,
+  html: Uint8Array,
+  largestPage: PdfPageExtent,
+): Promise<CommandResult<string>> {
+  return callWithBytes(
+    COMMANDS.exportPdfIntoFolder,
+    html,
+    {
+      [FOLDER_HEADERS.folder]: folder,
+      [FOLDER_HEADERS.name]: encodeURIComponent(stem),
+      [FOLDER_HEADERS.page]: `${largestPage.width},${largestPage.height}`,
+    },
+    toFileName,
   );
 }

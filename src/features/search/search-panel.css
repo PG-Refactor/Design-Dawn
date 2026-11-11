@@ -6,35 +6,6 @@
   min-width: 0;
 }
 
-.search-panel__form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.search-panel__input {
-  box-sizing: border-box;
-  width: 100%;
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-medium);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-}
-
-.search-panel__input:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 1px;
-}
-
-.search-panel__option {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: 0.8125rem;
-}
-
 .search-panel__status {
   color: var(--color-text-muted);
   font-size: 0.8125rem;
@@ -77,14 +48,61 @@
   white-space: nowrap;
 }
 
+.search-panel__count {
+  flex: 0 0 auto;
+  min-width: 1.25rem;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-medium);
+  background: var(--color-hover);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
 .search-panel__replace {
   flex: 0 0 auto;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-medium);
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.search-panel__replace:hover {
+  background: var(--color-hover);
+}
+
+.search-panel__replace:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+.search-panel__match-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* As in VS Code, the replace button of a match shows on its row's hover or focus. */
+.search-panel__match-row .search-panel__replace {
+  opacity: 0;
+}
+
+.search-panel__match-row:hover .search-panel__replace,
+.search-panel__match-row:focus-within .search-panel__replace {
+  opacity: 1;
 }
 
 .search-panel__match {
   display: flex;
+  flex: 1 1 auto;
   gap: var(--space-2);
-  width: 100%;
+  min-width: 0;
   padding: var(--space-1);
   border: 0;
   border-radius: var(--radius-medium);

@@ -10,6 +10,7 @@ pub mod dropped_files;
 pub mod entity_id_generator;
 pub mod error;
 pub mod export_file;
+pub mod export_folder;
 pub mod export_markdown;
 pub mod external_change;
 pub mod file_dialogs;

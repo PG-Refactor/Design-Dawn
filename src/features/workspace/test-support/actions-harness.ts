@@ -192,6 +192,7 @@ export function createActionsHarness(
   });
   const exportActions = createExportActions({
     gateway: base.signalingGateway,
+    workspace: base.workspace,
     applicationStore: base.store,
     uiStateStore,
     actions,

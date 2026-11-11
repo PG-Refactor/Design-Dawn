@@ -11,6 +11,7 @@ use std::sync::{Arc, Mutex};
 
 use application::document_transfer::DocumentTransfers;
 use application::dropped_files::DroppedFilesState;
+use application::export_folder::ExportFolders;
 use application::folder_selection::FolderSelectionState;
 use application::local_state::operations::{LocalState, LocalStateDirectories};
 use application::open_request::{resolve_open_target, select_open_request, PendingOpenRequests};
@@ -37,6 +38,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         .manage(Mutex::new(ProjectSessions::default()))
         .manage(Mutex::new(FolderSelectionState::default()))
         .manage(Mutex::new(DroppedFilesState::default()))
+        .manage(Mutex::new(ExportFolders::default()))
         .manage(Mutex::new(PendingOpenRequests::default()))
         .manage(Mutex::new(WindowRegistry::default()))
         .manage(Mutex::new(DocumentTransfers::default()))
@@ -112,6 +114,11 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::search_project,
             commands::export_document_markdown,
             commands::export_file,
+            commands::export_folder::choose_export_folder,
+            commands::export_folder::export_folder_existing,
+            commands::export_folder::export_markdown_into_folder,
+            commands::export_folder::export_into_folder,
+            commands::export_folder::export_pdf_into_folder,
             commands::asset_data_url,
             commands::ai_history,
             commands::ai_requests::ai_image_request_preview,

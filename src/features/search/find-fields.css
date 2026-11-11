@@ -1,0 +1,116 @@
+/* Colours come from tokens only (theme-tokens.css). */
+.find-fields {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.find-fields__toggle,
+.find-fields__option,
+.find-fields__action {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding: 0 var(--space-1);
+  border: 1px solid transparent;
+  border-radius: var(--radius-medium);
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.find-fields__toggle {
+  align-self: stretch;
+  height: auto;
+  min-width: 1.25rem;
+}
+
+.find-fields__toggle:hover,
+.find-fields__option:hover,
+.find-fields__action:hover:not(:disabled) {
+  background: var(--color-hover);
+}
+
+.find-fields__action:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.find-fields__option {
+  min-width: 1.5rem;
+  height: 1.375rem;
+  font-weight: 600;
+}
+
+.find-fields__option[aria-pressed="true"] {
+  border-color: var(--color-accent);
+  background: var(--color-selection);
+}
+
+.find-fields__toggle:focus-visible,
+.find-fields__option:focus-visible,
+.find-fields__action:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+.find-fields__rows {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.find-fields__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.find-fields__row[hidden] {
+  display: none;
+}
+
+.find-fields__box {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-width: 0;
+  padding-right: 2px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface);
+}
+
+.find-fields__box:focus-within {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+.find-fields__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.find-fields__input:focus {
+  outline: none;
+}
+
+/* The browser's own clear button would sit between the text and the "Aa" toggle. */
+.find-fields__input::-webkit-search-cancel-button {
+  display: none;
+}

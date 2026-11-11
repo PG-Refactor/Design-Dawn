@@ -23,13 +23,23 @@ export type DiagramHitKind =
   | "task"
   | "section"
   // pie chart
-  | "slice";
+  | "slice"
+  // ER diagram
+  | "entity"
+  // ER and class diagrams
+  | "relationship"
+  // state diagram
+  | "state"
+  | "transition"
+  // class diagram
+  | "class";
 
 // What a point on the diagram is over. `id` is what the source calls it (a flowchart node
-// or edge id, a participant id, a Gantt task id, a pie slice's label), "" when the drawing
-// does not tell. `ordinal` is its position among the shapes of its kind in source order,
-// for the kinds whose elements have no name of their own (sequence messages, notes and
-// blocks, the Gantt sections of task rows) or may lack one (Gantt tasks, pie slices). Any other point is the diagram itself (`null`).
+// or edge id, a participant id, a Gantt task id, a pie slice's label, an entity, state or
+// class name), "" when the drawing does not tell. `ordinal` is its position among the
+// shapes of its kind in source order, for the kinds whose elements have no name of their
+// own (sequence messages, notes and blocks, the Gantt sections of task rows, ER and class
+// relationships, state transitions) or may lack one (Gantt tasks, pie slices). Any other point is the diagram itself (`null`).
 export interface DiagramHit {
   readonly kind: DiagramHitKind;
   readonly id: string;

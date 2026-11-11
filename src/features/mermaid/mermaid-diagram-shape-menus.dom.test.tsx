@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-// Right-click and click on the shapes of sequence, Gantt and pie diagrams in the GUI editor
-// (the flowchart's are in mermaid-diagram-menu.dom.test.tsx).
+// Right-click and click on the shapes of sequence, Gantt and pie diagrams, and click on
+// those of ER, state and class diagrams, in the GUI editor (the flowchart's are in
+// mermaid-diagram-menu.dom.test.tsx).
 import {
   act,
   cleanup,
@@ -23,6 +24,7 @@ import {
   type ActionsHarness,
   seedSheetBlocks,
 } from "../workspace/test-support/actions-harness";
+import { LISTED_GUI_MESSAGES } from "./listed-gui-messages";
 import { MERMAID_MESSAGES } from "./mermaid-messages";
 import {
   createFakeRenderer,
@@ -331,5 +333,69 @@ describe("the pie chart's slices", () => {
     );
     expect(storedText(rendered)).not.toContain("Dogs");
     expect(storedText(rendered)).toContain("Cats");
+  });
+});
+
+describe("clicking the shapes of list-edited diagrams", () => {
+  const LISTED = LISTED_GUI_MESSAGES.ja;
+  // Entity A (0..60, 0..20), entity B (120..180, 0..20), and the relationship between them
+  // along y = 60.
+  const ER_SVG = `<svg xmlns="http://www.w3.org/2000/svg" id="m" viewBox="0 0 200 100" aria-roledescription="er">
+    <path d="M30,20L30,60L150,60L150,20" data-edge="true" data-id="id_entity-A-0_entity-B-1_0"/>
+    <g class="node" id="m-entity-A-0"><rect x="0" y="0" width="60" height="20"/></g>
+    <g class="node" id="m-entity-B-1"><rect x="120" y="0" width="60" height="20"/></g>
+  </svg>`;
+
+  it("selects the entity and the relationship clicked in an ER diagram", async () => {
+    await openGui("erDiagram\n  A ||--o{ B : has\n", ER_SVG);
+    fireEvent.click(await picture(), { clientX: 150, clientY: 10 });
+    await act(settle);
+    const entities = screen.getByRole("list", { name: LISTED.er.entities });
+    expect(
+      within(entities)
+        .getByRole("button", { name: /^B/ })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+    fireEvent.click(await picture(), { clientX: 90, clientY: 61 });
+    await act(settle);
+    const relationships = screen.getByRole("list", {
+      name: LISTED.er.relationships,
+    });
+    expect(
+      within(relationships)
+        .getAllByRole("button")[0]
+        ?.getAttribute("aria-pressed"),
+    ).toBe("true");
+  });
+
+  it("selects the state clicked in a state diagram", async () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" id="m" viewBox="0 0 200 100" aria-roledescription="stateDiagram">
+      <g class="node" id="m-state-Idle-1"><rect x="0" y="0" width="60" height="20"/></g>
+      <g class="node" id="m-state-Busy-2"><rect x="120" y="0" width="60" height="20"/></g>
+    </svg>`;
+    await openGui("stateDiagram-v2\n  Idle --> Busy\n", svg);
+    fireEvent.click(await picture(), { clientX: 130, clientY: 10 });
+    await act(settle);
+    const states = screen.getByRole("list", { name: LISTED.state.states });
+    expect(
+      within(states)
+        .getByRole("button", { name: "Busy" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+  });
+
+  it("selects the class clicked in a class diagram", async () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" id="m" viewBox="0 0 200 100" aria-roledescription="classDiagram">
+      <g class="node" id="m-classId-Order-0"><rect x="0" y="0" width="60" height="20"/></g>
+    </svg>`;
+    await openGui("classDiagram\n  class Order\n", svg);
+    fireEvent.click(await picture(), { clientX: 10, clientY: 10 });
+    await act(settle);
+    const classes = screen.getByRole("list", { name: LISTED.class.classes });
+    expect(
+      within(classes)
+        .getByRole("button", { name: /^Order/ })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
   });
 });

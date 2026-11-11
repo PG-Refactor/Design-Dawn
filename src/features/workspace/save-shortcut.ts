@@ -26,11 +26,22 @@ export function isSaveShortcut(event: SaveShortcutEventLike): boolean {
 }
 
 const MAC_PLATFORM_PATTERN = /mac|iphone|ipad/i;
-const SAVE_HINT_MAC = "⌘S";
-const SAVE_HINT_OTHER = "Ctrl+S";
+
+// The text shown next to a menu item for Ctrl / Cmd (+ Shift) + a letter, as the platform
+// in use writes it.
+export function modifierShortcutHint(
+  platform: string,
+  letter: string,
+  shift = false,
+): string {
+  const key = letter.toUpperCase();
+  return MAC_PLATFORM_PATTERN.test(platform)
+    ? `${shift ? "⇧" : ""}⌘${key}`
+    : `Ctrl+${shift ? "Shift+" : ""}${key}`;
+}
 
 // The text shown next to "Save" in the File menu; follows the key `isSaveShortcut` accepts
 // on the platform in use.
 export function saveShortcutHint(platform: string): string {
-  return MAC_PLATFORM_PATTERN.test(platform) ? SAVE_HINT_MAC : SAVE_HINT_OTHER;
+  return modifierShortcutHint(platform, SAVE_KEY);
 }

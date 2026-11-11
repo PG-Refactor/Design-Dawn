@@ -86,6 +86,7 @@ describe("File menu", () => {
       ["menuitem", `${EN.save}Ctrl+S`],
       ["menuitemcheckbox", EN.autoSave],
       ["menuitem", `${EN.exportMenu}▸`],
+      ["menuitem", `${EXPORT_MESSAGES.en.print}Ctrl+P`],
       ["menuitem", AI_ACCESS_MESSAGES.en.menuItem],
       ["menuitem", AI_ACCESS_MESSAGES.en.history.menuItem],
       ["menuitem", EN.closeProject],
@@ -93,7 +94,7 @@ describe("File menu", () => {
     expect(within(menu).getAllByRole("separator")).toHaveLength(4);
   });
 
-  it("keeps every export under Export, opened by pointer or by the right arrow", async () => {
+  it("keeps every export under Export (printing is its own item), opened by pointer or by the right arrow", async () => {
     const shell = await renderShell({ systemLanguages: ["en"] });
     await shell.openProjectInUi();
     await act(async () => {
@@ -115,7 +116,7 @@ describe("File menu", () => {
       EN.exportMarkdown,
       EXPORT_MESSAGES.en.sheetHtml,
       EXPORT_MESSAGES.en.documentHtml,
-      EXPORT_MESSAGES.en.print,
+      EXPORT_MESSAGES.en.documentsMenu,
     ]);
     expect(document.activeElement?.textContent).toBe(EN.exportMarkdown);
     await shell.user.keyboard("{ArrowDown}");

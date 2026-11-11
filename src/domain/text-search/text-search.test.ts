@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findMatches, replaceAll } from "./text-search";
+import { findMatches, replaceAll, replaceOccurrence } from "./text-search";
 
 describe("findMatches", () => {
   it("finds every occurrence with its line, ignoring case unless asked", () => {
@@ -37,5 +37,41 @@ describe("replaceAll", () => {
 
   it("honours matchCase", () => {
     expect(replaceAll("Api api", "api", "API", true).text).toBe("Api API");
+  });
+});
+
+describe("replaceOccurrence", () => {
+  it("replaces only the chosen occurrence of the chosen line", () => {
+    expect(
+      replaceOccurrence("ab ab\r\nAB ab", "ab", "x", false, {
+        line: 2,
+        ordinal: 1,
+      }),
+    ).toEqual({ text: "ab ab\r\nAB x", count: 1 });
+    expect(
+      replaceOccurrence("ab ab\nab", "ab", "x", false, { line: 1, ordinal: 0 })
+        .text,
+    ).toBe("x ab\nab");
+  });
+
+  it("works in characters", () => {
+    expect(
+      replaceOccurrence("😀注文 注文", "注文", "受注", false, {
+        line: 1,
+        ordinal: 1,
+      }).text,
+    ).toBe("😀注文 受注");
+  });
+
+  it("changes nothing when the line no longer has that occurrence", () => {
+    expect(
+      replaceOccurrence("abc\nxyz", "ab", "x", false, { line: 2, ordinal: 0 }),
+    ).toEqual({ text: "abc\nxyz", count: 0 });
+    expect(
+      replaceOccurrence("Ab", "ab", "x", true, { line: 1, ordinal: 0 }).count,
+    ).toBe(0);
+    expect(
+      replaceOccurrence("ab", "ab", "x", false, { line: 3, ordinal: 0 }).count,
+    ).toBe(0);
   });
 });
