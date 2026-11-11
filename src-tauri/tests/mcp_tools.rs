@@ -29,7 +29,7 @@ const READ_TOOLS: [&str; 6] = [
     "searchProject",
     "exportMarkdown",
 ];
-const WRITE_TOOLS: [&str; 9] = [
+const WRITE_TOOLS: [&str; 10] = [
     "createDocument",
     "createSheet",
     "createBlock",
@@ -39,6 +39,7 @@ const WRITE_TOOLS: [&str; 9] = [
     "moveBlock",
     "updateBlockCaption",
     "deleteBlock",
+    "requestImageImport",
 ];
 const TEXT_LIMIT_PLUS_ONE: usize = 1024 * 1024 + 1;
 
@@ -1626,4 +1627,93 @@ fn a_text_of_exactly_the_limit_is_written_and_read_back() {
     .ok();
     assert_eq!(replaced["written"], true);
     assert_loads_without_issues(&root);
+}
+
+#[test]
+fn a_write_by_a_server_following_the_app_is_kept_in_the_ai_history() {
+    let (_temp, sample) = project_copy();
+    let config = TempDir::new();
+    app_list(config.path(), &[(PROJECT_ID, &sample, true)]);
+    let context = ToolContext::follow_app(config.path());
+    call(
+        &context,
+        "selectProject",
+        json!({ "projectId": PROJECT_ID }),
+    )
+    .ok();
+    let before = call(
+        &context,
+        "getBlock",
+        block_arguments(OVERVIEW_MARKDOWN_BLOCK_ID, json!({})),
+    )
+    .ok();
+    let updated = call(
+        &context,
+        "updateBlock",
+        block_arguments(
+            OVERVIEW_MARKDOWN_BLOCK_ID,
+            json!({ "text": "# New", "expectedContentHash": before["contentHash"] }),
+        ),
+    )
+    .ok();
+    let history = design_dawn_lib::application::local_state::ai_history::read(
+        config.path(),
+        &ProjectId::parse(PROJECT_ID).unwrap(),
+    );
+    assert_eq!(history.len(), 1);
+    let entry = &history[0];
+    assert_eq!(entry.tool, "updateBlock");
+    assert_eq!(entry.block_id.as_deref(), Some(OVERVIEW_MARKDOWN_BLOCK_ID));
+    assert_eq!(entry.before.as_deref(), before["text"].as_str());
+    assert_eq!(entry.after.as_deref(), Some("# New"));
+    assert_eq!(entry.after_hash.as_deref(), updated["contentHash"].as_str());
+}
+
+#[test]
+fn an_image_request_waits_for_the_app_and_adds_nothing() {
+    let (_temp, sample) = project_copy();
+    let config = TempDir::new();
+    app_list(config.path(), &[(PROJECT_ID, &sample, true)]);
+    let context = ToolContext::follow_app(config.path());
+    call(
+        &context,
+        "selectProject",
+        json!({ "projectId": PROJECT_ID }),
+    )
+    .ok();
+    let image = document_dir(&sample).join("assets/pixel.png");
+    let answer = call(
+        &context,
+        "requestImageImport",
+        with(
+            overview_ids(),
+            json!({ "path": image.to_str().unwrap(), "position": { "x": 5, "y": 6 } }),
+        ),
+    )
+    .ok();
+    assert_eq!(answer["requested"], true);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let pending =
+        design_dawn_lib::application::local_state::ai_image_requests::pending_image_requests(
+            config.path(),
+            now,
+        );
+    assert_eq!(pending.len(), 1);
+    assert_eq!(pending[0].1.x, Some(5));
+    assert_eq!(pending[0].1.path, image);
+    let refused = call(
+        &context,
+        "requestImageImport",
+        with(overview_ids(), json!({ "path": "relative.png" })),
+    );
+    assert_eq!(refused.error_kind(), "invalidArguments");
+    // Nothing went into the AI history: the request changed nothing.
+    assert!(design_dawn_lib::application::local_state::ai_history::read(
+        config.path(),
+        &ProjectId::parse(PROJECT_ID).unwrap()
+    )
+    .is_empty());
 }

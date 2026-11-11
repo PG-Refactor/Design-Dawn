@@ -6,8 +6,10 @@ import type {
   AiAccessAnswer,
   AiAccessGateway,
   AiAccessOverview,
+  AiHistoryEntry,
   AiProjectAccess,
 } from "../ports/ai-access-gateway";
+import type { ImportedImage } from "../ports/asset-types";
 import { operationErr, operationOk } from "../ports/operation-error";
 
 export const FAKE_MCP_SERVER_PATH = "/opt/design-dawn/design-dawn-mcp";
@@ -21,6 +23,11 @@ export interface FakeAiAccessGateway extends AiAccessGateway {
   // What the folder dialog gives next: a Project, or null for a cancel.
   nextFolderProject: AiProjectAccess | null;
   serverFound: boolean;
+  // What `history` returns, newest first.
+  historyEntries: AiHistoryEntry[];
+  // The image an allowed request imports; the answers given to image requests.
+  imageToImport: ImportedImage | null;
+  imageAnswers: { requestId: string; allow: boolean }[];
   failNextOverview: boolean;
   failNextChange: boolean;
 }
@@ -34,8 +41,18 @@ export function createFakeAiAccessGateway(
     openProject: null,
     nextFolderProject: null,
     serverFound: true,
+    historyEntries: [],
+    imageToImport: null,
+    imageAnswers: [],
     failNextOverview: false,
     failNextChange: false,
+    history: () => Promise.resolve(operationOk([...gateway.historyEntries])),
+    imageRequestPreview: (requestId) =>
+      Promise.resolve(operationOk(`data:image/png;base64,${requestId}`)),
+    answerImageRequest: (requestId, allow) => {
+      gateway.imageAnswers.push({ requestId, allow });
+      return Promise.resolve(operationOk(allow ? gateway.imageToImport : null));
+    },
     overview() {
       if (gateway.failNextOverview) {
         gateway.failNextOverview = false;

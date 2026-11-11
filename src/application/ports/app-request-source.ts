@@ -5,7 +5,11 @@
 
 import type { LanguagePreference } from "../../config/language-config";
 import type { TextSize } from "../../config/text-size-config";
-import type { DocumentId, ProjectId } from "../../domain/shared/entity-id";
+import type {
+  DocumentId,
+  ProjectId,
+  SheetId,
+} from "../../domain/shared/entity-id";
 import type { ThemePreference } from "../local-state/theme";
 import type { OperationResult } from "./operation-error";
 import type { ExternalChanges } from "./persistence-types";
@@ -49,6 +53,18 @@ export type WindowEvent =
       readonly projectId: ProjectId;
       readonly projectName: string;
       readonly folderDisplay: string;
+    }
+  // An AI asks to add an image file to a Sheet (`AiImageRequestPrompt` asks the user).
+  | {
+      readonly kind: "aiImageRequested";
+      readonly requestId: string;
+      readonly projectId: ProjectId;
+      readonly documentId: DocumentId;
+      readonly sheetId: SheetId;
+      readonly fileName: string;
+      readonly x: number | null;
+      readonly y: number | null;
+      readonly caption: string | null;
     };
 
 export interface AppRequestSource {

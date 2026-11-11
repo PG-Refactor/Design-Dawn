@@ -51,6 +51,8 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   searchProject: "Projectを検索できませんでした",
   replaceText: "置換できませんでした",
   exportDocument: "書き出せませんでした",
+  renderDiagram:
+    "アプリの外（他のエディタ・Git・AIツール）で変更された図を描画できません",
   importImagesWithoutSheet: "画像を追加するにはSheetを開いてください",
   editBlockContent:
     "Blockの本文の編集を確定できませんでした（編集内容は画面に残っています）",

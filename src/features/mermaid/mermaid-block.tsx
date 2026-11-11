@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import {
   MERMAID_EDITOR_FALLBACK_VIEW,
   MERMAID_EDITOR_INITIAL_VIEW,
@@ -9,13 +9,19 @@ import { shortBlockId } from "../canvas/canvas-messages";
 import { TextBlockEditor } from "../text-block/text-block-editor";
 import { TextBlockState } from "../text-block/text-block-state";
 import { useTextBlockContent } from "../text-block/use-text-block-content";
+import { addOperationError } from "../workspace/ui-state/shell-ui-state";
 import { useMessages } from "../workspace/use-messages";
+import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import { DiagramGuiPanel } from "./diagram-gui-panel";
 import {
   createDiagramInteraction,
   DiagramInteractionContext,
 } from "./diagram-interaction";
 import { MermaidDiagramPreview } from "./mermaid-diagram-preview";
+
+// Failures already reported in this window (block and text), so a re-render or a remount
+// does not report the same one again.
+const reportedRenderFailures = new Set<string>();
 
 // The renderer of a Mermaid block: the same states as the Markdown block, with the shared
 // editor. The preview is the rendered diagram in both the normal view and the editor.
@@ -32,6 +38,24 @@ export function MermaidBlock({
     documentId,
     sheetId,
     blockId,
+  );
+  const { canvasActions, uiStateStore } = useWorkspaceServices();
+  // A diagram that stopped drawing after a change from outside (another editor, Git, an AI
+  // tool) is reported once per text; the user's own edits show their error where they edit.
+  const reportRenderFailure = useCallback(
+    (message: string) => {
+      if (text === undefined || canvasActions.wroteHere(blockId, text)) return;
+      const key = `${blockId}\u0000${text}`;
+      if (reportedRenderFailures.has(key)) return;
+      reportedRenderFailures.add(key);
+      uiStateStore.setState((state) =>
+        addOperationError(state, "renderDiagram", shortBlockId(blockId), {
+          kind: "diagramRenderRejected",
+          detail: message,
+        }),
+      );
+    },
+    [text, blockId, canvasActions, uiStateStore],
   );
   // Read when the editor opens: the GUI for a diagram it can edit, Source otherwise.
   const initialView = useMemo(
@@ -99,6 +123,7 @@ export function MermaidBlock({
       shortId={shortBlockId(blockId)}
       debounced={false}
       showEditHint
+      onRenderFailed={reportRenderFailure}
     />
   );
 }

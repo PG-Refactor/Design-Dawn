@@ -337,6 +337,11 @@ impl LocalState {
     }
 
     /// The AI access list, or the problem that makes the file unusable.
+    /// What AI tools changed in the Project, newest first.
+    pub fn ai_history(&self, project_id: &ProjectId) -> Vec<super::ai_history::AiHistoryEntry> {
+        super::ai_history::read(&self.directories.config_dir, project_id)
+    }
+
     pub fn ai_access_list(&self) -> ApplicationResult<AiAccessList> {
         let _guard = acquire(&self.ai_access_lock);
         AiAccessList::read(&self.directories.config_dir)
