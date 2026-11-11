@@ -154,7 +154,7 @@ export const DESIGN_TEMPLATES: Readonly<
         blockType: "markdown",
         x: 0,
         y: 0,
-        width: 680,
+        width: 820,
         height: 360,
         text: {
           ja: lines(
@@ -181,7 +181,7 @@ export const DESIGN_TEMPLATES: Readonly<
       },
       {
         blockType: "mermaid",
-        x: 720,
+        x: 860,
         y: 0,
         width: 480,
         height: 360,
@@ -211,7 +211,7 @@ export const DESIGN_TEMPLATES: Readonly<
         blockType: "markdown",
         x: 0,
         y: 400,
-        width: 680,
+        width: 820,
         height: 200,
         text: {
           ja: lines(
