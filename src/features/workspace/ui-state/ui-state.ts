@@ -268,6 +268,7 @@ export const OPERATION_LABELS = [
   "refreshGitStatus",
   "stageGitFiles",
   "unstageGitFiles",
+  "resolveGitConflict",
   "discardGitChanges",
   "reloadExternalChange",
   "checkExternalChange",

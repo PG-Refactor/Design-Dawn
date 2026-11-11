@@ -116,6 +116,8 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::ai_history,
             commands::ai_requests::ai_image_request_preview,
             commands::ai_requests::answer_ai_image_request,
+            commands::git_conflict_versions,
+            commands::git_resolve_conflict,
             commands::copy_asset_to_document,
             commands::subscribe_drop_notifications,
             commands::subscribe_close_requests,

@@ -129,7 +129,28 @@ const GIT_MESSAGES_JA = {
   historyLoadingMore: "読み込み中…",
   historyMoreFailed: "続きを読み込めませんでした",
   historyListLabel: "コミットの履歴",
-  conflictNote: "競合の解決はこのバージョンでは扱いません",
+  conflictNote: "競合しています",
+  resolveConflict: "解決…",
+  conflict: {
+    title: (path: string): string => `競合の解決: ${path}`,
+    description:
+      "どちらかの版を選ぶか、下の欄を編集して「この内容で解決」を押すと、ファイルを書き換えてステージします。すべて解決したらコミットしてください。",
+    loading: "読み込み中…",
+    loadFailed:
+      "このファイルの版を読み込めませんでした（テキストでない、または大きすぎます）。Git の別のツールで解決してください。",
+    ours: "自分の版（このブランチ）",
+    theirs: "相手の版（取り込んだ側）",
+    none: "（この側にはファイルがありません）",
+    useOurs: "自分の版を使う",
+    useTheirs: "相手の版を使う",
+    merged: "ブロックごとに自動でマージできました（シートのレイアウト）。",
+    useMerged: "自動マージの結果を使う",
+    conflictingBlocks: (count: number): string =>
+      `両方で別々に変えられたブロックが ${count} 個あるため、自動ではマージできません。`,
+    editLabel: "解決後の内容",
+    resolve: "この内容で解決",
+    cancel: "キャンセル",
+  },
   sectionTitles: {
     conflicts: "マージの変更",
     staged: "ステージされている変更",
@@ -286,7 +307,30 @@ const GIT_MESSAGES_EN: GitMessages = {
   historyLoadingMore: "Loading…",
   historyMoreFailed: "Could not load more commits",
   historyListLabel: "Commit history",
-  conflictNote: "Resolving conflicts is not supported in this version",
+  conflictNote: "In conflict",
+  resolveConflict: "Resolve…",
+  conflict: {
+    title: (path) => `Resolve conflict: ${path}`,
+    description:
+      "Choose a version, or edit the text below and press “Resolve with This Text”: the file is rewritten and staged. When everything is resolved, commit.",
+    loading: "Loading…",
+    loadFailed:
+      "The versions of this file could not be read (not text, or too large). Resolve it with another Git tool.",
+    ours: "Ours (this branch)",
+    theirs: "Theirs (merged in)",
+    none: "(no file on this side)",
+    useOurs: "Use Ours",
+    useTheirs: "Use Theirs",
+    merged: "The sheet layout merged block by block.",
+    useMerged: "Use the Merged Result",
+    conflictingBlocks: (count) =>
+      count === 1
+        ? "1 block was changed differently on both sides, so it cannot merge by itself."
+        : `${count} blocks were changed differently on both sides, so it cannot merge by itself.`,
+    editLabel: "Resolved text",
+    resolve: "Resolve with This Text",
+    cancel: "Cancel",
+  },
   sectionTitles: {
     conflicts: "Merge Changes",
     staged: "Staged Changes",

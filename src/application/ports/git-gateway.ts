@@ -166,7 +166,30 @@ export interface GitDiscardImpact {
   readonly projectFilesAffected: boolean;
 }
 
+// The versions Git keeps for a conflicted file. `merged` is the Block-by-Block merge of a
+// `sheet.json` when it succeeded; `conflictingBlocks` names what both sides changed
+// differently. A side that has no such file (or is not text) is null.
+export interface GitConflictVersions {
+  readonly path: string;
+  readonly base: string | null;
+  readonly ours: string | null;
+  readonly theirs: string | null;
+  readonly current: string | null;
+  readonly merged: string | null;
+  readonly conflictingBlocks: readonly string[];
+}
+
 export interface GitGateway {
+  conflictVersions(
+    projectId: ProjectId,
+    path: string,
+  ): Promise<OperationResult<GitConflictVersions>>;
+  // Writes `content` over a conflicted file and stages it; returns the status afterwards.
+  resolveConflict(
+    projectId: ProjectId,
+    path: string,
+    content: string,
+  ): Promise<OperationResult<GitStatus>>;
   gitStatus(projectId: ProjectId): Promise<OperationResult<GitStatus>>;
   // Stages changed files (Project root relative, `/` separated) and returns the status
   // read afterwards. After a failure the index may be partly changed: read the status again.

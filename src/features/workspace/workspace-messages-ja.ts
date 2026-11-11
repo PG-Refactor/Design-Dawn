@@ -66,6 +66,7 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   refreshGitStatus: "Gitの状態を取得できませんでした",
   stageGitFiles: "ステージできませんでした",
   unstageGitFiles: "ステージを解除できませんでした",
+  resolveGitConflict: "競合を解決できませんでした",
   discardGitChanges: "変更を破棄できませんでした",
   reloadExternalChange: "外部の変更を読み直せませんでした",
   checkExternalChange: "外部の変更を確認できませんでした",

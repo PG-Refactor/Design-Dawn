@@ -4,6 +4,7 @@ import type { ProjectId } from "../../domain/shared/entity-id";
 import type {
   GitCommitOptions,
   GitCommitResult,
+  GitConflictVersions,
   GitDiff,
   GitDiffSide,
   GitDiscardImpact,
@@ -23,6 +24,9 @@ import {
 export interface FakeGitGateway extends GitGateway {
   readonly calls: ProjectId[];
   readonly stageCalls: { projectId: ProjectId; paths: readonly string[] }[];
+  // What `conflictVersions` answers, and the resolutions asked for.
+  conflict: GitConflictVersions | null;
+  readonly resolveCalls: { path: string; content: string }[];
   readonly unstageCalls: { projectId: ProjectId; paths: readonly string[] }[];
   readonly discardCalls: { projectId: ProjectId; paths: readonly string[] }[];
   readonly discardImpactCalls: {
@@ -158,6 +162,18 @@ export function createFakeGitGateway(): FakeGitGateway {
   const gateway: FakeGitGateway = {
     calls: [],
     stageCalls: [],
+    conflict: null,
+    resolveCalls: [],
+    conflictVersions: (_projectId, path) =>
+      Promise.resolve(
+        gateway.conflict === null
+          ? operationErr<GitConflictVersions>("invalidGitPath", path)
+          : operationOk(gateway.conflict),
+      ),
+    resolveConflict: (_projectId, path, content) => {
+      gateway.resolveCalls.push({ path, content });
+      return Promise.resolve(indexAnswer());
+    },
     unstageCalls: [],
     discardCalls: [],
     discardImpactCalls: [],

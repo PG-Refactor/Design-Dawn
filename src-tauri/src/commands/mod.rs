@@ -41,6 +41,7 @@ use crate::application::folder_selection::{
 };
 use crate::application::format_update::{self, FormatUpdateResult};
 use crate::application::git_commit;
+use crate::application::git_conflict::{self, ConflictVersions};
 use crate::application::git_discard;
 use crate::application::git_history;
 use crate::application::git_operations::{self, GitStatusResult};
@@ -80,7 +81,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 84] = [
+pub const COMMAND_NAMES: [&str; 86] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -131,6 +132,8 @@ pub const COMMAND_NAMES: [&str; 84] = [
     "ai_history",
     "ai_image_request_preview",
     "answer_ai_image_request",
+    "git_conflict_versions",
+    "git_resolve_conflict",
     "copy_asset_to_document",
     "subscribe_drop_notifications",
     "subscribe_close_requests",
@@ -1567,6 +1570,39 @@ pub async fn git_stage<R: Runtime>(
     run_blocking(move || {
         let sessions = app.state::<Mutex<ProjectSessions>>();
         git_operations::git_stage(&sessions, &project_id, &paths)
+    })
+    .await
+}
+
+/// The versions Git keeps for a conflicted file of the calling window's Project.
+#[tauri::command]
+pub async fn git_conflict_versions<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    path: String,
+) -> Result<ConflictVersions, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_conflict::git_conflict_versions(&sessions, &project_id, &path)
+    })
+    .await
+}
+
+/// Writes the chosen text over a conflicted file and stages it; returns the status after.
+#[tauri::command]
+pub async fn git_resolve_conflict<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    path: String,
+    content: String,
+) -> Result<GitStatusResult, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_conflict::git_resolve_conflict(&sessions, &project_id, &path, &content)
     })
     .await
 }

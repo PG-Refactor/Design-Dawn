@@ -30,6 +30,7 @@ import {
   type IndexOperation,
   SECTION_OPERATIONS,
 } from "./git-change-tree-items";
+import { GitConflictDialog } from "./git-conflict-dialog";
 import {
   openDiffPinned,
   openDiffPreview,
@@ -72,6 +73,8 @@ export function GitChangeList({ status }: { readonly status: GitStatus }) {
   const itemElements = useRef(new Map<string, HTMLDivElement>());
   const [rovingKey, setRovingKey] = useState<string | null>(null);
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
+  // The conflicted file whose resolution is open.
+  const [resolving, setResolving] = useState<string | null>(null);
   const effectiveRovingKey = items.some((item) => item.key === rovingKey)
     ? rovingKey
     : (items[0]?.key ?? null);
@@ -142,7 +145,11 @@ export function GitChangeList({ status }: { readonly status: GitStatus }) {
 
   function operateOnRow(entry: GitChangeEntry): void {
     const operation = SECTION_OPERATIONS[entry.sectionId]?.operation;
-    if (operation === undefined) return;
+    // A conflicted file has no index operation: its row opens the resolution instead.
+    if (operation === undefined) {
+      setResolving(entry.path);
+      return;
+    }
     void operate(operation, [entry.path], entry.key);
   }
 
@@ -257,6 +264,12 @@ export function GitChangeList({ status }: { readonly status: GitStatus }) {
             ),
           )}
         </div>
+      )}
+      {resolving !== null && (
+        <GitConflictDialog
+          path={resolving}
+          onClose={() => setResolving(null)}
+        />
       )}
     </div>
   );

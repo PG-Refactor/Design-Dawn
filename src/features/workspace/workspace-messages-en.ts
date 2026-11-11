@@ -65,6 +65,7 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   refreshGitStatus: "Could not get the Git status",
   stageGitFiles: "Could not stage the files",
   unstageGitFiles: "Could not unstage the files",
+  resolveGitConflict: "Could not resolve the conflict",
   discardGitChanges: "Could not discard changes",
   reloadExternalChange: "Could not read the externally changed files again",
   checkExternalChange: "Could not check for external changes",

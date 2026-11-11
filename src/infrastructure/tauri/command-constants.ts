@@ -49,6 +49,8 @@ export const COMMANDS = {
   aiHistory: "ai_history",
   aiImageRequestPreview: "ai_image_request_preview",
   answerAiImageRequest: "answer_ai_image_request",
+  gitConflictVersions: "git_conflict_versions",
+  gitResolveConflict: "git_resolve_conflict",
   selectImageFiles: "select_image_files",
   defaultProjectLocation: "default_project_location",
   setDefaultProjectLocation: "set_default_project_location",
