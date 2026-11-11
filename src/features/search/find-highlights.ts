@@ -6,6 +6,9 @@
 import { BLOCK_ID_ATTRIBUTE } from "../canvas/block-dom";
 
 const ALL_MATCHES = "design-dawn-find";
+const WORLD_SELECTOR = ".canvas__world";
+// Just below 1: invisible, but a change WebKit must paint again.
+const REPAINT_OPACITY = "0.9999";
 const CURRENT_MATCH = "design-dawn-find-current";
 
 export interface CurrentHighlight {
@@ -44,6 +47,16 @@ function rangesIn(node: Text, needle: string, matchCase: boolean): Range[] {
   return ranges;
 }
 
+// WebKitGTK does not repaint text whose highlight was removed, so old marks would stay: the
+// world layer (already a layer of its own, being transformed) is made to paint again by
+// switching its opacity between 1 and just below.
+function repaint(root: Element | null): void {
+  const world = root?.querySelector<HTMLElement>(WORLD_SELECTOR);
+  if (world === null || world === undefined) return;
+  world.style.opacity =
+    world.style.opacity === REPAINT_OPACITY ? "" : REPAINT_OPACITY;
+}
+
 export function paintFindHighlights(
   root: Element | null,
   query: string,
@@ -53,6 +66,7 @@ export function paintFindHighlights(
   const highlights = registry();
   if (highlights === null) return;
   clearFindHighlights();
+  repaint(root);
   if (root === null || query.length === 0) return;
   const needle = fold(query, matchCase);
   const all: Range[] = [];
@@ -74,8 +88,12 @@ export function paintFindHighlights(
       if (range !== undefined) currentRanges.push(range);
     }
   }
-  highlights.set(ALL_MATCHES, new Highlight(...all));
-  highlights.set(CURRENT_MATCH, new Highlight(...currentRanges));
+  // An empty highlight is not registered: WebKitGTK does not repaint for one, so the
+  // previous marks would stay.
+  if (all.length > 0) highlights.set(ALL_MATCHES, new Highlight(...all));
+  if (currentRanges.length > 0) {
+    highlights.set(CURRENT_MATCH, new Highlight(...currentRanges));
+  }
 }
 
 export function clearFindHighlights(): void {

@@ -130,6 +130,7 @@ mod tests {
         assert_eq!(folders.folder(&token).unwrap(), folder);
         assert!(folder_name.starts_with("dawn-export-folder-choose"));
         assert!(folders.folder("other").is_err());
+        std::fs::remove_dir_all(&folder).unwrap();
     }
 
     #[test]
@@ -158,5 +159,6 @@ mod tests {
             write_into_folder(&folder, "pdf", "x", b"%PDF-1.7 ...").unwrap(),
             "x.pdf"
         );
+        std::fs::remove_dir_all(&folder).unwrap();
     }
 }
