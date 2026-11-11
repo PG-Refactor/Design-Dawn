@@ -54,6 +54,8 @@
     "allow-ai-history",
     "allow-ai-image-request-preview",
     "allow-answer-ai-image-request",
+    "allow-git-conflict-versions",
+    "allow-git-resolve-conflict",
     "allow-copy-asset-to-document",
     "allow-subscribe-drop-notifications",
     "allow-subscribe-close-requests",

@@ -4,6 +4,7 @@
 import type {
   GitCommitOptions,
   GitCommitResult,
+  GitConflictVersions,
   GitDiff,
   GitDiffSide,
   GitDiscardImpact,
@@ -14,7 +15,7 @@ import type {
 } from "../../application/ports/git-gateway";
 import type { ProjectId } from "../../domain/shared/entity-id";
 import { COMMANDS } from "./command-constants";
-import type { CommandResult } from "./command-error";
+import { type CommandResult, commandErr, commandOk } from "./command-error";
 import {
   toGitCommitResult,
   toGitDiff,
@@ -26,6 +27,7 @@ import {
   toRemoteNames,
 } from "./git-payloads";
 import { call } from "./invoke-command";
+import { arrayOf, decodeString, nullable, objectOf } from "./payload-decoder";
 
 export function gitStatus(
   projectId: ProjectId,
@@ -136,4 +138,38 @@ export function gitRemotes(
   projectId: ProjectId,
 ): Promise<CommandResult<readonly string[]>> {
   return call(COMMANDS.gitRemotes, { projectId }, toRemoteNames);
+}
+
+const rawConflictVersions = objectOf<GitConflictVersions>({
+  path: decodeString,
+  base: nullable(decodeString),
+  ours: nullable(decodeString),
+  theirs: nullable(decodeString),
+  current: nullable(decodeString),
+  merged: nullable(decodeString),
+  conflictingBlocks: arrayOf(decodeString),
+});
+
+export function gitConflictVersions(
+  projectId: ProjectId,
+  path: string,
+): Promise<CommandResult<GitConflictVersions>> {
+  return call(COMMANDS.gitConflictVersions, { projectId, path }, (payload) => {
+    const decoded = rawConflictVersions(payload, "payload");
+    return decoded.ok
+      ? commandOk(decoded.value)
+      : commandErr("invalidCommandResponse", decoded.detail);
+  });
+}
+
+export function gitResolveConflict(
+  projectId: ProjectId,
+  path: string,
+  content: string,
+): Promise<CommandResult<GitStatus>> {
+  return call(
+    COMMANDS.gitResolveConflict,
+    { projectId, path, content },
+    toGitStatus,
+  );
 }

@@ -179,13 +179,40 @@ describe("change list display", () => {
     expect(row.querySelector("img")).toBeNull();
   });
 
-  it("shows conflicts without buttons and with the note", async () => {
-    await openChanges(file("x.md", "unmerged", "unmerged"));
+  it("offers to resolve a conflict and resolves it with the chosen version", async () => {
+    const shell = await openChanges(file("x.md", "unmerged", "unmerged"));
     const row = rowOf("マージの変更", "競合 x.md");
-    expect(within(row).queryByRole("button")).toBeNull();
+    expect(row.textContent).toContain(GIT_MESSAGES.ja.conflictNote);
+    // No stage / unstage for a conflicted file: only its resolution.
     expect(within(sectionOf("マージの変更")).queryByRole("button")).toBeNull();
-    expect(within(row).getByText(GIT_MESSAGES.ja.conflictNote)).toBeTruthy();
-    expect(row.hasAttribute("aria-selected")).toBe(false);
+    shell.gitGateway.conflict = {
+      path: "x.md",
+      base: "base\n",
+      ours: "ours\n",
+      theirs: "theirs\n",
+      current: "<<<<<<<\n",
+      merged: null,
+      conflictingBlocks: [],
+    };
+    await shell.user.click(
+      within(row).getByRole("button", {
+        name: GIT_MESSAGES.ja.resolveConflict,
+      }),
+    );
+    const conflict = GIT_MESSAGES.ja.conflict;
+    const dialog = await screen.findByRole("dialog", {
+      name: conflict.title("x.md"),
+    });
+    await shell.user.click(
+      within(dialog).getByRole("button", { name: conflict.useTheirs }),
+    );
+    await shell.user.click(
+      within(dialog).getByRole("button", { name: conflict.resolve }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(shell.gitGateway.resolveCalls).toEqual([
+      { path: "x.md", content: "theirs\n" },
+    ]);
   });
 });
 

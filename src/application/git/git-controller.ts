@@ -16,6 +16,7 @@ import {
   DEFAULT_GIT_COMMIT_OPTIONS,
   type GitCommitOptions,
   type GitCommitResult,
+  type GitConflictVersions,
   type GitDiff,
   type GitDiffSide,
   type GitDiscardImpact,
@@ -110,6 +111,7 @@ export const GIT_OPERATION_LABELS = [
   "refreshGitStatus",
   "stageGitFiles",
   "unstageGitFiles",
+  "resolveGitConflict",
   "discardGitChanges",
   "loadGitDiff",
   "commitGitChanges",
@@ -144,6 +146,13 @@ export interface GitController {
   // here). On failure it is reported and the status is read again, because git may have
   // changed the index partly.
   stage(paths: readonly string[]): Promise<OperationResult<void>>;
+  // The versions of a conflicted file (a plain read, not queued).
+  conflictVersions(path: string): Promise<OperationResult<GitConflictVersions>>;
+  // Writes the chosen text over a conflicted file and stages it, on the queue like Stage.
+  resolveConflict(
+    path: string,
+    content: string,
+  ): Promise<OperationResult<void>>;
   unstage(paths: readonly string[]): Promise<OperationResult<void>>;
   // Discards working tree changes of the given files (restores tracked files, deletes
   // untracked ones) on the same queue, exactly like Stage: on success the status is replaced
@@ -233,6 +242,7 @@ const NO_PROJECT_STATE: GitState = {
 };
 
 type IndexOperation = "stage" | "unstage" | "discard";
+type ResolveOperation = { readonly path: string; readonly content: string };
 
 const INDEX_OPERATION_LABELS: Record<IndexOperation, GitOperationLabel> = {
   stage: "stageGitFiles",
@@ -340,7 +350,7 @@ export function createGitController(
   }
 
   function changeIndex(
-    operation: IndexOperation,
+    operation: IndexOperation | ResolveOperation,
     paths: readonly string[],
   ): Promise<OperationResult<void>> {
     const projectId = store.getState().projectId;
@@ -350,6 +360,13 @@ export function createGitController(
       if (taskEpoch !== epoch) return operationOk(undefined);
       store.setState((state) => ({ ...state, operating: true }));
       const result = await call(() => {
+        if (typeof operation !== "string") {
+          return gateway.resolveConflict(
+            projectId,
+            operation.path,
+            operation.content,
+          );
+        }
         switch (operation) {
           case "stage":
             return gateway.stage(projectId, paths);
@@ -371,7 +388,12 @@ export function createGitController(
         }));
         return operationOk(undefined);
       }
-      reportFailure(INDEX_OPERATION_LABELS[operation], result.error);
+      reportFailure(
+        typeof operation === "string"
+          ? INDEX_OPERATION_LABELS[operation]
+          : "resolveGitConflict",
+        result.error,
+      );
       // Inside this task (not queued again): nothing may run between the failure and the
       // status read that shows what git actually did.
       await readStatus(projectId, taskEpoch);
@@ -744,6 +766,14 @@ export function createGitController(
         : refreshProject(projectId, true);
     },
     stage: (paths) => changeIndex("stage", paths),
+    resolveConflict: (path, content) => changeIndex({ path, content }, [path]),
+    conflictVersions: async (path) => {
+      const projectId = store.getState().projectId;
+      if (projectId === null) {
+        return operationErr("projectNotOpen", "no project is open");
+      }
+      return gateway.conflictVersions(projectId, path);
+    },
     unstage: (paths) => changeIndex("unstage", paths),
     discard: (paths) => changeIndex("discard", paths),
     async discardImpact(paths) {

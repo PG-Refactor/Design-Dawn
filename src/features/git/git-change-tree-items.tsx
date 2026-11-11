@@ -299,7 +299,16 @@ export function GitFileRow({
       </span>
       {/* Last, so its full-width line wraps under the row instead of pushing the letter down. */}
       {operation === null ? (
-        <span className="git-file-row__note">{messages.conflictNote}</span>
+        <span className="git-file-row__note">
+          {messages.conflictNote}{" "}
+          <button
+            type="button"
+            className="button git-file-row__resolve"
+            onClick={() => onOperate(entry)}
+          >
+            {messages.resolveConflict}
+          </button>
+        </span>
       ) : null}
     </div>
   );
