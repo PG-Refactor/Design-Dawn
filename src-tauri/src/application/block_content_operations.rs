@@ -12,7 +12,9 @@ use crate::domain::content_path::ContentPath;
 use crate::domain::entity_id::{DocumentId, SheetId};
 use crate::domain::error::{DomainError, DomainErrorKind};
 use crate::infrastructure::error::{PersistenceError, PersistenceErrorKind};
-use crate::infrastructure::file_format::naming::{block_content_file_name, block_content_number};
+use crate::infrastructure::file_format::naming::{
+    block_content_file_name, block_content_label, block_content_number,
+};
 use crate::infrastructure::filesystem::atomic_write::WriteOutcome;
 use crate::infrastructure::filesystem::text_content::{decode_text, encode_text};
 
@@ -124,7 +126,9 @@ pub fn create_block_content(
         let existing = session.entry_names(&base, &blocks_directory)?;
         let high_water =
             session.block_number_high_water(&document_id, &sheet_directory, block_type);
-        let file_name = block_content_file_name(block_type, &existing, high_water)?;
+        let label = block_content_label(block_type, text);
+        let file_name =
+            block_content_file_name(block_type, &existing, high_water, label.as_deref())?;
         let content_path = format!("{blocks_directory}{PATH_SEPARATOR}{file_name}");
         // Never hand out a path the domain would refuse on the next save.
         let parsed = ContentPath::parse(block_type, &content_path)?;

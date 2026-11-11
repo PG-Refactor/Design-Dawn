@@ -103,8 +103,9 @@ fn deep_document_path() -> String {
     )
 }
 
+// Named after the text's first heading (`# Deep`).
 fn markdown_path() -> String {
-    format!("sheets/{SHEET_DIRECTORY}/blocks/markdown-1.md")
+    format!("sheets/{SHEET_DIRECTORY}/blocks/markdown-1-deep.md")
 }
 
 struct DeepProject {
