@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { abandonPendingPrints } from "../export/print-frame";
+import { askCloseWhilePrinting } from "../export/printing-close";
 import {
   createWindowCloseHandler,
   type WindowCloseHandler,
@@ -17,10 +17,20 @@ export type WindowCloseStatus = Pick<
 // the listener. Returns the close handling's status so app requests can wait while a close
 // is in progress.
 export function useWindowCloseSave(): WindowCloseStatus {
-  const { actions, viewportPersistence, closeRequestSource } =
+  const { actions, viewportPersistence, closeRequestSource, exportActions } =
     useWorkspaceServices();
-  const latest = useRef({ actions, viewportPersistence, closeRequestSource });
-  latest.current = { actions, viewportPersistence, closeRequestSource };
+  const latest = useRef({
+    actions,
+    viewportPersistence,
+    closeRequestSource,
+    exportActions,
+  });
+  latest.current = {
+    actions,
+    viewportPersistence,
+    closeRequestSource,
+    exportActions,
+  };
 
   // One handler per mount: its in-progress flag must outlive re-renders.
   const handleRequest = useMemo(
@@ -33,6 +43,11 @@ export function useWindowCloseSave(): WindowCloseStatus {
         needsConfirmation: () =>
           latest.current.actions.windowCloseNeedsConfirmation(),
         askUnsavedClose: () => latest.current.actions.askUnsavedWindowClose(),
+        printing: {
+          isOpen: () => latest.current.exportActions.printWindowsOpen(),
+          confirmStop: askCloseWhilePrinting,
+          closeAll: () => latest.current.exportActions.closePrintWindows(),
+        },
       })),
     [],
   );
@@ -40,8 +55,6 @@ export function useWindowCloseSave(): WindowCloseStatus {
   useEffect(
     () =>
       latest.current.closeRequestSource.subscribe((request) => {
-        // A print dialog left open would sit over the question about unsaved changes.
-        abandonPendingPrints();
         void handleRequest(request);
       }),
     [handleRequest],

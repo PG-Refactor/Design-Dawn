@@ -39,6 +39,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         .manage(Mutex::new(FolderSelectionState::default()))
         .manage(Mutex::new(DroppedFilesState::default()))
         .manage(Mutex::new(ExportFolders::default()))
+        .manage(Mutex::new(commands::print_window::PrintWindows::default()))
         .manage(Mutex::new(PendingOpenRequests::default()))
         .manage(Mutex::new(WindowRegistry::default()))
         .manage(Mutex::new(DocumentTransfers::default()))
@@ -119,6 +120,10 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::export_folder::export_markdown_into_folder,
             commands::export_folder::export_into_folder,
             commands::export_folder::export_pdf_into_folder,
+            commands::export_folder::export_pdf_file,
+            commands::print_window::open_print_window,
+            commands::print_window::print_windows_open,
+            commands::print_window::close_print_windows,
             commands::asset_data_url,
             commands::ai_history,
             commands::ai_requests::ai_image_request_preview,

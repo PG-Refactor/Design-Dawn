@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ER_KEYS,
   ER_LEFT_CARDINALITIES,
@@ -10,7 +10,9 @@ import {
   type ErRightCardinality,
   readEr,
 } from "../../domain/diagram/listed/er-diagram";
+import type { PopupMenuEntry } from "../../shared/menu/popup-menu";
 import { useDisplayLanguage } from "../workspace/use-messages";
+import type { DiagramHit } from "./diagram-shapes";
 import {
   checkedValue,
   type FieldValues,
@@ -21,7 +23,11 @@ import {
 } from "./listed-gui";
 import { LISTED_GUI_MESSAGES } from "./listed-gui-messages";
 import type { DiagramOperationTarget } from "./use-diagram-operation";
-import { useListedPick } from "./use-listed-pick";
+import {
+  focusFormLater,
+  useListedPick,
+  withAdditions,
+} from "./use-listed-pick";
 import { useListedRun } from "./use-listed-run";
 import "./listed-gui.css";
 
@@ -74,21 +80,92 @@ export function ErGuiPanel({
   const relationshipIndex =
     relationshipKey === null ? -1 : Number(relationshipKey);
   const relationship = meaning.relationships[relationshipIndex];
-  useListedPick((hit) => {
-    if (
-      hit.kind === "entity" &&
-      meaning.entities.some((item) => item.name === hit.id)
-    ) {
-      setEntityKey(hit.id);
-      setAttributeKey(null);
-    } else if (
-      hit.kind === "relationship" &&
-      hit.ordinal !== undefined &&
-      meaning.relationships[hit.ordinal] !== undefined
-    ) {
-      setRelationshipKey(String(hit.ordinal));
-    }
-  });
+  const rootRef = useRef<HTMLDivElement>(null);
+  const entityOf = (hit: DiagramHit | null) =>
+    hit?.kind === "entity"
+      ? meaning.entities.find((item) => item.name === hit.id)
+      : undefined;
+  const relationshipIndexOf = (hit: DiagramHit | null) =>
+    hit?.kind === "relationship" &&
+    hit.ordinal !== undefined &&
+    meaning.relationships[hit.ordinal] !== undefined
+      ? hit.ordinal
+      : null;
+  const selectEntity = (name: string) => {
+    setEntityKey(name);
+    setAttributeKey(null);
+  };
+  useListedPick(
+    (hit) => {
+      const picked = entityOf(hit);
+      const index = relationshipIndexOf(hit);
+      if (picked !== undefined) selectEntity(picked.name);
+      else if (index !== null) setRelationshipKey(String(index));
+    },
+    (hit) => {
+      const picked = entityOf(hit);
+      const index = relationshipIndexOf(hit);
+      const own: PopupMenuEntry[] = [];
+      if (picked !== undefined) {
+        own.push(
+          {
+            id: "editEntity",
+            label: er.editEntityMenu,
+            onSelect: () => {
+              selectEntity(picked.name);
+              focusFormLater(rootRef, er.addAttribute);
+            },
+          },
+          {
+            id: "deleteEntity",
+            label: er.deleteEntity,
+            onSelect: () => {
+              setEntityKey(null);
+              void run({
+                diagram: "er",
+                operation: { kind: "deleteEntity", name: picked.name },
+              });
+            },
+          },
+        );
+      }
+      if (index !== null) {
+        own.push(
+          {
+            id: "editRelationship",
+            label: er.editRelationshipMenu,
+            onSelect: () => {
+              setRelationshipKey(String(index));
+              focusFormLater(rootRef, er.editRelationship);
+            },
+          },
+          {
+            id: "deleteRelationship",
+            label: er.deleteRelationshipMenu,
+            onSelect: () => {
+              setRelationshipKey(null);
+              void run({
+                diagram: "er",
+                operation: { kind: "deleteRelationship", index },
+              });
+            },
+          },
+        );
+      }
+      return withAdditions(own, [
+        {
+          id: "addEntity",
+          label: er.addEntity,
+          onSelect: () => focusFormLater(rootRef, er.addEntity),
+        },
+        {
+          id: "addRelationship",
+          label: er.addRelationship,
+          onSelect: () => focusFormLater(rootRef, er.addRelationship),
+        },
+      ]);
+    },
+  );
 
   const attributeFields: readonly ListedField[] = [
     { id: "type", label: er.attributeType, kind: "text" },
@@ -132,7 +209,7 @@ export function ErGuiPanel({
   };
 
   return (
-    <div className="listed-gui">
+    <div ref={rootRef} className="listed-gui">
       {status}
       <section className="listed-gui__section">
         <h4 className="diagram-gui__heading">{er.entities}</h4>

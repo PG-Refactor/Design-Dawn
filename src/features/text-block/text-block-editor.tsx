@@ -29,7 +29,7 @@ import {
   BLOCK_BODY_ATTRIBUTE,
   BLOCK_EDITOR_ATTRIBUTE,
 } from "../canvas/block-dom";
-import type { FindState } from "../search/find-store";
+import { FIND_BOX_ATTRIBUTE, type FindState } from "../search/find-store";
 import { stopEditing } from "../workspace/ui-state/ui-state";
 import { useUiState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
@@ -127,6 +127,7 @@ function pastedImage(
 }
 
 const selectEditorReveal = (state: FindState) => state.editorReveal;
+const selectSheetFindOpen = (state: FindState) => state.sheet.open;
 // How far down the textarea a revealed match is put (a share of its height).
 const REVEAL_POSITION = 1 / 3;
 
@@ -175,6 +176,13 @@ export function TextBlockEditor({
   // with the match selected.
   const { findStore } = services.searchActions;
   const editorReveal = useStoreSelector(findStore, selectEditorReveal);
+  // Opened by the sheet's find box, whose input keeps the focus: until the focus comes in,
+  // the editor neither takes it nor relies on losing it to end (see `onPointerDownOutside`).
+  const shownByFindRef = useRef(
+    findStore.getState().editorReveal?.blockId === blockId &&
+      findStore.getState().editorReveal?.keepFocus === true,
+  );
+  const findOpen = useStoreSelector(findStore, selectSheetFindOpen);
   const [view, setView] = useState<TextBlockEditorView>(() =>
     findStore.getState().editorReveal?.blockId === blockId
       ? "source"
@@ -235,7 +243,9 @@ export function TextBlockEditor({
   // clicked would stay open after a click elsewhere: focus was never inside to leave.
   useEffect(() => {
     if (view === "source") {
-      textareaRef.current?.focus({ preventScroll: true });
+      if (!shownByFindRef.current) {
+        textareaRef.current?.focus({ preventScroll: true });
+      }
       return;
     }
     const container = containerRef.current;
@@ -256,10 +266,32 @@ export function TextBlockEditor({
       editorReveal.at,
     );
     if (range === null) return;
-    textarea.focus({ preventScroll: true });
+    if (!editorReveal.keepFocus) textarea.focus({ preventScroll: true });
     textarea.setSelectionRange(range.start, range.end);
     scrollToOffset(textarea, range.start);
   }, [editorReveal, blockId, findStore, view]);
+
+  // An editor the find box opened ends like any other once the focus has been inside;
+  // before that, on a click outside it and outside the find box, or when the box closes.
+  const finishRef = useRef<(returnFocus: boolean) => Promise<void>>(
+    async () => undefined,
+  );
+  useEffect(() => {
+    if (!shownByFindRef.current) return;
+    const onPointerDownOutside = (event: PointerEvent) => {
+      const target = event.target;
+      if (!shownByFindRef.current || !(target instanceof Element)) return;
+      if (containerRef.current?.contains(target)) return;
+      if (target.closest(`[${FIND_BOX_ATTRIBUTE}]`) !== null) return;
+      void finishRef.current(false);
+    };
+    document.addEventListener("pointerdown", onPointerDownOutside, true);
+    return () =>
+      document.removeEventListener("pointerdown", onPointerDownOutside, true);
+  }, []);
+  useEffect(() => {
+    if (shownByFindRef.current && !findOpen) void finishRef.current(false);
+  }, [findOpen]);
 
   // In the GUI view the application state is the only text there is: operations, undo and
   // redo change it, so the draft and the "last committed" text follow it. Without this the
@@ -336,6 +368,7 @@ export function TextBlockEditor({
     },
     [commit, uiStateStore, sheetId, blockId],
   );
+  finishRef.current = finish;
 
   // Unmount safety net (sheet switch). Commits only when there is something new, so the
   // simulated unmount of React's development StrictMode is a no-op. It does not end the
@@ -470,6 +503,9 @@ export function TextBlockEditor({
       }
       style={splitStyle}
       {...{ [BLOCK_EDITOR_ATTRIBUTE]: "" }}
+      onFocus={() => {
+        shownByFindRef.current = false;
+      }}
       onBlur={onBlur}
     >
       {view === "gui" && guiView !== undefined ? (

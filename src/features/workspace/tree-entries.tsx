@@ -3,6 +3,7 @@
 
 import type { KeyboardEvent } from "react";
 import type { PopupMenuItem } from "../../shared/menu/popup-menu";
+import { openExportDialog } from "../export/export-dialog-store";
 import { DocumentIcon, FolderIcon, FolderOpenIcon } from "./tree-icons";
 import {
   type TreeChooseMode,
@@ -23,7 +24,6 @@ import type {
 } from "./view-models/tree-model";
 import type { TreeSelection } from "./view-models/tree-selection";
 import type { WorkspaceActions } from "./workspace-actions";
-import { useWorkspaceServices } from "./workspace-services-context";
 
 export interface TreeHandlers {
   readonly actions: WorkspaceActions;
@@ -93,7 +93,6 @@ function DocumentTreeItem({
 }) {
   const messages = useMessages().workspace;
   const { actions, keepFocus } = handlers;
-  const { exportActions } = useWorkspaceServices();
   const { documentId } = documentNode;
   const itemKey = documentTreeKey(documentId);
   const failed = documentNode.state === "loadFailed";
@@ -124,10 +123,11 @@ function DocumentTreeItem({
       onSelect: () => void actions.openDocumentInNewWindow(documentId),
     },
     {
-      id: "exportMarkdown",
-      label: messages.tree.exportMarkdown,
+      id: "export",
+      label: messages.tree.exportDocument,
       disabled: failed,
-      onSelect: () => void exportActions.exportDocumentMarkdown(documentId),
+      onSelect: () =>
+        openExportDialog({ scope: "choose", documentIds: [documentId] }),
     },
     {
       id: "delete",

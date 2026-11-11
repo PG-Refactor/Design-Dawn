@@ -266,7 +266,7 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     deleteFolder: "Delete Folder",
     deleteDocument: "Delete Document",
     openInNewWindow: "Open in New Window",
-    exportMarkdown: "Export as Markdown…",
+    exportDocument: "Export…",
     deleteChosen: "Delete",
     chosenMenuLabel: (count: number): string => `Menu of ${count} items`,
     moveTo: "Move to…",

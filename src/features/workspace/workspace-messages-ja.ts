@@ -267,7 +267,7 @@ export const WORKSPACE_MESSAGES_JA = {
     deleteFolder: "フォルダを削除",
     deleteDocument: "Documentを削除",
     openInNewWindow: "新しいウィンドウで開く",
-    exportMarkdown: "Markdownとして書き出す…",
+    exportDocument: "エクスポート…",
     deleteChosen: "削除",
     chosenMenuLabel: (count: number): string => `${count}件のメニュー`,
     moveTo: "移動…",

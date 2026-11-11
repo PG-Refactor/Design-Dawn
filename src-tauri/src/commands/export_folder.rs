@@ -11,15 +11,22 @@ use super::{
     ensure_window_project, percent_decoded, project_root, run_blocking, SharedFolderPicker,
 };
 use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
+use crate::application::export_file::{suggested_name, ExportKind};
 use crate::application::export_folder::{
-    existing_files, write_into_folder, ExportFolderChoice, ExportFolderFile, ExportFolders,
+    existing_files, subfolder, write_into_folder, ExportFolderChoice, ExportFolderFile,
+    ExportFolders,
 };
 use crate::application::export_markdown::export_document_markdown_into;
+use crate::application::export_markdown::write_file_atomically;
+use crate::application::file_dialogs::SaveOutcome;
 
 const HEADER_FOLDER: &str = "x-dawn-export-folder";
 const HEADER_NAME: &str = "x-dawn-export-name";
 const HEADER_FORMAT: &str = "x-dawn-export-kind";
 const HEADER_PAGE: &str = "x-dawn-export-page";
+/// The Project folders a file goes into: each percent-encoded, joined by `/`.
+const HEADER_SUBFOLDER: &str = "x-dawn-export-subfolder";
+const SUBFOLDER_SEPARATOR: char = '/';
 const PDF_FORMAT: &str = "pdf";
 const PAGE_SEPARATOR: char = ',';
 
@@ -73,10 +80,11 @@ pub async fn export_markdown_into_folder<R: Runtime>(
     document_id: String,
     folder: String,
     stem: String,
+    folders: Vec<String>,
 ) -> Result<String, ApplicationError> {
     ensure_window_project(&window, &project_id)?;
     let root = project_root(&app, &project_id)?;
-    let path = folder_of(&app, &folder)?;
+    let path = subfolder(&folder_of(&app, &folder)?, &folders);
     run_blocking(move || export_document_markdown_into(&root, &document_id, &path, &stem)).await
 }
 
@@ -87,6 +95,22 @@ fn header(request: &tauri::ipc::Request<'_>, name: &str) -> ApplicationResult<St
         .and_then(|value| value.to_str().ok())
         .map(str::to_owned)
         .ok_or_else(|| ApplicationError::new(ErrorKind::ExportFailed, format!("missing {name}")))
+}
+
+/// The subfolder header: empty for the chosen folder itself.
+fn subfolders(request: &tauri::ipc::Request<'_>) -> Vec<String> {
+    request
+        .headers()
+        .get(HEADER_SUBFOLDER)
+        .and_then(|value| value.to_str().ok())
+        .filter(|value| !value.is_empty())
+        .map(|value| {
+            value
+                .split(SUBFOLDER_SEPARATOR)
+                .map(percent_decoded)
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 fn raw_body(request: &tauri::ipc::Request<'_>) -> ApplicationResult<Vec<u8>> {
@@ -106,7 +130,10 @@ pub async fn export_into_folder<R: Runtime>(
     app: AppHandle<R>,
     request: tauri::ipc::Request<'_>,
 ) -> Result<String, ApplicationError> {
-    let path = folder_of(&app, &header(&request, HEADER_FOLDER)?)?;
+    let path = subfolder(
+        &folder_of(&app, &header(&request, HEADER_FOLDER)?)?,
+        &subfolders(&request),
+    );
     let format = header(&request, HEADER_FORMAT)?;
     let stem = percent_decoded(&header(&request, HEADER_NAME)?);
     let bytes = raw_body(&request)?;
@@ -131,7 +158,10 @@ pub async fn export_pdf_into_folder<R: Runtime>(
     app: AppHandle<R>,
     request: tauri::ipc::Request<'_>,
 ) -> Result<String, ApplicationError> {
-    let path = folder_of(&app, &header(&request, HEADER_FOLDER)?)?;
+    let path = subfolder(
+        &folder_of(&app, &header(&request, HEADER_FOLDER)?)?,
+        &subfolders(&request),
+    );
     let stem = percent_decoded(&header(&request, HEADER_NAME)?);
     let page = parse_page(&header(&request, HEADER_PAGE)?)?;
     let html = String::from_utf8(raw_body(&request)?)
@@ -139,6 +169,37 @@ pub async fn export_pdf_into_folder<R: Runtime>(
     run_blocking(move || {
         let pdf = print_html_to_pdf(&app, &html, page)?;
         write_into_folder(&path, PDF_FORMAT, &stem, &pdf)
+    })
+    .await
+}
+
+/// One PDF through the save dialog (the shown sheet or Document): body and headers as for
+/// `export_pdf_into_folder`, without the folder. The page is printed after the dialog.
+#[tauri::command]
+pub async fn export_pdf_file<R: Runtime>(
+    app: AppHandle<R>,
+    request: tauri::ipc::Request<'_>,
+) -> Result<SaveOutcome, ApplicationError> {
+    let stem = percent_decoded(&header(&request, HEADER_NAME)?);
+    let page = parse_page(&header(&request, HEADER_PAGE)?)?;
+    let html = String::from_utf8(raw_body(&request)?)
+        .map_err(|_| ApplicationError::new(ErrorKind::ExportFailed, "the page is not UTF-8"))?;
+    run_blocking(move || {
+        let dialogs = super::file_dialogs(&app)?;
+        let Some(target) = dialogs.save_file(
+            ExportKind::Pdf.filter(),
+            &suggested_name(&stem, ExportKind::Pdf),
+        )?
+        else {
+            return Ok(SaveOutcome::Cancelled);
+        };
+        let pdf = print_html_to_pdf(&app, &html, page)?;
+        write_file_atomically(&target, &pdf)?;
+        Ok(SaveOutcome::Saved {
+            file_name: target
+                .file_name()
+                .map_or_else(String::new, |name| name.to_string_lossy().into_owned()),
+        })
     })
     .await
 }

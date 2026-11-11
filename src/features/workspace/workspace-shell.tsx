@@ -1,4 +1,5 @@
 import { useFileDrop } from "../canvas/use-file-drop";
+import { PrintingCloseDialog } from "../export/printing-close";
 import { ProjectBanner } from "../external-change/external-change-banner";
 import { ExternalChangeDialog } from "../external-change/external-change-dialog";
 import { useExternalChangeWatching } from "../external-change/use-external-change-watching";
@@ -37,6 +38,7 @@ export function WorkspaceShell() {
       <ProjectBanner />
       <WorkspaceBody />
       <WorkspaceDialogs />
+      <PrintingCloseDialog />
       <ExternalChangeDialog />
       <LoadIssueRepairDialog />
     </div>

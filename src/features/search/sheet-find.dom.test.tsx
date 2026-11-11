@@ -170,6 +170,36 @@ describe("regular expressions in the find box", () => {
 });
 
 describe("showing a match in the source editor", () => {
+  it("opens each match's Block in Source while the focus stays in the box", async () => {
+    const rendered = await renderSheet();
+    const { user } = rendered.shell;
+    await user.keyboard("{Control>}f{/Control}");
+    const query = within(findBox()).getByRole("searchbox", {
+      name: "検索する文字",
+    });
+    await user.type(query, "order");
+    await act(settle);
+    const [markdown, diagram] = rendered.canvas.blocksOfSheetA1();
+    const editing = () =>
+      rendered.shell.uiStateStore.getState().editingBlock?.blockId;
+    expect(editing()).toBe(markdown?.blockId);
+    expect(document.activeElement).toBe(query);
+    const source = document.querySelector<HTMLTextAreaElement>(
+      ".text-block-editor textarea",
+    );
+    expect(
+      source?.value.slice(source.selectionStart, source.selectionEnd),
+    ).toBe("Order");
+    await user.keyboard("{Enter}{Enter}");
+    await act(settle);
+    expect(editing()).toBe(diagram?.blockId);
+    expect(document.activeElement).toBe(query);
+    // Closing the box with x ends an editor that never had the focus.
+    await user.click(within(findBox()).getByRole("button", { name: "閉じる" }));
+    await act(settle);
+    expect(editing()).toBeUndefined();
+  });
+
   it("opens the current match's Block in Source with the match selected on Escape", async () => {
     const rendered = await renderSheet();
     const { user } = rendered.shell;

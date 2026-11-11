@@ -15,6 +15,13 @@ export interface WindowCloseDependencies {
   // Auto-save off with unsaved changes: the user is asked before anything happens.
   readonly needsConfirmation: () => boolean;
   readonly askUnsavedClose: () => Promise<UnsavedCloseChoice>;
+  // Print windows of this window: asked about first (stop printing and close?), and
+  // closed before anything else happens.
+  readonly printing?: {
+    readonly isOpen: () => Promise<boolean>;
+    readonly confirmStop: () => Promise<boolean>;
+    readonly closeAll: () => Promise<void>;
+  };
 }
 
 // Callable with the close request; also tells whether a close is in progress and when it
@@ -54,8 +61,16 @@ export function createWindowCloseHandler(
       closeRequestSource,
       needsConfirmation,
       askUnsavedClose,
+      printing,
     } = getDependencies();
     try {
+      if (printing !== undefined && (await printing.isOpen())) {
+        if (!(await printing.confirmStop())) {
+          release();
+          return;
+        }
+        await printing.closeAll();
+      }
       // The flag stays set while the question is open, so a repeated request is ignored.
       const choice = needsConfirmation() ? await askUnsavedClose() : "save";
       if (choice === "cancel") {

@@ -12,6 +12,7 @@ mod external_watch;
 mod folder_picker;
 mod open_dispatch;
 mod pdf_printer;
+pub mod print_window;
 mod window_close;
 mod window_size;
 
@@ -83,7 +84,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 91] = [
+pub const COMMAND_NAMES: [&str; 95] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -135,6 +136,10 @@ pub const COMMAND_NAMES: [&str; 91] = [
     "export_markdown_into_folder",
     "export_into_folder",
     "export_pdf_into_folder",
+    "export_pdf_file",
+    "open_print_window",
+    "print_windows_open",
+    "close_print_windows",
     "asset_data_url",
     "ai_history",
     "ai_image_request_preview",
@@ -198,6 +203,14 @@ pub use window_size::apply_startup_window_size;
 /// The one window event handler (registered in `run`). Each event kind has its own thin
 /// handler; the drag & drop branch is unchanged.
 pub fn handle_window_event<R: Runtime>(window: &Window<R>, event: &tauri::WindowEvent) {
+    // A print or PDF window is a plain window: it closes without asking a page to save,
+    // takes no part in the window registry, and its page file goes with it.
+    if print_window::is_print_window(window.label()) || pdf_printer::is_pdf_window(window.label()) {
+        if matches!(event, tauri::WindowEvent::Destroyed) {
+            print_window::forget_print_window(window.app_handle(), window.label());
+        }
+        return;
+    }
     match event {
         tauri::WindowEvent::DragDrop(drag_drop) => {
             drag_drop::handle_drag_drop_event(window, drag_drop);
@@ -364,12 +377,20 @@ pub async fn export_document_markdown<R: Runtime>(
     window: Window<R>,
     project_id: String,
     document_id: String,
+    sheet_id: Option<String>,
+    suggested_name: Option<String>,
 ) -> Result<SaveOutcome, ApplicationError> {
     ensure_window_project(&window, &project_id)?;
     let root = project_root(&app, &project_id)?;
     run_blocking(move || {
         let dialogs = file_dialogs(&app)?;
-        export_markdown_file(dialogs.as_ref(), &root, &document_id)
+        export_markdown_file(
+            dialogs.as_ref(),
+            &root,
+            &document_id,
+            sheet_id.as_deref(),
+            suggested_name.as_deref(),
+        )
     })
     .await
 }
@@ -2025,7 +2046,7 @@ pub fn project_window_at<R: Runtime>(
         let registry = window.state::<Mutex<WindowRegistry>>();
         let registry = lock_registry(&registry);
         let mut labels: Vec<String> = registry
-            .windows_of_project(&project)
+            .move_targets_of_project(&project)
             .into_iter()
             .map(|(label, _)| label)
             .filter(|label| label != window.label())
@@ -2130,7 +2151,7 @@ pub fn list_project_windows<R: Runtime>(
     let registry = window.state::<Mutex<WindowRegistry>>();
     let registry = lock_registry(&registry);
     Ok(registry
-        .windows_of_project(&project)
+        .move_targets_of_project(&project)
         .into_iter()
         .map(|(label, role)| ProjectWindow {
             is_self: label == window.label(),

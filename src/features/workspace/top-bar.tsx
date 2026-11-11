@@ -17,13 +17,17 @@ import { AiAccessDialog } from "../ai-access/ai-access-dialog";
 import { AiAccessRequestPrompt } from "../ai-access/ai-access-request-prompt";
 import { AiHistoryDialog } from "../ai-access/ai-history-dialog";
 import { AiImageRequestPrompt } from "../ai-access/ai-image-request-prompt";
-import { ExportDocumentsDialog } from "../export/export-documents-dialog";
+import { ExportDialog, type ShownTarget } from "../export/export-dialog";
+import {
+  closeExportDialog,
+  exportDialogStore,
+  openExportDialog,
+} from "../export/export-dialog-store";
 import { PrintDialog, type PrintTarget } from "../export/print-dialog";
 import { isPrintShortcut, PRINT_KEY } from "../export/print-shortcut";
 import { type HelpDialogKind, HelpDialogs } from "../help/help-dialogs";
 import { MenuBar } from "../menu-bar/menu-bar";
 import type { MenuDefinition } from "../menu-bar/menu-bar-types";
-import { useMermaidRenderer } from "../mermaid/mermaid-renderer-context";
 import { FIND_KEY } from "../search/find-shortcuts";
 import { requestFind } from "../search/find-store";
 import { Notifications } from "./notifications";
@@ -107,7 +111,6 @@ export function TopBar() {
   const activeDocumentId = useUiState(selectActiveDocumentId);
   const activeSheets = useUiState(selectActiveSheets);
   const exportMessages = allMessages.export;
-  const mermaidRenderer = useMermaidRenderer();
   const [printTarget, setPrintTarget] = useState<PrintTarget | null>(null);
   const searchMessages = allMessages.search;
   const showPageBreaks = useStoreSelector(
@@ -147,22 +150,27 @@ export function TopBar() {
     };
   }, [activeDocumentId, activeSheets, applicationStore]);
 
-  const exportHtml = useCallback(
-    (scope: "sheet" | "document"): void => {
-      const target = shownTarget();
-      if (target === null) return;
-      void exportActions.exportSheetsHtml({
-        renderer: mermaidRenderer,
+  // The shown Document and sheet for the Export dialog.
+  const shownExportTarget = (): ShownTarget | null => {
+    const target = shownTarget();
+    if (target !== null) {
+      return {
         documentId: target.documentId,
-        sheetIds: scope === "sheet" ? [target.sheetId] : target.sheetIds,
-        title:
-          scope === "sheet"
-            ? `${target.documentName} - ${target.sheetName}`
-            : target.documentName,
-      });
-    },
-    [shownTarget, exportActions, mermaidRenderer],
-  );
+        documentName: target.documentName,
+        sheet: { sheetId: target.sheetId, name: target.sheetName },
+      };
+    }
+    if (activeDocumentId === null) return null;
+    const name =
+      applicationStore
+        .getState()
+        .project?.documents.find(
+          (entry) => entry.documentId === activeDocumentId,
+        )?.name ?? null;
+    return name === null
+      ? null
+      : { documentId: activeDocumentId, documentName: name, sheet: null };
+  };
   const projectName = useWorkspaceModel(selectProjectName);
   const busy = useUiState(selectBusy);
   const themePreference = useStoreSelector(
@@ -201,7 +209,12 @@ export function TopBar() {
   const [helpDialog, setHelpDialog] = useState<HelpDialogKind | null>(null);
   const [aiAccessOpen, setAiAccessOpen] = useState(false);
   const [aiHistoryOpen, setAiHistoryOpen] = useState(false);
-  const [exportDocumentsOpen, setExportDocumentsOpen] = useState(false);
+  const exportRequest = useStoreSelector(
+    exportDialogStore,
+    (state) => state.request,
+  );
+  // The dialog belongs to this window's shell: it goes when the shell does.
+  useEffect(() => closeExportDialog, []);
 
   const menus = useMemo<readonly MenuDefinition[]>(
     () => [
@@ -257,44 +270,14 @@ export function TopBar() {
           },
           { kind: "separator", id: "separator-export" },
           {
-            kind: "submenu",
+            kind: "item",
             id: "export",
-            label: topBar.exportMenu,
-            entries: [
-              {
-                kind: "item",
-                id: "exportMarkdown",
-                label: topBar.exportMarkdown,
-                disabled: activeDocumentId === null,
-                onSelect: () => {
-                  if (activeDocumentId !== null) {
-                    void exportActions.exportDocumentMarkdown(activeDocumentId);
-                  }
-                },
-              },
-              {
-                kind: "item",
-                id: "exportSheetHtml",
-                label: exportMessages.sheetHtml,
-                disabled: activeDocumentId === null,
-                onSelect: () => exportHtml("sheet"),
-              },
-              {
-                kind: "item",
-                id: "exportDocumentHtml",
-                label: exportMessages.documentHtml,
-                disabled: activeDocumentId === null,
-                onSelect: () => exportHtml("document"),
-              },
-              { kind: "separator", id: "separator-documents" },
-              {
-                kind: "item",
-                id: "exportDocuments",
-                label: exportMessages.documentsMenu,
-                disabled: !hasProject,
-                onSelect: () => setExportDocumentsOpen(true),
-              },
-            ],
+            label: exportMessages.exportMenuItem,
+            disabled: !hasProject,
+            onSelect: () =>
+              openExportDialog({
+                scope: activeDocumentId === null ? "choose" : "document",
+              }),
           },
           {
             kind: "item",
@@ -461,7 +444,6 @@ export function TopBar() {
       searchMessages,
       showPageBreaks,
       activeDocumentId,
-      exportHtml,
       shownTarget,
       busy,
       hasProject,
@@ -511,8 +493,12 @@ export function TopBar() {
       {aiHistoryOpen && (
         <AiHistoryDialog onClose={() => setAiHistoryOpen(false)} />
       )}
-      {exportDocumentsOpen && (
-        <ExportDocumentsDialog onClose={() => setExportDocumentsOpen(false)} />
+      {exportRequest !== null && (
+        <ExportDialog
+          request={exportRequest}
+          shown={shownExportTarget()}
+          onClose={closeExportDialog}
+        />
       )}
       {printTarget !== null && (
         <PrintDialog

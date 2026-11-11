@@ -323,6 +323,8 @@ export interface FakeGateway extends PersistenceGateway {
   // File names in the export folder (`<stem>.<format>`): written by the folder exports,
   // reported by `exportFolderExisting`.
   readonly exportFolderFiles: Set<string>;
+  // How many print windows are open (opened by `openPrintWindow`, closed all at once).
+  readonly printWindows: { count: number };
   // What the next `selectImageFiles` returns: the id of a scripted drop (the chosen files),
   // or null for a cancelled dialog. Default: cancelled.
   scriptImageSelection(dropId: string | null): void;
@@ -346,6 +348,7 @@ export function createFakeGateway(
   const permanentFailures = new Map<string, OperationErrorKind>();
   const holds = new Map<string, Promise<void>>();
   const exportFolderFiles = new Set<string>();
+  const printWindows = { count: 0 };
   let fileCounter = 0;
   const assets = new Map<DocumentId, Map<string, FakeAsset>>();
   const drops = new Map<string, readonly FakeDroppedFile[]>();
@@ -961,6 +964,7 @@ export function createFakeGateway(
       nextSpreadsheet = selection;
     },
     exportFolderFiles,
+    printWindows,
     scriptSearch(result) {
       nextSearch = result;
     },
@@ -1092,9 +1096,15 @@ export function createFakeGateway(
         return operationOk({ imported, rejected });
       }),
     // Exports are "saved" as `<documentId>.md` unless the dialog is scripted to cancel.
-    exportDocumentMarkdown: (_project, documentId) =>
-      enter("exportDocumentMarkdown", documentId, () =>
-        operationOk({ status: "saved" as const, fileName: `${documentId}.md` }),
+    exportDocumentMarkdown: (_project, documentId, sheetId, suggestedName) =>
+      enter(
+        "exportDocumentMarkdown",
+        `${documentId}:${sheetId ?? ""}:${suggestedName ?? ""}`,
+        () =>
+          operationOk({
+            status: "saved" as const,
+            fileName: `${suggestedName ?? documentId}.md`,
+          }),
       ),
     assetDataUrl: (_project, documentId, contentPath) =>
       enter("assetDataUrl", `${documentId}:${contentPath}`, () =>
@@ -1122,29 +1132,58 @@ export function createFakeGateway(
       enter("exportFolderExisting", String(files.length), () =>
         operationOk(
           files
-            .map((file) => `${file.stem}.${file.format}`)
+            .map((file) =>
+              [...file.folders, `${file.stem}.${file.format}`].join("/"),
+            )
             .filter((name) => exportFolderFiles.has(name)),
         ),
       ),
-    exportMarkdownIntoFolder: (_project, documentId, _folder, stem) =>
-      enter("exportMarkdownIntoFolder", `${documentId}:${stem}`, () => {
-        exportFolderFiles.add(`${stem}.md`);
-        return operationOk(`${stem}.md`);
-      }),
-    exportHtmlIntoFolder: (_folder, stem, bytes) =>
-      enter("exportHtmlIntoFolder", `${stem}:${bytes.length}`, () => {
-        exportFolderFiles.add(`${stem}.html`);
-        return operationOk(`${stem}.html`);
-      }),
-    exportPdfIntoFolder: (_folder, stem, html, page) =>
+    exportMarkdownIntoFolder: (_project, documentId, _folder, stem, folders) =>
+      enter(
+        "exportMarkdownIntoFolder",
+        `${documentId}:${[...folders, stem].join("/")}`,
+        () => {
+          exportFolderFiles.add([...folders, `${stem}.md`].join("/"));
+          return operationOk(`${stem}.md`);
+        },
+      ),
+    exportHtmlIntoFolder: (_folder, stem, bytes, folders) =>
+      enter(
+        "exportHtmlIntoFolder",
+        `${[...folders, stem].join("/")}:${bytes.length}`,
+        () => {
+          exportFolderFiles.add([...folders, `${stem}.html`].join("/"));
+          return operationOk(`${stem}.html`);
+        },
+      ),
+    exportPdfIntoFolder: (_folder, stem, html, page, folders) =>
       enter(
         "exportPdfIntoFolder",
-        `${stem}:${html.length}:${page.width}x${page.height}`,
+        `${[...folders, stem].join("/")}:${html.length}:${page.width}x${page.height}`,
         () => {
-          exportFolderFiles.add(`${stem}.pdf`);
+          exportFolderFiles.add([...folders, `${stem}.pdf`].join("/"));
           return operationOk(`${stem}.pdf`);
         },
       ),
+    exportPdfFile: (name, html, page) =>
+      enter(
+        "exportPdfFile",
+        `${name}:${html.length}:${page.width}x${page.height}`,
+        () =>
+          operationOk({ status: "saved" as const, fileName: `${name}.pdf` }),
+      ),
+    openPrintWindow: (title, html) =>
+      enter("openPrintWindow", `${title}:${html.length}`, () => {
+        printWindows.count += 1;
+        return operationOk(undefined);
+      }),
+    printWindowsOpen: () =>
+      enter("printWindowsOpen", "", () => operationOk(printWindows.count > 0)),
+    closePrintWindows: () =>
+      enter("closePrintWindows", "", () => {
+        printWindows.count = 0;
+        return operationOk(undefined);
+      }),
     // The scripted search result, else nothing found.
     searchProject: (_project, text, matchCase, regex) =>
       enter("searchProject", `${text}:${matchCase}:${regex}`, () =>

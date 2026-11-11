@@ -281,6 +281,16 @@ pub fn document_markdown(
     document_id: &str,
     assets_prefix: &str,
 ) -> ApplicationResult<ExportedMarkdown> {
+    markdown_of_sheets(root, document_id, assets_prefix, None)
+}
+
+/// Like `document_markdown`, for one Sheet only when `only_sheet` names one.
+pub fn markdown_of_sheets(
+    root: &Path,
+    document_id: &str,
+    assets_prefix: &str,
+    only_sheet: Option<&str>,
+) -> ApplicationResult<ExportedMarkdown> {
     let mut sessions = ProjectSessions::default();
     let project = open_project(&mut sessions, root)?;
     let project_id = project.project.project_id.clone();
@@ -288,6 +298,9 @@ pub fn document_markdown(
     let mut parts = vec![format!("# {}", document.document.name)];
     let mut assets = Vec::new();
     for sheet_id in &document.document.sheet_order {
+        if only_sheet.is_some_and(|only| only != sheet_id) {
+            continue;
+        }
         let Some(sheet) = document
             .sheets
             .iter()
@@ -397,16 +410,22 @@ fn document_name(root: &Path, document_id: &str) -> ApplicationResult<String> {
 
 /// Writes the Document as the Markdown file `target` and copies the images it refers to into
 /// `<stem>-assets/` beside it.
-fn write_document_markdown(root: &Path, document_id: &str, target: &Path) -> ApplicationResult<()> {
+fn write_document_markdown(
+    root: &Path,
+    document_id: &str,
+    only_sheet: Option<&str>,
+    target: &Path,
+) -> ApplicationResult<()> {
     let stem = target.file_stem().map_or_else(
         || FALLBACK_FILE_STEM.to_owned(),
         |stem| stem.to_string_lossy().into_owned(),
     );
     let assets_folder_name = format!("{stem}{EXPORT_ASSETS_SUFFIX}");
-    let exported = document_markdown(
+    let exported = markdown_of_sheets(
         root,
         document_id,
         &format!("{assets_folder_name}{PATH_SEPARATOR}"),
+        only_sheet,
     )?;
     if !exported.assets.is_empty() {
         let mut sessions = ProjectSessions::default();
@@ -439,16 +458,23 @@ fn file_name_of(target: &Path) -> String {
 
 /// Asks where to save, then writes the Markdown file and copies the images it refers to into
 /// `<stem>-assets/` beside it. The paths stay in Rust; the Frontend gets the file's name.
+/// `only_sheet`: one Sheet of the Document instead of all of them; `suggested_stem` is the
+/// name the dialog proposes (the Document's name when absent).
 pub fn export_document_markdown(
     dialogs: &dyn FileDialogs,
     root: &Path,
     document_id: &str,
+    only_sheet: Option<&str>,
+    suggested_stem: Option<&str>,
 ) -> ApplicationResult<SaveOutcome> {
-    let name = document_name(root, document_id)?;
+    let name = match suggested_stem {
+        Some(stem) => stem.to_owned(),
+        None => document_name(root, document_id)?,
+    };
     let Some(target) = dialogs.save_file(MARKDOWN_FILTER, &suggested_file_name(&name))? else {
         return Ok(SaveOutcome::Cancelled);
     };
-    write_document_markdown(root, document_id, &target)?;
+    write_document_markdown(root, document_id, only_sheet, &target)?;
     Ok(SaveOutcome::Saved {
         file_name: file_name_of(&target),
     })
@@ -467,8 +493,10 @@ pub fn export_document_markdown_into(
     folder: &Path,
     stem: &str,
 ) -> ApplicationResult<String> {
+    std::fs::create_dir_all(folder)
+        .map_err(|error| write_error(format!("export folder: {error}")))?;
     let target = folder.join(suggested_file_name(stem));
-    write_document_markdown(root, document_id, &target)?;
+    write_document_markdown(root, document_id, None, &target)?;
     Ok(file_name_of(&target))
 }
 

@@ -49,9 +49,14 @@ fn the_file_is_written_with_its_images_beside_it() {
     let out = opened.temp.path().join("out");
     fs::create_dir_all(&out).unwrap();
     let target = out.join("design.md");
-    let result =
-        export_document_markdown(&SavingTo(Some(target.clone())), &opened.root, DOCUMENT_ID)
-            .unwrap();
+    let result = export_document_markdown(
+        &SavingTo(Some(target.clone())),
+        &opened.root,
+        DOCUMENT_ID,
+        None,
+        None,
+    )
+    .unwrap();
     assert_eq!(
         result,
         SaveOutcome::Saved {
@@ -68,7 +73,7 @@ fn the_file_is_written_with_its_images_beside_it() {
 fn a_cancelled_dialog_writes_nothing() {
     let opened = open_copy();
     assert_eq!(
-        export_document_markdown(&SavingTo(None), &opened.root, DOCUMENT_ID).unwrap(),
+        export_document_markdown(&SavingTo(None), &opened.root, DOCUMENT_ID, None, None).unwrap(),
         SaveOutcome::Cancelled
     );
 }

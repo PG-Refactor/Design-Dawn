@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useSubmenuIntent } from "../../shared/menu/submenu-intent";
 import type {
   MenuActionItem,
   MenuDefinition,
@@ -90,11 +91,13 @@ function SubmenuView({
   onActivate,
   open,
   setOpen,
+  onPointerReach,
 }: {
   readonly entry: MenuSubmenu;
   readonly onActivate: ActivateHandler;
   readonly open: boolean;
   readonly setOpen: (open: boolean) => void;
+  readonly onPointerReach: () => void;
 }) {
   const [focusFirst, setFocusFirst] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -161,7 +164,7 @@ function SubmenuView({
     <div
       role="none"
       className="menu-bar__submenu"
-      onMouseEnter={() => setOpen(true)}
+      onMouseEnter={onPointerReach}
     >
       <div
         ref={triggerRef}
@@ -206,6 +209,8 @@ function SubmenuView({
 interface SubmenuState {
   readonly openId: string | null;
   readonly setOpenId: (id: string | null) => void;
+  // The pointer reached a submenu's item (opens it, after a moment if another is open).
+  readonly pointTo: (id: string | null) => void;
 }
 
 function MenuEntryView({
@@ -228,6 +233,7 @@ function MenuEntryView({
           onActivate={onActivate}
           open={submenu.openId === entry.id}
           setOpen={(open) => submenu.setOpenId(open ? entry.id : null)}
+          onPointerReach={() => submenu.pointTo(entry.id)}
         />
       );
     case "checkbox": {
@@ -297,11 +303,11 @@ export function MenuBar({
   const baseId = useId();
   const [open, setOpen] = useState<OpenState | null>(null);
   const [openSubmenuId, setOpenSubmenuId] = useState<string | null>(null);
-  // Pointing at or focusing another entry of the menu closes its open submenu.
-  const closeSubmenuOutside = (target: EventTarget) => {
-    if (target instanceof Element && target.closest(SUBMENU_SELECTOR) === null)
-      setOpenSubmenuId(null);
-  };
+  const intent = useSubmenuIntent(openSubmenuId, setOpenSubmenuId);
+  // Pointing at another entry of the menu closes its open submenu (after a moment: the
+  // pointer may be on its way into the submenu); focusing one closes it at once.
+  const outsideSubmenu = (target: EventTarget) =>
+    target instanceof Element && target.closest(SUBMENU_SELECTOR) === null;
   // A menu always opens (and closes) with its submenus closed.
   const setMenuOpen = useCallback((next: OpenState | null) => {
     setOpenSubmenuId(null);
@@ -498,8 +504,13 @@ export function MenuBar({
                 aria-labelledby={triggerId(index)}
                 className="menu-bar__popup"
                 onKeyDown={(event) => onMenuKeyDown(event, index)}
-                onMouseOver={(event) => closeSubmenuOutside(event.target)}
-                onFocus={(event) => closeSubmenuOutside(event.target)}
+                onMouseOver={(event) => {
+                  if (outsideSubmenu(event.target)) intent.change(null);
+                  else intent.keep();
+                }}
+                onFocus={(event) => {
+                  if (outsideSubmenu(event.target)) setOpenSubmenuId(null);
+                }}
               >
                 {menu.entries.map((entry) => (
                   <MenuEntryView
@@ -509,6 +520,7 @@ export function MenuBar({
                     submenu={{
                       openId: openSubmenuId,
                       setOpenId: setOpenSubmenuId,
+                      pointTo: intent.change,
                     }}
                   />
                 ))}

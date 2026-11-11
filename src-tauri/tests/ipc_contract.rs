@@ -1349,6 +1349,8 @@ fn only_the_project_window_changes_the_tree() {
 
 #[test]
 fn the_windows_of_the_project_are_listed_with_what_they_hold() {
+    // A Document window that holds nothing is closing and is no place to move a Document
+    // to: it is left out.
     let temp = TempDir::new();
     let opened = open_fixture_project(&temp);
     let _second = second_document_window(&opened);
@@ -1365,8 +1367,6 @@ fn the_windows_of_the_project_are_listed_with_what_they_hold() {
         serde_json::json!([
             { "label": MAIN_WINDOW_LABEL, "role": "project", "isSelf": true,
               "documentIds": [DOCUMENT_ID] },
-            { "label": SECOND_WINDOW_LABEL, "role": "document", "isSelf": false,
-              "documentIds": [] },
         ])
     );
 }

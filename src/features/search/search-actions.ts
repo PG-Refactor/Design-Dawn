@@ -89,6 +89,8 @@ export interface OpenMatchInput extends SearchQueryInput {
   readonly place: MatchPlace;
   readonly at: OccurrenceAt;
   readonly reveal?: RevealOptions;
+  // Leave the focus where it is (see `EditorReveal.keepFocus`).
+  readonly keepFocus?: boolean;
 }
 
 export interface ReplaceOutcome {
@@ -375,6 +377,7 @@ export function createSearchActions(
           blockId: location.blockId,
           query: queryOf(input),
           at,
+          keepFocus: input.keepFocus === true,
         },
       }));
       if (!canvasActions.beginBlockEdit(location)) {

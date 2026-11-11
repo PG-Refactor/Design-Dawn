@@ -86,7 +86,8 @@
   right: auto;
   left: 100%;
   margin-top: 0;
-  margin-left: var(--space-1);
+  /* Touching its item: the pointer never crosses a gap on its way in. */
+  margin-left: 0;
 }
 
 .popup-menu__separator {
