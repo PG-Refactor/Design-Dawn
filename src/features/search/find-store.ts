@@ -4,12 +4,17 @@
 // the sidebar tab; window-local and never saved.
 
 import type { BlockId } from "../../domain/shared/entity-id";
-import type { OccurrenceAt } from "../../domain/text-search/text-search";
+import type {
+  OccurrenceAt,
+  TextQuery,
+} from "../../domain/text-search/text-search";
 import { createStore, type Store } from "../../shared/store/store";
 
 export interface FindFields {
   readonly query: string;
   readonly matchCase: boolean;
+  // The text is a regular expression (the ".*" toggle).
+  readonly regex: boolean;
   readonly replacement: string;
   // The replace row is shown (the arrow at the left of the box).
   readonly replaceShown: boolean;
@@ -27,8 +32,7 @@ export interface SheetFindState extends FindFields {
 // the source view and selects it, then clears the request.
 export interface EditorReveal {
   readonly blockId: BlockId;
-  readonly query: string;
-  readonly matchCase: boolean;
+  readonly query: TextQuery;
   readonly at: OccurrenceAt;
 }
 
@@ -48,6 +52,7 @@ export type FindStore = Store<FindState>;
 const EMPTY_FIELDS: FindFields = {
   query: "",
   matchCase: false,
+  regex: false,
   replacement: "",
   replaceShown: false,
 };

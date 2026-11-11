@@ -130,6 +130,7 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
   invalidImageContent: "画像として読み込めないファイルです。",
   assetTooLarge: "画像ファイルが大きすぎます（上限 20 MiB）。",
   exportFailed: "選んだ場所に書き出せませんでした。",
+  invalidSearchPattern: "正規表現として正しくありません。",
   invalidSpreadsheet:
     "表計算ファイルを読み込めませんでした（.xlsx / .xlsm / .xls / .xlsb / .ods、上限 20 MiB）。",
   invalidDropSelection:

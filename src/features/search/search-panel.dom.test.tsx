@@ -134,4 +134,29 @@ describe("the Search tab", () => {
       within(panel).getAllByRole("button", { name: /1 行目 を置換/ }),
     ).toHaveLength(before.length - 1);
   });
+
+  it("searches with a regular expression and says when it is not one", async () => {
+    const { shell } = await renderOpenedCanvas();
+    const panel = await openSearchTab(shell);
+    await shell.user.click(
+      within(panel).getByRole("button", { name: "正規表現を使う" }),
+    );
+    const box = within(panel).getByRole("searchbox", { name: "検索する文字" });
+    await shell.user.type(box, "TEXT\\s+OF{Enter}");
+    await act(settle);
+    expect(shell.gateway.methods("searchProject").length).toBeGreaterThan(0);
+    expect(within(panel).getByRole("status").textContent).toContain("件");
+    expect(
+      shell.gateway.calls.some(
+        (call) =>
+          call.method === "searchProject" && call.detail.endsWith(":true"),
+      ),
+    ).toBe(true);
+    await shell.user.clear(box);
+    await shell.user.type(box, "(oops{Enter}");
+    await act(settle);
+    expect(within(panel).getByRole("status").textContent).toBe(
+      "正規表現として正しくありません。",
+    );
+  });
 });

@@ -7,6 +7,10 @@ import type {
 import type { ApplicationState } from "../../application/state/application-state";
 import { SEARCH_CONFIG } from "../../config/search-config";
 import type { BlockId } from "../../domain/shared/entity-id";
+import {
+  isValidQuery,
+  type TextQuery,
+} from "../../domain/text-search/text-search";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { useMessages } from "../workspace/use-messages";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
@@ -19,10 +23,11 @@ import "./search-panel.css";
 type SearchStatus =
   | { readonly kind: "idle" }
   | { readonly kind: "searching" }
+  // The pattern is not a regular expression (said in the box, not as a notification).
+  | { readonly kind: "invalid" }
   | {
       readonly kind: "done";
-      readonly query: string;
-      readonly matchCase: boolean;
+      readonly query: TextQuery;
       readonly result: SearchResult;
     };
 
@@ -111,21 +116,24 @@ export function SearchPanel() {
   // Only the latest search may show its result (an earlier one can finish later).
   const latestSearch = useRef(0);
 
-  async function runSearch(text: string, matchCase: boolean): Promise<void> {
+  async function runSearch(query: TextQuery): Promise<void> {
     latestSearch.current += 1;
     const searchNumber = latestSearch.current;
-    if (text.length === 0) {
+    if (query.text.length === 0) {
       setStatus({ kind: "idle" });
       return;
     }
+    if (!isValidQuery(query)) {
+      setStatus({ kind: "invalid" });
+      return;
+    }
     setStatus({ kind: "searching" });
-    const found = await searchActions.search({ text, matchCase });
+    const found = await searchActions.search(query);
     if (searchNumber !== latestSearch.current) return;
-    setStatus(
-      found.ok
-        ? { kind: "done", query: text, matchCase, result: found.value }
-        : { kind: "idle" },
-    );
+    if (found.ok) setStatus({ kind: "done", query, result: found.value });
+    else if (found.error.kind === "invalidSearchPattern") {
+      setStatus({ kind: "invalid" });
+    } else setStatus({ kind: "idle" });
   }
   const runSearchRef = useRef(runSearch);
   runSearchRef.current = runSearch;
@@ -135,11 +143,16 @@ export function SearchPanel() {
   useEffect(() => {
     if (!hasProject) return;
     const timer = setTimeout(
-      () => void runSearchRef.current(fields.query, fields.matchCase),
+      () =>
+        void runSearchRef.current({
+          text: fields.query,
+          matchCase: fields.matchCase,
+          regex: fields.regex,
+        }),
       SEARCH_CONFIG.projectTypingDelayMs,
     );
     return () => clearTimeout(timer);
-  }, [fields.query, fields.matchCase, hasProject]);
+  }, [fields.query, fields.matchCase, fields.regex, hasProject]);
 
   useEffect(() => {
     if (focusRequest.target !== "project" || focusRequest.sequence === 0) {
@@ -162,7 +175,7 @@ export function SearchPanel() {
   ): Promise<void> {
     if (status.kind !== "done") return;
     if (replaced.ok) setNotice(outcomeNotice(messages, replaced.value));
-    await runSearch(status.query, status.matchCase);
+    await runSearch(status.query);
   }
 
   async function replaceGroups(groups: readonly BlockGroup[]): Promise<void> {
@@ -181,8 +194,7 @@ export function SearchPanel() {
     });
     await afterReplace(
       await searchActions.replaceInBlocks({
-        text: status.query,
-        matchCase: status.matchCase,
+        ...status.query,
         replacement: fields.replacement,
         targets,
       }),
@@ -193,8 +205,7 @@ export function SearchPanel() {
     if (status.kind !== "done") return;
     await afterReplace(
       await searchActions.replaceMatch({
-        text: status.query,
-        matchCase: status.matchCase,
+        ...status.query,
         replacement: fields.replacement,
         location: {
           documentId: match.documentId,
@@ -211,8 +222,7 @@ export function SearchPanel() {
   async function openMatch({ match, ordinal }: NumberedMatch): Promise<void> {
     if (status.kind !== "done") return;
     await searchActions.openMatch({
-      text: status.query,
-      matchCase: status.matchCase,
+      ...status.query,
       location: {
         documentId: match.documentId,
         sheetId: match.sheetId,
@@ -237,13 +247,20 @@ export function SearchPanel() {
         labels={messages}
         queryRef={queryRef}
         onChange={change}
-        onQueryEnter={() => void runSearch(fields.query, fields.matchCase)}
+        onQueryEnter={() =>
+          void runSearch({
+            text: fields.query,
+            matchCase: fields.matchCase,
+            regex: fields.regex,
+          })
+        }
         onReplacementEnter={() => void replaceGroups(groups)}
         onReplaceAll={() => void replaceGroups(groups)}
         replaceDisabled={groups.length === 0}
       />
       <div className="search-panel__status" role="status">
         {status.kind === "searching" && messages.searching}
+        {status.kind === "invalid" && messages.invalidPattern}
         {status.kind === "done" &&
           (status.result.matches.length === 0
             ? messages.noMatches

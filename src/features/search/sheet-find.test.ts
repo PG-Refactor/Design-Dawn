@@ -23,7 +23,13 @@ describe("sheetMatches", () => {
       [right.blockId, "API api\nno"],
       [left.blockId, "nothing"],
     ]);
-    expect(sheetMatches([lower, right, left], contents, "api", false)).toEqual([
+    expect(
+      sheetMatches([lower, right, left], contents, {
+        text: "api",
+        matchCase: false,
+        regex: false,
+      }),
+    ).toEqual([
       {
         blockId: blockIdOf(3),
         place: "caption",
@@ -65,7 +71,19 @@ describe("sheetMatches", () => {
   it("finds nothing for an empty text or with match case", () => {
     const block = makeBlockAt(1, 0, 0);
     const contents = new Map([[block.blockId, "API"]]);
-    expect(sheetMatches([block], contents, "", false)).toEqual([]);
-    expect(sheetMatches([block], contents, "api", true)).toEqual([]);
+    expect(
+      sheetMatches([block], contents, {
+        text: "",
+        matchCase: false,
+        regex: false,
+      }),
+    ).toEqual([]);
+    expect(
+      sheetMatches([block], contents, {
+        text: "api",
+        matchCase: true,
+        regex: false,
+      }),
+    ).toEqual([]);
   });
 });

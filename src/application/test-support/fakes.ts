@@ -1146,8 +1146,8 @@ export function createFakeGateway(
         },
       ),
     // The scripted search result, else nothing found.
-    searchProject: (_project, text, matchCase) =>
-      enter("searchProject", `${text}:${matchCase}`, () =>
+    searchProject: (_project, text, matchCase, regex) =>
+      enter("searchProject", `${text}:${matchCase}:${regex}`, () =>
         operationOk(
           nextSearch ?? { matches: [], truncated: false, unreadableBlocks: 0 },
         ),

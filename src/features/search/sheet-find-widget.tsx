@@ -6,6 +6,10 @@ import type {
   DocumentId,
   SheetId,
 } from "../../domain/shared/entity-id";
+import {
+  isValidQuery,
+  type TextQuery,
+} from "../../domain/text-search/text-search";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import type { Extent } from "../canvas/geometry/viewport-math";
 import { useMessages } from "../workspace/use-messages";
@@ -52,17 +56,17 @@ export function SheetFindWidget({
   const queryRef = useRef<HTMLInputElement>(null);
   const sheet = document?.sheets.get(sheetId);
 
+  const query: TextQuery = useMemo(
+    () => ({ text: find.query, matchCase: find.matchCase, regex: find.regex }),
+    [find.query, find.matchCase, find.regex],
+  );
+  const validQuery = isValidQuery(query);
   const matches = useMemo(
     () =>
       find.open && sheet !== undefined && document !== undefined
-        ? sheetMatches(
-            sheet.blocks,
-            document.contents,
-            find.query,
-            find.matchCase,
-          )
+        ? sheetMatches(sheet.blocks, document.contents, query)
         : [],
-    [find.open, find.query, find.matchCase, sheet, document],
+    [find.open, query, sheet, document],
   );
   const currentIndex = wrap(find.current, matches.length);
   const current: SheetMatch | undefined = matches[currentIndex];
@@ -81,8 +85,7 @@ export function SheetFindWidget({
     }
     paintFindHighlights(
       canvasRoot(),
-      find.query,
-      find.matchCase,
+      query,
       current === undefined
         ? null
         : { blockId: current.blockId, indexInBlock: current.indexInBlock },
@@ -121,8 +124,7 @@ export function SheetFindWidget({
     close();
     if (current === undefined) return;
     void searchActions.openMatch({
-      text: find.query,
-      matchCase: find.matchCase,
+      ...query,
       location: { documentId, sheetId, blockId: current.blockId },
       place: current.place,
       at: { line: current.line, ordinal: current.ordinal },
@@ -133,16 +135,17 @@ export function SheetFindWidget({
   // A new text starts again at the sheet's first match, as it is typed.
   function onFieldsChange(change: Partial<FindFields>): void {
     const searchChanged =
-      change.query !== undefined || change.matchCase !== undefined;
+      change.query !== undefined ||
+      change.matchCase !== undefined ||
+      change.regex !== undefined;
     update(searchChanged ? { ...change, current: 0 } : change);
     if (!searchChanged || sheet === undefined || document === undefined) return;
     reveal(
-      sheetMatches(
-        sheet.blocks,
-        document.contents,
-        change.query ?? find.query,
-        change.matchCase ?? find.matchCase,
-      )[0],
+      sheetMatches(sheet.blocks, document.contents, {
+        text: change.query ?? find.query,
+        matchCase: change.matchCase ?? find.matchCase,
+        regex: change.regex ?? find.regex,
+      })[0],
     );
   }
 
@@ -150,8 +153,7 @@ export function SheetFindWidget({
     if (current === undefined) return;
     // Afterwards the current index names the match after the replaced one.
     await searchActions.replaceMatch({
-      text: find.query,
-      matchCase: find.matchCase,
+      ...query,
       replacement: find.replacement,
       location: { documentId, sheetId, blockId: current.blockId },
       place: current.place,
@@ -174,8 +176,7 @@ export function SheetFindWidget({
       places: [...blockPlaces],
     }));
     await searchActions.replaceInBlocks({
-      text: find.query,
-      matchCase: find.matchCase,
+      ...query,
       replacement: find.replacement,
       targets,
     });
@@ -194,9 +195,11 @@ export function SheetFindWidget({
   const count =
     find.query.length === 0
       ? ""
-      : matches.length === 0
-        ? messages.noResults
-        : messages.position(currentIndex + 1, matches.length);
+      : !validQuery
+        ? messages.invalidPatternShort
+        : matches.length === 0
+          ? messages.noResults
+          : messages.position(currentIndex + 1, matches.length);
   return (
     <search className="sheet-find" aria-label={messages.sheetFindLabel}>
       <FindFieldsView

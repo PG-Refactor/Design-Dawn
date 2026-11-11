@@ -241,11 +241,17 @@ of reading every Block.",
                 text(
                     "query",
                     true,
-                    "the text to find (plain text, not a pattern)",
+                    "the text to find: plain text, or a regular expression when regex is true",
                 ),
                 flag(
                     "matchCase",
                     "true to tell upper and lower case apart (default false)",
+                ),
+                flag(
+                    "regex",
+                    "true to read query as a regular expression (Rust regex syntax: no look-around \
+or back-references), matched within each line (default false). An invalid one is the error \
+invalidSearchPattern",
                 ),
             ],
         ),

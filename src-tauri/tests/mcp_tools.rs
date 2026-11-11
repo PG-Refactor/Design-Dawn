@@ -232,6 +232,23 @@ fn search_project_finds_text_with_its_place() {
     )
     .ok();
     assert!(exact["matches"].as_array().unwrap().is_empty());
+    let pattern = call(
+        &context,
+        "searchProject",
+        json!({ "query": "BAS[a-z]C", "regex": true }),
+    )
+    .ok();
+    assert_eq!(pattern["matches"].as_array().unwrap().len(), 1);
+    assert_eq!(pattern["matches"][0]["matchLength"], 5);
+    assert_eq!(
+        call(
+            &context,
+            "searchProject",
+            json!({ "query": "(", "regex": true }),
+        )
+        .error_kind(),
+        "invalidSearchPattern"
+    );
 }
 
 #[test]

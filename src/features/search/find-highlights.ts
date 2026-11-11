@@ -3,6 +3,10 @@
 // matches are found in the sources, while this marks the drawn text, so a match the
 // rendering hides (a link's address) has no mark. Engines without the API show none.
 
+import {
+  findMatches,
+  type TextQuery,
+} from "../../domain/text-search/text-search";
 import { BLOCK_ID_ATTRIBUTE } from "../canvas/block-dom";
 
 const ALL_MATCHES = "design-dawn-find";
@@ -25,26 +29,33 @@ function registry(): HighlightRegistry | null {
     : null;
 }
 
-function fold(text: string, matchCase: boolean): string {
-  return matchCase ? text : text.toLowerCase();
+// Ranges of every occurrence inside one text node, in order (a match across elements, such
+// as bold inside a word, is not marked).
+function rangesIn(node: Text, query: TextQuery): Range[] {
+  return findMatches(node.data, query).flatMap((match) => {
+    // A text node holds no line break that matters here; offsets are in code points.
+    const before = [...match.lineText].slice(0, match.start).join("");
+    const lineStart = lineStartOf(node.data, match.line);
+    const start = lineStart + before.length;
+    const length = [...match.lineText]
+      .slice(match.start, match.start + match.length)
+      .join("").length;
+    const range = document.createRange();
+    range.setStart(node, start);
+    range.setEnd(node, start + length);
+    return [range];
+  });
 }
 
-// Ranges of every occurrence inside one text node, in order. Case folding that changes a
-// text's length (rare letters) would shift offsets, so such text is left unmarked.
-function rangesIn(node: Text, needle: string, matchCase: boolean): Range[] {
-  const text = node.data;
-  const folded = fold(text, matchCase);
-  if (folded.length !== text.length) return [];
-  const ranges: Range[] = [];
-  let from = folded.indexOf(needle);
-  while (from !== -1) {
-    const range = document.createRange();
-    range.setStart(node, from);
-    range.setEnd(node, from + needle.length);
-    ranges.push(range);
-    from = folded.indexOf(needle, from + needle.length);
+// Where line `line` (1-based) starts in `text`, in UTF-16 units.
+function lineStartOf(text: string, line: number): number {
+  let start = 0;
+  for (let current = 1; current < line; current += 1) {
+    const next = text.indexOf("\n", start);
+    if (next === -1) return start;
+    start = next + 1;
   }
-  return ranges;
+  return start;
 }
 
 // WebKitGTK does not repaint text whose highlight was removed, so old marks would stay: the
@@ -59,16 +70,14 @@ function repaint(root: Element | null): void {
 
 export function paintFindHighlights(
   root: Element | null,
-  query: string,
-  matchCase: boolean,
+  query: TextQuery,
   current: CurrentHighlight | null,
 ): void {
   const highlights = registry();
   if (highlights === null) return;
   clearFindHighlights();
   repaint(root);
-  if (root === null || query.length === 0) return;
-  const needle = fold(query, matchCase);
+  if (root === null || query.text.length === 0) return;
   const all: Range[] = [];
   const currentRanges: Range[] = [];
   for (const frame of root.querySelectorAll(`[${BLOCK_ID_ATTRIBUTE}]`)) {
@@ -79,8 +88,7 @@ export function paintFindHighlights(
       node !== null;
       node = walker.nextNode()
     ) {
-      if (node instanceof Text)
-        inBlock.push(...rangesIn(node, needle, matchCase));
+      if (node instanceof Text) inBlock.push(...rangesIn(node, query));
     }
     all.push(...inBlock);
     if (current?.blockId === frame.getAttribute(BLOCK_ID_ATTRIBUTE)) {

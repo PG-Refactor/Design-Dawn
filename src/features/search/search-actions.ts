@@ -32,6 +32,7 @@ import {
   type Replaced,
   replaceAll,
   replaceOccurrence,
+  type TextQuery,
 } from "../../domain/text-search/text-search";
 import type { CanvasActions } from "../canvas/canvas-actions";
 import {
@@ -51,10 +52,14 @@ import {
 import type { WorkspaceActions } from "../workspace/workspace-actions";
 import { createFindStore, type FindStore } from "./find-store";
 
-export interface SearchQueryInput {
-  readonly text: string;
-  readonly matchCase: boolean;
-}
+// The text to find, whether case matters, and whether it is a regular expression.
+export type SearchQueryInput = TextQuery;
+
+const queryOf = ({ text, matchCase, regex }: SearchQueryInput): TextQuery => ({
+  text,
+  matchCase,
+  regex,
+});
 
 export interface BlockLocation {
   readonly documentId: DocumentId;
@@ -189,11 +194,7 @@ export function createSearchActions(
             blockId: block.blockId,
             blockType: block.blockType,
           };
-          for (const match of findMatches(
-            text ?? "",
-            query.text,
-            query.matchCase,
-          )) {
+          for (const match of findMatches(text ?? "", query)) {
             fromApp.push({
               ...place,
               place: "text",
@@ -203,11 +204,7 @@ export function createSearchActions(
               matchLength: match.length,
             });
           }
-          for (const match of findMatches(
-            block.caption ?? "",
-            query.text,
-            query.matchCase,
-          )) {
+          for (const match of findMatches(block.caption ?? "", query)) {
             fromApp.push({
               ...place,
               place: "caption",
@@ -303,7 +300,12 @@ export function createSearchActions(
         projectId,
         query.text,
         query.matchCase,
+        query.regex,
       );
+      // An invalid pattern is shown by the box itself, not as a notification.
+      if (!result.ok && result.error.kind === "invalidSearchPattern") {
+        return result;
+      }
       if (!result.ok) {
         uiStateStore.setState((state) =>
           addOperationError(state, "searchProject", null, result.error),
@@ -361,7 +363,8 @@ export function createSearchActions(
       return operationOk(undefined);
     },
 
-    async openMatch({ text, matchCase, location, place, at, reveal }) {
+    async openMatch(input) {
+      const { location, place, at, reveal } = input;
       const loaded = await ensureLoaded(location);
       if (!loaded.ok) return loaded;
       const shown = await self.revealBlock(location, reveal);
@@ -370,8 +373,7 @@ export function createSearchActions(
         ...state,
         editorReveal: {
           blockId: location.blockId,
-          query: text,
-          matchCase,
+          query: queryOf(input),
           at,
         },
       }));
@@ -381,12 +383,14 @@ export function createSearchActions(
       return operationOk(undefined);
     },
 
-    async replaceInBlocks({ text, matchCase, replacement, targets }) {
+    async replaceInBlocks(input) {
+      const { replacement, targets } = input;
+      const query = queryOf(input);
       let outcome = NOTHING_REPLACED;
       for (const target of targets) {
         for (const place of target.places) {
           const replaced = await replaceIn(target, place, (current) =>
-            replaceAll(current, text, replacement, matchCase),
+            replaceAll(current, query, replacement),
           );
           if (!replaced.ok) return replaced;
           outcome = addOutcomes(outcome, replaced.value);
@@ -395,9 +399,11 @@ export function createSearchActions(
       return operationOk(outcome);
     },
 
-    replaceMatch({ text, matchCase, replacement, location, place, at }) {
+    replaceMatch(input) {
+      const { replacement, location, place, at } = input;
+      const query = queryOf(input);
       return replaceIn(location, place, (current) =>
-        replaceOccurrence(current, text, replacement, matchCase, at),
+        replaceOccurrence(current, query, replacement, at),
       );
     },
   };

@@ -102,10 +102,11 @@ export function searchProject(
   projectId: ProjectId,
   text: string,
   matchCase: boolean,
+  regex: boolean,
 ): Promise<CommandResult<SearchResult>> {
   return call(
     COMMANDS.searchProject,
-    { projectId, text, matchCase },
+    { projectId, text, matchCase, regex },
     toSearchResult,
   );
 }

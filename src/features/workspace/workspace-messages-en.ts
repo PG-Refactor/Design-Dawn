@@ -130,6 +130,7 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
   invalidImageContent: "The file cannot be read as an image.",
   assetTooLarge: "The image file is too large (limit 20 MiB).",
   exportFailed: "Could not write the export where you chose.",
+  invalidSearchPattern: "This is not a valid regular expression.",
   invalidSpreadsheet:
     "The spreadsheet could not be read (.xlsx, .xlsm, .xls, .xlsb or .ods, up to 20 MiB).",
   invalidDropSelection:

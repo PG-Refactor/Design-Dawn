@@ -141,6 +141,34 @@ function selectedSource(): string {
   return active.value.slice(active.selectionStart, active.selectionEnd);
 }
 
+describe("regular expressions in the find box", () => {
+  it("finds a pattern, fills in groups when replacing, and says when it is not one", async () => {
+    const rendered = await renderSheet();
+    const { user } = rendered.shell;
+    await user.keyboard("{Control>}f{/Control}");
+    const box = findBox();
+    await user.click(
+      within(box).getByRole("button", { name: "正規表現を使う" }),
+    );
+    const query = within(box).getByRole("searchbox", { name: "検索する文字" });
+    await user.type(query, "(order) (api)");
+    expect(within(box).getByRole("status").textContent).toBe("1 / 1");
+    await user.click(
+      within(box).getByRole("button", { name: "置換の表示を切り替え" }),
+    );
+    await user.type(
+      within(box).getByRole("textbox", { name: "置換後の文字" }),
+      "$2 for $1",
+    );
+    await user.click(within(box).getByRole("button", { name: "すべて置換" }));
+    await act(settle);
+    expect(textOfBlock(rendered, 0)).toBe("# Order\nThe api for order");
+    await user.clear(query);
+    await user.type(query, "order(");
+    expect(within(box).getByRole("status").textContent).toBe("正規表現の誤り");
+  });
+});
+
 describe("showing a match in the source editor", () => {
   it("opens the current match's Block in Source with the match selected on Escape", async () => {
     const rendered = await renderSheet();

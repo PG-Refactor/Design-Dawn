@@ -33,6 +33,9 @@ dirs = "7"
 # MIT; its dependency tree is MIT / Apache-2.0 / BSD-3-Clause / Zlib. `dates` (chrono,
 # MIT OR Apache-2.0) turns date cells into dates instead of serial numbers.
 calamine = { version = "=0.38.0", features = ["dates"] }
+# Regular expressions in the Project search (the app's Search panel and the MCP tool
+# `searchProject`). MIT OR Apache-2.0; the version Tauri (tauri-utils) already uses.
+regex = "=1.13.1"
 
 # Desktop only: the plugin has no mobile implementation. A second launch is handed to the
 # running instance instead of opening a second process on the same Project files.

@@ -653,6 +653,7 @@ the user can add it in Design Dawn's AI integration screen",
             SearchQuery {
                 text: arguments.string("query")?.to_owned(),
                 match_case: arguments.optional_bool("matchCase")?.unwrap_or(false),
+                regex: arguments.optional_bool("regex")?.unwrap_or(false),
             },
         )?;
         Ok(serde_json::to_value(result).unwrap_or(Value::Null))

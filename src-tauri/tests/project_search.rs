@@ -13,6 +13,7 @@ fn query(text: &str, match_case: bool) -> SearchQuery {
     SearchQuery {
         text: text.to_owned(),
         match_case,
+        regex: false,
     }
 }
 
@@ -72,4 +73,27 @@ fn an_unreadable_block_is_counted_not_fatal() {
     let result = search_project(&opened.root, query("basic", false)).unwrap();
     assert_eq!(result.matches.len(), 1);
     assert_eq!(result.unreadable_blocks, 1);
+}
+
+#[test]
+fn finds_a_regular_expression_line_by_line() {
+    let opened = open_copy();
+    let result = search_project(
+        &opened.root,
+        SearchQuery {
+            text: r"b\w+c".to_owned(),
+            match_case: false,
+            regex: true,
+        },
+    )
+    .unwrap();
+    assert_eq!(result.matches.len(), 1);
+    let found = &result.matches[0];
+    let shown: String = found
+        .excerpt
+        .chars()
+        .skip(found.match_start)
+        .take(found.match_length)
+        .collect();
+    assert_eq!(shown, "basic");
 }

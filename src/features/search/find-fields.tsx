@@ -5,13 +5,14 @@ import "./find-fields.css";
 export interface FindFieldsLabels {
   readonly queryLabel: string;
   readonly matchCase: string;
+  readonly regex: string;
   readonly toggleReplace: string;
   readonly replacementLabel: string;
   readonly replaceAll: string;
 }
 
 // The find box both searches share, laid out as in VS Code: an arrow that shows the
-// replace row, the text with an "Aa" (match case) toggle, and the replacement with its
+// replace row, the text with "Aa" (match case) and ".*" (regular expression) toggles, and the replacement with its
 // buttons. Enter (Shift+Enter) in the text and the replacement is handed to the owner.
 export function FindFieldsView({
   fields,
@@ -87,6 +88,16 @@ export function FindFieldsView({
               onClick={() => onChange({ matchCase: !fields.matchCase })}
             >
               <span aria-hidden="true">Aa</span>
+            </button>
+            <button
+              type="button"
+              className="find-fields__option"
+              aria-label={labels.regex}
+              title={labels.regex}
+              aria-pressed={fields.regex}
+              onClick={() => onChange({ regex: !fields.regex })}
+            >
+              <span aria-hidden="true">.*</span>
             </button>
           </div>
           {queryTrailing}

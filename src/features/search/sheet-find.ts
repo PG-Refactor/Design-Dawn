@@ -5,7 +5,10 @@
 import type { MatchPlace } from "../../application/ports/search-types";
 import type { Block } from "../../domain/block/block";
 import type { BlockId } from "../../domain/shared/entity-id";
-import { findMatches } from "../../domain/text-search/text-search";
+import {
+  findMatches,
+  type TextQuery,
+} from "../../domain/text-search/text-search";
 
 export interface SheetMatch {
   readonly blockId: BlockId;
@@ -28,11 +31,10 @@ function placeMatches(
   blockId: BlockId,
   place: MatchPlace,
   text: string,
-  query: string,
-  matchCase: boolean,
+  query: TextQuery,
 ): Omit<SheetMatch, "indexInBlock">[] {
   const perLine = new Map<number, number>();
-  return findMatches(text, query, matchCase).map((match) => {
+  return findMatches(text, query).map((match) => {
     const ordinal = perLine.get(match.line) ?? 0;
     perLine.set(match.line, ordinal + 1);
     return { blockId, place, line: match.line, ordinal };
@@ -42,26 +44,19 @@ function placeMatches(
 export function sheetMatches(
   blocks: readonly Block[],
   contents: ReadonlyMap<BlockId, string>,
-  query: string,
-  matchCase: boolean,
+  query: TextQuery,
 ): SheetMatch[] {
-  if (query.length === 0) return [];
+  if (query.text.length === 0) return [];
   return inReadingOrder(blocks).flatMap((block) => {
     const text = contents.get(block.blockId);
     const inText =
       text === undefined
         ? []
-        : placeMatches(block.blockId, "text", text, query, matchCase);
+        : placeMatches(block.blockId, "text", text, query);
     const inCaption =
       block.caption === undefined
         ? []
-        : placeMatches(
-            block.blockId,
-            "caption",
-            block.caption,
-            query,
-            matchCase,
-          );
+        : placeMatches(block.blockId, "caption", block.caption, query);
     const ordered =
       block.captionPosition === "above"
         ? [...inCaption, ...inText]
