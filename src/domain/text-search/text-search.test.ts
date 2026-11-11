@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { findMatches, replaceAll, replaceOccurrence } from "./text-search";
+import {
+  findMatches,
+  occurrenceRange,
+  replaceAll,
+  replaceOccurrence,
+} from "./text-search";
 
 describe("findMatches", () => {
   it("finds every occurrence with its line, ignoring case unless asked", () => {
@@ -73,5 +78,18 @@ describe("replaceOccurrence", () => {
     expect(
       replaceOccurrence("ab", "ab", "x", false, { line: 3, ordinal: 0 }).count,
     ).toBe(0);
+  });
+});
+
+describe("occurrenceRange", () => {
+  it("gives the place in the whole text in UTF-16 units", () => {
+    const text = "ab\r\n😀 api API";
+    expect(
+      occurrenceRange(text, "api", false, { line: 2, ordinal: 1 }),
+    ).toEqual({ start: 11, end: 14 });
+    expect(text.slice(11, 14)).toBe("API");
+    expect(
+      occurrenceRange(text, "api", false, { line: 3, ordinal: 0 }),
+    ).toBeNull();
   });
 });

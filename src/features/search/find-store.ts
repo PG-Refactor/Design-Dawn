@@ -3,6 +3,8 @@
 // Ctrl+F). Kept outside the components so the text survives closing a box or switching
 // the sidebar tab; window-local and never saved.
 
+import type { BlockId } from "../../domain/shared/entity-id";
+import type { OccurrenceAt } from "../../domain/text-search/text-search";
 import { createStore, type Store } from "../../shared/store/store";
 
 export interface FindFields {
@@ -21,6 +23,15 @@ export interface SheetFindState extends FindFields {
   readonly current: number;
 }
 
+// A match to show in a Block's source editor: the editor that opens for `blockId` starts in
+// the source view and selects it, then clears the request.
+export interface EditorReveal {
+  readonly blockId: BlockId;
+  readonly query: string;
+  readonly matchCase: boolean;
+  readonly at: OccurrenceAt;
+}
+
 export interface FindState {
   readonly project: FindFields;
   readonly sheet: SheetFindState;
@@ -29,6 +40,7 @@ export interface FindState {
     readonly target: FindTarget;
     readonly sequence: number;
   };
+  readonly editorReveal: EditorReveal | null;
 }
 
 export type FindStore = Store<FindState>;
@@ -45,6 +57,7 @@ export function createFindStore(): FindStore {
     project: EMPTY_FIELDS,
     sheet: { ...EMPTY_FIELDS, open: false, current: 0 },
     focusRequest: { target: "project", sequence: 0 },
+    editorReveal: null,
   });
 }
 

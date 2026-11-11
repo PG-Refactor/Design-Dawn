@@ -115,6 +115,21 @@ export function SheetFindWidget({
     update({ open: false });
   }
 
+  // Escape, as in VS Code: the box closes and the current match is shown in its Block's
+  // source editor (selected there), where the work goes on.
+  function closeIntoEditor(): void {
+    close();
+    if (current === undefined) return;
+    void searchActions.openMatch({
+      text: find.query,
+      matchCase: find.matchCase,
+      location: { documentId, sheetId, blockId: current.blockId },
+      place: current.place,
+      at: { line: current.line, ordinal: current.ordinal },
+      reveal: { keepIfVisibleIn: measureCanvas() },
+    });
+  }
+
   // A new text starts again at the sheet's first match, as it is typed.
   function onFieldsChange(change: Partial<FindFields>): void {
     const searchChanged =
@@ -170,7 +185,7 @@ export function SheetFindWidget({
     if (event.key === ESCAPE_KEY) {
       event.preventDefault();
       event.stopPropagation();
-      close();
+      closeIntoEditor();
     }
   }
 
@@ -207,7 +222,9 @@ export function SheetFindWidget({
               disabled={matches.length === 0}
               onClick={() => go(-1)}
             >
-              <span aria-hidden="true">↑</span>
+              <span aria-hidden="true" className="find-fields__icon">
+                ↑
+              </span>
             </button>
             <button
               type="button"
@@ -217,7 +234,9 @@ export function SheetFindWidget({
               disabled={matches.length === 0}
               onClick={() => go(1)}
             >
-              <span aria-hidden="true">↓</span>
+              <span aria-hidden="true" className="find-fields__icon">
+                ↓
+              </span>
             </button>
             <button
               type="button"
@@ -226,7 +245,9 @@ export function SheetFindWidget({
               title={messages.closeFind}
               onClick={close}
             >
-              <span aria-hidden="true">×</span>
+              <span aria-hidden="true" className="find-fields__icon">
+                ×
+              </span>
             </button>
           </>
         }

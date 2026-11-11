@@ -135,6 +135,58 @@ describe("the find box of the sheet (Ctrl+F)", () => {
   });
 });
 
+function selectedSource(): string {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLTextAreaElement)) return "(no source editor)";
+  return active.value.slice(active.selectionStart, active.selectionEnd);
+}
+
+describe("showing a match in the source editor", () => {
+  it("opens the current match's Block in Source with the match selected on Escape", async () => {
+    const rendered = await renderSheet();
+    const { user } = rendered.shell;
+    await user.keyboard("{Control>}f{/Control}");
+    await user.type(
+      within(findBox()).getByRole("searchbox", { name: "検索する文字" }),
+      "ORDER",
+    );
+    await user.keyboard("{Enter}{Enter}");
+    await user.keyboard("{Escape}");
+    await act(settle);
+    expect(document.querySelector("search")).toBeNull();
+    const diagramId = rendered.canvas.blocksOfSheetA1()[1]?.blockId;
+    expect(rendered.shell.uiStateStore.getState().editingBlock?.blockId).toBe(
+      diagramId,
+    );
+    expect(selectedSource()).toBe("order");
+    const textarea = document.activeElement as HTMLTextAreaElement;
+    expect(textarea.selectionStart).toBe("flowchart LR\n  A[".length);
+  });
+
+  it("opens a Project search result in Source at the match", async () => {
+    const rendered = await renderSheet();
+    const { user } = rendered.shell;
+    await user.keyboard("{Control>}{Shift>}f{/Shift}{/Control}");
+    const panel = screen.getByRole("region", { name: "検索" });
+    await user.type(
+      within(panel).getByRole("searchbox", { name: "検索する文字" }),
+      "order{Enter}",
+    );
+    await act(settle);
+    // The first "Line 2" is the Markdown block's (the sheet reads it first).
+    const lineTwo = within(panel).getAllByRole("button", { name: /^2 行目/ });
+    await user.click(lineTwo[0] as HTMLElement);
+    await act(settle);
+    const markdownId = rendered.canvas.blocksOfSheetA1()[0]?.blockId;
+    expect(rendered.shell.uiStateStore.getState().editingBlock?.blockId).toBe(
+      markdownId,
+    );
+    const textarea = document.activeElement as HTMLTextAreaElement;
+    expect(selectedSource()).toBe("order");
+    expect(textarea.selectionStart).toBe("# Order\nThe ".length);
+  });
+});
+
 describe("Ctrl+Shift+F", () => {
   it("opens the Search tab with the focus in its box", async () => {
     const rendered = await renderSheet();
