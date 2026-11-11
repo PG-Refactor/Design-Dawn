@@ -31,6 +31,37 @@ pub enum ExportFolderChoice {
 pub struct ExportFolderFile {
     pub stem: String,
     pub format: String,
+    /// The folders under the chosen one it goes into (the Project's folders), outermost
+    /// first; empty for the chosen folder itself.
+    #[serde(default)]
+    pub folders: Vec<String>,
+}
+
+const SUBFOLDER_FALLBACK: &str = "folder";
+const UNSAFE_FOLDER_CHARACTERS: &[char] = &['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
+
+/// The folder under `folder` named by `segments` (each made a safe single name: the
+/// characters Windows refuses become `_`, and `.` / `..` / empty become a plain name), so
+/// a file can never land outside the chosen folder.
+pub fn subfolder(folder: &Path, segments: &[String]) -> PathBuf {
+    segments.iter().fold(folder.to_path_buf(), |path, segment| {
+        let cleaned: String = segment
+            .chars()
+            .map(|character| {
+                if UNSAFE_FOLDER_CHARACTERS.contains(&character) || character.is_control() {
+                    '_'
+                } else {
+                    character
+                }
+            })
+            .collect();
+        let cleaned = cleaned.trim().trim_end_matches('.');
+        path.join(if cleaned.is_empty() {
+            SUBFOLDER_FALLBACK
+        } else {
+            cleaned
+        })
+    })
 }
 
 const MARKDOWN_FORMAT: &str = "md";
@@ -86,8 +117,15 @@ pub fn existing_files(folder: &Path, files: &[ExportFolderFile]) -> ApplicationR
     let mut existing = Vec::new();
     for file in files {
         let name = folder_file_name(file)?;
-        if folder.join(&name).exists() {
-            existing.push(name);
+        if subfolder(folder, &file.folders).join(&name).exists() {
+            existing.push(
+                file.folders
+                    .iter()
+                    .map(String::as_str)
+                    .chain(std::iter::once(name.as_str()))
+                    .collect::<Vec<_>>()
+                    .join("/"),
+            );
         }
     }
     Ok(existing)
@@ -103,6 +141,9 @@ pub fn write_into_folder(
 ) -> ApplicationResult<String> {
     let kind = folder_kind(format)?;
     check_export(kind, bytes)?;
+    std::fs::create_dir_all(folder).map_err(|error| {
+        ApplicationError::new(ErrorKind::ExportFailed, format!("export folder: {error}"))
+    })?;
     let name = suggested_name(stem, kind);
     write_file_atomically(&folder.join(&name), bytes)?;
     Ok(name)
@@ -138,20 +179,12 @@ mod tests {
         let folder = temporary_folder("write");
         let name = write_into_folder(&folder, "html", "API: v2", b"<p>x</p>").unwrap();
         assert_eq!(name, "API_ v2.html");
-        let files = [
-            ExportFolderFile {
-                stem: "API: v2".into(),
-                format: "html".into(),
-            },
-            ExportFolderFile {
-                stem: "API: v2".into(),
-                format: "pdf".into(),
-            },
-            ExportFolderFile {
-                stem: "API: v2".into(),
-                format: "md".into(),
-            },
-        ];
+        let file = |format: &str| ExportFolderFile {
+            stem: "API: v2".into(),
+            format: format.into(),
+            folders: Vec::new(),
+        };
+        let files = [file("html"), file("pdf"), file("md")];
         assert_eq!(existing_files(&folder, &files).unwrap(), ["API_ v2.html"]);
         assert!(write_into_folder(&folder, "pdf", "x", b"not a pdf").is_err());
         assert!(write_into_folder(&folder, "png", "x", b"\x89PNG\r\n\x1a\n").is_err());
@@ -160,5 +193,18 @@ mod tests {
             "x.pdf"
         );
         std::fs::remove_dir_all(&folder).unwrap();
+    }
+
+    #[test]
+    fn subfolders_stay_inside_the_chosen_folder() {
+        let base = Path::new("/out");
+        assert_eq!(
+            subfolder(base, &["設計".into(), "API: v2".into()]),
+            Path::new("/out/設計/API_ v2")
+        );
+        assert_eq!(
+            subfolder(base, &["..".into(), "a/b".into(), " ".into()]),
+            Path::new("/out/folder/a_b/folder")
+        );
     }
 }

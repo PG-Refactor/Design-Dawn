@@ -232,9 +232,13 @@ export interface PersistenceGateway {
   ): Promise<OperationResult<DropImportResult>>;
   // The save dialog, then the Document (as saved on disk) as one Markdown file with its
   // images beside it. Cancelling is an ok result.
+  // `sheetId`: that Sheet only; `suggestedName`: the name the dialog proposes (the
+  // Document's name when absent).
   exportDocumentMarkdown(
     projectId: ProjectId,
     documentId: DocumentId,
+    sheetId?: SheetId,
+    suggestedName?: string,
   ): Promise<OperationResult<ExportOutcome>>;
   // An image of an opened Document as a `data:` URL.
   assetDataUrl(
@@ -262,12 +266,15 @@ export interface PersistenceGateway {
     documentId: DocumentId,
     folder: string,
     stem: string,
+    // Folders under the chosen one (the Project's), outermost first; [] for none.
+    folders: readonly string[],
   ): Promise<OperationResult<string>>;
   // An HTML page the app made, written into the folder as `<stem>.html`.
   exportHtmlIntoFolder(
     folder: string,
     stem: string,
     bytes: Uint8Array,
+    folders: readonly string[],
   ): Promise<OperationResult<string>>;
   // An HTML page printed to PDF without a dialog, written as `<stem>.pdf`.
   exportPdfIntoFolder(
@@ -275,7 +282,14 @@ export interface PersistenceGateway {
     stem: string,
     html: Uint8Array,
     largestPage: PdfPageExtent,
+    folders: readonly string[],
   ): Promise<OperationResult<string>>;
+  // The save dialog, then the page printed to PDF (without the print dialog) there.
+  exportPdfFile(
+    suggestedName: string,
+    html: Uint8Array,
+    largestPage: PdfPageExtent,
+  ): Promise<OperationResult<ExportOutcome>>;
   // A print page shown in a print window of its own (a child of this window), which opens
   // the print dialog there; this window stays usable meanwhile.
   openPrintWindow(

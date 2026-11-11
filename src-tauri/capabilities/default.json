@@ -55,6 +55,7 @@
     "allow-export-markdown-into-folder",
     "allow-export-into-folder",
     "allow-export-pdf-into-folder",
+    "allow-export-pdf-file",
     "allow-open-print-window",
     "allow-print-windows-open",
     "allow-close-print-windows",

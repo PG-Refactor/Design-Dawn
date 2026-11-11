@@ -85,7 +85,7 @@ describe("File menu", () => {
       ["menuitem", EN.openProjectInNewWindow],
       ["menuitem", `${EN.save}Ctrl+S`],
       ["menuitemcheckbox", EN.autoSave],
-      ["menuitem", `${EN.exportMenu}▸`],
+      ["menuitem", EXPORT_MESSAGES.en.exportMenuItem],
       ["menuitem", `${EXPORT_MESSAGES.en.print}Ctrl+P`],
       ["menuitem", AI_ACCESS_MESSAGES.en.menuItem],
       ["menuitem", AI_ACCESS_MESSAGES.en.history.menuItem],
@@ -94,47 +94,28 @@ describe("File menu", () => {
     expect(within(menu).getAllByRole("separator")).toHaveLength(4);
   });
 
-  it("keeps every export under Export (printing is its own item), opened by pointer or by the right arrow", async () => {
+  it("opens one Export dialog, starting on the shown Document", async () => {
     const shell = await renderShell({ systemLanguages: ["en"] });
     await shell.openProjectInUi();
     await act(async () => {
       await shell.actions.openDocument(DOCUMENT_A);
     });
     const menu = await openMenu(shell.user, EN.fileMenu);
-    const exportItem = within(menu).getByRole("menuitem", {
-      name: EN.exportMenu,
-    });
-    expect(exportItem.getAttribute("aria-haspopup")).toBe("menu");
-    exportItem.focus();
-    await shell.user.keyboard("{ArrowRight}");
-    const submenu = await screen.findByRole("menu", { name: EN.exportMenu });
-    expect(
-      within(submenu)
-        .getAllByRole("menuitem")
-        .map((item) => item.textContent),
-    ).toEqual([
-      EN.exportMarkdown,
-      EXPORT_MESSAGES.en.sheetHtml,
-      EXPORT_MESSAGES.en.documentHtml,
-      EXPORT_MESSAGES.en.documentsMenu,
-    ]);
-    expect(document.activeElement?.textContent).toBe(EN.exportMarkdown);
-    await shell.user.keyboard("{ArrowDown}");
-    expect(document.activeElement?.textContent).toBe(
-      EXPORT_MESSAGES.en.sheetHtml,
-    );
-    await shell.user.keyboard("{ArrowLeft}");
-    expect(screen.queryByRole("menu", { name: EN.exportMenu })).toBeNull();
-    expect(document.activeElement).toBe(exportItem);
-
-    // Choosing an item of the submenu closes the whole menu.
-    await shell.user.click(exportItem);
     await shell.user.click(
-      within(
-        await screen.findByRole("menu", { name: EN.exportMenu }),
-      ).getByRole("menuitem", { name: EN.exportMarkdown }),
+      within(menu).getByRole("menuitem", {
+        name: EXPORT_MESSAGES.en.exportMenuItem,
+      }),
     );
-    expect(screen.queryByRole("menu")).toBeNull();
+    const dialog = screen.getByRole("dialog", {
+      name: EXPORT_MESSAGES.en.exportTitle,
+    });
+    expect(
+      (
+        within(dialog).getByRole("radio", {
+          name: EXPORT_MESSAGES.en.scopeDocument("Document A"),
+        }) as HTMLInputElement
+      ).checked,
+    ).toBe(true);
   });
 
   it("opens the project via its item and shows the tree", async () => {

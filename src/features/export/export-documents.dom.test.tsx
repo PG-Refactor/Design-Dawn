@@ -24,20 +24,63 @@ afterEach(() => {
   cleanup();
 });
 
-async function openExportDocuments(
+async function openExport(
   shell: Awaited<ReturnType<typeof renderOpenedCanvas>>["shell"],
 ) {
   const menu = await openMenu(shell.user, TOP_BAR.fileMenu);
   await shell.user.click(
-    within(menu).getByRole("menuitem", { name: TOP_BAR.exportMenu }),
+    within(menu).getByRole("menuitem", { name: MESSAGES.exportMenuItem }),
   );
-  await shell.user.click(
-    within(
-      await screen.findByRole("menu", { name: TOP_BAR.exportMenu }),
-    ).getByRole("menuitem", { name: MESSAGES.documentsMenu }),
-  );
-  return screen.getByRole("dialog", { name: MESSAGES.documentsTitle });
+  return screen.getByRole("dialog", { name: MESSAGES.exportTitle });
 }
+
+async function openExportDocuments(
+  shell: Awaited<ReturnType<typeof renderOpenedCanvas>>["shell"],
+) {
+  const dialog = await openExport(shell);
+  await shell.user.click(
+    within(dialog).getByRole("radio", { name: MESSAGES.scopeChoose }),
+  );
+  return dialog;
+}
+
+describe("Export of the shown sheet or Document", () => {
+  it("writes the shown sheet as Markdown through the save dialog", async () => {
+    const { shell } = await renderOpenedCanvas();
+    const dialog = await openExport(shell);
+    await shell.user.click(
+      within(dialog).getByRole("radio", {
+        name: MESSAGES.scopeSheet("Document A", "Sheet A1"),
+      }),
+    );
+    shell.gateway.clearCalls();
+    await shell.user.click(
+      within(dialog).getByRole("button", { name: MESSAGES.exportFile }),
+    );
+    await act(settle);
+    expect(
+      shell.gateway.calls.find(
+        (call) => call.method === "exportDocumentMarkdown",
+      )?.detail,
+    ).toBe(`${DOCUMENT_A}:${SHEET_A1}:Document A - Sheet A1`);
+    expect(within(dialog).getByRole("status").textContent).toBe(
+      MESSAGES.savedAs("Document A - Sheet A1.md"),
+    );
+  });
+
+  it("writes the shown Document as one PDF without the print dialog", async () => {
+    const { shell } = await renderOpenedCanvas();
+    const dialog = await openExport(shell);
+    await shell.user.click(
+      within(dialog).getByRole("radio", { name: MESSAGES.formatPdf }),
+    );
+    await shell.user.click(
+      within(dialog).getByRole("button", { name: MESSAGES.exportFile }),
+    );
+    await act(settle);
+    expect(shell.gateway.methods("exportPdfFile")).toHaveLength(1);
+  });
+});
 
 describe("Export Documents", () => {
   it("prints each chosen Document to PDF in the folder, opening the closed ones only meanwhile", async () => {
@@ -46,6 +89,7 @@ describe("Export Documents", () => {
     expect(
       within(dialog)
         .getAllByRole("checkbox")
+        .filter((box) => box.closest("ul") !== null)
         .every((box) => (box as HTMLInputElement).checked),
     ).toBe(true);
     await shell.user.click(

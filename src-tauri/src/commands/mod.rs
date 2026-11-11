@@ -84,7 +84,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 94] = [
+pub const COMMAND_NAMES: [&str; 95] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -136,6 +136,7 @@ pub const COMMAND_NAMES: [&str; 94] = [
     "export_markdown_into_folder",
     "export_into_folder",
     "export_pdf_into_folder",
+    "export_pdf_file",
     "open_print_window",
     "print_windows_open",
     "close_print_windows",
@@ -376,12 +377,20 @@ pub async fn export_document_markdown<R: Runtime>(
     window: Window<R>,
     project_id: String,
     document_id: String,
+    sheet_id: Option<String>,
+    suggested_name: Option<String>,
 ) -> Result<SaveOutcome, ApplicationError> {
     ensure_window_project(&window, &project_id)?;
     let root = project_root(&app, &project_id)?;
     run_blocking(move || {
         let dialogs = file_dialogs(&app)?;
-        export_markdown_file(dialogs.as_ref(), &root, &document_id)
+        export_markdown_file(
+            dialogs.as_ref(),
+            &root,
+            &document_id,
+            sheet_id.as_deref(),
+            suggested_name.as_deref(),
+        )
     })
     .await
 }

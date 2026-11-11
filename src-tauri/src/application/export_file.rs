@@ -51,7 +51,7 @@ impl ExportKind {
         }
     }
 
-    fn filter(self) -> FileFilter {
+    pub fn filter(self) -> FileFilter {
         match self {
             Self::Svg => SVG_FILTER,
             Self::Png => PNG_FILTER,

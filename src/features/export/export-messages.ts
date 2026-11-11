@@ -42,6 +42,23 @@ const EXPORT_MESSAGES_JA = {
   overflowWarning: (count: number): string =>
     `${count} 個のブロックは内容が枠に収まっていないため、はみ出した部分は印刷されません。ブロックを大きくするか、このまま印刷してください。`,
   emptyWarning: "印刷するブロックがありません。",
+  exportMenuItem: "エクスポート…",
+  exportTitle: "エクスポート",
+  exportDescription:
+    "書き出す形式と、書き出すものを選んでください。1つのときは保存先を、複数のときは書き出し先のフォルダを選びます。",
+  scopeLegend: "書き出すもの",
+  scopeSheet: (document: string, sheet: string): string =>
+    `表示中のシート（${document} / ${sheet}）`,
+  scopeSheetNone: "表示中のシート（表示中のシートがありません）",
+  scopeDocument: (document: string): string =>
+    `表示中のDocument（${document}）`,
+  scopeDocumentNone: "表示中のDocument（表示中のDocumentがありません）",
+  scopeChoose:
+    "Documentを選ぶ（複数可。フォルダを選ぶと中のDocumentをすべて選ぶ）",
+  folderEntry: (name: string): string => `${name}/`,
+  keepFolders: "Projectのフォルダ構成を保って書き出す",
+  exportFile: "書き出す…",
+  savedAs: (file: string): string => `「${file}」に書き出しました。`,
   documentsMenu: "複数のDocumentを書き出す…",
   documentsTitle: "複数のDocumentを書き出す",
   documentsDescription:
@@ -114,6 +131,21 @@ const EXPORT_MESSAGES_EN: ExportMessages = {
       ? "1 block does not fit its frame; the part outside it is not printed. Make the block larger, or print anyway."
       : `${count} blocks do not fit their frames; the parts outside them are not printed. Make the blocks larger, or print anyway.`,
   emptyWarning: "There are no blocks to print.",
+  exportMenuItem: "Export…",
+  exportTitle: "Export",
+  exportDescription:
+    "Choose the format and what to export. One file goes where you save it; several go into a folder you choose.",
+  scopeLegend: "What to export",
+  scopeSheet: (document, sheet) => `The shown sheet (${document} / ${sheet})`,
+  scopeSheetNone: "The shown sheet (no sheet is shown)",
+  scopeDocument: (document) => `The shown Document (${document})`,
+  scopeDocumentNone: "The shown Document (no Document is shown)",
+  scopeChoose:
+    "Choose Documents (several at once; a folder chooses everything in it)",
+  folderEntry: (name) => `${name}/`,
+  keepFolders: "Keep the Project's folder structure",
+  exportFile: "Export…",
+  savedAs: (file) => `Exported to “${file}”.`,
   documentsMenu: "Export Documents…",
   documentsTitle: "Export Documents",
   documentsDescription:

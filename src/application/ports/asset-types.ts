@@ -108,6 +108,8 @@ export interface ExportFolderFile {
   // The Document's name; Rust makes it a safe file name and adds the extension.
   readonly stem: string;
   readonly format: ExportFolderFormat;
+  // The folders under the chosen one it goes into, outermost first; [] for none.
+  readonly folders: readonly string[];
 }
 
 // The largest page of a PDF export in CSS pixels (Linux prints every page this size).

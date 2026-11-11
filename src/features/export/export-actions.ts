@@ -61,6 +61,18 @@ export interface SheetsExportInput {
 export interface DocumentToExport {
   readonly documentId: DocumentId;
   readonly name: string;
+  // The Project folders it is in, outermost first.
+  readonly folders: readonly string[];
+}
+
+// One file through the save dialog: the shown sheet, or the shown Document.
+export interface ShownExportInput {
+  readonly renderer: MermaidRenderer;
+  readonly format: ExportFolderFormat;
+  readonly documentId: DocumentId;
+  readonly documentName: string;
+  // Absent: the whole Document.
+  readonly sheet?: { readonly sheetId: SheetId; readonly name: string };
 }
 
 export interface DocumentsExportInput {
@@ -69,6 +81,8 @@ export interface DocumentsExportInput {
   readonly format: ExportFolderFormat;
   // The token of the folder chosen in Rust's dialog.
   readonly folder: string;
+  // Each file goes into folders named like the Project's folders it is in.
+  readonly keepFolders: boolean;
   // Called after each Document, written or not.
   readonly onProgress?: (done: number, total: number) => void;
 }
@@ -85,24 +99,38 @@ export interface DocumentsExportOutcome {
 }
 
 // The file stem of each Document in order: its name, with " (2)", " (3)" ... after a name
-// used before (Documents in different folders may share one).
-export function exportStems(names: readonly string[]): string[] {
+// used before in the same output folder (Documents in different folders may share one).
+export function exportStems(
+  names: readonly string[],
+  places: readonly string[] = [],
+): string[] {
   const used = new Map<string, number>();
-  return names.map((name) => {
-    const key = name.trim().toLowerCase();
+  return names.map((name, index) => {
+    const key = `${places[index] ?? ""}\n${name.trim().toLowerCase()}`;
     const count = (used.get(key) ?? 0) + 1;
     used.set(key, count);
     return count === 1 ? name : `${name} (${count})`;
   });
 }
 
+// Where each Document goes and under which name.
 export function folderFilesOf(
   documents: readonly DocumentToExport[],
   format: ExportFolderFormat,
+  keepFolders: boolean,
 ): ExportFolderFile[] {
-  return exportStems(documents.map((document) => document.name)).map(
-    (stem) => ({ stem, format }),
+  const folders = documents.map((document) =>
+    keepFolders ? document.folders : [],
   );
+  const stems = exportStems(
+    documents.map((document) => document.name),
+    folders.map((path) => path.join("/")),
+  );
+  return documents.map((document, index) => ({
+    stem: stems[index] ?? document.name,
+    format,
+    folders: folders[index] ?? [],
+  }));
 }
 
 export interface ExportActions {
@@ -125,6 +153,9 @@ export interface ExportActions {
   exportDiagram(
     input: DiagramExportInput,
   ): Promise<OperationResult<ExportOutcome>>;
+  // The shown sheet or Document as one file (Markdown, HTML or PDF) where the save
+  // dialog says. Everything is saved first.
+  exportShown(input: ShownExportInput): Promise<OperationResult<ExportOutcome>>;
   // "Export Documents…": Rust's folder dialog (cancelled: ok with null).
   chooseExportFolder(): Promise<
     OperationResult<{
@@ -214,6 +245,7 @@ export function createExportActions(
   async function sheetsOf(
     renderer: MermaidRenderer,
     documentId: DocumentId,
+    onlySheet?: SheetId,
   ): Promise<OperationResult<ExportSheet[]>> {
     return gatherSheets(
       {
@@ -224,7 +256,7 @@ export function createExportActions(
         renderer,
       },
       documentId,
-      sheetIdsOf(documentId),
+      onlySheet === undefined ? sheetIdsOf(documentId) : [onlySheet],
     );
   }
 
@@ -232,8 +264,9 @@ export function createExportActions(
   async function exportOne(
     input: DocumentsExportInput,
     document: DocumentToExport,
-    stem: string,
+    file: ExportFolderFile,
   ): Promise<OperationResult<string | null>> {
+    const { stem, folders } = file;
     const projectId = applicationStore.getState().project?.projectId ?? null;
     if (projectId === null) {
       return operationErr("projectNotOpen", "no project is open");
@@ -244,6 +277,7 @@ export function createExportActions(
         document.documentId,
         input.folder,
         stem,
+        folders,
       );
     }
     const wasOpen = applicationStore
@@ -268,6 +302,7 @@ export function createExportActions(
           input.folder,
           stem,
           new TextEncoder().encode(page),
+          folders,
         );
       }
       const largest = largestFitPage(sheets.value);
@@ -283,6 +318,7 @@ export function createExportActions(
         stem,
         new TextEncoder().encode(page),
         largest,
+        folders,
       );
     } finally {
       if (!wasOpen) await workspace.closeDocument(document.documentId);
@@ -365,6 +401,63 @@ export function createExportActions(
       return reported(await gateway.exportFile(kind, suggested, bytes));
     },
 
+    async exportShown({ renderer, format, documentId, documentName, sheet }) {
+      const projectId = applicationStore.getState().project?.projectId ?? null;
+      if (projectId === null) {
+        return reported(operationErr("projectNotOpen", "no project is open"));
+      }
+      // A failed save is reported by the save itself; exporting older text would surprise.
+      const saved = await actions.saveAll();
+      if (!saved.ok) return saved;
+      const title =
+        sheet === undefined ? documentName : `${documentName} - ${sheet.name}`;
+      if (format === "md") {
+        return reported(
+          await gateway.exportDocumentMarkdown(
+            projectId,
+            documentId,
+            sheet?.sheetId,
+            title,
+          ),
+        );
+      }
+      const gathered = await sheetsOf(renderer, documentId, sheet?.sheetId);
+      if (!gathered.ok) return reported(gathered);
+      const palette = exportPalette(globalThis.document.documentElement);
+      if (format === "html") {
+        const page = buildExportHtml({
+          title,
+          sheets: gathered.value,
+          palette,
+          layout: { kind: "screen" },
+        });
+        return reported(
+          await gateway.exportFile(
+            "html",
+            title,
+            new TextEncoder().encode(page),
+          ),
+        );
+      }
+      const largest = largestFitPage(gathered.value);
+      if (largest === null) {
+        return reported(operationErr("exportFailed", "there are no blocks"));
+      }
+      const page = buildExportHtml({
+        title,
+        sheets: gathered.value,
+        palette,
+        layout: { kind: "fit" },
+      });
+      return reported(
+        await gateway.exportPdfFile(
+          title,
+          new TextEncoder().encode(page),
+          largest,
+        ),
+      );
+    },
+
     async chooseExportFolder() {
       const chosen = await gateway.chooseExportFolder();
       if (!chosen.ok) return reported(chosen);
@@ -383,19 +476,21 @@ export function createExportActions(
       // A failed save is reported by the save itself; exporting older text would surprise.
       const saved = await actions.saveAll();
       if (!saved.ok) return saved;
-      const stems = exportStems(input.documents.map((entry) => entry.name));
+      const files = folderFilesOf(
+        input.documents,
+        input.format,
+        input.keepFolders,
+      );
       const written: string[] = [];
       const failed: DocumentExportFailure[] = [];
       for (const [index, entry] of input.documents.entries()) {
-        const result = await exportOne(
-          input,
-          entry,
-          stems[index] ?? entry.name,
-        );
+        const file = files[index];
+        if (file === undefined) continue;
+        const result = await exportOne(input, entry, file);
         if (!result.ok) failed.push({ name: entry.name, error: result.error });
         else if (result.value === null)
           failed.push({ name: entry.name, error: null });
-        else written.push(result.value);
+        else written.push([...file.folders, result.value].join("/"));
         input.onProgress?.(index + 1, input.documents.length);
       }
       return operationOk({ written, failed });

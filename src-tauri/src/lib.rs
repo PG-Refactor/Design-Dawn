@@ -120,6 +120,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::export_folder::export_markdown_into_folder,
             commands::export_folder::export_into_folder,
             commands::export_folder::export_pdf_into_folder,
+            commands::export_folder::export_pdf_file,
             commands::print_window::open_print_window,
             commands::print_window::print_windows_open,
             commands::print_window::close_print_windows,

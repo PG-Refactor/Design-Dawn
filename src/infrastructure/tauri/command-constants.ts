@@ -50,6 +50,7 @@ export const COMMANDS = {
   exportMarkdownIntoFolder: "export_markdown_into_folder",
   exportIntoFolder: "export_into_folder",
   exportPdfIntoFolder: "export_pdf_into_folder",
+  exportPdfFile: "export_pdf_file",
   openPrintWindow: "open_print_window",
   printWindowsOpen: "print_windows_open",
   closePrintWindows: "close_print_windows",

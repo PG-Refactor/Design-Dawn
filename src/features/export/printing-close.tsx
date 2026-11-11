@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { createStore } from "../../shared/store/store";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { ConfirmDialog } from "../workspace/confirm-dialog";
@@ -27,6 +28,8 @@ export function askCloseWhilePrinting(): Promise<boolean> {
 export function PrintingCloseDialog() {
   const messages = useMessages().export;
   const answer = useStoreSelector(pending, (state) => state.answer);
+  // An open question goes with the shell (answered "no", so nothing waits for it).
+  useEffect(() => () => pending.getState().answer?.(false), []);
   if (answer === null) return null;
   return (
     <ConfirmDialog
