@@ -34,7 +34,6 @@ import {
   type ExportLayout,
   type ExportSheet,
   largestFitPage,
-  withPrintOnLoad,
 } from "./export-html";
 import { gatherSheets } from "./gather-sheets";
 import {
@@ -354,10 +353,7 @@ export function createExportActions(
 
     async openPrintWindow(title, page) {
       return reported(
-        await gateway.openPrintWindow(
-          title,
-          new TextEncoder().encode(withPrintOnLoad(page)),
-        ),
+        await gateway.openPrintWindow(title, new TextEncoder().encode(page)),
       );
     },
 

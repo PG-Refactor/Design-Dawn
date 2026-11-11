@@ -1,6 +1,8 @@
 //! Printing in a window of its own: the print page (made by the Frontend) is shown in a
-//! child window of the window that prints, and the page itself opens the webview's print
-//! dialog there. The app's own window is never covered by the print preview, so it stays
+//! child window of the window that prints, and the print dialog opens there: on Linux the
+//! WebKitGTK print dialog run from here (the window closes when it is done), elsewhere the
+//! page's own `print()` (the page closes its window after printing where the engine lets
+//! it; otherwise the user closes it). The app's own window is never covered by the print preview, so it stays
 //! usable (and closable) while the dialog is open. The print window has no access to the
 //! app's commands (its label matches no capability) and is not part of the window
 //! registry: it closes like a plain window, and its page file is removed with it.
@@ -23,6 +25,11 @@ const PRINT_WINDOW_WIDTH: f64 = 960.0;
 const PRINT_WINDOW_HEIGHT: f64 = 840.0;
 /// The largest print page accepted (images are inside it).
 const PRINT_PAGE_MAX_BYTES: usize = 200 * 1024 * 1024;
+/// Added to the page where the page opens the print dialog itself.
+#[cfg(not(target_os = "linux"))]
+const PRINT_ON_LOAD_SCRIPT: &str = r#"<script>addEventListener("load",function(){print();});addEventListener("afterprint",function(){close();});</script>"#;
+#[cfg(not(target_os = "linux"))]
+const BODY_END: &str = "</body>";
 
 struct PrintWindow {
     owner: String,
@@ -102,12 +109,22 @@ fn open<R: Runtime>(
     let id = Uuid::now_v7();
     let label = format!("{PRINT_WINDOW_PREFIX}{id}");
     let page_file = std::env::temp_dir().join(format!("dawn-print-{id}.{PAGE_FILE_EXTENSION}"));
+    #[cfg(not(target_os = "linux"))]
+    let html = html.replacen(BODY_END, &format!("{PRINT_ON_LOAD_SCRIPT}{BODY_END}"), 1);
     std::fs::write(&page_file, html).map_err(|error| failed(format!("page file: {error}")))?;
     let url = Url::from_file_path(&page_file).map_err(|()| failed("the page file has no URL"))?;
     let mut builder = WebviewWindowBuilder::new(app, &label, WebviewUrl::External(url))
         .title(title)
         .inner_size(PRINT_WINDOW_WIDTH, PRINT_WINDOW_HEIGHT)
         .center();
+    #[cfg(target_os = "linux")]
+    {
+        builder = builder.on_page_load(|webview, payload| {
+            if payload.event() == tauri::webview::PageLoadEvent::Finished {
+                run_print_dialog(webview.app_handle(), webview.label());
+            }
+        });
+    }
     if let Some(parent) = app.get_webview_window(owner) {
         builder = builder
             .parent(&parent)
@@ -129,6 +146,33 @@ fn open<R: Runtime>(
         return Err(failed(format!("print window: {error}")));
     }
     Ok(())
+}
+
+/// The WebKitGTK print dialog over the print window, run once the page is loaded. The window
+/// closes when the dialog is cancelled, or when printing has finished.
+#[cfg(target_os = "linux")]
+fn run_print_dialog<R: Runtime>(app: &AppHandle<R>, label: &str) {
+    use webkit2gtk::{PrintOperationExt, PrintOperationResponse};
+
+    let Some(window) = app.get_webview_window(label) else {
+        return;
+    };
+    let closing = window.clone();
+    let _ = window.with_webview(move |platform| {
+        let operation = webkit2gtk::PrintOperation::new(&platform.inner());
+        let finished = closing.clone();
+        operation.connect_finished(move |_| {
+            let _ = finished.destroy();
+        });
+        let failed_window = closing.clone();
+        operation.connect_failed(move |_, _| {
+            let _ = failed_window.destroy();
+        });
+        let parent = closing.gtk_window().ok();
+        if operation.run_dialog(parent.as_ref()) == PrintOperationResponse::Cancel {
+            let _ = closing.destroy();
+        }
+    });
 }
 
 /// Whether the calling window has a print window open.

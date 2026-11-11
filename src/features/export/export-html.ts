@@ -194,17 +194,6 @@ export function buildExportHtml(input: {
 `;
 }
 
-// The print page opens the print dialog of its own window once everything is loaded, and
-// closes that window when printing is over (where the engine lets a page close it).
-const PRINT_ON_LOAD_SCRIPT =
-  '<script>addEventListener("load",function(){print();});addEventListener("afterprint",function(){close();});</script>';
-
-// The page for the print window: the export page with the script above (the only page of
-// the app's exports that carries a script).
-export function withPrintOnLoad(html: string): string {
-  return html.replace("</body>", `${PRINT_ON_LOAD_SCRIPT}</body>`);
-}
-
 // The largest page of a "fit" layout (one page per sheet, its title above), or null when no
 // sheet has blocks.
 export function largestFitPage(
