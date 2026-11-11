@@ -1,12 +1,17 @@
 import { type KeyboardEvent, type MouseEvent, useRef } from "react";
 import type { SheetId } from "../../domain/shared/entity-id";
 import { useContextMenu } from "../../shared/menu/context-menu";
+import {
+  DESIGN_TEMPLATE_IDS,
+  DESIGN_TEMPLATES,
+} from "../templates/design-templates";
+import { createSheetFromTemplate } from "../templates/template-actions";
 import { restoreFocus } from "./focus-utils";
 import { sheetPanelId, sheetTabId } from "./tab-ids";
 import { SheetIcon } from "./tree-icons";
 import { TreeRenameInput } from "./tree-rename-input";
 import { sameRenamingTarget } from "./ui-state/ui-state";
-import { useMessages } from "./use-messages";
+import { useDisplayLanguage, useMessages } from "./use-messages";
 import { useTabDrag } from "./use-tab-drag";
 import {
   NAVIGATION_KEYS,
@@ -23,7 +28,8 @@ const RENAME_KEY = "F2";
 
 function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
   const messages = useMessages().workspace;
-  const { actions } = useWorkspaceServices();
+  const { actions, canvasActions, uiStateStore } = useWorkspaceServices();
+  const language = useDisplayLanguage();
   const tabElements = useRef(new Map<SheetId, HTMLButtonElement>());
   const renaming = useUiState((ui) => ui.renaming);
   const { tabs, documentId, activeSheetId } = model;
@@ -84,6 +90,21 @@ function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
         id: "createSheet",
         label: messages.tabs.createSheet,
         onSelect: () => void actions.requestCreateSheet(documentId),
+      },
+      {
+        id: "createSheetFromTemplate",
+        label: messages.tabs.createSheetFromTemplate,
+        entries: DESIGN_TEMPLATE_IDS.map((templateId) => ({
+          id: `template-${templateId}`,
+          label: DESIGN_TEMPLATES[templateId].name[language],
+          onSelect: () =>
+            void createSheetFromTemplate(
+              { actions, canvasActions, uiStateStore },
+              documentId,
+              templateId,
+              language,
+            ),
+        })),
       },
       {
         id: "deleteSheet",

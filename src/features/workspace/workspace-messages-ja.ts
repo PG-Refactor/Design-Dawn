@@ -288,6 +288,7 @@ export const WORKSPACE_MESSAGES_JA = {
     closeButtonText: "×",
     retrySave: "再試行",
     createSheet: "Sheetを作成",
+    createSheetFromTemplate: "ひな形からSheetを作成",
     deleteSheet: "Sheetを削除",
     deleteSheetButtonText: "×",
     createSheetButtonText: "+",

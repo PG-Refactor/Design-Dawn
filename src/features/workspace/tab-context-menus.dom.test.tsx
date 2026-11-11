@@ -58,6 +58,7 @@ describe("the right-click menu of a Sheet tab", () => {
       MESSAGES.tabs.moveLeft,
       MESSAGES.tabs.moveRight,
       MESSAGES.tabs.createSheet,
+      `${MESSAGES.tabs.createSheetFromTemplate}▸`,
       MESSAGES.tabs.deleteSheet,
     ]);
     expect(
