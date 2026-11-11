@@ -323,6 +323,8 @@ export interface FakeGateway extends PersistenceGateway {
   // File names in the export folder (`<stem>.<format>`): written by the folder exports,
   // reported by `exportFolderExisting`.
   readonly exportFolderFiles: Set<string>;
+  // How many print windows are open (opened by `openPrintWindow`, closed all at once).
+  readonly printWindows: { count: number };
   // What the next `selectImageFiles` returns: the id of a scripted drop (the chosen files),
   // or null for a cancelled dialog. Default: cancelled.
   scriptImageSelection(dropId: string | null): void;
@@ -346,6 +348,7 @@ export function createFakeGateway(
   const permanentFailures = new Map<string, OperationErrorKind>();
   const holds = new Map<string, Promise<void>>();
   const exportFolderFiles = new Set<string>();
+  const printWindows = { count: 0 };
   let fileCounter = 0;
   const assets = new Map<DocumentId, Map<string, FakeAsset>>();
   const drops = new Map<string, readonly FakeDroppedFile[]>();
@@ -961,6 +964,7 @@ export function createFakeGateway(
       nextSpreadsheet = selection;
     },
     exportFolderFiles,
+    printWindows,
     scriptSearch(result) {
       nextSearch = result;
     },
@@ -1145,6 +1149,18 @@ export function createFakeGateway(
           return operationOk(`${stem}.pdf`);
         },
       ),
+    openPrintWindow: (title, html) =>
+      enter("openPrintWindow", `${title}:${html.length}`, () => {
+        printWindows.count += 1;
+        return operationOk(undefined);
+      }),
+    printWindowsOpen: () =>
+      enter("printWindowsOpen", "", () => operationOk(printWindows.count > 0)),
+    closePrintWindows: () =>
+      enter("closePrintWindows", "", () => {
+        printWindows.count = 0;
+        return operationOk(undefined);
+      }),
     // The scripted search result, else nothing found.
     searchProject: (_project, text, matchCase, regex) =>
       enter("searchProject", `${text}:${matchCase}:${regex}`, () =>

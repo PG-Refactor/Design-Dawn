@@ -34,6 +34,7 @@ import {
   type ExportLayout,
   type ExportSheet,
   largestFitPage,
+  withPrintOnLoad,
 } from "./export-html";
 import { gatherSheets } from "./gather-sheets";
 import {
@@ -112,6 +113,11 @@ export interface ExportActions {
     input: SheetsExportInput,
   ): Promise<OperationResult<ExportOutcome>>;
   // The same page laid out for printing (one page per sheet, or cut into paper pages).
+  // Opens the page in a print window of its own, which shows the print dialog there.
+  openPrintWindow(title: string, page: string): Promise<OperationResult<void>>;
+  // Print windows of this window: is one open, and closing them all.
+  printWindowsOpen(): Promise<boolean>;
+  closePrintWindows(): Promise<void>;
   buildPrintPage(
     input: SheetsExportInput & { readonly layout: ExportLayout },
   ): Promise<OperationResult<string>>;
@@ -308,6 +314,24 @@ export function createExportActions(
           new TextEncoder().encode(page.value),
         ),
       );
+    },
+
+    async openPrintWindow(title, page) {
+      return reported(
+        await gateway.openPrintWindow(
+          title,
+          new TextEncoder().encode(withPrintOnLoad(page)),
+        ),
+      );
+    },
+
+    async printWindowsOpen() {
+      const open = await gateway.printWindowsOpen();
+      return open.ok && open.value;
+    },
+
+    async closePrintWindows() {
+      await gateway.closePrintWindows();
     },
 
     async buildPrintPage(input) {

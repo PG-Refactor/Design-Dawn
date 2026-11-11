@@ -96,6 +96,9 @@ export const GATEWAY_METHOD_KINDS = {
   exportMarkdownIntoFolder: "read",
   exportHtmlIntoFolder: "read",
   exportPdfIntoFolder: "read",
+  openPrintWindow: "read",
+  printWindowsOpen: "read",
+  closePrintWindows: "read",
   assetDataUrl: "read",
   copyAssetToDocument: "write",
 } as const satisfies Record<keyof PersistenceGateway, "write" | "read">;

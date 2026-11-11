@@ -12,6 +12,7 @@ mod external_watch;
 mod folder_picker;
 mod open_dispatch;
 mod pdf_printer;
+pub mod print_window;
 mod window_close;
 mod window_size;
 
@@ -83,7 +84,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 91] = [
+pub const COMMAND_NAMES: [&str; 94] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -135,6 +136,9 @@ pub const COMMAND_NAMES: [&str; 91] = [
     "export_markdown_into_folder",
     "export_into_folder",
     "export_pdf_into_folder",
+    "open_print_window",
+    "print_windows_open",
+    "close_print_windows",
     "asset_data_url",
     "ai_history",
     "ai_image_request_preview",
@@ -198,6 +202,14 @@ pub use window_size::apply_startup_window_size;
 /// The one window event handler (registered in `run`). Each event kind has its own thin
 /// handler; the drag & drop branch is unchanged.
 pub fn handle_window_event<R: Runtime>(window: &Window<R>, event: &tauri::WindowEvent) {
+    // A print or PDF window is a plain window: it closes without asking a page to save,
+    // takes no part in the window registry, and its page file goes with it.
+    if print_window::is_print_window(window.label()) || pdf_printer::is_pdf_window(window.label()) {
+        if matches!(event, tauri::WindowEvent::Destroyed) {
+            print_window::forget_print_window(window.app_handle(), window.label());
+        }
+        return;
+    }
     match event {
         tauri::WindowEvent::DragDrop(drag_drop) => {
             drag_drop::handle_drag_drop_event(window, drag_drop);

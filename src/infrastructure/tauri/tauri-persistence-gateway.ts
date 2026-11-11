@@ -3,6 +3,7 @@ import type { PersistenceGateway } from "../../application/ports/persistence-gat
 import {
   assetDataUrl,
   chooseExportFolder,
+  closePrintWindows,
   copyAssetToDocument,
   exportDocumentMarkdown,
   exportFile,
@@ -12,6 +13,8 @@ import {
   exportPdfIntoFolder,
   importDroppedImages,
   importPastedImage,
+  openPrintWindow,
+  printWindowsOpen,
   readSpreadsheetViaDialog,
   selectImageFiles,
 } from "./asset-client";
@@ -118,6 +121,9 @@ export function createTauriPersistenceGateway(): PersistenceGateway {
     exportMarkdownIntoFolder,
     exportHtmlIntoFolder,
     exportPdfIntoFolder,
+    openPrintWindow,
+    printWindowsOpen,
+    closePrintWindows,
     assetDataUrl,
     copyAssetToDocument,
     readBlockContent,

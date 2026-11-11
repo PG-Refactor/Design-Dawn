@@ -27,6 +27,11 @@ const PAGE_FILE_EXTENSION: &str = "html";
 #[cfg(target_os = "linux")]
 const PDF_FILE_EXTENSION: &str = "pdf";
 
+/// The hidden windows that print a PDF; they are plain windows (see `handle_window_event`).
+pub fn is_pdf_window(label: &str) -> bool {
+    label.starts_with(WINDOW_LABEL_PREFIX)
+}
+
 /// The largest page of the export, in CSS pixels (96 per inch).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PageExtent {

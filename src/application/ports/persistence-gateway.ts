@@ -276,6 +276,16 @@ export interface PersistenceGateway {
     html: Uint8Array,
     largestPage: PdfPageExtent,
   ): Promise<OperationResult<string>>;
+  // A print page shown in a print window of its own (a child of this window), which opens
+  // the print dialog there; this window stays usable meanwhile.
+  openPrintWindow(
+    title: string,
+    html: Uint8Array,
+  ): Promise<OperationResult<void>>;
+  // Whether this window has a print window open, and closing them (before this window
+  // closes).
+  printWindowsOpen(): Promise<OperationResult<boolean>>;
+  closePrintWindows(): Promise<OperationResult<void>>;
   // Every match of `text` in the Project's text Blocks and captions, read from disk (not
   // from the app's open Documents).
   searchProject(

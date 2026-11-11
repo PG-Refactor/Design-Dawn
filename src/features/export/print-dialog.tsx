@@ -16,12 +16,7 @@ import { Modal } from "../workspace/modal";
 import { useMessages } from "../workspace/use-messages";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import type { ExportLayout } from "./export-html";
-import {
-  discardFrame,
-  type PreparedPrint,
-  preparePrintFrame,
-  printFrame,
-} from "./print-frame";
+import { measurePrintPage } from "./print-frame";
 import type { PrintMode } from "./print-settings";
 import "./print-dialog.css";
 
@@ -38,9 +33,16 @@ type Scope = "sheet" | "document";
 
 type Status =
   | { readonly kind: "editing" }
+  // Something in the Document is not saved: save first, or print as it is?
+  | { readonly kind: "unsaved" }
   | { readonly kind: "preparing" }
   // The page is ready but some blocks are cut off; printing needs a second confirmation.
-  | { readonly kind: "warning"; readonly prepared: PreparedPrint };
+  | {
+      readonly kind: "warning";
+      readonly page: string;
+      readonly title: string;
+      readonly overflowing: number;
+    };
 
 // "Print / Save as PDF…": what to print and how to cut it into pages, then the system
 // print dialog (where a PDF printer is chosen).
@@ -52,7 +54,7 @@ export function PrintDialog({
   readonly onClose: () => void;
 }) {
   const messages = useMessages().export;
-  const { exportActions } = useWorkspaceServices();
+  const { exportActions, actions } = useWorkspaceServices();
   const renderer = useMermaidRenderer();
   const titleId = useId();
   const descriptionId = useId();
@@ -85,8 +87,33 @@ export function PrintDialog({
   }
 
   function close(): void {
-    if (status.kind === "warning") discardFrame(status.prepared);
     onClose();
+  }
+
+  // The print shows what the app holds; still, unsaved changes are offered to be saved
+  // first, so what is printed is also what is on disk.
+  function requestPrint(): void {
+    if (actions.hasUnsavedChanges([target.documentId])) {
+      setStatus({ kind: "unsaved" });
+      return;
+    }
+    void prepareAndPrint();
+  }
+
+  async function saveAndPrint(): Promise<void> {
+    setStatus({ kind: "preparing" });
+    const saved = await actions.saveAll();
+    if (!saved.ok) {
+      setStatus({ kind: "editing" });
+      return;
+    }
+    await prepareAndPrint();
+  }
+
+  async function openPrint(title: string, page: string): Promise<void> {
+    const opened = await exportActions.openPrintWindow(title, page);
+    if (opened.ok) onClose();
+    else setStatus({ kind: "editing" });
   }
 
   async function prepareAndPrint(): Promise<void> {
@@ -108,25 +135,27 @@ export function PrintDialog({
       setStatus({ kind: "editing" });
       return;
     }
-    const prepared = await preparePrintFrame(page.value);
-    if (prepared.frame.contentDocument?.querySelector(".block") === null) {
-      discardFrame(prepared);
+    const measured = await measurePrintPage(page.value);
+    if (measured.blocks === 0) {
       setNotice(messages.emptyWarning);
       setStatus({ kind: "editing" });
       return;
     }
-    if (prepared.overflowing > 0) {
-      setStatus({ kind: "warning", prepared });
+    if (measured.overflowing > 0) {
+      setStatus({
+        kind: "warning",
+        page: page.value,
+        title,
+        overflowing: measured.overflowing,
+      });
       return;
     }
-    printFrame(prepared);
-    onClose();
+    await openPrint(title, page.value);
   }
 
   function printAnyway(): void {
     if (status.kind !== "warning") return;
-    printFrame(status.prepared);
-    onClose();
+    void openPrint(status.title, status.page);
   }
 
   const busy = status.kind === "preparing";
@@ -244,7 +273,12 @@ export function PrintDialog({
         {notice !== null && <p role="status">{notice}</p>}
         {status.kind === "warning" && (
           <p role="alert" className="print-dialog__warning">
-            {messages.overflowWarning(status.prepared.overflowing)}
+            {messages.overflowWarning(status.overflowing)}
+          </p>
+        )}
+        {status.kind === "unsaved" && (
+          <p role="alert" className="print-dialog__warning">
+            {messages.unsavedBeforePrint}
           </p>
         )}
       </div>
@@ -265,13 +299,30 @@ export function PrintDialog({
           >
             {messages.printAnyway}
           </button>
+        ) : status.kind === "unsaved" ? (
+          <>
+            <button
+              type="button"
+              className="button"
+              onClick={() => void prepareAndPrint()}
+            >
+              {messages.printWithoutSaving}
+            </button>
+            <button
+              type="button"
+              className="button button--primary"
+              onClick={() => void saveAndPrint()}
+            >
+              {messages.saveAndPrint}
+            </button>
+          </>
         ) : (
           <button
             ref={printRef}
             type="button"
             className="button button--primary"
             disabled={busy}
-            onClick={() => void prepareAndPrint()}
+            onClick={requestPrint}
           >
             {busy ? messages.preparing : messages.printButton}
           </button>

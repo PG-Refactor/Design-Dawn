@@ -135,6 +135,8 @@ export interface WorkspaceActions {
   // Whether closing the app window must ask first: auto-save is off and something of the
   // open Project (or a Markdown draft) is not saved.
   windowCloseNeedsConfirmation(): boolean;
+  // Something in these Documents is not saved yet (an editor draft included).
+  hasUnsavedChanges(documentIds: readonly DocumentId[]): boolean;
   // Shows the question for a window close and resolves to the user's answer.
   askUnsavedWindowClose(): Promise<UnsavedCloseChoice>;
   // The answer to the open `confirmUnsavedClose` dialog. "save" runs the normal
@@ -1034,6 +1036,7 @@ export function createWorkspaceActions(
       }
       return runBusy(() => closeProjectNow(false));
     },
+    hasUnsavedChanges: hasUnsavedChangesIn,
     windowCloseNeedsConfirmation: () =>
       !autoSavePolicy.isEnabled() && hasUnsavedProjectChanges(),
     askUnsavedWindowClose() {

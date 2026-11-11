@@ -227,3 +227,30 @@ export function exportPdfIntoFolder(
     toFileName,
   );
 }
+
+// Must match `HEADER_TITLE` in `src-tauri/src/commands/print_window.rs`.
+const PRINT_TITLE_HEADER = "x-dawn-print-title";
+
+export function openPrintWindow(
+  title: string,
+  html: Uint8Array,
+): Promise<CommandResult<void>> {
+  return callWithBytes(
+    COMMANDS.openPrintWindow,
+    html,
+    { [PRINT_TITLE_HEADER]: encodeURIComponent(title) },
+    () => commandOk(undefined),
+  );
+}
+
+export function printWindowsOpen(): Promise<CommandResult<boolean>> {
+  return call(COMMANDS.printWindowsOpen, {}, (payload) =>
+    typeof payload === "boolean"
+      ? commandOk(payload)
+      : commandErr("invalidCommandResponse", "not a boolean"),
+  );
+}
+
+export function closePrintWindows(): Promise<CommandResult<void>> {
+  return call(COMMANDS.closePrintWindows, {}, () => commandOk(undefined));
+}
