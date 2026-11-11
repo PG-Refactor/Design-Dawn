@@ -4,6 +4,7 @@ import { ExternalChangeDialog } from "../external-change/external-change-dialog"
 import { useExternalChangeWatching } from "../external-change/use-external-change-watching";
 import { useGitAutoRefresh } from "../git/use-git-auto-refresh";
 import { LoadIssueRepairDialog } from "../load-issue-repair/load-issue-repair-dialog";
+import { useFindShortcuts } from "../search/use-find-shortcuts";
 import { LoadStatus, TransientNotice } from "./notifications";
 import { TopBar } from "./top-bar";
 import { useAppRequests } from "./use-app-requests";
@@ -22,6 +23,7 @@ export function WorkspaceShell() {
   useFileDrop();
   useLaunchRequest();
   useSaveShortcut();
+  useFindShortcuts();
   const closeStatus = useWindowCloseSave();
   useAppRequests(closeStatus);
   useWindowTitle();

@@ -98,3 +98,44 @@ export function replaceAll(
   result += characters.slice(cursor).join("");
   return { text: result, count: starts.length };
 }
+
+// Which occurrence: its 1-based line and its 0-based place among the occurrences of that
+// line, as `findMatches` lists them. (A position in characters is not used: the Project
+// search shows a cut excerpt of a long line, whose offsets are not the line's.)
+export interface OccurrenceAt {
+  readonly line: number;
+  readonly ordinal: number;
+}
+
+const LINE_WITH_BREAK = /[^\n]*(?:\n|$)/g;
+const TRAILING_BREAK = /\r?\n$/;
+
+// Only the occurrence at `at` replaced. Count 0 when the line no longer has it.
+export function replaceOccurrence(
+  text: string,
+  query: string,
+  replacement: string,
+  matchCase: boolean,
+  at: OccurrenceAt,
+): Replaced {
+  const lines = text.match(LINE_WITH_BREAK) ?? [text];
+  const lineWithBreak = lines[at.line - 1];
+  if (lineWithBreak === undefined) return { text, count: 0 };
+  const lineText = lineWithBreak.replace(TRAILING_BREAK, "");
+  const lineBreak = lineWithBreak.slice(lineText.length);
+  const characters = [...lineText];
+  const start = occurrences(
+    foldCharacters(lineText, matchCase),
+    foldCharacters(query, matchCase),
+  )[at.ordinal];
+  if (start === undefined) return { text, count: 0 };
+  const queryLength = [...query].length;
+  const replacedLine =
+    characters.slice(0, start).join("") +
+    replacement +
+    characters.slice(start + queryLength).join("") +
+    lineBreak;
+  const before = lines.slice(0, at.line - 1).join("");
+  const after = lines.slice(at.line).join("");
+  return { text: before + replacedLine + after, count: 1 };
+}

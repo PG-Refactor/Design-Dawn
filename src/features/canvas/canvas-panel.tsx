@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { SheetFindWidget } from "../search/sheet-find-widget";
 import { sheetPanelId, sheetTabId } from "../workspace/tab-ids";
 import { useMessages } from "../workspace/use-messages";
 import { selectSheetTabs } from "../workspace/view-models/tabs-model";
@@ -16,6 +17,10 @@ export function CanvasPanel() {
   const busy = useUiState((ui) => ui.busy);
   const model = useWorkspaceModel(selectSheetTabs);
   const canvasHostRef = useRef<HTMLDivElement>(null);
+  const measureCanvas = () => {
+    const rect = canvasHostRef.current?.getBoundingClientRect();
+    return { width: rect?.width ?? 0, height: rect?.height ?? 0 };
+  };
   if (model === null) return null;
   const activeTab = model.tabs.find((tab) => tab.isActive);
   return (
@@ -46,12 +51,15 @@ export function CanvasPanel() {
           <CanvasToolbar
             documentId={model.documentId}
             sheetId={activeTab.sheetId}
-            measureCanvas={() => {
-              const rect = canvasHostRef.current?.getBoundingClientRect();
-              return { width: rect?.width ?? 0, height: rect?.height ?? 0 };
-            }}
+            measureCanvas={measureCanvas}
           />
           <div ref={canvasHostRef} className="canvas-panel__canvas">
+            <SheetFindWidget
+              documentId={model.documentId}
+              sheetId={activeTab.sheetId}
+              canvasRoot={() => canvasHostRef.current}
+              measureCanvas={measureCanvas}
+            />
             <Canvas
               key={activeTab.sheetId}
               documentId={model.documentId}

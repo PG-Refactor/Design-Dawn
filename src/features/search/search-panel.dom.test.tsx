@@ -31,9 +31,8 @@ describe("the Search tab", () => {
     const panel = await openSearchTab(shell);
     await shell.user.type(
       within(panel).getByRole("searchbox", { name: "検索する文字" }),
-      "TEXT OF",
+      "TEXT OF{Enter}",
     );
-    await shell.user.click(within(panel).getByRole("button", { name: "検索" }));
     await act(settle);
     expect(within(panel).getByRole("status").textContent).toContain("件");
     expect(
@@ -68,9 +67,8 @@ describe("the Search tab", () => {
     const panel = await openSearchTab(shell);
     await shell.user.type(
       within(panel).getByRole("searchbox", { name: "検索する文字" }),
-      "order",
+      "order{Enter}",
     );
-    await shell.user.click(within(panel).getByRole("button", { name: "検索" }));
     await act(settle);
     const row = within(panel).getByRole("button", { name: /2 行目/ });
     expect(row.querySelector("mark")?.textContent).toBe("order");
@@ -85,13 +83,15 @@ describe("the Search tab", () => {
     const panel = await openSearchTab(shell);
     await shell.user.type(
       within(panel).getByRole("searchbox", { name: "検索する文字" }),
-      textOf(BLOCK_ONE),
+      `${textOf(BLOCK_ONE)}{Enter}`,
+    );
+    await shell.user.click(
+      within(panel).getByRole("button", { name: "置換の表示を切り替え" }),
     );
     await shell.user.type(
       within(panel).getByRole("textbox", { name: "置換後の文字" }),
       "replaced",
     );
-    await shell.user.click(within(panel).getByRole("button", { name: "検索" }));
     await act(settle);
     await shell.user.click(
       within(panel).getByRole("button", { name: /の中を置換/ }),
@@ -103,5 +103,35 @@ describe("the Search tab", () => {
     expect(within(panel).getByRole("status").textContent).toContain(
       "1 か所を置換しました。",
     );
+  });
+
+  it("replaces one match only", async () => {
+    const { shell } = await renderOpenedCanvas();
+    const panel = await openSearchTab(shell);
+    await shell.user.type(
+      within(panel).getByRole("searchbox", { name: "検索する文字" }),
+      "text of{Enter}",
+    );
+    await shell.user.click(
+      within(panel).getByRole("button", { name: "置換の表示を切り替え" }),
+    );
+    await shell.user.type(
+      within(panel).getByRole("textbox", { name: "置換後の文字" }),
+      "body of",
+    );
+    await act(settle);
+    const before = within(panel).getAllByRole("button", {
+      name: /1 行目 を置換/,
+    });
+    await shell.user.click(before[0] as HTMLElement);
+    await act(settle);
+    const texts = [
+      ...(shell.store.getState().documents.get(DOCUMENT_A)?.contents.values() ??
+        []),
+    ];
+    expect(texts.filter((text) => text.startsWith("body of"))).toHaveLength(1);
+    expect(
+      within(panel).getAllByRole("button", { name: /1 行目 を置換/ }),
+    ).toHaveLength(before.length - 1);
   });
 });
