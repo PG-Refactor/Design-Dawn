@@ -3,6 +3,7 @@ import {
   type KeyboardEvent,
   type Ref,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -107,6 +108,23 @@ export function MenuList({
   useEffect(() => {
     ownRef.current?.querySelector<HTMLElement>(OWN_ITEMS)?.focus();
   }, []);
+
+  // A submenu opens beside its item and may reach past the window (a menu opened near the
+  // bottom, like the sheet tabs'): it moves up, and to the other side, to stay in view.
+  // Measured before the browser paints, so the first position is never seen.
+  useLayoutEffect(() => {
+    const element = ownRef.current;
+    if (!nested || element === null) return;
+    const box = element.getBoundingClientRect();
+    const overflowBottom = box.bottom - window.innerHeight;
+    if (overflowBottom > 0) {
+      element.style.top = `${element.offsetTop - Math.min(overflowBottom, box.top)}px`;
+    }
+    if (box.right > window.innerWidth) {
+      element.style.left = "auto";
+      element.style.right = "100%";
+    }
+  }, [nested]);
 
   function closeSubmenu(id: string): void {
     setOpenSubmenuId(null);
