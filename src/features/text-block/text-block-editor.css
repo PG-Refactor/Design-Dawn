@@ -1,12 +1,13 @@
 /* Fills the block; the block size never follows the content. */
-/* Source | divider | preview. The two shares come from the editor's style (the source's
-   share of the width; the divider can move it); half and half until then. */
+/* Preview | divider | source (the picture on the left, what is typed on the right, as in
+   the GUI view). The two shares come from the editor's style (the source's share of the
+   width; the divider can move it); half and half until then. */
 .text-block-editor {
   --source-preview-divider-width: var(--space-2);
   display: grid;
   grid-template-columns:
-    minmax(0, var(--source-fr, 1fr)) var(--source-preview-divider-width)
-    minmax(0, var(--preview-fr, 1fr));
+    minmax(0, var(--preview-fr, 1fr)) var(--source-preview-divider-width)
+    minmax(0, var(--source-fr, 1fr));
   grid-template-rows: auto minmax(0, 1fr);
   box-sizing: border-box;
   width: 100%;
@@ -29,7 +30,7 @@
 }
 
 .text-block-editor__source {
-  grid-area: 2 / 1;
+  grid-area: 2 / 3;
   box-sizing: border-box;
   min-width: 0;
   min-height: 0;
@@ -51,7 +52,7 @@
 }
 
 .text-block-editor__preview {
-  grid-area: 2 / 3;
+  grid-area: 2 / 1;
   min-width: 0;
   min-height: 0;
 }
@@ -59,6 +60,10 @@
 /* The preview hidden: the source takes the whole width. */
 .text-block-editor--preview-hidden {
   grid-template-columns: minmax(0, 1fr);
+}
+
+.text-block-editor--preview-hidden .text-block-editor__source {
+  grid-area: 2 / 1 / 3 / -1;
 }
 
 /* The border between source and preview, wider than it looks so it is easy to grab: a
@@ -133,7 +138,16 @@
   min-width: 0;
   min-height: 0;
   overflow: auto;
-  border-right: 1px solid var(--color-border);
+  border-left: 1px solid var(--color-border);
+}
+
+.text-block-editor__gui[hidden] {
+  display: none;
+}
+
+/* Controls folded away: the diagram takes the whole width. */
+.text-block-editor__body--controls-hidden {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .text-block-editor__body > .text-block-editor__preview {
@@ -156,6 +170,10 @@
   .text-block-editor__gui {
     grid-row: 2;
     border-top: 1px solid var(--color-border);
-    border-right: none;
+    border-left: none;
+  }
+
+  .text-block-editor__body--controls-hidden {
+    grid-template-rows: minmax(0, 1fr);
   }
 }

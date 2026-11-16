@@ -102,13 +102,17 @@ export function setSourceEditorLayout(
   );
   const current = state.sourceEditorLayout;
   return current.sourceShare === sourceShare &&
-    current.previewHidden === layout.previewHidden
+    current.previewHidden === layout.previewHidden &&
+    current.guiControlsHidden === layout.guiControlsHidden &&
+    current.preferredView === layout.preferredView
     ? state
     : {
         ...state,
         sourceEditorLayout: {
           sourceShare,
           previewHidden: layout.previewHidden,
+          guiControlsHidden: layout.guiControlsHidden,
+          preferredView: layout.preferredView,
         },
       };
 }

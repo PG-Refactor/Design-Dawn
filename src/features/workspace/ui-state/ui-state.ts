@@ -10,6 +10,10 @@ import type { Viewport } from "../../../application/local-state/viewport";
 import type { OperationError } from "../../../application/ports/operation-error";
 import type { BlockContentComparison } from "../../../application/ports/persistence-types";
 import { LAYOUT_CONFIG } from "../../../config/layout-config";
+import {
+  MERMAID_EDITOR_INITIAL_VIEW,
+  type TextBlockEditorView,
+} from "../../../config/mermaid-gui-config";
 import type {
   BlockId,
   DocumentId,
@@ -471,11 +475,19 @@ export interface SourceEditorLayout {
   // The share of the width the source takes (LAYOUT_CONFIG.sourceEditor limits).
   readonly sourceShare: number;
   readonly previewHidden: boolean;
+  // The diagram GUI's buttons and lists are folded away: the diagram takes the width (its
+  // right-click menu still adds and edits).
+  readonly guiControlsHidden: boolean;
+  // The view last chosen with the GUI / Source switch: an editor that can show the GUI
+  // opens in it (one that cannot opens in Source anyway).
+  readonly preferredView: TextBlockEditorView;
 }
 
 export const DEFAULT_SOURCE_EDITOR_LAYOUT: SourceEditorLayout = {
   sourceShare: LAYOUT_CONFIG.sourceEditor.defaultSourceShare,
   previewHidden: false,
+  guiControlsHidden: false,
+  preferredView: MERMAID_EDITOR_INITIAL_VIEW,
 };
 
 export type UiStateStore = Store<UiState>;

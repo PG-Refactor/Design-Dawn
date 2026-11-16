@@ -281,3 +281,51 @@ describe("the layout of the diagram GUI", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 });
+
+describe("the controls beside the diagram", () => {
+  it("come after the diagram, and fold away and back while adding still works", async () => {
+    const { shell } = await openGui();
+    const panel = screen.getByRole("region", {
+      name: GUI.panelLabel(SHORT_ID),
+    });
+    const gui = panel.closest(".text-block-editor__gui");
+    const body = gui?.parentElement;
+    // The diagram (left) comes first, the controls (right) after it.
+    expect(body?.firstElementChild?.className).toBe(
+      "text-block-editor__preview",
+    );
+    await shell.user.click(
+      screen.getByRole("button", { name: GUI.hideControls }),
+    );
+    expect(gui?.hasAttribute("hidden")).toBe(true);
+    // Still mounted: the toolbar is there, only not shown.
+    expect(
+      screen.getByRole("toolbar", { name: GUI.addToolbarLabel, hidden: true }),
+    ).toBeTruthy();
+    await shell.user.click(
+      screen.getByRole("button", { name: GUI.showControls }),
+    );
+    expect(gui?.hasAttribute("hidden")).toBe(false);
+  });
+});
+
+describe("the view the editor opens in", () => {
+  it("is the one last chosen with the switch", async () => {
+    const { shell } = await openGui();
+    await shell.user.click(
+      screen.getByRole("button", { name: GUI.modeSource }),
+    );
+    await act(settle);
+    await shell.user.click(
+      screen.getByRole("button", { name: MERMAID_MESSAGES.ja.done }),
+    );
+    await act(settle);
+    fireEvent.doubleClick(blockOption(0));
+    await act(settle);
+    expect(
+      screen
+        .getByRole("button", { name: GUI.modeSource })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+  });
+});

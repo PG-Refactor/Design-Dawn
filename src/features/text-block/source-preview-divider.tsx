@@ -22,9 +22,10 @@ export interface SourcePreviewDividerProps {
   readonly onChange: (sourceShare: number) => void;
 }
 
-// The movable border between the source and the preview: the WAI-ARIA window splitter
-// pattern (a focusable separator with a value), dragged with the pointer or moved with the
-// arrow keys, Home and End. A double-click puts it back in the middle.
+// The movable border between the preview (left) and the source (right): the WAI-ARIA
+// window splitter pattern (a focusable separator with a value: the source's share),
+// dragged with the pointer or moved with the arrow keys, Home and End. A double-click puts
+// it back in the middle.
 export function SourcePreviewDivider({
   label,
   sourceShare,
@@ -36,7 +37,8 @@ export function SourcePreviewDivider({
   function shareAt(clientX: number): number | null {
     const box = containerRef.current?.getBoundingClientRect();
     if (box === undefined || box.width <= 0) return null;
-    return (clientX - box.left) / box.width;
+    // The source is what lies right of the divider.
+    return (box.right - clientX) / box.width;
   }
 
   function handlePointerDown(event: PointerEvent<HTMLDivElement>): void {
@@ -67,11 +69,12 @@ export function SourcePreviewDivider({
     if (event.ctrlKey || event.altKey || event.metaKey) return;
     let next: number;
     switch (event.key) {
+      // The divider moves the way the arrow points; the source is on its right.
       case "ArrowLeft":
-        next = sourceShare - keyStepShare;
+        next = sourceShare + keyStepShare;
         break;
       case "ArrowRight":
-        next = sourceShare + keyStepShare;
+        next = sourceShare - keyStepShare;
         break;
       case "Home":
         next = minSourceShare;
