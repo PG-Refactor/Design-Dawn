@@ -1,3 +1,4 @@
+import type { ContentPath } from "../../domain/block/content-path";
 import type { Document } from "../../domain/document/document";
 import { type DomainResult, err, ok } from "../../domain/shared/domain-result";
 import type { BlockId, SheetId } from "../../domain/shared/entity-id";
@@ -42,6 +43,24 @@ export function updateSheet(
 
 export function replaceSheet(data: DocumentData, sheet: Sheet): DocumentData {
   return { ...data, sheets: new Map(data.sheets).set(sheet.sheetId, sheet) };
+}
+
+// The block now refers to another file of its own (its text was saved under another name).
+export function withContentPath(
+  data: DocumentData,
+  blockId: BlockId,
+  contentPath: ContentPath,
+): DocumentData {
+  for (const sheet of data.sheets.values()) {
+    if (!sheet.blocks.some((block) => block.blockId === blockId)) continue;
+    return replaceSheet(data, {
+      ...sheet,
+      blocks: sheet.blocks.map((block) =>
+        block.blockId === blockId ? { ...block, contentPath } : block,
+      ),
+    });
+  }
+  return data;
 }
 
 // Returns `data` itself when `update` returns the same document.

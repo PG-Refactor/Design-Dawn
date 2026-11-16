@@ -13,7 +13,8 @@ use std::fs;
 use std::path::Path;
 
 use design_dawn_lib::application::block_content_operations::{
-    create_block_content, delete_block_content, read_block_content, restore_block_content,
+    create_block_content, delete_block_content, read_block_content, reserve_block_content,
+    restore_block_content,
 };
 use design_dawn_lib::application::document_operations::{
     delete_document, load_document, save_document,
@@ -102,6 +103,32 @@ fn break_sheet(root: &Path, directory: &str) {
 }
 
 // ---- numbering ----
+
+#[test]
+fn a_reserved_name_is_not_written_and_never_handed_out_again() {
+    let mut opened = opened_and_loaded();
+    let reserve = |opened: &mut OpenedProject| {
+        reserve_block_content(
+            &mut opened.sessions,
+            PROJECT_ID,
+            DOCUMENT_ID,
+            OVERVIEW_SHEET_ID,
+            "markdown",
+            "",
+        )
+        .unwrap()
+    };
+    let first = reserve(&mut opened);
+    let second = reserve(&mut opened);
+    assert_ne!(first, second);
+    let base = opened.root.join(DOCUMENT_PREFIX);
+    assert!(!base.join(&first).exists());
+    let created = create(&mut opened, OVERVIEW_SHEET_ID, "markdown");
+    assert!(created != first && created != second);
+    // The save writes the reserved file.
+    assert_eq!(restore(&mut opened, "markdown", &first, "# Later"), Ok(()));
+    assert_eq!(fs::read_to_string(base.join(&first)).unwrap(), "# Later");
+}
 
 #[test]
 fn a_gap_on_disk_is_not_filled() {

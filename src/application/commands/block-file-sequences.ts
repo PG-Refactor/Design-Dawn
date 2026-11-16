@@ -5,6 +5,10 @@ import { captionFieldsOf } from "../../domain/block/caption";
 //   remove  sheet metadata first, then content file(s)
 //   restore content file(s) first, then sheet metadata
 //
+// With auto-save off (`ctx.deferred()`), no file is touched: a new text block gets a name
+// reserved in Rust, and the files to create and delete are planned for the next save,
+// which keeps the same order. The sheet changes in memory only (it is then unsaved).
+//
 // Commands, the session and the UI must not call content gateway methods themselves.
 // Every sequence flushes pending metadata saves first, validates against the in-memory
 // sheet before touching any file, and on failure leaves the sheet value to the caller
@@ -25,6 +29,7 @@ import {
   removeBlocks,
   type Sheet,
 } from "../../domain/sheet/sheet";
+import type { PlannedCreate } from "../document-session/save-coordinator";
 import {
   OPERATION_WARNING_KINDS,
   type OperationWarning,
@@ -63,6 +68,17 @@ export interface SequenceContext {
   readonly gateway: PersistenceGateway;
   // Saves pending metadata changes; a failure aborts the sequence before any file work.
   flushPending(): Promise<OperationResult<void>>;
+  // Auto-save off: where the files to create / delete are planned instead. Null when the
+  // files are written now.
+  deferred(): DeferredFiles | null;
+}
+
+export interface DeferredFiles {
+  // The text the app holds for a block (also one that has no file yet).
+  textOf(blockId: BlockId): string | undefined;
+  planCreate(create: PlannedCreate): void;
+  planRemoval(blockId: BlockId, contentPath: ContentPath): void;
+  planRestore(create: PlannedCreate): void;
 }
 
 export interface SequenceSuccess {
@@ -111,6 +127,119 @@ async function failAfterRollback(
   });
 }
 
+function blockOfSpec(spec: BlockSpec, contentPath: ContentPath): Block {
+  return {
+    blockId: spec.blockId,
+    blockType: spec.blockType,
+    position: spec.position,
+    size: spec.size,
+    contentPath,
+    ...captionFieldsOf(spec),
+  };
+}
+
+async function addBlocksLater(
+  ctx: SequenceContext,
+  deferred: DeferredFiles,
+  sheet: Sheet,
+  specs: readonly BlockSpec[],
+): SequenceResult {
+  const captured: CapturedBlock[] = [];
+  for (const spec of specs) {
+    const index = sheet.blocks.length + captured.length;
+    if (isAssetBlockSpec(spec)) {
+      captured.push({
+        block: blockOfSpec(spec, spec.contentPath),
+        index,
+        text: null,
+      });
+      continue;
+    }
+    const reserved = await ctx.gateway.reserveBlockContent(
+      ctx.projectId,
+      ctx.documentId,
+      sheet.sheetId,
+      spec.blockType,
+      spec.text,
+    );
+    if (!reserved.ok) return failWith(reserved.error);
+    captured.push({
+      block: blockOfSpec(spec, reserved.value),
+      index,
+      text: spec.text,
+    });
+  }
+  const added = addBlocks(
+    sheet,
+    captured.map((entry) => entry.block),
+  );
+  if (!added.ok) return failWith(added.error);
+  for (const { block, text } of captured) {
+    if (text === null) continue;
+    deferred.planCreate({
+      blockId: block.blockId,
+      sheetId: sheet.sheetId,
+      blockType: block.blockType,
+      contentPath: block.contentPath,
+    });
+  }
+  return operationOk({ sheet: added.value, captured, warnings: [] });
+}
+
+async function removeBlocksLater(
+  ctx: SequenceContext,
+  deferred: DeferredFiles,
+  removedSheet: Sheet,
+  targets: readonly { readonly block: Block; readonly index: number }[],
+): SequenceResult {
+  const captured: CapturedBlock[] = [];
+  for (const { block, index } of targets) {
+    if (!isTextBlockType(block.blockType)) {
+      captured.push({ block, index, text: null });
+      continue;
+    }
+    const held = deferred.textOf(block.blockId);
+    if (held !== undefined) {
+      captured.push({ block, index, text: held });
+      continue;
+    }
+    const text = await ctx.gateway.readBlockContent(
+      ctx.projectId,
+      ctx.documentId,
+      block.contentPath,
+    );
+    if (text.ok) {
+      captured.push({ block, index, text: text.value });
+    } else if (text.error.kind === MISSING_CONTENT_KIND) {
+      captured.push({ block, index, text: null });
+    } else {
+      return failWith(text.error);
+    }
+  }
+  for (const { block, text } of captured) {
+    if (text !== null) deferred.planRemoval(block.blockId, block.contentPath);
+  }
+  return operationOk({ sheet: removedSheet, captured, warnings: [] });
+}
+
+function restoreBlocksLater(
+  deferred: DeferredFiles,
+  sheet: Sheet,
+  insertedSheet: Sheet,
+  captured: readonly CapturedBlock[],
+): OperationResult<SequenceSuccess> {
+  for (const { block, text } of captured) {
+    if (text === null || !isTextBlockType(block.blockType)) continue;
+    deferred.planRestore({
+      blockId: block.blockId,
+      sheetId: sheet.sheetId,
+      blockType: block.blockType,
+      contentPath: block.contentPath,
+    });
+  }
+  return operationOk({ sheet: insertedSheet, captured, warnings: [] });
+}
+
 export async function addBlocksWithContent(
   ctx: SequenceContext,
   sheet: Sheet,
@@ -124,6 +253,8 @@ export async function addBlocksWithContent(
   if (duplicate !== null) {
     return operationErr("duplicateId", `blockId already present: ${duplicate}`);
   }
+  const deferred = ctx.deferred();
+  if (deferred !== null) return addBlocksLater(ctx, deferred, sheet, specs);
   const flushed = await ctx.flushPending();
   if (!flushed.ok) return flushed;
 
@@ -200,6 +331,10 @@ export async function removeBlocksWithContent(
   const targets = sheet.blocks
     .map((block, index) => ({ block, index }))
     .filter(({ block }) => targetIds.has(block.blockId));
+  const deferred = ctx.deferred();
+  if (deferred !== null) {
+    return removeBlocksLater(ctx, deferred, removed.value, targets);
+  }
   const flushed = await ctx.flushPending();
   if (!flushed.ok) return flushed;
 
@@ -261,6 +396,10 @@ export async function restoreBlocksWithContent(
     captured.map(({ block, index }) => ({ block, index })),
   );
   if (!inserted.ok) return failWith(inserted.error);
+  const deferred = ctx.deferred();
+  if (deferred !== null) {
+    return restoreBlocksLater(deferred, sheet, inserted.value, captured);
+  }
   const flushed = await ctx.flushPending();
   if (!flushed.ok) return flushed;
 

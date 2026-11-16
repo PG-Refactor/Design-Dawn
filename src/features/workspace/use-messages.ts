@@ -28,6 +28,10 @@ import {
   type SearchMessages,
 } from "../search/search-messages";
 import {
+  SPREADSHEET_MESSAGES,
+  type SpreadsheetMessages,
+} from "../spreadsheet/spreadsheet-messages";
+import {
   WORKSPACE_MESSAGES,
   type WorkspaceMessages,
 } from "./workspace-messages";
@@ -45,6 +49,7 @@ export interface Messages {
   readonly aiAccess: AiAccessMessages;
   readonly search: SearchMessages;
   readonly export: ExportMessages;
+  readonly spreadsheet: SpreadsheetMessages;
 }
 
 function collectMessages(language: DisplayLanguage): Messages {
@@ -58,6 +63,7 @@ function collectMessages(language: DisplayLanguage): Messages {
     aiAccess: AI_ACCESS_MESSAGES[language],
     search: SEARCH_MESSAGES[language],
     export: EXPORT_MESSAGES[language],
+    spreadsheet: SPREADSHEET_MESSAGES[language],
   };
 }
 

@@ -1024,6 +1024,15 @@ export function createFakeGateway(
         files.set(path, normalizeLineEndings(text));
         return operationOk(path);
       }),
+    reserveBlockContent: (_project, _document, _sheet, blockType) =>
+      enter("reserveBlockContent", blockType, () => {
+        fileCounter += 1;
+        return operationOk(
+          unwrap(
+            parseContentPath(`sheets/s/blocks/${blockType}-c${fileCounter}.md`),
+          ),
+        );
+      }),
     readBlockContent: (_project, _document, contentPath) =>
       enter("readBlockContent", contentPath, () => {
         const text = files.get(contentPath);

@@ -8,6 +8,8 @@ import {
   type ExportOutcome,
   IMAGE_SELECTION_STATUS,
   SPREADSHEET_SELECTION_STATUS,
+  type SpreadsheetArea,
+  type SpreadsheetCell,
   type SpreadsheetSelection,
   type SpreadsheetSheet,
 } from "../../application/ports/asset-types";
@@ -37,6 +39,7 @@ import {
   decodeString,
   objectOf,
   oneOf,
+  optional,
 } from "./payload-decoder";
 
 const PAYLOAD_ROOT = "payload";
@@ -186,9 +189,26 @@ const rawSpreadsheetStatus = objectOf<{
 }>({
   status: oneOf(Object.values(SPREADSHEET_SELECTION_STATUS)),
 });
+const rawSpreadsheetCell = objectOf<SpreadsheetCell>({
+  text: decodeString,
+  number: optional(decodeBoolean),
+  link: optional(decodeString),
+});
+const rawSpreadsheetArea = objectOf<SpreadsheetArea>({
+  firstRow: decodeNumber,
+  firstColumn: decodeNumber,
+  lastRow: decodeNumber,
+  lastColumn: decodeNumber,
+});
 const rawSpreadsheetSheet = objectOf<SpreadsheetSheet>({
   name: decodeString,
-  rows: arrayOf(arrayOf(decodeString)),
+  hidden: decodeBoolean,
+  firstRow: decodeNumber,
+  firstColumn: decodeNumber,
+  rows: arrayOf(arrayOf(rawSpreadsheetCell)),
+  hiddenRows: arrayOf(decodeNumber),
+  hiddenColumns: arrayOf(decodeNumber),
+  merged: arrayOf(rawSpreadsheetArea),
   truncated: decodeBoolean,
 });
 const rawSelectedSpreadsheet = objectOf<{

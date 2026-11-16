@@ -6,6 +6,7 @@ import { useExternalChangeWatching } from "../external-change/use-external-chang
 import { useGitAutoRefresh } from "../git/use-git-auto-refresh";
 import { LoadIssueRepairDialog } from "../load-issue-repair/load-issue-repair-dialog";
 import { useFindShortcuts } from "../search/use-find-shortcuts";
+import { SpreadsheetImportDialog } from "../spreadsheet/spreadsheet-import-dialog";
 import { LoadStatus, TransientNotice } from "./notifications";
 import { TopBar } from "./top-bar";
 import { useAppRequests } from "./use-app-requests";
@@ -39,6 +40,7 @@ export function WorkspaceShell() {
       <WorkspaceBody />
       <WorkspaceDialogs />
       <PrintingCloseDialog />
+      <SpreadsheetImportDialog />
       <ExternalChangeDialog />
       <LoadIssueRepairDialog />
     </div>

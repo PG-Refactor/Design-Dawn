@@ -322,6 +322,20 @@ export function createBlockContent(
   );
 }
 
+export function reserveBlockContent(
+  projectId: ProjectId,
+  documentId: DocumentId,
+  sheetId: SheetId,
+  blockType: BlockType,
+  text: string,
+): Promise<CommandResult<ContentPath>> {
+  return call(
+    COMMANDS.reserveBlockContent,
+    { projectId, documentId, sheetId, blockType, text },
+    toContentPathResult,
+  );
+}
+
 export function readBlockContent(
   projectId: ProjectId,
   documentId: DocumentId,

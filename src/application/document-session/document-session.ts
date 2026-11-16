@@ -41,6 +41,7 @@ import {
   liveBlockIds,
   pruneContents,
   replaceSheet,
+  withContentPath,
   withContents,
 } from "../commands/document-data";
 import {
@@ -70,7 +71,7 @@ import type {
   ContentLoadStatus,
   DocumentSessionState,
 } from "../state/application-state";
-import { createSaveCoordinator } from "./save-coordinator";
+import { createSaveCoordinator, type PlannedFiles } from "./save-coordinator";
 
 export interface DocumentSessionConfig {
   readonly undoHistoryLimit: number;
@@ -104,6 +105,8 @@ export interface DocumentSessionSeed {
   readonly redo: readonly HistoryEntry[];
   // What is not saved yet; the new session saves it (auto-save, flush, close).
   readonly unsaved: DocumentDataChange;
+  // Auto-save off: block files the next save creates and deletes.
+  readonly plannedFiles?: PlannedFiles;
 }
 
 export interface StructuralChangeOptions {
@@ -247,7 +250,16 @@ export function createDocumentSession(
     getData: () => data,
     runExclusive,
     onChange: publish,
+    // The block's file was made under another name: the sheet refers to that one.
+    relocate: (blockId, contentPath) => {
+      data = withContentPath(data, blockId, contentPath);
+    },
+    ...(seed?.plannedFiles === undefined
+      ? {}
+      : { plannedFiles: seed.plannedFiles }),
   });
+  const autoSavePolicy =
+    options.autoSavePolicy ?? ALWAYS_ENABLED_AUTO_SAVE_POLICY;
 
   const sequenceContext: SequenceContext = {
     projectId,
@@ -260,7 +272,33 @@ export function createDocumentSession(
       savedStateId = null;
       return flushed;
     },
+    // Auto-save off: adding and removing blocks waits for the save like any other change.
+    deferred: () =>
+      autoSavePolicy.isEnabled()
+        ? null
+        : {
+            textOf: (blockId) => data.contents.get(blockId),
+            planCreate: (create) => coordinator.planCreate(create),
+            planRemoval: (blockId, contentPath) =>
+              coordinator.planRemoval(blockId, contentPath),
+            planRestore: (create) => coordinator.planRestore(create),
+          },
   };
+
+  // What a block step leaves unsaved: nothing when its files were written now, its sheet
+  // when they wait for the save.
+  function fileBackedPending(
+    sheetId: SheetId,
+    deferred: boolean,
+  ): DocumentDataChange {
+    return deferred
+      ? {
+          documentChanged: false,
+          changedSheetIds: [sheetId],
+          changedContentBlockIds: [],
+        }
+      : NO_PENDING_CHANGE;
+  }
 
   function buildState(): DocumentSessionState {
     const lastUndo = undoStack.at(-1);
@@ -438,6 +476,7 @@ export function createDocumentSession(
   async function executeFileBacked(
     command: FileBackedCommand,
   ): Promise<OperationResult<void>> {
+    const deferred = sequenceContext.deferred() !== null;
     const outcome = await runFileBackedFirstTime(command);
     // A failure may have left some files written.
     if (!outcome.ok) savedStateId = null;
@@ -464,7 +503,7 @@ export function createDocumentSession(
         redo: [],
       },
       outcome.value.warnings,
-      NO_PENDING_CHANGE,
+      fileBackedPending(command.sheetId, deferred),
     );
     return operationOk(undefined);
   }
@@ -497,6 +536,7 @@ export function createDocumentSession(
   ): Promise<OperationResult<StepOutcome>> {
     const sheet = findSheet(data, entry.sheetId);
     if (!sheet.ok) return failWith(sheet.error);
+    const deferred = sequenceContext.deferred() !== null;
     const toggled = await toggleFileBackedEntry(
       sequenceContext,
       sheet.value,
@@ -516,7 +556,7 @@ export function createDocumentSession(
       ),
       entry: toggled.value.entry,
       warnings: toggled.value.warnings,
-      pending: NO_PENDING_CHANGE,
+      pending: fileBackedPending(entry.sheetId, deferred),
     });
   }
 
@@ -711,6 +751,7 @@ export function createDocumentSession(
             changedSheetIds: [...save.dirtySheetIds],
             changedContentBlockIds: [...save.dirtyContentBlockIds],
           },
+          plannedFiles: coordinator.plannedFiles(),
         };
         coordinator.dispose();
         closeSession();

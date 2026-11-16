@@ -2,6 +2,7 @@ import type { BlockType } from "../../domain/block/block-type";
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
 import { PopupMenu, type PopupMenuEntry } from "../../shared/menu/popup-menu";
 import type { MermaidTemplateId } from "../mermaid/mermaid-templates";
+import { askSpreadsheetImport } from "../spreadsheet/spreadsheet-import-dialog";
 import { getSelection } from "../workspace/ui-state/ui-state";
 import { useMessages } from "../workspace/use-messages";
 import { useUiState } from "../workspace/workspace-hooks";
@@ -109,6 +110,7 @@ export function CanvasToolbar({
         onImportSpreadsheet={() =>
           void canvasActions.importSpreadsheet({
             viewportSize: measureCanvas(),
+            choose: askSpreadsheetImport,
           })
         }
       />

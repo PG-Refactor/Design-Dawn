@@ -185,6 +185,15 @@ export interface PersistenceGateway {
     blockType: BlockType,
     text: string,
   ): Promise<OperationResult<ContentPath>>;
+  // A name for a new text block's file, without writing it (auto-save off: the save
+  // creates it with `restoreBlockContent`). Never the name of another block of this run.
+  reserveBlockContent(
+    projectId: ProjectId,
+    documentId: DocumentId,
+    sheetId: SheetId,
+    blockType: BlockType,
+    text: string,
+  ): Promise<OperationResult<ContentPath>>;
   readBlockContent(
     projectId: ProjectId,
     documentId: DocumentId,

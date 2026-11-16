@@ -94,20 +94,21 @@ fn require_writable_sheet_directory(
     }
 }
 
-pub fn create_block_content(
-    sessions: &mut ProjectSessions,
-    project_id: &str,
-    document_id: &str,
-    sheet_id: &str,
-    block_type: &str,
-    text: &str,
-) -> ApplicationResult<String> {
-    let session = sessions.session_mut(project_id)?;
-    let document_id = DocumentId::parse(document_id)?;
-    let sheet_id = SheetId::parse(sheet_id)?;
-    let block_type = BlockType::parse(block_type)?;
-    let record = session.document(&document_id)?;
-    let sheet_record = record.sheets.get(&sheet_id).ok_or_else(|| {
+/// Where a new text block's file goes in the sheet: the blocks folder (created when
+/// missing) and the document base.
+struct BlocksFolder {
+    base: String,
+    blocks_directory: String,
+    sheet_directory: String,
+}
+
+fn blocks_folder(
+    session: &mut ProjectSession,
+    document_id: &DocumentId,
+    sheet_id: &SheetId,
+) -> ApplicationResult<BlocksFolder> {
+    let record = session.document(document_id)?;
+    let sheet_record = record.sheets.get(sheet_id).ok_or_else(|| {
         ApplicationError::entity_not_found(format!("unknown sheetId: {sheet_id}"))
     })?;
     if !sheet_record.writable {
@@ -120,19 +121,52 @@ pub fn create_block_content(
         sheet_record.directory_name
     );
     let sheet_directory = sheet_record.directory_name.clone();
-    let base = session.document_base(&document_id)?;
+    let base = session.document_base(document_id)?;
     session.ensure_directory(&base, &blocks_directory)?;
+    Ok(BlocksFolder {
+        base,
+        blocks_directory,
+        sheet_directory,
+    })
+}
+
+/// The next free name for a block of `block_type` in the folder: past every file there and
+/// every number this session has handed out (written or only reserved).
+fn next_content_path(
+    session: &mut ProjectSession,
+    document_id: &DocumentId,
+    folder: &BlocksFolder,
+    block_type: BlockType,
+    text: &str,
+) -> ApplicationResult<(String, ContentPath)> {
+    let existing = session.entry_names(&folder.base, &folder.blocks_directory)?;
+    let high_water =
+        session.block_number_high_water(document_id, &folder.sheet_directory, block_type);
+    let label = block_content_label(block_type, text);
+    let file_name = block_content_file_name(block_type, &existing, high_water, label.as_deref())?;
+    let content_path = format!("{}{PATH_SEPARATOR}{file_name}", folder.blocks_directory);
+    // Never hand out a path the domain would refuse on the next save.
+    let parsed = ContentPath::parse(block_type, &content_path)?;
+    Ok((content_path, parsed))
+}
+
+pub fn create_block_content(
+    sessions: &mut ProjectSessions,
+    project_id: &str,
+    document_id: &str,
+    sheet_id: &str,
+    block_type: &str,
+    text: &str,
+) -> ApplicationResult<String> {
+    let session = sessions.session_mut(project_id)?;
+    let document_id = DocumentId::parse(document_id)?;
+    let sheet_id = SheetId::parse(sheet_id)?;
+    let block_type = BlockType::parse(block_type)?;
+    let folder = blocks_folder(session, &document_id, &sheet_id)?;
     loop {
-        let existing = session.entry_names(&base, &blocks_directory)?;
-        let high_water =
-            session.block_number_high_water(&document_id, &sheet_directory, block_type);
-        let label = block_content_label(block_type, text);
-        let file_name =
-            block_content_file_name(block_type, &existing, high_water, label.as_deref())?;
-        let content_path = format!("{blocks_directory}{PATH_SEPARATOR}{file_name}");
-        // Never hand out a path the domain would refuse on the next save.
-        let parsed = ContentPath::parse(block_type, &content_path)?;
-        match session.create_file(&base, &content_path, &encode_text(text)) {
+        let (content_path, parsed) =
+            next_content_path(session, &document_id, &folder, block_type, text)?;
+        match session.create_file(&folder.base, &content_path, &encode_text(text)) {
             Ok(()) => {
                 note_issued_number(
                     session,
@@ -153,6 +187,32 @@ pub fn create_block_content(
             Err(error) => return Err(error.into()),
         }
     }
+}
+
+/// A name for a new text block's file without writing it (auto-save off: the file is made
+/// when the Document is saved, with `restore_block_content`). The number counts as handed
+/// out, so no later block of this session gets the same name.
+pub fn reserve_block_content(
+    sessions: &mut ProjectSessions,
+    project_id: &str,
+    document_id: &str,
+    sheet_id: &str,
+    block_type: &str,
+    text: &str,
+) -> ApplicationResult<String> {
+    let session = sessions.session_mut(project_id)?;
+    let document_id = DocumentId::parse(document_id)?;
+    let sheet_id = SheetId::parse(sheet_id)?;
+    let block_type = BlockType::parse(block_type)?;
+    let folder = blocks_folder(session, &document_id, &sheet_id)?;
+    let (content_path, parsed) =
+        next_content_path(session, &document_id, &folder, block_type, text)?;
+    note_issued_number(
+        session,
+        &document_id,
+        &TextContentPath::from_validated(block_type, &parsed),
+    );
+    Ok(content_path)
 }
 
 fn note_issued_number(

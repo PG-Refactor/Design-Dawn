@@ -87,6 +87,29 @@ function restoreUnlinkableLinks(state: StateCore): void {
   }
 }
 
+// `<br>` (also `<br/>`, `<br />`) in text is a line break: the one piece of HTML a
+// Markdown table cell needs, since a cell cannot hold a real line break. Everything else
+// stays escaped text.
+const LINE_BREAK_TAG = /<br\s*\/?>/i;
+
+function lineBreakTags(state: StateCore): void {
+  for (const blockToken of state.tokens) {
+    if (blockToken.type !== "inline" || blockToken.children === null) continue;
+    const children: Token[] = [];
+    for (const child of blockToken.children) {
+      if (child.type !== "text" || !LINE_BREAK_TAG.test(child.content)) {
+        children.push(child);
+        continue;
+      }
+      child.content.split(LINE_BREAK_TAG).forEach((part, index) => {
+        if (index > 0) children.push(new state.Token("hardbreak", "br", 0));
+        if (part !== "") children.push(textToken(state, part));
+      });
+    }
+    blockToken.children = children;
+  }
+}
+
 function textToken(state: StateCore, content: string): Token {
   const token = new state.Token("text", "", 0);
   token.content = content;
@@ -111,6 +134,10 @@ function createMarkdownRenderer() {
   };
   renderer.core.ruler.after("inline", "restore_unlinkable_links", (state) => {
     restoreUnlinkableLinks(state);
+  });
+  // Last: after the text of a line has been joined into one token.
+  renderer.core.ruler.push("line_break_tags", (state) => {
+    lineBreakTags(state);
   });
   // A column's alignment becomes a class: `style` stays forbidden everywhere.
   for (const rule of TABLE_CELL_OPEN_RULES) {

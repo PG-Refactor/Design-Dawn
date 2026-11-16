@@ -78,6 +78,8 @@ export const GATEWAY_METHOD_KINDS = {
   writeBlockContent: "write",
   deleteBlockContent: "write",
   restoreBlockContent: "write",
+  // Only picks a name; nothing is written.
+  reserveBlockContent: "read",
   // Only records the chosen files (like a drop); the import writes.
   selectImageFiles: "read",
   // App settings, not Project files.

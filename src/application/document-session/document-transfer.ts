@@ -8,11 +8,13 @@ import {
   parseBlock,
   type RawBlock,
 } from "../../domain/block/block";
+import { parseBlockType } from "../../domain/block/block-type";
 import {
   type FigureCaption,
   parseCaption,
   parseCaptionPosition,
 } from "../../domain/block/caption";
+import { parseContentPath } from "../../domain/block/content-path";
 import {
   parseDocument,
   type RawDocument,
@@ -49,9 +51,10 @@ import {
   operationOk,
 } from "../ports/operation-error";
 import type { DocumentSessionSeed } from "./document-session";
+import { NO_PLANNED_FILES, type PlannedFiles } from "./save-coordinator";
 
 // Raised when the payload's shape changes; a window never takes in another version.
-export const DOCUMENT_TRANSFER_VERSION = 1;
+export const DOCUMENT_TRANSFER_VERSION = 2;
 
 const REORDER_DIRECTIONS = [
   "forward",
@@ -88,6 +91,8 @@ interface DocumentTransferJson {
     readonly changedSheetIds: readonly string[];
     readonly changedContentBlockIds: readonly string[];
   };
+  // Auto-save off: block files the next save creates and deletes.
+  readonly plannedFiles: PlannedFiles;
 }
 
 function entryToJson(entry: HistoryEntry): HistoryEntryJson {
@@ -109,6 +114,7 @@ export function encodeDocumentTransfer(transfer: DocumentTransfer): string {
     undo: seed.undo.map(entryToJson),
     redo: seed.redo.map(entryToJson),
     unsaved: seed.unsaved,
+    plannedFiles: seed.plannedFiles ?? NO_PLANNED_FILES,
   };
   return JSON.stringify(json);
 }
@@ -353,6 +359,28 @@ function decode(json: unknown): DocumentTransfer {
     contents.set(blockIdOf(blockId), text(content, "content"));
   }
   const unsaved = record(root.unsaved, "unsaved");
+  const planned = record(root.plannedFiles, "plannedFiles");
+  const plannedFiles: PlannedFiles = {
+    creates: list(planned.creates, "creates").map((value) => {
+      const create = record(value, "create");
+      const blockType = valid(
+        parseBlockType(text(create.blockType, "blockType")),
+        "blockType",
+      );
+      return {
+        blockId: blockIdOf(create.blockId),
+        sheetId: sheetIdOf(create.sheetId),
+        blockType,
+        contentPath: valid(
+          parseContentPath(text(create.contentPath, "contentPath")),
+          "contentPath",
+        ),
+      };
+    }),
+    deletes: list(planned.deletes, "deletes").map((value) =>
+      valid(parseContentPath(text(value, "delete")), "delete"),
+    ),
+  };
   if (typeof unsaved.documentChanged !== "boolean") {
     fail("documentChanged is not a boolean");
   }
@@ -379,6 +407,7 @@ function decode(json: unknown): DocumentTransfer {
           "changedContentBlockIds",
         ).map((id) => blockIdOf(id)),
       },
+      plannedFiles,
     },
   };
 }
