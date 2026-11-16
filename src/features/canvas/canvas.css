@@ -14,10 +14,16 @@
   user-select: none;
 }
 
-/* Not after a click (see `focusByPointer`): the ring is for keyboard users. */
+/* Not after a click (see `focusByPointer`): the ring is for keyboard users. The global
+   `:focus-visible` ring is taken off too, or a key pressed after the click (Delete)
+   would still draw it round the whole sheet. */
 .canvas:focus-visible:not([data-pointer-focus]) {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: -2px;
+}
+
+.canvas[data-pointer-focus]:focus-visible {
+  outline: none;
 }
 
 /* Zero-sized origin at the canvas corner; blocks overflow it. */

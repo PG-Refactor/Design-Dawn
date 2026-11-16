@@ -124,6 +124,24 @@ function ImportDialog({
       <div className="modal__body spreadsheet-import">
         <fieldset className="spreadsheet-import__group">
           <legend>{messages.sheetsLegend}</legend>
+          <div className="spreadsheet-import__bulk">
+            <button
+              type="button"
+              className="button"
+              onClick={() =>
+                setChosen(workbook.sheets.map((_, index) => usable(index)))
+              }
+            >
+              {messages.selectAll}
+            </button>
+            <button
+              type="button"
+              className="button"
+              onClick={() => setChosen(workbook.sheets.map(() => false))}
+            >
+              {messages.deselectAll}
+            </button>
+          </div>
           <ul className="spreadsheet-import__sheets">
             {workbook.sheets.map((sheet, index) => (
               <li
@@ -135,25 +153,35 @@ function ImportDialog({
                     : "spreadsheet-import__sheet"
                 }
               >
-                <label className="spreadsheet-import__sheet-name">
-                  <input
-                    type="checkbox"
-                    checked={chosen[index] === true && usable(index)}
-                    disabled={!usable(index)}
-                    onChange={(event) => {
-                      const next = [...chosen];
-                      next[index] = event.target.checked;
-                      setChosen(next);
-                      setPreviewIndex(index);
-                    }}
-                  />
+                {/* Only the box itself chooses: a click on the name is for the preview
+                    and must not take a sheet out by mistake. */}
+                <input
+                  type="checkbox"
+                  aria-label={messages.importSheet(sheet.name)}
+                  checked={chosen[index] === true && usable(index)}
+                  disabled={!usable(index)}
+                  onFocus={() => setPreviewIndex(index)}
+                  onChange={(event) => {
+                    const next = [...chosen];
+                    next[index] = event.target.checked;
+                    setChosen(next);
+                    setPreviewIndex(index);
+                  }}
+                />
+                <button
+                  type="button"
+                  className="spreadsheet-import__sheet-name"
+                  aria-pressed={index === previewIndex}
+                  title={messages.previewOf(sheet.name)}
+                  onClick={() => setPreviewIndex(index)}
+                >
                   {sheet.name}
                   {sheet.hidden && (
                     <span className="spreadsheet-import__badge">
                       {messages.hiddenSheet}
                     </span>
                   )}
-                </label>
+                </button>
                 <input
                   type="text"
                   className="spreadsheet-import__range"
@@ -169,14 +197,6 @@ function ImportDialog({
                     setRanges(next);
                   }}
                 />
-                <button
-                  type="button"
-                  className="button spreadsheet-import__preview-button"
-                  aria-pressed={index === previewIndex}
-                  onClick={() => setPreviewIndex(index)}
-                >
-                  {messages.previewOf(sheet.name)}
-                </button>
               </li>
             ))}
           </ul>

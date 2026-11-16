@@ -1043,3 +1043,58 @@ fn a_pasted_image_needs_an_open_writable_document() {
     .is_err());
     assert!(!fixture.first_assets().join("pasted-image.png").exists());
 }
+
+fn first_markdown_file(directory: &std::path::Path) -> Option<PathBuf> {
+    for entry in fs::read_dir(directory).unwrap() {
+        let path = entry.unwrap().path();
+        if path.is_dir() {
+            if let Some(found) = first_markdown_file(&path) {
+                return Some(found);
+            }
+        } else if path.extension().is_some_and(|extension| extension == "md") {
+            return Some(path);
+        }
+    }
+    None
+}
+
+#[test]
+fn closing_removes_imported_images_that_nothing_refers_to() {
+    let fixture = Fixture::new();
+    let result = fixture.import(vec![
+        fixture.incoming_file("dropped.png", &png_bytes(2, 2)),
+        fixture.incoming_file("kept.png", &png_bytes(2, 2)),
+    ]);
+    assert_eq!(result.imported.len(), 2);
+    // A Markdown block of the Document mentions one of them (as a saved block would).
+    let markdown = first_markdown_file(&document_dir(&fixture.opened.root).join("sheets"))
+        .expect("the fixture has a Markdown block");
+    let mut text = fs::read_to_string(&markdown).unwrap();
+    text.push_str("\n![](../../../assets/Kept.png)\n");
+    fs::write(&markdown, text).unwrap();
+    fixture.close(DOCUMENT_ID);
+    assert!(!fixture.first_assets().join("dropped.png").exists());
+    assert!(fixture.first_assets().join("kept.png").exists());
+    // An asset that was there before this session is never touched.
+    assert!(fixture.first_assets().join("pixel.png").exists());
+}
+
+#[test]
+fn closing_removes_an_unreferenced_copy_from_another_document() {
+    let fixture = Fixture::new();
+    let copied = copy_asset_to_document(
+        &fixture.sessions,
+        PROJECT_ID,
+        DOCUMENT_ID,
+        FIXTURE_ASSET,
+        SECOND_DOCUMENT_ID,
+    )
+    .unwrap();
+    let second_assets = fixture.assets_of("second");
+    let file_name = copied.content_path.rsplit('/').next().unwrap().to_owned();
+    assert!(second_assets.join(&file_name).exists());
+    fixture.close(SECOND_DOCUMENT_ID);
+    assert!(!second_assets.join(&file_name).exists());
+    // The source Document's own asset stays where it was.
+    assert!(fixture.first_assets().join("pixel.png").exists());
+}

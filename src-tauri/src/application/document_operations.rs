@@ -208,6 +208,9 @@ pub fn close_document(
     let session = sessions.session_mut(project_id)?;
     let document_id = DocumentId::parse(document_id)?;
     session.document_mut(&document_id)?.opened = false;
+    // Its history is gone with it: an image imported now and kept nowhere is only clutter
+    // (and would be committed). What could not be removed simply stays.
+    super::asset_cleanup::remove_unused_new_assets(session, &document_id);
     Ok(())
 }
 

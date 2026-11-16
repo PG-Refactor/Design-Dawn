@@ -1,6 +1,7 @@
 //! Entity-level operations (open / load / save / create / delete). Independent of Tauri and
 //! of the UI, so a future MCP server can call them directly.
 
+pub mod asset_cleanup;
 pub mod asset_import;
 pub mod authoring;
 pub mod block_content_operations;

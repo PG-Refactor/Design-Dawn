@@ -95,6 +95,43 @@ describe("the spreadsheet import dialog", () => {
     ]);
   });
 
+  it("previews a sheet by its name without changing what is chosen, and chooses all or none", async () => {
+    const { dialog, shell } = await openImport();
+    const prices = within(dialog).getByRole("checkbox", {
+      name: MESSAGES.importSheet("Prices"),
+    }) as HTMLInputElement;
+    expect(prices.checked).toBe(true);
+    await shell.user.click(
+      within(dialog).getByRole("button", { name: /^Internal/ }),
+    );
+    expect(prices.checked).toBe(true);
+    expect(
+      within(dialog).getByRole("region", {
+        name: MESSAGES.previewHeading("Internal"),
+      }),
+    ).toBeTruthy();
+    await shell.user.click(
+      within(dialog).getByRole("button", { name: MESSAGES.deselectAll }),
+    );
+    expect(prices.checked).toBe(false);
+    const importButton = within(dialog).getByRole("button", {
+      name: MESSAGES.importButton,
+    }) as HTMLButtonElement;
+    expect(importButton.disabled).toBe(true);
+    await shell.user.click(
+      within(dialog).getByRole("button", { name: MESSAGES.selectAll }),
+    );
+    expect(prices.checked).toBe(true);
+    // A hidden sheet stays out while hidden parts are left out.
+    expect(
+      (
+        within(dialog).getByRole("checkbox", {
+          name: MESSAGES.importSheet("Internal"),
+        }) as HTMLInputElement
+      ).checked,
+    ).toBe(false);
+  });
+
   it("takes a range, refuses one that is not, and can include hidden sheets", async () => {
     const rendered = await openImport();
     const { dialog, shell } = rendered;

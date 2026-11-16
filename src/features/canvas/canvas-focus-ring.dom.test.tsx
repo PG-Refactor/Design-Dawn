@@ -8,6 +8,22 @@ import {
   renderOpenedCanvas,
 } from "../markdown/test-support/markdown-harness";
 
+const CANVAS_STYLESHEET = Object.values(
+  import.meta.glob("/src/features/canvas/canvas.css", {
+    query: "?raw",
+    import: "default",
+    eager: true,
+  }) as Record<string, string>,
+).join("");
+
+// jsdom draws nothing: the stylesheet itself has to take the ring off, the app-wide
+// `:focus-visible` one included.
+function ruleBody(selector: string): string | undefined {
+  const start = CANVAS_STYLESHEET.indexOf(`${selector} {`);
+  if (start < 0) return undefined;
+  return CANVAS_STYLESHEET.slice(start, CANVAS_STYLESHEET.indexOf("}", start));
+}
+
 afterEach(() => {
   cleanup();
 });
@@ -23,5 +39,11 @@ describe("the canvas focus ring", () => {
     expect(canvas.dataset.pointerFocus).toBe("true");
     canvas.blur();
     expect(canvas.dataset.pointerFocus).toBeUndefined();
+  });
+
+  it("is taken off by the stylesheet while the focus is the pointer's", () => {
+    expect(ruleBody(".canvas[data-pointer-focus]:focus-visible")).toMatch(
+      /outline:\s*none/,
+    );
   });
 });

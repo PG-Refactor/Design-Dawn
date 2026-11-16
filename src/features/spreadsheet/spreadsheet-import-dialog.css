@@ -46,13 +46,35 @@
   background: var(--color-selection);
 }
 
+.spreadsheet-import__bulk {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* The name fills the row up to the range field, so the field lines up on the right. */
 .spreadsheet-import__sheet-name {
+  display: flex;
   flex: 1 1 10rem;
+  align-items: center;
+  gap: var(--space-2);
   min-width: 0;
+  padding: var(--space-1);
+  border: none;
+  border-radius: var(--radius-medium);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.spreadsheet-import__sheet-name:hover {
+  background: var(--color-hover);
 }
 
 .spreadsheet-import__range {
   flex: 0 1 14rem;
+  margin-left: auto;
   min-width: 8rem;
   padding: var(--space-1) var(--space-2);
   border: 1px solid var(--color-border-strong);
@@ -64,10 +86,6 @@
 
 .spreadsheet-import__range[aria-invalid="true"] {
   border-color: var(--color-danger);
-}
-
-.spreadsheet-import__preview-button {
-  flex: 0 0 auto;
 }
 
 .spreadsheet-import__badge {
