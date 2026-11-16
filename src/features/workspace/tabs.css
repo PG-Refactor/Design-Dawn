@@ -59,9 +59,10 @@
 }
 
 /* The x (and the other small tab buttons) show that the pointer is on them, apart from
-   the tab under it: a darker patch than the tab's own hover. */
+   the tab under it, whose own hover is already a faint patch: a clearly darker (dark
+   theme: lighter) patch made from the text colour, so it reads on any tab background. */
 .tab__control:hover {
-  background: var(--color-border);
+  background: color-mix(in srgb, var(--color-text) 16%, transparent);
   color: var(--color-text);
 }
 

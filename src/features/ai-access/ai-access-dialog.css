@@ -73,12 +73,15 @@
   color: var(--color-warning);
 }
 
+/* Many Projects scroll inside the list, so the rest of the dialog stays in view. */
 .ai-access__projects {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  max-height: 18rem;
   margin: 0;
   padding: 0;
+  overflow-y: auto;
   list-style: none;
 }
 
@@ -146,9 +149,12 @@
   flex-wrap: wrap;
 }
 
+/* Up to the history's limit of entries: they scroll inside the list. */
 .ai-history__list {
+  max-height: 24rem;
   margin: 0;
   padding: 0;
+  overflow-y: auto;
   list-style: none;
 }
 

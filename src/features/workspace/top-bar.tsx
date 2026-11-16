@@ -23,6 +23,7 @@ import {
   exportDialogStore,
   openExportDialog,
 } from "../export/export-dialog-store";
+import { EXPORT_FORMATS, exportItemLabel } from "../export/export-formats";
 import { PrintDialog, type PrintTarget } from "../export/print-dialog";
 import { isPrintShortcut, PRINT_KEY } from "../export/print-shortcut";
 import { type HelpDialogKind, HelpDialogs } from "../help/help-dialogs";
@@ -270,14 +271,20 @@ export function TopBar() {
           },
           { kind: "separator", id: "separator-export" },
           {
-            kind: "item",
+            kind: "submenu",
             id: "export",
             label: exportMessages.exportMenuItem,
-            disabled: !hasProject,
-            onSelect: () =>
-              openExportDialog({
-                scope: activeDocumentId === null ? "choose" : "document",
-              }),
+            entries: EXPORT_FORMATS.map((format) => ({
+              kind: "item" as const,
+              id: `export-${format}`,
+              label: exportItemLabel(exportMessages, format),
+              disabled: !hasProject,
+              onSelect: () =>
+                openExportDialog({
+                  format,
+                  scope: activeDocumentId === null ? "choose" : "document",
+                }),
+            })),
           },
           {
             kind: "item",

@@ -24,20 +24,38 @@ afterEach(() => {
   cleanup();
 });
 
+const ITEM_OF = {
+  md: MESSAGES.exportMarkdownItem,
+  html: MESSAGES.exportHtmlItem,
+  pdf: MESSAGES.exportPdfItem,
+} as const;
+const TITLE_OF = {
+  md: MESSAGES.exportMarkdownTitle,
+  html: MESSAGES.exportHtmlTitle,
+  pdf: MESSAGES.exportPdfTitle,
+} as const;
+
 async function openExport(
   shell: Awaited<ReturnType<typeof renderOpenedCanvas>>["shell"],
+  format: keyof typeof ITEM_OF = "md",
 ) {
   const menu = await openMenu(shell.user, TOP_BAR.fileMenu);
   await shell.user.click(
     within(menu).getByRole("menuitem", { name: MESSAGES.exportMenuItem }),
   );
-  return screen.getByRole("dialog", { name: MESSAGES.exportTitle });
+  await shell.user.click(
+    within(
+      await screen.findByRole("menu", { name: MESSAGES.exportMenuItem }),
+    ).getByRole("menuitem", { name: ITEM_OF[format] }),
+  );
+  return screen.getByRole("dialog", { name: TITLE_OF[format] });
 }
 
 async function openExportDocuments(
   shell: Awaited<ReturnType<typeof renderOpenedCanvas>>["shell"],
+  format: keyof typeof ITEM_OF = "md",
 ) {
-  const dialog = await openExport(shell);
+  const dialog = await openExport(shell, format);
   await shell.user.click(
     within(dialog).getByRole("radio", { name: MESSAGES.scopeChoose }),
   );
@@ -70,10 +88,7 @@ describe("Export of the shown sheet or Document", () => {
 
   it("writes the shown Document as one PDF without the print dialog", async () => {
     const { shell } = await renderOpenedCanvas();
-    const dialog = await openExport(shell);
-    await shell.user.click(
-      within(dialog).getByRole("radio", { name: MESSAGES.formatPdf }),
-    );
+    const dialog = await openExport(shell, "pdf");
     await shell.user.click(
       within(dialog).getByRole("button", { name: MESSAGES.exportFile }),
     );
@@ -85,16 +100,13 @@ describe("Export of the shown sheet or Document", () => {
 describe("Export Documents", () => {
   it("prints each chosen Document to PDF in the folder, opening the closed ones only meanwhile", async () => {
     const { shell } = await renderOpenedCanvas();
-    const dialog = await openExportDocuments(shell);
+    const dialog = await openExportDocuments(shell, "pdf");
     expect(
       within(dialog)
         .getAllByRole("checkbox")
         .filter((box) => box.closest("ul") !== null)
         .every((box) => (box as HTMLInputElement).checked),
     ).toBe(true);
-    await shell.user.click(
-      within(dialog).getByRole("radio", { name: MESSAGES.formatPdf }),
-    );
     shell.gateway.clearCalls();
     await shell.user.click(
       within(dialog).getByRole("button", { name: MESSAGES.chooseFolder }),

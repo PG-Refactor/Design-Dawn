@@ -16,8 +16,6 @@ import type { ExportDialogRequest, ExportScope } from "./export-dialog-store";
 import { type ExportTreeNode, exportTree } from "./export-tree";
 import "./print-dialog.css";
 
-const FORMATS: readonly ExportFolderFormat[] = ["md", "html", "pdf"];
-
 // The shown Document and sheet, with their names (the first two scopes).
 export interface ShownTarget {
   readonly documentId: DocumentId;
@@ -51,8 +49,9 @@ type Status =
     }
   | { readonly kind: "saved"; readonly fileName: string };
 
-// "Export…": what to write (the shown sheet, the shown Document, or Documents chosen in the
-// Project's tree, a folder ticking everything inside) and as what (Markdown, HTML, PDF).
+// "Export ▸ Markdown / HTML / PDF…": what to write in the format chosen in the menu (the
+// shown sheet, the shown Document, or Documents chosen in the Project's tree, a folder
+// ticking everything inside).
 // One file goes where the save dialog says; several go into a chosen folder, one file per
 // Document, in folders like the Project's when asked. Rust shows the dialogs and writes.
 export function ExportDialog({
@@ -69,7 +68,6 @@ export function ExportDialog({
   const { exportActions, applicationStore } = useWorkspaceServices();
   const renderer = useMermaidRenderer();
   const titleId = useId();
-  const descriptionId = useId();
   const startRef = useRef<HTMLButtonElement>(null);
   const project = useStoreSelector(applicationStore, (state) => state.project);
   const tree = useMemo<ExportTreeNode[]>(
@@ -100,16 +98,16 @@ export function ExportDialog({
         request.documentIds ?? documents.map((entry) => entry.documentId),
       ),
   );
-  const [format, setFormat] = useState<ExportFolderFormat>("md");
+  const { format } = request;
   const [keepFolders, setKeepFolders] = useState(true);
   const [status, setStatus] = useState<Status>({ kind: "choosing" });
   const busy = status.kind === "working" || status.kind === "exporting";
   const selected = documents.filter((entry) => chosen.has(entry.documentId));
   const hasFolders = tree.some((node) => node.kind === "folder");
-  const formatLabel: Record<ExportFolderFormat, string> = {
-    md: messages.formatMarkdown,
-    html: messages.formatHtml,
-    pdf: messages.formatPdf,
+  const formatTitle: Record<ExportFolderFormat, string> = {
+    md: messages.exportMarkdownTitle,
+    html: messages.exportHtmlTitle,
+    pdf: messages.exportPdfTitle,
   };
 
   function setMany(ids: readonly DocumentId[], on: boolean): void {
@@ -196,155 +194,137 @@ export function ExportDialog({
   return (
     <Modal
       titleId={titleId}
-      descriptionId={descriptionId}
       onCancel={onClose}
       initialFocusRef={startRef}
       busy={busy}
     >
       <h2 id={titleId} className="modal__title">
-        {messages.exportTitle}
+        {formatTitle[format]}
       </h2>
       <div className="modal__body print-dialog">
-        <p id={descriptionId}>{messages.exportDescription}</p>
         {choosing && (
-          <>
-            <fieldset className="print-dialog__group" disabled={busy}>
-              <legend>{messages.formatLegend}</legend>
-              {FORMATS.map((value) => (
-                <label key={value}>
-                  <input
-                    type="radio"
-                    name="export-format"
-                    checked={format === value}
-                    onChange={() => setFormat(value)}
-                  />
-                  {formatLabel[value]}
-                </label>
-              ))}
-            </fieldset>
-            <fieldset className="print-dialog__group" disabled={busy}>
-              <legend>{messages.scopeLegend}</legend>
-              <label>
-                <input
-                  type="radio"
-                  name="export-scope"
-                  checked={scope === "sheet"}
-                  disabled={shown?.sheet === null || shown === null}
-                  onChange={() => setScope("sheet")}
-                />
-                {shown?.sheet === null || shown === null
-                  ? messages.scopeSheetNone
-                  : messages.scopeSheet(shown.documentName, shown.sheet.name)}
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="export-scope"
-                  checked={scope === "document"}
-                  disabled={shown === null}
-                  onChange={() => setScope("document")}
-                />
-                {shown === null
-                  ? messages.scopeDocumentNone
-                  : messages.scopeDocument(shown.documentName)}
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="export-scope"
-                  checked={scope === "choose"}
-                  onChange={() => setScope("choose")}
-                />
-                {messages.scopeChoose}
-              </label>
-              {scope === "choose" && (
-                <div className="print-dialog__choose">
-                  <div className="print-dialog__row">
-                    <button
-                      type="button"
-                      className="button"
-                      onClick={() =>
-                        setMany(
-                          documents.map((entry) => entry.documentId),
-                          true,
-                        )
-                      }
-                    >
-                      {messages.selectAll}
-                    </button>
-                    <button
-                      type="button"
-                      className="button"
-                      onClick={() => setChosen(new Set())}
-                    >
-                      {messages.selectNone}
-                    </button>
-                  </div>
-                  <ul
-                    className="print-dialog__documents"
-                    aria-label={messages.documentsLegend}
+          <fieldset className="print-dialog__group" disabled={busy}>
+            <legend>{messages.scopeLegend}</legend>
+            <label>
+              <input
+                type="radio"
+                name="export-scope"
+                checked={scope === "sheet"}
+                disabled={shown?.sheet === null || shown === null}
+                onChange={() => setScope("sheet")}
+              />
+              {shown?.sheet === null || shown === null
+                ? messages.scopeSheetNone
+                : messages.scopeSheet(shown.documentName, shown.sheet.name)}
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="export-scope"
+                checked={scope === "document"}
+                disabled={shown === null}
+                onChange={() => setScope("document")}
+              />
+              {shown === null
+                ? messages.scopeDocumentNone
+                : messages.scopeDocument(shown.documentName)}
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="export-scope"
+                checked={scope === "choose"}
+                onChange={() => setScope("choose")}
+              />
+              {messages.scopeChoose}
+            </label>
+            {scope === "choose" && (
+              <div className="print-dialog__choose">
+                <div className="print-dialog__row">
+                  <button
+                    type="button"
+                    className="button"
+                    onClick={() =>
+                      setMany(
+                        documents.map((entry) => entry.documentId),
+                        true,
+                      )
+                    }
                   >
-                    {tree.map((node) => {
-                      const ids =
-                        node.kind === "folder"
-                          ? node.documentIds
-                          : [node.documentId];
-                      const ticked = ids.filter((id) => chosen.has(id)).length;
-                      return (
-                        <li
-                          key={
-                            node.kind === "folder"
-                              ? node.folderId
-                              : node.documentId
-                          }
-                          style={{
-                            paddingLeft: `calc(${node.depth} * var(--space-3))`,
-                          }}
-                        >
-                          <label
-                            className={
-                              node.kind === "folder"
-                                ? "print-dialog__folder"
-                                : undefined
-                            }
-                          >
-                            <input
-                              type="checkbox"
-                              checked={ids.length > 0 && ticked === ids.length}
-                              disabled={ids.length === 0}
-                              ref={(element) => {
-                                if (element !== null) {
-                                  element.indeterminate =
-                                    ticked > 0 && ticked < ids.length;
-                                }
-                              }}
-                              onChange={() => setMany(ids, ticked < ids.length)}
-                            />
-                            {node.kind === "folder"
-                              ? messages.folderEntry(node.name)
-                              : node.name}
-                          </label>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  {hasFolders && (
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={keepFolders}
-                        onChange={() => setKeepFolders(!keepFolders)}
-                      />
-                      {messages.keepFolders}
-                    </label>
-                  )}
-                  {selected.length === 0 && (
-                    <p role="status">{messages.noDocumentChosen}</p>
-                  )}
+                    {messages.selectAll}
+                  </button>
+                  <button
+                    type="button"
+                    className="button"
+                    onClick={() => setChosen(new Set())}
+                  >
+                    {messages.selectNone}
+                  </button>
                 </div>
-              )}
-            </fieldset>
-          </>
+                <ul
+                  className="print-dialog__documents"
+                  aria-label={messages.documentsLegend}
+                >
+                  {tree.map((node) => {
+                    const ids =
+                      node.kind === "folder"
+                        ? node.documentIds
+                        : [node.documentId];
+                    const ticked = ids.filter((id) => chosen.has(id)).length;
+                    return (
+                      <li
+                        key={
+                          node.kind === "folder"
+                            ? node.folderId
+                            : node.documentId
+                        }
+                        style={{
+                          paddingLeft: `calc(${node.depth} * var(--space-3))`,
+                        }}
+                      >
+                        <label
+                          className={
+                            node.kind === "folder"
+                              ? "print-dialog__folder"
+                              : undefined
+                          }
+                        >
+                          <input
+                            type="checkbox"
+                            checked={ids.length > 0 && ticked === ids.length}
+                            disabled={ids.length === 0}
+                            ref={(element) => {
+                              if (element !== null) {
+                                element.indeterminate =
+                                  ticked > 0 && ticked < ids.length;
+                              }
+                            }}
+                            onChange={() => setMany(ids, ticked < ids.length)}
+                          />
+                          {node.kind === "folder"
+                            ? messages.folderEntry(node.name)
+                            : node.name}
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {hasFolders && (
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={keepFolders}
+                      onChange={() => setKeepFolders(!keepFolders)}
+                    />
+                    {messages.keepFolders}
+                  </label>
+                )}
+                {selected.length === 0 && (
+                  <p role="status">{messages.noDocumentChosen}</p>
+                )}
+              </div>
+            )}
+          </fieldset>
         )}
         {status.kind === "confirmReplace" && (
           <div role="alert">
