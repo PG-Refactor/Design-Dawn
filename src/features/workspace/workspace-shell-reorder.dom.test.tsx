@@ -677,7 +677,7 @@ describe("row menu accessibility", () => {
       MESSAGES.tree.rename,
       MESSAGES.tree.moveTo,
       MESSAGES.tree.openInNewWindow,
-      MESSAGES.tree.exportDocument,
+      `${MESSAGES.tree.exportDocument}▸`,
       MESSAGES.tree.deleteDocument,
     ]);
     expect(document.activeElement).toBe(items[0]);

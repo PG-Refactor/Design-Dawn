@@ -85,7 +85,7 @@ describe("File menu", () => {
       ["menuitem", EN.openProjectInNewWindow],
       ["menuitem", `${EN.save}Ctrl+S`],
       ["menuitemcheckbox", EN.autoSave],
-      ["menuitem", EXPORT_MESSAGES.en.exportMenuItem],
+      ["menuitem", `${EXPORT_MESSAGES.en.exportMenuItem}▸`],
       ["menuitem", `${EXPORT_MESSAGES.en.print}Ctrl+P`],
       ["menuitem", AI_ACCESS_MESSAGES.en.menuItem],
       ["menuitem", AI_ACCESS_MESSAGES.en.history.menuItem],
@@ -94,7 +94,7 @@ describe("File menu", () => {
     expect(within(menu).getAllByRole("separator")).toHaveLength(4);
   });
 
-  it("opens one Export dialog, starting on the shown Document", async () => {
+  it("offers Markdown, HTML and PDF under Export, each opening its dialog on the shown Document", async () => {
     const shell = await renderShell({ systemLanguages: ["en"] });
     await shell.openProjectInUi();
     await act(async () => {
@@ -106,8 +106,18 @@ describe("File menu", () => {
         name: EXPORT_MESSAGES.en.exportMenuItem,
       }),
     );
+    expect(
+      within(
+        await screen.findByRole("menu", {
+          name: EXPORT_MESSAGES.en.exportMenuItem,
+        }),
+      )
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent),
+    ).toEqual(["Markdown…", "HTML…", "PDF…"]);
+    await shell.user.click(screen.getByRole("menuitem", { name: "PDF…" }));
     const dialog = screen.getByRole("dialog", {
-      name: EXPORT_MESSAGES.en.exportTitle,
+      name: EXPORT_MESSAGES.en.exportPdfTitle,
     });
     expect(
       (

@@ -192,7 +192,7 @@ describe("row menus", () => {
       TREE.rename,
       TREE.moveTo,
       TREE.openInNewWindow,
-      TREE.exportDocument,
+      `${TREE.exportDocument}▸`,
       TREE.deleteDocument,
     ]);
     expect(menuItem(menu, TREE.moveTo).getAttribute("aria-disabled")).toBe(
@@ -520,7 +520,7 @@ describe("the right-click menu of the tree", () => {
       TREE.rename,
       TREE.moveTo,
       TREE.openInNewWindow,
-      TREE.exportDocument,
+      `${TREE.exportDocument}▸`,
       TREE.deleteDocument,
     ]);
     await harness.user.keyboard("{Escape}");

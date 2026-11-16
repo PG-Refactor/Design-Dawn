@@ -2,8 +2,12 @@
 // from `project-tree.tsx` so the tree view keeps to focus handling and shortcuts.
 
 import type { KeyboardEvent } from "react";
-import type { PopupMenuItem } from "../../shared/menu/popup-menu";
+import type {
+  PopupMenuEntry,
+  PopupMenuItem,
+} from "../../shared/menu/popup-menu";
 import { openExportDialog } from "../export/export-dialog-store";
+import { EXPORT_FORMATS, exportItemLabel } from "../export/export-formats";
 import { DocumentIcon, FolderIcon, FolderOpenIcon } from "./tree-icons";
 import {
   type TreeChooseMode,
@@ -91,7 +95,9 @@ function DocumentTreeItem({
   readonly level: number;
   readonly handlers: TreeHandlers;
 }) {
-  const messages = useMessages().workspace;
+  const allMessages = useMessages();
+  const messages = allMessages.workspace;
+  const exportMessages = allMessages.export;
   const { actions, keepFocus } = handlers;
   const { documentId } = documentNode;
   const itemKey = documentTreeKey(documentId);
@@ -103,7 +109,7 @@ function DocumentTreeItem({
     kind: "document",
     documentId,
   });
-  const menuItems: PopupMenuItem[] = [
+  const menuItems: PopupMenuEntry[] = [
     {
       id: "rename",
       label: messages.tree.rename,
@@ -122,13 +128,24 @@ function DocumentTreeItem({
       disabled: failed,
       onSelect: () => void actions.openDocumentInNewWindow(documentId),
     },
-    {
-      id: "export",
-      label: messages.tree.exportDocument,
-      disabled: failed,
-      onSelect: () =>
-        openExportDialog({ scope: "choose", documentIds: [documentId] }),
-    },
+    ...(failed
+      ? []
+      : [
+          {
+            id: "export",
+            label: messages.tree.exportDocument,
+            entries: EXPORT_FORMATS.map((format) => ({
+              id: `export-${format}`,
+              label: exportItemLabel(exportMessages, format),
+              onSelect: () =>
+                openExportDialog({
+                  format,
+                  scope: "choose",
+                  documentIds: [documentId],
+                }),
+            })),
+          },
+        ]),
     {
       id: "delete",
       label: messages.tree.deleteDocument,

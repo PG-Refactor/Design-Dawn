@@ -4,8 +4,6 @@ import type { DisplayLanguage } from "../../config/language-config";
 import type { Widen } from "../../shared/i18n/catalog-types";
 
 const EXPORT_MESSAGES_JA = {
-  sheetHtml: "表示中のシートをHTMLとして書き出す…",
-  documentHtml: "表示中のDocumentをHTMLとして書き出す…",
   print: "印刷…",
   printTitle: "印刷",
   unsavedBeforePrint:
@@ -42,10 +40,13 @@ const EXPORT_MESSAGES_JA = {
   overflowWarning: (count: number): string =>
     `${count} 個のブロックは内容が枠に収まっていないため、はみ出した部分は印刷されません。ブロックを大きくするか、このまま印刷してください。`,
   emptyWarning: "印刷するブロックがありません。",
-  exportMenuItem: "エクスポート…",
-  exportTitle: "エクスポート",
-  exportDescription:
-    "書き出す形式と、書き出すものを選んでください。1つのときは保存先を、複数のときは書き出し先のフォルダを選びます。",
+  exportMenuItem: "エクスポート",
+  exportMarkdownItem: "Markdown…",
+  exportHtmlItem: "HTML…",
+  exportPdfItem: "PDF…",
+  exportMarkdownTitle: "Markdownとして書き出す",
+  exportHtmlTitle: "HTMLとして書き出す",
+  exportPdfTitle: "PDFとして書き出す",
   scopeLegend: "書き出すもの",
   scopeSheet: (document: string, sheet: string): string =>
     `表示中のシート（${document} / ${sheet}）`,
@@ -59,19 +60,9 @@ const EXPORT_MESSAGES_JA = {
   keepFolders: "Projectのフォルダ構成を保って書き出す",
   exportFile: "書き出す…",
   savedAs: (file: string): string => `「${file}」に書き出しました。`,
-  documentsMenu: "複数のDocumentを書き出す…",
-  documentsTitle: "複数のDocumentを書き出す",
-  documentsDescription:
-    "選んだDocumentを、1つにつき1ファイルとして同じフォルダへ書き出します。ファイル名はDocumentの名前です。",
   documentsLegend: "書き出すDocument",
   selectAll: "すべて選択",
   selectNone: "すべて解除",
-  formatLegend: "形式",
-  formatMarkdown: "Markdown（.md。画像は「名前-assets」フォルダへ）",
-  formatHtml:
-    "HTML（1つのファイルに画像も入れる。ブロックはキャンバスの配置のまま）",
-  formatPdf:
-    "PDF（印刷画面を使わずに作る。シートごとに1ページ、内容の大きさのまま）",
   chooseFolder: "フォルダを選んで書き出す…",
   noDocumentChosen: "書き出すDocumentを1つ以上選んでください。",
   replaceQuestion: (folder: string): string =>
@@ -91,8 +82,6 @@ const EXPORT_MESSAGES_JA = {
 export type ExportMessages = Widen<typeof EXPORT_MESSAGES_JA>;
 
 const EXPORT_MESSAGES_EN: ExportMessages = {
-  sheetHtml: "Export Sheet as HTML…",
-  documentHtml: "Export Document as HTML…",
   print: "Print…",
   printTitle: "Print",
   unsavedBeforePrint:
@@ -131,10 +120,13 @@ const EXPORT_MESSAGES_EN: ExportMessages = {
       ? "1 block does not fit its frame; the part outside it is not printed. Make the block larger, or print anyway."
       : `${count} blocks do not fit their frames; the parts outside them are not printed. Make the blocks larger, or print anyway.`,
   emptyWarning: "There are no blocks to print.",
-  exportMenuItem: "Export…",
-  exportTitle: "Export",
-  exportDescription:
-    "Choose the format and what to export. One file goes where you save it; several go into a folder you choose.",
+  exportMenuItem: "Export",
+  exportMarkdownItem: "Markdown…",
+  exportHtmlItem: "HTML…",
+  exportPdfItem: "PDF…",
+  exportMarkdownTitle: "Export as Markdown",
+  exportHtmlTitle: "Export as HTML",
+  exportPdfTitle: "Export as PDF",
   scopeLegend: "What to export",
   scopeSheet: (document, sheet) => `The shown sheet (${document} / ${sheet})`,
   scopeSheetNone: "The shown sheet (no sheet is shown)",
@@ -146,19 +138,9 @@ const EXPORT_MESSAGES_EN: ExportMessages = {
   keepFolders: "Keep the Project's folder structure",
   exportFile: "Export…",
   savedAs: (file) => `Exported to “${file}”.`,
-  documentsMenu: "Export Documents…",
-  documentsTitle: "Export Documents",
-  documentsDescription:
-    "Writes each chosen Document as one file into the same folder, named after the Document.",
   documentsLegend: "Documents to export",
   selectAll: "Select All",
   selectNone: "Select None",
-  formatLegend: "Format",
-  formatMarkdown: "Markdown (.md; images go into a “name-assets” folder)",
-  formatHtml:
-    "HTML (one file with the images inside; blocks where they are on the canvas)",
-  formatPdf:
-    "PDF (made without the print dialog; one page per sheet, as large as its content)",
   chooseFolder: "Choose a Folder and Export…",
   noDocumentChosen: "Choose at least one Document to export.",
   replaceQuestion: (folder) =>
