@@ -84,7 +84,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 95] = [
+pub const COMMAND_NAMES: [&str; 96] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -111,6 +111,7 @@ pub const COMMAND_NAMES: [&str; 95] = [
     "create_sheet",
     "save_sheet",
     "create_block_content",
+    "reserve_block_content",
     "read_block_content",
     "write_block_content",
     "delete_block_content",
@@ -1140,6 +1141,30 @@ pub fn create_block_content<R: Runtime>(
 ) -> Result<String, ApplicationError> {
     with_project_sessions(&window, &state, &project_id, |sessions| {
         block_content::create_block_content(
+            sessions,
+            &project_id,
+            &document_id,
+            &sheet_id,
+            &block_type,
+            &text,
+        )
+    })
+}
+
+/// A name for a new text block's file, without writing it (auto-save off: the file is
+/// made when the Document is saved). Same Document checks as `create_block_content`.
+#[tauri::command]
+pub fn reserve_block_content<R: Runtime>(
+    window: Window<R>,
+    state: SessionState<'_>,
+    project_id: String,
+    document_id: String,
+    sheet_id: String,
+    block_type: String,
+    text: String,
+) -> Result<String, ApplicationError> {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
+        block_content::reserve_block_content(
             sessions,
             &project_id,
             &document_id,

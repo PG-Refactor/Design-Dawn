@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { moveBlocksCommand } from "../commands/block-commands";
-import { createBlocksCommand } from "../commands/file-backed-commands";
+import { editBlockContentCommand } from "../commands/content-commands";
+import {
+  createBlocksCommand,
+  deleteBlocksCommand,
+} from "../commands/file-backed-commands";
 import { renameDocumentCommand } from "../commands/naming-commands";
 import { createFakeAutoSavePolicy } from "../test-support/fake-auto-save-policy";
 import {
@@ -242,39 +246,107 @@ describe("auto-save switched off", () => {
     expect(scheduler.pendingCount()).toBe(0);
   });
 
-  it("still writes a file-backed command immediately", async () => {
-    const { session, gateway } = openWithPolicy(false);
-    const result = await session.execute(
-      createBlocksCommand(SHEET_ID, [
-        {
-          blockId: blockIdOf(10),
-          blockType: "markdown",
-          position: position(1, 1),
-          size: size(100, 80),
-          text: "alpha",
-        },
-      ]),
-    );
-    expect(result.ok).toBe(true);
-    expect(gateway.methods()).toEqual(["createBlockContent", "saveSheet"]);
+  const newBlock = (text = "alpha") =>
+    createBlocksCommand(SHEET_ID, [
+      {
+        blockId: blockIdOf(10),
+        blockType: "markdown",
+        position: position(1, 1),
+        size: size(100, 80),
+        text,
+      },
+    ]);
+  const pathOf = (harness: ReturnType<typeof openWithPolicy>, number: number) =>
+    harness.session
+      .getState()
+      .sheets.get(SHEET_ID)
+      ?.blocks.find((block) => block.blockId === blockIdOf(number))
+      ?.contentPath ?? "";
+
+  it("leaves a new block's file to the save: its name is only reserved", async () => {
+    const harness = openWithPolicy(false);
+    const { session, gateway } = harness;
+    await session.execute(moveFirst(1));
+    expect((await session.execute(newBlock())).ok).toBe(true);
+    expect(gateway.methods()).toEqual(["reserveBlockContent"]);
+    expect(gateway.files.has(pathOf(harness, 10))).toBe(false);
+    expect(session.getState().save.dirtySheetIds.has(SHEET_ID)).toBe(true);
+    gateway.clearCalls();
+    expect((await session.flush()).ok).toBe(true);
+    // The file first, then the sheet that refers to it.
+    expect(gateway.methods()).toEqual(["restoreBlockContent", "saveSheet"]);
+    expect(gateway.files.get(pathOf(harness, 10))).toBe("alpha");
+    expect(session.getState().save.dirtySheetIds.size).toBe(0);
   });
 
-  it("flushes pending changes before a file-backed command", async () => {
-    const { session, gateway } = openWithPolicy(false);
-    await session.execute(moveFirst(1));
+  it("writes the latest text of a new block, and nothing for one removed before the save", async () => {
+    const harness = openWithPolicy(false);
+    const { session, gateway } = harness;
+    await session.execute(newBlock());
     await session.execute(
-      createBlocksCommand(SHEET_ID, [
-        {
-          blockId: blockIdOf(10),
-          blockType: "markdown",
-          position: position(1, 1),
-          size: size(100, 80),
-          text: "alpha",
-        },
-      ]),
+      editBlockContentCommand({
+        sheetId: SHEET_ID,
+        blockId: blockIdOf(10),
+        text: "edited",
+      }),
     );
-    expect(gateway.methods()[0]).toBe("saveSheet");
-    expect(session.getState().save.dirtySheetIds.size).toBe(0);
+    await session.flush();
+    expect(gateway.files.get(pathOf(harness, 10))).toBe("edited");
+    expect(gateway.methods("writeBlockContent")).toEqual([]);
+
+    const other = openWithPolicy(false);
+    await other.session.execute(newBlock());
+    const reserved = pathOf(other, 10);
+    await other.session.execute(deleteBlocksCommand(SHEET_ID, [blockIdOf(10)]));
+    await other.session.flush();
+    expect(other.gateway.files.has(reserved)).toBe(false);
+    expect(other.gateway.methods("restoreBlockContent")).toEqual([]);
+    expect(other.gateway.methods("deleteBlockContent")).toEqual([]);
+  });
+
+  it("deletes a removed block's file only after the sheet is saved, and keeps it on undo", async () => {
+    const harness = openWithPolicy(false);
+    const { session, gateway } = harness;
+    const path = pathOf(harness, 1);
+    await session.loadSheetContents(SHEET_ID);
+    gateway.clearCalls();
+    await session.execute(deleteBlocksCommand(SHEET_ID, [blockIdOf(1)]));
+    expect(gateway.methods()).toEqual([]);
+    expect(gateway.files.has(path)).toBe(true);
+    await session.undo();
+    await session.flush();
+    expect(gateway.files.has(path)).toBe(true);
+    expect(gateway.methods("deleteBlockContent")).toEqual([]);
+
+    await session.redo();
+    gateway.clearCalls();
+    await session.flush();
+    expect(gateway.methods()).toEqual(["saveSheet", "deleteBlockContent"]);
+    expect(gateway.files.has(path)).toBe(false);
+  });
+
+  it("gives up a reserved name another program used, for a new one", async () => {
+    const harness = openWithPolicy(false);
+    const { session, gateway } = harness;
+    await session.execute(newBlock());
+    const reserved = pathOf(harness, 10);
+    gateway.files.set(reserved, "someone else's");
+    expect((await session.flush()).ok).toBe(true);
+    const moved = pathOf(harness, 10);
+    expect(moved).not.toBe(reserved);
+    expect(gateway.files.get(moved)).toBe("alpha");
+    expect(gateway.files.get(reserved)).toBe("someone else's");
+    expect(
+      gateway.savedSheets
+        .get(SHEET_ID)
+        ?.blocks.find((block) => block.blockId === blockIdOf(10))?.contentPath,
+    ).toBe(moved);
+  });
+
+  it("writes block files at once again when auto-save is on", async () => {
+    const { session, gateway } = openWithPolicy(true);
+    await session.execute(newBlock());
+    expect(gateway.methods()).toEqual(["createBlockContent", "saveSheet"]);
   });
 });
 

@@ -1,8 +1,12 @@
 // Tracks what is dirty and persists it. Metadata-only changes
 // mark things dirty; saving happens after a quiet period (debounce), on `saveDirty`, or
-// before a file-backed sequence. It never runs concurrently with commands: the timer
+// before a file-backed sequence. With auto-save off, adding and removing text blocks does
+// not touch files either: the files to create (under names reserved in Rust) and to delete
+// are planned here and handled by the next save, in the order the file-backed sequences
+// use (content files first, then the sheets, then deletions). It never runs concurrently with commands: the timer
 // goes through `runExclusive`, the session's serial queue.
 
+import type { BlockType } from "../../domain/block/block-type";
 import type { ContentPath } from "../../domain/block/content-path";
 import type { Document } from "../../domain/document/document";
 import type {
@@ -23,6 +27,25 @@ import type { PersistenceGateway } from "../ports/persistence-gateway";
 import type { Scheduler } from "../ports/scheduler";
 import type { SaveState } from "../state/application-state";
 
+// A text block's file the next save creates (auto-save off), with its current text.
+export interface PlannedCreate {
+  readonly blockId: BlockId;
+  readonly sheetId: SheetId;
+  readonly blockType: BlockType;
+  readonly contentPath: ContentPath;
+}
+
+// Files the next save creates and deletes (handed over with a moved Document).
+export interface PlannedFiles {
+  readonly creates: readonly PlannedCreate[];
+  readonly deletes: readonly ContentPath[];
+}
+
+export const NO_PLANNED_FILES: PlannedFiles = { creates: [], deletes: [] };
+
+const ALREADY_EXISTS = "alreadyExists";
+const FILE_NOT_FOUND = "fileNotFound";
+
 export interface DirtyChange {
   readonly documentChanged: boolean;
   readonly changedSheetIds: readonly SheetId[];
@@ -41,6 +64,11 @@ export interface SaveCoordinatorOptions {
   readonly getData: () => DocumentData;
   readonly runExclusive: <T>(task: () => Promise<T>) => Promise<T>;
   readonly onChange: () => void;
+  // A reserved name was taken by the time of the save (another program made a file
+  // there): the block's file was created under `contentPath` instead.
+  readonly relocate: (blockId: BlockId, contentPath: ContentPath) => void;
+  // Files planned before this coordinator existed (a moved Document).
+  readonly plannedFiles?: PlannedFiles;
 }
 
 export interface SaveCoordinator {
@@ -66,6 +94,15 @@ export interface SaveCoordinator {
   // redo returned to the last saved state). Stops the timer, clears the last save error
   // (there is nothing left to save) and notifies. Not while saving is stopped.
   markClean(): void;
+  // Auto-save off: the next save creates this block's file.
+  planCreate(create: PlannedCreate): void;
+  // A text block went away before a save: a planned creation is dropped, otherwise its
+  // file is deleted by the next save.
+  planRemoval(blockId: BlockId, contentPath: ContentPath): void;
+  // A text block came back (undo / redo): its file stays when a deletion was planned (and
+  // its text is saved again), otherwise the next save creates it.
+  planRestore(create: PlannedCreate): void;
+  plannedFiles(): PlannedFiles;
   dispose(): void;
 }
 
@@ -82,6 +119,15 @@ export function createSaveCoordinator(
   let disposed = false;
   // Set while saving is stopped; the error `saveDirty` fails with.
   let suspension: OperationError | null = null;
+  let plannedCreates: ReadonlyMap<BlockId, PlannedCreate> = new Map(
+    (options.plannedFiles?.creates ?? []).map((create) => [
+      create.blockId,
+      create,
+    ]),
+  );
+  let plannedDeletes: ReadonlySet<ContentPath> = new Set(
+    options.plannedFiles?.deletes ?? [],
+  );
 
   function stopTimer(): void {
     cancelTimer?.();
@@ -101,8 +147,74 @@ export function createSaveCoordinator(
 
   function hasDirtyState(): boolean {
     return (
-      dirtyContentBlockIds.size > 0 || dirtySheetIds.size > 0 || documentDirty
+      dirtyContentBlockIds.size > 0 ||
+      dirtySheetIds.size > 0 ||
+      documentDirty ||
+      plannedCreates.size > 0 ||
+      plannedDeletes.size > 0
     );
+  }
+
+  // The planned files, before anything that refers to them is saved. A reserved name that
+  // was taken meanwhile is given up for a new one.
+  async function createPlannedFiles(
+    data: DocumentData,
+  ): Promise<OperationError | null> {
+    let firstError: OperationError | null = null;
+    for (const create of [...plannedCreates.values()]) {
+      const text = data.contents.get(create.blockId) ?? "";
+      const created = await gateway.restoreBlockContent(
+        projectId,
+        documentId,
+        create.blockType,
+        create.contentPath,
+        text,
+      );
+      let done = created.ok;
+      if (!created.ok && created.error.kind === ALREADY_EXISTS) {
+        const fresh = await gateway.createBlockContent(
+          projectId,
+          documentId,
+          create.sheetId,
+          create.blockType,
+          text,
+        );
+        if (fresh.ok) {
+          options.relocate(create.blockId, fresh.value);
+          done = true;
+        } else {
+          firstError ??= fresh.error;
+        }
+      } else if (!created.ok) {
+        firstError ??= created.error;
+      }
+      if (done) {
+        plannedCreates = new Map(
+          [...plannedCreates].filter(([blockId]) => blockId !== create.blockId),
+        );
+        // The new file already holds the current text.
+        dirtyContentBlockIds = withoutId(dirtyContentBlockIds, create.blockId);
+      }
+    }
+    return firstError;
+  }
+
+  // Once no saved sheet refers to them any more. A file that is already gone is fine.
+  async function deletePlannedFiles(): Promise<OperationError | null> {
+    let firstError: OperationError | null = null;
+    for (const contentPath of [...plannedDeletes]) {
+      const deleted = await gateway.deleteBlockContent(
+        projectId,
+        documentId,
+        contentPath,
+      );
+      if (deleted.ok || deleted.error.kind === FILE_NOT_FOUND) {
+        plannedDeletes = withoutId(plannedDeletes, contentPath);
+      } else {
+        firstError ??= deleted.error;
+      }
+    }
+    return firstError;
   }
 
   // Content goes first: a sheet never references a text file that is older than the
@@ -187,11 +299,15 @@ export function createSaveCoordinator(
     }
     saving = true;
     options.onChange();
+    const createError = await createPlannedFiles(options.getData());
+    // Read again: a relocated block has a new path.
     const data = options.getData();
     const contentError = await saveContents(data);
-    const sheetError = await saveSheets(data);
+    const sheetError =
+      createError === null ? await saveSheets(data) : createError;
+    const deleteError = sheetError === null ? await deletePlannedFiles() : null;
     const documentError = await saveDocumentIfDirty(data.document);
-    const error = contentError ?? sheetError ?? documentError;
+    const error = contentError ?? sheetError ?? deleteError ?? documentError;
     saving = false;
     // Dirty flags of failed parts stay set, so the next change or flush retries them.
     lastError = error;
@@ -254,10 +370,39 @@ export function createSaveCoordinator(
       dirtySheetIds = new Set();
       dirtyContentBlockIds = new Set();
       documentDirty = false;
+      plannedCreates = new Map();
+      plannedDeletes = new Set();
       lastError = null;
       stopTimer();
       options.onChange();
     },
+    planCreate(create) {
+      plannedCreates = new Map([...plannedCreates, [create.blockId, create]]);
+    },
+    planRemoval(blockId, contentPath) {
+      if (plannedCreates.has(blockId)) {
+        plannedCreates = new Map(
+          [...plannedCreates].filter(([id]) => id !== blockId),
+        );
+        return;
+      }
+      plannedDeletes = new Set([...plannedDeletes, contentPath]);
+    },
+    planRestore(create) {
+      if (plannedDeletes.has(create.contentPath)) {
+        plannedDeletes = withoutId(plannedDeletes, create.contentPath);
+        dirtyContentBlockIds = new Set([
+          ...dirtyContentBlockIds,
+          create.blockId,
+        ]);
+        return;
+      }
+      plannedCreates = new Map([...plannedCreates, [create.blockId, create]]);
+    },
+    plannedFiles: () => ({
+      creates: [...plannedCreates.values()],
+      deletes: [...plannedDeletes],
+    }),
     dispose() {
       disposed = true;
       stopTimer();

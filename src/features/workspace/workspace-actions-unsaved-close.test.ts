@@ -3,6 +3,7 @@ import { operationOk } from "../../application/ports/operation-error";
 import {
   DOCUMENT_A,
   DOCUMENT_B,
+  SHEET_A1,
 } from "../../application/test-support/workspace-harness";
 import {
   type ActionsHarness,
@@ -118,6 +119,34 @@ describe("closing a document with auto-save off", () => {
     expect(harness.store.getState().documents.has(DOCUMENT_A)).toBe(false);
     expect(harness.uiStateStore.getState().activeDocumentId).toBe(DOCUMENT_B);
     expect(harness.uiStateStore.getState().operationErrors).toEqual([]);
+  });
+
+  it("leaves no trace of a block added before 保存せずに閉じる", async () => {
+    const harness = await openedActionsHarness();
+    await harness.autoSaveController.setEnabled(false);
+    await harness.actions.openDocument(DOCUMENT_A);
+    const filesBefore = [...harness.gateway.files.keys()];
+    harness.gateway.clearCalls();
+    const added = await harness.canvasActions.addTextBlocks({
+      documentId: DOCUMENT_A,
+      sheetId: SHEET_A1,
+      blocks: [
+        {
+          blockType: "markdown",
+          text: "# Not kept",
+          position: { x: 0, y: 0 },
+          size: { width: 200, height: 100 },
+        },
+      ],
+    });
+    expect(added.ok).toBe(true);
+    // Unsaved like any other change: closing asks.
+    await harness.actions.closeDocument(DOCUMENT_A);
+    expect(dialog(harness)).toMatchObject({ kind: "confirmUnsavedClose" });
+    await harness.actions.answerUnsavedClose("discard");
+    expect(harness.gateway.methods(...WRITE_METHODS)).toEqual([]);
+    expect(harness.gateway.methods("createBlockContent")).toEqual([]);
+    expect([...harness.gateway.files.keys()]).toEqual(filesBefore);
   });
 
   it("does nothing on キャンセル", async () => {

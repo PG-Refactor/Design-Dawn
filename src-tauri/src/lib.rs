@@ -95,6 +95,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::create_sheet,
             commands::save_sheet,
             commands::create_block_content,
+            commands::reserve_block_content,
             commands::read_block_content,
             commands::write_block_content,
             commands::delete_block_content,

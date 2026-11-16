@@ -30,6 +30,7 @@
     "allow-create-sheet",
     "allow-save-sheet",
     "allow-create-block-content",
+    "allow-reserve-block-content",
     "allow-read-block-content",
     "allow-write-block-content",
     "allow-delete-block-content",

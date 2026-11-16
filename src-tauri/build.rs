@@ -28,6 +28,7 @@ const APP_COMMANDS: &[&str] = &[
     "create_sheet",
     "save_sheet",
     "create_block_content",
+    "reserve_block_content",
     "read_block_content",
     "write_block_content",
     "delete_block_content",

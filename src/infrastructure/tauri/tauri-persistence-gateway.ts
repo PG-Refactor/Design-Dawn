@@ -42,6 +42,7 @@ import {
   readBlockContent,
   reloadProject,
   repairLoadIssue,
+  reserveBlockContent,
   restoreBlockContent,
   saveDocument,
   saveFolder,
@@ -110,6 +111,7 @@ export function createTauriPersistenceGateway(): PersistenceGateway {
     saveDocument: async (projectId, document) =>
       mapOperationResult(await saveDocument(projectId, document), discard),
     createBlockContent,
+    reserveBlockContent,
     selectImageFiles,
     importDroppedImages,
     importPastedImage,

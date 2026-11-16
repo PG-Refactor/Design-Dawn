@@ -26,6 +26,7 @@ export const COMMANDS = {
   saveSheet: "save_sheet",
   createBlockContent: "create_block_content",
   readBlockContent: "read_block_content",
+  reserveBlockContent: "reserve_block_content",
   writeBlockContent: "write_block_content",
   deleteBlockContent: "delete_block_content",
   restoreBlockContent: "restore_block_content",
