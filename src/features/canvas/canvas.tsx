@@ -26,6 +26,7 @@ import type {
 import { useContextMenu } from "../../shared/menu/context-menu";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { useMermaidRenderer } from "../mermaid/mermaid-renderer-context";
+import { askSpreadsheetImport } from "../spreadsheet/spreadsheet-import-dialog";
 import {
   getSelection,
   selectBlocks as selectBlocksInUi,
@@ -382,6 +383,7 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
           importSpreadsheet: () =>
             void canvasActions.importSpreadsheet({
               viewportSize: canvasSize(),
+              choose: askSpreadsheetImport,
               ...(at === undefined ? {} : { at }),
             }),
           paste,

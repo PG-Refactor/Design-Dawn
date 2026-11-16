@@ -85,6 +85,18 @@ describe("rendering", () => {
     expect(sanitized.querySelector("[class]")).toBeNull();
   });
 
+  it("turns <br> into a line break (a table cell's only way to hold one), and nothing else of HTML", () => {
+    const table = render("| a |\n| - |\n| one<br>two<BR/>three |\n");
+    expect(table.querySelectorAll("td br")).toHaveLength(2);
+    expect(table.querySelector("td")?.textContent?.replace(/\s/g, "")).toBe(
+      "onetwothree",
+    );
+    const code = render("`<br>` and <b>bold</b>");
+    expect(code.querySelector("code")?.textContent).toBe("<br>");
+    expect(code.querySelector("b")).toBeNull();
+    expect(code.body.textContent).toContain("<b>bold</b>");
+  });
+
   it("keeps Japanese text", () => {
     const document = render("# 日本語の見出し\n\nこれは**本文**です。");
     expect(document.querySelector("h1")?.textContent).toBe("日本語の見出し");

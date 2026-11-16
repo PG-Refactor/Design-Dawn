@@ -1,0 +1,123 @@
+/* Colours come from tokens only (theme-tokens.css). */
+.spreadsheet-import {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.spreadsheet-import__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+}
+
+.spreadsheet-import__group label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Many sheets scroll inside the list. */
+.spreadsheet-import__sheets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 12rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.spreadsheet-import__sheet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1);
+  border-radius: var(--radius-medium);
+}
+
+.spreadsheet-import__sheet--preview {
+  background: var(--color-selection);
+}
+
+.spreadsheet-import__sheet-name {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+.spreadsheet-import__range {
+  flex: 0 1 14rem;
+  min-width: 8rem;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.spreadsheet-import__range[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
+.spreadsheet-import__preview-button {
+  flex: 0 0 auto;
+}
+
+.spreadsheet-import__badge {
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-medium);
+  background: var(--color-hover);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+.spreadsheet-import__error {
+  margin: 0;
+  color: var(--color-danger);
+}
+
+.spreadsheet-import__preview-title {
+  margin: 0 0 var(--space-1);
+  font-size: 0.9375rem;
+}
+
+.spreadsheet-import__size {
+  margin: var(--space-1) 0;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.spreadsheet-import__table-scroll {
+  max-height: 16rem;
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+}
+
+.spreadsheet-import__table {
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.spreadsheet-import__table th,
+.spreadsheet-import__table td {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.spreadsheet-import__table th {
+  background: var(--color-background);
+}
+
+.spreadsheet-import__table .spreadsheet-import__cell--right {
+  text-align: right;
+}

@@ -789,9 +789,11 @@ version = "1.1.0"
 dependencies = [
  "calamine",
  "dirs",
+ "encoding_rs",
  "gtk",
  "imagesize",
  "notify",
+ "quick-xml",
  "regex",
  "serde",
  "serde_json",
@@ -804,6 +806,7 @@ dependencies = [
  "webkit2gtk",
  "webview2-com",
  "windows",
+ "zip",
 ]
 
 [[package]]

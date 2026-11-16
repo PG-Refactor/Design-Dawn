@@ -664,22 +664,33 @@ describe("images for a text editor", () => {
   });
 });
 
+function sheetOf(name: string, rows: readonly (readonly string[])[]) {
+  return {
+    name,
+    hidden: false,
+    firstRow: 0,
+    firstColumn: 0,
+    rows: rows.map((row) => row.map((text) => ({ text }))),
+    hiddenRows: [],
+    hiddenColumns: [],
+    merged: [],
+    truncated: false,
+  };
+}
+
 describe("importSpreadsheet", () => {
-  it("adds one Markdown table block per sheet in one command, selected", async () => {
+  it("adds one Markdown table block per visible sheet in one command, selected", async () => {
     const harness = await openedCanvasHarness();
     harness.gateway.scriptSpreadsheet({
       status: "selected",
       fileName: "design.xlsx",
       sheets: [
-        {
-          name: "Tables",
-          rows: [
-            ["Name", "Type"],
-            ["id", "uuid | v7"],
-          ],
-          truncated: false,
-        },
-        { name: "Other", rows: [["only"]], truncated: false },
+        sheetOf("Tables", [
+          ["Name", "Type"],
+          ["id", "uuid | v7"],
+        ]),
+        sheetOf("Other", [["only"]]),
+        { ...sheetOf("Secret", [["hidden"]]), hidden: true },
       ],
     });
     const before = harness.blocksOfSheetA1().length;

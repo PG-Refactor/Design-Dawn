@@ -33,6 +33,12 @@ dirs = "7"
 # MIT; its dependency tree is MIT / Apache-2.0 / BSD-3-Clause / Zlib. `dates` (chrono,
 # MIT OR Apache-2.0) turns date cells into dates instead of serial numbers.
 calamine = { version = "=0.38.0", features = ["dates"] }
+# The hidden rows and columns of an .xlsx (calamine does not report them) are read from the
+# file's parts; CSV in Shift_JIS is decoded. The versions calamine already brings in:
+# zip MIT, quick-xml MIT, encoding_rs (Apache-2.0 OR MIT) AND BSD-3-Clause.
+zip = { version = "=9.5.1", default-features = false, features = ["deflate"] }
+quick-xml = "=0.42.0"
+encoding_rs = "=0.8.44"
 # Regular expressions in the Project search (the app's Search panel and the MCP tool
 # `searchProject`). MIT OR Apache-2.0; the version Tauri (tauri-utils) already uses.
 regex = "=1.13.1"

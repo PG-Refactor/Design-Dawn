@@ -44,6 +44,7 @@ import {
   IMAGE_SELECTION_STATUS,
   type ImportedImage,
   SPREADSHEET_SELECTION_STATUS,
+  type SpreadsheetSheet,
 } from "../../application/ports/asset-types";
 import {
   failWith,
@@ -69,7 +70,6 @@ import type { DiagramOperation } from "../../domain/diagram/diagram-operation";
 import {
   formatTable,
   type MarkdownTable,
-  tableFromCells,
 } from "../../domain/markdown-table/markdown-table";
 import type {
   BlockId,
@@ -84,6 +84,10 @@ import {
   MERMAID_TEMPLATES,
   type MermaidTemplateId,
 } from "../mermaid/mermaid-templates";
+import {
+  DEFAULT_SPREADSHEET_IMPORT_OPTIONS,
+  sheetTable,
+} from "../spreadsheet/spreadsheet-table";
 import { addOperationError } from "../workspace/ui-state/shell-ui-state";
 import {
   type FramePreview,
@@ -211,6 +215,25 @@ export interface AddImagesFromFilesInput {
   readonly at?: Point;
 }
 
+// One table chosen in the import dialog: its heading (the worksheet's name) and cells.
+export interface ChosenTable {
+  readonly name: string;
+  readonly table: MarkdownTable;
+}
+
+export interface ImportSpreadsheetInput extends AddImagesFromFilesInput {
+  // The import dialog: what becomes of the workbook (null: cancelled). Without one, every
+  // visible worksheet with the default choices.
+  readonly choose?: (
+    workbook: SpreadsheetWorkbook,
+  ) => Promise<readonly ChosenTable[] | null>;
+}
+
+export interface SpreadsheetWorkbook {
+  readonly fileName: string;
+  readonly sheets: readonly SpreadsheetSheet[];
+}
+
 export interface CanvasActions {
   commitDrag(input: CommitDragInput): Promise<OperationResult<void>>;
   commitResize(input: CommitResizeInput): Promise<OperationResult<void>>;
@@ -261,11 +284,11 @@ export interface CanvasActions {
   importPastedImage(
     input: ImportPastedImageInput,
   ): Promise<OperationResult<ContentPath>>;
-  // "Table from Spreadsheet…": the OS dialog (in Rust), then one Markdown block per
-  // worksheet with values (its name as a heading and the values as a table), all in ONE
-  // command, selected afterwards. Cancelling does nothing.
+  // "Table from Spreadsheet…": the OS dialog (in Rust), the import dialog (`choose`), then
+  // one Markdown block per chosen table (the worksheet's name as a heading and the table),
+  // all in ONE command, selected afterwards. Cancelling either dialog does nothing.
   importSpreadsheet(
-    input: AddImagesFromFilesInput,
+    input: ImportSpreadsheetInput,
   ): Promise<OperationResult<void>>;
   // "Add Image…": the OS dialog for image files, then the same import as a drop into the
   // active sheet. Cancelling the dialog does nothing.
@@ -315,6 +338,17 @@ export interface CanvasActionsDependencies {
 }
 
 const NOTHING_TO_DO = operationOk(undefined);
+
+// Every visible worksheet with the default choices of the import dialog.
+function defaultSpreadsheetTables(
+  workbook: SpreadsheetWorkbook,
+): ChosenTable[] {
+  return workbook.sheets.flatMap((sheet) => {
+    if (sheet.hidden) return [];
+    const table = sheetTable(sheet, DEFAULT_SPREADSHEET_IMPORT_OPTIONS);
+    return table === null ? [] : [{ name: sheet.name, table }];
+  });
+}
 
 // Roughly the table's size, within the limits of SPREADSHEET_BLOCK_SIZE.
 function spreadsheetBlockSize(table: MarkdownTable): {
@@ -953,7 +987,7 @@ export function createCanvasActions(
       return operationOk(blockId);
     },
 
-    async importSpreadsheet({ viewportSize, at }) {
+    async importSpreadsheet({ viewportSize, at, choose }) {
       const target = activeSheetTarget();
       if (target === null) {
         return record(
@@ -972,11 +1006,18 @@ export function createCanvasActions(
       if (read.value.status === SPREADSHEET_SELECTION_STATUS.cancelled) {
         return NOTHING_TO_DO;
       }
+      const workbook = {
+        fileName: read.value.fileName,
+        sheets: read.value.sheets,
+      };
+      const chosen =
+        choose === undefined
+          ? defaultSpreadsheetTables(workbook)
+          : await choose(workbook);
+      if (chosen === null) return NOTHING_TO_DO;
       const { documentId, sheetId } = target;
       const specs: TextBlockSpec[] = [];
-      for (const worksheet of read.value.sheets) {
-        const table = tableFromCells(worksheet.rows);
-        if (table === null) continue;
+      for (const { name, table } of chosen) {
         const size = commitSize(spreadsheetBlockSize(table));
         if (!size.ok)
           return record("importSpreadsheet", fromDomainResult(size));
@@ -991,7 +1032,7 @@ export function createCanvasActions(
           blockType: BLOCK_TYPE_DEFINITIONS.markdown.identifier,
           position: position.value,
           size: size.value,
-          text: `## ${worksheet.name}\n\n${formatTable(table).join("\n")}\n`,
+          text: `## ${name}\n\n${formatTable(table).join("\n")}\n`,
         });
       }
       if (specs.length === 0) return NOTHING_TO_DO;

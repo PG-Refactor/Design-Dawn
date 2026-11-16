@@ -57,9 +57,34 @@ export const SPREADSHEET_SELECTION_STATUS = {
   cancelled: "cancelled",
 } as const;
 
+// One cell as the spreadsheet shows it.
+export interface SpreadsheetCell {
+  readonly text: string;
+  // It holds a number (also when shown with a currency sign or `%`).
+  readonly number?: boolean;
+  // The address of its external link.
+  readonly link?: string;
+}
+
+// Zero-based worksheet positions, both ends included.
+export interface SpreadsheetArea {
+  readonly firstRow: number;
+  readonly firstColumn: number;
+  readonly lastRow: number;
+  readonly lastColumn: number;
+}
+
+// `rows[0][0]` is the cell at (`firstRow`, `firstColumn`) of the worksheet (zero-based).
 export interface SpreadsheetSheet {
   readonly name: string;
-  readonly rows: readonly (readonly string[])[];
+  readonly hidden: boolean;
+  readonly firstRow: number;
+  readonly firstColumn: number;
+  readonly rows: readonly (readonly SpreadsheetCell[])[];
+  // Zero-based worksheet rows and columns that are hidden.
+  readonly hiddenRows: readonly number[];
+  readonly hiddenColumns: readonly number[];
+  readonly merged: readonly SpreadsheetArea[];
   // Rows or columns beyond Rust's limits were left out.
   readonly truncated: boolean;
 }

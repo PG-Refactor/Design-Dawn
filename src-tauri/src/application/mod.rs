@@ -38,6 +38,8 @@ pub mod session;
 pub mod sheet_merge;
 pub mod sheet_operations;
 pub mod snapshot;
+pub mod spreadsheet_hidden;
 pub mod spreadsheet_import;
+pub mod spreadsheet_number_format;
 pub mod window_binding;
 pub mod window_registry;
