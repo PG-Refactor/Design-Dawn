@@ -2,7 +2,7 @@
 //! All file access for a Project goes through here so that
 //! path containment checks and the hash ledger cannot be bypassed.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -185,6 +185,10 @@ pub struct ProjectSession {
     /// Kept in memory only: numbers are derived from file names, never stored in metadata,
     /// so after a restart a deleted highest number can be reused.
     block_numbers: HashMap<BlockNumberKey, u64>,
+    /// Image files this session made in each Document's `assets/` (imports, pastes, copies
+    /// from another Document). Only these may be removed when the Document closes and nothing
+    /// on disk refers to them: an asset that was there before belongs to the user.
+    new_assets: HashMap<DocumentId, BTreeSet<String>>,
 }
 
 fn join_key(base_relative: &str, relative: &str) -> String {
@@ -233,6 +237,7 @@ impl ProjectSession {
             folders: BTreeMap::new(),
             ledger,
             block_numbers: HashMap::new(),
+            new_assets: HashMap::new(),
         }
     }
 
@@ -482,6 +487,25 @@ impl ProjectSession {
         *mark = (*mark).max(number);
     }
 
+    /// An asset file this session created in the Document.
+    pub fn note_new_asset(&mut self, document_id: &DocumentId, content_path: &str) {
+        self.new_assets
+            .entry(*document_id)
+            .or_default()
+            .insert(content_path.to_owned());
+    }
+
+    /// Documents that have assets this session created.
+    pub fn documents_with_new_assets(&self) -> Vec<DocumentId> {
+        self.new_assets.keys().copied().collect()
+    }
+
+    /// The Document's assets this session created, handed over (and forgotten) for a check;
+    /// the ones that stay are noted again.
+    pub fn take_new_assets(&mut self, document_id: &DocumentId) -> BTreeSet<String> {
+        self.new_assets.remove(document_id).unwrap_or_default()
+    }
+
     /// Forgets the marks of one sheet directory, or of the whole document when `None`.
     pub fn forget_block_numbers(
         &mut self,
@@ -654,6 +678,7 @@ impl ProjectSession {
 
     pub fn remove_document_record(&mut self, document_id: &DocumentId) {
         self.documents.remove(document_id);
+        self.new_assets.remove(document_id);
     }
 
     /// Recursively deletes `parent_relative/directory_name` after proving it is a real

@@ -69,7 +69,11 @@ fn drop_session_if_unused(
     project_id: &ProjectId,
 ) {
     if !registry.is_project_in_use(project_id) {
-        sessions.remove(project_id);
+        // A window can go without closing its Documents first (the app quits): their
+        // imported images that nothing kept are cleared up all the same.
+        if let Some(mut session) = sessions.remove(project_id) {
+            super::asset_cleanup::remove_all_unused_new_assets(&mut session);
+        }
     }
 }
 

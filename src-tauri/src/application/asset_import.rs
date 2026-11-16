@@ -219,6 +219,7 @@ fn store_image(
     let content_path = format!("{ASSETS_DIRECTORY_NAME}{PATH_SEPARATOR}{file_name}");
     ContentPath::parse(BlockType::Image, &content_path)?;
     session.create_file(&base, &content_path, bytes)?;
+    session.note_new_asset(document_id, &content_path);
     Ok(content_path)
 }
 

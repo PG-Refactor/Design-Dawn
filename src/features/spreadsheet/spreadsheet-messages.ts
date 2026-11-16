@@ -11,6 +11,9 @@ const SPREADSHEET_MESSAGES_JA = {
   rangePlaceholder: "範囲（例: B3:H40。空欄は全体）",
   invalidRange: "範囲は B3:H40 のように書いてください。",
   previewOf: (sheet: string): string => `${sheet} をプレビュー`,
+  importSheet: (sheet: string): string => `${sheet} を取り込む`,
+  selectAll: "すべて選択",
+  deselectAll: "すべて選択解除",
   optionsLegend: "取り込み方",
   headerRow: "1行目を見出しにする（しないときは列の記号 A, B, … が見出し）",
   fillMerged:
@@ -37,6 +40,9 @@ const SPREADSHEET_MESSAGES_EN: SpreadsheetMessages = {
   rangePlaceholder: "Range (e.g. B3:H40; empty for all)",
   invalidRange: "Write a range like B3:H40.",
   previewOf: (sheet) => `Preview ${sheet}`,
+  importSheet: (sheet) => `Import ${sheet}`,
+  selectAll: "Select All",
+  deselectAll: "Deselect All",
   optionsLegend: "How to import",
   headerRow: "First row is the header (otherwise the column letters A, B, …)",
   fillMerged:
