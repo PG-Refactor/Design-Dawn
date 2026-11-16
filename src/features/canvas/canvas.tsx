@@ -79,6 +79,16 @@ import "./canvas.css";
 
 const NO_BLOCKS: readonly Block[] = [];
 
+// Set while the canvas has the focus from a click: its focus ring (a frame round the whole
+// sheet) is for keyboard users. A key pressed meanwhile (Delete) would otherwise make the
+// webview draw it, and the sheet looks selected. Cleared when the focus leaves.
+const POINTER_FOCUS_DATA = "pointerFocus";
+
+function focusByPointer(element: HTMLElement): void {
+  element.dataset[POINTER_FOCUS_DATA] = "true";
+  element.focus({ preventScroll: true });
+}
+
 // Key command -> z-order direction (the other key commands are not z-order changes).
 const REORDER_KEY_COMMANDS = {
   [CANVAS_KEY_COMMANDS.bringForward]: "forward",
@@ -249,7 +259,7 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
     // A block editor owns its pointer events (text selection, caret, scrollbars).
     if (isInsideBlockEditor(event.target)) return;
     const element = event.currentTarget;
-    element.focus({ preventScroll: true });
+    focusByPointer(element);
     // jsdom has no pointer capture; real webviews do.
     if (typeof element.setPointerCapture === "function") {
       element.setPointerCapture(event.pointerId);
@@ -349,7 +359,7 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
       return;
     }
     const element = event.currentTarget;
-    element.focus({ preventScroll: true });
+    focusByPointer(element);
     const selectionInput = { documentId, sheetId };
     const paste = () =>
       void canvasActions.pasteClipboard({
@@ -537,6 +547,8 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
     const next = event.relatedTarget;
     if (next instanceof Node && event.currentTarget.contains(next)) return;
     updateSpaceHeld(false);
+    // Coming back by keyboard (Tab) shows the focus ring again.
+    delete event.currentTarget.dataset[POINTER_FOCUS_DATA];
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {

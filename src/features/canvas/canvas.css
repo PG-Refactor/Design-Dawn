@@ -14,7 +14,8 @@
   user-select: none;
 }
 
-.canvas:focus-visible {
+/* Not after a click (see `focusByPointer`): the ring is for keyboard users. */
+.canvas:focus-visible:not([data-pointer-focus]) {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: -2px;
 }
