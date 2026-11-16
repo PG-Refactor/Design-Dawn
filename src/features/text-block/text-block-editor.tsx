@@ -61,6 +61,9 @@ export interface TextBlockGuiView {
     readonly modeGroup: string;
     readonly gui: string;
     readonly source: string;
+    // The switch that folds the GUI's controls away (and back).
+    readonly hideControls: string;
+    readonly showControls: string;
   };
   readonly initialView: TextBlockEditorView;
   // The block's text in the application state. The GUI works on this, never on the draft.
@@ -183,10 +186,14 @@ export function TextBlockEditor({
       findStore.getState().editorReveal?.keepFocus === true,
   );
   const findOpen = useStoreSelector(findStore, selectSheetFindOpen);
+  // A match to show opens Source; an editor whose GUI can be used opens in the view last
+  // chosen with the switch.
   const [view, setView] = useState<TextBlockEditorView>(() =>
     findStore.getState().editorReveal?.blockId === blockId
       ? "source"
-      : (guiView?.initialView ?? "source"),
+      : guiView?.initialView === "gui"
+        ? sourceLayout.preferredView
+        : (guiView?.initialView ?? "source"),
   );
   const guiCommittedText = guiView?.committedText;
   // Latest values for async callbacks and the unmount cleanup, which must not see stale
@@ -387,9 +394,17 @@ export function TextBlockEditor({
 
   // Source -> GUI commits the draft first (one history entry when it changed), so the GUI
   // starts from the text that is really stored. A failed commit stays in Source.
-  async function showGui(): Promise<void> {
+  // Only a choice made with the switch is remembered (not the Source a diagram the GUI
+  // cannot edit falls back to), and only once the view did change.
+  function rememberView(chosen: TextBlockEditorView): void {
+    const layout = uiStateStore.getState().sourceEditorLayout;
+    actions.setSourceEditorLayout({ ...layout, preferredView: chosen });
+  }
+
+  async function showGui(remember = false): Promise<void> {
     if (view === "gui" || !(await commit())) return;
     setView("gui");
+    if (remember) rememberView("gui");
   }
 
   // GUI -> Source asks the GUI to apply its own uncommitted input (only that: it does not
@@ -397,7 +412,7 @@ export function TextBlockEditor({
   // what is not). A refusal stays in the GUI, where the error is shown. Source then starts
   // from the text the store has NOW, read here, because the draft that follows the store
   // while the GUI is shown depends on a render that may not have happened yet.
-  async function showSource(): Promise<void> {
+  async function showSource(remember = false): Promise<void> {
     if (view === "source") return;
     if (view === "gui") {
       const left = (await guiLeaveRef.current?.()) ?? operationOk(undefined);
@@ -413,6 +428,7 @@ export function TextBlockEditor({
       }
     }
     setView("source");
+    if (remember) rememberView("source");
   }
 
   function onBlur(event: FocusEvent<HTMLDivElement>) {
@@ -509,16 +525,28 @@ export function TextBlockEditor({
       onBlur={onBlur}
     >
       {view === "gui" && guiView !== undefined ? (
-        <div className="text-block-editor__body">
-          <div className="text-block-editor__gui">
+        // The diagram first (left), its controls beside it (right). Folded controls stay
+        // mounted: the diagram's right-click menu and an open add dialog live in them, and
+        // so does whatever was typed into a form.
+        <div
+          className={
+            sourceLayout.guiControlsHidden
+              ? "text-block-editor__body text-block-editor__body--controls-hidden"
+              : "text-block-editor__body"
+          }
+        >
+          <div className="text-block-editor__preview">
+            {renderPreview(guiView.committedText, view)}
+          </div>
+          <div
+            className="text-block-editor__gui"
+            hidden={sourceLayout.guiControlsHidden}
+          >
             {guiView.render({
               committedText: guiView.committedText,
               showSource: () => void showSource(),
               leaveRef: guiLeaveRef,
             })}
-          </div>
-          <div className="text-block-editor__preview">
-            {renderPreview(guiView.committedText, view)}
           </div>
         </div>
       ) : (
@@ -546,7 +574,7 @@ export function TextBlockEditor({
               type="button"
               className="button"
               aria-pressed={view === "gui"}
-              onClick={() => void showGui()}
+              onClick={() => void showGui(true)}
             >
               {guiView.labels.gui}
             </button>
@@ -554,11 +582,28 @@ export function TextBlockEditor({
               type="button"
               className="button"
               aria-pressed={view === "source"}
-              onClick={() => void showSource()}
+              onClick={() => void showSource(true)}
             >
               {guiView.labels.source}
             </button>
           </fieldset>
+        )}
+        {view === "gui" && guiView !== undefined && (
+          <button
+            type="button"
+            className="button text-block-editor__preview-toggle"
+            aria-pressed={sourceLayout.guiControlsHidden}
+            onClick={() =>
+              actions.setSourceEditorLayout({
+                ...sourceLayout,
+                guiControlsHidden: !sourceLayout.guiControlsHidden,
+              })
+            }
+          >
+            {sourceLayout.guiControlsHidden
+              ? guiView.labels.showControls
+              : guiView.labels.hideControls}
+          </button>
         )}
         {sourceView && renderSourceTools?.({ text: draft, caret, replaceText })}
         {sourceView && (

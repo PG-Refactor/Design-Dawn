@@ -296,7 +296,7 @@ describe("focus inside the editor does not end editing", () => {
     // Tab goes source -> preview switch -> Done.
     await shell.user.tab();
     expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "プレビューを隠す" }),
+      screen.getByRole("button", { name: "プレビューを非表示" }),
     );
     await shell.user.tab();
     expect(document.activeElement).toBe(
@@ -691,7 +691,7 @@ describe("the Source | Preview split", () => {
     const { shell } = await renderOpenedCanvas();
     await enterEditByDoubleClick();
     await shell.user.click(
-      screen.getByRole("button", { name: "プレビューを隠す" }),
+      screen.getByRole("button", { name: "プレビューを非表示" }),
     );
     expect(
       screen.queryByRole("region", { name: "Markdownプレビュー（00000001）" }),
@@ -712,11 +712,12 @@ describe("the Source | Preview split", () => {
     await enterEditByDoubleClick();
     expect(shareShown()).toBe("50");
     divider().focus();
-    await shell.user.keyboard("{ArrowRight}");
+    // The source is on the right: moving the divider left widens it.
+    await shell.user.keyboard("{ArrowLeft}");
     expect(shareShown()).toBe("55");
     await shell.user.keyboard("{End}");
     expect(shareShown()).toBe("80");
-    await shell.user.keyboard("{ArrowRight}");
+    await shell.user.keyboard("{ArrowLeft}");
     expect(shareShown()).toBe("80");
     await shell.user.keyboard("{Home}");
     expect(shareShown()).toBe("20");
@@ -747,14 +748,15 @@ describe("the Source | Preview split", () => {
       { target: divider(), coords: { clientX: 380 } },
       { keys: "[/MouseLeft]", target: divider(), coords: { clientX: 380 } },
     ]);
-    expect(shareShown()).toBe("70");
+    // The source is what lies right of the divider.
+    expect(shareShown()).toBe("30");
   });
 
   it("is kept for the next editor that opens", async () => {
     const { shell } = await renderOpenedCanvas();
     await enterEditByDoubleClick();
     divider().focus();
-    await shell.user.keyboard("{ArrowLeft}");
+    await shell.user.keyboard("{ArrowRight}");
     await shell.user.click(screen.getByRole("button", { name: "完了" }));
     await act(settle);
     // The second block (the helper looks for the first block's source box).

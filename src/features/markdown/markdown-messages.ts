@@ -10,7 +10,7 @@ const MARKDOWN_MESSAGES_JA = {
   errorKind: "種別",
   errorDetails: "詳細",
   done: "完了",
-  hidePreview: "プレビューを隠す",
+  hidePreview: "プレビューを非表示",
   showPreview: "プレビューを表示",
   sourcePreviewDivider: "ソースとプレビューの境界",
   previewLabel: (shortId: string): string => `Markdownプレビュー（${shortId}）`,

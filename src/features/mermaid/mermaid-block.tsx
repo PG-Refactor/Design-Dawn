@@ -100,6 +100,8 @@ export function MermaidBlock({
               modeGroup: messages.gui.modeGroup,
               gui: messages.gui.modeGui,
               source: messages.gui.modeSource,
+              hideControls: messages.gui.hideControls,
+              showControls: messages.gui.showControls,
             },
             initialView,
             committedText: text,
