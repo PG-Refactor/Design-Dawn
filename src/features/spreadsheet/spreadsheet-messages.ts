@@ -25,6 +25,9 @@ const SPREADSHEET_MESSAGES_JA = {
     `${rows} 行 × ${columns} 列（見出しを除く）`,
   previewMore: (rows: number): string => `ほか ${rows} 行`,
   previewEmpty: "取り込む値がありません。",
+  headerRowHint:
+    "左の行番号を押すと、その行を見出しにします（上の行は取り込みません）。",
+  headerRowLabel: (row: number): string => `${row}行目を見出しにする`,
   truncated: "大きすぎるため、1000 行・50 列を超える部分は取り込みません。",
   cancel: "キャンセル",
   importButton: "取り込む",
@@ -54,6 +57,9 @@ const SPREADSHEET_MESSAGES_EN: SpreadsheetMessages = {
     `${rows} ${rows === 1 ? "row" : "rows"} × ${columns} ${columns === 1 ? "column" : "columns"} (besides the header)`,
   previewMore: (rows) => (rows === 1 ? "1 more row" : `${rows} more rows`),
   previewEmpty: "There are no values to import.",
+  headerRowHint:
+    "Press a row number on the left to make that row the header (the rows above are left out).",
+  headerRowLabel: (row) => `Make row ${row} the header`,
   truncated:
     "It is too large: beyond 1000 rows and 50 columns nothing is imported.",
   cancel: "Cancel",

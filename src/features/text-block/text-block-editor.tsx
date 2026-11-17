@@ -2,6 +2,7 @@ import {
   type ClipboardEvent,
   type CSSProperties,
   type FocusEvent,
+  type KeyboardEvent,
   type MutableRefObject,
   type ReactNode,
   useCallback,
@@ -141,8 +142,13 @@ function scrollToOffset(textarea: HTMLTextAreaElement, offset: number): void {
 //   - the "Done" button is used, or
 //   - the editor goes away while the draft differs from the last committed text (switching
 //     the sheet; a safety net so a draft is not dropped silently).
-// There is no discard: Escape does nothing special here, so a draft is never lost to a
-// stray key.
+// There is no discard: Escape finishes editing like "Done" (the draft is kept and committed),
+// so a draft is never lost to a stray key. An Escape that something inside the editor uses
+// (a menu, a dialog, an input method composing text) is left to it.
+const ESCAPE_KEY = "Escape";
+// Where Escape belongs to what is open (it closes that, not the editor).
+const OWN_ESCAPE_SELECTOR = '[role="menu"], [role="dialog"], [role="listbox"]';
+
 export function TextBlockEditor({
   documentId,
   sheetId,
@@ -349,6 +355,26 @@ export function TextBlockEditor({
     [draftRegistry, documentId, commitDraft],
   );
 
+  function onEditorKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
+    if (
+      event.key !== ESCAPE_KEY ||
+      event.defaultPrevented ||
+      event.nativeEvent.isComposing
+    ) {
+      return;
+    }
+    // Only what is open inside the editor (or drawn from it, like the add dialog) counts:
+    // the canvas around it is a listbox too.
+    const owner =
+      event.target instanceof Element
+        ? event.target.closest(OWN_ESCAPE_SELECTOR)
+        : null;
+    if (owner !== null && !owner.contains(event.currentTarget)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void finishRef.current(true);
+  }
+
   const finish = useCallback(
     async (returnFocus: boolean): Promise<void> => {
       const body = containerRef.current?.closest(`[${BLOCK_BODY_ATTRIBUTE}]`);
@@ -509,6 +535,7 @@ export function TextBlockEditor({
         shownByFindRef.current = false;
       }}
       onBlur={onBlur}
+      onKeyDown={onEditorKeyDown}
     >
       {view === "gui" && guiView !== undefined ? (
         // The diagram first (left), its controls beside it (right). Folded controls stay

@@ -219,6 +219,9 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     closeProject: "Close Project",
     openProjectInNewWindow: "Open Project in New Window…",
     autoSave: "Auto Save",
+    autoSaveOff: "Auto Save Off",
+    autoSaveOffHint:
+      "Auto Save is off; Ctrl+S saves. Click to turn Auto Save on.",
     exportMenu: "Export",
     languageLegend: "Language",
     themeLegend: "Theme",

@@ -501,6 +501,18 @@ export function TopBar() {
       <h1 className="top-bar__app-name">{APP_CONFIG.displayName}</h1>
       <MenuBar label={topBar.menubarLabel} menus={menus} />
       <div className="top-bar__spacer" />
+      {/* Auto Save off is a state to keep in mind (changes wait for Ctrl+S): shown all
+          the time, not only as an unchecked menu item. */}
+      {!autoSaveEnabled && !autoSaveLoading && (
+        <button
+          type="button"
+          className="top-bar__auto-save-off"
+          title={topBar.autoSaveOffHint}
+          onClick={() => void autoSaveController.setEnabled(true)}
+        >
+          {topBar.autoSaveOff}
+        </button>
+      )}
       <Notifications />
       <HelpDialogs dialog={helpDialog} onChange={setHelpDialog} />
       {aiAccessOpen && (

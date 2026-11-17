@@ -2,6 +2,7 @@
 
 import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
+import { settle } from "../../application/test-support/fakes";
 import { DOCUMENT_A } from "../../application/test-support/workspace-harness";
 import { AI_ACCESS_MESSAGES } from "../ai-access/ai-access-messages";
 import { EXPORT_MESSAGES } from "../export/export-messages";
@@ -343,5 +344,22 @@ describe("notifications button", () => {
     expect(button.querySelector(".notifications__badge")?.textContent).toBe(
       "1",
     );
+  });
+});
+
+describe("Auto Save off", () => {
+  it("shows a mark in the top bar while off, which turns it back on", async () => {
+    const shell = await renderShell({ systemLanguages: ["en"] });
+    await act(settle);
+    expect(screen.queryByRole("button", { name: EN.autoSaveOff })).toBeNull();
+    await act(async () => {
+      await shell.autoSaveController.initialize();
+      await shell.autoSaveController.setEnabled(false);
+      await settle();
+    });
+    const mark = await screen.findByRole("button", { name: EN.autoSaveOff });
+    await shell.user.click(mark);
+    await act(settle);
+    expect(screen.queryByRole("button", { name: EN.autoSaveOff })).toBeNull();
   });
 });
