@@ -75,6 +75,10 @@ import {
   type SearchActions,
 } from "../features/search/search-actions";
 import {
+  type CustomTemplates,
+  createCustomTemplates,
+} from "../features/templates/custom-templates";
+import {
   createDraftRegistry,
   type DraftRegistry,
 } from "../features/workspace/draft-registry";
@@ -101,6 +105,7 @@ import { createTauriGitGateway } from "../infrastructure/tauri/tauri-git-gateway
 import { createTauriPersistenceGateway } from "../infrastructure/tauri/tauri-persistence-gateway";
 import { createTauriViewportGateway } from "../infrastructure/tauri/tauri-viewport-gateway";
 import { createTauriWindowTitle } from "../infrastructure/tauri/tauri-window-title";
+import { createTauriTemplateGateway } from "../infrastructure/tauri/template-client";
 import { createTimeoutScheduler } from "../infrastructure/timer/timeout-scheduler";
 
 export interface AppServices {
@@ -113,6 +118,7 @@ export interface AppServices {
   readonly canvasActions: CanvasActions;
   readonly searchActions: SearchActions;
   readonly exportActions: ExportActions;
+  readonly templates: CustomTemplates;
   // Uncommitted editor drafts; `actions.saveAll` commits them before saving.
   readonly draftRegistry: DraftRegistry;
   // Files dropped on the window, and the URLs of image assets, for the image blocks.
@@ -281,6 +287,13 @@ export function createAppServices(): AppServices {
     canvasActions,
     searchActions,
     exportActions,
+    templates: createCustomTemplates({
+      gateway: createTauriTemplateGateway(),
+      applicationStore,
+      uiStateStore,
+      actions,
+      canvasActions,
+    }),
     draftRegistry,
     dropEventSource: createTauriDropEventSource(),
     assetUrlResolver: createTauriAssetUrlResolver(),

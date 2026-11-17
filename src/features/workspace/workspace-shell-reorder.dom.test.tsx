@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+
 import {
   cleanup,
   fireEvent,
@@ -15,6 +16,7 @@ import {
   SHEET_A1,
   SHEET_A2,
 } from "../../application/test-support/workspace-harness";
+import { TEMPLATE_MESSAGES } from "../templates/template-messages";
 import { reopenedWorkspace, undoDepth } from "./test-support/actions-harness";
 import {
   applyOutsideUi,
@@ -30,6 +32,7 @@ import {
 } from "./test-support/tree-drag-helpers";
 import { WORKSPACE_MESSAGES } from "./workspace-messages";
 
+const TEMPLATE_TEXTS = TEMPLATE_MESSAGES.ja;
 const MESSAGES = WORKSPACE_MESSAGES.ja;
 
 afterEach(() => {
@@ -677,6 +680,7 @@ describe("row menu accessibility", () => {
       MESSAGES.tree.rename,
       MESSAGES.tree.moveTo,
       MESSAGES.tree.openInNewWindow,
+      TEMPLATE_TEXTS.saveAsTemplate,
       `${MESSAGES.tree.exportDocument}▸`,
       MESSAGES.tree.deleteDocument,
     ]);

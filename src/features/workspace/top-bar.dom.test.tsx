@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { DOCUMENT_A } from "../../application/test-support/workspace-harness";
 import { AI_ACCESS_MESSAGES } from "../ai-access/ai-access-messages";
 import { EXPORT_MESSAGES } from "../export/export-messages";
+import { TEMPLATE_MESSAGES } from "../templates/template-messages";
 import { makeDocumentADirty } from "./test-support/actions-harness";
 import {
   chooseMenuItem,
@@ -87,11 +88,12 @@ describe("File menu", () => {
       ["menuitemcheckbox", EN.autoSave],
       ["menuitem", `${EXPORT_MESSAGES.en.exportMenuItem}▸`],
       ["menuitem", `${EXPORT_MESSAGES.en.print}Ctrl+P`],
+      ["menuitem", TEMPLATE_MESSAGES.en.manage],
       ["menuitem", AI_ACCESS_MESSAGES.en.menuItem],
       ["menuitem", AI_ACCESS_MESSAGES.en.history.menuItem],
       ["menuitem", EN.closeProject],
     ]);
-    expect(within(menu).getAllByRole("separator")).toHaveLength(4);
+    expect(within(menu).getAllByRole("separator")).toHaveLength(5);
   });
 
   it("offers Markdown, HTML and PDF under Export, each opening its dialog on the shown Document", async () => {

@@ -58,6 +58,7 @@ export const ASSET_ERROR_KINDS = [
   "exportFailed",
   // A search pattern that is not a valid regular expression.
   "invalidSearchPattern",
+  "invalidTemplate",
 ] as const;
 
 // Folder commands: deleting a folder that still holds

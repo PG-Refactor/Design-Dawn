@@ -1,11 +1,14 @@
 import { type KeyboardEvent, type MouseEvent, useRef } from "react";
 import type { SheetId } from "../../domain/shared/entity-id";
 import { useContextMenu } from "../../shared/menu/context-menu";
+import type { PopupMenuEntry } from "../../shared/menu/menu-list";
 import {
   DESIGN_TEMPLATE_IDS,
   DESIGN_TEMPLATES,
 } from "../templates/design-templates";
 import { createSheetFromTemplate } from "../templates/template-actions";
+import { askSaveTemplate } from "../templates/template-dialogs";
+import { customTemplateEntries } from "../templates/template-menu";
 import { restoreFocus } from "./focus-utils";
 import { sheetPanelId, sheetTabId } from "./tab-ids";
 import { SheetIcon } from "./tree-icons";
@@ -28,8 +31,16 @@ const RENAME_KEY = "F2";
 
 function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
   const messages = useMessages().workspace;
-  const { actions, canvasActions, uiStateStore } = useWorkspaceServices();
+  const templateMessages = useMessages().templates;
+  const { actions, canvasActions, uiStateStore, templates } =
+    useWorkspaceServices();
   const language = useDisplayLanguage();
+
+  async function saveSheetAsTemplate(sheetId: SheetId, name: string) {
+    const answer = await askSaveTemplate({ kind: "sheet", name });
+    if (answer === null) return;
+    await templates.saveSheet(documentId, sheetId, answer.scope, answer.name);
+  }
   const tabElements = useRef(new Map<SheetId, HTMLButtonElement>());
   const renaming = useUiState((ui) => ui.renaming);
   const { tabs, documentId, activeSheetId } = model;
@@ -94,17 +105,32 @@ function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
       {
         id: "createSheetFromTemplate",
         label: messages.tabs.createSheetFromTemplate,
-        entries: DESIGN_TEMPLATE_IDS.map((templateId) => ({
-          id: `template-${templateId}`,
-          label: DESIGN_TEMPLATES[templateId].name[language],
-          onSelect: () =>
-            void createSheetFromTemplate(
-              { actions, canvasActions, uiStateStore },
-              documentId,
-              templateId,
-              language,
+        entries: [
+          ...DESIGN_TEMPLATE_IDS.map((templateId) => ({
+            id: `template-${templateId}`,
+            label: DESIGN_TEMPLATES[templateId].name[language],
+            onSelect: () =>
+              void createSheetFromTemplate(
+                { actions, canvasActions, uiStateStore },
+                documentId,
+                templateId,
+                language,
+              ),
+          })),
+          ...withSeparator(
+            customTemplateEntries(
+              templates.store.getState().templates,
+              ["sheet"],
+              templateMessages,
+              (template) => void templates.createSheet(template, documentId),
             ),
-        })),
+          ),
+        ],
+      },
+      {
+        id: "saveSheetAsTemplate",
+        label: templateMessages.saveAsTemplate,
+        onSelect: () => void saveSheetAsTemplate(sheetId, name),
       },
       {
         id: "deleteSheet",
@@ -244,6 +270,13 @@ function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
       {contextMenu.element}
     </div>
   );
+}
+
+// The custom entries after the built-in ones, set apart by a line.
+function withSeparator(entries: PopupMenuEntry[]): PopupMenuEntry[] {
+  return entries.length === 0
+    ? []
+    : [{ id: "customTemplateSeparator", separator: true }, ...entries];
 }
 
 export function SheetTabs() {

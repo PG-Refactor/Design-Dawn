@@ -62,6 +62,9 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   redo: "Could not redo",
   loadViewport: "Could not load the view position (the default is used)",
   saveViewport: "Could not save the view position",
+  saveTemplate: "Could not save the template",
+  useTemplate: "Could not create from the template",
+  manageTemplate: "Could not change the template",
   refreshGitStatus: "Could not get the Git status",
   stageGitFiles: "Could not stage the files",
   unstageGitFiles: "Could not unstage the files",
@@ -131,6 +134,7 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
   assetTooLarge: "The image file is too large (limit 20 MiB).",
   exportFailed: "Could not write the export where you chose.",
   invalidSearchPattern: "This is not a valid regular expression.",
+  invalidTemplate: "The template could not be read or written.",
   invalidSpreadsheet:
     "The spreadsheet could not be read (.xlsx, .xlsm, .xls, .xlsb or .ods, up to 20 MiB).",
   invalidDropSelection:

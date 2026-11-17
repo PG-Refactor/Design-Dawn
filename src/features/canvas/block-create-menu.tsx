@@ -1,5 +1,6 @@
 import { type FocusEvent as ReactFocusEvent, useRef, useState } from "react";
 import type { BlockType } from "../../domain/block/block-type";
+import type { PopupMenuEntry } from "../../shared/menu/menu-list";
 import { MenuList, type PopupMenuItem } from "../../shared/menu/menu-list";
 import type { MermaidTemplateId } from "../mermaid/mermaid-templates";
 import { useMessages } from "../workspace/use-messages";
@@ -15,6 +16,11 @@ export interface BlockCreateMenuProps {
   readonly onAddImage: () => void;
   // Opens the spreadsheet dialog (each sheet becomes a Markdown table block).
   readonly onImportSpreadsheet: () => void;
+  // The custom block templates (a submenu when there are any).
+  readonly customTemplates?: {
+    readonly label: string;
+    readonly entries: readonly PopupMenuEntry[];
+  };
 }
 
 const OPEN_KEY = "ArrowDown";
@@ -26,6 +32,7 @@ export function BlockCreateMenu({
   onCreate,
   onAddImage,
   onImportSpreadsheet,
+  customTemplates,
 }: BlockCreateMenuProps) {
   const messages = useMessages().canvas;
   const mermaidMessages = useMessages().mermaid;
@@ -89,6 +96,16 @@ export function BlockCreateMenu({
                 onCreate("mermaid", template),
               ),
             },
+            ...(customTemplates === undefined ||
+            customTemplates.entries.length === 0
+              ? []
+              : [
+                  {
+                    id: "customTemplates",
+                    label: customTemplates.label,
+                    entries: [...customTemplates.entries],
+                  },
+                ]),
             {
               id: "image",
               label: messages.toolbar.image,

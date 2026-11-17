@@ -1,0 +1,99 @@
+/* Colours come from tokens only (theme-tokens.css). */
+.template-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.template-dialog__label {
+  font-weight: 600;
+}
+
+.template-dialog__input {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.template-dialog__input[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
+.template-dialog__error {
+  margin: 0;
+  color: var(--color-danger);
+}
+
+.template-dialog__scopes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+}
+
+.template-dialog__scopes label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.template-manager {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.template-manager__kind {
+  margin: 0 0 var(--space-1);
+  font-size: 0.9375rem;
+}
+
+.template-manager__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.template-manager__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1);
+  border-radius: var(--radius-medium);
+}
+
+.template-manager__row:hover {
+  background: var(--color-hover);
+}
+
+.template-manager__name {
+  display: flex;
+  flex: 1 1 12rem;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.template-manager__question {
+  flex: 1 1 12rem;
+}
+
+.template-manager__scope {
+  padding: var(--space-1);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}

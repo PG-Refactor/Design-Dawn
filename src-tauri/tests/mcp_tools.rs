@@ -21,18 +21,20 @@ use support::*;
 
 const MERMAID_BLOCK_ID: &str = "01928f3a-a0b1-7c23-a456-789abcdef012";
 const IMAGE_BLOCK_ID: &str = "01928f3a-9fa0-7b12-9345-6789abcdef01";
-const READ_TOOLS: [&str; 6] = [
+const READ_TOOLS: [&str; 7] = [
     "getProject",
     "getDocument",
     "getSheet",
     "getBlock",
+    "listTemplates",
     "searchProject",
     "exportMarkdown",
 ];
-const WRITE_TOOLS: [&str; 10] = [
+const WRITE_TOOLS: [&str; 11] = [
     "createDocument",
     "createSheet",
     "createBlock",
+    "createFromTemplate",
     "updateDocument",
     "updateSheet",
     "updateBlock",
@@ -1734,4 +1736,90 @@ fn an_image_request_waits_for_the_app_and_adds_nothing() {
         &ProjectId::parse(PROJECT_ID).unwrap()
     )
     .is_empty());
+}
+
+/// A shared template written the way the app writes one (`application::templates`).
+fn shared_sheet_template(root: &Path) -> String {
+    use design_dawn_lib::application::templates::{
+        save_template, TemplateBlockContent, TemplateContent, TemplateKind, TemplateRoots,
+        TemplateScope, TemplateSheetContent,
+    };
+    let roots = TemplateRoots {
+        shared: Some(root.join("templates")),
+        project: None,
+        global: root.join("no-global-templates"),
+    };
+    let text = |block_type: &str, text: &str, x: i64| TemplateBlockContent {
+        block_type: block_type.to_owned(),
+        x,
+        y: 0,
+        width: 320,
+        height: 200,
+        caption: None,
+        caption_position: None,
+        text: Some(text.to_owned()),
+        asset: None,
+    };
+    let saved = save_template(
+        &roots,
+        TemplateScope::Shared,
+        TemplateKind::Sheet,
+        &TemplateContent {
+            name: "Review".to_owned(),
+            block: None,
+            sheets: vec![TemplateSheetContent {
+                sheet_name: "Review".to_owned(),
+                blocks: vec![
+                    text("markdown", "# Review\n", 0),
+                    text("mermaid", "flowchart LR\n  A --> B\n", 400),
+                ],
+            }],
+            document_name: None,
+            assets: Vec::new(),
+        },
+        &|_| unreachable!("no images"),
+    )
+    .unwrap();
+    saved.template_id
+}
+
+#[test]
+fn templates_are_listed_and_make_a_sheet_with_their_blocks() {
+    let (_temp, root) = project_copy();
+    let template_id = shared_sheet_template(&root);
+    let context = context_for(&root, true);
+    let listed = call(&context, "listTemplates", json!({})).ok();
+    let shared: Vec<&Value> = listed["templates"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|template| template["scope"] == "shared")
+        .collect();
+    assert_eq!(shared.len(), 1);
+    assert_eq!(shared[0]["name"], "Review");
+    assert_eq!(shared[0]["kind"], "sheet");
+
+    let made = call(
+        &context,
+        "createFromTemplate",
+        json!({
+            "scope": "shared",
+            "kind": "sheet",
+            "templateId": template_id,
+            "documentId": DOCUMENT_ID,
+            "name": "Review 1",
+        }),
+    )
+    .ok();
+    assert_eq!(made["blockIds"].as_array().unwrap().len(), 2);
+    assert_eq!(made["skippedImages"], 0);
+    let sheet = call(
+        &context,
+        "getSheet",
+        json!({ "documentId": DOCUMENT_ID, "sheetId": made["sheetId"] }),
+    )
+    .ok();
+    assert_eq!(sheet["name"], "Review 1");
+    assert_eq!(sheet["blocks"].as_array().unwrap().len(), 2);
+    assert_loads_without_issues(&root);
 }

@@ -28,6 +28,7 @@ import {
 import type {
   ApplicationCommand,
   AssetBlockSpec,
+  BlockSpec,
   TextBlockSpec,
 } from "../../application/commands/command";
 import { editBlockContentCommand } from "../../application/commands/content-commands";
@@ -67,7 +68,11 @@ import {
   BLOCK_TYPE_DEFINITIONS,
   type BlockType,
 } from "../../domain/block/block-type";
-import { type CaptionPosition, parseCaption } from "../../domain/block/caption";
+import {
+  type CaptionPosition,
+  parseCaption,
+  parseCaptionPosition,
+} from "../../domain/block/caption";
 import type { ContentPath } from "../../domain/block/content-path";
 import type { DiagramOperation } from "../../domain/diagram/diagram-operation";
 import {
@@ -283,6 +288,12 @@ export interface CanvasActions {
   ): Promise<OperationResult<void>>;
   // Several text blocks at given places in ONE command (one undo step), e.g. a template.
   addTextBlocks(input: AddTextBlocksInput): Promise<OperationResult<void>>;
+  // The blocks of a template (texts, and images already imported into the Document) in ONE
+  // command, selected. With `place`, the group keeps its layout and goes where a new block
+  // would (the free place nearest the centre, or a chosen point).
+  addTemplateBlocks(
+    input: AddTemplateBlocksInput,
+  ): Promise<OperationResult<readonly BlockId[]>>;
   // An image pasted into a text editor: stored in the Document's assets. The editor writes
   // the reference itself; failures are reported like a drop's.
   importPastedImage(
@@ -431,6 +442,24 @@ export interface AddTextBlocksInput {
     readonly size: Extent;
     readonly caption?: string;
   }[];
+}
+
+export interface TemplateBlockInput {
+  readonly blockType: BlockType;
+  readonly position: Point;
+  readonly size: Extent;
+  // A text block's text, or an image block's asset in the Document.
+  readonly text?: string;
+  readonly contentPath?: ContentPath;
+  readonly caption?: string;
+  readonly captionPosition?: string;
+}
+
+export interface AddTemplateBlocksInput {
+  readonly documentId: DocumentId;
+  readonly sheetId: SheetId;
+  readonly blocks: readonly TemplateBlockInput[];
+  readonly place?: { readonly viewportSize: Extent; readonly at?: Point };
 }
 
 export interface AddImportedImageInput {
@@ -1168,6 +1197,92 @@ export function createCanvasActions(
         documentId,
         createBlocksCommand(sheetId, specs),
       );
+    },
+
+    async addTemplateBlocks({ documentId, sheetId, blocks, place }) {
+      if (blocks.length === 0) return operationOk([]);
+      // The group's corner and size, to move it as a whole.
+      const left = Math.min(...blocks.map((block) => block.position.x));
+      const top = Math.min(...blocks.map((block) => block.position.y));
+      let offset = { x: 0, y: 0 };
+      if (place !== undefined) {
+        const right = Math.max(
+          ...blocks.map((block) => block.position.x + block.size.width),
+        );
+        const bottom = Math.max(
+          ...blocks.map((block) => block.position.y + block.size.height),
+        );
+        const groupSize = commitSize({
+          width: right - left,
+          height: bottom - top,
+        });
+        if (!groupSize.ok)
+          return record("createBlock", fromDomainResult(groupSize));
+        const corner = newBlockPosition(
+          {
+            documentId,
+            sheetId,
+            viewportSize: place.viewportSize,
+            at: place.at,
+          },
+          groupSize.value,
+        );
+        if (!corner.ok) return record("createBlock", corner);
+        offset = { x: corner.value.x - left, y: corner.value.y - top };
+      }
+      const specs: BlockSpec[] = [];
+      for (const block of blocks) {
+        const position = commitPosition({
+          x: block.position.x + offset.x,
+          y: block.position.y + offset.y,
+        });
+        if (!position.ok)
+          return record("createBlock", fromDomainResult(position));
+        const size = commitSize(block.size);
+        if (!size.ok) return record("createBlock", fromDomainResult(size));
+        const caption =
+          block.caption === undefined ? null : parseCaption(block.caption);
+        const captionPosition =
+          block.captionPosition === undefined
+            ? null
+            : parseCaptionPosition(block.captionPosition);
+        const captionFields = {
+          ...(caption?.ok === true ? { caption: caption.value } : {}),
+          ...(caption?.ok === true && captionPosition?.ok === true
+            ? { captionPosition: captionPosition.value }
+            : {}),
+        };
+        const blockId = idGenerator.blockId();
+        if (block.contentPath !== undefined && block.blockType === "image") {
+          specs.push({
+            blockId,
+            blockType: "image",
+            position: position.value,
+            size: size.value,
+            contentPath: block.contentPath,
+            ...captionFields,
+          });
+        } else if (block.text !== undefined && block.blockType !== "image") {
+          specs.push({
+            blockId,
+            blockType: block.blockType,
+            position: position.value,
+            size: size.value,
+            text: block.text,
+            ...captionFields,
+          });
+        }
+      }
+      if (specs.length === 0) return operationOk([]);
+      const created = await execute(
+        "createBlock",
+        documentId,
+        createBlocksCommand(sheetId, specs),
+      );
+      if (!created.ok) return created;
+      const ids = specs.map((spec) => spec.blockId);
+      uiStateStore.setState((state) => selectBlocks(state, sheetId, ids));
+      return operationOk(ids);
     },
 
     async addImportedImage({

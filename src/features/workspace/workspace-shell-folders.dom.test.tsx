@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -8,6 +9,7 @@ import {
   FOLDER_2,
   seedFolderTree,
 } from "../../application/test-support/workspace-harness";
+import { TEMPLATE_MESSAGES } from "../templates/template-messages";
 import {
   applyOutsideUi,
   chooseRowMenuItem,
@@ -19,6 +21,7 @@ import {
 import { dragTreeRow, yOnRow } from "./test-support/tree-drag-helpers";
 import { WORKSPACE_MESSAGES } from "./workspace-messages";
 
+const TEMPLATE_TEXTS = TEMPLATE_MESSAGES.ja;
 const MESSAGES = WORKSPACE_MESSAGES.ja;
 
 afterEach(() => {
@@ -192,6 +195,7 @@ describe("row menus", () => {
       TREE.rename,
       TREE.moveTo,
       TREE.openInNewWindow,
+      TEMPLATE_TEXTS.saveAsTemplate,
       `${TREE.exportDocument}▸`,
       TREE.deleteDocument,
     ]);
@@ -520,6 +524,7 @@ describe("the right-click menu of the tree", () => {
       TREE.rename,
       TREE.moveTo,
       TREE.openInNewWindow,
+      TEMPLATE_TEXTS.saveAsTemplate,
       `${TREE.exportDocument}▸`,
       TREE.deleteDocument,
     ]);

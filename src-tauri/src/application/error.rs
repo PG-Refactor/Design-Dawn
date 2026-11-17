@@ -49,6 +49,8 @@ pub enum ErrorKind {
     ExportFailed,
     /// A search asked for a regular expression that is not one (or is too large).
     InvalidSearchPattern,
+    /// A template folder or what was sent to save one is not usable.
+    InvalidTemplate,
     /// A theme preference that is not `system` or a defined theme id.
     InvalidThemePreference,
     /// A language preference that is not `system`, `en` or `ja`.
@@ -146,6 +148,7 @@ impl ErrorKind {
             Self::InvalidSpreadsheet => "invalidSpreadsheet",
             Self::ExportFailed => "exportFailed",
             Self::InvalidSearchPattern => "invalidSearchPattern",
+            Self::InvalidTemplate => "invalidTemplate",
             Self::InvalidThemePreference => "invalidThemePreference",
             Self::InvalidLanguagePreference => "invalidLanguagePreference",
             Self::InvalidTextSize => "invalidTextSize",
@@ -203,6 +206,7 @@ impl ErrorKind {
             Self::InvalidSpreadsheet => "the file is not a readable spreadsheet",
             Self::ExportFailed => "the export could not be written",
             Self::InvalidSearchPattern => "the search pattern is not a valid regular expression",
+            Self::InvalidTemplate => "the template is not usable",
             Self::InvalidThemePreference => "the theme preference is not valid",
             Self::InvalidLanguagePreference => "the language preference is not valid",
             Self::InvalidTextSize => "the text size is not valid",
@@ -317,7 +321,7 @@ impl Serialize for ApplicationError {
 mod tests {
     use super::*;
 
-    const ALL_KINDS: [ErrorKind; 65] = [
+    const ALL_KINDS: [ErrorKind; 66] = [
         ErrorKind::Domain(DomainErrorKind::InvalidEntityId),
         ErrorKind::Domain(DomainErrorKind::InvalidDisplayName),
         ErrorKind::Domain(DomainErrorKind::InvalidCaption),
@@ -348,6 +352,7 @@ mod tests {
         ErrorKind::InvalidSpreadsheet,
         ErrorKind::ExportFailed,
         ErrorKind::InvalidSearchPattern,
+        ErrorKind::InvalidTemplate,
         ErrorKind::InvalidThemePreference,
         ErrorKind::InvalidLanguagePreference,
         ErrorKind::InvalidTextSize,

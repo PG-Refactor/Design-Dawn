@@ -24,6 +24,7 @@ import type { CanvasActions } from "../canvas/canvas-actions";
 import type { ViewportPersistence } from "../canvas/viewport-persistence";
 import type { ExportActions } from "../export/export-actions";
 import type { SearchActions } from "../search/search-actions";
+import type { CustomTemplates } from "../templates/custom-templates";
 import type { DraftRegistry } from "./draft-registry";
 import type { UiStateStore } from "./ui-state/ui-state";
 import type { WorkspaceActions } from "./workspace-actions";
@@ -39,6 +40,8 @@ export interface WorkspaceServices {
   readonly searchActions: SearchActions;
   // Exports to files outside the Project (Markdown, images, HTML, print).
   readonly exportActions: ExportActions;
+  // Custom templates: their list for the menus, and saving / creating from them.
+  readonly templates: CustomTemplates;
   // Markdown editors register their uncommitted drafts here (see `saveAll`).
   readonly draftRegistry: DraftRegistry;
   // Files dropped on the window (Rust reports ids and counts only).

@@ -14,7 +14,11 @@ import {
 import type { ApplicationState } from "../../application/state/application-state";
 import { CANVAS_CONFIG } from "../../config/canvas-config";
 import type { Block } from "../../domain/block/block";
-import { BLOCK_TYPE_DEFINITIONS } from "../../domain/block/block-type";
+import {
+  BLOCK_TYPE_DEFINITIONS,
+  type BlockType,
+  isTextBlockType,
+} from "../../domain/block/block-type";
 import {
   DEFAULT_CAPTION_POSITION,
   figureCaptionOf,
@@ -28,6 +32,8 @@ import { useContextMenu } from "../../shared/menu/context-menu";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { useMermaidRenderer } from "../mermaid/mermaid-renderer-context";
 import { askSpreadsheetImport } from "../spreadsheet/spreadsheet-import-dialog";
+import { askSaveTemplate } from "../templates/template-dialogs";
+import { customTemplateEntries } from "../templates/template-menu";
 import {
   CLIPBOARD_TEXT_TYPE,
   pastedImage,
@@ -87,6 +93,8 @@ import { ZoomControl } from "./zoom-control";
 import "./canvas.css";
 
 const NO_BLOCKS: readonly Block[] = [];
+// The template kinds a block can be made from.
+const BLOCK_TEMPLATE_KINDS = ["markdown", "mermaid"] as const;
 // Between the texts of copied blocks, as text for other apps.
 const BLOCK_TEXT_SEPARATOR = "\n\n";
 
@@ -137,8 +145,14 @@ export interface CanvasProps {
 export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
   const messages = useMessages().canvas;
   const mermaidMessages = useMessages().mermaid;
-  const { applicationStore, uiStateStore, canvasActions, exportActions } =
-    useWorkspaceServices();
+  const templateMessages = useMessages().templates;
+  const {
+    applicationStore,
+    uiStateStore,
+    canvasActions,
+    exportActions,
+    templates,
+  } = useWorkspaceServices();
   const mermaidRenderer = useMermaidRenderer();
   const selectBlocks = useCallback(
     (application: ApplicationState): readonly Block[] =>
@@ -349,6 +363,22 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
       .filter((blockId) => selected.has(blockId));
   }
 
+  async function saveBlockAsTemplate(blockId: BlockId, blockType: BlockType) {
+    const kind =
+      blockType === BLOCK_TYPE_DEFINITIONS.mermaid.identifier
+        ? "mermaid"
+        : "markdown";
+    const answer = await askSaveTemplate({ kind, name: "" });
+    if (answer === null) return;
+    await templates.saveBlock(
+      documentId,
+      sheetId,
+      blockId,
+      answer.scope,
+      answer.name,
+    );
+  }
+
   // Right-click on a block acts on the selection (the block joins it, or replaces it when
   // it was not selected, like in file managers); on the empty canvas it adds where the
   // pointer is. A block editor keeps the webview's text menu (cut / copy / paste).
@@ -398,6 +428,19 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
               ...(at === undefined ? {} : { at }),
             }),
           paste,
+          customTemplates: {
+            label: templateMessages.fromTemplate,
+            entries: customTemplateEntries(
+              templates.store.getState().templates,
+              BLOCK_TEMPLATE_KINDS,
+              templateMessages,
+              (template) =>
+                void templates.addBlocks(template, documentId, sheetId, {
+                  viewportSize: canvasSize(),
+                  ...(at === undefined ? {} : { at }),
+                }),
+            ),
+          },
         }),
       );
       return;
@@ -464,6 +507,20 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
                       ...size,
                     },
                   });
+                },
+              }
+            : {}),
+          ...(selectedIds.length === 1 &&
+          onlyBlock !== undefined &&
+          isTextBlockType(onlyBlock.blockType)
+            ? {
+                saveAsTemplate: {
+                  label: templateMessages.saveAsTemplate,
+                  onSelect: () =>
+                    void saveBlockAsTemplate(
+                      onlyBlock.blockId,
+                      onlyBlock.blockType,
+                    ),
                 },
               }
             : {}),

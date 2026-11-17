@@ -13,6 +13,7 @@ mod folder_picker;
 mod open_dispatch;
 mod pdf_printer;
 pub mod print_window;
+pub mod templates;
 mod window_close;
 mod window_size;
 
@@ -84,7 +85,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 98] = [
+pub const COMMAND_NAMES: [&str; 105] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -128,6 +129,13 @@ pub const COMMAND_NAMES: [&str; 98] = [
     "save_sheet_viewport",
     "get_active_sheet",
     "save_active_sheet",
+    "list_templates",
+    "read_template",
+    "save_template",
+    "rename_template",
+    "delete_template",
+    "move_template",
+    "import_template_asset",
     "import_dropped_images",
     "import_pasted_image",
     "read_spreadsheet_via_dialog",

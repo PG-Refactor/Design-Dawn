@@ -1,8 +1,10 @@
 import type { BlockType } from "../../domain/block/block-type";
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
 import { PopupMenu, type PopupMenuEntry } from "../../shared/menu/popup-menu";
+import { useStoreSelector } from "../../shared/store/use-store-selector";
 import type { MermaidTemplateId } from "../mermaid/mermaid-templates";
 import { askSpreadsheetImport } from "../spreadsheet/spreadsheet-import-dialog";
+import { customTemplateEntries } from "../templates/template-menu";
 import { getSelection } from "../workspace/ui-state/ui-state";
 import { HISTORY_KEYS_ATTRIBUTE } from "../workspace/use-history-shortcut";
 import { useMessages } from "../workspace/use-messages";
@@ -50,7 +52,12 @@ export function CanvasToolbar({
   measureCanvas,
 }: CanvasToolbarProps) {
   const messages = useMessages().canvas;
-  const { canvasActions } = useWorkspaceServices();
+  const templateMessages = useMessages().templates;
+  const { canvasActions, templates } = useWorkspaceServices();
+  const customList = useStoreSelector(
+    templates.store,
+    (state) => state.templates,
+  );
   const selectionSize = useUiState((ui) => getSelection(ui, sheetId).size);
   const hasSelection = selectionSize > 0;
   function createBlock(
@@ -115,6 +122,18 @@ export function CanvasToolbar({
             choose: askSpreadsheetImport,
           })
         }
+        customTemplates={{
+          label: templateMessages.fromTemplate,
+          entries: customTemplateEntries(
+            customList,
+            ["markdown", "mermaid"],
+            templateMessages,
+            (template) =>
+              void templates.addBlocks(template, documentId, sheetId, {
+                viewportSize: measureCanvas(),
+              }),
+          ),
+        }}
       />
       <PopupMenu
         className="align-menu"

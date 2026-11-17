@@ -32,6 +32,10 @@ import {
   type SpreadsheetMessages,
 } from "../spreadsheet/spreadsheet-messages";
 import {
+  TEMPLATE_MESSAGES,
+  type TemplateMessages,
+} from "../templates/template-messages";
+import {
   WORKSPACE_MESSAGES,
   type WorkspaceMessages,
 } from "./workspace-messages";
@@ -50,6 +54,7 @@ export interface Messages {
   readonly search: SearchMessages;
   readonly export: ExportMessages;
   readonly spreadsheet: SpreadsheetMessages;
+  readonly templates: TemplateMessages;
 }
 
 function collectMessages(language: DisplayLanguage): Messages {
@@ -64,6 +69,7 @@ function collectMessages(language: DisplayLanguage): Messages {
     search: SEARCH_MESSAGES[language],
     export: EXPORT_MESSAGES[language],
     spreadsheet: SPREADSHEET_MESSAGES[language],
+    templates: TEMPLATE_MESSAGES[language],
   };
 }
 
