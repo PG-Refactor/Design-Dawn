@@ -20,6 +20,7 @@ import {
   blockOption,
   canvasElement,
   renderOpenedCanvas,
+  sheetA1Blocks,
 } from "../markdown/test-support/markdown-harness";
 import { seedSheetBlocks } from "../workspace/test-support/actions-harness";
 import { getSelection } from "../workspace/ui-state/ui-state";
@@ -352,6 +353,45 @@ describe("file drop", () => {
     await shell.user.keyboard("{Control>}z{/Control}");
     await act(settle);
     expect(screen.getAllByRole("option")).toHaveLength(5);
+  });
+
+  it("puts a dropped image where it was let go on the canvas", async () => {
+    const { shell } = await renderWithImages();
+    shell.gateway.scriptDrop("drop-3", [
+      {
+        fileName: "placed.png",
+        naturalWidth: 640,
+        naturalHeight: 480,
+        initialWidth: 160,
+        initialHeight: 120,
+      },
+    ]);
+    // jsdom has no layout: the canvas fills the page and the world starts at its corner.
+    const canvas = document.querySelector<HTMLElement>("[data-canvas]");
+    if (canvas !== null) {
+      canvas.getBoundingClientRect = () =>
+        ({
+          left: 0,
+          top: 0,
+          right: 1000,
+          bottom: 800,
+          width: 1000,
+          height: 800,
+        }) as DOMRect;
+    }
+    await act(async () => {
+      shell.dropEventSource.emitFilesDropped({
+        dropId: "drop-3",
+        fileCount: 1,
+        clientX: 480,
+        clientY: 320,
+      });
+      await settle();
+    });
+    const placed = sheetA1Blocks(shell).find(
+      (block) => block.contentPath === "assets/placed.png",
+    );
+    expect(placed?.position).toEqual({ x: 480, y: 320 });
   });
 
   it("answers a drop with an error when no sheet is shown", async () => {

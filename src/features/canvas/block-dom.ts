@@ -51,6 +51,37 @@ export function focusActiveCanvasAfterDrop(): void {
   focusByPointer(canvas);
 }
 
+// The world layer of the canvas (its origin is the world's (0, 0) on screen) and the zoom
+// it is drawn at, so a point on screen can be told in world units outside the canvas
+// component (where files were dropped).
+export const WORLD_LAYER_ATTRIBUTE = "data-canvas-world";
+export const WORLD_ZOOM_ATTRIBUTE = "data-canvas-zoom";
+
+// The world point under a point of the page, when it is on the canvas on screen.
+export function worldPointAtClient(
+  clientX: number,
+  clientY: number,
+): { readonly x: number; readonly y: number } | null {
+  const canvas = document.querySelector<HTMLElement>(`[${CANVAS_ATTRIBUTE}]`);
+  const world = canvas?.querySelector<HTMLElement>(
+    `[${WORLD_LAYER_ATTRIBUTE}]`,
+  );
+  if (canvas == null || world == null) return null;
+  const area = canvas.getBoundingClientRect();
+  const inside =
+    clientX >= area.left &&
+    clientX <= area.right &&
+    clientY >= area.top &&
+    clientY <= area.bottom;
+  const zoom = Number(world.getAttribute(WORLD_ZOOM_ATTRIBUTE));
+  if (!inside || !(zoom > 0)) return null;
+  const origin = world.getBoundingClientRect();
+  return {
+    x: (clientX - origin.left) / zoom,
+    y: (clientY - origin.top) / zoom,
+  };
+}
+
 export function measureActiveCanvas(): {
   readonly width: number;
   readonly height: number;

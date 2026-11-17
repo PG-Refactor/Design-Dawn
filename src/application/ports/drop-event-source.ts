@@ -5,6 +5,10 @@
 export interface FilesDroppedEvent {
   readonly dropId: string;
   readonly fileCount: number;
+  // Where the files were let go, in CSS pixels from the page's top-left corner (absent when
+  // the platform does not say).
+  readonly clientX?: number;
+  readonly clientY?: number;
 }
 
 export interface DragStateEvent {
