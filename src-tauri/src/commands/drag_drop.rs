@@ -20,13 +20,23 @@ use crate::application::dropped_files::{
 };
 
 /// What the Frontend receives on the channel: `{ "kind": "dragState", "active": bool }` or
-/// `{ "kind": "filesDropped", "dropId": string, "fileCount": number }`. Deliberately carries
-/// no path or file name.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// `{ "kind": "filesDropped", "dropId": string, "fileCount": number, "x": number,
+/// "y": number }`. Deliberately carries no path or file name.
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum DropNotification {
     DragState(DragState),
-    FilesDropped(FilesDropped),
+    FilesDropped(FilesDroppedAt),
+}
+
+/// A drop and where it happened: CSS pixels from the page's top-left corner (the files
+/// land where they were let go).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct FilesDroppedAt {
+    #[serde(flatten)]
+    pub files: FilesDropped,
+    pub x: f64,
+    pub y: f64,
 }
 
 /// The subscribers, one per window: a drop is announced to the window it happened in. The
@@ -90,14 +100,23 @@ pub(super) fn handle_drag_drop_event<R: Runtime>(window: &Window<R>, drag_drop: 
                 DropNotification::DragState(DragState { active: false }),
             );
         }
-        DragDropEvent::Drop { paths, .. } => {
+        DragDropEvent::Drop { paths, position } => {
             subscriber.notify(
                 label,
                 DropNotification::DragState(DragState { active: false }),
             );
             let state = window.state::<Mutex<DroppedFilesState>>();
-            if let Some(dropped) = register_drop(&state, label, paths.clone()) {
-                subscriber.notify(label, DropNotification::FilesDropped(dropped));
+            if let Some(files) = register_drop(&state, label, paths.clone()) {
+                let scale = window.scale_factor().unwrap_or(1.0);
+                let point = position.to_logical::<f64>(scale);
+                subscriber.notify(
+                    label,
+                    DropNotification::FilesDropped(FilesDroppedAt {
+                        files,
+                        x: point.x,
+                        y: point.y,
+                    }),
+                );
             }
         }
         // `DragDropEvent` is non-exhaustive.

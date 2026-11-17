@@ -22,10 +22,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function toFilesDropped(
   message: Record<string, unknown>,
 ): FilesDroppedEvent | null {
-  return typeof message.dropId === "string" &&
-    typeof message.fileCount === "number"
-    ? { dropId: message.dropId, fileCount: message.fileCount }
-    : null;
+  if (
+    typeof message.dropId !== "string" ||
+    typeof message.fileCount !== "number"
+  ) {
+    return null;
+  }
+  const { x, y } = message;
+  return typeof x === "number" &&
+    typeof y === "number" &&
+    Number.isFinite(x) &&
+    Number.isFinite(y)
+    ? {
+        dropId: message.dropId,
+        fileCount: message.fileCount,
+        clientX: x,
+        clientY: y,
+      }
+    : { dropId: message.dropId, fileCount: message.fileCount };
 }
 
 function toDragState(message: Record<string, unknown>): DragStateEvent | null {

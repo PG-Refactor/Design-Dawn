@@ -46,6 +46,8 @@ import {
   isInsideBlockEditor,
   POINTER_FOCUS_DATA,
   RESIZE_HANDLE_ATTRIBUTE,
+  WORLD_LAYER_ATTRIBUTE,
+  WORLD_ZOOM_ATTRIBUTE,
 } from "./block-dom";
 import { BlockFrame } from "./block-frame";
 import { backgroundMenuEntries, blockMenuEntries } from "./canvas-context-menu";
@@ -666,6 +668,10 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
         <div
           className="canvas__world"
           data-testid="canvas-world"
+          {...{
+            [WORLD_LAYER_ATTRIBUTE]: "",
+            [WORLD_ZOOM_ATTRIBUTE]: String(viewport.zoom),
+          }}
           style={{ transform: worldLayerTransform(viewport) }}
         >
           <PageBreakOverlay blocks={blocks} zoom={viewport.zoom} />

@@ -68,8 +68,14 @@ describe("createTauriDropEventSource", () => {
     await settle();
     send({ kind: "filesDropped", dropId: "d1", fileCount: 2 });
     send({ kind: "dragState", active: true });
-    expect(dropped).toHaveBeenCalledTimes(1);
     expect(dropped).toHaveBeenCalledWith({ dropId: "d1", fileCount: 2 });
+    send({ kind: "filesDropped", dropId: "d2", fileCount: 1, x: 120.5, y: 64 });
+    expect(dropped).toHaveBeenLastCalledWith({
+      dropId: "d2",
+      fileCount: 1,
+      clientX: 120.5,
+      clientY: 64,
+    });
     expect(dragState).toHaveBeenCalledTimes(1);
     expect(dragState).toHaveBeenCalledWith({ active: true });
   });

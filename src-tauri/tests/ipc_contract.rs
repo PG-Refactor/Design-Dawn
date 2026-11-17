@@ -555,7 +555,9 @@ fn a_native_drop_is_announced_without_paths_and_imported_through_the_command() {
     assert_eq!(announced["fileCount"], 1);
     let mut keys: Vec<&String> = announced.as_object().unwrap().keys().collect();
     keys.sort();
-    assert_eq!(keys, ["dropId", "fileCount", "kind"]);
+    // Where it was let go, and still no path or file name.
+    assert_eq!(keys, ["dropId", "fileCount", "kind", "x", "y"]);
+    assert!(announced["x"].is_number() && announced["y"].is_number());
 
     let result = invoke(
         webview,
