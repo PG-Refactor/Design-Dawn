@@ -5,7 +5,11 @@ import {
   type ContentPath,
   parseContentPath,
 } from "../../domain/block/content-path";
-import { type Document, parseDocument } from "../../domain/document/document";
+import {
+  addSheet,
+  type Document,
+  parseDocument,
+} from "../../domain/document/document";
 import { type Folder, parseFolder } from "../../domain/folder/folder";
 import { type Project, parseProject } from "../../domain/project/project";
 import { parseDisplayName } from "../../domain/shared/display-name";
@@ -941,6 +945,8 @@ export function createFakeGateway(
           sheet: newSheet(sheetId, name),
         };
         stored.sheets.set(sheetId, entry);
+        // Like Rust: the sheet joins the order of the document.json on disk.
+        stored.document = unwrap(addSheet(stored.document, sheetId));
         const snapshot: SheetSnapshot = { sheetId, ...entry };
         return operationOk(snapshot);
       }),

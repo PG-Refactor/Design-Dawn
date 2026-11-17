@@ -19,14 +19,14 @@ import {
 } from "../test-support/workspace-harness";
 
 describe("createSheet", () => {
-  it("creates the sheet, then saves the document", async () => {
+  it("creates the sheet, which Rust adds to the saved order, and saves nothing else", async () => {
     const { workspace, store, gateway } = await openedDocumentA();
     const result = await workspace.createSheet(DOCUMENT_A, "New sheet");
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const sheetId = result.value;
-    // The new sheet's own file already exists; only the order needs saving.
-    expect(gateway.methods()).toEqual(["createSheet", "saveDocument"]);
+    // Rust writes the sheet and its place in the order; nothing is saved from here.
+    expect(gateway.methods()).toEqual(["createSheet"]);
     expect(gateway.disk.documents.get(DOCUMENT_A)?.sheets.has(sheetId)).toBe(
       true,
     );
@@ -78,29 +78,19 @@ describe("createSheet", () => {
     expect(gateway.methods("saveDocument")).toHaveLength(0);
   });
 
-  it("keeps the created sheet, document dirty, when the save fails; flush retries", async () => {
+  it("leaves other unsaved edits unsaved (Auto Save may be off)", async () => {
     const { workspace, store, gateway } = await openedDocumentA();
-    gateway.failOn("saveDocument", "ioError");
-    expect(errorKind(await workspace.createSheet(DOCUMENT_A, "Kept"))).toBe(
-      "ioError",
+    const session = workspace.getDocumentSession(DOCUMENT_A);
+    await session?.execute(
+      renameSheetCommand(SHEET_A1, displayName("Renamed")),
     );
+    gateway.calls.length = 0;
+    const created = await workspace.createSheet(DOCUMENT_A, "Another");
+    expect(created.ok).toBe(true);
+    expect(gateway.methods()).toEqual(["createSheet"]);
     const state = store.getState().documents.get(DOCUMENT_A);
-    const sheetId = state?.document.sheetOrder.at(-1);
-    expect(sheetId !== undefined && state?.sheets.has(sheetId)).toBe(true);
-    expect(state?.save.documentDirty).toBe(true);
-    expect(state?.save.lastError?.kind).toBe("ioError");
-    // On disk the directory exists, the order does not list it.
-    const disk = gateway.disk.documents.get(DOCUMENT_A);
-    expect(sheetId !== undefined && disk?.sheets.has(sheetId)).toBe(true);
-    expect(
-      sheetId !== undefined && disk?.document.sheetOrder.includes(sheetId),
-    ).toBe(false);
-    expect((await workspace.getDocumentSession(DOCUMENT_A)?.flush())?.ok).toBe(
-      true,
-    );
-    expect(
-      sheetId !== undefined && disk?.document.sheetOrder.includes(sheetId),
-    ).toBe(true);
+    expect(state?.save.dirtySheetIds.has(SHEET_A1)).toBe(true);
+    expect(state?.sheets.get(SHEET_A1)?.name).toBe("Renamed");
   });
 
   it("needs an open, known document", async () => {

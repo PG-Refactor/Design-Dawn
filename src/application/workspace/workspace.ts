@@ -911,14 +911,14 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
       const sheet = validateSheetSnapshot(created.value, sheetId);
       if (!sheet.ok) return sheet;
       // History stays: existing commands never reference a sheet that is only added.
+      // Rust wrote the sheet and added it to the order on disk, so nothing becomes
+      // unsaved, and nothing else is saved: the Document's other edits stay as they were
+      // (with Auto Save off they wait for an explicit save).
       const applied = scope.applyStructuralChange(
         (data) => withSheetAdded(data, sheet.value),
-        { clearHistory: false, markDirty: true },
+        { clearHistory: false, markDirty: false },
       );
-      if (!applied.ok) return applied;
-      // The sheet exists on disk; if this save fails it stays in memory, dirty.
-      const saved = await scope.saveDirty();
-      return saved.ok ? operationOk(sheetId) : saved;
+      return applied.ok ? operationOk(sheetId) : applied;
     });
   }
 

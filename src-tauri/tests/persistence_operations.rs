@@ -989,3 +989,27 @@ fn opening_through_an_entry_point_records_the_dawn_file_too() {
         Some(file_hash(&root.join("system-design.dawn")))
     );
 }
+
+#[test]
+fn a_created_sheet_joins_the_order_on_disk_and_nothing_else_changes() {
+    let mut opened = open_copy();
+    load_document(&mut opened.sessions, PROJECT_ID, DOCUMENT_ID).unwrap();
+    let document_file = document_dir(&opened.root).join("document.json");
+    let before: serde_json::Value = serde_json::from_str(&read_text(&document_file)).unwrap();
+    let sheet_id = new_id(500);
+    create_sheet(
+        &mut opened.sessions,
+        PROJECT_ID,
+        DOCUMENT_ID,
+        &sheet_id,
+        "Joined",
+    )
+    .unwrap();
+    let after: serde_json::Value = serde_json::from_str(&read_text(&document_file)).unwrap();
+    let mut expected = before.clone();
+    expected["sheetOrder"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::Value::String(sheet_id));
+    assert_eq!(after, expected);
+}

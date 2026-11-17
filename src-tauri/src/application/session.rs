@@ -342,6 +342,17 @@ impl ProjectSession {
         read_json_value(&self.root, &mut self.ledger, base_relative, relative)
     }
 
+    /// Fails with `externallyModified` when the file is no longer what the session last
+    /// read or wrote (see `ensure_unchanged_since_recorded`), before it is read for a write.
+    pub fn ensure_file_unchanged(
+        &self,
+        base_relative: &str,
+        relative: &str,
+    ) -> Result<(), PersistenceError> {
+        let target = self.resolve_existing_path(base_relative, relative)?;
+        self.ensure_unchanged_since_recorded(&join_key(base_relative, relative), &target)
+    }
+
     /// Whether the session has read or written this file, so an external removal of it is a
     /// change (and not a file that was never there to begin with).
     pub fn has_record(&self, base_relative: &str, relative: &str) -> bool {
