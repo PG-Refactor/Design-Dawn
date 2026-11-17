@@ -61,7 +61,7 @@ describe("+ Block menu", () => {
     expect(items.map((item) => item.textContent)).toEqual([
       "Markdown",
       "Mermaid",
-      "Mermaidテンプレート▸",
+      "Mermaidデフォルトテンプレート▸",
       "画像…",
       "表計算ファイルから表…",
     ]);
@@ -73,9 +73,11 @@ describe("+ Block menu", () => {
     const { shell, canvas } = await renderOpenedCanvas();
     await shell.user.click(addButton());
     await shell.user.click(
-      screen.getByRole("menuitem", { name: /Mermaidテンプレート/ }),
+      screen.getByRole("menuitem", { name: /Mermaidデフォルトテンプレート/ }),
     );
-    const templates = screen.getByRole("menu", { name: "Mermaidテンプレート" });
+    const templates = screen.getByRole("menu", {
+      name: "Mermaidデフォルトテンプレート",
+    });
     expect(
       within(templates)
         .getAllByRole("menuitem")
@@ -106,7 +108,7 @@ describe("+ Block menu", () => {
     await act(settle);
     await shell.user.keyboard("{ArrowDown}{ArrowDown}");
     const opener = screen.getByRole("menuitem", {
-      name: /Mermaidテンプレート/,
+      name: /Mermaidデフォルトテンプレート/,
     });
     expect(document.activeElement).toBe(opener);
     await shell.user.keyboard("{ArrowRight}");
@@ -117,7 +119,7 @@ describe("+ Block menu", () => {
     expect(document.activeElement?.textContent).toBe("ガントチャート");
     await shell.user.keyboard("{ArrowLeft}");
     expect(
-      screen.queryByRole("menu", { name: "Mermaidテンプレート" }),
+      screen.queryByRole("menu", { name: "Mermaidデフォルトテンプレート" }),
     ).toBeNull();
     expect(document.activeElement).toBe(opener);
     // The outer menu is still open.
