@@ -33,10 +33,7 @@ import { FIND_BOX_ATTRIBUTE, type FindState } from "../search/find-store";
 import { stopEditing } from "../workspace/ui-state/ui-state";
 import { useUiState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
-import {
-  CLIPBOARD_TEXT_TYPE,
-  PASTED_IMAGE_EXTENSIONS,
-} from "./pasted-image-types";
+import { CLIPBOARD_TEXT_TYPE, pastedImage } from "./pasted-image-types";
 import { SourcePreviewDivider } from "./source-preview-divider";
 import "./text-block-editor.css";
 
@@ -115,18 +112,6 @@ export interface SourceToolsContext {
   readonly caret: number;
   // Replaces the whole draft and puts the caret at `caret`.
   readonly replaceText: (text: string, caret: number) => void;
-}
-
-// The pasted image in a clipboard, unless the paste is text (see CLIPBOARD_TEXT_TYPE).
-function pastedImage(
-  data: DataTransfer,
-): { readonly file: File; readonly extension: string } | null {
-  if (data.types.includes(CLIPBOARD_TEXT_TYPE)) return null;
-  for (const file of data.files) {
-    const extension = PASTED_IMAGE_EXTENSIONS[file.type];
-    if (extension !== undefined) return { file, extension };
-  }
-  return null;
 }
 
 const selectEditorReveal = (state: FindState) => state.editorReveal;

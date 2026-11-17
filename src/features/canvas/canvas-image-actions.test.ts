@@ -72,6 +72,21 @@ async function withDroppedImage(): Promise<{
   return { harness, block };
 }
 
+type PlacedBlock = {
+  readonly position: { readonly x: number; readonly y: number };
+  readonly size: { readonly width: number; readonly height: number };
+};
+const overlap = (first: PlacedBlock, second: PlacedBlock) =>
+  first.position.x < second.position.x + second.size.width &&
+  second.position.x < first.position.x + first.size.width &&
+  first.position.y < second.position.y + second.size.height &&
+  second.position.y < first.position.y + first.size.height;
+// No two of the blocks cover each other.
+const noneOverlap = (blocks: readonly PlacedBlock[]) =>
+  blocks.every((block, index) =>
+    blocks.slice(index + 1).every((other) => !overlap(block, other)),
+  );
+
 describe("importDroppedImages", () => {
   it("answers a drop without an open sheet with an error and imports nothing", async () => {
     const harness = createCanvasHarness();
@@ -107,32 +122,29 @@ describe("importDroppedImages", () => {
     ]).toEqual([block?.blockId]);
   });
 
-  it("fans several images out by the paste offset in one history entry", async () => {
+  it("places several images side by side without covering each other, in one history entry", async () => {
     const harness = await openedCanvasHarness();
     await drop(harness, [
       photoFile("a.png"),
       photoFile("b.png"),
       photoFile("c.png"),
     ]);
-    expect(imageBlocks(harness).map((block) => block.position)).toEqual([
-      { x: 380, y: 290 },
-      { x: 380 + PASTE_OFFSET.x, y: 290 + PASTE_OFFSET.y },
-      { x: 380 + 2 * PASTE_OFFSET.x, y: 290 + 2 * PASTE_OFFSET.y },
-    ]);
+    const images = imageBlocks(harness);
+    expect(images[0]?.position).toEqual({ x: 380, y: 290 });
+    expect(noneOverlap(images)).toBe(true);
     expect(await harness.undoDepth()).toBe(1);
     expect([
       ...getSelection(harness.uiStateStore.getState(), SHEET_A1),
     ]).toHaveLength(3);
   });
 
-  it("steps a later drop away from an image already at the centre", async () => {
+  it("puts a later drop beside an image already at the centre", async () => {
     const harness = await openedCanvasHarness();
     await drop(harness, [photoFile("a.png")]);
     await drop(harness, [photoFile("b.png")]);
-    expect(imageBlocks(harness).map((block) => block.position)).toEqual([
-      { x: 380, y: 290 },
-      { x: 380 + PASTE_OFFSET.x, y: 290 + PASTE_OFFSET.y },
-    ]);
+    const images = imageBlocks(harness);
+    expect(images[0]?.position).toEqual({ x: 380, y: 290 });
+    expect(noneOverlap(images)).toBe(true);
   });
 
   it("creates blocks for the imported files and reports each rejected file", async () => {

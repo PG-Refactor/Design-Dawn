@@ -192,6 +192,12 @@ export interface WorkspaceActions {
   ): Promise<OperationResult<void>>;
   // Opens the document first if needed, then asks for the name.
   requestCreateSheet(documentId: DocumentId): Promise<OperationResult<void>>;
+  // Asks for a new name in a dialog (where there is no tree to rename in).
+  requestRenameDocument(documentId: DocumentId): void;
+  renameDocumentFromDialog(
+    documentId: DocumentId,
+    name: string,
+  ): Promise<OperationResult<void>>;
   createSheet(
     documentId: DocumentId,
     name: string,
@@ -1179,6 +1185,27 @@ export function createWorkspaceActions(
         }
         expandFolder(parentFolderId);
         return operationOk(undefined);
+      }),
+    requestRenameDocument(documentId) {
+      const name = applicationStore.getState().documents.get(documentId)
+        ?.document.name;
+      if (name === undefined) return;
+      uiStateStore.setState((state) =>
+        openDialog(state, { kind: "renameDocument", documentId, name }),
+      );
+    },
+    renameDocumentFromDialog: (documentId, name) =>
+      runBusy(async () => {
+        const parsed = parseDisplayName(name);
+        if (!parsed.ok) return fromDomainResult(parsed);
+        const target = { kind: "document", documentId } as const;
+        const current = currentNameOf(target);
+        const renamed =
+          current === name
+            ? operationOk(undefined)
+            : await renameThroughSession(target, parsed.value, current);
+        if (renamed.ok) uiStateStore.setState(closeDialog);
+        return renamed;
       }),
     async requestCreateSheet(documentId) {
       const opened = await ensureOpen(documentId);

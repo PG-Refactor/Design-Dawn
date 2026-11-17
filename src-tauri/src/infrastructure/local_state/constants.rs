@@ -2,12 +2,15 @@
 
 pub const SETTINGS_FILE_NAME: &str = "settings.json";
 pub const SHEET_VIEWPORTS_FILE_NAME: &str = "sheet-viewports.json";
+/// The sheet each Document was last shown with (next to the viewports).
+pub const ACTIVE_SHEETS_FILE_NAME: &str = "active-sheets.json";
 /// The Projects an AI client may use through `design-dawn-mcp`, and which may be written.
 /// Only the app writes it; the MCP server only reads it.
 pub const AI_ACCESS_FILE_NAME: &str = "ai-access.json";
 
 pub const CURRENT_SETTINGS_SCHEMA_VERSION: u32 = 7;
 pub const CURRENT_SHEET_VIEWPORTS_SCHEMA_VERSION: u32 = 1;
+pub const CURRENT_ACTIVE_SHEETS_SCHEMA_VERSION: u32 = 1;
 pub const CURRENT_AI_ACCESS_SCHEMA_VERSION: u32 = 1;
 pub const CURRENT_AI_REQUEST_SCHEMA_VERSION: u32 = 1;
 

@@ -58,7 +58,10 @@ import {
 import type { PersistenceGateway } from "../../application/ports/persistence-gateway";
 import type { ApplicationStore } from "../../application/state/application-state";
 import type { Workspace } from "../../application/workspace/workspace";
-import { PASTE_OFFSET } from "../../config/canvas-config";
+import {
+  FREE_PLACEMENT_SEARCH,
+  PASTE_OFFSET,
+} from "../../config/canvas-config";
 import type { Block } from "../../domain/block/block";
 import {
   BLOCK_TYPE_DEFINITIONS,
@@ -101,6 +104,7 @@ import {
 import { isEditableBlockType } from "./block-capabilities";
 import { findCreatableBlockType } from "./creatable-block-types";
 import { type AlignMode, alignedMoves } from "./geometry/align";
+import { freePlacement } from "./geometry/free-placement";
 import { pasteTarget } from "./geometry/paste-target";
 import {
   DEFAULT_VIEWPORT,
@@ -284,6 +288,11 @@ export interface CanvasActions {
   importPastedImage(
     input: ImportPastedImageInput,
   ): Promise<OperationResult<ContentPath>>;
+  // An image pasted onto the canvas (from another app): stored in the Document's assets
+  // and added as an image block, like a drop.
+  pasteImageOntoSheet(
+    input: PasteImageOntoSheetInput,
+  ): Promise<OperationResult<void>>;
   // "Table from Spreadsheet…": the OS dialog (in Rust), the import dialog (`choose`), then
   // one Markdown block per chosen table (the worksheet's name as a heading and the table),
   // all in ONE command, selected afterwards. Cancelling either dialog does nothing.
@@ -433,6 +442,14 @@ export interface AddImportedImageInput {
   readonly caption?: string;
 }
 
+export interface PasteImageOntoSheetInput {
+  readonly documentId: DocumentId;
+  readonly sheetId: SheetId;
+  readonly bytes: Uint8Array;
+  readonly extension: string;
+  readonly viewportSize: Extent;
+}
+
 export interface ImportPastedImageInput {
   readonly documentId: DocumentId;
   readonly bytes: Uint8Array;
@@ -576,7 +593,11 @@ export function createCanvasActions(
       "documentId" | "sheetId" | "viewportSize" | "at"
     >,
     size: Size,
-    alsoTaken: readonly Position[] = [],
+    // Blocks of the same command placed before this one.
+    alsoTaken: readonly {
+      readonly position: Position;
+      readonly size: Size;
+    }[] = [],
   ): OperationResult<Position> {
     const viewport =
       uiStateStore.getState().viewportBySheet.get(input.sheetId) ??
@@ -592,12 +613,29 @@ export function createCanvasActions(
       },
     );
     if (!centred.ok) return fromDomainResult(centred);
-    const taken = [
-      ...blocksOf(input.documentId, input.sheetId).map(
-        (block) => block.position,
-      ),
+    const placed = [
+      ...blocksOf(input.documentId, input.sheetId).map((block) => ({
+        position: block.position,
+        size: block.size,
+      })),
       ...alsoTaken,
     ];
+    // Without a chosen point, the free place nearest the centre: a new block does not
+    // cover the ones already in view.
+    if (input.at === undefined) {
+      const free = freePlacement(
+        centred.value,
+        size,
+        placed.map(({ position, size: placedSize }) => ({
+          ...position,
+          ...placedSize,
+        })),
+        FREE_PLACEMENT_SEARCH,
+      );
+      const committed = free === null ? null : commitPosition(free);
+      if (committed?.ok === true) return operationOk(committed.value);
+    }
+    const taken = placed.map((entry) => entry.position);
     let position = centred.value;
     while (
       taken.some((other) => other.x === position.x && other.y === position.y)
@@ -1057,7 +1095,7 @@ export function createCanvasActions(
         const position = newBlockPosition(
           { documentId, sheetId, viewportSize, at },
           size.value,
-          specs.map((spec) => spec.position),
+          specs.map((spec) => ({ position: spec.position, size: spec.size })),
         );
         if (!position.ok) return record("importSpreadsheet", position);
         specs.push({
@@ -1199,6 +1237,38 @@ export function createCanvasActions(
       return imported.ok ? operationOk(imported.value.contentPath) : imported;
     },
 
+    async pasteImageOntoSheet({
+      documentId,
+      sheetId,
+      bytes,
+      extension,
+      viewportSize,
+    }) {
+      const projectId = currentProjectId();
+      if (projectId === null) {
+        return record(
+          "importImages",
+          operationErr("projectNotOpen", "no project is open"),
+        );
+      }
+      const imported = record(
+        "importImages",
+        await gateway.importPastedImage(
+          projectId,
+          documentId,
+          bytes,
+          extension,
+        ),
+      );
+      if (!imported.ok) return failWith(imported.error);
+      return actions.addImportedImage({
+        documentId,
+        sheetId,
+        image: imported.value,
+        viewportSize,
+      });
+    },
+
     async importDroppedImages({ dropId, viewportSize, at }) {
       if (textImageTarget !== null) {
         return importDropIntoText(dropId, textImageTarget);
@@ -1237,7 +1307,7 @@ export function createCanvasActions(
         const position = newBlockPosition(
           { documentId, sheetId, viewportSize, at },
           size.value,
-          specs.map((spec) => spec.position),
+          specs.map((spec) => ({ position: spec.position, size: spec.size })),
         );
         if (!position.ok) return record("importImages", position);
         specs.push({

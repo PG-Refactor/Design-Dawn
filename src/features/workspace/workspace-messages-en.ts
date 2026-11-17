@@ -542,6 +542,11 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
       nameLabel: "Sheet name",
       submit: "Create",
     },
+    renameDocument: {
+      title: "Rename Document",
+      nameLabel: "Document name",
+      submit: "Rename",
+    },
     nameRequired: "Enter a name.",
     nameInvalid:
       "This name cannot be used (it is too long or contains characters that are not allowed).",

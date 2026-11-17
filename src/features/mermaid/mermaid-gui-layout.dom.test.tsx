@@ -362,3 +362,27 @@ describe("with the controls folded away", () => {
     ).not.toBeNull();
   });
 });
+
+describe("typing a label in the add dialog", () => {
+  it("shows no error for a blank on the way to the next word", async () => {
+    const { shell } = await openGui();
+    await shell.user.click(toggle(TEXT.addNodeToggle));
+    const dialog = screen.getByRole("dialog");
+    await shell.user.type(
+      within(dialog).getAllByRole("textbox")[0] as HTMLElement,
+      "Echo ",
+    );
+    await act(settle);
+    expect(
+      within(dialog).queryByText(GUI.refusalReasons.labelNotTrimmed),
+    ).toBeNull();
+    await shell.user.type(
+      within(dialog).getAllByRole("textbox")[0] as HTMLElement,
+      "two",
+    );
+    await act(settle);
+    expect(
+      within(dialog).queryByText(GUI.refusalReasons.labelNotTrimmed),
+    ).toBeNull();
+  });
+});

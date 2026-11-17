@@ -245,3 +245,53 @@ describe("input isolation", () => {
     expect(rendered.canvas.session.getState().history.canUndo).toBe(false);
   }
 });
+
+describe("the OS clipboard on the canvas", () => {
+  const clipboard = (files: File[], types: string[]) => {
+    const written = new Map<string, string>();
+    return {
+      clipboardData: {
+        files,
+        types,
+        getData: () => "",
+        setData: (type: string, value: string) => written.set(type, value),
+      },
+      written,
+    };
+  };
+
+  it("pastes an image copied in another app as an image block", async () => {
+    const rendered = await renderOpenedCanvas();
+    const image = new File([new Uint8Array([1, 2, 3])], "image.png", {
+      type: "image/png",
+    });
+    // Ctrl+V keeps its default, so the browser fires the paste with the OS clipboard.
+    expect(await press(ctrl("v"))).toBe(true);
+    await act(async () => {
+      fireEvent.paste(canvasElement(), clipboard([image], ["Files"]));
+      await settle();
+      await settle();
+    });
+    expect(rendered.shell.gateway.methods("importPastedImage")).toHaveLength(1);
+    const images = rendered.canvas
+      .blocksOfSheetA1()
+      .filter((block) => block.blockType === "image");
+    expect(images).toHaveLength(1);
+  });
+
+  it("pastes the blocks copied here when the OS clipboard holds text", async () => {
+    const rendered = await renderOpenedCanvas();
+    click(0);
+    const copied = clipboard([], []);
+    await press(ctrl("c"));
+    fireEvent.copy(canvasElement(), copied);
+    // Copying here writes the blocks' text to the OS clipboard.
+    expect(copied.written.get("text/plain")?.length).toBeGreaterThan(0);
+    await act(async () => {
+      fireEvent.paste(canvasElement(), clipboard([], ["text/plain"]));
+      await settle();
+    });
+    expect(screen.getAllByRole("option")).toHaveLength(4);
+    expect(rendered.shell.gateway.methods("importPastedImage")).toHaveLength(0);
+  });
+});

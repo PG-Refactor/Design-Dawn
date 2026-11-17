@@ -13,6 +13,8 @@ export interface NameDialogProps {
   readonly onSubmit: (name: string) => void;
   readonly onCancel: () => void;
   readonly busy: boolean;
+  // What the field starts with (a rename starts from the current name).
+  readonly initialName?: string;
 }
 
 // Asks for a display name. Validation uses the domain parser, so the dialog can never
@@ -24,13 +26,14 @@ export function NameDialog({
   onSubmit,
   onCancel,
   busy,
+  initialName = "",
 }: NameDialogProps) {
   const messages = useMessages().workspace;
   const titleId = useId();
   const inputId = useId();
   const errorId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [name, setName] = useState("");
+  const [name, setName] = useState(initialName);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {

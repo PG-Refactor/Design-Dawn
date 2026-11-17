@@ -110,6 +110,8 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::set_project_tree_width,
             commands::get_sheet_viewport,
             commands::save_sheet_viewport,
+            commands::get_active_sheet,
+            commands::save_active_sheet,
             commands::import_dropped_images,
             commands::import_pasted_image,
             commands::read_spreadsheet_via_dialog,

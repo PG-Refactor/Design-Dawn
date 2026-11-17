@@ -1,4 +1,5 @@
 import {
+  type ClipboardEvent,
   type CSSProperties,
   type FocusEvent,
   type KeyboardEvent,
@@ -27,6 +28,10 @@ import { useContextMenu } from "../../shared/menu/context-menu";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { useMermaidRenderer } from "../mermaid/mermaid-renderer-context";
 import { askSpreadsheetImport } from "../spreadsheet/spreadsheet-import-dialog";
+import {
+  CLIPBOARD_TEXT_TYPE,
+  pastedImage,
+} from "../text-block/pasted-image-types";
 import {
   getSelection,
   selectBlocks as selectBlocksInUi,
@@ -82,6 +87,8 @@ import { ZoomControl } from "./zoom-control";
 import "./canvas.css";
 
 const NO_BLOCKS: readonly Block[] = [];
+// Between the texts of copied blocks, as text for other apps.
+const BLOCK_TEXT_SEPARATOR = "\n\n";
 
 // Key command -> z-order direction (the other key commands are not z-order changes).
 const REORDER_KEY_COMMANDS = {
@@ -479,8 +486,14 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
                 },
               }
             : {}),
-          cut: () => void canvasActions.cutSelection(selectionInput),
-          copy: () => void canvasActions.copySelection(selectionInput),
+          cut: () => {
+            writeSelectionText();
+            void canvasActions.cutSelection(selectionInput);
+          },
+          copy: () => {
+            writeSelectionText();
+            void canvasActions.copySelection(selectionInput);
+          },
           paste,
           duplicate: () =>
             void canvasActions.duplicateSelection(selectionInput),
@@ -549,6 +562,79 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
     delete event.currentTarget.dataset[POINTER_FOCUS_DATA];
   }
 
+  // The app's own clipboard (blocks copied here) is pasted after the key, unless the
+  // `paste` event that follows it finds an image on the OS clipboard (copied in another
+  // app after anything was copied here: copying here replaces what the OS holds).
+  const pendingPasteRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function pasteBlocks(): void {
+    void canvasActions.pasteClipboard({
+      documentId,
+      sheetId,
+      viewportSize: canvasSize(),
+    });
+  }
+
+  function schedulePaste(): void {
+    if (pendingPasteRef.current !== null) clearTimeout(pendingPasteRef.current);
+    pendingPasteRef.current = setTimeout(() => {
+      pendingPasteRef.current = null;
+      pasteBlocks();
+    }, 0);
+  }
+
+  function onPaste(event: ClipboardEvent<HTMLDivElement>) {
+    if (isEditableTarget(event.target) || isInsideBlockEditor(event.target)) {
+      return;
+    }
+    event.preventDefault();
+    if (pendingPasteRef.current !== null) {
+      clearTimeout(pendingPasteRef.current);
+      pendingPasteRef.current = null;
+    }
+    const image = pastedImage(event.clipboardData);
+    if (image === null) {
+      pasteBlocks();
+      return;
+    }
+    void image.file.arrayBuffer().then((buffer) =>
+      canvasActions.pasteImageOntoSheet({
+        documentId,
+        sheetId,
+        bytes: new Uint8Array(buffer),
+        extension: image.extension,
+        viewportSize: canvasSize(),
+      }),
+    );
+  }
+
+  // What blocks copied here are as text for other apps: the text of text blocks, the file
+  // of images. Writing it also replaces an image another app left on the OS clipboard, so
+  // the next paste here pastes these blocks.
+  function selectionAsText(): string {
+    const contents = applicationStore
+      .getState()
+      .documents.get(documentId)?.contents;
+    return blocks
+      .filter((block) => selection.has(block.blockId))
+      .map((block) => contents?.get(block.blockId) ?? block.contentPath)
+      .join(BLOCK_TEXT_SEPARATOR);
+  }
+
+  function onCopyOrCut(event: ClipboardEvent<HTMLDivElement>) {
+    if (isEditableTarget(event.target) || isInsideBlockEditor(event.target)) {
+      return;
+    }
+    event.preventDefault();
+    event.clipboardData.setData(CLIPBOARD_TEXT_TYPE, selectionAsText());
+  }
+
+  // Menu copy has no `copy` event: the OS clipboard is written directly. Refused (no
+  // permission), it only means an image copied elsewhere earlier wins the next paste.
+  function writeSelectionText(): void {
+    void navigator.clipboard?.writeText(selectionAsText()).catch(() => {});
+  }
+
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     // Editors and inputs own their keys (Space, copy / paste, text undo ...).
     if (isEditableTarget(event.target) || isInsideBlockEditor(event.target)) {
@@ -572,6 +658,19 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
     }
     // Editing shortcuts wait for the gesture to finish.
     if (input.isGestureActive()) return;
+    // Clipboard keys keep their default, so the browser fires `copy` / `cut` / `paste`
+    // with the OS clipboard (see `onPaste` / `onCopy`).
+    switch (command) {
+      case CANVAS_KEY_COMMANDS.paste:
+        schedulePaste();
+        return;
+      case CANVAS_KEY_COMMANDS.copy:
+        void canvasActions.copySelection({ documentId, sheetId });
+        return;
+      case CANVAS_KEY_COMMANDS.cut:
+        void canvasActions.cutSelection({ documentId, sheetId });
+        return;
+    }
     event.preventDefault();
     switch (command) {
       case CANVAS_KEY_COMMANDS.deleteSelection:
@@ -598,19 +697,6 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
         }
         return;
       }
-      case CANVAS_KEY_COMMANDS.copy:
-        void canvasActions.copySelection({ documentId, sheetId });
-        return;
-      case CANVAS_KEY_COMMANDS.cut:
-        void canvasActions.cutSelection({ documentId, sheetId });
-        return;
-      case CANVAS_KEY_COMMANDS.paste:
-        void canvasActions.pasteClipboard({
-          documentId,
-          sheetId,
-          viewportSize: canvasSize(),
-        });
-        return;
       case CANVAS_KEY_COMMANDS.duplicate:
         void canvasActions.duplicateSelection({ documentId, sheetId });
         return;
@@ -662,6 +748,9 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
         onDoubleClick={onDoubleClick}
         onContextMenu={onContextMenu}
         onKeyDown={onKeyDown}
+        onPaste={onPaste}
+        onCopy={onCopyOrCut}
+        onCut={onCopyOrCut}
         onKeyUp={onKeyUp}
         onBlur={onBlur}
       >

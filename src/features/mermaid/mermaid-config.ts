@@ -24,6 +24,9 @@ export const MERMAID_SECURE_KEYS: readonly string[] = [
   "htmlLabels",
 ];
 
+// The width a Gantt chart is drawn at, in CSS pixels (see `gantt` below).
+export const GANTT_RENDER_WIDTH_PX = 800;
+
 export const MERMAID_FIXED_CONFIG = {
   // Nothing scans the page for diagrams; the app renders explicitly.
   startOnLoad: false,
@@ -37,6 +40,11 @@ export const MERMAID_FIXED_CONFIG = {
   deterministicIds: true,
   // The only theme whose colours come entirely from `themeVariables`.
   theme: "base",
+  // A Gantt chart is otherwise as wide as the page it is drawn in (the whole window,
+  // thousands of pixels on a large screen) and only as tall as its few rows: fitted into
+  // a block it shrank until it looked empty. A fixed width keeps it the same on every
+  // screen; the block scales it as usual. A diagram's own settings may still change it.
+  gantt: { useWidth: GANTT_RENDER_WIDTH_PX },
 } as const;
 
 export interface MermaidInitializeConfig {
@@ -46,6 +54,7 @@ export interface MermaidInitializeConfig {
   readonly suppressErrorRendering: true;
   readonly deterministicIds: true;
   readonly theme: "base";
+  readonly gantt: { readonly useWidth: number };
   readonly secure: string[];
   readonly themeVariables: Record<string, string | boolean>;
   readonly themeCSS?: string;

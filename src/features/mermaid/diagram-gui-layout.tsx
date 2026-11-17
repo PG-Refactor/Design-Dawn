@@ -37,7 +37,7 @@ import {
   type AddDialogFormLink,
 } from "./add-dialog-form";
 import { DiagramAddPreview } from "./diagram-add-preview";
-import { describeRefusal } from "./diagram-gui-text";
+import { describeRefusal, refusalCode } from "./diagram-gui-text";
 import { useDiagramInteraction } from "./diagram-interaction";
 import type { DiagramHit } from "./diagram-shapes";
 import "./diagram-add-dialog.css";
@@ -168,6 +168,11 @@ export function GuiStatus({
 }
 
 const FIELD_SELECTOR = "input, textarea, select";
+// Refusals of text that is only half typed (a blank before the next word).
+const TYPING_REFUSALS: ReadonlySet<string> = new Set([
+  "labelNotTrimmed",
+  "titleNotNormalized",
+]);
 const TAB_KEYS = { previous: "ArrowLeft", next: "ArrowRight" } as const;
 const DIALOG_KEYS = { escape: "Escape", tab: "Tab" } as const;
 
@@ -305,9 +310,13 @@ export function DiagramGuiLayout({
   const preview = useMemo(() => {
     if (pending === null) return { source, refusal: null };
     const result = fromDomainResult(previewDiagramOperation(source, pending));
-    return result.ok
-      ? { source: result.value, refusal: null }
-      : { source, refusal: describeRefusal(gui, result.error).message };
+    if (result.ok) return { source: result.value, refusal: null };
+    // A blank at the end is what typing the next word passes through: not worth an error
+    // while typing (the add itself still refuses it).
+    if (TYPING_REFUSALS.has(refusalCode(result.error.detail))) {
+      return { source, refusal: null };
+    }
+    return { source, refusal: describeRefusal(gui, result.error).message };
   }, [pending, source, gui]);
 
   function onDialogKeyDown(event: KeyboardEvent<HTMLDivElement>): void {

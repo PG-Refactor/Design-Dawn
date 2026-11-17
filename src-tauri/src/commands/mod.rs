@@ -84,7 +84,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 96] = [
+pub const COMMAND_NAMES: [&str; 98] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -126,6 +126,8 @@ pub const COMMAND_NAMES: [&str; 96] = [
     "set_project_tree_width",
     "get_sheet_viewport",
     "save_sheet_viewport",
+    "get_active_sheet",
+    "save_active_sheet",
     "import_dropped_images",
     "import_pasted_image",
     "read_spreadsheet_via_dialog",
@@ -1475,6 +1477,29 @@ pub fn save_sheet_viewport<R: Runtime>(
 ) -> Result<(), ApplicationError> {
     with_local_state(&app, |local_state| {
         local_state.save_sheet_viewport(&project_id, &document_id, &sheet_id, viewport)
+    })
+}
+
+#[tauri::command]
+pub fn get_active_sheet<R: Runtime>(
+    app: AppHandle<R>,
+    project_id: String,
+    document_id: String,
+) -> Result<Option<String>, ApplicationError> {
+    with_local_state(&app, |local_state| {
+        local_state.get_active_sheet(&project_id, &document_id)
+    })
+}
+
+#[tauri::command]
+pub fn save_active_sheet<R: Runtime>(
+    app: AppHandle<R>,
+    project_id: String,
+    document_id: String,
+    sheet_id: String,
+) -> Result<(), ApplicationError> {
+    with_local_state(&app, |local_state| {
+        local_state.save_active_sheet(&project_id, &document_id, &sheet_id)
     })
 }
 

@@ -45,6 +45,8 @@
     "allow-set-project-tree-width",
     "allow-get-sheet-viewport",
     "allow-save-sheet-viewport",
+    "allow-get-active-sheet",
+    "allow-save-active-sheet",
     "allow-import-dropped-images",
     "allow-import-pasted-image",
     "allow-read-spreadsheet-via-dialog",

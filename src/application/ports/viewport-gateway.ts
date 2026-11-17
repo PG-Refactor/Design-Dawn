@@ -26,4 +26,14 @@ export interface ViewportGateway {
     sheetId: SheetId,
     viewport: Viewport,
   ): Promise<OperationResult<void>>;
+  // The sheet the Document was last shown with on this computer (null: none remembered).
+  getActiveSheet(
+    projectId: ProjectId,
+    documentId: DocumentId,
+  ): Promise<OperationResult<SheetId | null>>;
+  saveActiveSheet(
+    projectId: ProjectId,
+    documentId: DocumentId,
+    sheetId: SheetId,
+  ): Promise<OperationResult<void>>;
 }

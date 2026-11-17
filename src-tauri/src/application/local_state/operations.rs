@@ -9,8 +9,15 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 use serde::Serialize;
 use serde_json::{Number, Value};
 
+use super::active_sheet::{
+    entry_from_dto as active_sheet_from_dto, entry_to_dto as active_sheet_to_dto,
+    with_active_sheet, ActiveSheetEntries, ActiveSheetKey, ActiveSheetsFileDto,
+};
 use super::ai_access::AiAccessList;
-use super::constants::{DEFAULT_AUTO_SAVE, DEFAULT_PROJECT_TREE_WIDTH, MAX_SHEET_VIEWPORT_ENTRIES};
+use super::constants::{
+    DEFAULT_AUTO_SAVE, DEFAULT_PROJECT_TREE_WIDTH, MAX_ACTIVE_SHEET_ENTRIES,
+    MAX_SHEET_VIEWPORT_ENTRIES,
+};
 use super::language::LanguagePreference;
 use super::layout::parse_project_tree_width;
 use super::text_size::TextSize;
@@ -23,8 +30,8 @@ use crate::domain::entity_id::ProjectId;
 use crate::domain::error::{DomainError, DomainErrorKind};
 use crate::infrastructure::file_format::dto::{parse_dto, schema_version_value};
 use crate::infrastructure::local_state::constants::{
-    CURRENT_SETTINGS_SCHEMA_VERSION, CURRENT_SHEET_VIEWPORTS_SCHEMA_VERSION, SETTINGS_FILE_NAME,
-    SHEET_VIEWPORTS_FILE_NAME,
+    ACTIVE_SHEETS_FILE_NAME, CURRENT_ACTIVE_SHEETS_SCHEMA_VERSION, CURRENT_SETTINGS_SCHEMA_VERSION,
+    CURRENT_SHEET_VIEWPORTS_SCHEMA_VERSION, SETTINGS_FILE_NAME, SHEET_VIEWPORTS_FILE_NAME,
 };
 use crate::infrastructure::local_state::dto::{
     number_from_f64, SettingsFileDto, SheetViewportEntryDto, SheetViewportsFileDto, ViewportDto,
@@ -99,6 +106,7 @@ pub struct LocalState {
     directories: LocalStateDirectories,
     settings_lock: Mutex<()>,
     viewports_lock: Mutex<()>,
+    active_sheets_lock: Mutex<()>,
     ai_access_lock: Mutex<()>,
 }
 
@@ -175,6 +183,7 @@ impl LocalState {
             directories,
             settings_lock: Mutex::new(()),
             viewports_lock: Mutex::new(()),
+            active_sheets_lock: Mutex::new(()),
             ai_access_lock: Mutex::new(()),
         }
     }
@@ -475,6 +484,66 @@ impl LocalState {
             &SheetViewportsFileDto {
                 schema_version: Number::from(CURRENT_SHEET_VIEWPORTS_SCHEMA_VERSION),
                 viewports,
+            },
+        )?;
+        Ok(())
+    }
+
+    fn read_active_sheets(&self) -> ApplicationResult<ActiveSheetEntries> {
+        let path = self
+            .directories
+            .local_data_dir
+            .join(ACTIVE_SHEETS_FILE_NAME);
+        let Some(dto) = read_json_file::<ActiveSheetsFileDto>(&path)? else {
+            return Ok(Vec::new());
+        };
+        check_schema_version(&dto.schema_version, CURRENT_ACTIVE_SHEETS_SCHEMA_VERSION)?;
+        dto.documents.iter().map(active_sheet_from_dto).collect()
+    }
+
+    /// The sheet the Document was last shown with; `None` when nothing is remembered, and
+    /// also when the file cannot be used (only a view choice: the first sheet is fine).
+    pub fn get_active_sheet(
+        &self,
+        project_id: &str,
+        document_id: &str,
+    ) -> ApplicationResult<Option<String>> {
+        let key = ActiveSheetKey::parse(project_id, document_id)?;
+        let _guard = acquire(&self.active_sheets_lock);
+        Ok(self.read_active_sheets().ok().and_then(|entries| {
+            entries
+                .iter()
+                .rev()
+                .find(|(entry_key, _)| *entry_key == key)
+                .map(|(_, sheet_id)| sheet_id.to_string())
+        }))
+    }
+
+    pub fn save_active_sheet(
+        &self,
+        project_id: &str,
+        document_id: &str,
+        sheet_id: &str,
+    ) -> ApplicationResult<()> {
+        let key = ActiveSheetKey::parse(project_id, document_id)?;
+        let sheet_id = crate::domain::entity_id::SheetId::parse(sheet_id)?;
+        let _guard = acquire(&self.active_sheets_lock);
+        // A broken file is replaced: what it held is not worth refusing a save over.
+        let entries = with_active_sheet(
+            self.read_active_sheets().unwrap_or_default(),
+            key,
+            sheet_id,
+            MAX_ACTIVE_SHEET_ENTRIES,
+        );
+        write_json_file(
+            &self.directories.local_data_dir,
+            ACTIVE_SHEETS_FILE_NAME,
+            &ActiveSheetsFileDto {
+                schema_version: Number::from(CURRENT_ACTIVE_SHEETS_SCHEMA_VERSION),
+                documents: entries
+                    .iter()
+                    .map(|(entry_key, entry_sheet)| active_sheet_to_dto(entry_key, entry_sheet))
+                    .collect(),
             },
         )?;
         Ok(())

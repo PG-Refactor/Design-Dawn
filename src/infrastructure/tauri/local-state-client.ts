@@ -5,13 +5,14 @@ import type { ThemePreference } from "../../application/local-state/theme";
 import type { Viewport } from "../../application/local-state/viewport";
 import type { LanguagePreference } from "../../config/language-config";
 import type { TextSize } from "../../config/text-size-config";
-import type {
-  DocumentId,
-  ProjectId,
-  SheetId,
+import {
+  type DocumentId,
+  type ProjectId,
+  parseSheetId,
+  type SheetId,
 } from "../../domain/shared/entity-id";
 import { COMMANDS } from "./command-constants";
-import type { CommandResult } from "./command-error";
+import { type CommandResult, commandErr, commandOk } from "./command-error";
 import { call } from "./invoke-command";
 import {
   toAppSettingsResult,
@@ -83,6 +84,42 @@ export function saveSheetViewport(
   return call(
     COMMANDS.saveSheetViewport,
     { projectId, documentId, sheetId, viewport },
+    toVoidResult,
+  );
+}
+
+function toOptionalSheetIdResult(
+  payload: unknown,
+): CommandResult<SheetId | null> {
+  if (payload === null || payload === undefined) return commandOk(null);
+  if (typeof payload !== "string") {
+    return commandErr("invalidCommandResponse", "payload: expected a sheet id");
+  }
+  const parsed = parseSheetId(payload);
+  return parsed.ok
+    ? commandOk(parsed.value)
+    : commandErr("invalidCommandResponse", `payload: ${parsed.error.detail}`);
+}
+
+export function getActiveSheet(
+  projectId: ProjectId,
+  documentId: DocumentId,
+): Promise<CommandResult<SheetId | null>> {
+  return call(
+    COMMANDS.getActiveSheet,
+    { projectId, documentId },
+    toOptionalSheetIdResult,
+  );
+}
+
+export function saveActiveSheet(
+  projectId: ProjectId,
+  documentId: DocumentId,
+  sheetId: SheetId,
+): Promise<CommandResult<null>> {
+  return call(
+    COMMANDS.saveActiveSheet,
+    { projectId, documentId, sheetId },
     toVoidResult,
   );
 }

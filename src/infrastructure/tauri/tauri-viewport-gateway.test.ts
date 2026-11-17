@@ -7,12 +7,16 @@ import { createTauriViewportGateway } from "./tauri-viewport-gateway";
 const client = vi.hoisted(() => ({
   getSheetViewport: vi.fn(),
   saveSheetViewport: vi.fn(),
+  getActiveSheet: vi.fn(),
+  saveActiveSheet: vi.fn(),
 }));
 vi.mock("./local-state-client", () => client);
 
 beforeEach(() => {
   client.getSheetViewport.mockReset();
   client.saveSheetViewport.mockReset();
+  client.getActiveSheet.mockReset();
+  client.saveActiveSheet.mockReset();
 });
 
 describe("createTauriViewportGateway", () => {
@@ -59,5 +63,18 @@ describe("createTauriViewportGateway", () => {
         viewport,
       ),
     ).toEqual({ ok: false, error: { kind: "ioError", detail: "disk" } });
+  });
+
+  it("passes the remembered sheet through and turns the save's null into void", async () => {
+    client.getActiveSheet.mockResolvedValue({ ok: true, value: SHEET_ID });
+    client.saveActiveSheet.mockResolvedValue({ ok: true, value: null });
+    const gateway = createTauriViewportGateway();
+    expect(await gateway.getActiveSheet(PROJECT_ID, DOCUMENT_ID)).toEqual({
+      ok: true,
+      value: SHEET_ID,
+    });
+    expect(
+      await gateway.saveActiveSheet(PROJECT_ID, DOCUMENT_ID, SHEET_ID),
+    ).toEqual({ ok: true, value: undefined });
   });
 });

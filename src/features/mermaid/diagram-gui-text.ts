@@ -17,6 +17,11 @@ function splitReason(text: string): { code: string; rest: string } {
   };
 }
 
+// The reason code (first word) of a refusal's detail.
+export function refusalCode(detail: string): string {
+  return splitReason(detail).code;
+}
+
 function lookup(
   table: Readonly<Record<string, string>>,
   code: string,

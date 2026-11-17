@@ -2,6 +2,7 @@
 //! preferences, the UI text size, the auto-save, Project Tree width and window size settings and the per-sheet viewport. App-owned data that never goes into a Project, so it is not part of
 //! the Domain. Independent of Tauri; the commands only call `LocalState`.
 
+pub mod active_sheet;
 pub mod ai_access;
 pub mod ai_history;
 pub mod ai_image_requests;

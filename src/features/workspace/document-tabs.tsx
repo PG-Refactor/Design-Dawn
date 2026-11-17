@@ -258,16 +258,15 @@ export function DocumentTabs() {
 
   function openTabMenu(event: MouseEvent, tab: DocumentTab): void {
     contextMenu.openFromEvent(event, messages.tabMenuLabel(tab.name), [
-      // Renaming happens in the tree, which a Document window does not have.
-      ...(documentsOnly
-        ? []
-        : [
-            {
-              id: "rename",
-              label: messages.tree.rename,
-              onSelect: () => void actions.beginRenameDocument(tab.documentId),
-            },
-          ]),
+      // Renaming happens in the tree; a Document window, which has none, asks in a dialog.
+      {
+        id: "rename",
+        label: messages.tree.rename,
+        onSelect: () =>
+          documentsOnly
+            ? actions.requestRenameDocument(tab.documentId)
+            : void actions.beginRenameDocument(tab.documentId),
+      },
       {
         id: "createSheet",
         label: messages.tabs.createSheet,

@@ -161,7 +161,7 @@ describe("a Document window", () => {
     });
     first.gateway.queueTransferRequest(windows.sent.at(-1)?.transferId ?? "");
 
-    await renderShell({
+    const shell = await renderShell({
       workspace: {
         sharedGateway: first.gateway,
         windows: windows.gatewayFor("window-new-1"),
@@ -170,11 +170,7 @@ describe("a Document window", () => {
 
     expect(await screen.findByRole("tab", { name: /Document A/ })).toBeTruthy();
     expect(screen.queryByRole("tree")).toBeNull();
-    const menu = openTabMenu(/Document A/);
-    const names = within(menu)
-      .getAllByRole("menuitem")
-      .map((item) => item.textContent);
-    expect(names).not.toContain(MESSAGES.tree.rename);
+    openTabMenu(/Document A/);
     await waitFor(() =>
       expect(
         within(screen.getByRole("menu"))
@@ -182,6 +178,26 @@ describe("a Document window", () => {
           .map((item) => item.textContent),
       ).toContain(TABS.moveToProjectWindow),
     );
+    // Without a tree, the name is asked in a dialog.
+    await shell.user.click(
+      within(screen.getByRole("menu")).getByRole("menuitem", {
+        name: MESSAGES.tree.rename,
+      }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: MESSAGES.dialogs.renameDocument.title,
+    });
+    const field = within(dialog).getByRole("textbox") as HTMLInputElement;
+    expect(field.value).toBe("Document A");
+    await shell.user.clear(field);
+    await shell.user.type(field, "Renamed A");
+    await shell.user.click(
+      within(dialog).getByRole("button", {
+        name: MESSAGES.dialogs.renameDocument.submit,
+      }),
+    );
+    expect(await screen.findByRole("tab", { name: /Renamed A/ })).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
 
