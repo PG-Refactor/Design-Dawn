@@ -30,8 +30,8 @@ export function contentBounds(
 }
 
 // Cut positions along one axis from `start` to `end` with pages `pageSize` long. Each cut
-// is pulled back to the start of a span it would cross, if that start is past the
-// previous cut (so a page always moves forward).
+// is pulled back to the start of the spans it would cross, as long as that start is past
+// the previous cut (so a page always moves forward).
 function cuts(
   start: number,
   end: number,
@@ -42,10 +42,15 @@ function cuts(
   let current = start;
   while (current + pageSize < end) {
     let next = current + pageSize;
-    const crossed = spans.filter(([from, to]) => from < next && to > next);
-    if (crossed.length > 0) {
+    // Pulled back again while the new cut goes through another span (one that starts
+    // above the span the cut was moved to).
+    for (;;) {
+      const at = next;
+      const crossed = spans.filter(([from, to]) => from < at && to > at);
+      if (crossed.length === 0) break;
       const earliest = Math.min(...crossed.map(([from]) => from));
-      if (earliest > current) next = earliest;
+      if (earliest <= current) break;
+      next = earliest;
     }
     positions.push(next);
     current = next;

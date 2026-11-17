@@ -93,6 +93,7 @@ export const COMMANDS = {
   getProjectSnapshot: "get_project_snapshot",
   listProjectWindows: "list_project_windows",
   projectWindowAt: "project_window_at",
+  showDocumentName: "show_document_name",
   showProjectInTitle: "show_project_in_title",
   applyWindowTheme: "apply_window_theme",
   gitStatus: "git_status",

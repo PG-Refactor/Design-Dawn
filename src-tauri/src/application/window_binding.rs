@@ -12,7 +12,7 @@ use super::project_operations::{self, LoadedProject, PreparedEntryPoint};
 use super::session::ProjectSessions;
 use super::snapshot::ProjectSnapshot;
 use super::window_registry::WindowRegistry;
-use crate::domain::entity_id::ProjectId;
+use crate::domain::entity_id::{DocumentId, ProjectId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WindowOpenError {
@@ -168,6 +168,16 @@ pub fn project_snapshot_for_window(
     let session = sessions.get(project_id)?;
     let mut snapshot = project_operations::load_project(session.root())?.snapshot;
     snapshot.session_generation = session.generation();
+    // A Document renamed and not saved yet is shown under its new name in every window.
+    for entry in &mut snapshot.documents {
+        let shown = DocumentId::parse(&entry.document_id)
+            .ok()
+            .and_then(|id| session.documents().get(&id))
+            .and_then(|record| record.shown_name.clone());
+        if shown.is_some() {
+            entry.name = shown;
+        }
+    }
     Ok(snapshot)
 }
 

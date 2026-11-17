@@ -86,7 +86,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 111] = [
+pub const COMMAND_NAMES: [&str; 112] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -109,6 +109,7 @@ pub const COMMAND_NAMES: [&str; 111] = [
     "create_document",
     "load_document",
     "close_document",
+    "show_document_name",
     "list_unused_assets",
     "delete_unused_assets",
     "save_document",
@@ -1118,6 +1119,24 @@ pub fn delete_unused_assets<R: Runtime>(
     })
 }
 
+/// The name the calling window shows for a Document it holds (`None`: the saved one). The
+/// other windows of the Project read their tree again and show it.
+#[tauri::command]
+pub fn show_document_name<R: Runtime>(
+    window: Window<R>,
+    state: SessionState<'_>,
+    project_id: String,
+    document_id: String,
+    name: Option<String>,
+) -> Result<(), ApplicationError> {
+    ensure_document_here(&window, &project_id, &document_id)?;
+    with_project_sessions(&window, &state, &project_id, |sessions| {
+        documents::show_document_name(sessions, &project_id, &document_id, name)
+    })?;
+    notify_tree_changed(&window, &project_id);
+    Ok(())
+}
+
 #[tauri::command]
 pub fn close_document<R: Runtime>(
     window: Window<R>,
@@ -1126,9 +1145,12 @@ pub fn close_document<R: Runtime>(
     document_id: String,
 ) -> Result<(), ApplicationError> {
     ensure_document_here(&window, &project_id, &document_id)?;
-    with_project_sessions(&window, &state, &project_id, |sessions| {
+    let had_shown_name = with_project_sessions(&window, &state, &project_id, |sessions| {
         documents::close_document(sessions, &project_id, &document_id)
     })?;
+    if had_shown_name {
+        notify_tree_changed(&window, &project_id);
+    }
     if let Ok(document) = DocumentId::parse(&document_id) {
         lock_registry(&window.state::<Mutex<WindowRegistry>>())
             .release_document(window.label(), &document);

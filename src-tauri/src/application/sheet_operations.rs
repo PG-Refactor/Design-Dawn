@@ -1,5 +1,7 @@
 use super::error::{ApplicationError, ApplicationResult};
-use super::session::{ProjectSessions, SheetRecord};
+use std::fs;
+
+use super::session::{ProjectSession, ProjectSessions, SheetRecord};
 use super::snapshot::{EntityState, SaveResult, SheetSnapshot};
 use crate::domain::constants::{
     BLOCKS_DIRECTORY_NAME, CURRENT_SHEET_SCHEMA_VERSION, PATH_SEPARATOR, SHEETS_DIRECTORY_NAME,
@@ -8,8 +10,11 @@ use crate::domain::display_name::DisplayName;
 use crate::domain::entity_id::{DocumentId, SheetId};
 use crate::domain::error::{DomainError, DomainErrorKind};
 use crate::domain::sheet::{Sheet, SheetInput};
-use crate::infrastructure::file_format::constants::{SHEET_FILE_NAME, SHEET_NAME_BASE};
-use crate::infrastructure::file_format::dto::{to_json_bytes, SheetDto};
+use crate::infrastructure::error::{PersistenceError, PersistenceErrorKind};
+use crate::infrastructure::file_format::constants::{
+    DOCUMENT_FILE_NAME, SHEET_FILE_NAME, SHEET_NAME_BASE,
+};
+use crate::infrastructure::file_format::dto::{to_json_bytes, DocumentDto, SheetDto};
 use crate::infrastructure::file_format::naming::unique_directory_name;
 use crate::infrastructure::filesystem::atomic_write::WriteOutcome;
 
@@ -59,6 +64,14 @@ pub fn create_sheet(
         &base,
         &format!("{sheet_directory}{PATH_SEPARATOR}{BLOCKS_DIRECTORY_NAME}"),
     )?;
+    // The new sheet joins the order in the document.json on disk, and nothing else there
+    // changes: the Document's other unsaved edits stay unsaved (Auto Save may be off).
+    // Without the order the sheet would not be part of the Document, so it is removed again.
+    if let Err(error) = append_to_saved_sheet_order(session, &base, sheet.sheet_id()) {
+        let sheets_container = format!("{base}{PATH_SEPARATOR}{SHEETS_DIRECTORY_NAME}");
+        let _ = session.remove_directory_tree(&sheets_container, &directory_name, SHEET_FILE_NAME);
+        return Err(error);
+    }
     session.document_mut(&document_id)?.sheets.insert(
         *sheet.sheet_id(),
         SheetRecord {
@@ -72,6 +85,35 @@ pub fn create_sheet(
         state: EntityState::Loaded,
         sheet: Some(dto),
     })
+}
+
+/// Adds `sheet_id` to the end of the order in the Document's `document.json` as it is on
+/// disk. The file is read without recording it, so a change made outside the app since the
+/// session last read or wrote it still makes the write fail (`externallyModified`).
+fn append_to_saved_sheet_order(
+    session: &mut ProjectSession,
+    base: &str,
+    sheet_id: &SheetId,
+) -> ApplicationResult<()> {
+    session.ensure_file_unchanged(base, DOCUMENT_FILE_NAME)?;
+    let path = session.resolve_existing_path(base, DOCUMENT_FILE_NAME)?;
+    let bytes = fs::read(&path).map_err(|error| {
+        PersistenceError::from_io(format!("read {DOCUMENT_FILE_NAME:?}"), &error)
+    })?;
+    let mut dto: DocumentDto = serde_json::from_slice(&bytes).map_err(|error| {
+        PersistenceError::new(
+            PersistenceErrorKind::InvalidJson,
+            format!("{DOCUMENT_FILE_NAME}: {error}"),
+        )
+    })?;
+    let id = sheet_id.to_string();
+    if !dto.sheet_order.contains(&id) {
+        dto.sheet_order.push(id);
+    }
+    let document = dto.to_domain()?;
+    let bytes = to_json_bytes(&DocumentDto::from_domain(&document))?;
+    session.write_file(base, DOCUMENT_FILE_NAME, &bytes)?;
+    Ok(())
 }
 
 pub fn save_sheet(

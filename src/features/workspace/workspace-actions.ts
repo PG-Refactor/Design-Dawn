@@ -304,6 +304,12 @@ export interface WorkspaceActions {
   // commit. Returns the first error (a draft's first); failures are already visible
   // through the operation errors / save states, so nothing is recorded here.
   saveAll(): Promise<OperationResult<void>>;
+  // A Document just made from a template is complete: what was filled into it is saved
+  // (even with Auto Save off: creating a Document is not undoable and happens at once),
+  // and its history starts empty, so no undo takes the filled content away again.
+  completeCreatedDocument(
+    documentId: DocumentId,
+  ): Promise<OperationResult<void>>;
   // The images of an open Document nothing uses, and deleting the chosen ones (see the
   // Workspace methods of the same names).
   listUnusedAssets(
@@ -1054,6 +1060,11 @@ export function createWorkspaceActions(
     },
     hasUnsavedChanges: hasUnsavedChangesIn,
     listUnusedAssets: (documentId) => workspace.listUnusedAssets(documentId),
+    async completeCreatedDocument(documentId) {
+      const saved = await workspace.flushDocuments([documentId]);
+      if (saved.ok) workspace.getDocumentSession(documentId)?.clearHistory();
+      return saved;
+    },
     deleteUnusedAssets: (documentId, contentPaths) =>
       workspace.deleteUnusedAssets(documentId, contentPaths),
     windowCloseNeedsConfirmation: () =>

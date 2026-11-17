@@ -62,6 +62,7 @@ import {
   putDocumentDetails,
   putDocumentSession,
   removeDocumentSession,
+  replaceDocumentSession,
   setOpenProject,
   syncSheetEntries,
 } from "../state/application-state";
@@ -288,6 +289,26 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
   const takenTransfers = new Map<string, DocumentId>();
   const events = options.events ?? createWorkspaceEvents();
   const sessions = new Map<DocumentId, DocumentSession>();
+
+  // The name each Document this window holds was last seen with. A change (a rename or its
+  // undo, saved or not) is told to Rust, so the tree of the Project's other windows shows
+  // it too; the name a Document arrives with is already known there.
+  const seenNames = new Map<DocumentId, string>();
+  store.subscribe(() => {
+    const { project, documents } = store.getState();
+    for (const documentId of [...seenNames.keys()]) {
+      if (!documents.has(documentId)) seenNames.delete(documentId);
+    }
+    if (project === null || windows === undefined) return;
+    for (const [documentId, documentState] of documents) {
+      const name = documentState.document.name;
+      const previous = seenNames.get(documentId);
+      seenNames.set(documentId, name);
+      if (previous !== undefined && previous !== name) {
+        void windows.showDocumentName(project.projectId, documentId, name);
+      }
+    }
+  });
   const connectSession = connectSessionToStore(store);
   let lifecycleTail: Promise<void> = Promise.resolve();
 
@@ -689,6 +710,14 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
         );
       }
       adoptSession(project.value.projectId, transfer.seed, { issues: [] });
+      // The tree shows the name the Document arrives with (renamed elsewhere, maybe not
+      // saved yet), not the one it had when it left.
+      store.setState((state) => {
+        const adopted = state.documents.get(transfer.documentId);
+        return adopted === undefined
+          ? state
+          : replaceDocumentSession(state, adopted);
+      });
       takenTransfers.set(transferId, transfer.documentId);
       return operationOk(transfer.documentId);
     });
@@ -911,14 +940,14 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
       const sheet = validateSheetSnapshot(created.value, sheetId);
       if (!sheet.ok) return sheet;
       // History stays: existing commands never reference a sheet that is only added.
+      // Rust wrote the sheet and added it to the order on disk, so nothing becomes
+      // unsaved, and nothing else is saved: the Document's other edits stay as they were
+      // (with Auto Save off they wait for an explicit save).
       const applied = scope.applyStructuralChange(
         (data) => withSheetAdded(data, sheet.value),
-        { clearHistory: false, markDirty: true },
+        { clearHistory: false, markDirty: false },
       );
-      if (!applied.ok) return applied;
-      // The sheet exists on disk; if this save fails it stays in memory, dirty.
-      const saved = await scope.saveDirty();
-      return saved.ok ? operationOk(sheetId) : saved;
+      return applied.ok ? operationOk(sheetId) : applied;
     });
   }
 

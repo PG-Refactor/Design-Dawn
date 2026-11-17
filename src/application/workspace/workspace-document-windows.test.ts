@@ -195,4 +195,32 @@ describe("moving a Document to another window", () => {
       );
     expect(entry?.name).toBe("Renamed A");
   });
+
+  it("tells the other windows a name changed and not saved yet, and shows it when the Document comes back", async () => {
+    const two = await projectWindowWithEditedDocument();
+    await two.main.workspace.moveDocumentToWindow(DOCUMENT_A, NEW_WINDOW);
+    const window = await documentWindowFor(two, "window-new-1");
+    await window.workspace
+      .getDocumentSession(DOCUMENT_A)
+      ?.execute(renameDocumentCommand(displayName("Unsaved A")));
+    expect(two.windows.shownNames).toEqual([
+      { documentId: DOCUMENT_A, name: "Unsaved A" },
+    ]);
+
+    await window.workspace.moveDocumentToWindow(DOCUMENT_A, {
+      kind: "window",
+      label: MAIN,
+    });
+    await two.main.workspace.receiveDocument(
+      two.windows.sent.at(-1)?.transferId ?? "",
+    );
+    const entry = two.main.store
+      .getState()
+      .project?.documents.find(
+        (document) => document.documentId === DOCUMENT_A,
+      );
+    expect(entry?.name).toBe("Unsaved A");
+    // Arriving is not a change: nothing more is told.
+    expect(two.windows.shownNames).toHaveLength(1);
+  });
 });

@@ -26,6 +26,7 @@
     "allow-create-document",
     "allow-load-document",
     "allow-close-document",
+    "allow-show-document-name",
     "allow-list-unused-assets",
     "allow-delete-unused-assets",
     "allow-save-document",

@@ -31,6 +31,18 @@ describe("paginate", () => {
     expect(pages).toEqual([block(0, 0, 100, 90), block(0, 90, 100, 60)]);
   });
 
+  it("moves a cut back again when the new place splits another block", () => {
+    // A cut at 100 splits the block at 90; its top (90) splits the one at 60, so the cut
+    // goes to 60, where nothing is split.
+    const blocks = [
+      block(0, 0, 100, 50),
+      block(0, 60, 40, 50),
+      block(50, 90, 50, 50),
+    ];
+    const pages = paginate(block(0, 0, 100, 140), blocks, 100, 100);
+    expect(pages.map((page) => page.y)).toEqual([0, 60]);
+  });
+
   it("splits a block taller than a page and leaves out empty pages", () => {
     const blocks = [block(0, 0, 50, 250), block(300, 0, 50, 50)];
     const pages = paginate(block(0, 0, 350, 250), blocks, 100, 100);

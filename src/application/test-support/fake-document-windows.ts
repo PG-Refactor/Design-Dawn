@@ -22,6 +22,11 @@ export interface FakeDocumentWindows {
   gatewayFor(label: string): DocumentWindowGateway;
   // Every successful move, in order.
   readonly sent: SentDocument[];
+  // Every name a window showed for a Document it holds, in order.
+  readonly shownNames: {
+    readonly documentId: DocumentId;
+    readonly name: string;
+  }[];
   // The next move fails (like a window that could not be created).
   failNextTransfer(): void;
   // What `projectWindowAt` answers (default: no window there).
@@ -40,6 +45,7 @@ export function createFakeDocumentWindows(
 ): FakeDocumentWindows {
   const waiting = new Map<string, { to: string; payload: string }>();
   const sent: SentDocument[] = [];
+  const shownNames: { documentId: DocumentId; name: string }[] = [];
   let failNext = false;
   let nextId = 1;
   let nextWindow = 1;
@@ -50,6 +56,7 @@ export function createFakeDocumentWindows(
   }[] = [];
   return {
     sent,
+    shownNames,
     setWindows(windows) {
       listed = windows;
     },
@@ -91,6 +98,10 @@ export function createFakeDocumentWindows(
         },
         async projectWindowAt() {
           return operationOk(windowAtPoint);
+        },
+        async showDocumentName(_projectId, documentId, name) {
+          shownNames.push({ documentId, name });
+          return operationOk(undefined);
         },
         async listProjectWindows() {
           return operationOk(

@@ -143,6 +143,10 @@ pub struct DocumentRecord {
     pub opened: bool,
     /// Filled by `load_document` / `create_sheet`; empty until then.
     pub sheets: BTreeMap<SheetId, SheetRecord>,
+    /// The name the window holding the Document shows while it is not saved yet (a rename
+    /// waiting for Ctrl+S): the other windows of the Project show it in their tree too.
+    /// Cleared when the Document is saved or closed.
+    pub shown_name: Option<String>,
 }
 
 /// Source of `ProjectSession::generation`. Process-wide so that a session opened again for the
@@ -340,6 +344,17 @@ impl ProjectSession {
         relative: &str,
     ) -> Result<Value, PersistenceError> {
         read_json_value(&self.root, &mut self.ledger, base_relative, relative)
+    }
+
+    /// Fails with `externallyModified` when the file is no longer what the session last
+    /// read or wrote (see `ensure_unchanged_since_recorded`), before it is read for a write.
+    pub fn ensure_file_unchanged(
+        &self,
+        base_relative: &str,
+        relative: &str,
+    ) -> Result<(), PersistenceError> {
+        let target = self.resolve_existing_path(base_relative, relative)?;
+        self.ensure_unchanged_since_recorded(&join_key(base_relative, relative), &target)
     }
 
     /// Whether the session has read or written this file, so an external removal of it is a

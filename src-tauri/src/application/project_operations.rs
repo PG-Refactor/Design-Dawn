@@ -206,6 +206,7 @@ pub fn load_project(project_root: &Path) -> ApplicationResult<LoadedProject> {
                 writable: document.loaded,
                 opened: false,
                 sheets: BTreeMap::new(),
+                shown_name: None,
             },
         );
         documents.push(DocumentEntry {

@@ -989,3 +989,79 @@ fn opening_through_an_entry_point_records_the_dawn_file_too() {
         Some(file_hash(&root.join("system-design.dawn")))
     );
 }
+
+#[test]
+fn a_created_sheet_joins_the_order_on_disk_and_nothing_else_changes() {
+    let mut opened = open_copy();
+    load_document(&mut opened.sessions, PROJECT_ID, DOCUMENT_ID).unwrap();
+    let document_file = document_dir(&opened.root).join("document.json");
+    let before: serde_json::Value = serde_json::from_str(&read_text(&document_file)).unwrap();
+    let sheet_id = new_id(500);
+    create_sheet(
+        &mut opened.sessions,
+        PROJECT_ID,
+        DOCUMENT_ID,
+        &sheet_id,
+        "Joined",
+    )
+    .unwrap();
+    let after: serde_json::Value = serde_json::from_str(&read_text(&document_file)).unwrap();
+    let mut expected = before.clone();
+    expected["sheetOrder"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::Value::String(sheet_id));
+    assert_eq!(after, expected);
+}
+
+#[test]
+fn a_shown_name_lasts_until_the_document_is_saved_or_closed() {
+    use design_dawn_lib::application::document_operations::{
+        close_document, save_document, show_document_name,
+    };
+    use design_dawn_lib::domain::entity_id::DocumentId;
+
+    let mut opened = open_copy();
+    let loaded = load_document(&mut opened.sessions, PROJECT_ID, DOCUMENT_ID).unwrap();
+    let document = DocumentId::parse(DOCUMENT_ID).unwrap();
+    let shown = |opened: &mut OpenedProject| {
+        opened
+            .sessions
+            .session_mut(PROJECT_ID)
+            .unwrap()
+            .document(&document)
+            .unwrap()
+            .shown_name
+            .clone()
+    };
+
+    show_document_name(
+        &mut opened.sessions,
+        PROJECT_ID,
+        DOCUMENT_ID,
+        Some("Renamed".to_owned()),
+    )
+    .unwrap();
+    assert_eq!(shown(&mut opened).as_deref(), Some("Renamed"));
+    // Not a valid name: refused, the shown one stays.
+    assert!(show_document_name(
+        &mut opened.sessions,
+        PROJECT_ID,
+        DOCUMENT_ID,
+        Some(" ".to_owned())
+    )
+    .is_err());
+    save_document(&mut opened.sessions, PROJECT_ID, &loaded.document).unwrap();
+    assert_eq!(shown(&mut opened), None);
+
+    show_document_name(
+        &mut opened.sessions,
+        PROJECT_ID,
+        DOCUMENT_ID,
+        Some("Again".to_owned()),
+    )
+    .unwrap();
+    assert!(close_document(&mut opened.sessions, PROJECT_ID, DOCUMENT_ID).unwrap());
+    assert_eq!(shown(&mut opened), None);
+    assert!(!close_document(&mut opened.sessions, PROJECT_ID, DOCUMENT_ID).unwrap());
+}

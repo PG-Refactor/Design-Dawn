@@ -42,5 +42,9 @@ export function createTauriDocumentWindowGateway(): DocumentWindowGateway {
         { projectId, screenX, screenY },
         toOptionalWindowLabel,
       ),
+    showDocumentName: (projectId, documentId, name) =>
+      call(COMMANDS.showDocumentName, { projectId, documentId, name }, () =>
+        commandOk(undefined),
+      ),
   };
 }

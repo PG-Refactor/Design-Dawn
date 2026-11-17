@@ -92,6 +92,7 @@ html,body{margin:0;background:var(--background);color:var(--text);font-family:"S
 .page-heading{display:flex;justify-content:space-between;align-items:center;height:${HEADING_HEIGHT}px;padding:0 ${SHEET_MARGIN}px;border-bottom:1px solid var(--border);color:var(--muted);font-size:12px;}
 .page-heading__name{font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .page-body{position:absolute;left:0;top:${HEADING_HEIGHT}px;overflow:hidden;}
+.page-view{position:relative;overflow:hidden;}
 .page:last-child{break-after:auto;}
 @media print{html,body{background:var(--surface);}}
 `;
@@ -163,15 +164,19 @@ function sheetsMarkup(
     if (paper === null) return;
     const canvas = sheetCanvas(sheet, bounds);
     const name = escapeHtml(sheet.name);
+    // Each page shows exactly its part of the sheet (not the start of the next part), and
+    // is scaled with zoom, not a transform: a browser cuts printed content into pages by its
+    // size before a transform, so a transformed sheet taller than the paper was cut off.
     paper.pages.forEach((page, pageIndex) => {
-      const left = -(page.x - bounds.x) * paper.scale;
-      const top = -(page.y - bounds.y) * paper.scale;
+      // In world units, inside the zoomed page view.
+      const left = -(page.x - bounds.x);
+      const top = -(page.y - bounds.y);
       const number =
         paper.pages.length > 1
           ? `<span>${pageIndex + 1} / ${paper.pages.length}</span>`
           : "";
       parts.push(
-        `<div class="page" style="width:${paper.paper.width}px;height:${paper.paper.height}px"><div class="page-heading"><span class="page-heading__name">${name}</span>${number}</div><div class="page-body" style="width:${paper.area.width}px;height:${paper.area.height}px"><div style="position:absolute;left:${left}px;top:${top}px;transform:scale(${paper.scale});transform-origin:0 0">${canvas}</div></div></div>`,
+        `<div class="page" style="width:${paper.paper.width}px;height:${paper.paper.height}px"><div class="page-heading"><span class="page-heading__name">${name}</span>${number}</div><div class="page-body" style="width:${paper.area.width}px;height:${paper.area.height}px"><div class="page-view" style="zoom:${paper.scale};width:${page.width}px;height:${page.height}px"><div style="position:absolute;left:${left}px;top:${top}px">${canvas}</div></div></div></div>`,
       );
     });
   });
