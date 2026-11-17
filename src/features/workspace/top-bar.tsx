@@ -31,6 +31,7 @@ import { MenuBar } from "../menu-bar/menu-bar";
 import type { MenuDefinition } from "../menu-bar/menu-bar-types";
 import { FIND_KEY } from "../search/find-shortcuts";
 import { requestFind } from "../search/find-store";
+import { openTemplateManager } from "../templates/template-dialogs";
 import { Notifications } from "./notifications";
 import { saveEverything } from "./save-everything";
 import { modifierShortcutHint, saveShortcutHint } from "./save-shortcut";
@@ -98,6 +99,7 @@ export function TopBar() {
   const messages = allMessages.workspace;
   const topBar = messages.topBar;
   const aiAccessTexts = allMessages.aiAccess;
+  const templateTexts = allMessages.templates;
   const {
     actions,
     themeController,
@@ -295,6 +297,14 @@ export function TopBar() {
             disabled: activeDocumentId === null,
             onSelect: () => setPrintTarget(shownTarget()),
           },
+          { kind: "separator", id: "separator-templates" },
+          {
+            kind: "item",
+            id: "manageTemplates",
+            label: templateTexts.manage,
+            disabled: !hasProject,
+            onSelect: openTemplateManager,
+          },
           { kind: "separator", id: "separator-ai" },
           {
             kind: "item",
@@ -443,6 +453,7 @@ export function TopBar() {
     [
       topBar,
       aiAccessTexts,
+      templateTexts,
       actions,
       viewportPersistence,
       exportActions,

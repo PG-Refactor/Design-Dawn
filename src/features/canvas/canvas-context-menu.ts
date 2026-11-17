@@ -32,6 +32,11 @@ export interface BlockMenuCommands {
   readonly fitToContent?: () => void;
   // Present for one selected diagram: writes it as an SVG or PNG file.
   readonly exportDiagram?: (kind: "svg" | "png") => void;
+  // Present for one selected Markdown or Mermaid block (the label comes with it).
+  readonly saveAsTemplate?: {
+    readonly label: string;
+    readonly onSelect: () => void;
+  };
   readonly cut: () => void;
   readonly copy: () => void;
   readonly paste: () => void;
@@ -102,6 +107,16 @@ export function blockMenuEntries(
             ],
           },
         ]),
+    ...(commands.saveAsTemplate === undefined
+      ? []
+      : [
+          { id: "templateSeparator", separator: true as const },
+          {
+            id: "saveAsTemplate",
+            label: commands.saveAsTemplate.label,
+            onSelect: commands.saveAsTemplate.onSelect,
+          },
+        ]),
     { id: "editSeparator", separator: true },
     { id: "cut", label: labels.cut, onSelect: commands.cut },
     { id: "copy", label: labels.copy, onSelect: commands.copy },
@@ -129,6 +144,11 @@ export interface BackgroundMenuCommands {
   // Opens the spreadsheet dialog; the first table goes where the menu was opened.
   readonly importSpreadsheet: () => void;
   readonly paste: () => void;
+  // The custom block templates, when there are any (the label comes with them).
+  readonly customTemplates?: {
+    readonly label: string;
+    readonly entries: readonly PopupMenuEntry[];
+  };
 }
 
 // The other kinds of diagram, one item per template, for a "templates" submenu.
@@ -161,6 +181,16 @@ export function backgroundMenuEntries(
         commands.addBlock("mermaid", template),
       ),
     },
+    ...(commands.customTemplates === undefined ||
+    commands.customTemplates.entries.length === 0
+      ? []
+      : [
+          {
+            id: "addFromCustomTemplate",
+            label: commands.customTemplates.label,
+            entries: [...commands.customTemplates.entries],
+          },
+        ]),
     {
       id: "addImage",
       label: messages.contextMenu.addImage,

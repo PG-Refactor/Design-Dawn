@@ -8,6 +8,7 @@ import {
 import type { EntryId } from "../../domain/shared/entity-id";
 import { useContextMenu } from "../../shared/menu/context-menu";
 import { CANVAS_KEY_COMMANDS, keyCommandOf } from "../canvas/canvas-keyboard";
+import { documentFromTemplateEntries } from "../templates/template-flows";
 import { restoreFocus } from "./focus-utils";
 import {
   EntryItems,
@@ -85,7 +86,9 @@ function isOnRow(target: EventTarget): boolean {
 
 function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
   const messages = useMessages().workspace;
-  const { actions, canvasActions, uiStateStore } = useWorkspaceServices();
+  const templateMessages = useMessages().templates;
+  const { actions, canvasActions, uiStateStore, templates } =
+    useWorkspaceServices();
   const renaming = useUiState((ui) => ui.renaming);
   const storedSelection = useUiState((ui) => ui.treeSelection);
   const activeDocumentId = useUiState((ui) => ui.activeDocumentId);
@@ -322,6 +325,7 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
       label: messages.tree.createDocument,
       onSelect: () => actions.requestCreateDocument(null),
     },
+    ...documentFromTemplateEntries(templates, templateMessages, null),
   ];
 
   // A click on the empty part of the tree clears the selection (new entries then go to the

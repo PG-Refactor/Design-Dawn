@@ -25,6 +25,12 @@ pub const MOVE_BLOCK: &str = "moveBlock";
 pub const UPDATE_BLOCK_CAPTION: &str = "updateBlockCaption";
 pub const DELETE_BLOCK: &str = "deleteBlock";
 pub const REQUEST_IMAGE_IMPORT: &str = "requestImageImport";
+pub const LIST_TEMPLATES: &str = "listTemplates";
+pub const CREATE_FROM_TEMPLATE: &str = "createFromTemplate";
+
+/// Where a template is kept, and what it makes (as the app's templates name them).
+pub const TEMPLATE_SCOPES: [&str; 3] = ["shared", "project", "global"];
+pub const TEMPLATE_KINDS: [&str; 4] = ["markdown", "mermaid", "sheet", "document"];
 
 /// Where a caption can be shown, as `updateBlockCaption` takes it.
 pub const CAPTION_POSITIONS: [&str; 2] = ["below", "above"];
@@ -232,6 +238,11 @@ as expectedContentHash to updateBlock). Image Blocks include only file name, for
             ],
         ),
         read(
+            LIST_TEMPLATES,
+            "The templates the user saved in the app: scope (shared = in the Project, shared through Git; project = the user's own for this Project; global = the user's own for every Project), kind (markdown / mermaid: one Block; sheet; document), templateId and name. Make something from one with createFromTemplate.",
+            vec![],
+        ),
+        read(
             SEARCH_PROJECT,
             "Finds text in every Markdown and Mermaid Block and every caption of the Project: \
 each match with its documentId, sheetId, blockId, line and the line around it (at most 500; \
@@ -318,6 +329,39 @@ blockId and contentHash. To give a Mermaid Block a caption, call updateBlockCapt
                     "width",
                     "height",
                     &format!("{WORLD_UNITS_HELP}, at least {BLOCK_MIN_WIDTH} x {BLOCK_MIN_HEIGHT}"),
+                ),
+            ],
+        ),
+        write(
+            CREATE_FROM_TEMPLATE,
+            "Makes a new Block (kind markdown / mermaid: needs documentId and sheetId), Sheet (kind sheet: needs documentId) or Document (kind document; folderId optional) from a template of listTemplates, with the template's texts, layout and captions. name renames the new Sheet or Document. Image Blocks of the template are not made (skippedImages tells how many).",
+            false,
+            vec![
+                property(
+                    "scope",
+                    true,
+                    json!({ "type": "string", "enum": TEMPLATE_SCOPES }),
+                ),
+                property(
+                    "kind",
+                    true,
+                    json!({ "type": "string", "enum": TEMPLATE_KINDS }),
+                ),
+                id("templateId", true, "ID of the template (from listTemplates)"),
+                id("documentId", false, DOCUMENT_ID_HELP),
+                id("sheetId", false, SHEET_ID_HELP),
+                id(
+                    "folderId",
+                    false,
+                    "ID of the Folder for a new Document (from getProject); omit for the root",
+                ),
+                text("name", false, "display name of the new Sheet or Document"),
+                pair(
+                    "position",
+                    false,
+                    "x",
+                    "y",
+                    &format!("top-left corner of a new Block, {WORLD_UNITS_HELP}"),
                 ),
             ],
         ),

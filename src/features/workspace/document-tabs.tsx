@@ -12,6 +12,7 @@ import type { PopupMenuEntry } from "../../shared/menu/popup-menu";
 import { ExternalCompareTabItem } from "../external-change/external-compare-tab";
 import { activateDiff, closeDiff, pinDiff } from "../git/git-diff-session";
 import { GitDiffTabItem } from "../git/git-diff-tab";
+import { saveDocumentAsTemplate } from "../templates/template-flows";
 import { focusFallbackElement } from "./focus-utils";
 import { documentPanelId, documentTabId } from "./tab-ids";
 import { DocumentIcon } from "./tree-icons";
@@ -79,6 +80,7 @@ function keyOf(entry: StripEntry): string {
 // them; Ctrl/Cmd+Arrow reorders Document tabs only.
 export function DocumentTabs() {
   const messages = useMessages().workspace;
+  const templateMessages = useMessages().templates;
   const services = useWorkspaceServices();
   const { actions, uiStateStore } = services;
   const tabs = useWorkspaceModel(selectDocumentTabs);
@@ -271,6 +273,17 @@ export function DocumentTabs() {
         id: "createSheet",
         label: messages.tabs.createSheet,
         onSelect: () => void actions.requestCreateSheet(tab.documentId),
+      },
+      {
+        id: "saveAsTemplate",
+        label: templateMessages.saveAsTemplate,
+        onSelect: () =>
+          void saveDocumentAsTemplate(
+            services.templates,
+            actions,
+            tab.documentId,
+            tab.name,
+          ),
       },
       ...moveEntries(tab),
       { id: "closeSeparator", separator: true },

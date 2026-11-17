@@ -2,12 +2,13 @@
 // from `project-tree.tsx` so the tree view keeps to focus handling and shortcuts.
 
 import type { KeyboardEvent } from "react";
-import type {
-  PopupMenuEntry,
-  PopupMenuItem,
-} from "../../shared/menu/popup-menu";
+import type { PopupMenuEntry } from "../../shared/menu/popup-menu";
 import { openExportDialog } from "../export/export-dialog-store";
 import { EXPORT_FORMATS, exportItemLabel } from "../export/export-formats";
+import {
+  documentFromTemplateEntries,
+  saveDocumentAsTemplate,
+} from "../templates/template-flows";
 import { DocumentIcon, FolderIcon, FolderOpenIcon } from "./tree-icons";
 import {
   type TreeChooseMode,
@@ -28,6 +29,7 @@ import type {
 } from "./view-models/tree-model";
 import type { TreeSelection } from "./view-models/tree-selection";
 import type { WorkspaceActions } from "./workspace-actions";
+import { useWorkspaceServices } from "./workspace-services-context";
 
 export interface TreeHandlers {
   readonly actions: WorkspaceActions;
@@ -98,6 +100,7 @@ function DocumentTreeItem({
   const allMessages = useMessages();
   const messages = allMessages.workspace;
   const exportMessages = allMessages.export;
+  const { templates } = useWorkspaceServices();
   const { actions, keepFocus } = handlers;
   const { documentId } = documentNode;
   const itemKey = documentTreeKey(documentId);
@@ -127,6 +130,18 @@ function DocumentTreeItem({
       label: messages.tree.openInNewWindow,
       disabled: failed,
       onSelect: () => void actions.openDocumentInNewWindow(documentId),
+    },
+    {
+      id: "saveAsTemplate",
+      label: allMessages.templates.saveAsTemplate,
+      disabled: failed,
+      onSelect: () =>
+        void saveDocumentAsTemplate(
+          templates,
+          actions,
+          documentId,
+          documentNode.name ?? "",
+        ),
     },
     ...(failed
       ? []
@@ -190,6 +205,8 @@ function FolderTreeItem({
   readonly handlers: TreeHandlers;
 }) {
   const messages = useMessages().workspace;
+  const templateMessages = useMessages().templates;
+  const { templates } = useWorkspaceServices();
   const { actions, keepFocus } = handlers;
   const { folderId } = folderNode;
   const itemKey = folderTreeKey(folderId);
@@ -202,7 +219,7 @@ function FolderTreeItem({
     folderId,
   });
   const isEmpty = folderNode.children.length === 0;
-  const menuItems: PopupMenuItem[] = [
+  const menuItems: PopupMenuEntry[] = [
     {
       id: "createFolder",
       label: messages.tree.createFolder,
@@ -215,6 +232,9 @@ function FolderTreeItem({
       disabled: failed,
       onSelect: () => actions.requestCreateDocument(folderId),
     },
+    ...(failed
+      ? []
+      : documentFromTemplateEntries(templates, templateMessages, folderId)),
     {
       id: "rename",
       label: messages.tree.rename,

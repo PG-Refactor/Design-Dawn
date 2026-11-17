@@ -22,7 +22,16 @@ use crate::application::local_state::ai_access::{listed_project_name, AiAccessLi
 use crate::application::local_state::ai_history::{append as append_ai_history, AiHistoryEntry};
 use crate::application::local_state::ai_image_requests::{request_image, AiImageRequest};
 use crate::application::local_state::ai_requests::{request_write_access, AiRequestOutcome};
+use crate::application::local_state::constants::APP_IDENTIFIER;
 use crate::application::project_search::{search_project, SearchQuery};
+use crate::application::templates::{
+    list_templates, read_template, TemplateBlockContent, TemplateKind, TemplateRoots,
+    TemplateScope, TEMPLATES_DIRECTORY_NAME,
+};
+
+/// Under the app's local data, as the app keeps the user's own templates.
+const TEMPLATE_PROJECTS_DIRECTORY: &str = "projects";
+const TEMPLATE_GLOBAL_DIRECTORY: &str = "global";
 
 /// Image references in `exportMarkdown` point at the Document's own assets folder.
 const EXPORT_ASSETS_PREFIX: &str = "assets/";
@@ -392,6 +401,8 @@ listProjects and selectProject for another one"
             names::UPDATE_BLOCK_CAPTION => self.update_block_caption(arguments),
             names::DELETE_BLOCK => self.delete_block(arguments),
             names::REQUEST_IMAGE_IMPORT => self.request_image_import(arguments),
+            names::LIST_TEMPLATES => self.list_templates(),
+            names::CREATE_FROM_TEMPLATE => self.create_from_template(arguments),
             other => Err(ToolError::new(
                 KIND_INTERNAL,
                 format!("tool {other} has no handler"),
@@ -789,6 +800,195 @@ the user can add it in Design Dawn's AI integration screen",
             target.insert("contentHash".to_owned(), json!(content.content_hash));
         }
         Ok(value)
+    }
+
+    /// The three places of the templates for the Project in use (`application::templates`).
+    fn template_roots(&self) -> Result<(TemplateRoots, Workspace), ToolError> {
+        let resolved = self.resolve()?;
+        let workspace = Workspace::open(&resolved.root, &resolved.project_id)?;
+        let root = resolved.root;
+        let local = dirs::data_local_dir()
+            .map(|base| base.join(APP_IDENTIFIER).join(TEMPLATES_DIRECTORY_NAME));
+        let roots = TemplateRoots {
+            shared: Some(root.join(TEMPLATES_DIRECTORY_NAME)),
+            project: local.as_ref().map(|local| {
+                local
+                    .join(TEMPLATE_PROJECTS_DIRECTORY)
+                    .join(&workspace.project_id)
+            }),
+            global: local.map_or_else(
+                // Without a data folder there are no personal templates: a folder that does not
+                // exist lists nothing.
+                || {
+                    root.join(TEMPLATES_DIRECTORY_NAME)
+                        .join(TEMPLATE_GLOBAL_DIRECTORY)
+                },
+                |local| local.join(TEMPLATE_GLOBAL_DIRECTORY),
+            ),
+        };
+        Ok((roots, workspace))
+    }
+
+    fn list_templates(&self) -> Result<Value, ToolError> {
+        let (roots, _) = self.template_roots()?;
+        let listed = list_templates(&roots);
+        Ok(json!({
+            "templates": listed.templates,
+            "unreadable": listed.issues.len(),
+        }))
+    }
+
+    /// Text Blocks of a template onto a Sheet, one after another (each saves the Sheet).
+    /// Returns the new blockIds and how many image Blocks were left out.
+    fn place_template_blocks(
+        &self,
+        workspace: &mut Workspace,
+        document_id: &str,
+        sheet_id: &str,
+        blocks: &[TemplateBlockContent],
+        offset: (i64, i64),
+    ) -> Result<(Vec<String>, usize), ToolError> {
+        let mut created = Vec::new();
+        let mut skipped = 0;
+        for block in blocks {
+            let Some(text) = block.text.as_deref() else {
+                skipped += 1;
+                continue;
+            };
+            let document = workspace.load_document(document_id)?;
+            let sheet = find_sheet(&document, sheet_id)?.clone();
+            let geometry = BlockGeometry {
+                x: block.x + offset.0,
+                y: block.y + offset.1,
+                width: i64::from(block.width),
+                height: i64::from(block.height),
+            };
+            let made = create_text_block(
+                &mut workspace.sessions,
+                &workspace.project_id,
+                document_id,
+                &sheet,
+                &block.block_type,
+                text,
+                geometry,
+            )?;
+            if let Some(caption) = block.caption.as_deref() {
+                let document = workspace.load_document(document_id)?;
+                let sheet = find_sheet(&document, sheet_id)?.clone();
+                let position = block
+                    .caption_position
+                    .as_deref()
+                    .and_then(|value| CaptionPosition::parse(value).ok());
+                set_block_caption(
+                    &mut workspace.sessions,
+                    &workspace.project_id,
+                    document_id,
+                    &sheet,
+                    &made.block_id,
+                    Some(caption),
+                    position,
+                )?;
+            }
+            created.push(made.block_id);
+        }
+        Ok((created, skipped))
+    }
+
+    fn create_from_template(&self, arguments: &Arguments) -> Result<Value, ToolError> {
+        let scope = TemplateScope::parse(arguments.string("scope")?)?;
+        let kind = TemplateKind::parse(arguments.string("kind")?)?;
+        let template_id = arguments.string("templateId")?;
+        let name = arguments.optional_string("name")?;
+        let (roots, mut workspace) = self.template_roots()?;
+        let content = read_template(&roots, scope, kind, template_id)?;
+        match kind {
+            TemplateKind::Markdown | TemplateKind::Mermaid => {
+                let block = content.block.ok_or_else(|| {
+                    ToolError::new(KIND_INTERNAL, "the template holds no Block".to_owned())
+                })?;
+                let document_id = arguments.string("documentId")?.to_owned();
+                let sheet_id = arguments.string("sheetId")?.to_owned();
+                let document = workspace.load_document(&document_id)?;
+                let defaults = default_block_geometry(find_sheet(&document, &sheet_id)?);
+                let (x, y) = arguments
+                    .optional_pair("position", "x", "y")?
+                    .unwrap_or((defaults.x, defaults.y));
+                let (blocks, _) = self.place_template_blocks(
+                    &mut workspace,
+                    &document_id,
+                    &sheet_id,
+                    &[block],
+                    (x, y),
+                )?;
+                Ok(json!({ "documentId": document_id, "sheetId": sheet_id, "blockIds": blocks }))
+            }
+            TemplateKind::Sheet => {
+                let sheet = content.sheets.first().cloned().ok_or_else(|| {
+                    ToolError::new(KIND_INTERNAL, "the template holds no Sheet".to_owned())
+                })?;
+                let document_id = arguments.string("documentId")?.to_owned();
+                let document = workspace.load_document(&document_id)?;
+                let created = create_listed_sheet(
+                    &mut workspace.sessions,
+                    &workspace.project_id,
+                    &document.document,
+                    name.unwrap_or(&sheet.sheet_name),
+                )?;
+                let (blocks, skipped) = self.place_template_blocks(
+                    &mut workspace,
+                    &document_id,
+                    &created.sheet_id,
+                    &sheet.blocks,
+                    (0, 0),
+                )?;
+                Ok(json!({
+                    "documentId": document_id,
+                    "sheetId": created.sheet_id,
+                    "blockIds": blocks,
+                    "skippedImages": skipped,
+                }))
+            }
+            TemplateKind::Document => {
+                let document_name = name
+                    .map(str::to_owned)
+                    .or(content.document_name.clone())
+                    .unwrap_or_else(|| content.name.clone());
+                let created = create_listed_document(
+                    &mut workspace.sessions,
+                    &workspace.project_id,
+                    &workspace.project,
+                    &document_name,
+                    arguments.optional_string("folderId")?,
+                )?;
+                let document_id = created.document.document_id.clone();
+                let mut sheets = Vec::new();
+                let mut skipped_images = 0;
+                for sheet in &content.sheets {
+                    let document = workspace.load_document(&document_id)?;
+                    let made = create_listed_sheet(
+                        &mut workspace.sessions,
+                        &workspace.project_id,
+                        &document.document,
+                        &sheet.sheet_name,
+                    )?;
+                    let (blocks, skipped) = self.place_template_blocks(
+                        &mut workspace,
+                        &document_id,
+                        &made.sheet_id,
+                        &sheet.blocks,
+                        (0, 0),
+                    )?;
+                    skipped_images += skipped;
+                    sheets.push(json!({ "sheetId": made.sheet_id, "blockIds": blocks }));
+                }
+                Ok(json!({
+                    "documentId": document_id,
+                    "name": document_name,
+                    "sheets": sheets,
+                    "skippedImages": skipped_images,
+                }))
+            }
+        }
     }
 
     fn update_document(&self, arguments: &Arguments) -> Result<Value, ToolError> {

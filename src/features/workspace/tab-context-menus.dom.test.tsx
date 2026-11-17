@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+
 import {
   cleanup,
   fireEvent,
@@ -7,6 +8,7 @@ import {
   within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
+import { TEMPLATE_MESSAGES } from "../templates/template-messages";
 import {
   renderShell,
   type ShellHarness,
@@ -14,6 +16,7 @@ import {
 } from "./test-support/shell-harness";
 import { WORKSPACE_MESSAGES } from "./workspace-messages";
 
+const TEMPLATE_TEXTS = TEMPLATE_MESSAGES.ja;
 const MESSAGES = WORKSPACE_MESSAGES.ja;
 
 afterEach(() => {
@@ -59,6 +62,7 @@ describe("the right-click menu of a Sheet tab", () => {
       MESSAGES.tabs.moveRight,
       MESSAGES.tabs.createSheet,
       `${MESSAGES.tabs.createSheetFromTemplate}▸`,
+      TEMPLATE_TEXTS.saveAsTemplate,
       MESSAGES.tabs.deleteSheet,
     ]);
     expect(

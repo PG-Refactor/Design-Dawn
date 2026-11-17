@@ -52,6 +52,10 @@ import {
   type FakeGitGateway,
 } from "../../../application/test-support/fake-git";
 import {
+  createFakeTemplateGateway,
+  type FakeTemplateGateway,
+} from "../../../application/test-support/fake-templates";
+import {
   createFakeAppSettingsGateway,
   createFakeOsThemeSource,
   type FakeAppSettingsGateway,
@@ -104,6 +108,7 @@ import { createExportActions } from "../../export/export-actions";
 import { createAppExternalChangeController } from "../../external-change/create-external-change-controller";
 import { createAppLoadIssueRepairController } from "../../load-issue-repair/create-load-issue-repair-controller";
 import { createSearchActions } from "../../search/search-actions";
+import { createCustomTemplates } from "../../templates/custom-templates";
 import { createDraftRegistry, type DraftRegistry } from "../draft-registry";
 import { addOperationError } from "../ui-state/shell-ui-state";
 import { createUiStateStore, type UiStateStore } from "../ui-state/ui-state";
@@ -128,6 +133,7 @@ export interface ActionsHarness extends WorkspaceHarness {
   readonly windowThemes: string[];
   readonly appRequestSource: FakeAppRequestSource;
   readonly viewportGateway: FakeViewportGateway;
+  readonly templateGateway: FakeTemplateGateway;
   // Its own clock, so viewport saves are advanced independently of auto-save.
   readonly viewportPersistence: ViewportPersistence;
   readonly gitGateway: FakeGitGateway;
@@ -198,6 +204,14 @@ export function createActionsHarness(
     actions,
     canvasActions,
     assetUrlResolver: createFakeAssetUrlResolver(),
+  });
+  const templateGateway = createFakeTemplateGateway();
+  const templates = createCustomTemplates({
+    gateway: templateGateway,
+    applicationStore: base.store,
+    uiStateStore,
+    actions,
+    canvasActions,
   });
   const dropEventSource = createFakeDropEventSource();
   const closeRequestSource = createFakeCloseRequestSource();
@@ -277,6 +291,7 @@ export function createActionsHarness(
     aiAccess,
     viewportGateway,
     viewportPersistence,
+    templateGateway,
     services: {
       applicationStore: base.store,
       uiStateStore,
@@ -284,6 +299,7 @@ export function createActionsHarness(
       canvasActions,
       searchActions,
       exportActions,
+      templates,
       draftRegistry,
       dropEventSource,
       closeRequestSource,
