@@ -25,15 +25,21 @@ const selectProjectTreeWidth = (state: LayoutSettingsState) =>
 // settings; while the user drags, a local live width is shown and stored only at the end.
 export function WorkspaceBody() {
   const messages = useMessages().workspace;
-  const { layoutSettingsController, actions } = useWorkspaceServices();
+  const { layoutSettingsController, actions, templateEditor } =
+    useWorkspaceServices();
+  // A window that edits a Custom Template shows the template alone: no tree.
+  const editingTemplate = useStoreSelector(
+    templateEditor.store,
+    (state) => state.editing !== null,
+  );
   const storedWidth = useStoreSelector(
     layoutSettingsController.store,
     selectProjectTreeWidth,
   );
   const mainTabKind = useUiState((ui) => ui.activeMainTab.kind);
-  const documentsOnly = useWorkspaceModel(
-    (application) => application.windowRole === "document",
-  );
+  const documentsOnly =
+    useWorkspaceModel((application) => application.windowRole === "document") ||
+    editingTemplate;
   const sidebarCollapsed = useUiState((ui) => ui.sidebarCollapsed);
   const [liveWidth, setLiveWidth] = useState<number | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);

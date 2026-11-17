@@ -3,6 +3,7 @@
 // gateway); this keeps their list for the menus and turns them into blocks, sheets and
 // Documents through the usual actions (one undo step for the blocks of a sheet).
 
+import type { ImportedImage } from "../../application/ports/asset-types";
 import type { OperationResult } from "../../application/ports/operation-error";
 import {
   operationErr,
@@ -11,6 +12,7 @@ import {
 import type {
   TemplateBlockContent,
   TemplateContent,
+  TemplateEditInfo,
   TemplateGateway,
   TemplateKind,
   TemplateLoadIssue,
@@ -103,7 +105,20 @@ export interface CustomTemplates {
   ): Promise<OperationResult<void>>;
   // The Document name a Document template suggests (its own name when it has none).
   documentNameOf(template: TemplateSummary): Promise<string>;
+  // An open Document as a template of `kind` would hold it (for saving an edited template).
+  capture(
+    documentId: DocumentId,
+    kind: TemplateKind,
+    name: string,
+  ): Promise<OperationResult<TemplateContent>>;
+  // An editing window's empty Project gets a Document holding the template.
+  fillForEditing(
+    info: TemplateEditInfo,
+    importAsset: AssetImporter,
+  ): Promise<OperationResult<void>>;
   rename(template: TemplateRef, name: string): Promise<OperationResult<void>>;
+  // Opens a window that edits the template.
+  openEditor(template: TemplateRef): Promise<OperationResult<void>>;
   remove(template: TemplateRef): Promise<OperationResult<void>>;
   move(
     template: TemplateRef,
@@ -123,6 +138,12 @@ export interface CustomTemplateDependencies {
 }
 
 const fileName = (path: string) => path.split("/").at(-1) ?? path;
+
+// Copies one image of a template into a Document's assets.
+export type AssetImporter = (
+  documentId: DocumentId,
+  assetName: string,
+) => Promise<OperationResult<ImportedImage>>;
 
 function refOf(template: TemplateSummary): TemplateRef {
   return {
@@ -290,27 +311,35 @@ export function createCustomTemplates({
   // The template's images in the Document, by their name in the template. An image that
   // cannot be imported is reported and its blocks are left out.
   async function importAssets(
-    template: TemplateSummary,
+    importAsset: AssetImporter,
     documentId: DocumentId,
     names: readonly string[],
   ): Promise<ReadonlyMap<string, ContentPath>> {
-    const project = projectId();
     const imported = new Map<string, ContentPath>();
-    if (project === null) return imported;
     for (const name of new Set(names)) {
       const result = report(
         USE_LABEL,
         name,
-        await gateway.importTemplateAsset(
-          project,
-          documentId,
-          refOf(template),
-          name,
-        ),
+        await importAsset(documentId, name),
       );
       if (result.ok) imported.set(name, result.value.contentPath);
     }
     return imported;
+  }
+
+  // Imports from a template the app lists.
+  function fromTemplate(template: TemplateSummary): AssetImporter {
+    return (documentId, name) => {
+      const project = projectId();
+      return project === null
+        ? Promise.resolve(noProject())
+        : gateway.importTemplateAsset(
+            project,
+            documentId,
+            refOf(template),
+            name,
+          );
+    };
   }
 
   function blockInputs(
@@ -351,14 +380,14 @@ export function createCustomTemplates({
   }
 
   async function placeBlocks(
-    template: TemplateSummary,
+    importAsset: AssetImporter,
     documentId: DocumentId,
     sheetId: SheetId,
     blocks: readonly TemplateBlockContent[],
     textAssets: readonly string[],
     place?: PlaceOnCanvas,
   ): Promise<OperationResult<void>> {
-    const assets = await importAssets(template, documentId, [
+    const assets = await importAssets(importAsset, documentId, [
       ...blocks.flatMap((block) =>
         block.asset === undefined ? [] : [block.asset],
       ),
@@ -378,7 +407,7 @@ export function createCustomTemplates({
   }
 
   async function newSheetWithBlocks(
-    template: TemplateSummary,
+    importAsset: AssetImporter,
     documentId: DocumentId,
     sheet: TemplateSheetContent,
     textAssets: readonly string[],
@@ -390,7 +419,67 @@ export function createCustomTemplates({
     if (sheetId === undefined) {
       return operationErr("entityNotFound", "the new sheet is not shown");
     }
-    return placeBlocks(template, documentId, sheetId, sheet.blocks, textAssets);
+    return placeBlocks(
+      importAsset,
+      documentId,
+      sheetId,
+      sheet.blocks,
+      textAssets,
+    );
+  }
+
+  // A whole open Document as a template of `kind` holds it: a block template takes the
+  // first block of the first sheet, a sheet template the first sheet.
+  async function capturedDocument(
+    documentId: DocumentId,
+    kind: TemplateKind,
+    name: string,
+  ): Promise<OperationResult<TemplateContent>> {
+    const application = applicationStore.getState();
+    const data = application.documents.get(documentId);
+    if (data === undefined) {
+      return operationErr(
+        "entityNotFound",
+        `document ${documentId} is not open`,
+      );
+    }
+    const sheetIds = (
+      application.documentDetails.get(documentId)?.sheetEntries ?? []
+    )
+      .filter((entry) => entry.state === LOADED)
+      .map((entry) => entry.sheetId);
+    const sheets: TemplateSheetContent[] = [];
+    const assets: ContentPath[] = [];
+    for (const sheetId of kind === "document"
+      ? sheetIds
+      : sheetIds.slice(0, 1)) {
+      const captured = await capturedSheet(documentId, sheetId);
+      if (!captured.ok) return captured;
+      sheets.push(captured.value.sheet);
+      assets.push(...captured.value.assets);
+    }
+    const unique = [...new Set(assets)];
+    if (kind === "markdown" || kind === "mermaid") {
+      const block = sheets[0]?.blocks.find(
+        (candidate) => candidate.blockType === kind,
+      );
+      if (block === undefined) {
+        return operationErr(
+          "invalidTemplate",
+          `the sheet holds no ${kind} block`,
+        );
+      }
+      return operationOk({ name, block, sheets: [], assets: unique });
+    }
+    if (kind === "sheet") {
+      return operationOk({ name, sheets: sheets.slice(0, 1), assets: unique });
+    }
+    return operationOk({
+      name,
+      sheets,
+      documentName: data.document.name,
+      assets: unique,
+    });
   }
 
   return {
@@ -442,38 +531,46 @@ export function createCustomTemplates({
     },
 
     async saveDocument(documentId, scope, name) {
-      const application = applicationStore.getState();
-      const data = application.documents.get(documentId);
-      if (data === undefined) {
-        return report(
-          SAVE_LABEL,
-          name,
-          operationErr("entityNotFound", `document ${documentId} is not open`),
-        );
-      }
-      const sheetIds = (
-        application.documentDetails.get(documentId)?.sheetEntries ?? []
-      )
-        .filter((entry) => entry.state === LOADED)
-        .map((entry) => entry.sheetId);
-      const sheets: TemplateSheetContent[] = [];
-      const assets: ContentPath[] = [];
-      for (const sheetId of sheetIds) {
-        const captured = report(
-          SAVE_LABEL,
-          name,
-          await capturedSheet(documentId, sheetId),
-        );
-        if (!captured.ok) return captured;
-        sheets.push(captured.value.sheet);
-        assets.push(...captured.value.assets);
-      }
-      return save(documentId, scope, "document", {
+      const captured = report(
+        SAVE_LABEL,
         name,
-        sheets,
-        documentName: data.document.name,
-        assets: [...new Set(assets)],
-      });
+        await capturedDocument(documentId, "document", name),
+      );
+      if (!captured.ok) return captured;
+      return save(documentId, scope, "document", captured.value);
+    },
+
+    capture: capturedDocument,
+
+    async fillForEditing(info, importAsset) {
+      // Filled once: a window opened again on the same Project keeps what is there.
+      if ((applicationStore.getState().project?.documents.length ?? 0) > 0) {
+        return operationOk(undefined);
+      }
+      const { content } = info;
+      const created = await actions.createDocument(
+        content.documentName ?? content.name,
+        null,
+      );
+      if (!created.ok) return created;
+      const documentId = uiStateStore.getState().activeDocumentId;
+      if (documentId === null) {
+        return operationErr("entityNotFound", "the new document is not shown");
+      }
+      const sheets: readonly TemplateSheetContent[] =
+        content.block === undefined
+          ? content.sheets
+          : [{ sheetName: content.name, blocks: [content.block] }];
+      for (const sheet of sheets) {
+        const filled = await newSheetWithBlocks(
+          importAsset,
+          documentId,
+          sheet,
+          content.assets,
+        );
+        if (!filled.ok) return filled;
+      }
+      return operationOk(undefined);
     },
 
     async addBlocks(template, documentId, sheetId, place) {
@@ -492,7 +589,7 @@ export function createCustomTemplates({
         );
       }
       return placeBlocks(
-        template,
+        fromTemplate(template),
         documentId,
         sheetId,
         [block],
@@ -517,7 +614,7 @@ export function createCustomTemplates({
         );
       }
       return newSheetWithBlocks(
-        template,
+        fromTemplate(template),
         documentId,
         sheet,
         content.value.assets,
@@ -540,7 +637,7 @@ export function createCustomTemplates({
       }
       for (const sheet of content.value.sheets) {
         const filled = await newSheetWithBlocks(
-          template,
+          fromTemplate(template),
           documentId,
           sheet,
           content.value.assets,
@@ -555,6 +652,16 @@ export function createCustomTemplates({
       return content.ok
         ? (content.value.documentName ?? content.value.name)
         : template.name;
+    },
+
+    async openEditor(template) {
+      const project = projectId();
+      if (project === null) return report(MANAGE_LABEL, null, noProject());
+      return report(
+        MANAGE_LABEL,
+        null,
+        await gateway.openTemplateEditor(project, template),
+      );
     },
 
     async rename(template, name) {

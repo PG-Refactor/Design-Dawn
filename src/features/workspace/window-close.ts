@@ -22,6 +22,14 @@ export interface WindowCloseDependencies {
     readonly confirmStop: () => Promise<boolean>;
     readonly closeAll: () => Promise<void>;
   };
+  // A window that edits a Custom Template: what matters is the template, not the window's
+  // working copy, so it asks about the template (and never about the working copy).
+  readonly templateEdit?: {
+    readonly isEditing: () => boolean;
+    readonly hasUnsavedChanges: () => Promise<boolean>;
+    readonly ask: () => Promise<"save" | "discard" | "cancel">;
+    readonly save: () => Promise<OperationResult<void>>;
+  };
 }
 
 // Callable with the close request; also tells whether a close is in progress and when it
@@ -62,6 +70,7 @@ export function createWindowCloseHandler(
       needsConfirmation,
       askUnsavedClose,
       printing,
+      templateEdit,
     } = getDependencies();
     try {
       if (printing !== undefined && (await printing.isOpen())) {
@@ -70,6 +79,24 @@ export function createWindowCloseHandler(
           return;
         }
         await printing.closeAll();
+      }
+      if (templateEdit?.isEditing() === true) {
+        if (await templateEdit.hasUnsavedChanges()) {
+          const answer = await templateEdit.ask();
+          if (answer === "cancel") {
+            release();
+            return;
+          }
+          if (answer === "save" && !(await templateEdit.save()).ok) {
+            release();
+            return;
+          }
+        }
+        const confirmedEdit = await closeRequestSource.confirmClose(
+          request.subscriptionToken,
+        );
+        if (!confirmedEdit.ok) release();
+        return;
       }
       // The flag stays set while the question is open, so a repeated request is ignored.
       const choice = needsConfirmation() ? await askUnsavedClose() : "save";

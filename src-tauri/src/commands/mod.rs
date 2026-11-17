@@ -85,7 +85,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 105] = [
+pub const COMMAND_NAMES: [&str; 109] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -136,6 +136,10 @@ pub const COMMAND_NAMES: [&str; 105] = [
     "delete_template",
     "move_template",
     "import_template_asset",
+    "open_template_editor",
+    "template_edit_info",
+    "import_template_edit_asset",
+    "save_template_edit",
     "import_dropped_images",
     "import_pasted_image",
     "read_spreadsheet_via_dialog",

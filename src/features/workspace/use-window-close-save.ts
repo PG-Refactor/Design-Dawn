@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { askCloseWhilePrinting } from "../export/printing-close";
+import { askTemplateEditClose } from "../templates/template-edit-banner";
 import {
   createWindowCloseHandler,
   type WindowCloseHandler,
@@ -17,19 +18,26 @@ export type WindowCloseStatus = Pick<
 // the listener. Returns the close handling's status so app requests can wait while a close
 // is in progress.
 export function useWindowCloseSave(): WindowCloseStatus {
-  const { actions, viewportPersistence, closeRequestSource, exportActions } =
-    useWorkspaceServices();
+  const {
+    actions,
+    viewportPersistence,
+    closeRequestSource,
+    exportActions,
+    templateEditor,
+  } = useWorkspaceServices();
   const latest = useRef({
     actions,
     viewportPersistence,
     closeRequestSource,
     exportActions,
+    templateEditor,
   });
   latest.current = {
     actions,
     viewportPersistence,
     closeRequestSource,
     exportActions,
+    templateEditor,
   };
 
   // One handler per mount: its in-progress flag must outlive re-renders.
@@ -47,6 +55,13 @@ export function useWindowCloseSave(): WindowCloseStatus {
           isOpen: () => latest.current.exportActions.printWindowsOpen(),
           confirmStop: askCloseWhilePrinting,
           closeAll: () => latest.current.exportActions.closePrintWindows(),
+        },
+        templateEdit: {
+          isEditing: () => latest.current.templateEditor.isEditing(),
+          hasUnsavedChanges: () =>
+            latest.current.templateEditor.hasUnsavedChanges(),
+          ask: askTemplateEditClose,
+          save: () => latest.current.templateEditor.save(),
         },
       })),
     [],

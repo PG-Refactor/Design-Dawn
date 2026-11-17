@@ -598,6 +598,90 @@ fn checked_name(name: &str) -> ApplicationResult<String> {
     Ok(trimmed.to_owned())
 }
 
+/// Writes everything of `content` into `staging` and returns its `template.json` entry.
+fn stage_content(
+    staging: &Path,
+    kind: TemplateKind,
+    template_id: String,
+    name: &str,
+    content: &TemplateContent,
+    read_asset: &AssetReader<'_>,
+) -> ApplicationResult<TemplateFile> {
+    let mut file = TemplateFile {
+        schema_version: CURRENT_TEMPLATE_SCHEMA_VERSION,
+        template_id,
+        kind: kind.as_str().to_owned(),
+        name: name.to_owned(),
+        block: None,
+        sheets: Vec::new(),
+        document_name: None,
+    };
+    match kind {
+        TemplateKind::Markdown | TemplateKind::Mermaid => {
+            let block = content
+                .block
+                .as_ref()
+                .ok_or_else(|| invalid("a block template needs its block"))?;
+            if block.block_type != kind.as_str() {
+                return Err(invalid(format!(
+                    "a {} template cannot hold a {} block",
+                    kind.as_str(),
+                    block.block_type
+                )));
+            }
+            file.block = Some(stage_block(staging, "", 0, block, read_asset)?);
+        }
+        TemplateKind::Sheet => {
+            let [sheet] = content.sheets.as_slice() else {
+                return Err(invalid("a sheet template holds exactly one sheet"));
+            };
+            file.sheets = vec![stage_sheet(
+                staging,
+                SHEET_BLOCKS_DIRECTORY,
+                sheet,
+                read_asset,
+            )?];
+        }
+        TemplateKind::Document => {
+            if content.sheets.is_empty() {
+                return Err(invalid("a Document template needs a sheet"));
+            }
+            file.document_name = Some(
+                content
+                    .document_name
+                    .clone()
+                    .unwrap_or_else(|| name.to_owned()),
+            );
+            file.sheets = content
+                .sheets
+                .iter()
+                .enumerate()
+                .map(|(index, sheet)| {
+                    stage_sheet(
+                        staging,
+                        &format!("{DOCUMENT_SHEETS_DIRECTORY}/{}", index + 1),
+                        sheet,
+                        read_asset,
+                    )
+                })
+                .collect::<ApplicationResult<_>>()?;
+        }
+    }
+    for source in &content.assets {
+        let (asset_name, bytes) = read_asset(source)?;
+        write_file(
+            &staging.join(TEMPLATE_ASSETS_DIRECTORY).join(asset_name),
+            &bytes,
+        )?;
+    }
+    write_file(
+        &staging.join(TEMPLATE_FILE_NAME),
+        &serde_json::to_vec_pretty(&file)
+            .map_err(|error| invalid(format!("{TEMPLATE_FILE_NAME}: {error}")))?,
+    )?;
+    Ok(file)
+}
+
 /// Saves `content` as a new template of `kind` in `scope`; returns its summary.
 pub fn save_template(
     roots: &TemplateRoots,
@@ -609,81 +693,14 @@ pub fn save_template(
     let name = checked_name(&content.name)?;
     let directory = roots.kind_directory(scope, kind)?;
     let staging = new_staging(&directory)?;
-    let written = (|| -> ApplicationResult<TemplateFile> {
-        let mut file = TemplateFile {
-            schema_version: CURRENT_TEMPLATE_SCHEMA_VERSION,
-            template_id: Uuid::now_v7().to_string(),
-            kind: kind.as_str().to_owned(),
-            name: name.clone(),
-            block: None,
-            sheets: Vec::new(),
-            document_name: None,
-        };
-        match kind {
-            TemplateKind::Markdown | TemplateKind::Mermaid => {
-                let block = content
-                    .block
-                    .as_ref()
-                    .ok_or_else(|| invalid("a block template needs its block"))?;
-                if block.block_type != kind.as_str() {
-                    return Err(invalid(format!(
-                        "a {} template cannot hold a {} block",
-                        kind.as_str(),
-                        block.block_type
-                    )));
-                }
-                file.block = Some(stage_block(&staging, "", 0, block, read_asset)?);
-            }
-            TemplateKind::Sheet => {
-                let [sheet] = content.sheets.as_slice() else {
-                    return Err(invalid("a sheet template holds exactly one sheet"));
-                };
-                file.sheets = vec![stage_sheet(
-                    &staging,
-                    SHEET_BLOCKS_DIRECTORY,
-                    sheet,
-                    read_asset,
-                )?];
-            }
-            TemplateKind::Document => {
-                if content.sheets.is_empty() {
-                    return Err(invalid("a Document template needs a sheet"));
-                }
-                file.document_name = Some(
-                    content
-                        .document_name
-                        .clone()
-                        .unwrap_or_else(|| name.clone()),
-                );
-                file.sheets = content
-                    .sheets
-                    .iter()
-                    .enumerate()
-                    .map(|(index, sheet)| {
-                        stage_sheet(
-                            &staging,
-                            &format!("{DOCUMENT_SHEETS_DIRECTORY}/{}", index + 1),
-                            sheet,
-                            read_asset,
-                        )
-                    })
-                    .collect::<ApplicationResult<_>>()?;
-            }
-        }
-        for source in &content.assets {
-            let (asset_name, bytes) = read_asset(source)?;
-            write_file(
-                &staging.join(TEMPLATE_ASSETS_DIRECTORY).join(asset_name),
-                &bytes,
-            )?;
-        }
-        write_file(
-            &staging.join(TEMPLATE_FILE_NAME),
-            &serde_json::to_vec_pretty(&file)
-                .map_err(|error| invalid(format!("{TEMPLATE_FILE_NAME}: {error}")))?,
-        )?;
-        Ok(file)
-    })();
+    let written = stage_content(
+        &staging,
+        kind,
+        Uuid::now_v7().to_string(),
+        &name,
+        content,
+        read_asset,
+    );
     let file = match written {
         Ok(file) => file,
         Err(error) => {
@@ -701,6 +718,46 @@ pub fn save_template(
         template_id: file.template_id,
         name,
     })
+}
+
+/// Rewrites a template with new content, keeping its id, name and folder: the new folder is
+/// written whole first, then takes the old one's place (the old one is kept until then, and
+/// put back if the swap fails).
+pub fn replace_template(
+    roots: &TemplateRoots,
+    scope: TemplateScope,
+    kind: TemplateKind,
+    template_id: &str,
+    content: &TemplateContent,
+    read_asset: &AssetReader<'_>,
+) -> ApplicationResult<()> {
+    let (folder, file) = find_template(roots, scope, kind, template_id)?;
+    let directory = roots.kind_directory(scope, kind)?;
+    let staging = new_staging(&directory)?;
+    if let Err(error) = stage_content(
+        &staging,
+        kind,
+        file.template_id.clone(),
+        &file.name,
+        content,
+        read_asset,
+    ) {
+        let _ = fs::remove_dir_all(&staging);
+        return Err(error);
+    }
+    let backup = directory.join(format!("{STAGING_PREFIX}{}", Uuid::now_v7()));
+    if let Err(error) = fs::rename(&folder, &backup) {
+        let _ = fs::remove_dir_all(&staging);
+        return Err(io_error(format!("set aside {}", folder.display()))(error));
+    }
+    if let Err(error) = fs::rename(&staging, &folder) {
+        let _ = fs::rename(&backup, &folder);
+        let _ = fs::remove_dir_all(&staging);
+        return Err(io_error(format!("place {}", folder.display()))(error));
+    }
+    // The old copy is no longer needed; a leftover is skipped by every listing.
+    let _ = fs::remove_dir_all(&backup);
+    Ok(())
 }
 
 pub fn rename_template(

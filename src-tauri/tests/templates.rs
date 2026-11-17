@@ -9,9 +9,9 @@ use support::TempDir;
 
 use design_dawn_lib::application::error::ApplicationResult;
 use design_dawn_lib::application::templates::{
-    delete_template, list_templates, move_template, read_template, rename_template, save_template,
-    template_asset_path, TemplateBlockContent, TemplateContent, TemplateKind, TemplateRoots,
-    TemplateScope, TemplateSheetContent,
+    delete_template, list_templates, move_template, read_template, rename_template,
+    replace_template, save_template, template_asset_path, TemplateBlockContent, TemplateContent,
+    TemplateKind, TemplateRoots, TemplateScope, TemplateSheetContent,
 };
 
 fn roots(base: &std::path::Path) -> TemplateRoots {
@@ -304,4 +304,69 @@ fn a_block_template_refuses_a_block_of_another_kind_and_needs_a_name() {
     // Nothing half-written is left behind.
     let leftovers = temp.path().join("local/global/mermaid");
     assert!(!leftovers.exists() || fs::read_dir(&leftovers).unwrap().next().is_none());
+}
+
+#[test]
+fn a_template_is_rewritten_in_place_keeping_its_id_name_and_folder() {
+    let temp = TempDir::new();
+    let roots = roots(temp.path());
+    let saved = save_template(
+        &roots,
+        TemplateScope::Shared,
+        TemplateKind::Markdown,
+        &block_template("Memo", "old\n"),
+        &read_asset,
+    )
+    .unwrap();
+    let folder = temp.path().join("project/templates/markdown");
+    let before: Vec<_> = fs::read_dir(&folder)
+        .unwrap()
+        .map(|e| e.unwrap().file_name())
+        .collect();
+    replace_template(
+        &roots,
+        TemplateScope::Shared,
+        TemplateKind::Markdown,
+        &saved.template_id,
+        &block_template("ignored", "new\n"),
+        &read_asset,
+    )
+    .unwrap();
+    let content = read_template(
+        &roots,
+        TemplateScope::Shared,
+        TemplateKind::Markdown,
+        &saved.template_id,
+    )
+    .unwrap();
+    assert_eq!(content.name, "Memo");
+    assert_eq!(content.block.unwrap().text.as_deref(), Some("new\n"));
+    let after: Vec<_> = fs::read_dir(&folder)
+        .unwrap()
+        .map(|e| e.unwrap().file_name())
+        .collect();
+    assert_eq!(before, after);
+    // A content of the wrong kind leaves the template as it was.
+    let wrong = TemplateContent {
+        block: Some(text_block("mermaid", "pie\n", 0)),
+        ..block_template("x", "")
+    };
+    assert!(replace_template(
+        &roots,
+        TemplateScope::Shared,
+        TemplateKind::Markdown,
+        &saved.template_id,
+        &wrong,
+        &read_asset,
+    )
+    .is_err());
+    let unchanged = read_template(
+        &roots,
+        TemplateScope::Shared,
+        TemplateKind::Markdown,
+        &saved.template_id,
+    )
+    .unwrap();
+    assert_eq!(unchanged.block.unwrap().text.as_deref(), Some("new\n"));
+    assert_eq!(list_templates(&roots).templates.len(), 1);
 }

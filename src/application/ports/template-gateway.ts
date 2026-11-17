@@ -72,6 +72,15 @@ export interface TemplateRef {
   readonly templateId: string;
 }
 
+// The template a window edits (a Project made for it stands for the template).
+export interface TemplateEditInfo {
+  readonly scope: TemplateScope;
+  readonly kind: TemplateKind;
+  readonly templateId: string;
+  readonly name: string;
+  readonly content: TemplateContent;
+}
+
 export interface TemplateGateway {
   listTemplates(projectId: ProjectId): Promise<OperationResult<TemplateList>>;
   readTemplate(
@@ -99,6 +108,27 @@ export interface TemplateGateway {
     projectId: ProjectId,
     template: TemplateRef,
     toScope: TemplateScope,
+  ): Promise<OperationResult<void>>;
+  // Opens a new window that edits the template.
+  openTemplateEditor(
+    projectId: ProjectId,
+    template: TemplateRef,
+  ): Promise<OperationResult<void>>;
+  // For a window: the template its Project stands for (null: an ordinary Project).
+  templateEditInfo(
+    projectId: ProjectId,
+  ): Promise<OperationResult<TemplateEditInfo | null>>;
+  // One image of the template being edited, into the editing Project's Document.
+  importTemplateEditAsset(
+    projectId: ProjectId,
+    documentId: DocumentId,
+    assetName: string,
+  ): Promise<OperationResult<ImportedImage>>;
+  // Writes what the editing window holds back into the template.
+  saveTemplateEdit(
+    projectId: ProjectId,
+    documentId: DocumentId,
+    content: TemplateContent,
   ): Promise<OperationResult<void>>;
   // One image of the template, copied into the Document's assets.
   importTemplateAsset(

@@ -8,6 +8,7 @@ import {
 } from "../ports/operation-error";
 import type {
   TemplateContent,
+  TemplateEditInfo,
   TemplateGateway,
   TemplateRef,
   TemplateSummary,
@@ -26,6 +27,11 @@ export interface FakeTemplateGateway extends TemplateGateway {
   // Assets imported into Documents, in order.
   readonly imported: { documentId: string; assetName: string }[];
   failNext: OperationError | null;
+  // What `templateEditInfo` answers (set by a test of an editing window).
+  editing: TemplateEditInfo | null;
+  // Templates the app asked to open for editing, and edits saved back.
+  readonly openedForEditing: TemplateRef[];
+  readonly savedEdits: { documentId: string; content: TemplateContent }[];
 }
 
 const fileName = (path: string) => path.split("/").at(-1) ?? path;
@@ -48,6 +54,28 @@ export function createFakeTemplateGateway(): FakeTemplateGateway {
     stored: [],
     imported: [],
     failNext: null,
+    editing: null,
+    openedForEditing: [],
+    savedEdits: [],
+    async openTemplateEditor(_projectId, template) {
+      gateway.openedForEditing.push(template);
+      return operationOk(undefined);
+    },
+    async templateEditInfo() {
+      return operationOk(gateway.editing);
+    },
+    async importTemplateEditAsset(_projectId, documentId, assetName) {
+      return gateway.importTemplateAsset(
+        _projectId,
+        documentId,
+        { scope: "global", kind: "sheet", templateId: "editing" },
+        assetName,
+      );
+    },
+    async saveTemplateEdit(_projectId, documentId, content) {
+      gateway.savedEdits.push({ documentId, content });
+      return operationOk(undefined);
+    },
     async listTemplates() {
       const failing = failure();
       if (failing !== null) return operationErr(failing.kind, failing.detail);

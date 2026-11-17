@@ -8,6 +8,7 @@ import { LoadIssueRepairDialog } from "../load-issue-repair/load-issue-repair-di
 import { useFindShortcuts } from "../search/use-find-shortcuts";
 import { SpreadsheetImportDialog } from "../spreadsheet/spreadsheet-import-dialog";
 import { TemplateDialogs } from "../templates/template-dialogs";
+import { TemplateEditBanner } from "../templates/template-edit-banner";
 import { LoadStatus, TransientNotice } from "./notifications";
 import { TopBar } from "./top-bar";
 import { useAppRequests } from "./use-app-requests";
@@ -37,6 +38,7 @@ export function WorkspaceShell() {
   return (
     <div className="workspace-shell">
       <TopBar />
+      <TemplateEditBanner />
       <LoadStatus />
       <TransientNotice />
       <ProjectBanner />

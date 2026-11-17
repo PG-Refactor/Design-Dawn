@@ -262,6 +262,13 @@ function TemplateRow({ template }: { readonly template: TemplateSummary }) {
           </option>
         ))}
       </select>
+      <button
+        type="button"
+        className="button"
+        onClick={() => void templates.openEditor(template)}
+      >
+        {messages.edit}
+      </button>
       {renaming === null && (
         <button
           type="button"

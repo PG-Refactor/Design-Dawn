@@ -230,3 +230,64 @@ describe("close status", () => {
     expect(released).toBe(0);
   });
 });
+
+describe("a window that edits a Custom Template", () => {
+  function editing(unsaved: boolean, answer: "save" | "discard" | "cancel") {
+    const source = createFakeCloseRequestSource();
+    const calls: string[] = [];
+    const handler = createWindowCloseHandler(() => ({
+      needsConfirmation: () => true,
+      askUnsavedClose: async () => {
+        calls.push("askDocument");
+        return "save";
+      },
+      saveAll: async () => {
+        calls.push("saveAll");
+        return operationOk(undefined);
+      },
+      finishViewportSaves: async () => undefined,
+      closeRequestSource: {
+        subscribe: source.subscribe,
+        confirmClose: (token) => {
+          calls.push(`confirm:${token}`);
+          return source.confirmClose(token);
+        },
+      },
+      templateEdit: {
+        isEditing: () => true,
+        hasUnsavedChanges: async () => unsaved,
+        ask: async () => {
+          calls.push("askTemplate");
+          return answer;
+        },
+        save: async () => {
+          calls.push("saveTemplate");
+          return operationOk(undefined);
+        },
+      },
+    }));
+    return { handler, calls };
+  }
+
+  it("asks about the template only, saves it on Save and closes", async () => {
+    const { handler, calls } = editing(true, "save");
+    await handler({ subscriptionToken: TOKEN });
+    expect(calls).toEqual(["askTemplate", "saveTemplate", `confirm:${TOKEN}`]);
+  });
+
+  it("closes without writing on Close Without Saving, and stays open on Cancel", async () => {
+    const discard = editing(true, "discard");
+    await discard.handler({ subscriptionToken: TOKEN });
+    expect(discard.calls).toEqual(["askTemplate", `confirm:${TOKEN}`]);
+    const cancel = editing(true, "cancel");
+    await cancel.handler({ subscriptionToken: TOKEN });
+    expect(cancel.calls).toEqual(["askTemplate"]);
+    expect(cancel.handler.isClosing()).toBe(false);
+  });
+
+  it("closes at once when the template is saved", async () => {
+    const { handler, calls } = editing(false, "cancel");
+    await handler({ subscriptionToken: TOKEN });
+    expect(calls).toEqual([`confirm:${TOKEN}`]);
+  });
+});
