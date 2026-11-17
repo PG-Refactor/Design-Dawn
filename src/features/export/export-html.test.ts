@@ -89,6 +89,11 @@ describe("buildExportHtml", () => {
     expect(html).toContain(
       'class="page-body" style="width:1123px;height:762px"',
     );
+    // Scaled by zoom (printing cuts pages before a transform), clipped to the page's part.
+    expect(html).not.toContain("transform:scale");
+    expect(html).toMatch(
+      /class="page-view" style="zoom:1;width:\d+px;height:\d+px"/,
+    );
   });
 
   it("numbers the pages of a sheet cut into several", () => {
