@@ -327,6 +327,33 @@ describe("file drop", () => {
     expect(created.getAttribute("aria-selected")).toBe("true");
   });
 
+  it("takes the keyboard to the canvas on a drop, so Ctrl+Z undoes it right away", async () => {
+    const { shell } = await renderWithImages();
+    shell.gateway.scriptDrop("drop-2", [
+      {
+        fileName: "dropped.png",
+        naturalWidth: 640,
+        naturalHeight: 480,
+        initialWidth: 160,
+        initialHeight: 120,
+      },
+    ]);
+    // The focus is elsewhere in the window (a tab, the toolbar) when the files arrive.
+    screen.getByRole("button", { name: "+ Block" }).focus();
+    await act(async () => {
+      shell.dropEventSource.emitFilesDropped({
+        dropId: "drop-2",
+        fileCount: 1,
+      });
+      await settle();
+    });
+    expect(screen.getAllByRole("option")).toHaveLength(6);
+    expect(document.activeElement?.closest("[data-canvas]")).not.toBeNull();
+    await shell.user.keyboard("{Control>}z{/Control}");
+    await act(settle);
+    expect(screen.getAllByRole("option")).toHaveLength(5);
+  });
+
   it("answers a drop with an error when no sheet is shown", async () => {
     // Subscribed by the shell itself, not by a canvas.
     const { shell } = await renderWithImages();

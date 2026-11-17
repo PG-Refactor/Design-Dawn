@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { setFileDragActive } from "../workspace/ui-state/ui-state";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
-import { measureActiveCanvas } from "./block-dom";
+import { focusActiveCanvasAfterDrop, measureActiveCanvas } from "./block-dom";
 
 // Connects the files dropped on the window (announced by Rust as ids and counts) to the
 // canvas actions, and mirrors "files are being dragged over the window" into UI state for
@@ -12,6 +12,7 @@ export function useFileDrop(): void {
     useWorkspaceServices();
   useEffect(() => {
     const stopDrops = dropEventSource.subscribeFilesDropped(({ dropId }) => {
+      focusActiveCanvasAfterDrop();
       // Failures are recorded by the action (shown in the notifications).
       void canvasActions.importDroppedImages({
         dropId,

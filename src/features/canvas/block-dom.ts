@@ -23,6 +23,34 @@ export function isInsideBlockEditor(target: EventTarget | null): boolean {
 // can measure the canvas that is on screen.
 export const CANVAS_ATTRIBUTE = "data-canvas";
 
+// Set while the canvas has the focus from a click (or what stands for one: a drop, a
+// deleted block): its focus ring (a frame round the whole sheet) is for keyboard users. A
+// key pressed meanwhile (Delete) would otherwise make the webview draw it, and the sheet
+// looks selected. Cleared when the focus leaves.
+export const POINTER_FOCUS_DATA = "pointerFocus";
+
+export function focusByPointer(element: HTMLElement): void {
+  element.dataset[POINTER_FOCUS_DATA] = "true";
+  element.focus({ preventScroll: true });
+}
+
+// The canvas on screen takes the keyboard after files were dropped on the window (the
+// focus was elsewhere, or nowhere): Ctrl+Z then undoes the drop. Not while something
+// that takes typing has the focus.
+export function focusActiveCanvasAfterDrop(): void {
+  const canvas = document.querySelector<HTMLElement>(`[${CANVAS_ATTRIBUTE}]`);
+  const active = document.activeElement;
+  if (canvas === null || canvas.contains(active)) return;
+  if (
+    active instanceof HTMLInputElement ||
+    active instanceof HTMLTextAreaElement ||
+    isInsideBlockEditor(active)
+  ) {
+    return;
+  }
+  focusByPointer(canvas);
+}
+
 export function measureActiveCanvas(): {
   readonly width: number;
   readonly height: number;

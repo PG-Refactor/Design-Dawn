@@ -715,6 +715,38 @@ describe("importSpreadsheet", () => {
     expect(harness.session.getState().history.canUndo).toBe(true);
   });
 
+  it("makes the block taller for cells with line breaks and long text", async () => {
+    const harness = await openedCanvasHarness();
+    const longText =
+      "長い説明の文章が続くセルで、折り返して何行にもなる内容です。";
+    harness.gateway.scriptSpreadsheet({
+      status: "selected",
+      fileName: "rows.xlsx",
+      sheets: [
+        sheetOf("Plain", [
+          ["Item", "Note"],
+          ["a", "b"],
+          ["c", "d"],
+        ]),
+        sheetOf("Tall", [
+          ["Item", "Note"],
+          ["a", "line1\nline2\nline3"],
+          ["c", longText],
+        ]),
+      ],
+    });
+    const before = harness.blocksOfSheetA1().length;
+    await harness.canvasActions.importSpreadsheet({
+      viewportSize: VIEWPORT_SIZE,
+    });
+    const [plain, tall] = harness.blocksOfSheetA1().slice(before);
+    expect(plain?.size.width).toBe(tall?.size.width);
+    // Two more lines in one row and a cell that wraps: clearly taller.
+    expect(
+      (tall?.size.height ?? 0) - (plain?.size.height ?? 0),
+    ).toBeGreaterThan(3 * 20);
+  });
+
   it("does nothing when the dialog is cancelled", async () => {
     const harness = await openedCanvasHarness();
     const before = harness.blocksOfSheetA1().length;
