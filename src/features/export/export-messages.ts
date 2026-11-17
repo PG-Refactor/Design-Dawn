@@ -68,6 +68,9 @@ const EXPORT_MESSAGES_JA = {
   replaceQuestion: (folder: string): string =>
     `「${folder}」には次のファイルがすでにあります。置き換えて書き出しますか？`,
   replaceAndExport: "置き換えて書き出す",
+  unsavedBeforeExport:
+    "書き出すDocumentに保存していない変更があります。書き出しは保存したファイルから行うため、先に保存します。保存して書き出しますか？",
+  saveAndExport: "保存して書き出す",
   back: "戻る",
   exporting: (done: number, total: number): string =>
     `書き出し中… ${done} / ${total}`,
@@ -146,6 +149,9 @@ const EXPORT_MESSAGES_EN: ExportMessages = {
   replaceQuestion: (folder) =>
     `These files are already in “${folder}”. Replace them?`,
   replaceAndExport: "Replace and Export",
+  unsavedBeforeExport:
+    "A Document to export has changes that are not saved. Exports are made from the saved files, so they are saved first. Save and export?",
+  saveAndExport: "Save and Export",
   back: "Back",
   exporting: (done, total) => `Exporting… ${done} of ${total}`,
   exported: (count, folder) =>

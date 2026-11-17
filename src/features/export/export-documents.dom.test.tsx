@@ -205,6 +205,45 @@ describe("printing", () => {
     expect(shell.gateway.methods("openPrintWindow")).toHaveLength(1);
   });
 
+  it("asks before saving unsaved changes to export them, and saves nothing on Back", async () => {
+    const { shell, canvas } = await renderOpenedCanvas();
+    const block = canvas.blocksOfSheetA1()[0];
+    await act(async () => {
+      await shell.canvasActions.commitContentEdit({
+        documentId: DOCUMENT_A,
+        sheetId: SHEET_A1,
+        blockId: block?.blockId ?? ("" as never),
+        text: "changed",
+      });
+    });
+    shell.gateway.clearCalls();
+    const dialog = await openExport(shell);
+    await shell.user.click(
+      within(dialog).getByRole("button", { name: MESSAGES.exportFile }),
+    );
+    await act(settle);
+    expect(within(dialog).getByRole("alert").textContent).toBe(
+      MESSAGES.unsavedBeforeExport,
+    );
+    expect(shell.gateway.methods("writeBlockContent")).toHaveLength(0);
+    await shell.user.click(
+      within(dialog).getByRole("button", { name: MESSAGES.back }),
+    );
+    expect(shell.gateway.methods("writeBlockContent")).toHaveLength(0);
+    expect(shell.gateway.methods("exportDocumentMarkdown")).toHaveLength(0);
+    await shell.user.click(
+      within(dialog).getByRole("button", { name: MESSAGES.exportFile }),
+    );
+    await shell.user.click(
+      within(dialog).getByRole("button", { name: MESSAGES.saveAndExport }),
+    );
+    await act(settle);
+    expect(shell.gateway.methods("writeBlockContent").length).toBeGreaterThan(
+      0,
+    );
+    expect(shell.gateway.methods("exportDocumentMarkdown")).toHaveLength(1);
+  });
+
   it("asks before closing the window while a print window is open", async () => {
     const { shell } = await renderOpenedCanvas();
     shell.gateway.printWindows.count = 1;

@@ -404,7 +404,8 @@ export function TextBlockEditor({
   async function showGui(remember = false): Promise<void> {
     if (view === "gui" || !(await commit())) return;
     setView("gui");
-    if (remember) rememberView("gui");
+    // A diagram the GUI cannot edit shows only why: choosing it there is not a preference.
+    if (remember && guiView?.initialView === "gui") rememberView("gui");
   }
 
   // GUI -> Source asks the GUI to apply its own uncommitted input (only that: it does not

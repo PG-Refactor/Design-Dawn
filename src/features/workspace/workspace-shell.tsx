@@ -10,6 +10,7 @@ import { SpreadsheetImportDialog } from "../spreadsheet/spreadsheet-import-dialo
 import { LoadStatus, TransientNotice } from "./notifications";
 import { TopBar } from "./top-bar";
 import { useAppRequests } from "./use-app-requests";
+import { useHistoryShortcut } from "./use-history-shortcut";
 import { useLaunchRequest } from "./use-launch-request";
 import { useSaveShortcut } from "./use-save-shortcut";
 import { useWindowCloseSave } from "./use-window-close-save";
@@ -25,6 +26,7 @@ export function WorkspaceShell() {
   useFileDrop();
   useLaunchRequest();
   useSaveShortcut();
+  useHistoryShortcut();
   useFindShortcuts();
   const closeStatus = useWindowCloseSave();
   useAppRequests(closeStatus);
