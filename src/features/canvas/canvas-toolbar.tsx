@@ -4,6 +4,7 @@ import { PopupMenu, type PopupMenuEntry } from "../../shared/menu/popup-menu";
 import type { MermaidTemplateId } from "../mermaid/mermaid-templates";
 import { askSpreadsheetImport } from "../spreadsheet/spreadsheet-import-dialog";
 import { getSelection } from "../workspace/ui-state/ui-state";
+import { HISTORY_KEYS_ATTRIBUTE } from "../workspace/use-history-shortcut";
 import { useMessages } from "../workspace/use-messages";
 import { useUiState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
@@ -99,6 +100,7 @@ export function CanvasToolbar({
       role="toolbar"
       aria-label={messages.toolbar.label}
       className="canvas-toolbar"
+      {...{ [HISTORY_KEYS_ATTRIBUTE]: "" }}
     >
       <BlockCreateMenu
         onCreate={createBlock}

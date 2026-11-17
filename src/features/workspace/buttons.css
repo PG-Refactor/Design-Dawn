@@ -48,6 +48,13 @@
   color: var(--color-accent-contrast);
 }
 
+/* A primary button that cannot be pressed looks like it: no accent colour. */
+.button--primary:disabled {
+  border-color: var(--color-border);
+  background: var(--color-hover);
+  color: var(--color-text-muted);
+}
+
 /* A square button that shows only an icon; its name comes from aria-label / title. */
 .icon-button {
   display: inline-flex;

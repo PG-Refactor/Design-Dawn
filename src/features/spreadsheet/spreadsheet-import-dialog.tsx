@@ -147,11 +147,15 @@ function ImportDialog({
               <li
                 // Worksheet names are unique within a workbook.
                 key={sheet.name}
-                className={
+                className={[
+                  "spreadsheet-import__sheet",
                   index === previewIndex
-                    ? "spreadsheet-import__sheet spreadsheet-import__sheet--preview"
-                    : "spreadsheet-import__sheet"
-                }
+                    ? "spreadsheet-import__sheet--preview"
+                    : "",
+                  usable(index) ? "" : "spreadsheet-import__sheet--unusable",
+                ]
+                  .filter((name) => name !== "")
+                  .join(" ")}
               >
                 {/* Only the box itself chooses: a click on the name is for the preview
                     and must not take a sheet out by mistake. */}

@@ -329,3 +329,36 @@ describe("the view the editor opens in", () => {
     ).toBe("true");
   });
 });
+
+describe("with the controls folded away", () => {
+  it("keeps editing after a node is added from the diagram's menu", async () => {
+    const { shell } = await openGui();
+    await shell.user.click(
+      screen.getByRole("button", { name: GUI.hideControls }),
+    );
+    const dialogLayer = () =>
+      document.querySelector<HTMLElement>(".diagram-add-dialog__layer");
+    // The menu item opens the add form the same way the folded "+ Node" toggle does.
+    const toggleButton = screen.getByRole("button", {
+      name: TEXT.addNodeToggle,
+      hidden: true,
+    });
+    fireEvent.click(toggleButton);
+    expect(dialogLayer()?.hidden).toBe(false);
+    const dialog = screen.getByRole("dialog");
+    await shell.user.type(
+      within(dialog).getAllByRole("textbox")[0] as HTMLElement,
+      "Added",
+    );
+    await shell.user.click(
+      within(dialog).getByRole("button", { name: TEXT.addNode }),
+    );
+    await act(settle);
+    expect(dialogLayer()?.hidden).toBe(true);
+    // Still editing: the bar's switch is there and the focus stayed in the editor.
+    expect(screen.getByRole("button", { name: GUI.showControls })).toBeTruthy();
+    expect(
+      document.activeElement?.closest("[data-block-editor]"),
+    ).not.toBeNull();
+  });
+});

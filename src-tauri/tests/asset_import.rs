@@ -1071,6 +1071,8 @@ fn closing_removes_imported_images_that_nothing_refers_to() {
         .expect("the fixture has a Markdown block");
     let mut text = fs::read_to_string(&markdown).unwrap();
     text.push_str("\n![](../../../assets/Kept.png)\n");
+    // Only naming the file is not using it.
+    text.push_str("\nDrop dropped.png onto the sheet.\n");
     fs::write(&markdown, text).unwrap();
     fixture.close(DOCUMENT_ID);
     assert!(!fixture.first_assets().join("dropped.png").exists());

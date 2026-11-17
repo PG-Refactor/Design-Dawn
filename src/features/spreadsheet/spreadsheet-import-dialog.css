@@ -84,6 +84,16 @@
   font: inherit;
 }
 
+.spreadsheet-import__range:disabled {
+  background: var(--color-hover);
+  color: var(--color-text-muted);
+}
+
+/* A sheet that cannot be chosen now (hidden, while hidden parts are left out). */
+.spreadsheet-import__sheet--unusable .spreadsheet-import__sheet-name {
+  color: var(--color-text-muted);
+}
+
 .spreadsheet-import__range[aria-invalid="true"] {
   border-color: var(--color-danger);
 }
@@ -112,8 +122,19 @@
   font-size: 0.8125rem;
 }
 
+/* A fixed height whatever is previewed (a big table, a few rows, nothing): the dialog is
+   centred, and a preview that grew or shrank would move the rows above it under the
+   pointer. The table scrolls inside. */
+.spreadsheet-import__preview {
+  display: flex;
+  flex-direction: column;
+  height: 20rem;
+  min-height: 0;
+}
+
 .spreadsheet-import__table-scroll {
-  max-height: 16rem;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-medium);

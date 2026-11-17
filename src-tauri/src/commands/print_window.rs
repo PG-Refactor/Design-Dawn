@@ -1,8 +1,9 @@
 //! Printing in a window of its own: the print page (made by the Frontend) is shown in a
 //! child window of the window that prints, and the print dialog opens there: on Linux the
 //! WebKitGTK print dialog run from here (the window closes when it is done), elsewhere the
-//! page's own `print()` (the page closes its window after printing where the engine lets
-//! it; otherwise the user closes it). The app's own window is never covered by the print preview, so it stays
+//! page's own `print()`. After that dialog (printed or cancelled) the page goes to a
+//! sentinel address that this side catches and answers by closing the window: a page's own
+//! `close()` only blanks it in WebView2 and leaves the window open. The app's own window is never covered by the print preview, so it stays
 //! usable (and closable) while the dialog is open. The print window has no access to the
 //! app's commands (its label matches no capability) and is not part of the window
 //! registry: it closes like a plain window, and its page file is removed with it.
@@ -27,7 +28,10 @@ const PRINT_WINDOW_HEIGHT: f64 = 840.0;
 const PRINT_PAGE_MAX_BYTES: usize = 200 * 1024 * 1024;
 /// Added to the page where the page opens the print dialog itself.
 #[cfg(not(target_os = "linux"))]
-const PRINT_ON_LOAD_SCRIPT: &str = r#"<script>addEventListener("load",function(){print();});addEventListener("afterprint",function(){close();});</script>"#;
+const PRINT_ON_LOAD_SCRIPT: &str = r#"<script>addEventListener("load",function(){print();});addEventListener("afterprint",function(){location.href="https://dawn-print-done.invalid/";});</script>"#;
+/// Where the page goes once its print dialog is over (`.invalid` never resolves).
+#[cfg(not(target_os = "linux"))]
+const PRINT_DONE_HOST: &str = "dawn-print-done.invalid";
 #[cfg(not(target_os = "linux"))]
 const BODY_END: &str = "</body>";
 
@@ -117,6 +121,25 @@ fn open<R: Runtime>(
         .title(title)
         .inner_size(PRINT_WINDOW_WIDTH, PRINT_WINDOW_HEIGHT)
         .center();
+    #[cfg(not(target_os = "linux"))]
+    {
+        let closer = app.clone();
+        let closing_label = label.clone();
+        builder = builder.on_navigation(move |url| {
+            if url.host_str() != Some(PRINT_DONE_HOST) {
+                return true;
+            }
+            // Not from inside the navigation callback: the window is destroyed afterwards.
+            let app = closer.clone();
+            let label = closing_label.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Some(window) = app.get_webview_window(&label) {
+                    let _ = window.destroy();
+                }
+            });
+            false
+        });
+    }
     #[cfg(target_os = "linux")]
     {
         builder = builder.on_page_load(|webview, payload| {

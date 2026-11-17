@@ -29,6 +29,7 @@ import { fromDomainResult } from "../../application/ports/operation-error";
 import type { DiagramOperation } from "../../domain/diagram/diagram-operation";
 import type { PopupMenuEntry } from "../../shared/menu/popup-menu";
 import { EDITOR_OVERLAY_ATTRIBUTE } from "../../shared/overlay/editor-overlay";
+import { BLOCK_EDITOR_ATTRIBUTE } from "../canvas/block-dom";
 import { focusableElements } from "../workspace/focus-utils";
 import { useMessages } from "../workspace/use-messages";
 import {
@@ -101,7 +102,13 @@ export function useGuiLayoutState(initialTabId: string): GuiLayoutState {
     setFocusRequest(null);
   }, []);
   const focusToolbar = useCallback(() => {
-    toolbarRef.current?.querySelector<HTMLElement>("button")?.focus();
+    const toolbar = toolbarRef.current;
+    // Folded away (hidden), the toolbar cannot take the focus: the editor does.
+    if (toolbar !== null && toolbar.closest("[hidden]") !== null) {
+      toolbar.closest<HTMLElement>(`[${BLOCK_EDITOR_ATTRIBUTE}]`)?.focus();
+      return;
+    }
+    toolbar?.querySelector<HTMLElement>("button")?.focus();
   }, []);
   return {
     openAddId,
@@ -247,9 +254,18 @@ export function DiagramGuiLayout({
 
   // The toggle of the open dialog takes the focus back before the dialog goes away, so
   // the focus never falls out of the editor (which would end editing).
+  // With the controls folded away (hidden) the toggle cannot take the focus: the editor
+  // itself does, which keeps editing going.
   function focusToggle(id: string): void {
+    const toggle = state.toolbarRef.current?.querySelector<HTMLElement>(
+      `[aria-controls="${formId(id)}"]`,
+    );
+    if (toggle != null && toggle.closest("[hidden]") === null) {
+      toggle.focus();
+      return;
+    }
     state.toolbarRef.current
-      ?.querySelector<HTMLElement>(`[aria-controls="${formId(id)}"]`)
+      ?.closest<HTMLElement>(`[${BLOCK_EDITOR_ATTRIBUTE}]`)
       ?.focus();
   }
 

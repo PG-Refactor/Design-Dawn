@@ -5,15 +5,17 @@
 //! refers to has no way back and is removed.
 //!
 //! Deliberately cautious: only files this session created are candidates (an asset that was
-//! there before is the user's), "refers to" is any mention of the file name in any other
-//! file of the Document (sheet metadata, Markdown, Mermaid), and anything unexpected while
-//! looking (a file that cannot be read, a symbolic link) keeps every candidate.
+//! there before is the user's), "refers to" is any mention of `assets/<file name>` in any
+//! other file of the Document (sheet metadata, Markdown image paths such as
+//! `../../../assets/x.png`, Mermaid), and anything unexpected while looking (a file that
+//! cannot be read, a symbolic link) keeps every candidate. The bare file name is not enough:
+//! a note that only names the file ("drop photo.png here") does not use it.
 
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
-use crate::domain::constants::{ASSETS_DIRECTORY_NAME, PATH_SEPARATOR};
+use crate::domain::constants::{ASSETS_DIRECTORY_NAME, PATH_SEPARATOR, WINDOWS_PATH_SEPARATOR};
 use crate::domain::entity_id::DocumentId;
 use crate::infrastructure::error::PersistenceErrorKind;
 use crate::infrastructure::filesystem::directory::{list_directory, EntryKind};
@@ -53,6 +55,32 @@ fn file_name_of(content_path: &str) -> &str {
         .map_or(content_path, |(_, name)| name)
 }
 
+/// Text that refers to the asset: its path below the Document, with either separator (a
+/// path written by hand on Windows) and with the name as written or percent-encoded (a
+/// Markdown destination).
+fn is_referred_to(text: &str, content_path: &str) -> bool {
+    let name = file_name_of(content_path).to_lowercase();
+    let encoded = percent_encoded(&name);
+    [name.as_str(), encoded.as_str()].iter().any(|written| {
+        [PATH_SEPARATOR, WINDOWS_PATH_SEPARATOR]
+            .iter()
+            .any(|separator| text.contains(&format!("{ASSETS_DIRECTORY_NAME}{separator}{written}")))
+    })
+}
+
+/// Every byte outside the unreserved set as `%XX` (lowercase hex: `text` is lowercased).
+fn percent_encoded(name: &str) -> String {
+    name.bytes()
+        .map(|byte| {
+            if byte.is_ascii_alphanumeric() || b"-._~".contains(&byte) {
+                char::from(byte).to_string()
+            } else {
+                format!("%{byte:02x}")
+            }
+        })
+        .collect()
+}
+
 /// Removes the images this session created in the Document that nothing on disk refers to.
 /// Returns the removed contentPaths. Called once the Document is closed; a file that cannot
 /// be removed stays (left over is the safe side) and is looked at again on the next close.
@@ -81,7 +109,7 @@ pub fn remove_unused_new_assets(
     };
     let mut removed = Vec::new();
     for content_path in candidates {
-        if text.contains(&file_name_of(&content_path).to_lowercase()) {
+        if is_referred_to(&text, &content_path) {
             session.note_new_asset(document_id, &content_path);
             continue;
         }
@@ -98,5 +126,26 @@ pub fn remove_unused_new_assets(
 pub fn remove_all_unused_new_assets(session: &mut ProjectSession) {
     for document_id in session.documents_with_new_assets() {
         remove_unused_new_assets(session, &document_id);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_referred_to;
+
+    #[test]
+    fn only_a_path_into_assets_refers_to_an_asset() {
+        let path = "assets/photo.png";
+        assert!(is_referred_to("![](../../../assets/photo.png)", path));
+        assert!(is_referred_to(
+            "\"contentpath\": \"assets/photo.png\"",
+            path
+        ));
+        assert!(is_referred_to("..\\assets\\photo.png", path));
+        assert!(!is_referred_to("drop `photo.png` from samples\\", path));
+        assert!(is_referred_to(
+            "![](../../../assets/%e5%9b%b3.png)",
+            "assets/\u{56f3}.png"
+        ));
     }
 }

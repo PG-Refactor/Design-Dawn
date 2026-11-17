@@ -506,13 +506,25 @@ impl<R: Runtime> WindowHost for TauriWindowHost<R> {
             .map_err(|error| error.to_string())?;
         // The neighbour's size when there is one; otherwise the size recorded when a
         // window was last closed, else the config size.
-        if let Some((width, height)) = placement
+        let size = placement
             .size
-            .or_else(|| recorded_size_for_new_window(&self.app))
-        {
+            .or_else(|| recorded_size_for_new_window(&self.app));
+        // A neighbour that fills the screen (maximized) would put the new window, offset
+        // from it, partly under the taskbar and off the screen: both are kept inside the
+        // work area.
+        // The monitor of a window that is already open (the neighbour the placement comes
+        // from is one of them).
+        let work_area = self
+            .app
+            .webview_windows()
+            .values()
+            .find_map(|window| window.current_monitor().ok().flatten())
+            .map(|monitor| logical_work_area_rect(&monitor));
+        let (size, position) = fit_in_work_area(size, placement.position, work_area);
+        if let Some((width, height)) = size {
             builder = builder.inner_size(width, height);
         }
-        if let Some((x, y)) = placement.position {
+        if let Some((x, y)) = position {
             builder = builder.position(x, y);
         }
         builder
@@ -551,4 +563,60 @@ pub fn with_routing_state<R: Runtime, T>(
         hub: &hub,
         labels: &labels,
     })
+}
+
+/// The monitor's work area as logical `(x, y, width, height)`.
+fn logical_work_area_rect(monitor: &tauri::Monitor) -> (f64, f64, f64, f64) {
+    let area = monitor.work_area();
+    let scale = monitor.scale_factor();
+    (
+        f64::from(area.position.x) / scale,
+        f64::from(area.position.y) / scale,
+        f64::from(area.size.width) / scale,
+        f64::from(area.size.height) / scale,
+    )
+}
+
+type Size = (f64, f64);
+type Position = (f64, f64);
+
+/// A new window's size no larger than the work area, and its position moved back so the
+/// whole window is on it. Unchanged when the work area is not known.
+fn fit_in_work_area(
+    size: Option<Size>,
+    position: Option<Position>,
+    work_area: Option<(f64, f64, f64, f64)>,
+) -> (Option<Size>, Option<Position>) {
+    let Some((area_x, area_y, area_width, area_height)) = work_area else {
+        return (size, position);
+    };
+    let size = size.map(|(width, height)| (width.min(area_width), height.min(area_height)));
+    let position = position.map(|(x, y)| {
+        let (width, height) = size.unwrap_or((0.0, 0.0));
+        (
+            x.min(area_x + area_width - width).max(area_x),
+            y.min(area_y + area_height - height).max(area_y),
+        )
+    });
+    (size, position)
+}
+
+#[cfg(test)]
+mod fit_tests {
+    use super::fit_in_work_area;
+
+    #[test]
+    fn a_window_as_large_as_the_screen_and_offset_is_kept_on_it() {
+        let area = Some((0.0, 0.0, 1920.0, 1040.0));
+        let (size, position) = fit_in_work_area(Some((1920.0, 1040.0)), Some((44.0, 44.0)), area);
+        assert_eq!(size, Some((1920.0, 1040.0)));
+        assert_eq!(position, Some((0.0, 0.0)));
+        let (size, position) = fit_in_work_area(Some((2400.0, 1300.0)), Some((44.0, 44.0)), area);
+        assert_eq!(size, Some((1920.0, 1040.0)));
+        assert_eq!(position, Some((0.0, 0.0)));
+        let (size, position) = fit_in_work_area(Some((800.0, 600.0)), Some((44.0, 44.0)), area);
+        assert_eq!(size, Some((800.0, 600.0)));
+        assert_eq!(position, Some((44.0, 44.0)));
+        assert_eq!(fit_in_work_area(None, None, None), (None, None));
+    }
 }

@@ -495,11 +495,15 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
               ...selectionInput,
               direction,
             }),
-          delete: () =>
+          delete: () => {
+            if (elementRef.current !== null) {
+              focusByPointer(elementRef.current);
+            }
             void canvasActions.deleteSelection({
               ...selectionInput,
               blockIds: currentSelection(),
-            }),
+            });
+          },
         },
       ),
     );
@@ -577,6 +581,9 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
     event.preventDefault();
     switch (command) {
       case CANVAS_KEY_COMMANDS.deleteSelection:
+        // The focus may be on a block that is about to go: kept on the canvas, the next
+        // key (Ctrl+Z) still reaches it.
+        focusByPointer(event.currentTarget);
         void canvasActions.deleteSelection({
           documentId,
           sheetId,

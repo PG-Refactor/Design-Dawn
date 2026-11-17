@@ -31,6 +31,9 @@ interface Folder {
 type Status =
   | { readonly kind: "choosing" }
   | { readonly kind: "working" }
+  // What is exported has changes that are not saved. Exports are made from the files, so
+  // they are saved first, but only once the user says so (auto-save may be off).
+  | { readonly kind: "confirmSave" }
   // Some files are already in the folder: replace them?
   | {
       readonly kind: "confirmReplace";
@@ -65,7 +68,7 @@ export function ExportDialog({
 }) {
   const allMessages = useMessages();
   const messages = allMessages.export;
-  const { exportActions, applicationStore } = useWorkspaceServices();
+  const { exportActions, applicationStore, actions } = useWorkspaceServices();
   const renderer = useMermaidRenderer();
   const titleId = useId();
   const startRef = useRef<HTMLButtonElement>(null);
@@ -182,6 +185,24 @@ export function ExportDialog({
       return;
     }
     await exportInto(folder.value);
+  }
+
+  function start(): void {
+    void (scope === "choose" ? chooseFolderAndExport() : exportShown());
+  }
+
+  function requestStart(): void {
+    const targets =
+      scope === "choose"
+        ? selected.map((entry) => entry.documentId)
+        : shown === null
+          ? []
+          : [shown.documentId];
+    if (actions.hasUnsavedChanges(targets)) {
+      setStatus({ kind: "confirmSave" });
+      return;
+    }
+    start();
   }
 
   const choosing = status.kind === "choosing" || status.kind === "working";
@@ -336,6 +357,9 @@ export function ExportDialog({
             </ul>
           </div>
         )}
+        {status.kind === "confirmSave" && (
+          <p role="alert">{messages.unsavedBeforeExport}</p>
+        )}
         {status.kind === "exporting" && (
           <p role="status">{messages.exporting(status.done, status.total)}</p>
         )}
@@ -374,7 +398,24 @@ export function ExportDialog({
         )}
       </div>
       <div className="modal__actions">
-        {status.kind === "confirmReplace" ? (
+        {status.kind === "confirmSave" ? (
+          <>
+            <button
+              type="button"
+              className="button"
+              onClick={() => setStatus({ kind: "choosing" })}
+            >
+              {messages.back}
+            </button>
+            <button
+              type="button"
+              className="button button--primary"
+              onClick={start}
+            >
+              {messages.saveAndExport}
+            </button>
+          </>
+        ) : status.kind === "confirmReplace" ? (
           <>
             <button
               type="button"
@@ -414,11 +455,7 @@ export function ExportDialog({
               type="button"
               className="button button--primary"
               disabled={!canStart}
-              onClick={() =>
-                void (scope === "choose"
-                  ? chooseFolderAndExport()
-                  : exportShown())
-              }
+              onClick={requestStart}
             >
               {scope === "choose" ? messages.chooseFolder : messages.exportFile}
             </button>
