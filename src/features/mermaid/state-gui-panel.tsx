@@ -1,11 +1,13 @@
 import { useMemo, useRef, useState } from "react";
+import type { DiagramOperation } from "../../domain/diagram/diagram-operation";
 import {
   readState,
   STATE_TERMINAL,
   type StateTransition,
 } from "../../domain/diagram/listed/state-diagram";
 import type { PopupMenuEntry } from "../../shared/menu/popup-menu";
-import { useDisplayLanguage } from "../workspace/use-messages";
+import { useDisplayLanguage, useMessages } from "../workspace/use-messages";
+import { DiagramAddDialogs, useGuiLayoutState } from "./diagram-gui-layout";
 import type { DiagramHit } from "./diagram-shapes";
 import {
   type FieldValues,
@@ -32,6 +34,24 @@ function transitionOf(values: FieldValues): StateTransition {
   };
 }
 
+const ADD_STATE = "state";
+const ADD_TRANSITION = "transition";
+
+// The operation of the add-state form. An empty ID is still sent when the user adds (the
+// refusal tells why); the preview waits for one.
+function addStateOperation(values: FieldValues): DiagramOperation {
+  return {
+    diagram: "state",
+    operation: {
+      kind: "addState",
+      state: {
+        id: textValue(values, "id").trim(),
+        description: textValue(values, "description"),
+      },
+    },
+  };
+}
+
 // The state diagram editor: states with a description, and transitions.
 export function StateGuiPanel({
   target,
@@ -41,6 +61,7 @@ export function StateGuiPanel({
   readonly source: string;
 }) {
   const messages = LISTED_GUI_MESSAGES[useDisplayLanguage()];
+  const gui = useMessages().mermaid.gui;
   const texts = messages.state;
   const { meaning } = useMemo(() => readState(source), [source]);
   const { busy, run, status } = useListedRun(target);
@@ -50,6 +71,7 @@ export function StateGuiPanel({
   const transitionIndex = transitionKey === null ? -1 : Number(transitionKey);
   const transition = meaning.transitions[transitionIndex];
   const rootRef = useRef<HTMLDivElement>(null);
+  const layout = useGuiLayoutState("");
   const stateOf = (hit: DiagramHit | null) =>
     hit?.kind === "state"
       ? meaning.states.find((item) => item.id === hit.id)
@@ -121,12 +143,12 @@ export function StateGuiPanel({
         {
           id: "addState",
           label: texts.addState,
-          onSelect: () => focusFormLater(rootRef, texts.addState),
+          onSelect: () => layout.openAdd(ADD_STATE, true),
         },
         {
           id: "addTransition",
           label: texts.addTransition,
-          onSelect: () => focusFormLater(rootRef, texts.addTransition),
+          onSelect: () => layout.openAdd(ADD_TRANSITION, true),
         },
       ]);
     },
@@ -144,6 +166,71 @@ export function StateGuiPanel({
 
   return (
     <div ref={rootRef} className="listed-gui">
+      <DiagramAddDialogs
+        state={layout}
+        source={source}
+        toolbarLabel={gui.addToolbarLabel}
+        addActions={[
+          {
+            id: ADD_STATE,
+            label: texts.addStateToggle,
+            menuLabel: texts.addState,
+            form: (
+              <ListedForm
+                title={texts.addState}
+                fields={[
+                  { id: "id", label: texts.stateId, kind: "text" },
+                  { id: "description", label: texts.description, kind: "text" },
+                ]}
+                initial={{ id: "", description: "" }}
+                submitLabel={messages.add}
+                operationOf={(values) =>
+                  textValue(values, "id").trim() === ""
+                    ? null
+                    : addStateOperation(values)
+                }
+                busy={busy}
+                onSubmit={(values) => run(addStateOperation(values))}
+              />
+            ),
+          },
+          {
+            id: ADD_TRANSITION,
+            label: texts.addTransitionToggle,
+            menuLabel: texts.addTransition,
+            form: (
+              <ListedForm
+                key={`add-transition:${meaning.states.length}`}
+                title={texts.addTransition}
+                fields={transitionFields}
+                initial={{
+                  from: STATE_TERMINAL,
+                  to: meaning.states[0]?.id ?? STATE_TERMINAL,
+                  label: "",
+                }}
+                submitLabel={messages.add}
+                operationOf={(values) => ({
+                  diagram: "state",
+                  operation: {
+                    kind: "addTransition",
+                    transition: transitionOf(values),
+                  },
+                })}
+                busy={busy}
+                onSubmit={(values) =>
+                  run({
+                    diagram: "state",
+                    operation: {
+                      kind: "addTransition",
+                      transition: transitionOf(values),
+                    },
+                  })
+                }
+              />
+            ),
+          },
+        ]}
+      />
       {status}
       <section className="listed-gui__section">
         <h4 className="diagram-gui__heading">{texts.states}</h4>
@@ -190,28 +277,6 @@ export function StateGuiPanel({
             }}
           />
         )}
-        <ListedForm
-          title={texts.addState}
-          fields={[
-            { id: "id", label: texts.stateId, kind: "text" },
-            { id: "description", label: texts.description, kind: "text" },
-          ]}
-          initial={{ id: "", description: "" }}
-          submitLabel={messages.add}
-          busy={busy}
-          onSubmit={(values) =>
-            run({
-              diagram: "state",
-              operation: {
-                kind: "addState",
-                state: {
-                  id: textValue(values, "id").trim(),
-                  description: textValue(values, "description"),
-                },
-              },
-            })
-          }
-        />
       </section>
       <section className="listed-gui__section">
         <h4 className="diagram-gui__heading">{texts.transitions}</h4>
@@ -254,27 +319,6 @@ export function StateGuiPanel({
             }}
           />
         )}
-        <ListedForm
-          key={`add-transition:${meaning.states.length}`}
-          title={texts.addTransition}
-          fields={transitionFields}
-          initial={{
-            from: STATE_TERMINAL,
-            to: meaning.states[0]?.id ?? STATE_TERMINAL,
-            label: "",
-          }}
-          submitLabel={messages.add}
-          busy={busy}
-          onSubmit={(values) =>
-            run({
-              diagram: "state",
-              operation: {
-                kind: "addTransition",
-                transition: transitionOf(values),
-              },
-            })
-          }
-        />
       </section>
     </div>
   );

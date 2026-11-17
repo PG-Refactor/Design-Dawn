@@ -7,7 +7,8 @@ import {
   readClass,
 } from "../../domain/diagram/listed/class-diagram";
 import type { PopupMenuEntry } from "../../shared/menu/popup-menu";
-import { useDisplayLanguage } from "../workspace/use-messages";
+import { useDisplayLanguage, useMessages } from "../workspace/use-messages";
+import { DiagramAddDialogs, useGuiLayoutState } from "./diagram-gui-layout";
 import type { DiagramHit } from "./diagram-shapes";
 import {
   type FieldValues,
@@ -41,6 +42,9 @@ function relationshipOf(values: FieldValues): ClassRelationship {
   };
 }
 
+const ADD_CLASS = "class";
+const ADD_RELATIONSHIP = "relationship";
+
 // The class diagram editor: classes with their members, and relationships.
 export function ClassGuiPanel({
   target,
@@ -50,6 +54,7 @@ export function ClassGuiPanel({
   readonly source: string;
 }) {
   const messages = LISTED_GUI_MESSAGES[useDisplayLanguage()];
+  const gui = useMessages().mermaid.gui;
   const texts = messages.class;
   const { meaning } = useMemo(() => readClass(source), [source]);
   const { busy, run, status } = useListedRun(target);
@@ -63,6 +68,7 @@ export function ClassGuiPanel({
     relationshipKey === null ? -1 : Number(relationshipKey);
   const relationship = meaning.relationships[relationshipIndex];
   const rootRef = useRef<HTMLDivElement>(null);
+  const layout = useGuiLayoutState("");
   const classOf = (hit: DiagramHit | null) =>
     hit?.kind === "class"
       ? meaning.classes.find((candidate) => candidate.name === hit.id)
@@ -138,12 +144,12 @@ export function ClassGuiPanel({
         {
           id: "addClass",
           label: texts.addClass,
-          onSelect: () => focusFormLater(rootRef, texts.addClass),
+          onSelect: () => layout.openAdd(ADD_CLASS, true),
         },
         {
           id: "addRelationship",
           label: texts.addRelationship,
-          onSelect: () => focusFormLater(rootRef, texts.addRelationship),
+          onSelect: () => layout.openAdd(ADD_RELATIONSHIP, true),
         },
       ]);
     },
@@ -167,6 +173,89 @@ export function ClassGuiPanel({
 
   return (
     <div ref={rootRef} className="listed-gui">
+      <DiagramAddDialogs
+        state={layout}
+        source={source}
+        toolbarLabel={gui.addToolbarLabel}
+        addActions={[
+          {
+            id: ADD_CLASS,
+            label: texts.addClassToggle,
+            menuLabel: texts.addClass,
+            form: (
+              <ListedForm
+                title={texts.addClass}
+                fields={[{ id: "name", label: texts.className, kind: "text" }]}
+                initial={{ name: "" }}
+                submitLabel={messages.add}
+                operationOf={(values) =>
+                  textValue(values, "name").trim() === ""
+                    ? null
+                    : {
+                        diagram: "class",
+                        operation: {
+                          kind: "addClass",
+                          name: textValue(values, "name").trim(),
+                        },
+                      }
+                }
+                busy={busy}
+                onSubmit={(values) =>
+                  run({
+                    diagram: "class",
+                    operation: {
+                      kind: "addClass",
+                      name: textValue(values, "name").trim(),
+                    },
+                  })
+                }
+              />
+            ),
+          },
+          {
+            id: ADD_RELATIONSHIP,
+            label: texts.addRelationshipToggle,
+            menuLabel: texts.addRelationship,
+            form: (
+              <ListedForm
+                title={texts.addRelationship}
+                fields={relationshipFields}
+                initial={{
+                  from: "",
+                  fromCardinality: "",
+                  arrow: "-->",
+                  toCardinality: "",
+                  to: "",
+                  label: "",
+                }}
+                submitLabel={messages.add}
+                operationOf={(values) =>
+                  textValue(values, "from").trim() === "" ||
+                  textValue(values, "to").trim() === ""
+                    ? null
+                    : {
+                        diagram: "class",
+                        operation: {
+                          kind: "addRelationship",
+                          relationship: relationshipOf(values),
+                        },
+                      }
+                }
+                busy={busy}
+                onSubmit={(values) =>
+                  run({
+                    diagram: "class",
+                    operation: {
+                      kind: "addRelationship",
+                      relationship: relationshipOf(values),
+                    },
+                  })
+                }
+              />
+            ),
+          },
+        ]}
+      />
       {status}
       <section className="listed-gui__section">
         <h4 className="diagram-gui__heading">{texts.classes}</h4>
@@ -183,22 +272,6 @@ export function ClassGuiPanel({
             setClassKey(key);
             setMemberKey(null);
           }}
-        />
-        <ListedForm
-          title={texts.addClass}
-          fields={[{ id: "name", label: texts.className, kind: "text" }]}
-          initial={{ name: "" }}
-          submitLabel={messages.add}
-          busy={busy}
-          onSubmit={(values) =>
-            run({
-              diagram: "class",
-              operation: {
-                kind: "addClass",
-                name: textValue(values, "name").trim(),
-              },
-            })
-          }
         />
         {item !== undefined && (
           <div className="listed-gui__nested">
@@ -326,29 +399,6 @@ export function ClassGuiPanel({
             }}
           />
         )}
-        <ListedForm
-          title={texts.addRelationship}
-          fields={relationshipFields}
-          initial={{
-            from: "",
-            fromCardinality: "",
-            arrow: "-->",
-            toCardinality: "",
-            to: "",
-            label: "",
-          }}
-          submitLabel={messages.add}
-          busy={busy}
-          onSubmit={(values) =>
-            run({
-              diagram: "class",
-              operation: {
-                kind: "addRelationship",
-                relationship: relationshipOf(values),
-              },
-            })
-          }
-        />
       </section>
     </div>
   );

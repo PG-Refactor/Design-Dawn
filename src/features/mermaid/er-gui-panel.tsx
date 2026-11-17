@@ -11,7 +11,8 @@ import {
   readEr,
 } from "../../domain/diagram/listed/er-diagram";
 import type { PopupMenuEntry } from "../../shared/menu/popup-menu";
-import { useDisplayLanguage } from "../workspace/use-messages";
+import { useDisplayLanguage, useMessages } from "../workspace/use-messages";
+import { DiagramAddDialogs, useGuiLayoutState } from "./diagram-gui-layout";
 import type { DiagramHit } from "./diagram-shapes";
 import {
   checkedValue,
@@ -57,6 +58,9 @@ function relationshipOf(values: FieldValues): ErRelationship {
   };
 }
 
+const ADD_ENTITY = "entity";
+const ADD_RELATIONSHIP = "relationship";
+
 // The ER diagram editor: entities with their attributes, and relationships.
 export function ErGuiPanel({
   target,
@@ -66,6 +70,7 @@ export function ErGuiPanel({
   readonly source: string;
 }) {
   const messages = LISTED_GUI_MESSAGES[useDisplayLanguage()];
+  const gui = useMessages().mermaid.gui;
   const er = messages.er;
   const { meaning } = useMemo(() => readEr(source), [source]);
   const { busy, run, status } = useListedRun(target);
@@ -81,6 +86,7 @@ export function ErGuiPanel({
     relationshipKey === null ? -1 : Number(relationshipKey);
   const relationship = meaning.relationships[relationshipIndex];
   const rootRef = useRef<HTMLDivElement>(null);
+  const layout = useGuiLayoutState("");
   const entityOf = (hit: DiagramHit | null) =>
     hit?.kind === "entity"
       ? meaning.entities.find((item) => item.name === hit.id)
@@ -156,12 +162,12 @@ export function ErGuiPanel({
         {
           id: "addEntity",
           label: er.addEntity,
-          onSelect: () => focusFormLater(rootRef, er.addEntity),
+          onSelect: () => layout.openAdd(ADD_ENTITY, true),
         },
         {
           id: "addRelationship",
           label: er.addRelationship,
-          onSelect: () => focusFormLater(rootRef, er.addRelationship),
+          onSelect: () => layout.openAdd(ADD_RELATIONSHIP, true),
         },
       ]);
     },
@@ -210,6 +216,82 @@ export function ErGuiPanel({
 
   return (
     <div ref={rootRef} className="listed-gui">
+      <DiagramAddDialogs
+        state={layout}
+        source={source}
+        toolbarLabel={gui.addToolbarLabel}
+        addActions={[
+          {
+            id: ADD_ENTITY,
+            label: er.addEntityToggle,
+            menuLabel: er.addEntity,
+            form: (
+              <ListedForm
+                title={er.addEntity}
+                fields={[{ id: "name", label: er.entityName, kind: "text" }]}
+                initial={{ name: "" }}
+                submitLabel={messages.add}
+                operationOf={(values) =>
+                  textValue(values, "name").trim() === ""
+                    ? null
+                    : {
+                        diagram: "er",
+                        operation: {
+                          kind: "addEntity",
+                          name: textValue(values, "name").trim(),
+                        },
+                      }
+                }
+                busy={busy}
+                onSubmit={(values) =>
+                  run({
+                    diagram: "er",
+                    operation: {
+                      kind: "addEntity",
+                      name: textValue(values, "name").trim(),
+                    },
+                  })
+                }
+              />
+            ),
+          },
+          {
+            id: ADD_RELATIONSHIP,
+            label: er.addRelationshipToggle,
+            menuLabel: er.addRelationship,
+            form: (
+              <ListedForm
+                title={er.addRelationship}
+                fields={relationshipFields}
+                initial={emptyRelationship}
+                submitLabel={messages.add}
+                operationOf={(values) =>
+                  textValue(values, "left").trim() === "" ||
+                  textValue(values, "right").trim() === ""
+                    ? null
+                    : {
+                        diagram: "er",
+                        operation: {
+                          kind: "addRelationship",
+                          relationship: relationshipOf(values),
+                        },
+                      }
+                }
+                busy={busy}
+                onSubmit={(values) =>
+                  run({
+                    diagram: "er",
+                    operation: {
+                      kind: "addRelationship",
+                      relationship: relationshipOf(values),
+                    },
+                  })
+                }
+              />
+            ),
+          },
+        ]}
+      />
       {status}
       <section className="listed-gui__section">
         <h4 className="diagram-gui__heading">{er.entities}</h4>
@@ -226,22 +308,6 @@ export function ErGuiPanel({
             setEntityKey(key);
             setAttributeKey(null);
           }}
-        />
-        <ListedForm
-          title={er.addEntity}
-          fields={[{ id: "name", label: er.entityName, kind: "text" }]}
-          initial={{ name: "" }}
-          submitLabel={messages.add}
-          busy={busy}
-          onSubmit={(values) =>
-            run({
-              diagram: "er",
-              operation: {
-                kind: "addEntity",
-                name: textValue(values, "name").trim(),
-              },
-            })
-          }
         />
         {entity !== undefined && (
           <div className="listed-gui__nested">
@@ -378,22 +444,6 @@ export function ErGuiPanel({
             }}
           />
         )}
-        <ListedForm
-          title={er.addRelationship}
-          fields={relationshipFields}
-          initial={emptyRelationship}
-          submitLabel={messages.add}
-          busy={busy}
-          onSubmit={(values) =>
-            run({
-              diagram: "er",
-              operation: {
-                kind: "addRelationship",
-                relationship: relationshipOf(values),
-              },
-            })
-          }
-        />
       </section>
     </div>
   );

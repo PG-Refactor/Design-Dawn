@@ -244,11 +244,148 @@ export function DiagramGuiLayout({
     return () => interaction?.register(null);
   });
   const idPrefix = useId();
-  const formId = (id: string) => `${idPrefix}-add-${id}`;
   const tabId = (id: string) => `${idPrefix}-tab-${id}`;
   const panelId = (id: string) => `${idPrefix}-panel-${id}`;
-  const formRefs = useRef(new Map<string, HTMLDivElement>());
   const tabRefs = useRef(new Map<string, HTMLButtonElement>());
+
+  function onTabKeyDown(
+    event: KeyboardEvent<HTMLButtonElement>,
+    index: number,
+  ) {
+    const step =
+      event.key === TAB_KEYS.next
+        ? 1
+        : event.key === TAB_KEYS.previous
+          ? -1
+          : 0;
+    if (step === 0) return;
+    event.preventDefault();
+    const next = tabs[(index + step + tabs.length) % tabs.length];
+    if (next === undefined) return;
+    state.showTab(next.id);
+    tabRefs.current.get(next.id)?.focus();
+  }
+
+  return (
+    <div className={className}>
+      <DiagramAddDialogs
+        state={state}
+        source={source}
+        toolbarLabel={toolbarLabel}
+        addActions={addActions}
+      />
+      {status}
+      {editor}
+      <GuiDisclosure
+        label={listsLabel(
+          tabs.map((tab) => `${tab.label} ${tab.count}`).join(" · "),
+        )}
+        className="diagram-gui__lists"
+      >
+        <div
+          role="tablist"
+          aria-label={tabListLabel}
+          className="diagram-gui__tabs"
+        >
+          {tabs.map((tab, index) => {
+            const active = tab.id === state.activeTabId;
+            return (
+              <button
+                key={tab.id}
+                ref={(element) => {
+                  if (element === null) tabRefs.current.delete(tab.id);
+                  else tabRefs.current.set(tab.id, element);
+                }}
+                type="button"
+                role="tab"
+                id={tabId(tab.id)}
+                aria-selected={active}
+                aria-controls={panelId(tab.id)}
+                tabIndex={active ? 0 : -1}
+                className="diagram-gui__tab"
+                onClick={() => state.showTab(tab.id)}
+                onKeyDown={(event) => onTabKeyDown(event, index)}
+              >
+                {tab.label}
+                <span className="diagram-gui__tab-count">{tab.count}</span>
+              </button>
+            );
+          })}
+        </div>
+        {tabs.map((tab) => (
+          <div
+            key={tab.id}
+            role="tabpanel"
+            id={panelId(tab.id)}
+            aria-labelledby={tabId(tab.id)}
+            className="diagram-gui__tab-panel"
+            hidden={tab.id !== state.activeTabId}
+          >
+            {tab.content}
+          </div>
+        ))}
+      </GuiDisclosure>
+      {settings === undefined ? null : (
+        <GuiDisclosure
+          label={settingsLabel ?? ""}
+          className="diagram-gui__settings-group"
+        >
+          {settings}
+        </GuiDisclosure>
+      )}
+    </div>
+  );
+}
+
+// A folded part of the editor: a button that shows or hides what is below it.
+function GuiDisclosure({
+  label,
+  className,
+  children,
+}: {
+  readonly label: string;
+  readonly className: string;
+  readonly children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const bodyId = useId();
+  return (
+    <div className={className}>
+      <button
+        type="button"
+        className="diagram-gui__disclosure"
+        aria-expanded={open}
+        aria-controls={bodyId}
+        onClick={() => setOpen((wasOpen) => !wasOpen)}
+      >
+        <span aria-hidden="true" className="diagram-gui__disclosure-marker">
+          {open ? "▾" : "▸"}
+        </span>
+        {label}
+      </button>
+      <div id={bodyId} className="diagram-gui__disclosure-body" hidden={!open}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// The add buttons ("+ Node" ...) and the add dialog they open: the form, and a preview of
+// the diagram after the add. Shared by every diagram editor.
+export function DiagramAddDialogs({
+  state,
+  source,
+  toolbarLabel,
+  addActions,
+}: {
+  readonly state: GuiLayoutState;
+  readonly source: string;
+  readonly toolbarLabel: string;
+  readonly addActions: readonly GuiAddAction[];
+}) {
+  const idPrefix = useId();
+  const formId = (id: string) => `${idPrefix}-add-${id}`;
+  const formRefs = useRef(new Map<string, HTMLDivElement>());
   const dialogRef = useRef<HTMLDivElement>(null);
   const { focusRequest, clearFocusRequest } = state;
   const gui = useMessages().mermaid.gui;
@@ -353,26 +490,8 @@ export function DiagramGuiLayout({
     clearFocusRequest();
   }, [focusRequest, clearFocusRequest]);
 
-  function onTabKeyDown(
-    event: KeyboardEvent<HTMLButtonElement>,
-    index: number,
-  ) {
-    const step =
-      event.key === TAB_KEYS.next
-        ? 1
-        : event.key === TAB_KEYS.previous
-          ? -1
-          : 0;
-    if (step === 0) return;
-    event.preventDefault();
-    const next = tabs[(index + step + tabs.length) % tabs.length];
-    if (next === undefined) return;
-    state.showTab(next.id);
-    tabRefs.current.get(next.id)?.focus();
-  }
-
   return (
-    <div className={className}>
+    <>
       <div
         ref={state.toolbarRef}
         role="toolbar"
@@ -453,98 +572,6 @@ export function DiagramGuiLayout({
         </div>,
         document.body,
       )}
-      {status}
-      {editor}
-      <GuiDisclosure
-        label={listsLabel(
-          tabs.map((tab) => `${tab.label} ${tab.count}`).join(" · "),
-        )}
-        className="diagram-gui__lists"
-      >
-        <div
-          role="tablist"
-          aria-label={tabListLabel}
-          className="diagram-gui__tabs"
-        >
-          {tabs.map((tab, index) => {
-            const active = tab.id === state.activeTabId;
-            return (
-              <button
-                key={tab.id}
-                ref={(element) => {
-                  if (element === null) tabRefs.current.delete(tab.id);
-                  else tabRefs.current.set(tab.id, element);
-                }}
-                type="button"
-                role="tab"
-                id={tabId(tab.id)}
-                aria-selected={active}
-                aria-controls={panelId(tab.id)}
-                tabIndex={active ? 0 : -1}
-                className="diagram-gui__tab"
-                onClick={() => state.showTab(tab.id)}
-                onKeyDown={(event) => onTabKeyDown(event, index)}
-              >
-                {tab.label}
-                <span className="diagram-gui__tab-count">{tab.count}</span>
-              </button>
-            );
-          })}
-        </div>
-        {tabs.map((tab) => (
-          <div
-            key={tab.id}
-            role="tabpanel"
-            id={panelId(tab.id)}
-            aria-labelledby={tabId(tab.id)}
-            className="diagram-gui__tab-panel"
-            hidden={tab.id !== state.activeTabId}
-          >
-            {tab.content}
-          </div>
-        ))}
-      </GuiDisclosure>
-      {settings === undefined ? null : (
-        <GuiDisclosure
-          label={settingsLabel ?? ""}
-          className="diagram-gui__settings-group"
-        >
-          {settings}
-        </GuiDisclosure>
-      )}
-    </div>
-  );
-}
-
-// A folded part of the editor: a button that shows or hides what is below it.
-function GuiDisclosure({
-  label,
-  className,
-  children,
-}: {
-  readonly label: string;
-  readonly className: string;
-  readonly children: ReactNode;
-}) {
-  const [open, setOpen] = useState(false);
-  const bodyId = useId();
-  return (
-    <div className={className}>
-      <button
-        type="button"
-        className="diagram-gui__disclosure"
-        aria-expanded={open}
-        aria-controls={bodyId}
-        onClick={() => setOpen((wasOpen) => !wasOpen)}
-      >
-        <span aria-hidden="true" className="diagram-gui__disclosure-marker">
-          {open ? "▾" : "▸"}
-        </span>
-        {label}
-      </button>
-      <div id={bodyId} className="diagram-gui__disclosure-body" hidden={!open}>
-        {children}
-      </div>
-    </div>
+    </>
   );
 }
