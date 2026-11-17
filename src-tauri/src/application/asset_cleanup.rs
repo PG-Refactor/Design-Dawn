@@ -17,10 +17,13 @@ use std::path::Path;
 
 use crate::domain::constants::{ASSETS_DIRECTORY_NAME, PATH_SEPARATOR, WINDOWS_PATH_SEPARATOR};
 use crate::domain::entity_id::DocumentId;
-use crate::infrastructure::error::PersistenceErrorKind;
+use serde::Serialize;
+
+use crate::infrastructure::error::{PersistenceError, PersistenceErrorKind};
 use crate::infrastructure::filesystem::directory::{list_directory, EntryKind};
 use crate::infrastructure::filesystem::path_resolution::resolve_existing;
 
+use super::error::ApplicationResult;
 use super::session::ProjectSession;
 
 /// Everything the Document's files other than its assets say, lowercased (file names are
@@ -127,6 +130,75 @@ pub fn remove_all_unused_new_assets(session: &mut ProjectSession) {
     for document_id in session.documents_with_new_assets() {
         remove_unused_new_assets(session, &document_id);
     }
+}
+
+/// A file in the Document's `assets/` that nothing in the Document refers to.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UnusedAsset {
+    pub content_path: String,
+    pub size: u64,
+}
+
+/// The files of the Document's `assets/` that no other file of the Document refers to (as
+/// the cleanup on close judges it), for the user to look through and delete. Anything
+/// unexpected while reading the Document (a file that cannot be read, a symbolic link)
+/// is an error, not an empty list: nothing may look unused because it was not read.
+pub fn list_unused_assets(
+    session: &ProjectSession,
+    document_id: &DocumentId,
+) -> ApplicationResult<Vec<UnusedAsset>> {
+    let base = session.document_base(document_id)?;
+    let directory = resolve_existing(session.root(), &base)?;
+    let text = document_text(&directory).ok_or_else(|| {
+        PersistenceError::new(
+            PersistenceErrorKind::IoError,
+            format!("read the files of {base:?} to find what they refer to"),
+        )
+    })?;
+    let assets = directory.join(ASSETS_DIRECTORY_NAME);
+    if !assets.is_dir() {
+        return Ok(Vec::new());
+    }
+    let mut unused = Vec::new();
+    for entry in list_directory(&assets)? {
+        // Only plain files of assets/ itself; a link or a folder is left to the user.
+        if entry.is_symlink || entry.kind != EntryKind::File || !entry.is_utf8_name {
+            continue;
+        }
+        let content_path = format!("{ASSETS_DIRECTORY_NAME}{PATH_SEPARATOR}{}", entry.name);
+        if is_referred_to(&text, &content_path) {
+            continue;
+        }
+        let size = fs::symlink_metadata(assets.join(&entry.name)).map_or(0, |meta| meta.len());
+        unused.push(UnusedAsset { content_path, size });
+    }
+    Ok(unused)
+}
+
+/// Deletes the chosen files, each only if it is still unused now (the Document may have
+/// changed since the list was shown). Returns the contentPaths that were removed; a file
+/// that could not be removed stays.
+pub fn delete_unused_assets(
+    session: &mut ProjectSession,
+    document_id: &DocumentId,
+    content_paths: &[String],
+) -> ApplicationResult<Vec<String>> {
+    let still_unused: BTreeSet<String> = list_unused_assets(session, document_id)?
+        .into_iter()
+        .map(|asset| asset.content_path)
+        .collect();
+    let base = session.document_base(document_id)?;
+    let mut removed = Vec::new();
+    for content_path in content_paths {
+        if !still_unused.contains(content_path) {
+            continue;
+        }
+        if session.remove_file(&base, content_path).is_ok() {
+            removed.push(content_path.clone());
+        }
+    }
+    Ok(removed)
 }
 
 #[cfg(test)]

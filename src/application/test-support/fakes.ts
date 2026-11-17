@@ -164,6 +164,9 @@ export interface RecordedCall {
 
 // What the fake "disk" holds for a document: a persisted document (order as last saved)
 // and the sheets whose directories exist.
+// What `listUnusedAssets` reports as each file's size.
+export const FAKE_ASSET_SIZE = 1024;
+
 export interface FakeDiskSheet {
   readonly name: string | null;
   readonly state: EntityState;
@@ -525,6 +528,18 @@ export function createFakeGateway(
 
   function newSheet(sheetId: SheetId, name: string): Sheet {
     return unwrap(parseSheet({ schemaVersion: 1, sheetId, name, blocks: [] }));
+  }
+
+  // Like Rust: the assets no saved sheet of the Document refers to.
+  function unusedAssetsOf(documentId: DocumentId): string[] {
+    // A sheet saved since the seed replaces what was seeded for it.
+    const sheets = [
+      ...(disk.documents.get(documentId)?.sheets.entries() ?? []),
+    ].map(([sheetId, seeded]) => savedSheets.get(sheetId) ?? seeded);
+    const saved = JSON.stringify(sheets);
+    return [...assetsOf(documentId).keys()].filter(
+      (path) => !saved.includes(path),
+    );
   }
 
   function assetsOf(documentId: DocumentId): Map<string, FakeAsset> {
@@ -1249,6 +1264,22 @@ export function createFakeGateway(
           });
         },
       ),
+    listUnusedAssets: (_project, documentId) =>
+      enter("listUnusedAssets", documentId, () =>
+        operationOk(
+          unusedAssetsOf(documentId).map((contentPath) => ({
+            contentPath,
+            size: FAKE_ASSET_SIZE,
+          })),
+        ),
+      ),
+    deleteUnusedAssets: (_project, documentId, contentPaths) =>
+      enter("deleteUnusedAssets", contentPaths.join(","), () => {
+        const unused = new Set(unusedAssetsOf(documentId));
+        const removed = contentPaths.filter((path) => unused.has(path));
+        for (const path of removed) assetsOf(documentId).delete(path);
+        return operationOk(removed);
+      }),
     restoreBlockContent: (_project, _document, _type, contentPath, text) =>
       enter("restoreBlockContent", contentPath, () => {
         if (files.has(contentPath)) {

@@ -104,6 +104,8 @@ export const GATEWAY_METHOD_KINDS = {
   closePrintWindows: "read",
   assetDataUrl: "read",
   copyAssetToDocument: "write",
+  listUnusedAssets: "read",
+  deleteUnusedAssets: "write",
 } as const satisfies Record<keyof PersistenceGateway, "write" | "read">;
 
 type GatewayMethod = (...args: unknown[]) => Promise<unknown>;

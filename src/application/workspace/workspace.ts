@@ -32,6 +32,7 @@ import {
   encodeDocumentTransfer,
 } from "../document-session/document-transfer";
 import type { IdGenerator } from "../id-generator";
+import type { UnusedAsset, UnusedAssets } from "../ports/asset-types";
 import type { AutoSavePolicy } from "../ports/auto-save-policy";
 import type {
   DocumentWindowGateway,
@@ -120,6 +121,14 @@ export interface CloseOptions {
   readonly discardChanges?: boolean;
 }
 
+// contentPaths use "/" on every platform.
+const CONTENT_PATH_SEPARATOR = "/";
+
+// The last part of a contentPath ("assets/photo.png" -> "photo.png").
+function fileNameOf(contentPath: string): string {
+  return contentPath.slice(contentPath.lastIndexOf(CONTENT_PATH_SEPARATOR) + 1);
+}
+
 export interface Workspace {
   subscribe(listener: WorkspaceEventListener): () => void;
 
@@ -166,6 +175,16 @@ export interface Workspace {
   ): Promise<OperationResult<void>>;
   // The session of an open document (execute / undo / redo / flush), or null.
   getDocumentSession(documentId: DocumentId): DocumentSession | null;
+  // The files of an open Document's assets/ that nothing uses: no saved file refers to
+  // them, and its undo / redo history does not name them.
+  listUnusedAssets(
+    documentId: DocumentId,
+  ): Promise<OperationResult<UnusedAssets>>;
+  // Deletes those of `contentPaths` that are still unused; resolves to the removed ones.
+  deleteUnusedAssets(
+    documentId: DocumentId,
+    contentPaths: readonly string[],
+  ): Promise<OperationResult<readonly string[]>>;
 
   // `parentFolderId` null (the default) creates it directly under the Project; otherwise
   // inside that loaded Folder. Appended to the parent's order.
@@ -972,6 +991,25 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     });
   }
 
+  // Runs `task` on the serial queue of an open Document (no save or command in between).
+  function withOpenSession<T>(
+    documentId: DocumentId,
+    task: (
+      session: DocumentSession,
+      projectId: ProjectId,
+    ) => Promise<OperationResult<T>>,
+  ): Promise<OperationResult<T>> {
+    const project = requireProject();
+    if (!project.ok) return Promise.resolve(project);
+    const session = sessions.get(documentId);
+    if (session === undefined) {
+      return Promise.resolve(
+        operationErr("notWritable", `document ${documentId} is not open`),
+      );
+    }
+    return session.runExclusive(() => task(session, project.value.projectId));
+  }
+
   return {
     subscribe: (listener) => events.subscribe(listener),
     selectProjectFolder: () => gateway.selectProjectFolder(),
@@ -1051,6 +1089,28 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
         closeOpenDocument(documentId, options?.discardChanges === true),
       ),
     getDocumentSession: (documentId) => sessions.get(documentId) ?? null,
+    listUnusedAssets: (documentId) =>
+      withOpenSession(documentId, async (session, projectId) => {
+        const listed = await gateway.listUnusedAssets(projectId, documentId);
+        if (!listed.ok) return listed;
+        const history = session.historyText().toLowerCase();
+        const held = (asset: UnusedAsset) =>
+          history.includes(fileNameOf(asset.contentPath).toLowerCase());
+        return operationOk({
+          assets: listed.value.filter((asset) => !held(asset)),
+          heldByHistory: listed.value.filter(held).length,
+        });
+      }),
+    deleteUnusedAssets: (documentId, contentPaths) =>
+      withOpenSession(documentId, async (session, projectId) => {
+        // Named by the history since the list was shown: kept.
+        const history = session.historyText().toLowerCase();
+        const chosen = contentPaths.filter(
+          (path) => !history.includes(fileNameOf(path).toLowerCase()),
+        );
+        if (chosen.length === 0) return operationOk([]);
+        return gateway.deleteUnusedAssets(projectId, documentId, chosen);
+      }),
     createDocument: (name, parentFolderId = null) =>
       createDocumentStep(name, parentFolderId),
     createFolder: (parentFolderId, name) =>

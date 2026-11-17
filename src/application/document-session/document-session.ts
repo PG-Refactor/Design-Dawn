@@ -157,6 +157,9 @@ export interface DocumentSession {
   resumeSaving(): void;
   // For when a sheet is deleted: no history entry may reference it any more.
   clearHistory(): void;
+  // Everything the undo and redo history holds, as text: an image named in it may come
+  // back with an undo, so it is not "unused" even if no saved file refers to it.
+  historyText(): string;
   // Runs `task` on the serial queue, so it cannot interleave with commands or
   // auto-save. Resolves to `notWritable` once the session is closed.
   runExclusive<T>(
@@ -716,6 +719,10 @@ export function createDocumentSession(
       coordinator.suspendSaving(error);
     },
     resumeSaving: () => coordinator.resumeSaving(),
+    historyText() {
+      return JSON.stringify([...undoStack, ...redoStack]);
+    },
+
     clearHistory() {
       undoStack = [];
       redoStack = [];

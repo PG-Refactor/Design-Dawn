@@ -12,4 +12,5 @@ export type {
   RejectedFile,
   SpreadsheetSelection,
   SpreadsheetSheet,
+  UnusedAsset,
 } from "../../application/ports/asset-types";

@@ -24,6 +24,7 @@ import type {
   ImportedImage,
   PdfPageExtent,
   SpreadsheetSelection,
+  UnusedAsset,
 } from "./asset-types";
 import type { OperationResult } from "./operation-error";
 import type {
@@ -339,4 +340,15 @@ export interface PersistenceGateway {
     contentPath: ContentPath,
     targetDocumentId: DocumentId,
   ): Promise<OperationResult<CopiedAsset>>;
+  // The files of the Document's assets/ that nothing in its files on disk refers to.
+  listUnusedAssets(
+    projectId: ProjectId,
+    documentId: DocumentId,
+  ): Promise<OperationResult<readonly UnusedAsset[]>>;
+  // Deletes those of `contentPaths` that are still unused; resolves to the removed ones.
+  deleteUnusedAssets(
+    projectId: ProjectId,
+    documentId: DocumentId,
+    contentPaths: readonly string[],
+  ): Promise<OperationResult<readonly string[]>>;
 }

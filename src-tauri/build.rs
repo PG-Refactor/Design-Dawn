@@ -24,6 +24,8 @@ const APP_COMMANDS: &[&str] = &[
     "create_document",
     "load_document",
     "close_document",
+    "list_unused_assets",
+    "delete_unused_assets",
     "save_document",
     "create_sheet",
     "save_sheet",

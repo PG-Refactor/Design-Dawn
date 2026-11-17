@@ -10,6 +10,7 @@ import {
   seedFolderTree,
 } from "../../application/test-support/workspace-harness";
 import { TEMPLATE_MESSAGES } from "../templates/template-messages";
+import { UNUSED_ASSETS_MESSAGES } from "../unused-assets/unused-assets-messages";
 import {
   applyOutsideUi,
   chooseRowMenuItem,
@@ -22,6 +23,7 @@ import { dragTreeRow, yOnRow } from "./test-support/tree-drag-helpers";
 import { WORKSPACE_MESSAGES } from "./workspace-messages";
 
 const TEMPLATE_TEXTS = TEMPLATE_MESSAGES.ja;
+const UNUSED_ASSETS_TEXTS = UNUSED_ASSETS_MESSAGES.ja;
 const MESSAGES = WORKSPACE_MESSAGES.ja;
 
 afterEach(() => {
@@ -199,6 +201,7 @@ describe("row menus", () => {
       TREE.openInNewWindow,
       TEMPLATE_TEXTS.saveAsTemplate,
       `${TREE.exportDocument}▸`,
+      UNUSED_ASSETS_TEXTS.menuItem,
       TREE.deleteDocument,
     ]);
     expect(menuItem(menu, TREE.moveTo).getAttribute("aria-disabled")).toBe(
@@ -528,6 +531,7 @@ describe("the right-click menu of the tree", () => {
       TREE.openInNewWindow,
       TEMPLATE_TEXTS.saveAsTemplate,
       `${TREE.exportDocument}▸`,
+      UNUSED_ASSETS_TEXTS.menuItem,
       TREE.deleteDocument,
     ]);
     await harness.user.keyboard("{Escape}");
