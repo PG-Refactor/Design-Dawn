@@ -97,6 +97,28 @@ describe("Export of the shown sheet or Document", () => {
   });
 });
 
+describe("PDF pages", () => {
+  it("cuts the PDF into paper pages of the chosen size when asked", async () => {
+    const { shell } = await renderOpenedCanvas();
+    const dialog = await openExport(shell, "pdf");
+    await shell.user.click(
+      within(dialog).getByRole("radio", { name: MESSAGES.pdfModePaper }),
+    );
+    // A4 portrait by default.
+    expect(
+      within(dialog).getByRole("combobox", { name: MESSAGES.paperSize }),
+    ).toBeTruthy();
+    await shell.user.click(
+      within(dialog).getByRole("button", { name: MESSAGES.exportFile }),
+    );
+    await act(settle);
+    const call = shell.gateway.calls.find(
+      (entry) => entry.method === "exportPdfFile",
+    );
+    expect(call?.detail.endsWith(":794x1123")).toBe(true);
+  });
+});
+
 describe("Export Documents", () => {
   it("prints each chosen Document to PDF in the folder, opening the closed ones only meanwhile", async () => {
     const { shell } = await renderOpenedCanvas();

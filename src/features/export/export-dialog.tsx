@@ -14,6 +14,7 @@ import {
 } from "./export-actions";
 import type { ExportDialogRequest, ExportScope } from "./export-dialog-store";
 import { type ExportTreeNode, exportTree } from "./export-tree";
+import { PaperFields } from "./paper-fields";
 import "./print-dialog.css";
 
 // The shown Document and sheet, with their names (the first two scopes).
@@ -346,6 +347,14 @@ export function ExportDialog({
               </div>
             )}
           </fieldset>
+        )}
+        {choosing && format === "pdf" && (
+          <PaperFields
+            disabled={busy}
+            fitLabel={messages.pdfModeFit}
+            paperLabel={messages.pdfModePaper}
+            note={messages.pdfPaperNote}
+          />
         )}
         {status.kind === "confirmReplace" && (
           <div role="alert">

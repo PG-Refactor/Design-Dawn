@@ -16,6 +16,7 @@ import {
 import type { PersistenceGateway } from "../../application/ports/persistence-gateway";
 import type { ApplicationStore } from "../../application/state/application-state";
 import type { Workspace } from "../../application/workspace/workspace";
+import { paperDimensions } from "../../domain/print/paper";
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
 import type { CanvasActions } from "../canvas/canvas-actions";
 import type { MermaidRenderer } from "../mermaid/mermaid-renderer-types";
@@ -203,6 +204,7 @@ export function createExportActions(
     canvasActions,
     assetUrlResolver,
   } = dependencies;
+  const printSettings = createPrintSettingsStore();
 
   async function pageOf(
     input: SheetsExportInput,
@@ -304,24 +306,41 @@ export function createExportActions(
           folders,
         );
       }
-      const largest = largestFitPage(sheets.value);
-      if (largest === null) return operationOk(null);
+      const pages = pdfPages(sheets.value);
+      if (pages === null) return operationOk(null);
       const page = buildExportHtml({
         title: document.name,
         sheets: sheets.value,
         palette,
-        layout: { kind: "fit" },
+        layout: pages.layout,
       });
       return gateway.exportPdfIntoFolder(
         input.folder,
         stem,
         new TextEncoder().encode(page),
-        largest,
+        pages.page,
         folders,
       );
     } finally {
       if (!wasOpen) await workspace.closeDocument(document.documentId);
     }
+  }
+
+  // The pages of a PDF: as printing makes them (one per sheet as large as its content, or
+  // cut into paper pages), and the size of the PDF's pages.
+  function pdfPages(sheets: readonly ExportSheet[]): {
+    readonly layout: ExportLayout;
+    readonly page: { readonly width: number; readonly height: number };
+  } | null {
+    const { mode, paper } = printSettings.getState();
+    if (mode === "paper") {
+      return {
+        layout: { kind: "paper", ...paper },
+        page: paperDimensions(paper),
+      };
+    }
+    const largest = largestFitPage(sheets);
+    return largest === null ? null : { layout: { kind: "fit" }, page: largest };
   }
 
   function reported<Value>(
@@ -337,7 +356,7 @@ export function createExportActions(
   }
 
   return {
-    printSettings: createPrintSettingsStore(),
+    printSettings,
 
     async exportSheetsHtml(input) {
       const page = await pageOf(input, { kind: "screen" });
@@ -435,21 +454,21 @@ export function createExportActions(
           ),
         );
       }
-      const largest = largestFitPage(gathered.value);
-      if (largest === null) {
+      const pages = pdfPages(gathered.value);
+      if (pages === null) {
         return reported(operationErr("exportFailed", "there are no blocks"));
       }
       const page = buildExportHtml({
         title,
         sheets: gathered.value,
         palette,
-        layout: { kind: "fit" },
+        layout: pages.layout,
       });
       return reported(
         await gateway.exportPdfFile(
           title,
           new TextEncoder().encode(page),
-          largest,
+          pages.page,
         ),
       );
     },
