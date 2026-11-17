@@ -96,8 +96,7 @@ export function BlockCreateMenu({
                 onCreate("mermaid", template),
               ),
             },
-            ...(customTemplates === undefined ||
-            customTemplates.entries.length === 0
+            ...(customTemplates === undefined
               ? []
               : [
                   {

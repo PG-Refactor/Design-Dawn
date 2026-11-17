@@ -35,3 +35,21 @@ export function customTemplateEntries(
     })),
   ]);
 }
+
+// The entries, or one item that cannot be chosen saying there are none: the submenu is
+// always there, so it can be found before the first template is saved.
+export function orNoTemplates(
+  entries: PopupMenuEntry[],
+  messages: TemplateMessages,
+): PopupMenuEntry[] {
+  return entries.length > 0
+    ? entries
+    : [
+        {
+          id: "noCustomTemplates",
+          label: messages.noTemplates,
+          disabled: true,
+          onSelect: () => {},
+        },
+      ];
+}

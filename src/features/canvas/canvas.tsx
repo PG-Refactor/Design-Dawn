@@ -33,7 +33,10 @@ import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { useMermaidRenderer } from "../mermaid/mermaid-renderer-context";
 import { askSpreadsheetImport } from "../spreadsheet/spreadsheet-import-dialog";
 import { askSaveTemplate } from "../templates/template-dialogs";
-import { customTemplateEntries } from "../templates/template-menu";
+import {
+  customTemplateEntries,
+  orNoTemplates,
+} from "../templates/template-menu";
 import {
   CLIPBOARD_TEXT_TYPE,
   pastedImage,
@@ -430,15 +433,18 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
           paste,
           customTemplates: {
             label: templateMessages.fromTemplate,
-            entries: customTemplateEntries(
-              templates.store.getState().templates,
-              BLOCK_TEMPLATE_KINDS,
+            entries: orNoTemplates(
+              customTemplateEntries(
+                templates.store.getState().templates,
+                BLOCK_TEMPLATE_KINDS,
+                templateMessages,
+                (template) =>
+                  void templates.addBlocks(template, documentId, sheetId, {
+                    viewportSize: canvasSize(),
+                    ...(at === undefined ? {} : { at }),
+                  }),
+              ),
               templateMessages,
-              (template) =>
-                void templates.addBlocks(template, documentId, sheetId, {
-                  viewportSize: canvasSize(),
-                  ...(at === undefined ? {} : { at }),
-                }),
             ),
           },
         }),

@@ -3,6 +3,7 @@
 
 import type { KeyboardEvent } from "react";
 import type { PopupMenuEntry } from "../../shared/menu/popup-menu";
+import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { openExportDialog } from "../export/export-dialog-store";
 import { EXPORT_FORMATS, exportItemLabel } from "../export/export-formats";
 import {
@@ -207,6 +208,8 @@ function FolderTreeItem({
   const messages = useMessages().workspace;
   const templateMessages = useMessages().templates;
   const { templates } = useWorkspaceServices();
+  // Read so the row's menu is built again when a template is saved or removed.
+  useStoreSelector(templates.store, (state) => state.templates);
   const { actions, keepFocus } = handlers;
   const { folderId } = folderNode;
   const itemKey = folderTreeKey(folderId);

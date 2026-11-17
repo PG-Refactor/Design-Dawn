@@ -15,6 +15,7 @@ import {
   renderOpenedCanvas,
 } from "../markdown/test-support/markdown-harness";
 import { MERMAID_TEMPLATES } from "../mermaid/mermaid-templates";
+import { TEMPLATE_MESSAGES } from "../templates/template-messages";
 import { getSelection } from "../workspace/ui-state/ui-state";
 
 const CANVAS_AREA = { width: 800, height: 600 };
@@ -62,6 +63,7 @@ describe("+ Block menu", () => {
       "Markdown",
       "Mermaid",
       "Mermaidデフォルトテンプレート▸",
+      `${TEMPLATE_MESSAGES.ja.fromTemplate}▸`,
       "画像…",
       "表計算ファイルから表…",
     ]);

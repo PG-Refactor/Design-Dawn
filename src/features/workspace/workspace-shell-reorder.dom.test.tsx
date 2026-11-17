@@ -718,6 +718,7 @@ describe("row menu accessibility", () => {
     ).toEqual([
       MESSAGES.tree.createFolder,
       MESSAGES.tree.createDocument,
+      `${TEMPLATE_TEXTS.documentFromTemplate}▸`,
       MESSAGES.tree.openProjectInNewWindow,
     ]);
 

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+
 import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -10,6 +11,7 @@ import {
   FOLDER_2,
   seedFolderTree,
 } from "../../application/test-support/workspace-harness";
+import { TEMPLATE_MESSAGES } from "../templates/template-messages";
 import {
   renderShell,
   type ShellHarness,
@@ -110,6 +112,7 @@ describe("the empty space of the tree", () => {
     expect(menuItemNames(menu)).toEqual([
       TREE.createFolder,
       TREE.createDocument,
+      `${TEMPLATE_MESSAGES.ja.documentFromTemplate}▸`,
     ]);
     await harness.user.click(
       within(menu).getByRole("menuitem", { name: TREE.createFolder }),

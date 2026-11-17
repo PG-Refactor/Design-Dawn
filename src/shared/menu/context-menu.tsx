@@ -4,6 +4,7 @@ import {
   type ReactNode,
   type SyntheticEvent,
   useCallback,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -124,12 +125,45 @@ export interface ContextMenuControl {
   readonly element: ReactNode;
 }
 
+// The right-click menu open anywhere in the window: opening another closes it, so two
+// owners never show one each.
+let closeOpenMenu: (() => void) | null = null;
+
+const MENU_SELECTOR = '[role="menu"]';
+
 // One right-click menu per owner. Escape and choosing an item put focus back where it was
 // (so a dialog opened by the item remembers it); focus leaving the menu just closes it.
+// Not every way of leaving moves the focus (a press outside on something that takes no
+// focus, the window losing focus to another app or to a dialog of the system), so those
+// close it too.
 export function useContextMenu(): ContextMenuControl {
   const [menu, setMenu] = useState<OpenContextMenu | null>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
   const nextOpenId = useRef(0);
+  const isOpen = menu !== null;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const closeThis = () => setMenu(null);
+    if (closeOpenMenu !== null && closeOpenMenu !== closeThis) closeOpenMenu();
+    closeOpenMenu = closeThis;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest(MENU_SELECTOR) !== null) {
+        return;
+      }
+      closeThis();
+    };
+    window.addEventListener("pointerdown", onPointerDown, { capture: true });
+    window.addEventListener("blur", closeThis);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown, {
+        capture: true,
+      });
+      window.removeEventListener("blur", closeThis);
+      if (closeOpenMenu === closeThis) closeOpenMenu = null;
+    };
+  }, [isOpen]);
 
   const openFromEvent = useCallback(
     (

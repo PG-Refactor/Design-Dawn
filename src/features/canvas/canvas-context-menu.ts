@@ -181,8 +181,7 @@ export function backgroundMenuEntries(
         commands.addBlock("mermaid", template),
       ),
     },
-    ...(commands.customTemplates === undefined ||
-    commands.customTemplates.entries.length === 0
+    ...(commands.customTemplates === undefined
       ? []
       : [
           {
