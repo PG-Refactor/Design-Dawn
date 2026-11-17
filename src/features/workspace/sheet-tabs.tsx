@@ -1,5 +1,5 @@
 import { type KeyboardEvent, type MouseEvent, useRef } from "react";
-import type { SheetId } from "../../domain/shared/entity-id";
+import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
 import { useContextMenu } from "../../shared/menu/context-menu";
 import type { PopupMenuEntry } from "../../shared/menu/menu-list";
 import {
@@ -29,12 +29,68 @@ import "./tabs.css";
 
 const RENAME_KEY = "F2";
 
-function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
+// "New Sheet", the Default Templates and the Custom Templates: what the tab menu and the
+// empty part of the tab bar offer for making a sheet.
+function useSheetCreationEntries(): (
+  documentId: DocumentId,
+) => PopupMenuEntry[] {
   const messages = useMessages().workspace;
   const templateMessages = useMessages().templates;
   const { actions, canvasActions, uiStateStore, templates } =
     useWorkspaceServices();
   const language = useDisplayLanguage();
+  return (documentId) => {
+    const custom = customTemplateEntries(
+      templates.store.getState().templates,
+      ["sheet"],
+      templateMessages,
+      (template) => void templates.createSheet(template, documentId),
+    );
+    return [
+      {
+        id: "createSheet",
+        label: messages.tabs.createSheet,
+        onSelect: () => void actions.requestCreateSheet(documentId),
+      },
+      {
+        id: "createSheetFromTemplate",
+        label: messages.tabs.createSheetFromTemplate,
+        entries: DESIGN_TEMPLATE_IDS.map((templateId) => ({
+          id: `template-${templateId}`,
+          label: DESIGN_TEMPLATES[templateId].name[language],
+          onSelect: () =>
+            void createSheetFromTemplate(
+              { actions, canvasActions, uiStateStore },
+              documentId,
+              templateId,
+              language,
+            ),
+        })),
+      },
+      {
+        id: "createSheetFromCustomTemplate",
+        label: templateMessages.sheetFromTemplate,
+        entries:
+          custom.length > 0
+            ? custom
+            : [
+                {
+                  id: "noCustomTemplates",
+                  label: templateMessages.noTemplates,
+                  disabled: true,
+                  onSelect: () => {},
+                },
+              ],
+      },
+    ];
+  };
+}
+
+function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
+  const messages = useMessages().workspace;
+  const templateMessages = useMessages().templates;
+  const { actions, templates } = useWorkspaceServices();
+  const creationEntries = useSheetCreationEntries();
 
   async function saveSheetAsTemplate(sheetId: SheetId, name: string) {
     const answer = await askSaveTemplate({ kind: "sheet", name });
@@ -97,36 +153,7 @@ function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
         },
       },
       { id: "createSeparator", separator: true },
-      {
-        id: "createSheet",
-        label: messages.tabs.createSheet,
-        onSelect: () => void actions.requestCreateSheet(documentId),
-      },
-      {
-        id: "createSheetFromTemplate",
-        label: messages.tabs.createSheetFromTemplate,
-        entries: [
-          ...DESIGN_TEMPLATE_IDS.map((templateId) => ({
-            id: `template-${templateId}`,
-            label: DESIGN_TEMPLATES[templateId].name[language],
-            onSelect: () =>
-              void createSheetFromTemplate(
-                { actions, canvasActions, uiStateStore },
-                documentId,
-                templateId,
-                language,
-              ),
-          })),
-          ...withSeparator(
-            customTemplateEntries(
-              templates.store.getState().templates,
-              ["sheet"],
-              templateMessages,
-              (template) => void templates.createSheet(template, documentId),
-            ),
-          ),
-        ],
-      },
+      ...creationEntries(documentId),
       {
         id: "saveSheetAsTemplate",
         label: templateMessages.saveAsTemplate,
@@ -272,20 +299,32 @@ function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
   );
 }
 
-// The custom entries after the built-in ones, set apart by a line.
-function withSeparator(entries: PopupMenuEntry[]): PopupMenuEntry[] {
-  return entries.length === 0
-    ? []
-    : [{ id: "customTemplateSeparator", separator: true }, ...entries];
-}
-
 export function SheetTabs() {
   const messages = useMessages().workspace;
   const { actions } = useWorkspaceServices();
   const model = useWorkspaceModel(selectSheetTabs);
+  const contextMenu = useContextMenu();
+  const creationEntries = useSheetCreationEntries();
   if (model === null) return null;
+  const { documentId } = model;
+  // The bar outside the tabs (the "+" and the space after it) offers making a sheet; a tab
+  // has its own menu.
+  function onBarContextMenu(event: MouseEvent<HTMLDivElement>): void {
+    if (
+      event.target instanceof Element &&
+      event.target.closest('[role="tab"]') !== null
+    ) {
+      return;
+    }
+    contextMenu.openFromEvent(
+      event,
+      messages.tabs.sheetTabsLabel,
+      creationEntries(documentId),
+    );
+  }
   return (
-    <div className="sheet-tabs">
+    // biome-ignore lint/a11y/noStaticElementInteractions: the right-click only offers what the "+" button and the tab menus also offer.
+    <div className="sheet-tabs" onContextMenu={onBarContextMenu}>
       <SheetTabList model={model} />
       {/* A small "+" after the last tab, as in spreadsheets; the name says what it does. */}
       <button
@@ -297,6 +336,7 @@ export function SheetTabs() {
       >
         <span aria-hidden="true">{messages.tabs.createSheetButtonText}</span>
       </button>
+      {contextMenu.element}
     </div>
   );
 }

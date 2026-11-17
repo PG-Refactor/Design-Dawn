@@ -15,7 +15,7 @@ const CANVAS_MESSAGES_JA = {
     blockTypeMenuLabel: "追加するBlockの種類",
     image: "画像…",
     spreadsheet: "表計算ファイルから表…",
-    templates: "Mermaidテンプレート",
+    templates: "Mermaidデフォルトテンプレート",
   },
   reorder: {
     menuButton: "重なり順",
@@ -54,7 +54,7 @@ const CANVAS_MESSAGES_JA = {
     exportSvg: "SVGとして書き出す…",
     exportPng: "PNGとして書き出す…",
     // The submenu that holds the Mermaid templates.
-    templates: "Mermaidテンプレートから追加",
+    templates: "Mermaidデフォルトテンプレートから追加",
   },
   caption: {
     dialogTitle: "キャプション",
@@ -90,7 +90,7 @@ const CANVAS_MESSAGES_EN: CanvasMessages = {
     blockTypeMenuLabel: "Block type to add",
     image: "Image…",
     spreadsheet: "Table from Spreadsheet…",
-    templates: "Mermaid Template",
+    templates: "Mermaid Default Template",
   },
   reorder: {
     menuButton: "Arrange",
@@ -128,7 +128,7 @@ const CANVAS_MESSAGES_EN: CanvasMessages = {
     exportMenu: "Export",
     exportSvg: "Export as SVG…",
     exportPng: "Export as PNG…",
-    templates: "Add from Mermaid Template",
+    templates: "Add from Mermaid Default Template",
   },
   caption: {
     dialogTitle: "Caption",

@@ -62,6 +62,7 @@ describe("the right-click menu of a Sheet tab", () => {
       MESSAGES.tabs.moveRight,
       MESSAGES.tabs.createSheet,
       `${MESSAGES.tabs.createSheetFromTemplate}▸`,
+      `${TEMPLATE_TEXTS.sheetFromTemplate}▸`,
       TEMPLATE_TEXTS.saveAsTemplate,
       MESSAGES.tabs.deleteSheet,
     ]);
@@ -116,6 +117,26 @@ describe("the right-click menu of a Document tab", () => {
   it("opens the create-sheet dialog for that document", async () => {
     const harness = await withDocumentA();
     const menu = openMenuOn(tabIn("Document Tabs", /Document A/), "Document A");
+    await harness.user.click(
+      within(menu).getByRole("menuitem", { name: MESSAGES.tabs.createSheet }),
+    );
+    expect(screen.getByRole("dialog")).toBeTruthy();
+  });
+});
+
+describe("the right-click menu of the sheet tab bar", () => {
+  it("offers making a sheet, from the Default and the Custom Templates, next to the +", async () => {
+    const harness = await withDocumentA();
+    const add = screen.getByRole("button", { name: MESSAGES.tabs.createSheet });
+    fireEvent.contextMenu(add, { clientX: 1, clientY: 1, button: 2 });
+    const menu = screen.getByRole("menu", {
+      name: MESSAGES.tabs.sheetTabsLabel,
+    });
+    expect(itemNames(menu)).toEqual([
+      MESSAGES.tabs.createSheet,
+      `${MESSAGES.tabs.createSheetFromTemplate}▸`,
+      `${TEMPLATE_TEXTS.sheetFromTemplate}▸`,
+    ]);
     await harness.user.click(
       within(menu).getByRole("menuitem", { name: MESSAGES.tabs.createSheet }),
     );
