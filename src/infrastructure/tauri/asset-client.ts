@@ -17,6 +17,7 @@ import {
   toImageSelection,
   toImportedImageResult,
   toSpreadsheetSelection,
+  toUnusedAssets,
 } from "./asset-payloads";
 import type {
   CopiedAsset,
@@ -29,6 +30,7 @@ import type {
   ImportedImage,
   PdfPageExtent,
   SpreadsheetSelection,
+  UnusedAsset,
 } from "./asset-types";
 import { COMMANDS } from "./command-constants";
 import { type CommandResult, commandErr, commandOk } from "./command-error";
@@ -114,6 +116,31 @@ export function copyAssetToDocument(
     COMMANDS.copyAssetToDocument,
     { projectId, sourceDocumentId, contentPath, targetDocumentId },
     toCopiedAsset,
+  );
+}
+
+// The files of the Document's assets/ that nothing in the Document refers to.
+export function listUnusedAssets(
+  projectId: ProjectId,
+  documentId: DocumentId,
+): Promise<CommandResult<readonly UnusedAsset[]>> {
+  return call(
+    COMMANDS.listUnusedAssets,
+    { projectId, documentId },
+    toUnusedAssets,
+  );
+}
+
+// Deletes the chosen files that are still unused; resolves to those removed.
+export function deleteUnusedAssets(
+  projectId: ProjectId,
+  documentId: DocumentId,
+  contentPaths: readonly string[],
+): Promise<CommandResult<readonly string[]>> {
+  return call(
+    COMMANDS.deleteUnusedAssets,
+    { projectId, documentId, contentPaths },
+    toFileNames,
   );
 }
 

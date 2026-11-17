@@ -1100,3 +1100,53 @@ fn closing_removes_an_unreferenced_copy_from_another_document() {
     // The source Document's own asset stays where it was.
     assert!(fixture.first_assets().join("pixel.png").exists());
 }
+
+// ---- unused assets ----
+
+#[test]
+fn unused_assets_are_listed_and_deleted_only_while_still_unused() {
+    use design_dawn_lib::application::asset_cleanup::{delete_unused_assets, list_unused_assets};
+    use design_dawn_lib::domain::entity_id::DocumentId;
+
+    let fixture = Fixture::new();
+    let assets = fixture.first_assets();
+    fs::create_dir_all(&assets).unwrap();
+    fs::write(assets.join("stray.png"), b"png").unwrap();
+    fs::write(assets.join("kept.png"), b"png").unwrap();
+    let document_directory = document_dir(&fixture.opened.root);
+    // Any other file of the Document that names `assets/<file>` uses it.
+    fs::write(document_directory.join("notes.md"), "![](assets/kept.png)").unwrap();
+    let document = DocumentId::parse(DOCUMENT_ID).unwrap();
+    let mut sessions = fixture.sessions.lock().unwrap();
+    let session = sessions.session_mut(PROJECT_ID).unwrap();
+
+    let listed: Vec<String> = list_unused_assets(session, &document)
+        .unwrap()
+        .into_iter()
+        .map(|asset| asset.content_path)
+        .collect();
+    assert!(listed.contains(&"assets/stray.png".to_owned()));
+    assert!(!listed.contains(&"assets/kept.png".to_owned()));
+
+    // A file that came into use since the list was shown is kept.
+    fs::write(
+        document_directory.join("notes.md"),
+        "![](assets/kept.png) ![](assets/stray.png)",
+    )
+    .unwrap();
+    let removed = delete_unused_assets(
+        session,
+        &document,
+        &["assets/stray.png".to_owned(), "assets/kept.png".to_owned()],
+    )
+    .unwrap();
+    assert!(removed.is_empty());
+    assert!(assets.join("stray.png").exists());
+
+    fs::write(document_directory.join("notes.md"), "").unwrap();
+    let removed =
+        delete_unused_assets(session, &document, &["assets/stray.png".to_owned()]).unwrap();
+    assert_eq!(removed, vec!["assets/stray.png".to_owned()]);
+    assert!(!assets.join("stray.png").exists());
+    assert!(assets.join("kept.png").exists());
+}

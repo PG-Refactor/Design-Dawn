@@ -92,6 +92,8 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::create_document,
             commands::load_document,
             commands::close_document,
+            commands::list_unused_assets,
+            commands::delete_unused_assets,
             commands::save_document,
             commands::create_sheet,
             commands::save_sheet,

@@ -12,6 +12,7 @@ import {
   renameDocumentCommand,
   renameSheetCommand,
 } from "../../application/commands/naming-commands";
+import type { UnusedAssets } from "../../application/ports/asset-types";
 import type { AutoSavePolicy } from "../../application/ports/auto-save-policy";
 import type {
   DocumentWindowTarget,
@@ -303,6 +304,15 @@ export interface WorkspaceActions {
   // commit. Returns the first error (a draft's first); failures are already visible
   // through the operation errors / save states, so nothing is recorded here.
   saveAll(): Promise<OperationResult<void>>;
+  // The images of an open Document nothing uses, and deleting the chosen ones (see the
+  // Workspace methods of the same names).
+  listUnusedAssets(
+    documentId: DocumentId,
+  ): Promise<OperationResult<UnusedAssets>>;
+  deleteUnusedAssets(
+    documentId: DocumentId,
+    contentPaths: readonly string[],
+  ): Promise<OperationResult<readonly string[]>>;
 
   // Building blocks of the Git discard flow (`features/git/git-discard-flow.ts`), which
   // owns the order of the steps. Both are plain steps: neither asks a question nor sets the
@@ -1043,6 +1053,9 @@ export function createWorkspaceActions(
       return runBusy(() => closeProjectNow(false));
     },
     hasUnsavedChanges: hasUnsavedChangesIn,
+    listUnusedAssets: (documentId) => workspace.listUnusedAssets(documentId),
+    deleteUnusedAssets: (documentId, contentPaths) =>
+      workspace.deleteUnusedAssets(documentId, contentPaths),
     windowCloseNeedsConfirmation: () =>
       !autoSavePolicy.isEnabled() && hasUnsavedProjectChanges(),
     askUnsavedWindowClose() {

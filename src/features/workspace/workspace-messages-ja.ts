@@ -219,6 +219,9 @@ export const WORKSPACE_MESSAGES_JA = {
     closeProject: "Projectを閉じる",
     openProjectInNewWindow: "新しいウィンドウでProjectを開く…",
     autoSave: "自動保存",
+    autoSaveOff: "自動保存オフ",
+    autoSaveOffHint:
+      "自動保存がオフです。Ctrl+S で保存します。クリックすると自動保存をオンにします。",
     exportMenu: "エクスポート",
     languageLegend: "言語",
     themeLegend: "テーマ",

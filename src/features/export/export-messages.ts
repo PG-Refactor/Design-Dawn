@@ -17,6 +17,10 @@ const EXPORT_MESSAGES_JA = {
   showPageBreaks: "改ページ位置を表示",
   printPaperNote:
     "キャンバスの改ページ位置（表示メニュー）は、ここで選んだ用紙で表示されます。",
+  pdfModeFit: "シートごとに1ページ（内容の大きさのまま）",
+  pdfModePaper: "用紙の大きさに分ける（A4 など。各ページの上にシート名）",
+  pdfPaperNote:
+    "印刷と同じ選び方です。ここで選んだ用紙は印刷とキャンバスの改ページ位置にも使われます。",
   printDescription:
     "印刷用のウィンドウが開き、そこで印刷の画面が出ます。PDFにするときは、プリンターに「Microsoft Print to PDF」などを選んでください。",
   target: "印刷するもの",
@@ -98,6 +102,11 @@ const EXPORT_MESSAGES_EN: ExportMessages = {
   showPageBreaks: "Show Page Breaks",
   printPaperNote:
     "The page breaks on the canvas (View menu) follow the paper chosen here.",
+  pdfModeFit: "One page per sheet, as large as its content",
+  pdfModePaper:
+    "Cut into paper pages (A4 and others; the sheet name on top of each)",
+  pdfPaperNote:
+    "The same choice as for printing: the paper chosen here is also used for printing and the canvas page breaks.",
   printDescription:
     "A print window opens with the print dialog. For a PDF, choose a PDF printer such as “Microsoft Print to PDF” or “Save as PDF”.",
   target: "What to print",

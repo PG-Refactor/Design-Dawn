@@ -3,6 +3,8 @@
 // from the committed text on each render, so nothing here holds a copy of the diagram.
 
 import { type FormEvent, useId, useState } from "react";
+import type { DiagramOperation } from "../../domain/diagram/diagram-operation";
+import { useAddDialogForm } from "./add-dialog-form";
 
 export interface ListedItem {
   readonly key: string;
@@ -85,6 +87,7 @@ export function ListedForm({
   onSubmit,
   deleteLabel,
   onDelete,
+  operationOf,
 }: {
   readonly title: string;
   readonly fields: readonly ListedField[];
@@ -95,14 +98,23 @@ export function ListedForm({
   readonly onSubmit: (values: FieldValues) => Promise<boolean>;
   readonly deleteLabel?: string;
   readonly onDelete?: () => void;
+  // An add form shown in the add dialog: the operation its fields describe, previewed by
+  // the dialog (null while something it needs is missing).
+  readonly operationOf?: (values: FieldValues) => DiagramOperation | null;
 }) {
   const [values, setValues] = useState<FieldValues>(initial);
   const formId = useId();
+  const dialog = useAddDialogForm(operationOf?.(values) ?? null, () =>
+    setValues(initial),
+  );
 
   async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     const applied = await onSubmit(values);
-    if (applied && onDelete === undefined) setValues(initial);
+    if (applied && onDelete === undefined) {
+      setValues(initial);
+      dialog.added();
+    }
   }
 
   return (

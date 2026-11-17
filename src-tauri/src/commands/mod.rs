@@ -24,6 +24,7 @@ use serde_json::Value;
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager, Runtime, State, Window};
 
+use crate::application::asset_cleanup::{self, UnusedAsset};
 use crate::application::asset_import::{
     asset_data_url as read_asset_data_url, copy_asset_to_document as copy_asset,
     import_dropped_images as import_dropped, import_image_bytes, CopiedAsset, DropImportResult,
@@ -85,7 +86,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 109] = [
+pub const COMMAND_NAMES: [&str; 111] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -108,6 +109,8 @@ pub const COMMAND_NAMES: [&str; 109] = [
     "create_document",
     "load_document",
     "close_document",
+    "list_unused_assets",
+    "delete_unused_assets",
     "save_document",
     "create_sheet",
     "save_sheet",
@@ -1078,6 +1081,41 @@ pub fn load_document<R: Runtime>(
         )));
     }
     Ok(snapshot)
+}
+
+/// The files of the Document's `assets/` that nothing in the Document refers to.
+#[tauri::command]
+pub fn list_unused_assets<R: Runtime>(
+    window: Window<R>,
+    state: SessionState<'_>,
+    project_id: String,
+    document_id: String,
+) -> Result<Vec<UnusedAsset>, ApplicationError> {
+    ensure_document_here(&window, &project_id, &document_id)?;
+    let document = DocumentId::parse(&document_id)?;
+    with_project_sessions(&window, &state, &project_id, |sessions| {
+        asset_cleanup::list_unused_assets(sessions.session_mut(&project_id)?, &document)
+    })
+}
+
+/// Deletes the chosen unused files (each only if still unused); returns those removed.
+#[tauri::command]
+pub fn delete_unused_assets<R: Runtime>(
+    window: Window<R>,
+    state: SessionState<'_>,
+    project_id: String,
+    document_id: String,
+    content_paths: Vec<String>,
+) -> Result<Vec<String>, ApplicationError> {
+    ensure_document_here(&window, &project_id, &document_id)?;
+    let document = DocumentId::parse(&document_id)?;
+    with_project_sessions(&window, &state, &project_id, |sessions| {
+        asset_cleanup::delete_unused_assets(
+            sessions.session_mut(&project_id)?,
+            &document,
+            &content_paths,
+        )
+    })
 }
 
 #[tauri::command]

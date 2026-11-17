@@ -22,6 +22,7 @@ import type {
   ImageSelection,
   ImportedImage,
   RejectedFile,
+  UnusedAsset,
 } from "./asset-types";
 import {
   type CommandError,
@@ -291,4 +292,15 @@ export function toFileName(payload: unknown): CommandResult<string> {
 export function toFileNames(payload: unknown): CommandResult<string[]> {
   const decoded = decodePayload(arrayOf(decodeString), payload);
   return decoded.ok ? commandOk([...decoded.value]) : decoded;
+}
+
+export function toUnusedAssets(
+  payload: unknown,
+): CommandResult<readonly UnusedAsset[]> {
+  return decodePayload(
+    arrayOf(
+      objectOf<UnusedAsset>({ contentPath: decodeString, size: decodeNumber }),
+    ),
+    payload,
+  );
 }

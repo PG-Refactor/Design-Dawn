@@ -26,6 +26,8 @@
     "allow-create-document",
     "allow-load-document",
     "allow-close-document",
+    "allow-list-unused-assets",
+    "allow-delete-unused-assets",
     "allow-save-document",
     "allow-create-sheet",
     "allow-save-sheet",

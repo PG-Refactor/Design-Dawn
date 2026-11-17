@@ -142,3 +142,18 @@ export interface PdfPageExtent {
   readonly width: number;
   readonly height: number;
 }
+
+// A file of a Document's `assets/` that nothing in the Document refers to.
+export interface UnusedAsset {
+  readonly contentPath: string;
+  // In bytes.
+  readonly size: number;
+}
+
+// The unused files of a Document, as the cleanup dialog lists them.
+export interface UnusedAssets {
+  readonly assets: readonly UnusedAsset[];
+  // Unused on disk but named by the undo / redo history (an undo may bring them back):
+  // left out of `assets`.
+  readonly heldByHistory: number;
+}

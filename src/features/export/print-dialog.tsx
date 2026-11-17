@@ -1,14 +1,4 @@
 import { useId, useRef, useState } from "react";
-import {
-  ORIENTATIONS,
-  type Orientation,
-  PAPER_SCALES,
-  PAPER_SIZE_IDS,
-  PAPER_SIZES,
-  type PaperScale,
-  type PaperSettings,
-  type PaperSize,
-} from "../../domain/print/paper";
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { useMermaidRenderer } from "../mermaid/mermaid-renderer-context";
@@ -16,8 +6,8 @@ import { Modal } from "../workspace/modal";
 import { useMessages } from "../workspace/use-messages";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import type { ExportLayout } from "./export-html";
+import { PaperFields } from "./paper-fields";
 import { measurePrintPage } from "./print-frame";
-import type { PrintMode } from "./print-settings";
 import "./print-dialog.css";
 
 export interface PrintTarget {
@@ -67,16 +57,6 @@ export function PrintDialog({
   );
   const { mode } = settings;
   const { size: paperSize, orientation, scale } = settings.paper;
-  const setMode = (next: PrintMode) =>
-    exportActions.printSettings.setState((state) => ({ ...state, mode: next }));
-  const setPaper = (change: Partial<PaperSettings>) =>
-    exportActions.printSettings.setState((state) => ({
-      ...state,
-      paper: { ...state.paper, ...change },
-    }));
-  const setPaperSize = (size: PaperSize) => setPaper({ size });
-  const setOrientation = (next: Orientation) => setPaper({ orientation: next });
-  const setScale = (next: PaperScale) => setPaper({ scale: next });
   const [status, setStatus] = useState<Status>({ kind: "editing" });
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -193,83 +173,12 @@ export function PrintDialog({
             {messages.targetDocument}
           </label>
         </fieldset>
-        <fieldset className="print-dialog__group" disabled={busy}>
-          <legend>{messages.mode}</legend>
-          <label>
-            <input
-              type="radio"
-              name="print-mode"
-              checked={mode === "fit"}
-              onChange={() => setMode("fit")}
-            />
-            {messages.modeFit}
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="print-mode"
-              checked={mode === "paper"}
-              onChange={() => setMode("paper")}
-            />
-            {messages.modePaper}
-          </label>
-          {mode === "paper" && (
-            <p className="print-dialog__note">{messages.printPaperNote}</p>
-          )}
-          {mode === "paper" && (
-            <div className="print-dialog__paper">
-              <label>
-                {messages.paperSize}
-                <select
-                  value={paperSize}
-                  onChange={(event) => {
-                    const next = PAPER_SIZE_IDS.find(
-                      (size) => size === event.target.value,
-                    );
-                    if (next !== undefined) setPaperSize(next);
-                  }}
-                >
-                  {PAPER_SIZE_IDS.map((size) => (
-                    <option key={size} value={size}>
-                      {PAPER_SIZES[size].name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                {messages.orientation}
-                <select
-                  value={orientation}
-                  onChange={(event) => {
-                    const next = ORIENTATIONS.find(
-                      (value) => value === event.target.value,
-                    );
-                    if (next !== undefined) setOrientation(next);
-                  }}
-                >
-                  <option value="portrait">{messages.portrait}</option>
-                  <option value="landscape">{messages.landscape}</option>
-                </select>
-              </label>
-              <label>
-                {messages.scale}
-                <select
-                  value={scale}
-                  onChange={(event) => {
-                    const next = PAPER_SCALES.find(
-                      (value) => value === event.target.value,
-                    );
-                    if (next !== undefined) setScale(next);
-                  }}
-                >
-                  <option value="actual">{messages.scaleActual}</option>
-                  <option value="fitWidth">{messages.scaleFitWidth}</option>
-                  <option value="fitPage">{messages.scaleFitPage}</option>
-                </select>
-              </label>
-            </div>
-          )}
-        </fieldset>
+        <PaperFields
+          disabled={busy}
+          fitLabel={messages.modeFit}
+          paperLabel={messages.modePaper}
+          note={messages.printPaperNote}
+        />
         {notice !== null && <p role="status">{notice}</p>}
         {status.kind === "warning" && (
           <p role="alert" className="print-dialog__warning">

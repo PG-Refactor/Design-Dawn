@@ -13,6 +13,7 @@ import { ExternalCompareTabItem } from "../external-change/external-compare-tab"
 import { activateDiff, closeDiff, pinDiff } from "../git/git-diff-session";
 import { GitDiffTabItem } from "../git/git-diff-tab";
 import { saveDocumentAsTemplate } from "../templates/template-flows";
+import { openUnusedAssets } from "../unused-assets/unused-assets-dialog";
 import { focusFallbackElement } from "./focus-utils";
 import { documentPanelId, documentTabId } from "./tab-ids";
 import { DocumentIcon } from "./tree-icons";
@@ -81,6 +82,7 @@ function keyOf(entry: StripEntry): string {
 export function DocumentTabs() {
   const messages = useMessages().workspace;
   const templateMessages = useMessages().templates;
+  const unusedAssetsMessages = useMessages().unusedAssets;
   const services = useWorkspaceServices();
   const { actions, uiStateStore } = services;
   const tabs = useWorkspaceModel(selectDocumentTabs);
@@ -284,6 +286,11 @@ export function DocumentTabs() {
             tab.documentId,
             tab.name,
           ),
+      },
+      {
+        id: "unusedAssets",
+        label: unusedAssetsMessages.menuItem,
+        onSelect: () => openUnusedAssets(tab.documentId),
       },
       ...moveEntries(tab),
       { id: "closeSeparator", separator: true },

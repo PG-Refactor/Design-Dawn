@@ -10,8 +10,10 @@ import { useMessages } from "../workspace/use-messages";
 import {
   DEFAULT_SPREADSHEET_IMPORT_OPTIONS,
   parseCellRange,
+  rangeFromHeaderRow,
   type SpreadsheetImportOptions,
   sheetTable,
+  tableRowNumbers,
 } from "./spreadsheet-table";
 import "./spreadsheet-import-dialog.css";
 
@@ -106,6 +108,37 @@ function ImportDialog({
   );
   const preview = workbook.sheets[previewIndex];
   const previewTable = tables[previewIndex] ?? null;
+  const previewRange = parsedRanges[previewIndex];
+  const previewRows =
+    preview === undefined || previewRange === undefined
+      ? []
+      : tableRowNumbers(preview, options, previewRange);
+
+  // The table starts at the chosen row, which becomes its header.
+  function makeHeaderRow(row: number): void {
+    if (preview === undefined || previewRange === undefined) return;
+    const next = [...ranges];
+    next[previewIndex] = rangeFromHeaderRow(preview, previewRange, row);
+    setRanges(next);
+    setOptions((current) => ({ ...current, headerRow: true }));
+  }
+
+  function rowNumberCell(index: number, header: boolean) {
+    const row = previewRows[index];
+    if (row === undefined) return <td />;
+    const button = (
+      <button
+        type="button"
+        className="spreadsheet-import__row-number"
+        aria-label={messages.headerRowLabel(row + 1)}
+        title={messages.headerRowLabel(row + 1)}
+        onClick={() => makeHeaderRow(row)}
+      >
+        {row + 1}
+      </button>
+    );
+    return header ? <th scope="row">{button}</th> : <td>{button}</td>;
+  }
 
   function setOption(name: keyof SpreadsheetImportOptions, value: boolean) {
     setOptions((current) => ({ ...current, [name]: value }));
@@ -243,6 +276,9 @@ function ImportDialog({
             ) : (
               <>
                 <p className="spreadsheet-import__size">
+                  {messages.headerRowHint}
+                </p>
+                <p className="spreadsheet-import__size">
                   {messages.previewSize(
                     previewTable.rows.length,
                     previewTable.header.length,
@@ -252,6 +288,7 @@ function ImportDialog({
                   <table className="spreadsheet-import__table">
                     <thead>
                       <tr>
+                        {options.headerRow ? rowNumberCell(0, true) : <th />}
                         {previewTable.header.map((cell, column) => (
                           <th
                             // Columns have no id; their order never changes here.
@@ -270,6 +307,10 @@ function ImportDialog({
                         .map((row, rowIndex) => (
                           // biome-ignore lint/suspicious/noArrayIndexKey: the row index is the row's identity in the preview.
                           <tr key={rowIndex}>
+                            {rowNumberCell(
+                              rowIndex + (options.headerRow ? 1 : 0),
+                              false,
+                            )}
                             {row.map((cell, column) => (
                               <td
                                 // biome-ignore lint/suspicious/noArrayIndexKey: the column index is the column's identity.

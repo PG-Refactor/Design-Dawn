@@ -78,6 +78,8 @@ export const COMMANDS = {
   defaultProjectLocation: "default_project_location",
   setDefaultProjectLocation: "set_default_project_location",
   copyAssetToDocument: "copy_asset_to_document",
+  listUnusedAssets: "list_unused_assets",
+  deleteUnusedAssets: "delete_unused_assets",
   subscribeDropNotifications: "subscribe_drop_notifications",
   subscribeCloseRequests: "subscribe_close_requests",
   confirmWindowClose: "confirm_window_close",

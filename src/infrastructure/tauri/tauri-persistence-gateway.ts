@@ -5,6 +5,7 @@ import {
   chooseExportFolder,
   closePrintWindows,
   copyAssetToDocument,
+  deleteUnusedAssets,
   exportDocumentMarkdown,
   exportFile,
   exportFolderExisting,
@@ -14,6 +15,7 @@ import {
   exportPdfIntoFolder,
   importDroppedImages,
   importPastedImage,
+  listUnusedAssets,
   openPrintWindow,
   printWindowsOpen,
   readSpreadsheetViaDialog,
@@ -130,6 +132,8 @@ export function createTauriPersistenceGateway(): PersistenceGateway {
     closePrintWindows,
     assetDataUrl,
     copyAssetToDocument,
+    listUnusedAssets,
+    deleteUnusedAssets,
     readBlockContent,
     writeBlockContent: async (projectId, documentId, contentPath, text) =>
       mapOperationResult(

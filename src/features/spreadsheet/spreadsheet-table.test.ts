@@ -4,7 +4,9 @@ import {
   columnName,
   DEFAULT_SPREADSHEET_IMPORT_OPTIONS,
   parseCellRange,
+  rangeFromHeaderRow,
   sheetTable,
+  tableRowNumbers,
 } from "./spreadsheet-table";
 
 // Like the sheet of `features.xlsx`: from B2, B3:B4 merged, column E and row 5 hidden.
@@ -119,5 +121,53 @@ describe("columnName", () => {
       "AZ",
       "BA",
     ]);
+  });
+});
+
+describe("choosing the header row", () => {
+  // A title merged over the columns, an empty row, then the real header.
+  const TITLED: SpreadsheetSheet = {
+    name: "Sales",
+    hidden: false,
+    firstRow: 0,
+    firstColumn: 0,
+    rows: [
+      [{ text: "Sales 2026" }],
+      [],
+      [{ text: "Month" }, { text: "Total" }],
+      [{ text: "Jan" }, { text: "10", number: true }],
+    ],
+    hiddenRows: [],
+    hiddenColumns: [],
+    merged: [{ firstRow: 0, firstColumn: 0, lastRow: 0, lastColumn: 1 }],
+    truncated: false,
+  };
+
+  it("tells which worksheet row each row of the table is, hidden rows left out", () => {
+    expect(tableRowNumbers(TITLED, DEFAULT_SPREADSHEET_IMPORT_OPTIONS)).toEqual(
+      [0, 1, 2, 3],
+    );
+    expect(tableRowNumbers(SHEET, DEFAULT_SPREADSHEET_IMPORT_OPTIONS)).toEqual([
+      1, 2, 3, 5,
+    ]);
+  });
+
+  it("makes the range start at the chosen row, which becomes the header", () => {
+    const range = rangeFromHeaderRow(TITLED, null, 2);
+    expect(range).toBe("A3:B4");
+    const table = sheetTable(
+      TITLED,
+      DEFAULT_SPREADSHEET_IMPORT_OPTIONS,
+      parseCellRange(range) ?? null,
+    );
+    expect(table?.header).toEqual(["Month", "Total"]);
+    expect(table?.rows).toEqual([["Jan", "10"]]);
+    expect(table?.alignments).toEqual(["none", "right"]);
+  });
+
+  it("keeps the chosen columns and last row of a range", () => {
+    expect(rangeFromHeaderRow(TITLED, parseCellRange("B1:B4") ?? null, 2)).toBe(
+      "B3:B4",
+    );
   });
 });

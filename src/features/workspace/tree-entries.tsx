@@ -10,6 +10,7 @@ import {
   documentFromTemplateEntries,
   saveDocumentAsTemplate,
 } from "../templates/template-flows";
+import { openUnusedAssets } from "../unused-assets/unused-assets-dialog";
 import { DocumentIcon, FolderIcon, FolderOpenIcon } from "./tree-icons";
 import {
   type TreeChooseMode,
@@ -162,6 +163,16 @@ function DocumentTreeItem({
             })),
           },
         ]),
+    {
+      id: "unusedAssets",
+      label: allMessages.unusedAssets.menuItem,
+      disabled: failed,
+      // The Document is looked at while open (its history counts too), so it opens first.
+      onSelect: () =>
+        void actions.openDocument(documentId).then((opened) => {
+          if (opened.ok) openUnusedAssets(documentId);
+        }),
+    },
     {
       id: "delete",
       label: messages.tree.deleteDocument,

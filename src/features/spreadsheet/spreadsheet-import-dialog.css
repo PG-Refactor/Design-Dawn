@@ -160,3 +160,21 @@
 .spreadsheet-import__table .spreadsheet-import__cell--right {
   text-align: right;
 }
+
+/* The worksheet row number in front of each previewed row: pressing it makes that row the
+   header. */
+.spreadsheet-import__row-number {
+  min-width: 2rem;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  background: var(--color-background);
+  color: var(--color-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.spreadsheet-import__row-number:hover {
+  background: var(--color-hover);
+  color: var(--color-text);
+}

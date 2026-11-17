@@ -74,6 +74,10 @@ describe("the ER diagram editor", () => {
       `CUSTOMER${TEXTS.er.attributeCount(0)}`,
       `ORDER${TEXTS.er.attributeCount(0)}`,
     ]);
+    // The "+ Entity" button opens the add dialog, which closes once the entity is added.
+    await rendered.shell.user.click(
+      screen.getByRole("button", { name: TEXTS.er.addEntityToggle }),
+    );
     const form = screen.getByRole("form", { name: TEXTS.er.addEntity });
     await rendered.shell.user.type(
       within(form).getByRole("textbox", { name: TEXTS.er.entityName }),
@@ -86,6 +90,9 @@ describe("the ER diagram editor", () => {
     expect(stored(rendered)).toBe(
       "erDiagram\n    CUSTOMER ||--o{ ORDER : places\n    PRODUCT\n",
     );
+    expect(
+      screen.queryByRole("dialog", { name: TEXTS.er.addEntity }),
+    ).toBeNull();
   });
 
   it("explains a refused operation and changes nothing", async () => {
@@ -106,6 +113,9 @@ describe("the ER diagram editor", () => {
 describe("the state diagram editor", () => {
   it("adds a transition chosen from the states", async () => {
     const rendered = await openEditor("stateDiagram-v2\n    [*] --> Draft\n");
+    await rendered.shell.user.click(
+      screen.getByRole("button", { name: TEXTS.state.addTransitionToggle }),
+    );
     const form = screen.getByRole("form", { name: TEXTS.state.addTransition });
     await rendered.shell.user.selectOptions(
       within(form).getByRole("combobox", { name: TEXTS.state.from }),

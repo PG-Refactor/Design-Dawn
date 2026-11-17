@@ -9,6 +9,7 @@ import { useFindShortcuts } from "../search/use-find-shortcuts";
 import { SpreadsheetImportDialog } from "../spreadsheet/spreadsheet-import-dialog";
 import { TemplateDialogs } from "../templates/template-dialogs";
 import { TemplateEditBanner } from "../templates/template-edit-banner";
+import { UnusedAssetsDialog } from "../unused-assets/unused-assets-dialog";
 import { LoadStatus, TransientNotice } from "./notifications";
 import { TopBar } from "./top-bar";
 import { useAppRequests } from "./use-app-requests";
@@ -47,6 +48,7 @@ export function WorkspaceShell() {
       <PrintingCloseDialog />
       <SpreadsheetImportDialog />
       <TemplateDialogs />
+      <UnusedAssetsDialog />
       <ExternalChangeDialog />
       <LoadIssueRepairDialog />
     </div>

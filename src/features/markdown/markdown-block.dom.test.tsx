@@ -309,6 +309,19 @@ describe("focus inside the editor does not end editing", () => {
   });
 });
 
+describe("Escape", () => {
+  it("finishes editing like Done, keeping and committing the draft", async () => {
+    const { shell, canvas } = await renderOpenedCanvas();
+    const box = await enterEditByDoubleClick();
+    await typeInto(shell, box, EDITED);
+    await shell.user.keyboard("{Escape}");
+    await act(settle);
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(canvas.session.getState().history.canUndo).toBe(true);
+    expect(previewOf("00000001").textContent).toContain("Edited");
+  });
+});
+
 describe("the window losing focus", () => {
   it("does not end editing (focus is still on the textarea; the page lost it)", async () => {
     const { canvas } = await renderOpenedCanvas();

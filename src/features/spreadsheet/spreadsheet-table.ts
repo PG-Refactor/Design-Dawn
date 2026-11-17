@@ -130,12 +130,20 @@ function lastColumnOf(sheet: SpreadsheetSheet): number {
   );
 }
 
-// The table for one worksheet, or null when nothing is left in the chosen cells.
-export function sheetTable(
+interface SheetLayout {
+  // The worksheet rows and columns the table is made of, in order.
+  readonly rows: readonly number[];
+  readonly columns: readonly number[];
+  readonly grid: readonly (readonly (SpreadsheetCell | undefined)[])[];
+}
+
+// Which cells the table takes: the chosen ones, without hidden rows and columns (when they
+// are left out) and without empty rows and columns at the end.
+function sheetLayout(
   sheet: SpreadsheetSheet,
   options: SpreadsheetImportOptions,
-  range: CellRange | null = null,
-): MarkdownTable | null {
+  range: CellRange | null,
+): SheetLayout | null {
   const bounds: CellRange = {
     firstRow: Math.max(sheet.firstRow, range?.firstRow ?? sheet.firstRow),
     firstColumn: Math.max(
@@ -198,8 +206,46 @@ export function sheetTable(
     });
   }
   if (grid.length === 0 || width === 0) return null;
-  grid = grid.map((row) => row.slice(0, width));
-  const keptColumns = columns.slice(0, width);
+  return {
+    rows: rows.slice(0, grid.length),
+    columns: columns.slice(0, width),
+    grid: grid.map((row) => row.slice(0, width)),
+  };
+}
+
+// The worksheet row of each row of the table (the header first), for telling the user
+// which row is which.
+export function tableRowNumbers(
+  sheet: SpreadsheetSheet,
+  options: SpreadsheetImportOptions,
+  range: CellRange | null = null,
+): readonly number[] {
+  return sheetLayout(sheet, options, range)?.rows ?? [];
+}
+
+// The range that makes worksheet row `row` the header: the chosen range (or the whole
+// sheet) starting at that row.
+export function rangeFromHeaderRow(
+  sheet: SpreadsheetSheet,
+  range: CellRange | null,
+  row: number,
+): string {
+  const lastRow = range?.lastRow ?? sheet.firstRow + sheet.rows.length - 1;
+  const firstColumn = range?.firstColumn ?? sheet.firstColumn;
+  const lastColumn = range?.lastColumn ?? lastColumnOf(sheet);
+  return `${columnName(firstColumn)}${row + 1}${RANGE_SEPARATOR}${columnName(lastColumn)}${lastRow + 1}`;
+}
+
+// The table for one worksheet, or null when nothing is left in the chosen cells.
+export function sheetTable(
+  sheet: SpreadsheetSheet,
+  options: SpreadsheetImportOptions,
+  range: CellRange | null = null,
+): MarkdownTable | null {
+  const layout = sheetLayout(sheet, options, range);
+  if (layout === null) return null;
+  const { grid } = layout;
+  const keptColumns = layout.columns;
   const [first, ...rest] = grid;
   const header = options.headerRow
     ? (first ?? []).map(markdownCell)

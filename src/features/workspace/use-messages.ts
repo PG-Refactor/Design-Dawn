@@ -36,6 +36,10 @@ import {
   type TemplateMessages,
 } from "../templates/template-messages";
 import {
+  UNUSED_ASSETS_MESSAGES,
+  type UnusedAssetsMessages,
+} from "../unused-assets/unused-assets-messages";
+import {
   WORKSPACE_MESSAGES,
   type WorkspaceMessages,
 } from "./workspace-messages";
@@ -55,6 +59,7 @@ export interface Messages {
   readonly export: ExportMessages;
   readonly spreadsheet: SpreadsheetMessages;
   readonly templates: TemplateMessages;
+  readonly unusedAssets: UnusedAssetsMessages;
 }
 
 function collectMessages(language: DisplayLanguage): Messages {
@@ -70,6 +75,7 @@ function collectMessages(language: DisplayLanguage): Messages {
     export: EXPORT_MESSAGES[language],
     spreadsheet: SPREADSHEET_MESSAGES[language],
     templates: TEMPLATE_MESSAGES[language],
+    unusedAssets: UNUSED_ASSETS_MESSAGES[language],
   };
 }
 
