@@ -42,6 +42,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         .manage(Mutex::new(commands::print_window::PrintWindows::default()))
         .manage(Mutex::new(PendingOpenRequests::default()))
         .manage(Mutex::new(WindowRegistry::default()))
+        .manage(Mutex::new(commands::templates::TemplateEdits::default()))
         .manage(Mutex::new(DocumentTransfers::default()))
         .manage(Mutex::new(WindowLabelAllocator::default()))
         .manage(AppRequestSubscriber::default())
@@ -119,6 +120,10 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::templates::delete_template,
             commands::templates::move_template,
             commands::templates::import_template_asset,
+            commands::templates::open_template_editor,
+            commands::templates::template_edit_info,
+            commands::templates::import_template_edit_asset,
+            commands::templates::save_template_edit,
             commands::import_dropped_images,
             commands::import_pasted_image,
             commands::read_spreadsheet_via_dialog,
@@ -215,6 +220,8 @@ pub fn run() {
                 local_data_dir: app.path().app_local_data_dir()?,
             };
             app.manage(LocalState::new(directories));
+            // Projects made for editing templates last time are not in use now.
+            commands::templates::clear_template_editing(&app.state::<LocalState>());
             // "This time only" write access for AI ends with the app; an exit the app could
             // not see (a crash) ends it here.
             let _ = app.state::<LocalState>().end_ai_grants_until_app_exits();

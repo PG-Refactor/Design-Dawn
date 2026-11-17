@@ -79,6 +79,10 @@ import {
   createCustomTemplates,
 } from "../features/templates/custom-templates";
 import {
+  createTemplateEditor,
+  type TemplateEditor,
+} from "../features/templates/template-editor";
+import {
   createDraftRegistry,
   type DraftRegistry,
 } from "../features/workspace/draft-registry";
@@ -119,6 +123,7 @@ export interface AppServices {
   readonly searchActions: SearchActions;
   readonly exportActions: ExportActions;
   readonly templates: CustomTemplates;
+  readonly templateEditor: TemplateEditor;
   // Uncommitted editor drafts; `actions.saveAll` commits them before saving.
   readonly draftRegistry: DraftRegistry;
   // Files dropped on the window, and the URLs of image assets, for the image blocks.
@@ -222,6 +227,14 @@ export function createAppServices(): AppServices {
     canvasActions,
     assetUrlResolver: createTauriAssetUrlResolver(),
   });
+  const templateGateway = createTauriTemplateGateway();
+  const templates = createCustomTemplates({
+    gateway: templateGateway,
+    applicationStore,
+    uiStateStore,
+    actions,
+    canvasActions,
+  });
   const viewportGateway = createTauriViewportGateway();
   const viewportPersistence = createViewportPersistence({
     gateway: viewportGateway,
@@ -287,12 +300,13 @@ export function createAppServices(): AppServices {
     canvasActions,
     searchActions,
     exportActions,
-    templates: createCustomTemplates({
-      gateway: createTauriTemplateGateway(),
+    templates,
+    templateEditor: createTemplateEditor({
+      gateway: templateGateway,
       applicationStore,
       uiStateStore,
+      templates,
       actions,
-      canvasActions,
     }),
     draftRegistry,
     dropEventSource: createTauriDropEventSource(),

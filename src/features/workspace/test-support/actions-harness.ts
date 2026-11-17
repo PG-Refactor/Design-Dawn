@@ -109,6 +109,7 @@ import { createAppExternalChangeController } from "../../external-change/create-
 import { createAppLoadIssueRepairController } from "../../load-issue-repair/create-load-issue-repair-controller";
 import { createSearchActions } from "../../search/search-actions";
 import { createCustomTemplates } from "../../templates/custom-templates";
+import { createTemplateEditor } from "../../templates/template-editor";
 import { createDraftRegistry, type DraftRegistry } from "../draft-registry";
 import { addOperationError } from "../ui-state/shell-ui-state";
 import { createUiStateStore, type UiStateStore } from "../ui-state/ui-state";
@@ -300,6 +301,13 @@ export function createActionsHarness(
       searchActions,
       exportActions,
       templates,
+      templateEditor: createTemplateEditor({
+        gateway: templateGateway,
+        applicationStore: base.store,
+        uiStateStore,
+        templates,
+        actions,
+      }),
       draftRegistry,
       dropEventSource,
       closeRequestSource,

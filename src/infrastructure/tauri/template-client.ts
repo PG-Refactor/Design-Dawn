@@ -4,6 +4,7 @@
 import type {
   TemplateBlockContent,
   TemplateContent,
+  TemplateEditInfo,
   TemplateGateway,
   TemplateList,
   TemplateLoadIssue,
@@ -23,6 +24,7 @@ import {
   type Decoder,
   decodeNumber,
   decodeString,
+  nullable,
   objectOf,
   oneOf,
   optional,
@@ -71,6 +73,14 @@ const content = objectOf<TemplateContent>({
   sheets: arrayOf(sheet),
   documentName: optional(decodeString),
   assets: arrayOf(decodeString),
+});
+
+const editInfo = objectOf<TemplateEditInfo>({
+  scope,
+  kind,
+  templateId: decodeString,
+  name: decodeString,
+  content,
 });
 
 function decoderResult<T>(decoder: Decoder<T>) {
@@ -130,6 +140,34 @@ export function createTauriTemplateGateway(): TemplateGateway {
         call(
           COMMANDS.moveTemplate,
           { projectId, ...template, toScope },
+          toVoidResult,
+        ),
+      ),
+    openTemplateEditor: (projectId, template) =>
+      asVoid(
+        call(
+          COMMANDS.openTemplateEditor,
+          { projectId, ...template },
+          toVoidResult,
+        ),
+      ),
+    templateEditInfo: (projectId) =>
+      call(
+        COMMANDS.templateEditInfo,
+        { projectId },
+        decoderResult(nullable(editInfo)),
+      ),
+    importTemplateEditAsset: (projectId, documentId, assetName) =>
+      call(
+        COMMANDS.importTemplateEditAsset,
+        { projectId, documentId, assetName },
+        toImportedImageResult,
+      ),
+    saveTemplateEdit: (projectId, documentId, value) =>
+      asVoid(
+        call(
+          COMMANDS.saveTemplateEdit,
+          { projectId, documentId, content: value },
           toVoidResult,
         ),
       ),
