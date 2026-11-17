@@ -548,4 +548,11 @@ impl LocalState {
         )?;
         Ok(())
     }
+
+    /// Where the person's own templates live (`application::templates`).
+    pub fn templates_directory(&self) -> PathBuf {
+        self.directories
+            .local_data_dir
+            .join(crate::application::templates::TEMPLATES_DIRECTORY_NAME)
+    }
 }

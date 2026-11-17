@@ -42,5 +42,6 @@ pub mod snapshot;
 pub mod spreadsheet_hidden;
 pub mod spreadsheet_import;
 pub mod spreadsheet_number_format;
+pub mod templates;
 pub mod window_binding;
 pub mod window_registry;

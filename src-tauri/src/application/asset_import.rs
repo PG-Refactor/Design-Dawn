@@ -351,6 +351,24 @@ fn read_located(asset: &LocatedAsset) -> ApplicationResult<Vec<u8>> {
     read_within_limit(&asset.file_path, &asset.file_name, size)
 }
 
+/// One asset of a Document, read and validated like an import: its file name and bytes (a
+/// template keeps a copy of the images its blocks show).
+pub fn read_document_asset(
+    sessions: &Mutex<ProjectSessions>,
+    project_id: &str,
+    document_id: &str,
+    content_path: &str,
+) -> ApplicationResult<(String, Vec<u8>)> {
+    let document_id = DocumentId::parse(document_id)?;
+    let located = {
+        let mut guard = lock_sessions(sessions);
+        let session = guard.session_mut(project_id)?;
+        locate_asset(session, &document_id, content_path)?
+    };
+    let image = validate_image(located.format, read_located(&located)?)?;
+    Ok((located.file_name, image.bytes))
+}
+
 /// For the `dawn-asset` protocol: the bytes and format of one asset of an opened Document.
 /// Only the bytes are read; content validation happened at import time. The session lock is
 /// held just long enough to resolve the path.
