@@ -39,6 +39,8 @@ pub const VIEWPORT_ZOOM_MAX: f64 = 8.0;
 
 /// Oldest saved viewports are dropped beyond this, so the file cannot grow without bound.
 pub const MAX_SHEET_VIEWPORT_ENTRIES: usize = 1000;
+/// Oldest remembered active sheets are dropped beyond this (one entry per Document).
+pub const MAX_ACTIVE_SHEET_ENTRIES: usize = 1000;
 
 /// Window size limits in logical pixels for the recorded size (`settings.json` `windowSize`).
 /// Wide enough for any real display; they only keep a hand-edited file sane.

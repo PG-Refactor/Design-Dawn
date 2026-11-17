@@ -1,0 +1,40 @@
+import { describe, expect, it } from "vitest";
+import { freePlacement } from "./free-placement";
+
+const SEARCH = { step: 10, rings: 5 };
+const SIZE = { width: 20, height: 20 };
+
+describe("freePlacement", () => {
+  it("keeps the start when nothing is there", () => {
+    expect(freePlacement({ x: 50, y: 50 }, SIZE, [], SEARCH)).toEqual({
+      x: 50,
+      y: 50,
+    });
+  });
+
+  it("moves to the nearest place that covers nothing", () => {
+    const taken = [{ x: 40, y: 40, width: 30, height: 30 }];
+    const placed = freePlacement({ x: 50, y: 50 }, SIZE, taken, SEARCH);
+    expect(placed).not.toBeNull();
+    const { x, y } = placed ?? { x: 0, y: 0 };
+    const covers = x < 70 && 40 < x + 20 && y < 70 && 40 < y + 20;
+    expect(covers).toBe(false);
+    // A neighbour ring, not far away.
+    expect(Math.max(Math.abs(x - 50), Math.abs(y - 50))).toBeLessThanOrEqual(
+      30,
+    );
+  });
+
+  it("never goes left of or above the origin, and gives up when everything is taken", () => {
+    const everything = [{ x: 0, y: 0, width: 1000, height: 1000 }];
+    expect(freePlacement({ x: 0, y: 0 }, SIZE, everything, SEARCH)).toBeNull();
+    const placed = freePlacement(
+      { x: 0, y: 0 },
+      SIZE,
+      [{ x: 0, y: 0, width: 20, height: 20 }],
+      SEARCH,
+    );
+    expect(placed?.x).toBeGreaterThanOrEqual(0);
+    expect(placed?.y).toBeGreaterThanOrEqual(0);
+  });
+});

@@ -43,6 +43,8 @@ const APP_COMMANDS: &[&str] = &[
     "set_project_tree_width",
     "get_sheet_viewport",
     "save_sheet_viewport",
+    "get_active_sheet",
+    "save_active_sheet",
     "import_dropped_images",
     "import_pasted_image",
     "read_spreadsheet_via_dialog",

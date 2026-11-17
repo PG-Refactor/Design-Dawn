@@ -1,5 +1,10 @@
 import type { ViewportGateway } from "../../application/ports/viewport-gateway";
-import { getSheetViewport, saveSheetViewport } from "./local-state-client";
+import {
+  getActiveSheet,
+  getSheetViewport,
+  saveActiveSheet,
+  saveSheetViewport,
+} from "./local-state-client";
 
 // `CommandResult` and `OperationResult` share one shape, so only the save result (null on
 // the wire) needs adapting to `void`.
@@ -13,6 +18,11 @@ export function createTauriViewportGateway(): ViewportGateway {
         sheetId,
         viewport,
       );
+      return result.ok ? { ok: true, value: undefined } : result;
+    },
+    getActiveSheet,
+    async saveActiveSheet(projectId, documentId, sheetId) {
+      const result = await saveActiveSheet(projectId, documentId, sheetId);
       return result.ok ? { ok: true, value: undefined } : result;
     },
   };

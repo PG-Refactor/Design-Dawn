@@ -33,6 +33,8 @@ export interface FakeViewportGateway extends ViewportGateway {
   loadIssue: OperationError | null;
   failGet: OperationError | null;
   failSave: OperationError | null;
+  // Remembered active sheets keyed by `projectId/documentId`.
+  readonly activeSheets: Map<string, SheetId>;
   // Suspends the next `getSheetViewport` until the returned function is called.
   holdNextGet(): () => void;
 }
@@ -50,6 +52,7 @@ export function createFakeViewportGateway(): FakeViewportGateway {
   const storage = new Map<string, Viewport>();
   const gateway: FakeViewportGateway = {
     storage,
+    activeSheets: new Map(),
     getCalls: [],
     saveCalls: [],
     loadIssue: null,
@@ -75,6 +78,15 @@ export function createFakeViewportGateway(): FakeViewportGateway {
         return operationErr(gateway.failSave.kind, gateway.failSave.detail);
       }
       storage.set(viewportKey(projectId, documentId, sheetId), viewport);
+      return operationOk(undefined);
+    },
+    async getActiveSheet(projectId, documentId) {
+      return operationOk(
+        gateway.activeSheets.get(`${projectId}/${documentId}`) ?? null,
+      );
+    },
+    async saveActiveSheet(projectId, documentId, sheetId) {
+      gateway.activeSheets.set(`${projectId}/${documentId}`, sheetId);
       return operationOk(undefined);
     },
     holdNextGet() {

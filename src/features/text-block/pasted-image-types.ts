@@ -11,3 +11,15 @@ export const PASTED_IMAGE_EXTENSIONS: Readonly<Record<string, string>> = {
 // The clipboard type that marks a paste as text. Spreadsheets put a picture of the copied
 // cells on the clipboard next to their text; that paste is text, not an image.
 export const CLIPBOARD_TEXT_TYPE = "text/plain";
+
+// The pasted image in a clipboard, unless the paste is text (see CLIPBOARD_TEXT_TYPE).
+export function pastedImage(
+  data: DataTransfer,
+): { readonly file: File; readonly extension: string } | null {
+  if (data.types.includes(CLIPBOARD_TEXT_TYPE)) return null;
+  for (const file of data.files) {
+    const extension = PASTED_IMAGE_EXTENSIONS[file.type];
+    if (extension !== undefined) return { file, extension };
+  }
+  return null;
+}

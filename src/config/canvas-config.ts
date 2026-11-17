@@ -52,6 +52,10 @@ export const CANVAS_CONFIG = {
   },
 } as const;
 
+// Where a new block goes when no point was chosen: the free place nearest the centre of the
+// view, looked for on rings of `step` around it (world units), at most `rings` far.
+export const FREE_PLACEMENT_SEARCH = { step: 48, rings: 24 } as const;
+
 // Offset applied to duplicated blocks so the copy does not hide the original. A tunable
 // setting; world coordinates (integers).
 export const PASTE_OFFSET = { x: 24, y: 24 } as const;

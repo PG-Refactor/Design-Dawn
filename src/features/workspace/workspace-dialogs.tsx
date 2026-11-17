@@ -182,6 +182,22 @@ export function WorkspaceDialogs() {
         />
       );
     }
+    case "renameDocument": {
+      const { documentId, name } = dialog;
+      return (
+        <NameDialog
+          title={texts.renameDocument.title}
+          nameLabel={texts.renameDocument.nameLabel}
+          submitLabel={texts.renameDocument.submit}
+          initialName={name ?? ""}
+          busy={busy}
+          onCancel={actions.cancelDialog}
+          onSubmit={(newName) =>
+            void actions.renameDocumentFromDialog(documentId, newName)
+          }
+        />
+      );
+    }
     case "confirmDeleteEntries":
       return (
         <ConfirmDialog

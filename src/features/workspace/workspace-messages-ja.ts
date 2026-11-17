@@ -543,6 +543,11 @@ export const WORKSPACE_MESSAGES_JA = {
       nameLabel: "Sheet名",
       submit: "作成",
     },
+    renameDocument: {
+      title: "Documentの名前を変更",
+      nameLabel: "Document名",
+      submit: "変更",
+    },
     nameRequired: "名前を入力してください。",
     nameInvalid:
       "この名前は使用できません（長すぎる、または使用できない文字が含まれています）。",

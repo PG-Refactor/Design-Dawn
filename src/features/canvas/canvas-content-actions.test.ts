@@ -36,6 +36,21 @@ function newestBlock(harness: CanvasHarness) {
   return block;
 }
 
+type PlacedBlock = {
+  readonly position: { readonly x: number; readonly y: number };
+  readonly size: { readonly width: number; readonly height: number };
+};
+const overlap = (first: PlacedBlock, second: PlacedBlock) =>
+  first.position.x < second.position.x + second.size.width &&
+  second.position.x < first.position.x + first.size.width &&
+  first.position.y < second.position.y + second.size.height &&
+  second.position.y < first.position.y + first.size.height;
+// No two of the blocks cover each other.
+const noneOverlap = (blocks: readonly PlacedBlock[]) =>
+  blocks.every((block, index) =>
+    blocks.slice(index + 1).every((other) => !overlap(block, other)),
+  );
+
 describe("createBlock", () => {
   it("adds one markdown block as ONE createBlocks history entry and selects it", async () => {
     const harness = await openedCanvasHarness();
@@ -99,22 +114,24 @@ describe("createBlock", () => {
         clampViewport({ panX: -100, panY: -50, zoom: 2 }),
       ),
     );
+    const before = harness.blocksOfSheetA1();
     await createMarkdown(harness);
-    // Visible: x 50..450, y 25..325, smaller than the 480 x 320 block.
-    expect(newestBlock(harness).position).toEqual({ x: 50, y: 25 });
+    // Visible: x 50..450, y 25..325, smaller than the 480 x 320 block: it starts at the
+    // view's top-left corner, or the nearest free place from there.
+    const block = newestBlock(harness);
+    expect(block.position.x).toBeGreaterThanOrEqual(50);
+    expect(block.position.y).toBeGreaterThanOrEqual(25);
+    expect(before.some((other) => overlap(block, other))).toBe(false);
   });
 
-  it("steps by the paste offset until the position is free", async () => {
+  it("puts each new block in a free place near the centre, never over another", async () => {
     const harness = await openedCanvasHarness();
     await createMarkdown(harness);
     await createMarkdown(harness);
     await createMarkdown(harness);
-    expect(
-      harness
-        .blocksOfSheetA1()
-        .slice(3)
-        .map((block) => block.position),
-    ).toEqual([CENTRED, { x: 184, y: 164 }, { x: 208, y: 188 }]);
+    const added = harness.blocksOfSheetA1().slice(3);
+    expect(added[0]?.position).toEqual(CENTRED);
+    expect(noneOverlap(harness.blocksOfSheetA1())).toBe(true);
   });
 
   it("never reuses the content file of a deleted block, and undo / redo restore the same path", async () => {

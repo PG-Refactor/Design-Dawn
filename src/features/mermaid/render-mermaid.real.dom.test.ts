@@ -8,6 +8,7 @@ import { readSequenceView } from "../../domain/diagram/sequence/sequence-view";
 import { readDiagramShapes } from "./diagram-shapes";
 import {
   buildMermaidConfig,
+  GANTT_RENDER_WIDTH_PX,
   MERMAID_DEFAULT_SECURE_KEYS,
 } from "./mermaid-config";
 import type { MermaidThemeValues } from "./mermaid-renderer-types";
@@ -205,6 +206,29 @@ describe.each(fixtures.map(({ name, source }) => [name, source] as const))(
     });
   },
 );
+
+describe("a Gantt chart", () => {
+  it("is drawn at the fixed width, not the width of the page", async () => {
+    // A very wide page: the chart must not follow it.
+    Object.defineProperty(HTMLElement.prototype, "offsetWidth", {
+      configurable: true,
+      get: () => 4000,
+    });
+    try {
+      const outcome = await mermaidRenderer.render(
+        fixtureSources["/fixtures/mermaid/gantt.mmd"] ?? "",
+        {},
+      );
+      expect(outcome.ok).toBe(true);
+      const svg = outcome.ok ? outcome.svg : "";
+      const viewBox = /viewBox="([^"]+)"/.exec(svg)?.[1] ?? "";
+      const width = Number(viewBox.split(/\s+/)[2]);
+      expect(width).toBeLessThanOrEqual(GANTT_RENDER_WIDTH_PX);
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, "offsetWidth");
+    }
+  });
+});
 
 describe("real Mermaid with invalid source", () => {
   it("returns an error value, leaves nothing in the page and renders the next diagram", async () => {

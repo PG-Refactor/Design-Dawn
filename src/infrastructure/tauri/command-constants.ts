@@ -40,6 +40,8 @@ export const COMMANDS = {
   setProjectTreeWidth: "set_project_tree_width",
   getSheetViewport: "get_sheet_viewport",
   saveSheetViewport: "save_sheet_viewport",
+  getActiveSheet: "get_active_sheet",
+  saveActiveSheet: "save_active_sheet",
   importDroppedImages: "import_dropped_images",
   importPastedImage: "import_pasted_image",
   readSpreadsheetViaDialog: "read_spreadsheet_via_dialog",

@@ -55,6 +55,7 @@ import {
   DEFAULT_AUTO_SAVE_ENABLED,
   UNDO_HISTORY_LIMIT,
 } from "../config/session-config";
+import { createActiveSheetMemory } from "../features/canvas/active-sheet-memory";
 import {
   type CanvasActions,
   createCanvasActions,
@@ -215,8 +216,15 @@ export function createAppServices(): AppServices {
     canvasActions,
     assetUrlResolver: createTauriAssetUrlResolver(),
   });
+  const viewportGateway = createTauriViewportGateway();
   const viewportPersistence = createViewportPersistence({
-    gateway: createTauriViewportGateway(),
+    gateway: viewportGateway,
+    applicationStore,
+    uiStateStore,
+  });
+  // Lives as long as the app: nothing to dispose of before the window goes.
+  createActiveSheetMemory({
+    gateway: viewportGateway,
     applicationStore,
     uiStateStore,
   });

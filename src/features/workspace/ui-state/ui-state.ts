@@ -136,6 +136,12 @@ export type DialogState =
       readonly parentFolderId: FolderId | null;
     }
   | { readonly kind: "createSheet"; readonly documentId: DocumentId }
+  // A Document renamed where there is no tree to rename it in (a Document window).
+  | {
+      readonly kind: "renameDocument";
+      readonly documentId: DocumentId;
+      readonly name: EntityName;
+    }
   // The target picker of "move to..." for a Document or a Folder.
   | {
       readonly kind: "moveEntry";
