@@ -19,6 +19,7 @@ import {
 } from "../markdown/test-support/markdown-harness";
 import { MERMAID_MESSAGES } from "../mermaid/mermaid-messages";
 import { MERMAID_TEMPLATE_IDS } from "../mermaid/mermaid-templates";
+import { TEMPLATE_MESSAGES } from "../templates/template-messages";
 import { CANVAS_MESSAGES } from "./canvas-messages";
 
 const MESSAGES = CANVAS_MESSAGES.ja;
@@ -140,6 +141,7 @@ describe("the right-click menu of the empty canvas", () => {
       LABELS.addBlock("Markdown"),
       LABELS.addBlock("Mermaid"),
       `${LABELS.templates}▸`,
+      `${TEMPLATE_MESSAGES.ja.fromTemplate}▸`,
       LABELS.addImage,
       LABELS.importSpreadsheet,
       LABELS.paste,

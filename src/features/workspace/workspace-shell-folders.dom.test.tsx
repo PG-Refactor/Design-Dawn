@@ -154,6 +154,7 @@ describe("row menus", () => {
     expect(menuItemNames(menu)).toEqual([
       TREE.createFolder,
       TREE.createDocument,
+      `${TEMPLATE_TEXTS.documentFromTemplate}▸`,
       TREE.openProjectInNewWindow,
     ]);
   });
@@ -164,6 +165,7 @@ describe("row menus", () => {
     expect(menuItemNames(menu)).toEqual([
       TREE.createFolder,
       TREE.createDocument,
+      `${TEMPLATE_TEXTS.documentFromTemplate}▸`,
       TREE.rename,
       TREE.moveTo,
       TREE.deleteFolder,

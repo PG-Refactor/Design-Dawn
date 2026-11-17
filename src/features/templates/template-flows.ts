@@ -7,7 +7,7 @@ import type { PopupMenuEntry } from "../../shared/menu/menu-list";
 import type { WorkspaceActions } from "../workspace/workspace-actions";
 import type { CustomTemplates } from "./custom-templates";
 import { askSaveTemplate, askTemplateDocumentName } from "./template-dialogs";
-import { customTemplateEntries } from "./template-menu";
+import { customTemplateEntries, orNoTemplates } from "./template-menu";
 import type { TemplateMessages } from "./template-messages";
 
 export async function saveDocumentAsTemplate(
@@ -50,13 +50,11 @@ export function documentFromTemplateEntries(
     (template) =>
       void createDocumentFromTemplate(templates, template, parentFolderId),
   );
-  return entries.length === 0
-    ? []
-    : [
-        {
-          id: "createDocumentFromTemplate",
-          label: messages.documentFromTemplate,
-          entries,
-        },
-      ];
+  return [
+    {
+      id: "createDocumentFromTemplate",
+      label: messages.documentFromTemplate,
+      entries: orNoTemplates(entries, messages),
+    },
+  ];
 }

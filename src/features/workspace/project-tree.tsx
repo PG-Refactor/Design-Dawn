@@ -7,6 +7,7 @@ import {
 } from "react";
 import type { EntryId } from "../../domain/shared/entity-id";
 import { useContextMenu } from "../../shared/menu/context-menu";
+import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { CANVAS_KEY_COMMANDS, keyCommandOf } from "../canvas/canvas-keyboard";
 import { documentFromTemplateEntries } from "../templates/template-flows";
 import { restoreFocus } from "./focus-utils";
@@ -89,6 +90,8 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
   const templateMessages = useMessages().templates;
   const { actions, canvasActions, uiStateStore, templates } =
     useWorkspaceServices();
+  // Read so the menus are built again when a template is saved or removed.
+  useStoreSelector(templates.store, (state) => state.templates);
   const renaming = useUiState((ui) => ui.renaming);
   const storedSelection = useUiState((ui) => ui.treeSelection);
   const activeDocumentId = useUiState((ui) => ui.activeDocumentId);
