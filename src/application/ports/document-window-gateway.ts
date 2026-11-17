@@ -50,4 +50,11 @@ export interface DocumentWindowGateway {
     screenX: number,
     screenY: number,
   ): Promise<OperationResult<string | null>>;
+  // The name this window shows for a Document it holds, for the tree of the Project's
+  // other windows (a rename not saved yet).
+  showDocumentName(
+    projectId: ProjectId,
+    documentId: DocumentId,
+    name: string,
+  ): Promise<OperationResult<void>>;
 }

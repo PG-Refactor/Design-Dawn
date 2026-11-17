@@ -64,6 +64,7 @@ pub fn create_document(
             // Creating a Document opens it in the Frontend, which never loads it afterwards.
             opened: true,
             sheets: BTreeMap::new(),
+            shown_name: None,
         },
     );
     Ok(DocumentSnapshot {
@@ -194,24 +195,48 @@ pub fn save_document(
     let base = session.document_base(document.document_id())?;
     let bytes = to_json_bytes(&DocumentDto::from_domain(&document))?;
     let outcome = session.write_file(&base, DOCUMENT_FILE_NAME, &bytes)?;
+    // The saved name is the one on disk now.
+    session.document_mut(document.document_id())?.shown_name = None;
     Ok(SaveResult {
         written: outcome == WriteOutcome::Written,
     })
 }
 
+/// Records the name the window holding the Document shows (`None`: the saved one), for the
+/// tree of the Project's other windows.
+pub fn show_document_name(
+    sessions: &mut ProjectSessions,
+    project_id: &str,
+    document_id: &str,
+    name: Option<String>,
+) -> ApplicationResult<()> {
+    let session = sessions.session_mut(project_id)?;
+    let document_id = DocumentId::parse(document_id)?;
+    let name = name
+        .map(|name| DisplayName::new(&name).map(|valid| valid.as_str().to_owned()))
+        .transpose()?;
+    session.document_mut(&document_id)?.shown_name = name;
+    Ok(())
+}
+
 /// Marks a Document as no longer open, so its assets stop being served. Touches no file.
+/// True when it dropped a name shown in place of the saved one (the other windows then
+/// show the saved name again).
 pub fn close_document(
     sessions: &mut ProjectSessions,
     project_id: &str,
     document_id: &str,
-) -> ApplicationResult<()> {
+) -> ApplicationResult<bool> {
     let session = sessions.session_mut(project_id)?;
     let document_id = DocumentId::parse(document_id)?;
-    session.document_mut(&document_id)?.opened = false;
+    let record = session.document_mut(&document_id)?;
+    record.opened = false;
+    // Closed without saving, an unsaved name is gone too.
+    let had_shown_name = record.shown_name.take().is_some();
     // Its history is gone with it: an image imported now and kept nowhere is only clutter
     // (and would be committed). What could not be removed simply stays.
     super::asset_cleanup::remove_unused_new_assets(session, &document_id);
-    Ok(())
+    Ok(had_shown_name)
 }
 
 /// Deletes a Document directory with all its Sheets and Assets. Destructive and not

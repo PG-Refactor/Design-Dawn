@@ -143,6 +143,10 @@ pub struct DocumentRecord {
     pub opened: bool,
     /// Filled by `load_document` / `create_sheet`; empty until then.
     pub sheets: BTreeMap<SheetId, SheetRecord>,
+    /// The name the window holding the Document shows while it is not saved yet (a rename
+    /// waiting for Ctrl+S): the other windows of the Project show it in their tree too.
+    /// Cleared when the Document is saved or closed.
+    pub shown_name: Option<String>,
 }
 
 /// Source of `ProjectSession::generation`. Process-wide so that a session opened again for the
