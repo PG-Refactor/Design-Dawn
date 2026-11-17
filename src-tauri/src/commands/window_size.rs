@@ -104,5 +104,59 @@ fn apply_recorded_size<R: Runtime>(app: &AppHandle<R>, window: &WebviewWindow<R>
         if let Err(error) = window.maximize() {
             eprintln!("failed to maximize the window: {error}");
         }
+    } else if let Some(monitor) = monitor.as_ref() {
+        // The recorded size is the inside of the window; with the title bar and frame, and
+        // where the window happens to be placed, it could still reach off the screen.
+        fit_window_in_work_area(window, logical_work_area_rect(monitor));
+    }
+}
+
+/// The monitor's work area as logical `(x, y, width, height)`.
+pub fn logical_work_area_rect(monitor: &Monitor) -> (f64, f64, f64, f64) {
+    let area = monitor.work_area();
+    let scale = monitor.scale_factor();
+    (
+        f64::from(area.position.x) / scale,
+        f64::from(area.position.y) / scale,
+        f64::from(area.size.width) / scale,
+        f64::from(area.size.height) / scale,
+    )
+}
+
+/// Shrinks and moves a window so that its outer frame lies in `area` (logical
+/// `(x, y, width, height)`). Failures leave the window as it was: it is usable anyway.
+pub fn fit_window_in_work_area<R: Runtime>(window: &WebviewWindow<R>, area: (f64, f64, f64, f64)) {
+    let Ok(scale) = window.scale_factor() else {
+        return;
+    };
+    let (Ok(outer), Ok(inner), Ok(position)) = (
+        window.outer_size(),
+        window.inner_size(),
+        window.outer_position(),
+    ) else {
+        return;
+    };
+    let outer = outer.to_logical::<f64>(scale);
+    let inner = inner.to_logical::<f64>(scale);
+    let position = position.to_logical::<f64>(scale);
+    let frame = (outer.width - inner.width, outer.height - inner.height);
+    let (area_x, area_y, area_width, area_height) = area;
+    let fitted_outer = (outer.width.min(area_width), outer.height.min(area_height));
+    if fitted_outer != (outer.width, outer.height) {
+        let _ = window.set_size(tauri::LogicalSize::new(
+            fitted_outer.0 - frame.0,
+            fitted_outer.1 - frame.1,
+        ));
+    }
+    let x = position
+        .x
+        .min(area_x + area_width - fitted_outer.0)
+        .max(area_x);
+    let y = position
+        .y
+        .min(area_y + area_height - fitted_outer.1)
+        .max(area_y);
+    if (x, y) != (position.x, position.y) {
+        let _ = window.set_position(tauri::LogicalPosition::new(x, y));
     }
 }
