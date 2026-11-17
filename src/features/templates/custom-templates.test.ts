@@ -124,3 +124,57 @@ describe("custom templates", () => {
     expect(templates.store.getState().templates).toEqual([]);
   });
 });
+
+describe("a Document from a template", () => {
+  it("is saved complete, imports each image once, and starts with no history", async () => {
+    const opened = await harness();
+    await opened.services.templates.saveDocument(DOCUMENT_A, "project", "Doc");
+    const template = opened.services.templates.store.getState().templates[0];
+    if (template === undefined) throw new Error("listed");
+    // Two sheets that show the same image.
+    const stored = opened.templateGateway.stored[0];
+    if (stored === undefined) throw new Error("stored");
+    const [sheet] = stored.content.sheets;
+    if (sheet === undefined) throw new Error("a sheet");
+    const imageBlock = {
+      blockType: "image",
+      x: 0,
+      y: 0,
+      width: 10,
+      height: 10,
+      asset: "pixel.png",
+    };
+    opened.templateGateway.stored[0] = {
+      ...stored,
+      content: {
+        ...stored.content,
+        sheets: [
+          { sheetName: "One", blocks: [...sheet.blocks, imageBlock] },
+          { sheetName: "Two", blocks: [...sheet.blocks, imageBlock] },
+        ],
+        assets: ["pixel.png"],
+      },
+    };
+    const created = await opened.services.templates.createDocument(
+      template,
+      "From template",
+      null,
+    );
+    expect(created.ok).toBe(true);
+    const documentId = opened.uiStateStore.getState().activeDocumentId;
+    if (documentId === null) throw new Error("shown");
+    expect(
+      opened.templateGateway.imported.filter(
+        (entry) => entry.documentId === documentId,
+      ),
+    ).toEqual([{ documentId, assetName: "pixel.png" }]);
+    const state = opened.services.applicationStore
+      .getState()
+      .documents.get(documentId);
+    expect(state?.sheets.size).toBe(2);
+    expect(state?.save.documentDirty).toBe(false);
+    expect(state?.save.dirtySheetIds.size).toBe(0);
+    expect(state?.save.dirtyContentBlockIds.size).toBe(0);
+    expect(state?.history.canUndo).toBe(false);
+  });
+});

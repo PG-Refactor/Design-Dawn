@@ -130,7 +130,10 @@ export interface CustomTemplateDependencies {
   readonly gateway: TemplateGateway;
   readonly applicationStore: ApplicationStore;
   readonly uiStateStore: UiStateStore;
-  readonly actions: Pick<WorkspaceActions, "createSheet" | "createDocument">;
+  readonly actions: Pick<
+    WorkspaceActions,
+    "createSheet" | "createDocument" | "completeCreatedDocument"
+  >;
   readonly canvasActions: Pick<
     CanvasActions,
     "loadSheetContents" | "addTemplateBlocks"
@@ -379,6 +382,19 @@ export function createCustomTemplates({
     });
   }
 
+  // The images the blocks show and the ones their texts name.
+  function assetNamesOf(
+    blocks: readonly TemplateBlockContent[],
+    textAssets: readonly string[],
+  ): string[] {
+    return [
+      ...blocks.flatMap((block) =>
+        block.asset === undefined ? [] : [block.asset],
+      ),
+      ...textAssets,
+    ];
+  }
+
   async function placeBlocks(
     importAsset: AssetImporter,
     documentId: DocumentId,
@@ -387,12 +403,21 @@ export function createCustomTemplates({
     textAssets: readonly string[],
     place?: PlaceOnCanvas,
   ): Promise<OperationResult<void>> {
-    const assets = await importAssets(importAsset, documentId, [
-      ...blocks.flatMap((block) =>
-        block.asset === undefined ? [] : [block.asset],
-      ),
-      ...textAssets,
-    ]);
+    const assets = await importAssets(
+      importAsset,
+      documentId,
+      assetNamesOf(blocks, textAssets),
+    );
+    return placeImportedBlocks(documentId, sheetId, blocks, assets, place);
+  }
+
+  async function placeImportedBlocks(
+    documentId: DocumentId,
+    sheetId: SheetId,
+    blocks: readonly TemplateBlockContent[],
+    assets: ReadonlyMap<string, ContentPath>,
+    place?: PlaceOnCanvas,
+  ): Promise<OperationResult<void>> {
     const placed = await canvasActions.addTemplateBlocks({
       documentId,
       sheetId,
@@ -426,6 +451,41 @@ export function createCustomTemplates({
       sheet.blocks,
       textAssets,
     );
+  }
+
+  // Fills a new Document with the template's sheets. Its images are imported once for the
+  // whole Document (every sheet shares them), then the Document is saved complete.
+  async function fillNewDocument(
+    importAsset: AssetImporter,
+    documentId: DocumentId,
+    sheets: readonly TemplateSheetContent[],
+    textAssets: readonly string[],
+  ): Promise<OperationResult<void>> {
+    const assets = await importAssets(
+      importAsset,
+      documentId,
+      assetNamesOf(
+        sheets.flatMap((sheet) => sheet.blocks),
+        textAssets,
+      ),
+    );
+    for (const sheet of sheets) {
+      const created = await actions.createSheet(documentId, sheet.sheetName);
+      if (!created.ok) return created;
+      // createSheet shows the new sheet: it is the active one now.
+      const sheetId = activeSheetOf(documentId);
+      if (sheetId === undefined) {
+        return operationErr("entityNotFound", "the new sheet is not shown");
+      }
+      const placed = await placeImportedBlocks(
+        documentId,
+        sheetId,
+        sheet.blocks,
+        assets,
+      );
+      if (!placed.ok) return placed;
+    }
+    return actions.completeCreatedDocument(documentId);
   }
 
   // A whole open Document as a template of `kind` holds it: a block template takes the
@@ -561,16 +621,7 @@ export function createCustomTemplates({
         content.block === undefined
           ? content.sheets
           : [{ sheetName: content.name, blocks: [content.block] }];
-      for (const sheet of sheets) {
-        const filled = await newSheetWithBlocks(
-          importAsset,
-          documentId,
-          sheet,
-          content.assets,
-        );
-        if (!filled.ok) return filled;
-      }
-      return operationOk(undefined);
+      return fillNewDocument(importAsset, documentId, sheets, content.assets);
     },
 
     async addBlocks(template, documentId, sheetId, place) {
@@ -635,16 +686,12 @@ export function createCustomTemplates({
       if (documentId === null) {
         return operationErr("entityNotFound", "the new document is not shown");
       }
-      for (const sheet of content.value.sheets) {
-        const filled = await newSheetWithBlocks(
-          fromTemplate(template),
-          documentId,
-          sheet,
-          content.value.assets,
-        );
-        if (!filled.ok) return filled;
-      }
-      return operationOk(undefined);
+      return fillNewDocument(
+        fromTemplate(template),
+        documentId,
+        content.value.sheets,
+        content.value.assets,
+      );
     },
 
     async documentNameOf(template) {
