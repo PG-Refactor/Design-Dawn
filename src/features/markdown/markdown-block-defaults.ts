@@ -8,9 +8,14 @@ export const MARKDOWN_BLOCK_DEFAULTS = {
 // that keep a big sheet from covering the canvas (it scrolls while edited, like any block).
 export const SPREADSHEET_BLOCK_SIZE = {
   columnWidth: 120,
-  rowHeight: 28,
-  // Room for the sheet's heading and the block's padding.
-  extraHeight: 80,
+  // A table row: its padding and borders, plus one text line per line of its tallest cell.
+  rowPadding: 12,
+  lineHeight: 24,
+  // An estimate of one half-width character (a full-width one counts twice), to tell how
+  // many lines a long cell wraps to.
+  characterWidth: 8,
+  // Room for the sheet's heading, the block's padding and a little to spare.
+  extraHeight: 112,
   minWidth: 320,
   maxWidth: 1200,
   minHeight: 160,

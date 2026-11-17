@@ -42,7 +42,9 @@ import {
 import {
   BLOCK_ID_ATTRIBUTE,
   CANVAS_ATTRIBUTE,
+  focusByPointer,
   isInsideBlockEditor,
+  POINTER_FOCUS_DATA,
   RESIZE_HANDLE_ATTRIBUTE,
 } from "./block-dom";
 import { BlockFrame } from "./block-frame";
@@ -78,16 +80,6 @@ import { ZoomControl } from "./zoom-control";
 import "./canvas.css";
 
 const NO_BLOCKS: readonly Block[] = [];
-
-// Set while the canvas has the focus from a click: its focus ring (a frame round the whole
-// sheet) is for keyboard users. A key pressed meanwhile (Delete) would otherwise make the
-// webview draw it, and the sheet looks selected. Cleared when the focus leaves.
-const POINTER_FOCUS_DATA = "pointerFocus";
-
-function focusByPointer(element: HTMLElement): void {
-  element.dataset[POINTER_FOCUS_DATA] = "true";
-  element.focus({ preventScroll: true });
-}
 
 // Key command -> z-order direction (the other key commands are not z-order changes).
 const REORDER_KEY_COMMANDS = {

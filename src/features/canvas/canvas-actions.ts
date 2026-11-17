@@ -350,7 +350,30 @@ function defaultSpreadsheetTables(
   });
 }
 
-// Roughly the table's size, within the limits of SPREADSHEET_BLOCK_SIZE.
+const CELL_LINE_BREAK = /<br\s*\/?>/i;
+// Characters drawn about twice as wide as Latin letters (CJK, full-width forms).
+const WIDE_CHARACTER =
+  /[\u1100-\u115f\u2e80-\ua4cf\uac00-\ud7a3\uf900-\ufaff\ufe30-\ufe4f\uff00-\uff60\uffe0-\uffe6]/u;
+
+// How many lines a cell takes in a column `columnWidth` wide: its `<br>`s, and long text
+// wrapping.
+function cellLineCount(cell: string, columnWidth: number): number {
+  const perLine = Math.max(
+    1,
+    Math.floor(columnWidth / SPREADSHEET_BLOCK_SIZE.characterWidth),
+  );
+  return cell.split(CELL_LINE_BREAK).reduce((lines, part) => {
+    let width = 0;
+    for (const character of part) {
+      width += WIDE_CHARACTER.test(character) ? 2 : 1;
+    }
+    return lines + Math.max(1, Math.ceil(width / perLine));
+  }, 0);
+}
+
+// Roughly the table's size, within the limits of SPREADSHEET_BLOCK_SIZE: wide enough for
+// its columns, and tall enough for every row (a cell with line breaks or long text takes
+// more than one line), so no row is cut off when it arrives.
 function spreadsheetBlockSize(table: MarkdownTable): {
   readonly width: number;
   readonly height: number;
@@ -358,14 +381,24 @@ function spreadsheetBlockSize(table: MarkdownTable): {
   const limits = SPREADSHEET_BLOCK_SIZE;
   const clamp = (value: number, min: number, max: number) =>
     Math.min(Math.max(value, min), max);
+  const width = clamp(
+    table.header.length * limits.columnWidth,
+    limits.minWidth,
+    limits.maxWidth,
+  );
+  const columnWidth = width / Math.max(1, table.header.length);
+  const rowHeight = (row: readonly string[]) =>
+    limits.rowPadding +
+    limits.lineHeight *
+      Math.max(1, ...row.map((cell) => cellLineCount(cell, columnWidth)));
+  const rowsHeight = [table.header, ...table.rows].reduce(
+    (sum, row) => sum + rowHeight(row),
+    0,
+  );
   return {
-    width: clamp(
-      table.header.length * limits.columnWidth,
-      limits.minWidth,
-      limits.maxWidth,
-    ),
+    width,
     height: clamp(
-      (table.rows.length + 1) * limits.rowHeight + limits.extraHeight,
+      rowsHeight + limits.extraHeight,
       limits.minHeight,
       limits.maxHeight,
     ),

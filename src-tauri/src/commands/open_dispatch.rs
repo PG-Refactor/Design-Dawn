@@ -527,10 +527,14 @@ impl<R: Runtime> WindowHost for TauriWindowHost<R> {
         if let Some((x, y)) = position {
             builder = builder.position(x, y);
         }
-        builder
-            .build()
-            .map(|_| ())
-            .map_err(|error| error.to_string())
+        let window = builder.build().map_err(|error| error.to_string())?;
+        // The size above is the inside of the window; the title bar and frame come on top
+        // of it (they are not known before the window exists). Measured now, the whole
+        // window is fitted into the work area.
+        if let Some(area) = work_area {
+            fit_built_window(&window, area);
+        }
+        Ok(())
     }
 }
 
@@ -563,6 +567,44 @@ pub fn with_routing_state<R: Runtime, T>(
         hub: &hub,
         labels: &labels,
     })
+}
+
+/// Shrinks and moves a new window so that its outer frame lies in `area` (logical
+/// `(x, y, width, height)`). Failures leave the window as it was: it is usable anyway.
+fn fit_built_window<R: Runtime>(window: &tauri::WebviewWindow<R>, area: (f64, f64, f64, f64)) {
+    let Ok(scale) = window.scale_factor() else {
+        return;
+    };
+    let (Ok(outer), Ok(inner), Ok(position)) = (
+        window.outer_size(),
+        window.inner_size(),
+        window.outer_position(),
+    ) else {
+        return;
+    };
+    let outer = outer.to_logical::<f64>(scale);
+    let inner = inner.to_logical::<f64>(scale);
+    let position = position.to_logical::<f64>(scale);
+    let frame = (outer.width - inner.width, outer.height - inner.height);
+    let (area_x, area_y, area_width, area_height) = area;
+    let fitted_outer = (outer.width.min(area_width), outer.height.min(area_height));
+    if fitted_outer != (outer.width, outer.height) {
+        let _ = window.set_size(tauri::LogicalSize::new(
+            fitted_outer.0 - frame.0,
+            fitted_outer.1 - frame.1,
+        ));
+    }
+    let x = position
+        .x
+        .min(area_x + area_width - fitted_outer.0)
+        .max(area_x);
+    let y = position
+        .y
+        .min(area_y + area_height - fitted_outer.1)
+        .max(area_y);
+    if (x, y) != (position.x, position.y) {
+        let _ = window.set_position(tauri::LogicalPosition::new(x, y));
+    }
 }
 
 /// The monitor's work area as logical `(x, y, width, height)`.
