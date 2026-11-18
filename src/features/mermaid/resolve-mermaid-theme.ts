@@ -63,6 +63,33 @@ export const THEME_TOKENS: readonly (readonly [ThemeVariable, string])[] = [
   ["todayLineColor", "--color-warning"],
   ["excludeBkgColor", "--color-canvas-background"],
   ["vertLineColor", "--color-accent"],
+  // A mindmap's branches (and a timeline's or kanban's sections) take cScale0..11, which
+  // Mermaid would derive from the primary colours and darken: dark fills with dark text in
+  // either theme. The diagram palette in turn instead, with its text colour.
+  ["cScale0", "--color-diagram-1"],
+  ["cScale1", "--color-diagram-2"],
+  ["cScale2", "--color-diagram-3"],
+  ["cScale3", "--color-diagram-4"],
+  ["cScale4", "--color-diagram-5"],
+  ["cScale5", "--color-diagram-6"],
+  ["cScale6", "--color-diagram-7"],
+  ["cScale7", "--color-diagram-8"],
+  ["cScale8", "--color-diagram-1"],
+  ["cScale9", "--color-diagram-2"],
+  ["cScale10", "--color-diagram-3"],
+  ["cScale11", "--color-diagram-4"],
+  ["cScaleLabel0", "--color-on-diagram"],
+  ["cScaleLabel1", "--color-on-diagram"],
+  ["cScaleLabel2", "--color-on-diagram"],
+  ["cScaleLabel3", "--color-on-diagram"],
+  ["cScaleLabel4", "--color-on-diagram"],
+  ["cScaleLabel5", "--color-on-diagram"],
+  ["cScaleLabel6", "--color-on-diagram"],
+  ["cScaleLabel7", "--color-on-diagram"],
+  ["cScaleLabel8", "--color-on-diagram"],
+  ["cScaleLabel9", "--color-on-diagram"],
+  ["cScaleLabel10", "--color-on-diagram"],
+  ["cScaleLabel11", "--color-on-diagram"],
 ];
 
 // Which value of the root's `color-scheme` property means a dark surface.
