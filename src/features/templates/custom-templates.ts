@@ -423,6 +423,9 @@ export function createCustomTemplates({
       sheetId,
       blocks: blockInputs(blocks, assets),
       ...(place === undefined ? {} : { place }),
+      // Added to a sheet that has other blocks (a block template): selected. The content
+      // of a sheet just made is not.
+      select: place !== undefined,
     });
     return placed.ok ? operationOk(undefined) : placed;
   }

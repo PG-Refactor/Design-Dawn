@@ -5,6 +5,7 @@ import {
   SHEET_A1,
 } from "../../application/test-support/workspace-harness";
 import { openedCanvasHarness } from "../canvas/test-support/canvas-harness";
+import { getSelection } from "../workspace/ui-state/ui-state";
 
 const VIEW = { viewportSize: { width: 800, height: 600 } };
 
@@ -100,6 +101,12 @@ describe("custom templates", () => {
     expect(sheet?.blocks.map((block) => block.position)).toEqual(
       opened.blocksOfSheetA1().map((block) => block.position),
     );
+    // A sheet just made starts with nothing selected.
+    expect(
+      sheetId === undefined
+        ? []
+        : [...getSelection(opened.uiStateStore.getState(), sheetId)],
+    ).toEqual([]);
   });
 
   it("renames, moves and deletes a template, keeping the list current", async () => {

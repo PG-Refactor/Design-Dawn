@@ -460,6 +460,9 @@ export interface AddTemplateBlocksInput {
   readonly sheetId: SheetId;
   readonly blocks: readonly TemplateBlockInput[];
   readonly place?: { readonly viewportSize: Extent; readonly at?: Point };
+  // False for the content of a sheet just made: nothing was added to existing work, so
+  // nothing is selected. Selected by default, like other additions.
+  readonly select?: boolean;
 }
 
 export interface AddImportedImageInput {
@@ -1199,7 +1202,13 @@ export function createCanvasActions(
       );
     },
 
-    async addTemplateBlocks({ documentId, sheetId, blocks, place }) {
+    async addTemplateBlocks({
+      documentId,
+      sheetId,
+      blocks,
+      place,
+      select = true,
+    }) {
       if (blocks.length === 0) return operationOk([]);
       // The group's corner and size, to move it as a whole.
       const left = Math.min(...blocks.map((block) => block.position.x));
@@ -1281,7 +1290,9 @@ export function createCanvasActions(
       );
       if (!created.ok) return created;
       const ids = specs.map((spec) => spec.blockId);
-      uiStateStore.setState((state) => selectBlocks(state, sheetId, ids));
+      if (select) {
+        uiStateStore.setState((state) => selectBlocks(state, sheetId, ids));
+      }
       return operationOk(ids);
     },
 
