@@ -334,7 +334,7 @@ blockId and contentHash. To give a Mermaid Block a caption, call updateBlockCapt
         ),
         write(
             CREATE_FROM_TEMPLATE,
-            "Makes a new Block (kind markdown / mermaid: needs documentId and sheetId), Sheet (kind sheet: needs documentId) or Document (kind document; folderId optional) from a template of listTemplates, with the template's texts, layout and captions. name renames the new Sheet or Document. Image Blocks of the template are not made (skippedImages tells how many).",
+            "Makes a new Block (kind markdown / mermaid: needs documentId and sheetId), Sheet (kind sheet: needs documentId) or Document (kind document; folderId optional) from a template of listTemplates, with the template's texts, layout and captions. name renames the new Sheet or Document. Image Blocks are made too: the template's images are copied into the Document (an identical image of the same name there is used as it is).",
             false,
             vec![
                 property(

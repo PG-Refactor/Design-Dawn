@@ -7,15 +7,17 @@
 //! its AI access list; a Project is writable when the user allowed it there. The list is
 //! read on every call, so a change made in the app applies at once.
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
 
 use serde_json::{json, Map, Value};
 
+use crate::application::asset_import::import_asset_reusing_same;
 use crate::application::authoring::{
-    create_listed_document, create_listed_sheet, create_text_block, delete_block, find_block,
-    image_natural_size, move_block, read_text_block, rename_document, rename_sheet,
-    set_block_caption, update_text_block, BlockGeometry,
+    create_image_block, create_listed_document, create_listed_sheet, create_text_block,
+    delete_block, find_block, image_natural_size, move_block, read_text_block, rename_document,
+    rename_sheet, set_block_caption, update_text_block, BlockGeometry,
 };
 use crate::application::export_markdown::document_markdown;
 use crate::application::local_state::ai_access::{listed_project_name, AiAccessList};
@@ -25,9 +27,10 @@ use crate::application::local_state::ai_requests::{request_write_access, AiReque
 use crate::application::local_state::constants::APP_IDENTIFIER;
 use crate::application::project_search::{search_project, SearchQuery};
 use crate::application::templates::{
-    list_templates, read_template, TemplateBlockContent, TemplateKind, TemplateRoots,
-    TemplateScope, TEMPLATES_DIRECTORY_NAME,
+    list_templates, read_template, template_asset_path, TemplateBlockContent, TemplateKind,
+    TemplateRoots, TemplateScope, TEMPLATES_DIRECTORY_NAME,
 };
+use crate::domain::constants::{ASSETS_DIRECTORY_NAME, PATH_SEPARATOR};
 
 /// Under the app's local data, as the app keeps the user's own templates.
 const TEMPLATE_PROJECTS_DIRECTORY: &str = "projects";
@@ -840,21 +843,50 @@ the user can add it in Design Dawn's AI integration screen",
 
     /// Text Blocks of a template onto a Sheet, one after another (each saves the Sheet).
     /// Returns the new blockIds and how many image Blocks were left out.
+    /// Copies the template's images into the Document (an identical image of the same
+    /// name there is used as it is), by their name in the template. The texts that show
+    /// an image renamed on the way (a different file had the name) are rewritten.
+    fn import_template_images(
+        &self,
+        workspace: &mut Workspace,
+        source: &TemplateSource<'_>,
+        document_id: &str,
+        names: impl IntoIterator<Item = String>,
+    ) -> Result<BTreeMap<String, String>, ToolError> {
+        let mut imported = BTreeMap::new();
+        for name in names {
+            if imported.contains_key(&name) {
+                continue;
+            }
+            let path = template_asset_path(
+                source.roots,
+                source.scope,
+                source.kind,
+                source.template_id,
+                &name,
+            )?;
+            let image = import_asset_reusing_same(
+                &mut workspace.sessions,
+                &workspace.project_id,
+                document_id,
+                &path,
+            )?;
+            imported.insert(name, image.content_path);
+        }
+        Ok(imported)
+    }
+
     fn place_template_blocks(
         &self,
         workspace: &mut Workspace,
         document_id: &str,
         sheet_id: &str,
         blocks: &[TemplateBlockContent],
+        images: &BTreeMap<String, String>,
         offset: (i64, i64),
-    ) -> Result<(Vec<String>, usize), ToolError> {
+    ) -> Result<Vec<String>, ToolError> {
         let mut created = Vec::new();
-        let mut skipped = 0;
         for block in blocks {
-            let Some(text) = block.text.as_deref() else {
-                skipped += 1;
-                continue;
-            };
             let document = workspace.load_document(document_id)?;
             let sheet = find_sheet(&document, sheet_id)?.clone();
             let geometry = BlockGeometry {
@@ -863,15 +895,31 @@ the user can add it in Design Dawn's AI integration screen",
                 width: i64::from(block.width),
                 height: i64::from(block.height),
             };
-            let made = create_text_block(
-                &mut workspace.sessions,
-                &workspace.project_id,
-                document_id,
-                &sheet,
-                &block.block_type,
-                text,
-                geometry,
-            )?;
+            let made = match (block.text.as_deref(), block.asset.as_deref()) {
+                (Some(text), _) => create_text_block(
+                    &mut workspace.sessions,
+                    &workspace.project_id,
+                    document_id,
+                    &sheet,
+                    &block.block_type,
+                    &rewritten_image_paths(text, images),
+                    geometry,
+                )?,
+                (None, Some(asset)) => {
+                    let Some(content_path) = images.get(asset) else {
+                        continue;
+                    };
+                    create_image_block(
+                        &mut workspace.sessions,
+                        &workspace.project_id,
+                        document_id,
+                        &sheet,
+                        content_path,
+                        geometry,
+                    )?
+                }
+                (None, None) => continue,
+            };
             if let Some(caption) = block.caption.as_deref() {
                 let document = workspace.load_document(document_id)?;
                 let sheet = find_sheet(&document, sheet_id)?.clone();
@@ -891,7 +939,7 @@ the user can add it in Design Dawn's AI integration screen",
             }
             created.push(made.block_id);
         }
-        Ok((created, skipped))
+        Ok(created)
     }
 
     fn create_from_template(&self, arguments: &Arguments) -> Result<Value, ToolError> {
@@ -901,9 +949,23 @@ the user can add it in Design Dawn's AI integration screen",
         let name = arguments.optional_string("name")?;
         let (roots, mut workspace) = self.template_roots()?;
         let content = read_template(&roots, scope, kind, template_id)?;
+        let source = TemplateSource {
+            roots: &roots,
+            scope,
+            kind,
+            template_id,
+        };
+        // The images the blocks show and the ones their texts name, once per Document.
+        let image_names = |blocks: &[&TemplateBlockContent]| -> Vec<String> {
+            blocks
+                .iter()
+                .filter_map(|block| block.asset.clone())
+                .chain(content.assets.iter().cloned())
+                .collect()
+        };
         match kind {
             TemplateKind::Markdown | TemplateKind::Mermaid => {
-                let block = content.block.ok_or_else(|| {
+                let block = content.block.clone().ok_or_else(|| {
                     ToolError::new(KIND_INTERNAL, "the template holds no Block".to_owned())
                 })?;
                 let document_id = arguments.string("documentId")?.to_owned();
@@ -913,11 +975,18 @@ the user can add it in Design Dawn's AI integration screen",
                 let (x, y) = arguments
                     .optional_pair("position", "x", "y")?
                     .unwrap_or((defaults.x, defaults.y));
-                let (blocks, _) = self.place_template_blocks(
+                let images = self.import_template_images(
+                    &mut workspace,
+                    &source,
+                    &document_id,
+                    image_names(&[&block]),
+                )?;
+                let blocks = self.place_template_blocks(
                     &mut workspace,
                     &document_id,
                     &sheet_id,
                     &[block],
+                    &images,
                     (x, y),
                 )?;
                 Ok(json!({ "documentId": document_id, "sheetId": sheet_id, "blockIds": blocks }))
@@ -934,18 +1003,24 @@ the user can add it in Design Dawn's AI integration screen",
                     &document.document,
                     name.unwrap_or(&sheet.sheet_name),
                 )?;
-                let (blocks, skipped) = self.place_template_blocks(
+                let images = self.import_template_images(
+                    &mut workspace,
+                    &source,
+                    &document_id,
+                    image_names(&sheet.blocks.iter().collect::<Vec<_>>()),
+                )?;
+                let blocks = self.place_template_blocks(
                     &mut workspace,
                     &document_id,
                     &created.sheet_id,
                     &sheet.blocks,
+                    &images,
                     (0, 0),
                 )?;
                 Ok(json!({
                     "documentId": document_id,
                     "sheetId": created.sheet_id,
                     "blockIds": blocks,
-                    "skippedImages": skipped,
                 }))
             }
             TemplateKind::Document => {
@@ -961,8 +1036,19 @@ the user can add it in Design Dawn's AI integration screen",
                     arguments.optional_string("folderId")?,
                 )?;
                 let document_id = created.document.document_id.clone();
+                let images = self.import_template_images(
+                    &mut workspace,
+                    &source,
+                    &document_id,
+                    image_names(
+                        &content
+                            .sheets
+                            .iter()
+                            .flat_map(|sheet| sheet.blocks.iter())
+                            .collect::<Vec<_>>(),
+                    ),
+                )?;
                 let mut sheets = Vec::new();
-                let mut skipped_images = 0;
                 for sheet in &content.sheets {
                     let document = workspace.load_document(&document_id)?;
                     let made = create_listed_sheet(
@@ -971,21 +1057,20 @@ the user can add it in Design Dawn's AI integration screen",
                         &document.document,
                         &sheet.sheet_name,
                     )?;
-                    let (blocks, skipped) = self.place_template_blocks(
+                    let blocks = self.place_template_blocks(
                         &mut workspace,
                         &document_id,
                         &made.sheet_id,
                         &sheet.blocks,
+                        &images,
                         (0, 0),
                     )?;
-                    skipped_images += skipped;
                     sheets.push(json!({ "sheetId": made.sheet_id, "blockIds": blocks }));
                 }
                 Ok(json!({
                     "documentId": document_id,
                     "name": document_name,
                     "sheets": sheets,
-                    "skippedImages": skipped_images,
                 }))
             }
         }
@@ -1187,4 +1272,28 @@ fn fixed_project_only() -> ToolError {
         KIND_INTERNAL,
         "this server was started for one Project with --project",
     )
+}
+
+/// The template a `createFromTemplate` call reads its images from.
+struct TemplateSource<'a> {
+    roots: &'a TemplateRoots,
+    scope: TemplateScope,
+    kind: TemplateKind,
+    template_id: &'a str,
+}
+
+/// A text with the images renamed on import shown under their new name, as the app does:
+/// `assets/<name in the template>` becomes the image's contentPath in the Document.
+fn rewritten_image_paths(text: &str, images: &BTreeMap<String, String>) -> String {
+    images
+        .iter()
+        .filter(|(name, content_path)| {
+            content_path.as_str() != format!("{ASSETS_DIRECTORY_NAME}{PATH_SEPARATOR}{name}")
+        })
+        .fold(text.to_owned(), |rewritten, (name, content_path)| {
+            rewritten.replace(
+                &format!("{ASSETS_DIRECTORY_NAME}{PATH_SEPARATOR}{name}"),
+                content_path,
+            )
+        })
 }
