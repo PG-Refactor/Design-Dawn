@@ -369,6 +369,31 @@ pub fn create_text_block(
     Ok(block)
 }
 
+/// Adds an image Block that shows `content_path`, an image already in the Document's
+/// `assets/` (a template's image, copied in first). No content file is made.
+pub fn create_image_block(
+    sessions: &mut ProjectSessions,
+    project_id: &str,
+    document_id: &str,
+    sheet: &SheetDto,
+    content_path: &str,
+    geometry: BlockGeometry,
+) -> AuthoringResult<BlockDto> {
+    Position::new(geometry.x, geometry.y)?;
+    Size::new(geometry.width, geometry.height)?;
+    let block = block_dto(
+        generate_block_id().to_string(),
+        BlockType::Image,
+        geometry,
+        content_path.to_owned(),
+    );
+    let mut extended = sheet.clone();
+    extended.blocks.push(block.clone());
+    extended.to_domain()?;
+    save_sheet(sessions, project_id, document_id, &extended)?;
+    Ok(block)
+}
+
 /// Replaces a text Block's text if the file still has the hash the caller based the new
 /// text on; otherwise `Conflict` and nothing is written.
 pub fn update_text_block(

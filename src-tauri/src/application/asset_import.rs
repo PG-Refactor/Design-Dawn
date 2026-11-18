@@ -240,6 +240,42 @@ pub fn import_asset(
     Ok(imported_image(content_path, image.natural))
 }
 
+/// Like `import_asset`, for an image a template brings: when the Document already has a file
+/// of the same name with the same bytes (made from the same template before, or the image
+/// the template was saved from), that file is used and nothing is copied, so the texts that
+/// show it keep their path. Otherwise it is copied under a free name as usual.
+pub fn import_asset_reusing_same(
+    sessions: &mut ProjectSessions,
+    project_id: &str,
+    document_id: &str,
+    source_path: &Path,
+) -> ApplicationResult<ImportedImage> {
+    let session = sessions.session_mut(project_id)?;
+    let document_id = DocumentId::parse(document_id)?;
+    require_writable(session, &document_id)?;
+    let image = read_validated_image(source_path)?;
+    let original_name = base_name(source_path);
+    let base = session.document_base(&document_id)?;
+    // The name it would get with nothing in the way.
+    let own_name = asset_file_name(&original_name, &[])?;
+    let own_path = format!("{ASSETS_DIRECTORY_NAME}{PATH_SEPARATOR}{own_name}");
+    let existing = session
+        .resolve_existing_path(&base, &own_path)
+        .ok()
+        .and_then(|path| {
+            let meta = fs::symlink_metadata(&path).ok()?;
+            meta.file_type()
+                .is_file()
+                .then(|| fs::read(&path).ok())
+                .flatten()
+        });
+    if existing.as_deref() == Some(image.bytes.as_slice()) {
+        return Ok(imported_image(own_path, image.natural));
+    }
+    let content_path = store_image(session, &document_id, &original_name, &image.bytes)?;
+    Ok(imported_image(content_path, image.natural))
+}
+
 /// Imports every file of the drop in drop order. An unknown project, Document or `dropId`,
 /// or a Document that cannot be written, fails the whole command; a problem with one file
 /// only rejects that file. Files are read without holding the session lock.

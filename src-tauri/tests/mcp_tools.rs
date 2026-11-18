@@ -1812,7 +1812,6 @@ fn templates_are_listed_and_make_a_sheet_with_their_blocks() {
     )
     .ok();
     assert_eq!(made["blockIds"].as_array().unwrap().len(), 2);
-    assert_eq!(made["skippedImages"], 0);
     let sheet = call(
         &context,
         "getSheet",
@@ -1821,5 +1820,113 @@ fn templates_are_listed_and_make_a_sheet_with_their_blocks() {
     .ok();
     assert_eq!(sheet["name"], "Review 1");
     assert_eq!(sheet["blocks"].as_array().unwrap().len(), 2);
+    assert_loads_without_issues(&root);
+}
+
+#[test]
+fn a_template_sheet_brings_its_images_and_reuses_an_identical_one() {
+    use design_dawn_lib::application::templates::{
+        save_template, TemplateBlockContent, TemplateContent, TemplateKind, TemplateRoots,
+        TemplateScope, TemplateSheetContent,
+    };
+    let (_temp, root) = project_copy();
+    let roots = TemplateRoots {
+        shared: Some(root.join("templates")),
+        project: None,
+        global: root.join("no-global-templates"),
+    };
+    let picture = png_bytes(4, 3);
+    let block =
+        |block_type: &str, text: Option<&str>, asset: Option<&str>, x: i64| TemplateBlockContent {
+            block_type: block_type.to_owned(),
+            x,
+            y: 0,
+            width: 320,
+            height: 200,
+            caption: None,
+            caption_position: None,
+            text: text.map(str::to_owned),
+            asset: asset.map(str::to_owned),
+        };
+    let saved = save_template(
+        &roots,
+        TemplateScope::Shared,
+        TemplateKind::Sheet,
+        &TemplateContent {
+            name: "Pictured".to_owned(),
+            block: None,
+            sheets: vec![TemplateSheetContent {
+                sheet_name: "Pictured".to_owned(),
+                blocks: vec![
+                    block(
+                        "markdown",
+                        Some("![p](../../../assets/pic.png) assets/pic.png"),
+                        None,
+                        0,
+                    ),
+                    block("image", None, Some("assets/pic.png"), 400),
+                ],
+            }],
+            document_name: None,
+            assets: vec!["assets/pic.png".to_owned()],
+        },
+        &|_| Ok(("pic.png".to_owned(), picture.clone())),
+    )
+    .unwrap();
+    let context = context_for(&root, true);
+    let make = || {
+        call(
+            &context,
+            "createFromTemplate",
+            json!({
+                "scope": "shared",
+                "kind": "sheet",
+                "templateId": saved.template_id,
+                "documentId": DOCUMENT_ID,
+            }),
+        )
+        .ok()
+    };
+    let text_of = |made: &Value| {
+        let block_id = made["blockIds"][0].clone();
+        call(
+            &context,
+            "getBlock",
+            json!({ "documentId": DOCUMENT_ID, "sheetId": made["sheetId"], "blockId": block_id }),
+        )
+        .ok()["text"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    };
+    let assets = document_dir(&root).join("assets");
+
+    let first = make();
+    assert_eq!(first["blockIds"].as_array().unwrap().len(), 2);
+    // The image block shows the copied image (read from the sheet's file: MCP does not
+    // list contentPaths).
+    let sheets = document_dir(&root).join("sheets");
+    let shows_picture = fs::read_dir(&sheets).unwrap().any(|entry| {
+        let file = entry.unwrap().path().join("sheet.json");
+        fs::read_to_string(file)
+            .map(|text| text.contains("\"contentPath\": \"assets/pic.png\""))
+            .unwrap_or(false)
+    });
+    assert!(shows_picture);
+    assert_eq!(fs::read(assets.join("pic.png")).unwrap(), picture);
+
+    // The same image is already there: used as it is, nothing copied or rewritten.
+    let second = make();
+    assert!(!assets.join("pic-2.png").exists());
+    assert_eq!(
+        text_of(&second),
+        "![p](../../../assets/pic.png) assets/pic.png"
+    );
+
+    // A different file has the name: the image comes under a free name, the texts follow.
+    fs::write(assets.join("pic.png"), png_bytes(5, 5)).unwrap();
+    let third = make();
+    assert_eq!(fs::read(assets.join("pic-2.png")).unwrap(), picture);
+    assert!(text_of(&third).contains("assets/pic-2.png"));
     assert_loads_without_issues(&root);
 }

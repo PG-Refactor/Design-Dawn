@@ -10,7 +10,9 @@ use serde_json::Value;
 use tauri::{AppHandle, Manager, Runtime, Window};
 
 use super::{ensure_window_project, log_failure, project_root, run_blocking};
-use crate::application::asset_import::{import_asset, read_document_asset, ImportedImage};
+use crate::application::asset_import::{
+    import_asset_reusing_same, read_document_asset, ImportedImage,
+};
 use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
 use crate::application::local_state::operations::LocalState;
 use crate::application::open_request::OpenRequest;
@@ -183,7 +185,7 @@ pub async fn import_template_asset<R: Runtime>(
         let mut guard = sessions
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        import_asset(&mut guard, &project, &document_id, &path)
+        import_asset_reusing_same(&mut guard, &project, &document_id, &path)
     })
     .await
 }
@@ -349,7 +351,7 @@ pub async fn import_template_edit_asset<R: Runtime>(
         )?;
         let sessions = worker.state::<Mutex<ProjectSessions>>();
         let mut guard = sessions.lock().unwrap_or_else(PoisonError::into_inner);
-        import_asset(&mut guard, &project_id, &document_id, &path)
+        import_asset_reusing_same(&mut guard, &project_id, &document_id, &path)
     })
     .await
 }
