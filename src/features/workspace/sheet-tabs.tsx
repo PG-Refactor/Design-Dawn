@@ -8,6 +8,7 @@ import {
 } from "../templates/design-templates";
 import { createSheetFromTemplate } from "../templates/template-actions";
 import { askSaveTemplate } from "../templates/template-dialogs";
+import { createSheetFromCustomTemplate } from "../templates/template-flows";
 import { customTemplateEntries } from "../templates/template-menu";
 import { restoreFocus } from "./focus-utils";
 import { sheetPanelId, sheetTabId } from "./tab-ids";
@@ -44,7 +45,8 @@ function useSheetCreationEntries(): (
       templates.store.getState().templates,
       ["sheet"],
       templateMessages,
-      (template) => void templates.createSheet(template, documentId),
+      (template) =>
+        void createSheetFromCustomTemplate(templates, template, documentId),
     );
     return [
       {

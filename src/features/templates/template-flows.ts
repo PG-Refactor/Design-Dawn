@@ -30,11 +30,27 @@ export async function createDocumentFromTemplate(
   parentFolderId: FolderId | null,
 ): Promise<void> {
   const name = await askTemplateDocumentName({
+    kind: "document",
     templateName: template.name,
     name: await templates.documentNameOf(template),
   });
   if (name === null) return;
   await templates.createDocument(template, name, parentFolderId);
+}
+
+// Asks the new sheet's name (the template's sheet name to start with), then makes it.
+export async function createSheetFromCustomTemplate(
+  templates: CustomTemplates,
+  template: TemplateSummary,
+  documentId: DocumentId,
+): Promise<void> {
+  const name = await askTemplateDocumentName({
+    kind: "sheet",
+    templateName: template.name,
+    name: await templates.sheetNameOf(template),
+  });
+  if (name === null) return;
+  await templates.createSheet(template, documentId, name);
 }
 
 // "New Document from Template ▸" when there are Document templates; nothing otherwise.

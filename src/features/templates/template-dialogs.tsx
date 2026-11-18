@@ -54,14 +54,18 @@ const saveQuestion = createQuestion<
   SaveTemplateAnswer
 >();
 const documentNameQuestion = createQuestion<
-  { readonly templateName: string; readonly name: string },
+  {
+    readonly kind: "document" | "sheet";
+    readonly templateName: string;
+    readonly name: string;
+  },
   string
 >();
 const manager = createStore<{ readonly open: boolean }>({ open: false });
 
 // The name and place of a new template of `kind` (null: cancelled).
 export const askSaveTemplate = saveQuestion.ask;
-// The name of a Document made from a template (null: cancelled).
+// The name of a Document or sheet made from a template (null: cancelled).
 export const askTemplateDocumentName = documentNameQuestion.ask;
 export function openTemplateManager(): void {
   manager.setState(() => ({ open: true }));
@@ -179,8 +183,16 @@ function DocumentNameDialog() {
   return (
     <NameDialog
       key={request.templateName}
-      title={messages.templates.documentNameTitle(request.templateName)}
-      nameLabel={messages.templates.documentNameLabel}
+      title={
+        request.kind === "sheet"
+          ? messages.templates.sheetNameTitle(request.templateName)
+          : messages.templates.documentNameTitle(request.templateName)
+      }
+      nameLabel={
+        request.kind === "sheet"
+          ? messages.templates.sheetNameLabel
+          : messages.templates.documentNameLabel
+      }
       submitLabel={messages.templates.create}
       initialName={request.name}
       busy={false}

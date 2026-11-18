@@ -9,6 +9,10 @@ import {
 import { afterEach, describe, expect, it } from "vitest";
 import { settle } from "../../application/test-support/fakes";
 import {
+  DOCUMENT_A,
+  SHEET_A1,
+} from "../../application/test-support/workspace-harness";
+import {
   blockOption,
   renderOpenedCanvas,
 } from "../markdown/test-support/markdown-harness";
@@ -108,5 +112,41 @@ describe("custom templates in the app", () => {
     await act(settle);
     expect(rendered.shell.templateGateway.stored).toEqual([]);
     expect(within(manager).getByText(TEXTS.emptyList)).toBeTruthy();
+  });
+
+  it("asks the name of a sheet made from a custom template", async () => {
+    const rendered = await renderOpenedCanvas();
+    await rendered.shell.services.templates.saveSheet(
+      DOCUMENT_A,
+      SHEET_A1,
+      "project",
+      "Layout",
+    );
+    await act(settle);
+    const sheetTab = screen.getByRole("tab", { name: /Sheet A1/ });
+    fireEvent.contextMenu(sheetTab, { clientX: 5, clientY: 5 });
+    await rendered.shell.user.click(
+      within(screen.getByRole("menu")).getByRole("menuitem", {
+        name: TEXTS.sheetFromTemplate,
+      }),
+    );
+    await rendered.shell.user.click(
+      await screen.findByRole("menuitem", { name: /^Layout/ }),
+    );
+    const dialog = await screen.findByRole("dialog", {
+      name: TEXTS.sheetNameTitle("Layout"),
+    });
+    const field = within(dialog).getByRole("textbox", {
+      name: TEXTS.sheetNameLabel,
+    });
+    // The template's sheet name to start with.
+    expect((field as HTMLInputElement).value).toBe("Sheet A1");
+    await rendered.shell.user.clear(field);
+    await rendered.shell.user.type(field, "Layout copy");
+    await rendered.shell.user.click(
+      within(dialog).getByRole("button", { name: TEXTS.create }),
+    );
+    await act(settle);
+    expect(screen.getByRole("tab", { name: /Layout copy/ })).toBeTruthy();
   });
 });
