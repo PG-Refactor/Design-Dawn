@@ -10,6 +10,7 @@ import {
 import {
   createProjectWriteSignal,
   type ProjectWriteSignal,
+  withTemplateWriteSignal,
   withWriteSignal,
 } from "../application/git/project-write-signal";
 import { createDefaultIdGenerator } from "../application/id-generator";
@@ -227,7 +228,10 @@ export function createAppServices(): AppServices {
     canvasActions,
     assetUrlResolver: createTauriAssetUrlResolver(),
   });
-  const templateGateway = createTauriTemplateGateway();
+  const templateGateway = withTemplateWriteSignal(
+    createTauriTemplateGateway(),
+    projectWriteSignal,
+  );
   const templates = createCustomTemplates({
     gateway: templateGateway,
     applicationStore,

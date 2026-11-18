@@ -3,6 +3,7 @@
 // Git's to say, not ours.
 
 import type { PersistenceGateway } from "../ports/persistence-gateway";
+import type { TemplateGateway } from "../ports/template-gateway";
 
 export type ProjectWriteListener = () => void;
 
@@ -110,15 +111,33 @@ export const GATEWAY_METHOD_KINDS = {
 
 type GatewayMethod = (...args: unknown[]) => Promise<unknown>;
 
+// The template commands that may write files of the Project: a shared template lives in
+// its `templates/` (saving, renaming, deleting, moving, an edit written back), and making
+// something from a template copies images into a Document.
+export const TEMPLATE_GATEWAY_METHOD_KINDS = {
+  listTemplates: "read",
+  readTemplate: "read",
+  saveTemplate: "write",
+  renameTemplate: "write",
+  deleteTemplate: "write",
+  moveTemplate: "write",
+  openTemplateEditor: "read",
+  templateEditInfo: "read",
+  importTemplateEditAsset: "read",
+  saveTemplateEdit: "write",
+  importTemplateAsset: "write",
+} as const satisfies Record<keyof TemplateGateway, "write" | "read">;
+
 // Forwards every call unchanged and notifies once a writing call has settled. A failed
 // write notifies too: it may have changed files before it failed. Opening a Project is not
 // a write here, because the Git state already refreshes when a Project is installed.
-export function withWriteSignal(
-  gateway: PersistenceGateway,
+function decorateWrites<Gateway extends object>(
+  gateway: Gateway,
+  kinds: Readonly<Record<keyof Gateway, "write" | "read">>,
   signal: ProjectWriteSignal,
-): PersistenceGateway {
+): Gateway {
   const decorated: Record<string, GatewayMethod> = {};
-  for (const [name, kind] of Object.entries(GATEWAY_METHOD_KINDS)) {
+  for (const [name, kind] of Object.entries(kinds)) {
     const method = (gateway as unknown as Record<string, GatewayMethod>)[name];
     if (method === undefined) continue;
     decorated[name] =
@@ -132,5 +151,19 @@ export function withWriteSignal(
           }
         : (...args) => method.apply(gateway, args);
   }
-  return decorated as unknown as PersistenceGateway;
+  return decorated as unknown as Gateway;
+}
+
+export function withWriteSignal(
+  gateway: PersistenceGateway,
+  signal: ProjectWriteSignal,
+): PersistenceGateway {
+  return decorateWrites(gateway, GATEWAY_METHOD_KINDS, signal);
+}
+
+export function withTemplateWriteSignal(
+  gateway: TemplateGateway,
+  signal: ProjectWriteSignal,
+): TemplateGateway {
+  return decorateWrites(gateway, TEMPLATE_GATEWAY_METHOD_KINDS, signal);
 }
