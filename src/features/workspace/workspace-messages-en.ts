@@ -214,6 +214,7 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     fileMenu: "File",
     viewMenu: "View",
     save: "Save",
+    saveAll: "Save All",
     openProject: "Open Project…",
     createProject: "New Project…",
     closeProject: "Close Project",

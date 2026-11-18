@@ -13,16 +13,26 @@ export interface SaveShortcutEventLike {
 const SAVE_KEY = "s";
 
 // `event.key` is matched (not `code`) so the shortcut follows the printed letter on any
-// layout. Alt (AltGr on some layouts types characters), Shift (a different shortcut
-// elsewhere) and IME composition (the key belongs to the conversion) are not a save.
-export function isSaveShortcut(event: SaveShortcutEventLike): boolean {
+// layout. Alt (AltGr on some layouts types characters) and IME composition (the key
+// belongs to the conversion) are not a save; Shift makes it "save all".
+function isSaveKey(event: SaveShortcutEventLike, shift: boolean): boolean {
   return (
     event.key.toLowerCase() === SAVE_KEY &&
     (event.ctrlKey || event.metaKey) &&
     !event.altKey &&
-    !event.shiftKey &&
+    event.shiftKey === shift &&
     !event.isComposing
   );
+}
+
+// Ctrl/Cmd+S: save the Document shown.
+export function isSaveShortcut(event: SaveShortcutEventLike): boolean {
+  return isSaveKey(event, false);
+}
+
+// Ctrl/Cmd+Shift+S: save everything.
+export function isSaveAllShortcut(event: SaveShortcutEventLike): boolean {
+  return isSaveKey(event, true);
 }
 
 const MAC_PLATFORM_PATTERN = /mac|iphone|ipad/i;
@@ -44,4 +54,9 @@ export function modifierShortcutHint(
 // on the platform in use.
 export function saveShortcutHint(platform: string): string {
   return modifierShortcutHint(platform, SAVE_KEY);
+}
+
+// The text shown next to "Save All".
+export function saveAllShortcutHint(platform: string): string {
+  return modifierShortcutHint(platform, SAVE_KEY, true);
 }

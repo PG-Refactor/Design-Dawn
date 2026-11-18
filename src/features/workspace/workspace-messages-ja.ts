@@ -214,6 +214,7 @@ export const WORKSPACE_MESSAGES_JA = {
     fileMenu: "ファイル",
     viewMenu: "表示",
     save: "保存",
+    saveAll: "すべて保存",
     openProject: "Projectを開く…",
     createProject: "新規Project…",
     closeProject: "Projectを閉じる",

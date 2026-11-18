@@ -74,8 +74,6 @@ describe("Ctrl/Cmd+S", () => {
   it.each([
     ["Alt+Ctrl+S", { ctrlKey: true, altKey: true }],
     ["Alt+Cmd+S", { metaKey: true, altKey: true }],
-    ["Shift+Ctrl+S", { key: "S", ctrlKey: true, shiftKey: true }],
-    ["Shift+Cmd+S", { key: "S", metaKey: true, shiftKey: true }],
     ["plain s", {}],
   ])("%s does nothing and is not prevented", async (_name, init) => {
     const { shell } = await renderOpenedCanvas();
@@ -106,8 +104,9 @@ describe("Ctrl/Cmd+S", () => {
     expect(writes(shell).length).toBeGreaterThan(0);
   });
 
-  it("calls saveAll once per keypress after re-renders (one listener)", async () => {
+  it("saves the Document shown once per keypress after re-renders (one listener)", async () => {
     const { shell } = await renderOpenedCanvas();
+    const saveDocument = vi.spyOn(shell.services.actions, "saveDocument");
     const saveAll = vi.spyOn(shell.services.actions, "saveAll");
     await act(async () => {
       shell.uiStateStore.setState((state) => ({ ...state }));
@@ -116,7 +115,30 @@ describe("Ctrl/Cmd+S", () => {
 
     await press(canvasElement(), CTRL);
 
+    expect(saveDocument).toHaveBeenCalledTimes(1);
+    expect(saveDocument).toHaveBeenCalledWith(
+      shell.uiStateStore.getState().activeDocumentId,
+    );
+    expect(saveAll).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["Shift+Ctrl+S", { key: "S", ctrlKey: true, shiftKey: true }],
+    ["Shift+Cmd+S", { key: "S", metaKey: true, shiftKey: true }],
+  ])("%s saves everything and prevents the default", async (_name, init) => {
+    const { shell } = await renderOpenedCanvas();
+    const saveAll = vi.spyOn(shell.services.actions, "saveAll");
+    const saveDocument = vi.spyOn(shell.services.actions, "saveDocument");
+    // Before the edit: it renames the sheet the canvas is named after.
+    const canvas = canvasElement();
+    await makeDocumentADirty(shell);
+    shell.gateway.clearCalls();
+
+    expect(await press(canvas, init)).toBe(false);
+
     expect(saveAll).toHaveBeenCalledTimes(1);
+    expect(saveDocument).not.toHaveBeenCalled();
+    expect(writes(shell).length).toBeGreaterThan(0);
   });
 
   it("does nothing after the shell is unmounted", async () => {

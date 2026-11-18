@@ -304,6 +304,9 @@ export interface WorkspaceActions {
   // commit. Returns the first error (a draft's first); failures are already visible
   // through the operation errors / save states, so nothing is recorded here.
   saveAll(): Promise<OperationResult<void>>;
+  // Explicit "save this Document" (Ctrl/Cmd+S): its open drafts become commands first, then
+  // it is written. The other Documents keep their unsaved changes.
+  saveDocument(documentId: DocumentId): Promise<OperationResult<void>>;
   // A Document just made from a template is complete: what was filled into it is saved
   // (even with Auto Save off: creating a Document is not undoable and happens at once),
   // and its history starts empty, so no undo takes the filled content away again.
@@ -1583,6 +1586,12 @@ export function createWorkspaceActions(
     async saveAll() {
       const drafts = await draftRegistry.commitAll();
       const saved = await workspace.saveAll();
+      return drafts.ok ? saved : drafts;
+    },
+
+    async saveDocument(documentId) {
+      const drafts = await draftRegistry.commitFor([documentId]);
+      const saved = await workspace.flushDocuments([documentId]);
       return drafts.ok ? saved : drafts;
     },
 

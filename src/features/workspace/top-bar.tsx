@@ -33,8 +33,12 @@ import { FIND_KEY } from "../search/find-shortcuts";
 import { requestFind } from "../search/find-store";
 import { openTemplateManager } from "../templates/template-dialogs";
 import { Notifications } from "./notifications";
-import { saveEverything } from "./save-everything";
-import { modifierShortcutHint, saveShortcutHint } from "./save-shortcut";
+import { saveEverything, saveShownDocument } from "./save-everything";
+import {
+  modifierShortcutHint,
+  saveAllShortcutHint,
+  saveShortcutHint,
+} from "./save-shortcut";
 import type { UiState } from "./ui-state/ui-state";
 import { useMessages } from "./use-messages";
 import { useUiState, useWorkspaceModel } from "./workspace-hooks";
@@ -43,6 +47,7 @@ import { useWorkspaceServices } from "./workspace-services-context";
 import "./top-bar.css";
 
 const SAVE_SHORTCUT_KEYS = "Control+S Meta+S";
+const SAVE_ALL_SHORTCUT_KEYS = "Control+Shift+S Meta+Shift+S";
 const PRINT_SHORTCUT_KEYS = "Control+P Meta+P";
 const FIND_SHORTCUT_KEYS = "Control+F Meta+F";
 const SEARCH_PROJECT_SHORTCUT_KEYS = "Control+Shift+F Meta+Shift+F";
@@ -110,6 +115,7 @@ export function TopBar() {
     exportActions,
     searchActions,
     applicationStore,
+    uiStateStore,
   } = useWorkspaceServices();
   const activeDocumentId = useUiState(selectActiveDocumentId);
   const activeSheets = useUiState(selectActiveSheets);
@@ -257,6 +263,20 @@ export function TopBar() {
             shortcutKeys: SAVE_SHORTCUT_KEYS,
             disabled: !hasProject,
             // Failures are already recorded as operation / save errors by the action.
+            onSelect: () =>
+              void saveShownDocument({
+                actions,
+                viewportPersistence,
+                uiStateStore,
+              }),
+          },
+          {
+            kind: "item",
+            id: "saveAll",
+            label: topBar.saveAll,
+            shortcutHint: saveAllShortcutHint(navigator.platform),
+            shortcutKeys: SAVE_ALL_SHORTCUT_KEYS,
+            disabled: !hasProject,
             onSelect: () =>
               void saveEverything({ actions, viewportPersistence }),
           },
@@ -456,6 +476,7 @@ export function TopBar() {
       templateTexts,
       actions,
       viewportPersistence,
+      uiStateStore,
       exportActions,
       exportMessages,
       searchActions,
