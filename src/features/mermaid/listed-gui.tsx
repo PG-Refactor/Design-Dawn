@@ -110,6 +110,7 @@ export function ListedForm({
 
   async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    if (busy) return;
     const applied = await onSubmit(values);
     if (applied && onDelete === undefined) {
       setValues(initial);
@@ -172,15 +173,19 @@ export function ListedForm({
         );
       })}
       <div className="listed-gui__actions">
-        <button type="submit" className="button" disabled={busy}>
+        {/* aria-disabled, not disabled: a disabled button loses the focus, which would
+            leave the editor and end editing. */}
+        <button type="submit" className="button" aria-disabled={busy}>
           {submitLabel}
         </button>
         {onDelete !== undefined && deleteLabel !== undefined && (
           <button
             type="button"
             className="button"
-            disabled={busy}
-            onClick={onDelete}
+            aria-disabled={busy}
+            onClick={() => {
+              if (!busy) onDelete();
+            }}
           >
             {deleteLabel}
           </button>

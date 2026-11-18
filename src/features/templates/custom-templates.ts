@@ -94,9 +94,11 @@ export interface CustomTemplates {
     sheetId: SheetId,
     place: PlaceOnCanvas,
   ): Promise<OperationResult<void>>;
+  // `name`: the new sheet's name (the template's sheet name when left out).
   createSheet(
     template: TemplateSummary,
     documentId: DocumentId,
+    name?: string,
   ): Promise<OperationResult<void>>;
   createDocument(
     template: TemplateSummary,
@@ -105,6 +107,8 @@ export interface CustomTemplates {
   ): Promise<OperationResult<void>>;
   // The Document name a Document template suggests (its own name when it has none).
   documentNameOf(template: TemplateSummary): Promise<string>;
+  // The sheet name a sheet template suggests (its own name when it cannot be read).
+  sheetNameOf(template: TemplateSummary): Promise<string>;
   // An open Document as a template of `kind` would hold it (for saving an edited template).
   capture(
     documentId: DocumentId,
@@ -423,6 +427,9 @@ export function createCustomTemplates({
       sheetId,
       blocks: blockInputs(blocks, assets),
       ...(place === undefined ? {} : { place }),
+      // Added to a sheet that has other blocks (a block template): selected. The content
+      // of a sheet just made is not.
+      select: place !== undefined,
     });
     return placed.ok ? operationOk(undefined) : placed;
   }
@@ -649,7 +656,7 @@ export function createCustomTemplates({
       );
     },
 
-    async createSheet(template, documentId) {
+    async createSheet(template, documentId, name) {
       const content = report(
         USE_LABEL,
         template.name,
@@ -667,7 +674,7 @@ export function createCustomTemplates({
       return newSheetWithBlocks(
         fromTemplate(template),
         documentId,
-        sheet,
+        name === undefined ? sheet : { ...sheet, sheetName: name },
         content.value.assets,
       );
     },
@@ -692,6 +699,13 @@ export function createCustomTemplates({
         content.value.sheets,
         content.value.assets,
       );
+    },
+
+    async sheetNameOf(template) {
+      const content = await readTemplate(template);
+      return content.ok
+        ? (content.value.sheets[0]?.sheetName ?? template.name)
+        : template.name;
     },
 
     async documentNameOf(template) {

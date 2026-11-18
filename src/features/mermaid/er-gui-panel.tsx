@@ -291,8 +291,9 @@ export function ErGuiPanel({
             ),
           },
         ]}
+        status={status}
       />
-      {status}
+      {layout.openAddId === null && status}
       <section className="listed-gui__section">
         <h4 className="diagram-gui__heading">{er.entities}</h4>
         <ListedList

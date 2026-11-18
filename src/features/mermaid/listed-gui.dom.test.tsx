@@ -93,6 +93,16 @@ describe("the ER diagram editor", () => {
     expect(
       screen.queryByRole("dialog", { name: TEXTS.er.addEntity }),
     ).toBeNull();
+    // The focus goes back to the "+" button: editing goes on, and the next one can be added.
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: TEXTS.er.addEntityToggle }),
+    );
+    // The button keeps the focus while busy (a disabled one would drop it, ending editing).
+    expect(
+      within(form)
+        .getByRole("button", { name: TEXTS.add, hidden: true })
+        .hasAttribute("disabled"),
+    ).toBe(false);
   });
 
   it("explains a refused operation and changes nothing", async () => {

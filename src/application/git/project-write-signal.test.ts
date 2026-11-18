@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { operationErr, operationOk } from "../ports/operation-error";
 import type { PersistenceGateway } from "../ports/persistence-gateway";
+import type { TemplateGateway } from "../ports/template-gateway";
 import {
   createProjectWriteSignal,
   GATEWAY_METHOD_KINDS,
+  TEMPLATE_GATEWAY_METHOD_KINDS,
+  withTemplateWriteSignal,
   withWriteSignal,
 } from "./project-write-signal";
 
@@ -87,6 +90,28 @@ describe("withWriteSignal", () => {
       await method?.();
 
       expect(events.includes("notified"), name).toBe(kind === "write");
+    }
+  });
+});
+
+describe("withTemplateWriteSignal", () => {
+  it("notifies for the template commands that may write Project files only", async () => {
+    for (const [name, kind] of Object.entries(TEMPLATE_GATEWAY_METHOD_KINDS)) {
+      const signal = createProjectWriteSignal();
+      let notified = false;
+      signal.subscribe(() => {
+        notified = true;
+      });
+      const stub: Record<string, Answer> = {};
+      for (const method of Object.keys(TEMPLATE_GATEWAY_METHOD_KINDS)) {
+        stub[method] = async () => operationOk(null);
+      }
+      const gateway = withTemplateWriteSignal(
+        stub as unknown as TemplateGateway,
+        signal,
+      );
+      await (gateway as unknown as Record<string, Answer>)[name]?.();
+      expect(notified, name).toBe(kind === "write");
     }
   });
 });

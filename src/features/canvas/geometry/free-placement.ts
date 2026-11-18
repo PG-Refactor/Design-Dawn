@@ -37,26 +37,54 @@ function ringOffsets(
   );
 }
 
-// `null` when every place searched is taken (or would start left of / above the sheet's
-// origin), and the caller falls back to its own rule.
-export function freePlacement(
+function inside(candidate: PlacementRect, area: PlacementRect): boolean {
+  return (
+    candidate.x >= area.x &&
+    candidate.y >= area.y &&
+    candidate.x + candidate.width <= area.x + area.width &&
+    candidate.y + candidate.height <= area.y + area.height
+  );
+}
+
+function search(
   start: { readonly x: number; readonly y: number },
   size: { readonly width: number; readonly height: number },
   taken: readonly PlacementRect[],
-  search: { readonly step: number; readonly rings: number },
+  rings: { readonly step: number; readonly rings: number },
+  accept: (candidate: PlacementRect) => boolean,
 ): { readonly x: number; readonly y: number } | null {
-  for (let ring = 0; ring <= search.rings; ring += 1) {
+  for (let ring = 0; ring <= rings.rings; ring += 1) {
     for (const { dx, dy } of ringOffsets(ring)) {
       const candidate = {
-        x: start.x + dx * search.step,
-        y: start.y + dy * search.step,
+        x: start.x + dx * rings.step,
+        y: start.y + dy * rings.step,
         ...size,
       };
-      if (candidate.x < 0 || candidate.y < 0) continue;
+      if (candidate.x < 0 || candidate.y < 0 || !accept(candidate)) continue;
       if (!taken.some((rect) => overlaps(candidate, rect))) {
         return { x: candidate.x, y: candidate.y };
       }
     }
   }
   return null;
+}
+
+// `null` when every place searched is taken (or would start left of / above the sheet's
+// origin), and the caller falls back to its own rule. With `within` (the part of the sheet
+// on screen), a free place wholly inside it is preferred, so the new block is seen; only
+// when there is none (or the block is larger) can it be partly outside.
+export function freePlacement(
+  start: { readonly x: number; readonly y: number },
+  size: { readonly width: number; readonly height: number },
+  taken: readonly PlacementRect[],
+  rings: { readonly step: number; readonly rings: number },
+  within?: PlacementRect,
+): { readonly x: number; readonly y: number } | null {
+  if (within !== undefined) {
+    const seen = search(start, size, taken, rings, (candidate) =>
+      inside(candidate, within),
+    );
+    if (seen !== null) return seen;
+  }
+  return search(start, size, taken, rings, () => true);
 }

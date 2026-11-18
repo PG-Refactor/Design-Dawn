@@ -86,6 +86,7 @@ describe("File menu", () => {
       ["menuitem", EN.openProject],
       ["menuitem", EN.openProjectInNewWindow],
       ["menuitem", `${EN.save}Ctrl+S`],
+      ["menuitem", `${EN.saveAll}Ctrl+Shift+S`],
       ["menuitemcheckbox", EN.autoSave],
       ["menuitem", `${EXPORT_MESSAGES.en.exportMenuItem}▸`],
       ["menuitem", `${EXPORT_MESSAGES.en.print}Ctrl+P`],

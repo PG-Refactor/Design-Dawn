@@ -59,6 +59,31 @@ export interface MermaidThemeValues {
   readonly todayLineColor?: string;
   readonly excludeBkgColor?: string;
   readonly vertLineColor?: string;
+  // The colour scale of mindmaps (and timelines, kanban): fills, and the text on them.
+  readonly cScale0?: string;
+  readonly cScale1?: string;
+  readonly cScale2?: string;
+  readonly cScale3?: string;
+  readonly cScale4?: string;
+  readonly cScale5?: string;
+  readonly cScale6?: string;
+  readonly cScale7?: string;
+  readonly cScale8?: string;
+  readonly cScale9?: string;
+  readonly cScale10?: string;
+  readonly cScale11?: string;
+  readonly cScaleLabel0?: string;
+  readonly cScaleLabel1?: string;
+  readonly cScaleLabel2?: string;
+  readonly cScaleLabel3?: string;
+  readonly cScaleLabel4?: string;
+  readonly cScaleLabel5?: string;
+  readonly cScaleLabel6?: string;
+  readonly cScaleLabel7?: string;
+  readonly cScaleLabel8?: string;
+  readonly cScaleLabel9?: string;
+  readonly cScaleLabel10?: string;
+  readonly cScaleLabel11?: string;
   // Mermaid derives some colours differently for a dark surface; a boolean, because the
   // string "false" would be truthy.
   readonly darkMode?: boolean;

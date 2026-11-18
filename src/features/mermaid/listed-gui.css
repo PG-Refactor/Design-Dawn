@@ -98,3 +98,17 @@
   display: flex;
   gap: var(--space-1);
 }
+
+/* In the add dialog the form has the dialog's width: the fields take a whole line. */
+.diagram-add-dialog .listed-gui__form {
+  flex-direction: column;
+  align-items: stretch;
+  border: 0;
+  padding: 0;
+}
+
+.diagram-add-dialog .listed-gui__field input,
+.diagram-add-dialog .listed-gui__field select {
+  width: 100%;
+  box-sizing: border-box;
+}

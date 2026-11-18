@@ -34,6 +34,9 @@ const TEMPLATE_MESSAGES_JA = {
   documentNameTitle: (template: string): string =>
     `カスタムテンプレート「${template}」から Document を作成`,
   documentNameLabel: "Document名",
+  sheetNameTitle: (template: string): string =>
+    `カスタムテンプレート「${template}」から Sheet を作成`,
+  sheetNameLabel: "Sheet名",
   create: "作成",
   noTemplates: "カスタムテンプレートはありません",
   manage: "カスタムテンプレートの管理…",
@@ -95,6 +98,9 @@ const TEMPLATE_MESSAGES_EN: TemplateMessages = {
   documentNameTitle: (template) =>
     `New Document from the custom template “${template}”`,
   documentNameLabel: "Document name",
+  sheetNameTitle: (template) =>
+    `New Sheet from the custom template “${template}”`,
+  sheetNameLabel: "Sheet name",
   create: "Create",
   noTemplates: "No custom templates",
   manage: "Manage Custom Templates…",

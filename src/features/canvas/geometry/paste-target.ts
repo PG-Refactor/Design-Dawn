@@ -13,6 +13,9 @@ export interface PasteTargetInput {
   readonly sameSheet: boolean;
   // The part of the target sheet's world that is currently on screen.
   readonly visible: Rect;
+  // A point chosen for the group's top-left corner (where the empty canvas was
+  // right-clicked): used as it is.
+  readonly at?: { readonly x: number; readonly y: number };
 }
 
 function groupExtent(content: ClipboardContent): {
@@ -37,7 +40,8 @@ function groupExtent(content: ClipboardContent): {
 // larger, so it never lands left of / above the view (past the sheet's origin). Rounded to integers like every committed
 // position; out-of-range values are rejected by the domain.
 export function pasteTarget(input: PasteTargetInput): DomainResult<Position> {
-  const { content, sameSheet, visible } = input;
+  const { content, sameSheet, visible, at } = input;
+  if (at !== undefined) return commitPosition(at);
   if (sameSheet) {
     const steps = content.pasteCount + 1;
     return commitPosition({
