@@ -255,8 +255,9 @@ export function ClassGuiPanel({
             ),
           },
         ]}
+        status={status}
       />
-      {status}
+      {layout.openAddId === null && status}
       <section className="listed-gui__section">
         <h4 className="diagram-gui__heading">{texts.classes}</h4>
         <ListedList

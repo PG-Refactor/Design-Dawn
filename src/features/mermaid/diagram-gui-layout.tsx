@@ -273,8 +273,9 @@ export function DiagramGuiLayout({
         source={source}
         toolbarLabel={toolbarLabel}
         addActions={addActions}
+        status={status}
       />
-      {status}
+      {state.openAddId === null && status}
       {editor}
       <GuiDisclosure
         label={listsLabel(
@@ -377,11 +378,16 @@ export function DiagramAddDialogs({
   source,
   toolbarLabel,
   addActions,
+  status,
 }: {
   readonly state: GuiLayoutState;
   readonly source: string;
   readonly toolbarLabel: string;
   readonly addActions: readonly GuiAddAction[];
+  // The editor's busy / refusal line: shown in the dialog while one is open (the editor
+  // behind it is covered), so the reason an add was refused is seen where it was made.
+  // The caller shows it itself while no dialog is open.
+  readonly status?: ReactNode;
 }) {
   const idPrefix = useId();
   const formId = (id: string) => `${idPrefix}-add-${id}`;
@@ -556,6 +562,7 @@ export function DiagramAddDialogs({
                   </AddDialogFormContext.Provider>
                 </div>
               ))}
+              {openAction !== undefined && status}
               <div className="diagram-add-dialog__actions">
                 <button type="button" className="button" onClick={cancel}>
                   {gui.addCancel}

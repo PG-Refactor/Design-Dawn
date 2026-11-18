@@ -385,4 +385,20 @@ describe("typing a label in the add dialog", () => {
       within(dialog).queryByText(GUI.refusalReasons.labelNotTrimmed),
     ).toBeNull();
   });
+
+  it("tells in the dialog why an add was refused (a blank left at the end)", async () => {
+    const { shell } = await openGui();
+    await shell.user.click(toggle(TEXT.addNodeToggle));
+    const dialog = screen.getByRole("dialog");
+    const label = within(dialog).getAllByRole("textbox")[0] as HTMLElement;
+    await shell.user.type(label, "Echo ");
+    await act(settle);
+    await shell.user.type(label, "{Enter}");
+    await act(settle);
+    expect(
+      within(dialog).getByText(GUI.refusalReasons.labelNotTrimmed, {
+        exact: false,
+      }),
+    ).toBeTruthy();
+  });
 });
