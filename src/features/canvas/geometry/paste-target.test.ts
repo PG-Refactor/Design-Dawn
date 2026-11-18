@@ -69,6 +69,21 @@ describe("pasteTarget", () => {
     expect(later).toEqual(first);
   });
 
+  it("puts the group's corner at a chosen point, on any sheet", () => {
+    for (const sameSheet of [true, false]) {
+      const target = pasteTarget({
+        content: content(2),
+        sameSheet,
+        visible: VISIBLE,
+        at: { x: 420, y: 310 },
+      });
+      expect(target.ok && { x: target.value.x, y: target.value.y }).toEqual({
+        x: 420,
+        y: 310,
+      });
+    }
+  });
+
   it("rounds a fractional centre to integers", () => {
     const result = pasteTarget({
       content: content(0),

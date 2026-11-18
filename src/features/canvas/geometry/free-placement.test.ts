@@ -37,4 +37,23 @@ describe("freePlacement", () => {
     expect(placed?.x).toBeGreaterThanOrEqual(0);
     expect(placed?.y).toBeGreaterThanOrEqual(0);
   });
+
+  it("prefers a free place wholly in view, else one partly outside", () => {
+    const view = { x: 0, y: 0, width: 300, height: 200 };
+    const size = { width: 100, height: 100 };
+    // The centre and the place below it are free, but below is outside the view; the
+    // centre is taken, so the place to the right (in view) wins over the one below.
+    const taken = [{ x: 100, y: 50, width: 100, height: 100 }];
+    const search = { step: 100, rings: 2 };
+    const placed = freePlacement({ x: 100, y: 50 }, size, taken, search, view);
+    expect(placed).not.toBeNull();
+    if (placed === null) return;
+    expect(placed.x + size.width <= view.width).toBe(true);
+    expect(placed.y + size.height <= view.height).toBe(true);
+    // Nothing free in view: the nearest free place anywhere.
+    const full = [{ x: 0, y: 0, width: 300, height: 200 }];
+    expect(
+      freePlacement({ x: 100, y: 50 }, size, full, search, view),
+    ).not.toBeNull();
+  });
 });

@@ -430,7 +430,13 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
               choose: askSpreadsheetImport,
               ...(at === undefined ? {} : { at }),
             }),
-          paste,
+          // Pasted where the canvas was right-clicked, like the items that add.
+          paste: () =>
+            void canvasActions.pasteClipboard({
+              ...selectionInput,
+              viewportSize: canvasSize(),
+              ...(at === undefined ? {} : { at }),
+            }),
           customTemplates: {
             label: templateMessages.fromTemplate,
             entries: orNoTemplates(

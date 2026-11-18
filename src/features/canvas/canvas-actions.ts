@@ -207,6 +207,8 @@ export interface PasteInput extends SelectionActionInput {
   // Size of the canvas element in screen pixels; a paste into another sheet is centred in
   // what it shows.
   readonly viewportSize: Extent;
+  // Where the group's top-left corner goes (the point right-clicked on the empty canvas).
+  readonly at?: Point;
 }
 
 export interface ImportDroppedImagesInput {
@@ -663,6 +665,7 @@ export function createCanvasActions(
           ...placedSize,
         })),
         FREE_PLACEMENT_SEARCH,
+        visible,
       );
       const committed = free === null ? null : commitPosition(free);
       if (committed?.ok === true) return operationOk(committed.value);
@@ -882,7 +885,7 @@ export function createCanvasActions(
       );
     },
 
-    async pasteClipboard({ documentId, sheetId, viewportSize }) {
+    async pasteClipboard({ documentId, sheetId, viewportSize, at }) {
       const copied = clipboard.read();
       if (copied === null) return NOTHING_TO_DO;
       const projectId = currentProjectId();
@@ -914,6 +917,7 @@ export function createCanvasActions(
         content,
         sameSheet,
         visible: visibleWorldRect(viewportSize, viewport),
+        ...(at === undefined ? {} : { at }),
       });
       if (!target.ok) return record("pasteBlocks", fromDomainResult(target));
       const command = record(
