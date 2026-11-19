@@ -50,6 +50,7 @@ export function snappedResizeFrame(
   edges: ResizeEdges,
   interval: number,
   minSize: Extent = CANVAS_CONFIG.block.minSize,
+  maxSize: Extent = CANVAS_CONFIG.block.maxSize,
 ): Rect {
   let left = startFrame.x;
   let top = startFrame.y;
@@ -71,6 +72,14 @@ export function snappedResizeFrame(
     if (edges.bottom === true) bottom = top + minSize.height;
     else top = bottom - minSize.height;
   }
+  if (right - left > maxSize.width && (edges.left || edges.right)) {
+    if (edges.right === true) right = left + maxSize.width;
+    else left = right - maxSize.width;
+  }
+  if (bottom - top > maxSize.height && (edges.top || edges.bottom)) {
+    if (edges.bottom === true) bottom = top + maxSize.height;
+    else top = bottom - maxSize.height;
+  }
   return { x: left, y: top, width: right - left, height: bottom - top };
 }
 
@@ -83,6 +92,7 @@ export function aspectResizeFrame(
   rawWorldDelta: Point,
   interval: number | null,
   minSize: Extent = CANVAS_CONFIG.block.minSize,
+  maxSize: Extent = CANVAS_CONFIG.block.maxSize,
 ): Rect {
   const horizontal =
     (startFrame.width + rawWorldDelta.x) / startFrame.width >=
@@ -98,7 +108,11 @@ export function aspectResizeFrame(
     minSize.width / startFrame.width,
     minSize.height / startFrame.height,
   );
-  const applied = Math.max(scale, smallest);
+  const largest = Math.min(
+    maxSize.width / startFrame.width,
+    maxSize.height / startFrame.height,
+  );
+  const applied = Math.min(Math.max(scale, smallest), largest);
   // Whole units keep the stored sizes readable; the ratio moves by under one unit.
   return {
     x: startFrame.x,

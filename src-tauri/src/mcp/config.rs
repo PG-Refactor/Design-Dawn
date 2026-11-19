@@ -75,6 +75,10 @@ pub const DEFAULT_BLOCK_Y: i64 = DEFAULT_NEW_BLOCK_Y;
 /// any size from 1); it is shown and can be resized back.
 pub const BLOCK_MIN_WIDTH: i64 = 48;
 pub const BLOCK_MIN_HEIGHT: i64 = 32;
+/// The largest Block an AI may make: the app's upper bound of a resize
+/// (`CANVAS_CONFIG.block.maxSize`).
+pub const BLOCK_MAX_WIDTH: i64 = 10_000;
+pub const BLOCK_MAX_HEIGHT: i64 = 10_000;
 
 /// The SHA-256 hex digest used as `contentHash`.
 pub const CONTENT_HASH_HEX_LENGTH: usize = 64;

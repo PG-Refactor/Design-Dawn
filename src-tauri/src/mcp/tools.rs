@@ -47,14 +47,14 @@ use crate::infrastructure::file_format::image_validation::ImageFormat;
 
 use super::arguments::Arguments;
 use super::config::{
-    APP_MODE_INSTRUCTIONS, BLOCK_MIN_HEIGHT, BLOCK_MIN_WIDTH, CONTENT_HASH_HEX_LENGTH,
-    DEFAULT_BLOCK_GAP, DEFAULT_BLOCK_HEIGHT, DEFAULT_BLOCK_WIDTH, DEFAULT_BLOCK_X, DEFAULT_BLOCK_Y,
-    FIXED_PROJECT_INSTRUCTIONS,
+    APP_MODE_INSTRUCTIONS, BLOCK_MAX_HEIGHT, BLOCK_MAX_WIDTH, BLOCK_MIN_HEIGHT, BLOCK_MIN_WIDTH,
+    CONTENT_HASH_HEX_LENGTH, DEFAULT_BLOCK_GAP, DEFAULT_BLOCK_HEIGHT, DEFAULT_BLOCK_WIDTH,
+    DEFAULT_BLOCK_X, DEFAULT_BLOCK_Y, FIXED_PROJECT_INSTRUCTIONS,
 };
 use super::protocol::{ToolHost, ToolOutput};
 use super::tool_definitions::{self as names, tool_definitions, ToolDefinition};
 use super::tool_error::{
-    ToolError, KIND_ACCESS_LIST_UNREADABLE, KIND_INTERNAL, KIND_NO_PROJECT,
+    ToolError, KIND_ACCESS_LIST_UNREADABLE, KIND_APP_REQUIRED, KIND_INTERNAL, KIND_NO_PROJECT,
     KIND_PROJECT_NOT_LISTED, KIND_WRITE_DISABLED,
 };
 use super::workspace::{find_sheet, Workspace};
@@ -130,17 +130,20 @@ fn is_content_hash(text: &str) -> bool {
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
-/// Refuses a size below the smallest Block the app lets anyone make (a larger bound than the
-/// file format's). Refused rather than enlarged, so the AI is not left with a size it did
+/// Refuses a size outside what the app lets anyone make (stricter bounds than the file
+/// format's). Refused rather than enlarged, so the AI is not left with a size it did
 /// not ask for.
 fn check_block_size(size: Option<(i64, i64)>) -> Result<(), ToolError> {
     match size {
-        Some((width, height)) if width < BLOCK_MIN_WIDTH || height < BLOCK_MIN_HEIGHT => {
+        Some((width, height))
+            if !(BLOCK_MIN_WIDTH..=BLOCK_MAX_WIDTH).contains(&width)
+                || !(BLOCK_MIN_HEIGHT..=BLOCK_MAX_HEIGHT).contains(&height) =>
+        {
             Err(ToolError::new(
                 DomainErrorKind::InvalidSize.as_str(),
                 format!(
-                    "a Block must be at least {BLOCK_MIN_WIDTH} x {BLOCK_MIN_HEIGHT} \
-(width x height); got {width} x {height}"
+                    "a Block must be {BLOCK_MIN_WIDTH} x {BLOCK_MIN_HEIGHT} to \
+{BLOCK_MAX_WIDTH} x {BLOCK_MAX_HEIGHT} (width x height); got {width} x {height}"
                 ),
             ))
         }
@@ -1289,8 +1292,9 @@ listProjects and selectProject",
 
 fn fixed_project_only() -> ToolError {
     ToolError::new(
-        KIND_INTERNAL,
-        "this server was started for one Project with --project",
+        KIND_APP_REQUIRED,
+        "this needs the Design Dawn app, which asks the user: start the server without \
+--project",
     )
 }
 

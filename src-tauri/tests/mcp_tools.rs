@@ -1966,3 +1966,53 @@ fn a_project_server_records_its_writes_in_the_app_history_too() {
     .ok();
     assert_eq!(read(&history_dir, &project).len(), 1);
 }
+
+#[test]
+fn a_block_larger_than_the_app_allows_is_refused() {
+    let (_temp, root) = project_copy();
+    let context = context_for(&root, true);
+    let before = tree_snapshot(&root);
+    let refused = call(
+        &context,
+        "createBlock",
+        with(
+            overview_ids(),
+            json!({
+                "type": "markdown",
+                "text": "# Wide",
+                "size": { "width": 100_000, "height": 200 },
+            }),
+        ),
+    );
+    assert_eq!(refused.error_kind(), "invalidSize");
+    assert_eq!(tree_snapshot(&root), before);
+    // The largest one allowed is made.
+    call(
+        &context,
+        "createBlock",
+        with(
+            overview_ids(),
+            json!({
+                "type": "markdown",
+                "text": "# Wide",
+                "size": { "width": 10_000, "height": 10_000 },
+            }),
+        ),
+    )
+    .ok();
+}
+
+#[test]
+fn a_tool_that_needs_the_app_says_so_on_a_project_server() {
+    let (_temp, root) = project_copy();
+    let context = context_for(&root, true);
+    let refused = call(
+        &context,
+        "requestImageImport",
+        with(
+            overview_ids(),
+            json!({ "path": root.join("missing.png").to_string_lossy() }),
+        ),
+    );
+    assert_eq!(refused.error_kind(), "appRequired");
+}

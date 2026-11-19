@@ -21,12 +21,23 @@ export function resizePreviewFrame(
   startFrame: Rect,
   worldDelta: Point,
   minSize: Extent = CANVAS_CONFIG.block.minSize,
+  maxSize: Extent = CANVAS_CONFIG.block.maxSize,
 ): Rect {
+  const within = (value: number, min: number, max: number) =>
+    Math.min(max, Math.max(min, value));
   return {
     x: startFrame.x,
     y: startFrame.y,
-    width: Math.max(minSize.width, startFrame.width + worldDelta.x),
-    height: Math.max(minSize.height, startFrame.height + worldDelta.y),
+    width: within(
+      startFrame.width + worldDelta.x,
+      minSize.width,
+      maxSize.width,
+    ),
+    height: within(
+      startFrame.height + worldDelta.y,
+      minSize.height,
+      maxSize.height,
+    ),
   };
 }
 
