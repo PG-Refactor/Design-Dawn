@@ -3090,3 +3090,31 @@ fn the_wire_form_has_an_outcome_tag_and_camel_case_fields() {
     }
     assert_eq!(serde_json::to_value(DiffSide::Staged).unwrap(), "staged");
 }
+
+#[test]
+fn files_whose_path_is_too_long_for_git_on_windows_are_reported() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    let short = fixture.status(&project);
+    let none = short.long_paths.expect("ready");
+    assert_eq!(none.count, 0);
+    assert!(!none.enabled);
+
+    // Deep enough that the full path passes 260 characters.
+    let root_length = project.as_os_str().len();
+    let segment = "d".repeat(50);
+    let mut relative = String::new();
+    while root_length + relative.len() < 300 {
+        relative.push_str(&segment);
+        relative.push('/');
+    }
+    write(&project, &format!("{relative}sheet.json"), "{}\n");
+    let long = fixture.status(&project).long_paths.expect("ready");
+    assert_eq!(long.count, 1);
+    assert_eq!(long.files, vec![format!("{relative}sheet.json")]);
+    // The `.git` folder is not looked at.
+    assert!(long.files.iter().all(|file| !file.starts_with(".git/")));
+
+    fixture.git(&project, &["config", "--local", "core.longpaths", "true"]);
+    assert!(fixture.status(&project).long_paths.expect("ready").enabled);
+}

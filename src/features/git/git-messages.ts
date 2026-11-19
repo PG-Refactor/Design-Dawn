@@ -26,6 +26,17 @@ const GIT_MESSAGES_JA = {
   diffHunkLabel: "変更箇所",
   diffFailed: "差分を取得できませんでした",
   panelTitle: "ソース管理",
+  longPathsTitle: (count: number): string =>
+    `パスが長すぎるファイルが ${count} 個あります`,
+  longPathsBody:
+    "パスが 260 文字を超えるファイルは、Windows の Git（既定の設定）では読めず、変更の一覧に出ないままコミットから漏れます。フォルダを浅くするか名前を短くするか、このProjectで長いパスを有効にしてください。",
+  longPathsList: "該当するファイル",
+  longPathsMore: (count: number): string => `ほか ${count} 個`,
+  enableLongPaths: "このProjectで長いパスを有効にする…",
+  enableLongPathsConfirm:
+    "このProjectのリポジトリの設定（.git/config）で core.longpaths を true にします。パソコン全体の Git の設定は変えません。Git for Windows で長いパスのファイルを扱えるようになります。",
+  enableLongPathsDo: "有効にする",
+  enableLongPathsCancel: "キャンセル",
   branchLabel: (name: string): string => `ブランチ ${name}`,
   detachedSuffix: "(detached)",
   refresh: "更新",
@@ -205,6 +216,16 @@ const GIT_MESSAGES_EN: GitMessages = {
   diffHunkLabel: "Change at",
   diffFailed: "Could not get the diff",
   panelTitle: "Source Control",
+  longPathsTitle: (count) => `${count} files have paths that are too long`,
+  longPathsBody:
+    "Git on Windows (with its default settings) cannot read files whose path is over 260 characters: they are left out of the changes and out of commits. Use shallower folders or shorter names, or allow long paths for this Project.",
+  longPathsList: "The files",
+  longPathsMore: (count) => `and ${count} more`,
+  enableLongPaths: "Allow Long Paths for This Project…",
+  enableLongPathsConfirm:
+    "Sets core.longpaths to true in this Project's repository settings (.git/config). Git's settings for the whole computer are not changed. Git for Windows can then work with files that have long paths.",
+  enableLongPathsDo: "Allow",
+  enableLongPathsCancel: "Cancel",
   branchLabel: (name) => `Branch ${name}`,
   detachedSuffix: "(detached)",
   refresh: "Refresh",

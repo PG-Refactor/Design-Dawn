@@ -201,6 +201,9 @@ export interface GitController {
   // Names of the remotes. A plain read like `discardImpact` (no state, no queue): the
   // failure is returned, not reported, because the caller decides whether to ask.
   remotes(): Promise<OperationResult<readonly string[]>>;
+  // Turns `core.longpaths` on in the Project's repository (the user asked, after the
+  // panel warned of paths too long for Git on Windows), then reads the status again.
+  enableLongPaths(): Promise<OperationResult<void>>;
   // Loads the first page of the commit history of the open Project (page size
   // `HISTORY_PAGE_SIZE`) on the same queue, replacing the entries. A newer `loadHistory` (or
   // `clearHistory`) supersedes an older one even if the older answers later. A failure is
@@ -798,6 +801,20 @@ export function createGitController(
     push: () => runRemote("push", (id) => gateway.push(id)),
     publish: (remote) =>
       runRemote("publish", (id) => gateway.publish(id, remote)),
+    async enableLongPaths() {
+      const projectId = store.getState().projectId;
+      if (projectId === null) return operationOk(undefined);
+      try {
+        const enabled = await gateway.enableLongPaths(projectId);
+        if (!enabled.ok) return enabled;
+      } catch (failure) {
+        return operationErr(
+          "unexpectedCommandError",
+          failure instanceof Error ? failure.message : String(failure),
+        );
+      }
+      return refreshProject(projectId);
+    },
     async remotes() {
       const projectId = store.getState().projectId;
       if (projectId === null) return operationOk([]);

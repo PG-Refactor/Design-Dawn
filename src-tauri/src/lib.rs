@@ -165,6 +165,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::show_project_in_title,
             commands::apply_window_theme,
             commands::git_status,
+            commands::enable_git_long_paths,
             commands::git_stage,
             commands::git_unstage,
             commands::git_discard_impact,

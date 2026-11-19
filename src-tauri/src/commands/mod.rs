@@ -86,7 +86,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 112] = [
+pub const COMMAND_NAMES: [&str; 113] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -181,6 +181,7 @@ pub const COMMAND_NAMES: [&str; 112] = [
     "project_window_at",
     "show_project_in_title",
     "git_status",
+    "enable_git_long_paths",
     "git_stage",
     "git_unstage",
     "git_discard_impact",
@@ -1714,6 +1715,22 @@ pub async fn git_status<R: Runtime>(
     run_blocking(move || {
         let sessions = app.state::<Mutex<ProjectSessions>>();
         git_operations::git_status(&sessions, &project_id)
+    })
+    .await
+}
+
+/// Turns `core.longpaths` on in the calling window's Project repository (asked for by the
+/// user from the Git panel, after it warned about paths too long for Git on Windows).
+#[tauri::command]
+pub async fn enable_git_long_paths<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+) -> Result<(), ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_operations::enable_git_long_paths(&sessions, &project_id)
     })
     .await
 }

@@ -21,6 +21,7 @@ import {
   type GitFileStatus,
   type GitHistoryEntry,
   type GitHistoryPage,
+  type GitLongPaths,
   type GitRemoteResult,
   type GitRepositoryState,
   type GitStatus,
@@ -46,6 +47,7 @@ interface RawGitStatus {
   readonly repository: { readonly state: GitRepositoryState };
   readonly branch: GitBranchInfo | null;
   readonly files: readonly GitFileStatus[];
+  readonly longPaths: GitLongPaths | null;
 }
 
 // A commit count: a non-negative integer.
@@ -81,6 +83,13 @@ const rawGitStatus = objectOf<RawGitStatus>({
       originalPath: nullable(decodeString),
     }),
   ),
+  longPaths: nullable(
+    objectOf<GitLongPaths>({
+      files: arrayOf(decodeString),
+      count: decodeCount,
+      enabled: decodeBoolean,
+    }),
+  ),
 });
 
 export function toGitStatus(payload: unknown): CommandResult<GitStatus> {
@@ -90,6 +99,9 @@ export function toGitStatus(payload: unknown): CommandResult<GitStatus> {
         repositoryState: decoded.value.repository.state,
         branch: decoded.value.branch,
         files: decoded.value.files,
+        ...(decoded.value.longPaths === null
+          ? {}
+          : { longPaths: decoded.value.longPaths }),
       })
     : commandErr("invalidCommandResponse", decoded.detail);
 }

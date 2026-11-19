@@ -23,6 +23,8 @@ import {
 
 export interface FakeGitGateway extends GitGateway {
   readonly calls: ProjectId[];
+  // Projects whose repository was asked to allow long paths.
+  readonly longPathsEnabled: ProjectId[];
   readonly stageCalls: { projectId: ProjectId; paths: readonly string[] }[];
   // What `conflictVersions` answers, and the resolutions asked for.
   conflict: GitConflictVersions | null;
@@ -161,6 +163,7 @@ export function createFakeGitGateway(): FakeGitGateway {
   }
   const gateway: FakeGitGateway = {
     calls: [],
+    longPathsEnabled: [],
     stageCalls: [],
     conflict: null,
     resolveCalls: [],
@@ -341,6 +344,16 @@ export function createFakeGitGateway(): FakeGitGateway {
       diffHold = null;
       if (pending !== null) await pending;
       return answer;
+    },
+    async enableLongPaths(projectId) {
+      gateway.longPathsEnabled.push(projectId);
+      if (gateway.status.longPaths !== undefined) {
+        gateway.status = {
+          ...gateway.status,
+          longPaths: { ...gateway.status.longPaths, enabled: true },
+        };
+      }
+      return operationOk(undefined);
     },
     async gitStatus(projectId) {
       gateway.calls.push(projectId);

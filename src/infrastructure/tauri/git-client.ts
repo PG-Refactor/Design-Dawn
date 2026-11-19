@@ -35,6 +35,15 @@ export function gitStatus(
   return call(COMMANDS.gitStatus, { projectId }, toGitStatus);
 }
 
+// Turns core.longpaths on in the Project's repository.
+export function gitEnableLongPaths(
+  projectId: ProjectId,
+): Promise<CommandResult<void>> {
+  return call(COMMANDS.enableGitLongPaths, { projectId }, () =>
+    commandOk(undefined),
+  );
+}
+
 export function gitStage(
   projectId: ProjectId,
   paths: readonly string[],

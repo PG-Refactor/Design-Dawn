@@ -269,3 +269,17 @@ pub const NETWORK_FAILURE_PATTERNS: [&str; 6] = [
     "Network is unreachable",
     "Could not read from remote repository",
 ];
+
+/// `git config`: reads and sets the repository's own settings.
+pub const ARG_GIT_CONFIG: &str = "config";
+pub const ARG_CONFIG_LOCAL: &str = "--local";
+pub const ARG_CONFIG_GET: &str = "--get";
+/// Lets Git on Windows read and write paths longer than 260 characters.
+pub const CONFIG_KEY_LONG_PATHS: &str = "core.longpaths";
+pub const CONFIG_VALUE_TRUE: &str = "true";
+/// Windows' classic path limit (MAX_PATH), which Git keeps to without core.longpaths.
+pub const WINDOWS_MAX_PATH: usize = 260;
+/// How many of the too long paths a status names (the count is always complete).
+pub const LONG_PATHS_LISTED: usize = 20;
+/// The repository's own folder in the Project root, left out of the long path check.
+pub const GIT_DIRECTORY_NAME: &str = ".git";

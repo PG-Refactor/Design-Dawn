@@ -96,6 +96,7 @@ const APP_COMMANDS: &[&str] = &[
     "project_window_at",
     "show_project_in_title",
     "git_status",
+    "enable_git_long_paths",
     "git_stage",
     "git_unstage",
     "git_discard_impact",

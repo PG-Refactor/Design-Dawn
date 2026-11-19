@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
 use crate::application::git_discard::untracked_file_location;
 use crate::application::session::ProjectSessions;
+use crate::infrastructure::filesystem::directory::{list_directory, EntryKind};
 use crate::infrastructure::git::constants::{
     ARG_ADD, ARG_CACHED, ARG_CONTAINS, ARG_COUNT_ONE, ARG_DIFF, ARG_END_OF_OPTIONS,
     ARG_FIND_RENAMES, ARG_FOR_EACH_REF, ARG_NO_COLOR, ARG_NO_EXT_DIFF, ARG_NO_INDEX,
@@ -19,6 +20,10 @@ use crate::infrastructure::git::constants::{
     DIFF_COMMAND_TIMEOUT, DIFF_OUTPUT_LIMIT_BYTES, FORMAT_REF_NAME, GIT_COMMAND_TIMEOUT,
     GIT_STDOUT_LIMIT_BYTES, NO_INDEX_DIFFERENCES_EXIT_CODE, NO_INDEX_EMPTY_SIDE,
     NO_INDEX_NO_DIFFERENCE_EXIT_CODE, REMOTE_TRACKING_REFS, REVISION_HEAD,
+};
+use crate::infrastructure::git::constants::{
+    ARG_CONFIG_GET, ARG_CONFIG_LOCAL, ARG_GIT_CONFIG, CONFIG_KEY_LONG_PATHS, CONFIG_VALUE_TRUE,
+    GIT_DIRECTORY_NAME, LONG_PATHS_LISTED, WINDOWS_MAX_PATH,
 };
 use crate::infrastructure::git::numstat_parser::contains_binary_file;
 use crate::infrastructure::git::paths::{
@@ -92,13 +97,29 @@ pub struct GitBranchInfo {
     pub head_pushed: bool,
 }
 
+/// Files of the Project whose full path reaches Windows' 260-character limit. Git on
+/// Windows cannot read them unless the repository allows long paths, and then leaves them
+/// out of its status without saying so: they would be missing from a commit unnoticed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitLongPaths {
+    /// Project-relative (`/`-separated), the first `LONG_PATHS_LISTED` of them.
+    pub files: Vec<String>,
+    pub count: usize,
+    /// `core.longpaths` is on for this repository.
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GitStatusResult {
     pub repository: GitRepositoryInfo,
     /// Only for a `ready` repository; always present on the wire.
     pub branch: Option<GitBranchInfo>,
     /// Empty unless the repository is `ready`.
     pub files: Vec<GitFileStatus>,
+    /// Only for a `ready` repository.
+    pub long_paths: Option<GitLongPaths>,
 }
 
 impl GitStatusResult {
@@ -107,6 +128,7 @@ impl GitStatusResult {
             repository: GitRepositoryInfo { state },
             branch: None,
             files: Vec::new(),
+            long_paths: None,
         }
     }
 }
@@ -153,7 +175,109 @@ pub fn read_git_status(
         },
         branch: Some(branch),
         files,
+        long_paths: Some(long_paths_of(runner, project_root)),
     })
+}
+
+/// The Project's files whose full path is at least `WINDOWS_MAX_PATH` long (the `.git`
+/// folder aside), and whether the repository allows them.
+fn long_paths_of(runner: &GitRunner, project_root: &Path) -> GitLongPaths {
+    let root_length = project_root.as_os_str().len();
+    let mut files = Vec::new();
+    let mut count = 0;
+    let mut pending = vec![(project_root.to_path_buf(), String::new())];
+    while let Some((directory, relative)) = pending.pop() {
+        let Ok(entries) = list_directory(&directory) else {
+            continue;
+        };
+        for entry in entries {
+            if entry.is_symlink || (relative.is_empty() && entry.name == GIT_DIRECTORY_NAME) {
+                continue;
+            }
+            let path = if relative.is_empty() {
+                entry.name.clone()
+            } else {
+                format!("{relative}/{}", entry.name)
+            };
+            match entry.kind {
+                EntryKind::Directory => pending.push((directory.join(&entry.name), path)),
+                EntryKind::File => {
+                    // The root, a separator and the relative path, as Windows counts it.
+                    if root_length + 1 + path.len() >= WINDOWS_MAX_PATH {
+                        count += 1;
+                        if files.len() < LONG_PATHS_LISTED {
+                            files.push(path);
+                        }
+                    }
+                }
+                EntryKind::Other => {}
+            }
+        }
+    }
+    files.sort();
+    GitLongPaths {
+        files,
+        count,
+        enabled: long_paths_enabled(runner, project_root),
+    }
+}
+
+fn long_paths_enabled(runner: &GitRunner, project_root: &Path) -> bool {
+    runner
+        .run(
+            &[ARG_GIT_CONFIG, ARG_CONFIG_GET, CONFIG_KEY_LONG_PATHS],
+            project_root,
+            None,
+            GIT_COMMAND_TIMEOUT,
+        )
+        .is_ok_and(|output| {
+            output.success()
+                && String::from_utf8_lossy(&output.stdout)
+                    .trim()
+                    .eq_ignore_ascii_case(CONFIG_VALUE_TRUE)
+        })
+}
+
+/// Turns `core.longpaths` on in the Project's own repository (`.git/config`; the user's
+/// global Git settings are not touched).
+pub fn enable_git_long_paths(
+    sessions: &Mutex<ProjectSessions>,
+    project_id: &str,
+) -> ApplicationResult<()> {
+    let project_root = project_root_of(sessions, project_id)?;
+    let runner = GitRunner::discover().ok();
+    let state = repository_state(runner.as_ref(), &project_root)?;
+    let (GitRepositoryState::Ready, Some(runner)) = (state, runner) else {
+        return Err(ApplicationError::new(
+            ErrorKind::GitCommandFailed,
+            "the Project is not a Git repository git can use",
+        ));
+    };
+    let output = runner
+        .run(
+            &[
+                ARG_GIT_CONFIG,
+                ARG_CONFIG_LOCAL,
+                CONFIG_KEY_LONG_PATHS,
+                CONFIG_VALUE_TRUE,
+            ],
+            &project_root,
+            None,
+            GIT_COMMAND_TIMEOUT,
+        )
+        .map_err(|error| run_error("config", error))?;
+    if output.success() {
+        Ok(())
+    } else {
+        Err(ApplicationError::new(
+            ErrorKind::GitCommandFailed,
+            format!(
+                "git config exited with {:?}: {}",
+                output.exit_code(),
+                redact_credentials(output.stderr_text().trim_end())
+            ),
+        ))
+    }
 }
 
 /// Version check and repository detection shared by every Git operation. Only `Ready`
