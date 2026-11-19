@@ -2,6 +2,7 @@ import type { BlockType } from "../../domain/block/block-type";
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
 import { PopupMenu, type PopupMenuEntry } from "../../shared/menu/popup-menu";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
+import { measureMarkdownHeight } from "../markdown/measure-markdown";
 import type { MermaidTemplateId } from "../mermaid/mermaid-templates";
 import { askSpreadsheetImport } from "../spreadsheet/spreadsheet-import-dialog";
 import {
@@ -123,6 +124,7 @@ export function CanvasToolbar({
           void canvasActions.importSpreadsheet({
             viewportSize: measureCanvas(),
             choose: askSpreadsheetImport,
+            measureHeight: measureMarkdownHeight,
           })
         }
         customTemplates={{
