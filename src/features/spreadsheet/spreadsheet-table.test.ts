@@ -4,6 +4,7 @@ import {
   columnName,
   DEFAULT_SPREADSHEET_IMPORT_OPTIONS,
   parseCellRange,
+  previewLines,
   rangeFromHeaderRow,
   sheetTable,
   tableRowNumbers,
@@ -169,5 +170,13 @@ describe("choosing the header row", () => {
     expect(rangeFromHeaderRow(TITLED, parseCellRange("B1:B4") ?? null, 2)).toBe(
       "B3:B4",
     );
+  });
+});
+
+describe("the preview of a cell", () => {
+  it("shows its lines and no Markdown escapes", () => {
+    expect(previewLines("在庫<br>要確認")).toEqual(["在庫", "要確認"]);
+    expect(previewLines("a \\| b")).toEqual(["a | b"]);
+    expect(previewLines("")).toEqual([""]);
   });
 });

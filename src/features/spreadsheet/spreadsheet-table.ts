@@ -98,6 +98,16 @@ export function parseCellRange(text: string): CellRange | null | undefined {
   };
 }
 
+// The lines a preview shows for a cell's Markdown: as the table will show it, with its
+// line breaks and without the escapes (`\|`), not the Markdown text itself.
+export function previewLines(markdown: string): readonly string[] {
+  return markdown
+    .split(LINE_BREAK_TAG)
+    .map((line) =>
+      line.replaceAll(`${ESCAPE}${CELL_SEPARATOR}`, CELL_SEPARATOR),
+    );
+}
+
 // The cell's Markdown: `|` escaped, line breaks as `<br>`, a link as `[text](<address>)`.
 function markdownCell(cell: SpreadsheetCell | undefined): string {
   if (cell === undefined) return "";

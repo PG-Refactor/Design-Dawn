@@ -10,6 +10,7 @@ import { useMessages } from "../workspace/use-messages";
 import {
   DEFAULT_SPREADSHEET_IMPORT_OPTIONS,
   parseCellRange,
+  previewLines,
   rangeFromHeaderRow,
   type SpreadsheetImportOptions,
   sheetTable,
@@ -296,7 +297,7 @@ function ImportDialog({
                             key={column}
                             className={`spreadsheet-import__cell--${previewTable.alignments[column] ?? "none"}`}
                           >
-                            {cell}
+                            <PreviewCell markdown={cell} />
                           </th>
                         ))}
                       </tr>
@@ -317,7 +318,7 @@ function ImportDialog({
                                 key={column}
                                 className={`spreadsheet-import__cell--${previewTable.alignments[column] ?? "none"}`}
                               >
-                                {cell}
+                                <PreviewCell markdown={cell} />
                               </td>
                             ))}
                           </tr>
@@ -355,5 +356,21 @@ function ImportDialog({
         </button>
       </div>
     </Modal>
+  );
+}
+
+// A cell of the preview: its lines one under the other.
+function PreviewCell({ markdown }: { readonly markdown: string }) {
+  const lines = previewLines(markdown);
+  return (
+    <>
+      {lines.map((line, index) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: the lines of one cell never move.
+        <span key={index}>
+          {index > 0 && <br />}
+          {line}
+        </span>
+      ))}
+    </>
   );
 }
