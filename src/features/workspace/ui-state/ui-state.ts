@@ -314,6 +314,7 @@ export const NOTICE_KINDS = [
   "filesReloaded",
   "fileFormatUpdated",
   "longPathsFound",
+  "portablePathsFound",
 ] as const;
 
 export type NoticeKind = (typeof NOTICE_KINDS)[number];

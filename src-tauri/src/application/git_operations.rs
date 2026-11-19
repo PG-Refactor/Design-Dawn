@@ -23,7 +23,7 @@ use crate::infrastructure::git::constants::{
 };
 use crate::infrastructure::git::constants::{
     ARG_CONFIG_GET, ARG_CONFIG_LOCAL, ARG_GIT_CONFIG, CONFIG_KEY_LONG_PATHS, CONFIG_VALUE_TRUE,
-    GIT_DIRECTORY_NAME, LONG_PATHS_LISTED, WINDOWS_MAX_PATH,
+    GIT_DIRECTORY_NAME, LONG_PATHS_LISTED, PORTABLE_PATH_LIMIT, WINDOWS_MAX_PATH,
 };
 use crate::infrastructure::git::numstat_parser::contains_binary_file;
 use crate::infrastructure::git::paths::{
@@ -108,6 +108,11 @@ pub struct GitLongPaths {
     pub count: usize,
     /// `core.longpaths` is on for this repository.
     pub enabled: bool,
+    /// Files whose path inside the Project is `PORTABLE_PATH_LIMIT` long or more: fine
+    /// here, over the limit on a PC that keeps the Project in a deeper folder. The first
+    /// `LONG_PATHS_LISTED`, and all of them counted.
+    pub portable_files: Vec<String>,
+    pub portable_count: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -185,6 +190,8 @@ fn long_paths_of(runner: &GitRunner, project_root: &Path) -> GitLongPaths {
     let root_length = project_root.as_os_str().len();
     let mut files = Vec::new();
     let mut count = 0;
+    let mut portable_files = Vec::new();
+    let mut portable_count = 0;
     let mut pending = vec![(project_root.to_path_buf(), String::new())];
     while let Some((directory, relative)) = pending.pop() {
         let Ok(entries) = list_directory(&directory) else {
@@ -203,6 +210,12 @@ fn long_paths_of(runner: &GitRunner, project_root: &Path) -> GitLongPaths {
                 EntryKind::Directory => pending.push((directory.join(&entry.name), path)),
                 EntryKind::File => {
                     // The root, a separator and the relative path, as Windows counts it.
+                    if path.len() >= PORTABLE_PATH_LIMIT {
+                        portable_count += 1;
+                        if portable_files.len() < LONG_PATHS_LISTED {
+                            portable_files.push(path.clone());
+                        }
+                    }
                     if root_length + 1 + path.len() >= WINDOWS_MAX_PATH {
                         count += 1;
                         if files.len() < LONG_PATHS_LISTED {
@@ -215,10 +228,13 @@ fn long_paths_of(runner: &GitRunner, project_root: &Path) -> GitLongPaths {
         }
     }
     files.sort();
+    portable_files.sort();
     GitLongPaths {
         files,
         count,
         enabled: long_paths_enabled(runner, project_root),
+        portable_files,
+        portable_count,
     }
 }
 

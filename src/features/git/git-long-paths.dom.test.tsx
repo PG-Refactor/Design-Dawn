@@ -16,7 +16,13 @@ async function openWithLongPaths(enabled: boolean) {
   const shell = await renderShell();
   shell.gitGateway.status = {
     ...CLEAN_GIT_STATUS,
-    longPaths: { files: [LONG], count: 1, enabled },
+    longPaths: {
+      files: [LONG],
+      count: 1,
+      enabled,
+      portableFiles: [],
+      portableCount: 0,
+    },
   };
   await shell.openProjectInUi();
   await shell.user.click(
@@ -57,6 +63,36 @@ describe("paths too long for Git on Windows", () => {
     expect(screen.queryByText(TEXTS.longPathsTitle(1))).toBeNull();
     expect(
       screen.queryByText(WORKSPACE_MESSAGES.ja.notices.longPathsFound),
+    ).toBeNull();
+  });
+
+  it("notes paths that are long inside the Project, more gently", async () => {
+    const shell = await renderShell();
+    shell.gitGateway.status = {
+      ...CLEAN_GIT_STATUS,
+      longPaths: {
+        files: [],
+        count: 0,
+        enabled: false,
+        portableFiles: [LONG],
+        portableCount: 1,
+      },
+    };
+    await shell.openProjectInUi();
+    await shell.user.click(
+      within(
+        screen.getByRole("tablist", { name: "左パネルの表示切り替え" }),
+      ).getByRole("tab", { name: "Git" }),
+    );
+    await act(settle);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByText(TEXTS.portablePathsTitle(1))).toBeTruthy();
+    expect(
+      screen.getByText(WORKSPACE_MESSAGES.ja.notices.portablePathsFound),
+    ).toBeTruthy();
+    // No button: nothing on this PC to change.
+    expect(
+      screen.queryByRole("button", { name: TEXTS.enableLongPaths }),
     ).toBeNull();
   });
 });
