@@ -59,6 +59,7 @@ import {
   CANVAS_ATTRIBUTE,
   focusByPointer,
   isInsideBlockEditor,
+  isOnScrollbar,
   POINTER_FOCUS_DATA,
   RESIZE_HANDLE_ATTRIBUTE,
   WORLD_LAYER_ATTRIBUTE,
@@ -277,6 +278,8 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
     if (route === "ignore") return;
     // A block editor owns its pointer events (text selection, caret, scrollbars).
     if (isInsideBlockEditor(event.target)) return;
+    // So does a scrollbar inside a block (a table wider than its block).
+    if (isOnScrollbar(event)) return;
     const element = event.currentTarget;
     focusByPointer(element);
     // jsdom has no pointer capture; real webviews do.
