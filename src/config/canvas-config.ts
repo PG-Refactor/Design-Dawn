@@ -41,6 +41,10 @@ export const CANVAS_CONFIG = {
     // server's `BLOCK_MIN_WIDTH` / `BLOCK_MIN_HEIGHT` mirror it). The file format accepts any
     // size >= 1, so a file edited by hand may hold a smaller Block.
     minSize: { width: 48, height: 32 },
+    // Upper bound of a resize in the app and of a size set by AI (world units; the MCP
+    // server's `BLOCK_MAX_WIDTH` / `BLOCK_MAX_HEIGHT` mirror it): far beyond any sheet in
+    // use, and still a size a viewer can draw.
+    maxSize: { width: 10000, height: 10000 },
     // Characters of the block id shown in the placeholder and in accessible names. The
     // tail is used because the head of a UUIDv7 is a timestamp shared by nearby blocks.
     shortIdLength: 8,

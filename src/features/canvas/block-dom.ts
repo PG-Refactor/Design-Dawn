@@ -91,3 +91,25 @@ export function measureActiveCanvas(): {
     ?.getBoundingClientRect();
   return { width: rect?.width ?? 0, height: rect?.height ?? 0 };
 }
+
+// Whether a press is on the scrollbar of the element it hit (an element that scrolls, such
+// as a wide table): the scrollbar is outside the element's client area. Measured on screen,
+// so the canvas zoom is accounted for.
+export function isOnScrollbar(event: {
+  readonly target: EventTarget | null;
+  readonly clientX: number;
+  readonly clientY: number;
+}): boolean {
+  const target = event.target;
+  if (!(target instanceof HTMLElement) || target.offsetWidth === 0)
+    return false;
+  const box = target.getBoundingClientRect();
+  const scale = box.width / target.offsetWidth;
+  const scrollsAcross = target.scrollWidth > target.clientWidth;
+  const scrollsDown = target.scrollHeight > target.clientHeight;
+  const belowContent =
+    event.clientY > box.top + (target.clientTop + target.clientHeight) * scale;
+  const rightOfContent =
+    event.clientX > box.left + (target.clientLeft + target.clientWidth) * scale;
+  return (scrollsAcross && belowContent) || (scrollsDown && rightOfContent);
+}

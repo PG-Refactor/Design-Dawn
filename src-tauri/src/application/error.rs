@@ -107,6 +107,9 @@ pub enum ErrorKind {
     GitDiscardRejected,
     /// Amend requested while the repository has no commit.
     GitNoCommitToAmend,
+    /// A commit refused because files of the Project have paths too long for Git on this
+    /// Windows PC (without core.longpaths): it would fail, or leave them out unnoticed.
+    GitLongPaths,
     /// Amend / Undo requested for a commit that is contained in a remote-tracking branch
     /// (or whose containment could not be determined): rewriting it would need a force push.
     GitCommitAlreadyPushed,
@@ -173,6 +176,7 @@ impl ErrorKind {
             Self::InvalidHistoryRequest => "invalidHistoryRequest",
             Self::GitDiscardRejected => "gitDiscardRejected",
             Self::GitNoCommitToAmend => "gitNoCommitToAmend",
+            Self::GitLongPaths => "gitLongPaths",
             Self::GitCommitAlreadyPushed => "gitCommitAlreadyPushed",
             Self::GitCannotUndoCommit => "gitCannotUndoCommit",
             Self::GitNoRemote => "gitNoRemote",
@@ -231,6 +235,7 @@ impl ErrorKind {
             Self::InvalidHistoryRequest => "the history request is not valid",
             Self::GitDiscardRejected => "the change cannot be discarded",
             Self::GitNoCommitToAmend => "there is no commit to amend",
+            Self::GitLongPaths => "files have paths too long for git",
             Self::GitCommitAlreadyPushed => "a pushed commit cannot be changed",
             Self::GitCannotUndoCommit => "the commit cannot be undone",
             Self::GitNoRemote => "no remote is configured",
@@ -321,7 +326,7 @@ impl Serialize for ApplicationError {
 mod tests {
     use super::*;
 
-    const ALL_KINDS: [ErrorKind; 66] = [
+    const ALL_KINDS: [ErrorKind; 67] = [
         ErrorKind::Domain(DomainErrorKind::InvalidEntityId),
         ErrorKind::Domain(DomainErrorKind::InvalidDisplayName),
         ErrorKind::Domain(DomainErrorKind::InvalidCaption),
@@ -377,6 +382,7 @@ mod tests {
         ErrorKind::InvalidHistoryRequest,
         ErrorKind::GitDiscardRejected,
         ErrorKind::GitNoCommitToAmend,
+        ErrorKind::GitLongPaths,
         ErrorKind::GitCommitAlreadyPushed,
         ErrorKind::GitCannotUndoCommit,
         ErrorKind::GitNoRemote,

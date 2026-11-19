@@ -61,8 +61,11 @@ describe("resize", () => {
   it("commits integers and rejects an out-of-range size", () => {
     const committed = commitSize(resizePreviewFrame(frame, { x: 0.6, y: 0.4 }));
     expect(committed.ok && committed.value).toEqual({ width: 101, height: 60 });
+    // A huge pull stops at the largest block, which commits.
     const huge = commitSize(resizePreviewFrame(frame, { x: 3e9, y: 0 }));
-    expect(huge.ok).toBe(false);
+    expect(huge.ok && huge.value.width).toBe(CANVAS_CONFIG.block.maxSize.width);
+    // A size beyond the integers is still refused when committed.
+    expect(commitSize({ width: 3e9, height: 60 }).ok).toBe(false);
   });
 });
 
@@ -89,5 +92,16 @@ describe("drag threshold", () => {
       x: 3,
       y: -3,
     });
+  });
+});
+
+describe("the largest block", () => {
+  it("is never resized past the upper bound", () => {
+    const frame = resizePreviewFrame(
+      { x: 0, y: 0, width: 100, height: 100 },
+      { x: 50_000, y: 50_000 },
+    );
+    expect(frame.width).toBe(CANVAS_CONFIG.block.maxSize.width);
+    expect(frame.height).toBe(CANVAS_CONFIG.block.maxSize.height);
   });
 });

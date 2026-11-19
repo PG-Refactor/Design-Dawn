@@ -28,6 +28,8 @@ export interface FakeAiAccessGateway extends AiAccessGateway {
   // The image an allowed request imports; the answers given to image requests.
   imageToImport: ImportedImage | null;
   imageAnswers: { requestId: string; allow: boolean }[];
+  // Requests the app no longer has (expired): answering them fails like Rust.
+  goneImageRequests: string[];
   failNextOverview: boolean;
   failNextChange: boolean;
 }
@@ -44,6 +46,7 @@ export function createFakeAiAccessGateway(
     historyEntries: [],
     imageToImport: null,
     imageAnswers: [],
+    goneImageRequests: [],
     failNextOverview: false,
     failNextChange: false,
     history: () => Promise.resolve(operationOk([...gateway.historyEntries])),
@@ -51,6 +54,11 @@ export function createFakeAiAccessGateway(
       Promise.resolve(operationOk(`data:image/png;base64,${requestId}`)),
     answerImageRequest: (requestId, allow) => {
       gateway.imageAnswers.push({ requestId, allow });
+      if (gateway.goneImageRequests.includes(requestId)) {
+        return Promise.resolve(
+          operationErr("entityNotFound", "the request is gone"),
+        );
+      }
       return Promise.resolve(operationOk(allow ? gateway.imageToImport : null));
     },
     overview() {

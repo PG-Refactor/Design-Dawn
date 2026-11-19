@@ -4,7 +4,7 @@
 
 use serde_json::{json, Map, Value};
 
-use super::config::{BLOCK_MIN_HEIGHT, BLOCK_MIN_WIDTH};
+use super::config::{BLOCK_MAX_HEIGHT, BLOCK_MAX_WIDTH, BLOCK_MIN_HEIGHT, BLOCK_MIN_WIDTH};
 
 pub const LIST_PROJECTS: &str = "listProjects";
 pub const SELECT_PROJECT: &str = "selectProject";
@@ -201,7 +201,8 @@ projectId to follow the Project open in the app again. Only for this session.",
             "Asks the user, in the Design Dawn app, to let you edit a Project (the one in use, \
 or projectId). The user answers there; nothing is granted by this call. Then check \
 getProject's writable before writing; do not ask again while a request is waiting. Works for \
-an offered Project and for the Project open in the app (allowing it offers it too).",
+an offered Project and for the Project open in the app (allowing it offers it too). Right after \
+the user refused, nothing is asked: the result says deniedRecently and retryAfterSeconds.",
             vec![id(
                 "projectId",
                 false,
@@ -328,7 +329,9 @@ blockId and contentHash. To give a Mermaid Block a caption, call updateBlockCapt
                     false,
                     "width",
                     "height",
-                    &format!("{WORLD_UNITS_HELP}, at least {BLOCK_MIN_WIDTH} x {BLOCK_MIN_HEIGHT}"),
+                    &format!(
+                        "{WORLD_UNITS_HELP}, from {BLOCK_MIN_WIDTH} x {BLOCK_MIN_HEIGHT} to {BLOCK_MAX_WIDTH} x {BLOCK_MAX_HEIGHT} (width x height)"
+                    ),
                 ),
             ],
         ),
@@ -423,7 +426,9 @@ createBlock / updateBlock for text you wrote yourself",
                     false,
                     "width",
                     "height",
-                    &format!("{WORLD_UNITS_HELP}, at least {BLOCK_MIN_WIDTH} x {BLOCK_MIN_HEIGHT}"),
+                    &format!(
+                        "{WORLD_UNITS_HELP}, from {BLOCK_MIN_WIDTH} x {BLOCK_MIN_HEIGHT} to {BLOCK_MAX_WIDTH} x {BLOCK_MAX_HEIGHT} (width x height)"
+                    ),
                 ),
             ],
         ),

@@ -155,6 +155,8 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
   invalidHistoryRequest: "The history request is invalid",
   gitDiscardRejected: "This change cannot be discarded",
   gitNoCommitToAmend: "There is no commit to amend yet",
+  gitLongPaths:
+    "Not committed: some files have paths too long for Git (they could not be added, or would be left out). Allow long paths from the Source Control warning, or use shallower folders or shorter names",
   gitCommitAlreadyPushed: "A pushed commit cannot be changed",
   gitCannotUndoCommit:
     "This commit cannot be undone (it is the first commit or a merge commit)",
@@ -264,6 +266,9 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     fileFormatUpdated: "File format updated",
     longPathsFound:
       "Some file paths are too long for Git on Windows (see Source Control)",
+    aiImageRequestExpired:
+      "The AI's request to add an image expired (no image was added)",
+    aiImageRequestFailed: "The image the AI asked for could not be added",
     portablePathsFound:
       "Some paths inside the Project are long; other PCs may not handle them (see Source Control)",
   },
@@ -317,6 +322,7 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     unsaved: "Unsaved",
     saving: "Saving",
     error: "Save error",
+    changedOutside: "Changed outside the app",
   },
   placeholder: {
     noDocument: "Open a Document from the tree.",

@@ -77,6 +77,22 @@ describe("save status", () => {
   });
 });
 
+describe("saving held by an outside change", () => {
+  it("is shown as changed outside, not as a save error", async () => {
+    const harness = await openedDocumentA();
+    const { store, workspace } = harness;
+    await makeDocumentADirty(harness);
+    workspace.getDocumentSession(DOCUMENT_A)?.suspendSaving({
+      kind: "externalConflict",
+      detail: "files changed outside the app",
+    });
+    await settle();
+    const state = store.getState().documents.get(DOCUMENT_A);
+    if (state === undefined) throw new Error("document A is open");
+    expect(saveStatusOf(state)).toBe("changedOutside");
+  });
+});
+
 describe("selectSheetTabs", () => {
   it("is null without an active open document", async () => {
     const { store } = await openedDocumentA();

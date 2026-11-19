@@ -1,15 +1,17 @@
 // @vitest-environment jsdom
 import { act, cleanup, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { settle } from "../../application/test-support/fakes";
 import {
   DOCUMENT_A,
   SHEET_A1,
 } from "../../application/test-support/workspace-harness";
+import { AI_ACCESS_CONFIG } from "../../config/ai-access-config";
 import type { ContentPath } from "../../domain/block/content-path";
 import type { ProjectId } from "../../domain/shared/entity-id";
 import { sheetA1Blocks } from "../markdown/test-support/markdown-harness";
 import { renderShell } from "../workspace/test-support/shell-harness";
+import { WORKSPACE_MESSAGES } from "../workspace/workspace-messages";
 import { AI_ACCESS_MESSAGES } from "./ai-access-messages";
 
 afterEach(cleanup);
@@ -84,5 +86,51 @@ describe("an AI's request to add an image", () => {
       { requestId: "req-2", allow: false },
     ]);
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("closes the question when the request expires, and says so", async () => {
+    const shell = await renderShell({ systemLanguages: ["ja"] });
+    await shell.openProjectInUi();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      await act(async () => {
+        shell.appRequestSource.emitWindowEvent(request("req-3"));
+      });
+      await act(settle);
+      expect(screen.getByRole("dialog", { name: TEXTS.title })).toBeTruthy();
+      await act(async () => {
+        vi.advanceTimersByTime(AI_ACCESS_CONFIG.requestLifetimeMs + 1);
+        await settle();
+      });
+      expect(screen.queryByRole("dialog", { name: TEXTS.title })).toBeNull();
+      expect(
+        screen.getByText(WORKSPACE_MESSAGES.ja.notices.aiImageRequestExpired),
+      ).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("tells that a late Add found the request expired", async () => {
+    const shell = await renderShell({ systemLanguages: ["ja"] });
+    await shell.openProjectInUi();
+    shell.aiAccess.goneImageRequests.push("req-4");
+    await act(async () => {
+      shell.appRequestSource.emitWindowEvent(request("req-4"));
+    });
+    await act(settle);
+    const before = sheetA1Blocks(shell).length;
+    await shell.user.click(
+      within(screen.getByRole("dialog", { name: TEXTS.title })).getByRole(
+        "button",
+        { name: TEXTS.allow },
+      ),
+    );
+    await act(settle);
+    expect(screen.queryByRole("dialog", { name: TEXTS.title })).toBeNull();
+    expect(
+      screen.getByText(WORKSPACE_MESSAGES.ja.notices.aiImageRequestExpired),
+    ).toBeTruthy();
+    expect(sheetA1Blocks(shell)).toHaveLength(before);
   });
 });

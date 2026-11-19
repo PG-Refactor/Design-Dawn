@@ -10,7 +10,10 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Number;
 
-use super::constants::{AI_REQUESTS_DIRECTORY_NAME, AI_REQUEST_MAX_AGE_SECS};
+use super::constants::{
+    AI_DENIALS_DIRECTORY_NAME, AI_REQUESTS_DIRECTORY_NAME, AI_REQUEST_DENIED_COOLDOWN_SECS,
+    AI_REQUEST_MAX_AGE_SECS,
+};
 use super::operations::check_schema_version;
 use crate::application::error::ApplicationResult;
 use crate::domain::entity_id::ProjectId;
@@ -99,6 +102,37 @@ pub fn pending_requests(config_dir: &Path, now: u64) -> Vec<ProjectId> {
         .collect()
 }
 
+/// Notes that the user refused the Project's request just now (`now` in seconds since the
+/// Unix epoch). The app keeps refusing requests for it for the cooldown; this lets the MCP
+/// server say so.
+pub fn record_denial(config_dir: &Path, project_id: &ProjectId, now: u64) -> ApplicationResult<()> {
+    write_json_file(
+        &config_dir.join(AI_DENIALS_DIRECTORY_NAME),
+        &file_name(project_id),
+        // The same shape as a request: its time is the time of the "no".
+        &AiRequestFileDto {
+            schema_version: Number::from(CURRENT_AI_REQUEST_SCHEMA_VERSION),
+            project_id: project_id.to_string(),
+            requested_at: Number::from(now),
+        },
+    )?;
+    Ok(())
+}
+
+/// How many seconds the user's last "no" for the Project still holds, or `None` when there
+/// is none (or it is over).
+pub fn denial_seconds_left(config_dir: &Path, project_id: &ProjectId, now: u64) -> Option<u64> {
+    let path = config_dir
+        .join(AI_DENIALS_DIRECTORY_NAME)
+        .join(file_name(project_id));
+    let (named, denied_at) = read_request(&path)?;
+    if named != *project_id {
+        return None;
+    }
+    let elapsed = now.saturating_sub(denied_at);
+    (elapsed < AI_REQUEST_DENIED_COOLDOWN_SECS).then(|| AI_REQUEST_DENIED_COOLDOWN_SECS - elapsed)
+}
+
 /// The request was answered (or cannot be shown).
 pub fn remove_request(config_dir: &Path, project_id: &ProjectId) -> ApplicationResult<()> {
     match fs::remove_file(directory(config_dir).join(file_name(project_id))) {
@@ -111,6 +145,25 @@ pub fn remove_request(config_dir: &Path, project_id: &ProjectId) -> ApplicationR
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_no_holds_for_the_cooldown_and_is_readable_by_the_server() {
+        let temp = std::env::temp_dir().join(format!("dd-denial-{}", std::process::id()));
+        let project = id(FIRST);
+        assert_eq!(denial_seconds_left(&temp, &project, NOW), None);
+        record_denial(&temp, &project, NOW).unwrap();
+        assert_eq!(
+            denial_seconds_left(&temp, &project, NOW + 60),
+            Some(AI_REQUEST_DENIED_COOLDOWN_SECS - 60)
+        );
+        assert_eq!(
+            denial_seconds_left(&temp, &project, NOW + AI_REQUEST_DENIED_COOLDOWN_SECS),
+            None
+        );
+        // Another Project is not refused.
+        assert_eq!(denial_seconds_left(&temp, &id(SECOND), NOW + 60), None);
+        let _ = fs::remove_dir_all(&temp);
+    }
 
     const FIRST: &str = "01928f3a-0000-7000-8000-000000000001";
     const SECOND: &str = "01928f3a-0000-7000-8000-000000000002";

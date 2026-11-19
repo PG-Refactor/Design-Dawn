@@ -9,7 +9,17 @@ import type {
 import type { DocumentId, SheetId } from "../../../domain/shared/entity-id";
 import type { UiState } from "../ui-state/ui-state";
 
-export type SaveStatus = "saved" | "unsaved" | "saving" | "error";
+export type SaveStatus =
+  | "saved"
+  | "unsaved"
+  | "saving"
+  | "error"
+  // Saving waits because the files changed outside the app (not a failure of the user's
+  // save: the banner offers Reload / Compare / Overwrite).
+  | "changedOutside";
+
+// The error saving is held with while the files changed outside the app.
+const EXTERNAL_CONFLICT_KIND = "externalConflict";
 
 export interface DocumentTab {
   readonly documentId: DocumentId;
@@ -42,6 +52,7 @@ type TabsUiInput = Pick<
 // merely being unsaved.
 export function saveStatusOf(session: DocumentSessionState): SaveStatus {
   const { save } = session;
+  if (save.lastError?.kind === EXTERNAL_CONFLICT_KIND) return "changedOutside";
   if (save.lastError !== null) return "error";
   if (save.saving) return "saving";
   if (

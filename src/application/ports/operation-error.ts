@@ -86,6 +86,7 @@ export const GIT_ERROR_KINDS = [
   "gitDiscardRejected",
   // Commit options and Undo Last Commit.
   "gitNoCommitToAmend",
+  "gitLongPaths",
   "gitCommitAlreadyPushed",
   "gitCannotUndoCommit",
   // Remote operations.

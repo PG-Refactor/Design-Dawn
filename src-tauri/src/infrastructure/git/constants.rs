@@ -286,3 +286,8 @@ pub const LONG_PATHS_LISTED: usize = 20;
 pub const PORTABLE_PATH_LIMIT: usize = 200;
 /// The repository's own folder in the Project root, left out of the long path check.
 pub const GIT_DIRECTORY_NAME: &str = ".git";
+/// The prefix of a canonical ("verbatim") path on Windows, and of a network share's; the
+/// path limit counts the path without it (`\\server\share` for a share).
+pub const VERBATIM_PREFIX: &str = r"\\?\";
+pub const VERBATIM_UNC_PREFIX: &str = r"\\?\UNC\";
+pub const UNC_PREFIX: &str = r"\\";

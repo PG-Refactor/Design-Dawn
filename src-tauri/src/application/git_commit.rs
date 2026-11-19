@@ -8,11 +8,12 @@ use serde::{Deserialize, Serialize, Serializer};
 
 use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
 use crate::application::git_operations::{
-    head_is_pushed, is_unstageable, not_ready_error, project_root_of, read_file_statuses,
-    read_git_status, repository_state, run_error, GitFileChange, GitFileStatus, GitRepositoryState,
-    GitStatusResult,
+    head_is_pushed, is_unstageable, long_paths_of, not_ready_error, project_root_of,
+    read_file_statuses, read_git_status, repository_state, run_error, GitFileChange, GitFileStatus,
+    GitRepositoryState, GitStatusResult,
 };
 use crate::application::session::ProjectSessions;
+use crate::infrastructure::git::constants::WINDOWS_MAX_PATH;
 use crate::infrastructure::git::constants::{
     ARG_ADD, ARG_ADD_ALL, ARG_AMEND, ARG_CLEANUP_WHITESPACE, ARG_COMMIT, ARG_CONFIG, ARG_GIT_PATH,
     ARG_LOG, ARG_MAX_COUNT, ARG_MESSAGE_FILE, ARG_NO_EDIT, ARG_NO_SHOW_SIGNATURE, ARG_QUIET,
@@ -140,7 +141,8 @@ pub fn commit_staged(
 }
 
 /// `git commit`. Checks run in a fixed order and
-/// nothing is executed after the first failing one: repository ready, message, (amend:
+/// nothing is executed after the first failing one: repository ready, message, paths too
+/// long for Git (while the repository does not allow them), (amend:
 /// HEAD exists, not pushed), conflicts, (stage all: unfinished operation, `git add -A`),
 /// staged changes, unfinished operation, identity. Never saves anything.
 ///
@@ -171,6 +173,20 @@ pub fn commit_with_options(
             )
         })?)
     };
+
+    // Git on Windows cannot add a file whose path is too long, nor see one inside a folder
+    // that is: the commit would fail as a whole (`add -A`) or leave those files out without a
+    // word. Judged from the files themselves, not from `git status`, which misses the second.
+    let long_paths = long_paths_of(runner, project_root);
+    if long_paths.count > 0 && !long_paths.enabled {
+        return Err(ApplicationError::new(
+            ErrorKind::GitLongPaths,
+            format!(
+                "{} files have paths of {WINDOWS_MAX_PATH} characters or more",
+                long_paths.count
+            ),
+        ));
+    }
 
     if options.amend {
         if read_head_object_id_if_any(runner, project_root)?.is_none() {

@@ -784,6 +784,32 @@ describe("importSpreadsheet", () => {
     expect(apart).toBe(true);
   });
 
+  it("moves a table imported at a chosen point off the blocks already there", async () => {
+    const harness = await openedCanvasHarness();
+    harness.gateway.scriptSpreadsheet({
+      status: "selected",
+      fileName: "one.xlsx",
+      sheets: [sheetOf("Big", [["a"]])],
+    });
+    const existing = harness.blocksOfSheetA1();
+    await harness.canvasActions.importSpreadsheet({
+      viewportSize: VIEWPORT_SIZE,
+      // On the first seeded block.
+      at: { x: 20, y: 30 },
+      measureHeight: () => 300,
+    });
+    const [added] = harness.blocksOfSheetA1().slice(existing.length);
+    if (added === undefined) throw new Error("block");
+    for (const block of existing) {
+      const overlaps =
+        added.position.x < block.position.x + block.size.width &&
+        block.position.x < added.position.x + added.size.width &&
+        added.position.y < block.position.y + block.size.height &&
+        block.position.y < added.position.y + added.size.height;
+      expect(overlaps).toBe(false);
+    }
+  });
+
   it("puts the tables one under the other from a chosen point", async () => {
     const harness = await openedCanvasHarness();
     harness.gateway.scriptSpreadsheet({

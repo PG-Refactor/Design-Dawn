@@ -155,6 +155,8 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
   invalidHistoryRequest: "履歴を取得する条件が正しくありません",
   gitDiscardRejected: "この変更は破棄できません",
   gitNoCommitToAmend: "コミットがまだありません",
+  gitLongPaths:
+    "パスが長すぎるファイルがあるため、コミットしませんでした（このままでは追加できないか、コミットから漏れます）。ソース管理の警告から長いパスを有効にするか、フォルダを浅く・名前を短くしてください",
   gitCommitAlreadyPushed: "プッシュ済みのコミットは変更できません",
   gitCannotUndoCommit:
     "このコミットは元に戻せません（最初のコミットまたはマージコミット）",
@@ -265,6 +267,9 @@ export const WORKSPACE_MESSAGES_JA = {
     fileFormatUpdated: "ファイル形式を更新しました",
     longPathsFound:
       "パスが長すぎるファイルがあります。Windows の Git では扱えないことがあります（ソース管理を参照）",
+    aiImageRequestExpired:
+      "AI からの画像の追加依頼は期限が切れました（画像は追加していません）",
+    aiImageRequestFailed: "AI から依頼された画像を追加できませんでした",
     portablePathsFound:
       "Project の中のパスが長いファイルがあります。ほかのパソコンでは扱えないことがあります（ソース管理を参照）",
   },
@@ -317,6 +322,7 @@ export const WORKSPACE_MESSAGES_JA = {
     unsaved: "未保存",
     saving: "保存中",
     error: "保存エラー",
+    changedOutside: "外部で変更されています",
   },
   placeholder: {
     noDocument: "Documentをツリーから開いてください。",

@@ -23,7 +23,9 @@ use crate::application::export_markdown::document_markdown;
 use crate::application::local_state::ai_access::{listed_project_name, AiAccessList};
 use crate::application::local_state::ai_history::{append as append_ai_history, AiHistoryEntry};
 use crate::application::local_state::ai_image_requests::{request_image, AiImageRequest};
-use crate::application::local_state::ai_requests::{request_write_access, AiRequestOutcome};
+use crate::application::local_state::ai_requests::{
+    denial_seconds_left, request_write_access, AiRequestOutcome,
+};
 use crate::application::local_state::constants::APP_IDENTIFIER;
 use crate::application::project_search::{search_project, SearchQuery};
 use crate::application::templates::{
@@ -47,14 +49,14 @@ use crate::infrastructure::file_format::image_validation::ImageFormat;
 
 use super::arguments::Arguments;
 use super::config::{
-    APP_MODE_INSTRUCTIONS, BLOCK_MIN_HEIGHT, BLOCK_MIN_WIDTH, CONTENT_HASH_HEX_LENGTH,
-    DEFAULT_BLOCK_GAP, DEFAULT_BLOCK_HEIGHT, DEFAULT_BLOCK_WIDTH, DEFAULT_BLOCK_X, DEFAULT_BLOCK_Y,
-    FIXED_PROJECT_INSTRUCTIONS,
+    APP_MODE_INSTRUCTIONS, BLOCK_MAX_HEIGHT, BLOCK_MAX_WIDTH, BLOCK_MIN_HEIGHT, BLOCK_MIN_WIDTH,
+    CONTENT_HASH_HEX_LENGTH, DEFAULT_BLOCK_GAP, DEFAULT_BLOCK_HEIGHT, DEFAULT_BLOCK_WIDTH,
+    DEFAULT_BLOCK_X, DEFAULT_BLOCK_Y, FIXED_PROJECT_INSTRUCTIONS,
 };
 use super::protocol::{ToolHost, ToolOutput};
 use super::tool_definitions::{self as names, tool_definitions, ToolDefinition};
 use super::tool_error::{
-    ToolError, KIND_ACCESS_LIST_UNREADABLE, KIND_INTERNAL, KIND_NO_PROJECT,
+    ToolError, KIND_ACCESS_LIST_UNREADABLE, KIND_APP_REQUIRED, KIND_INTERNAL, KIND_NO_PROJECT,
     KIND_PROJECT_NOT_LISTED, KIND_WRITE_DISABLED,
 };
 use super::workspace::{find_sheet, Workspace};
@@ -70,6 +72,8 @@ enum Target {
         root: PathBuf,
         project_id: String,
         allow_write: bool,
+        /// The app's settings folder, where the AI history is kept (`None`: none kept).
+        history_dir: Option<PathBuf>,
     },
     /// No `--project`: the Projects of the app's AI access list in `config_dir`.
     FollowApp {
@@ -128,17 +132,20 @@ fn is_content_hash(text: &str) -> bool {
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
-/// Refuses a size below the smallest Block the app lets anyone make (a larger bound than the
-/// file format's). Refused rather than enlarged, so the AI is not left with a size it did
+/// Refuses a size outside what the app lets anyone make (stricter bounds than the file
+/// format's). Refused rather than enlarged, so the AI is not left with a size it did
 /// not ask for.
 fn check_block_size(size: Option<(i64, i64)>) -> Result<(), ToolError> {
     match size {
-        Some((width, height)) if width < BLOCK_MIN_WIDTH || height < BLOCK_MIN_HEIGHT => {
+        Some((width, height))
+            if !(BLOCK_MIN_WIDTH..=BLOCK_MAX_WIDTH).contains(&width)
+                || !(BLOCK_MIN_HEIGHT..=BLOCK_MAX_HEIGHT).contains(&height) =>
+        {
             Err(ToolError::new(
                 DomainErrorKind::InvalidSize.as_str(),
                 format!(
-                    "a Block must be at least {BLOCK_MIN_WIDTH} x {BLOCK_MIN_HEIGHT} \
-(width x height); got {width} x {height}"
+                    "a Block must be {BLOCK_MIN_WIDTH} x {BLOCK_MIN_HEIGHT} to \
+{BLOCK_MAX_WIDTH} x {BLOCK_MAX_HEIGHT} (width x height); got {width} x {height}"
                 ),
             ))
         }
@@ -184,9 +191,20 @@ impl ToolContext {
                 root,
                 project_id: project.project.project_id,
                 allow_write,
+                history_dir: None,
             },
             definitions: tool_definitions(),
         })
+    }
+
+    /// Keeps the AI history of a `--project` server in the app's settings folder too, so the
+    /// app shows these changes with the others.
+    #[must_use]
+    pub fn with_history_dir(mut self, config_dir: &Path) -> Self {
+        if let Target::Fixed { history_dir, .. } = &mut self.target {
+            *history_dir = Some(config_dir.to_path_buf());
+        }
+        self
     }
 
     /// Follows the app whose settings are in `config_dir`. Nothing is read yet: the app may
@@ -232,6 +250,7 @@ Design Dawn's AI integration screen to check it",
                 root,
                 project_id,
                 allow_write,
+                ..
             } => Ok(Resolved {
                 root: root.clone(),
                 project_id: project_id.clone(),
@@ -314,8 +333,9 @@ listProjects and selectProject for another one"
         .text)
     }
 
-    /// Adds the write to the app's AI history. Only a server that follows the app keeps one;
-    /// a failure to record is reported on stderr and does not undo the write.
+    /// Adds the write to the app's AI history (in its settings folder, whichever way the
+    /// server was started); a failure to record is reported on stderr and does not undo the
+    /// write.
     fn record_history(
         &self,
         tool: &str,
@@ -323,8 +343,13 @@ listProjects and selectProject for another one"
         before: Option<String>,
         result: &Value,
     ) {
-        let Target::FollowApp { config_dir, .. } = &self.target else {
-            return;
+        let config_dir = match &self.target {
+            Target::FollowApp { config_dir, .. } => config_dir,
+            Target::Fixed {
+                history_dir: Some(history_dir),
+                ..
+            } => history_dir,
+            Target::Fixed { .. } => return,
         };
         let Ok(resolved) = self.resolve() else {
             return;
@@ -561,6 +586,18 @@ the user can add it in Design Dawn's AI integration screen",
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map_or(0, |elapsed| elapsed.as_secs());
+        // The user said no a moment ago: the app would not ask again yet.
+        if let Some(seconds) = denial_seconds_left(config_dir, &project_id, now) {
+            return Ok(json!({
+                "projectId": project_id.to_string(),
+                "writable": false,
+                "requested": false,
+                "deniedRecently": true,
+                "retryAfterSeconds": seconds,
+                "message": "The user refused editing in the Design Dawn app a moment ago, so \
+            they are not asked again yet. Tell them; do not ask again before retryAfterSeconds.",
+            }));
+        }
         let outcome = request_write_access(config_dir, project_id, now).map_err(ToolError::from)?;
         Ok(json!({
             "projectId": project_id.to_string(),
@@ -1269,8 +1306,9 @@ listProjects and selectProject",
 
 fn fixed_project_only() -> ToolError {
     ToolError::new(
-        KIND_INTERNAL,
-        "this server was started for one Project with --project",
+        KIND_APP_REQUIRED,
+        "this needs the Design Dawn app, which asks the user: start the server without \
+--project",
     )
 }
 

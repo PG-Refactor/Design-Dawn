@@ -96,6 +96,11 @@
 
 .markdown-preview table {
   border-collapse: collapse;
+  /* A table wider than its block scrolls inside it (its own scrollbar) instead of being
+     cut off at the block's edge. */
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .markdown-preview th,

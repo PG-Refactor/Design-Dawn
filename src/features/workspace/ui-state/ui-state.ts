@@ -315,6 +315,8 @@ export const NOTICE_KINDS = [
   "fileFormatUpdated",
   "longPathsFound",
   "portablePathsFound",
+  "aiImageRequestExpired",
+  "aiImageRequestFailed",
 ] as const;
 
 export type NoticeKind = (typeof NOTICE_KINDS)[number];

@@ -3,6 +3,9 @@
 //! for requests and sends each to a window, which asks the user. Only the user's answer
 //! (`answer_ai_access_request`) changes the AI access list.
 
+use crate::application::local_state::ai_history::{append as append_ai_history, AiHistoryEntry};
+use crate::application::local_state::ai_requests::record_denial;
+use crate::mcp::tool_definitions::REQUEST_IMAGE_IMPORT;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Mutex, PoisonError};
@@ -265,13 +268,31 @@ pub async fn answer_ai_image_request<R: Runtime>(
         }
         let sessions = app.state::<Mutex<ProjectSessions>>();
         let mut sessions = lock(&sessions);
-        import_asset(
+        let imported = import_asset(
             &mut sessions,
             &request.project_id,
             &request.document_id,
             &request.path,
-        )
-        .map(Some)
+        )?;
+        // In the AI's history like its other changes. A failure to record is reported and
+        // does not undo the import.
+        let entry = AiHistoryEntry {
+            at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|elapsed| elapsed.as_secs())
+                .unwrap_or_default(),
+            tool: REQUEST_IMAGE_IMPORT.to_owned(),
+            document_id: Some(request.document_id.clone()),
+            sheet_id: Some(request.sheet_id.clone()),
+            block_id: None,
+            before: None,
+            after: Some(imported.content_path.clone()),
+            after_hash: None,
+        };
+        if let Err(error) = append_ai_history(&config_dir, &project_id, entry) {
+            eprintln!("failed to record the AI history: {error}");
+        }
+        Ok(Some(imported))
     })
     .await
     .map_err(|error| ApplicationError::new(ErrorKind::DialogFailed, error.to_string()))?
@@ -308,7 +329,14 @@ pub fn answer_ai_access_request<R: Runtime>(
         .ok_or_else(|| ApplicationError::entity_not_found("no local state"))?;
     lock(&prompts).answered(&project_id, answer, Instant::now());
     let result = match answer {
-        AiRequestAnswer::Deny => Ok(()),
+        // Noted for the MCP server, so the AI is told rather than left waiting. A failure
+        // to note it only costs that.
+        AiRequestAnswer::Deny => {
+            if let Err(error) = record_denial(local_state.config_dir(), &project_id, unix_now()) {
+                eprintln!("failed to note the refusal for the AI: {error}");
+            }
+            Ok(())
+        }
         AiRequestAnswer::Allow | AiRequestAnswer::AllowUntilAppExits => {
             let folder = folder_of(&app, &project_id)
                 .ok_or_else(|| ApplicationError::entity_not_found("unknown Project folder"))?;

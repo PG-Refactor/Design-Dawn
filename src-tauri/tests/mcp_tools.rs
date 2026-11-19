@@ -1930,3 +1930,110 @@ fn a_template_sheet_brings_its_images_and_reuses_an_identical_one() {
     assert!(text_of(&third).contains("assets/pic-2.png"));
     assert_loads_without_issues(&root);
 }
+
+#[test]
+fn a_project_server_records_its_writes_in_the_app_history_too() {
+    use design_dawn_lib::application::local_state::ai_history::read;
+    let (temp, root) = project_copy();
+    let history_dir = temp.path().join("settings");
+    let context = ToolContext::open(&root, true)
+        .expect("open the project")
+        .with_history_dir(&history_dir);
+    let created = call(
+        &context,
+        "createBlock",
+        with(
+            overview_ids(),
+            json!({ "type": "markdown", "text": "# Noted" }),
+        ),
+    )
+    .ok();
+    let project = ProjectId::parse(PROJECT_ID).unwrap();
+    let entries = read(&history_dir, &project);
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].tool, "createBlock");
+    assert_eq!(entries[0].block_id.as_deref(), created["blockId"].as_str());
+    // Without a settings folder (as before) nothing is recorded anywhere.
+    let plain = context_for(&root, true);
+    call(
+        &plain,
+        "createBlock",
+        with(
+            overview_ids(),
+            json!({ "type": "markdown", "text": "# Quiet" }),
+        ),
+    )
+    .ok();
+    assert_eq!(read(&history_dir, &project).len(), 1);
+}
+
+#[test]
+fn a_block_larger_than_the_app_allows_is_refused() {
+    let (_temp, root) = project_copy();
+    let context = context_for(&root, true);
+    let before = tree_snapshot(&root);
+    let refused = call(
+        &context,
+        "createBlock",
+        with(
+            overview_ids(),
+            json!({
+                "type": "markdown",
+                "text": "# Wide",
+                "size": { "width": 100_000, "height": 200 },
+            }),
+        ),
+    );
+    assert_eq!(refused.error_kind(), "invalidSize");
+    assert_eq!(tree_snapshot(&root), before);
+    // The largest one allowed is made.
+    call(
+        &context,
+        "createBlock",
+        with(
+            overview_ids(),
+            json!({
+                "type": "markdown",
+                "text": "# Wide",
+                "size": { "width": 10_000, "height": 10_000 },
+            }),
+        ),
+    )
+    .ok();
+}
+
+#[test]
+fn a_tool_that_needs_the_app_says_so_on_a_project_server() {
+    let (_temp, root) = project_copy();
+    let context = context_for(&root, true);
+    let refused = call(
+        &context,
+        "requestImageImport",
+        with(
+            overview_ids(),
+            json!({ "path": root.join("missing.png").to_string_lossy() }),
+        ),
+    );
+    assert_eq!(refused.error_kind(), "appRequired");
+}
+
+#[test]
+fn a_write_request_right_after_a_no_is_not_made_and_says_when_to_ask_again() {
+    use design_dawn_lib::application::local_state::ai_requests::record_denial;
+    let (_temp, root) = project_copy();
+    let config = TempDir::new();
+    app_list(config.path(), &[(PROJECT_ID, &root, false)]);
+    let context = ToolContext::follow_app(config.path());
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    record_denial(config.path(), &ProjectId::parse(PROJECT_ID).unwrap(), now).unwrap();
+
+    let refused = call(&context, "requestWriteAccess", json!({})).ok();
+    assert_eq!(refused["requested"], false);
+    assert_eq!(refused["deniedRecently"], true);
+    assert!(refused["retryAfterSeconds"].as_u64().unwrap() > 0);
+    // Nothing was left for the app to show.
+    assert!(!request_file(config.path(), PROJECT_ID).exists());
+}
