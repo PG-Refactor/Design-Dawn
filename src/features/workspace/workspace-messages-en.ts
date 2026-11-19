@@ -264,6 +264,8 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     fileFormatUpdated: "File format updated",
     longPathsFound:
       "Some file paths are too long for Git on Windows (see Source Control)",
+    portablePathsFound:
+      "Some paths inside the Project are long; other PCs may not handle them (see Source Control)",
   },
   tree: {
     openProjectInNewWindow: "Open Project in New Window",

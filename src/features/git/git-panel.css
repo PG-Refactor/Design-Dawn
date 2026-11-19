@@ -651,3 +651,8 @@
 .git-long-paths__confirm p {
   flex: 1 0 100%;
 }
+
+/* Long inside the Project only: worth knowing, not a failure here. */
+.git-long-paths--note {
+  border-color: var(--color-border-strong);
+}

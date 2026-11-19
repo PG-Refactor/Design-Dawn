@@ -10,6 +10,7 @@ import { resolveMarkdownImagePath } from "../../domain/block/markdown-image-path
 import {
   LINK_URL_PATTERN,
   MARKDOWN_CLASS_NAMES,
+  SHORT_CELL_MAX_CHARACTERS,
   TABLE_ALIGNMENTS,
   URL_SCHEME_PATTERN,
 } from "./markdown-config";
@@ -49,6 +50,9 @@ const ALIGNMENT_STYLE = new RegExp(
   `^text-align:(${TABLE_ALIGNMENTS.join("|")})$`,
 );
 const TABLE_CELL_OPEN_RULES = ["th_open", "td_open"] as const;
+const WHITESPACE = /\s/;
+// A line break written in a cell (`<br>`): the cell is not a single short value.
+const LINE_BREAK_MARK = "<br";
 
 // markdown-it asks one question (`validateLink`) for links and images alike. A relative
 // path has to pass it so that an image can point at an asset, but a relative LINK is still
@@ -155,6 +159,16 @@ function createMarkdownRenderer() {
             `${MARKDOWN_CLASS_NAMES.alignPrefix}${alignment}`,
           );
         }
+      }
+      // The cell's text is the inline token after it.
+      const text = tokens[index + 1]?.content ?? "";
+      if (
+        text !== "" &&
+        !WHITESPACE.test(text) &&
+        !text.includes(LINE_BREAK_MARK) &&
+        [...text].length <= SHORT_CELL_MAX_CHARACTERS
+      ) {
+        token.attrJoin(CLASS_ATTRIBUTE, MARKDOWN_CLASS_NAMES.shortCell);
       }
       return self.renderToken(tokens, index, options);
     };

@@ -30,6 +30,7 @@ import type {
 } from "../../domain/shared/entity-id";
 import { useContextMenu } from "../../shared/menu/context-menu";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
+import { measureMarkdownHeight } from "../markdown/measure-markdown";
 import { useMermaidRenderer } from "../mermaid/mermaid-renderer-context";
 import { askSpreadsheetImport } from "../spreadsheet/spreadsheet-import-dialog";
 import { askSaveTemplate } from "../templates/template-dialogs";
@@ -428,6 +429,7 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
             void canvasActions.importSpreadsheet({
               viewportSize: canvasSize(),
               choose: askSpreadsheetImport,
+              measureHeight: measureMarkdownHeight,
               ...(at === undefined ? {} : { at }),
             }),
           // Pasted where the canvas was right-clicked, like the items that add.

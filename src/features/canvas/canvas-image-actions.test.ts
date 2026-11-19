@@ -759,6 +759,49 @@ describe("importSpreadsheet", () => {
     ).toBeGreaterThan(3 * 20);
   });
 
+  it("uses the height the table has when drawn, and keeps the tables apart", async () => {
+    const harness = await openedCanvasHarness();
+    harness.gateway.scriptSpreadsheet({
+      status: "selected",
+      fileName: "two.xlsx",
+      sheets: [sheetOf("First", [["a"], ["b"]]), sheetOf("Second", [["c"]])],
+    });
+    const before = harness.blocksOfSheetA1().length;
+    await harness.canvasActions.importSpreadsheet({
+      viewportSize: VIEWPORT_SIZE,
+      // Taller than any estimate of two rows would be.
+      measureHeight: (markdown) => (markdown.includes("First") ? 900 : 200),
+    });
+    const [first, second] = harness.blocksOfSheetA1().slice(before);
+    expect(first?.size.height).toBe(908);
+    expect(second?.size.height).toBe(208);
+    if (first === undefined || second === undefined) throw new Error("blocks");
+    const apart =
+      second.position.y >= first.position.y + first.size.height ||
+      second.position.x >= first.position.x + first.size.width ||
+      first.position.x >= second.position.x + second.size.width ||
+      first.position.y >= second.position.y + second.size.height;
+    expect(apart).toBe(true);
+  });
+
+  it("puts the tables one under the other from a chosen point", async () => {
+    const harness = await openedCanvasHarness();
+    harness.gateway.scriptSpreadsheet({
+      status: "selected",
+      fileName: "two.xlsx",
+      sheets: [sheetOf("First", [["a"]]), sheetOf("Second", [["c"]])],
+    });
+    const before = harness.blocksOfSheetA1().length;
+    await harness.canvasActions.importSpreadsheet({
+      viewportSize: VIEWPORT_SIZE,
+      at: { x: 2000, y: 2000 },
+      measureHeight: () => 300,
+    });
+    const [first, second] = harness.blocksOfSheetA1().slice(before);
+    expect(first?.position).toEqual({ x: 2000, y: 2000 });
+    expect(second?.position).toEqual({ x: 2000, y: 2000 + 308 + 24 });
+  });
+
   it("does nothing when the dialog is cancelled", async () => {
     const harness = await openedCanvasHarness();
     const before = harness.blocksOfSheetA1().length;

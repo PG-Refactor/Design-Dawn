@@ -281,5 +281,8 @@ pub const CONFIG_VALUE_TRUE: &str = "true";
 pub const WINDOWS_MAX_PATH: usize = 260;
 /// How many of the too long paths a status names (the count is always complete).
 pub const LONG_PATHS_LISTED: usize = 20;
+/// A path inside the Project this long (Project relative) is short enough here, but over
+/// Windows' limit once someone checks the repository out a few folders deep.
+pub const PORTABLE_PATH_LIMIT: usize = 200;
 /// The repository's own folder in the Project root, left out of the long path check.
 pub const GIT_DIRECTORY_NAME: &str = ".git";

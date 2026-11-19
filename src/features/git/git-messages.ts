@@ -29,7 +29,11 @@ const GIT_MESSAGES_JA = {
   longPathsTitle: (count: number): string =>
     `パスが長すぎるファイルが ${count} 個あります`,
   longPathsBody:
-    "パスが 260 文字を超えるファイルは、Windows の Git（既定の設定）では読めず、変更の一覧に出ないままコミットから漏れます。フォルダを浅くするか名前を短くするか、このProjectで長いパスを有効にしてください。",
+    "パスが 260 文字を超えるファイルは、Windows の Git（既定の設定）では扱えないことがあります。変更の一覧に出ていても、追加やコミットで失敗したり、コミットから漏れたりすることがあります。ほかの Windows のパソコンで取り出すときも、ファイルを作れずに失敗することがあります。フォルダを浅くするか名前を短くするか、このProjectで長いパスを有効にしてください（有効にするのはこのパソコンのこのリポジトリだけです）。",
+  portablePathsTitle: (count: number): string =>
+    `Project の中のパスが長いファイルが ${count} 個あります`,
+  portablePathsBody:
+    "このパソコンでは問題ありませんが、ほかのパソコンで深いフォルダに取り出すと、Windows のパスの長さの上限（260 文字）を超えて扱えないことがあります。フォルダを浅くするか名前を短くすると安心です。",
   longPathsList: "該当するファイル",
   longPathsMore: (count: number): string => `ほか ${count} 個`,
   enableLongPaths: "このProjectで長いパスを有効にする…",
@@ -218,7 +222,11 @@ const GIT_MESSAGES_EN: GitMessages = {
   panelTitle: "Source Control",
   longPathsTitle: (count) => `${count} files have paths that are too long`,
   longPathsBody:
-    "Git on Windows (with its default settings) cannot read files whose path is over 260 characters: they are left out of the changes and out of commits. Use shallower folders or shorter names, or allow long paths for this Project.",
+    "Git on Windows (with its default settings) may not handle files whose path is over 260 characters: even when they are listed as changes, adding or committing them can fail, or they can be left out of a commit. Checking them out on another Windows PC can fail too. Use shallower folders or shorter names, or allow long paths for this Project (only this repository on this PC).",
+  portablePathsTitle: (count) =>
+    `${count} files have long paths inside the Project`,
+  portablePathsBody:
+    "Fine on this PC, but on a PC that keeps the Project in a deeper folder they can pass Windows' 260-character path limit and fail. Shallower folders or shorter names are safer.",
   longPathsList: "The files",
   longPathsMore: (count) => `and ${count} more`,
   enableLongPaths: "Allow Long Paths for This Project…",

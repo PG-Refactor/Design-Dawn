@@ -238,6 +238,9 @@ export interface ImportSpreadsheetInput extends AddImagesFromFilesInput {
   readonly choose?: (
     workbook: SpreadsheetWorkbook,
   ) => Promise<readonly ChosenTable[] | null>;
+  // How tall a Markdown block must be for `markdown` at `width` (null: cannot tell, the
+  // table's size is estimated).
+  readonly measureHeight?: (markdown: string, width: number) => number | null;
 }
 
 export interface SpreadsheetWorkbook {
@@ -1118,7 +1121,7 @@ export function createCanvasActions(
       return operationOk(blockId);
     },
 
-    async importSpreadsheet({ viewportSize, at, choose }) {
+    async importSpreadsheet({ viewportSize, at, choose, measureHeight }) {
       const target = activeSheetTarget();
       if (target === null) {
         return record(
@@ -1149,11 +1152,41 @@ export function createCanvasActions(
       const { documentId, sheetId } = target;
       const specs: TextBlockSpec[] = [];
       for (const { name, table } of chosen) {
-        const size = commitSize(spreadsheetBlockSize(table));
+        const text = `## ${name}\n\n${formatTable(table).join("\n")}\n`;
+        const estimated = spreadsheetBlockSize(table);
+        // As tall as the table is when drawn (the estimate falls short with wrapped
+        // headings and cells); the estimate where it cannot be measured.
+        const measured = measureHeight?.(text, estimated.width) ?? null;
+        const size = commitSize(
+          measured === null
+            ? estimated
+            : {
+                width: estimated.width,
+                height: Math.min(
+                  Math.max(
+                    measured + SPREADSHEET_BLOCK_SIZE.measuredSpare,
+                    SPREADSHEET_BLOCK_SIZE.minHeight,
+                  ),
+                  SPREADSHEET_BLOCK_SIZE.measuredMaxHeight,
+                ),
+              },
+        );
         if (!size.ok)
           return record("importSpreadsheet", fromDomainResult(size));
+        // At a chosen point, the tables go one under the other from there.
+        const previous = specs.at(-1);
+        const point =
+          at === undefined || previous === undefined
+            ? at
+            : {
+                x: previous.position.x,
+                y:
+                  previous.position.y +
+                  previous.size.height +
+                  SPREADSHEET_BLOCK_SIZE.stackGap,
+              };
         const position = newBlockPosition(
-          { documentId, sheetId, viewportSize, at },
+          { documentId, sheetId, viewportSize, at: point },
           size.value,
           specs.map((spec) => ({ position: spec.position, size: spec.size })),
         );
@@ -1163,7 +1196,7 @@ export function createCanvasActions(
           blockType: BLOCK_TYPE_DEFINITIONS.markdown.identifier,
           position: position.value,
           size: size.value,
-          text: `## ${name}\n\n${formatTable(table).join("\n")}\n`,
+          text,
         });
       }
       if (specs.length === 0) return NOTHING_TO_DO;

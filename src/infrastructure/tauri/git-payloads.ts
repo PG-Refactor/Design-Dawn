@@ -92,6 +92,8 @@ const rawGitStatus = objectOf<RawGitStatus>({
         files: arrayOf(decodeString),
         count: decodeCount,
         enabled: decodeBoolean,
+        portableFiles: arrayOf(decodeString),
+        portableCount: decodeCount,
       }),
     ),
   ),

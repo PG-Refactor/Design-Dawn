@@ -65,6 +65,10 @@ export interface GitLongPaths {
   readonly count: number;
   // `core.longpaths` is on for the repository.
   readonly enabled: boolean;
+  // Files whose path inside the Project is long (200 characters or more): fine here, over
+  // the limit on a PC that keeps the Project in a deeper folder.
+  readonly portableFiles: readonly string[];
+  readonly portableCount: number;
 }
 
 export interface GitStatus {

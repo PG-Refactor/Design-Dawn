@@ -54,7 +54,8 @@ export const CANVAS_CONFIG = {
 
 // Where a new block goes when no point was chosen: the free place nearest the centre of the
 // view, looked for on rings of `step` around it (world units), at most `rings` far.
-export const FREE_PLACEMENT_SEARCH = { step: 48, rings: 24 } as const;
+// `gap`: the space kept from the blocks already there, so a new block does not touch one.
+export const FREE_PLACEMENT_SEARCH = { step: 48, rings: 24, gap: 16 } as const;
 
 // Offset applied to duplicated blocks so the copy does not hide the original. A tunable
 // setting; world coordinates (integers).

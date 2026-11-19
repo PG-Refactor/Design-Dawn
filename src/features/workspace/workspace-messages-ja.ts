@@ -265,6 +265,8 @@ export const WORKSPACE_MESSAGES_JA = {
     fileFormatUpdated: "ファイル形式を更新しました",
     longPathsFound:
       "パスが長すぎるファイルがあります。Windows の Git では扱えないことがあります（ソース管理を参照）",
+    portablePathsFound:
+      "Project の中のパスが長いファイルがあります。ほかのパソコンでは扱えないことがあります（ソース管理を参照）",
   },
   tree: {
     openProjectInNewWindow: "新しいウィンドウでProjectを開く",

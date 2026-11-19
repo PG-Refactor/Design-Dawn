@@ -46,13 +46,22 @@ function inside(candidate: PlacementRect, area: PlacementRect): boolean {
   );
 }
 
+// The search: how far apart the candidate places are, how many rings of them, and how much
+// space to keep from the blocks already there.
+export interface PlacementSearch {
+  readonly step: number;
+  readonly rings: number;
+  readonly gap?: number;
+}
+
 function search(
   start: { readonly x: number; readonly y: number },
   size: { readonly width: number; readonly height: number },
   taken: readonly PlacementRect[],
-  rings: { readonly step: number; readonly rings: number },
+  rings: PlacementSearch,
   accept: (candidate: PlacementRect) => boolean,
 ): { readonly x: number; readonly y: number } | null {
+  const gap = rings.gap ?? 0;
   for (let ring = 0; ring <= rings.rings; ring += 1) {
     for (const { dx, dy } of ringOffsets(ring)) {
       const candidate = {
@@ -61,7 +70,13 @@ function search(
         ...size,
       };
       if (candidate.x < 0 || candidate.y < 0 || !accept(candidate)) continue;
-      if (!taken.some((rect) => overlaps(candidate, rect))) {
+      const kept = {
+        x: candidate.x - gap,
+        y: candidate.y - gap,
+        width: candidate.width + gap * 2,
+        height: candidate.height + gap * 2,
+      };
+      if (!taken.some((rect) => overlaps(kept, rect))) {
         return { x: candidate.x, y: candidate.y };
       }
     }
@@ -77,7 +92,7 @@ export function freePlacement(
   start: { readonly x: number; readonly y: number },
   size: { readonly width: number; readonly height: number },
   taken: readonly PlacementRect[],
-  rings: { readonly step: number; readonly rings: number },
+  rings: PlacementSearch,
   within?: PlacementRect,
 ): { readonly x: number; readonly y: number } | null {
   if (within !== undefined) {

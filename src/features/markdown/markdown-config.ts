@@ -21,7 +21,13 @@ export const MARKDOWN_CLASS_NAMES = {
   imageAlt: "markdown-image-alt",
   // Followed by `left`, `center` or `right`: a table column's alignment.
   alignPrefix: "markdown-align-",
+  // A table cell with a short value (a name, a date, a status): kept on one line, so a
+  // table does not split it while a long cell next to it takes the width.
+  shortCell: "markdown-cell-short",
 } as const;
+
+// At most this many characters, with no space, make a cell short.
+export const SHORT_CELL_MAX_CHARACTERS = 8;
 
 export const TABLE_ALIGNMENTS = ["left", "center", "right"] as const;
 
@@ -33,8 +39,11 @@ export const IMAGE_SOURCE_ATTRIBUTE = "src";
 // The only class values that survive sanitising: the language class of a fenced code
 // block, the image-alt marker and a table column's alignment. Anything else is dropped
 // even if markup carries it.
+const ALLOWED_CLASS_SOURCE = `(?:language-[A-Za-z0-9_+#.-]+|${MARKDOWN_CLASS_NAMES.imageAlt}|${MARKDOWN_CLASS_NAMES.alignPrefix}(?:${TABLE_ALIGNMENTS.join("|")})|${MARKDOWN_CLASS_NAMES.shortCell})`;
+// One of the classes we generate, or several separated by a space (a table cell can be
+// aligned and short).
 export const ALLOWED_CLASS_PATTERN = new RegExp(
-  `^(?:language-[A-Za-z0-9_+#.-]+|${MARKDOWN_CLASS_NAMES.imageAlt}|${MARKDOWN_CLASS_NAMES.alignPrefix}(?:${TABLE_ALIGNMENTS.join("|")}))$`,
+  `^${ALLOWED_CLASS_SOURCE}(?: ${ALLOWED_CLASS_SOURCE})*$`,
 );
 
 // What the markdown-it configuration can emit. Alignment is never `style`: the renderer

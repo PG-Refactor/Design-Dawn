@@ -20,4 +20,11 @@ export const SPREADSHEET_BLOCK_SIZE = {
   maxWidth: 1200,
   minHeight: 160,
   maxHeight: 800,
+  // A table measured as drawn may be taller than the estimate allows: up to this, so its
+  // last rows are never cut off.
+  measuredMaxHeight: 4000,
+  // Below the measured text, so the last row does not touch the block's edge.
+  measuredSpare: 8,
+  // Between the tables of one import placed at a chosen point (one under the other).
+  stackGap: 24,
 } as const;

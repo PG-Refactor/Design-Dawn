@@ -3098,6 +3098,7 @@ fn files_whose_path_is_too_long_for_git_on_windows_are_reported() {
     let short = fixture.status(&project);
     let none = short.long_paths.expect("ready");
     assert_eq!(none.count, 0);
+    assert_eq!(none.portable_count, 0);
     assert!(!none.enabled);
 
     // Deep enough that the full path passes 260 characters.
@@ -3111,10 +3112,35 @@ fn files_whose_path_is_too_long_for_git_on_windows_are_reported() {
     write(&project, &format!("{relative}sheet.json"), "{}\n");
     let long = fixture.status(&project).long_paths.expect("ready");
     assert_eq!(long.count, 1);
+    // Long inside the Project too: over the limit on other PCs as well.
+    assert_eq!(long.portable_count, 1);
     assert_eq!(long.files, vec![format!("{relative}sheet.json")]);
     // The `.git` folder is not looked at.
     assert!(long.files.iter().all(|file| !file.starts_with(".git/")));
 
     fixture.git(&project, &["config", "--local", "core.longpaths", "true"]);
     assert!(fixture.status(&project).long_paths.expect("ready").enabled);
+}
+
+#[test]
+fn a_path_long_inside_the_project_is_noted_even_when_this_pc_can_use_it() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    // 200 characters or more inside the Project, under 260 with the root (the test's
+    // root is short).
+    let root_length = project.as_os_str().len();
+    let mut relative = String::new();
+    while relative.len() < 200 {
+        relative.push_str("folder-name-of-forty-characters-long-xx/");
+    }
+    let file = format!("{relative}a.md");
+    if root_length + 1 + file.len() >= 260 {
+        // The machine's temp folder is too deep to tell the two apart.
+        return;
+    }
+    write(&project, &file, "x\n");
+    let long = fixture.status(&project).long_paths.expect("ready");
+    assert_eq!(long.count, 0);
+    assert_eq!(long.portable_count, 1);
+    assert_eq!(long.portable_files, vec![file]);
 }
