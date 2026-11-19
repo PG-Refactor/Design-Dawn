@@ -70,6 +70,8 @@ enum Target {
         root: PathBuf,
         project_id: String,
         allow_write: bool,
+        /// The app's settings folder, where the AI history is kept (`None`: none kept).
+        history_dir: Option<PathBuf>,
     },
     /// No `--project`: the Projects of the app's AI access list in `config_dir`.
     FollowApp {
@@ -184,9 +186,20 @@ impl ToolContext {
                 root,
                 project_id: project.project.project_id,
                 allow_write,
+                history_dir: None,
             },
             definitions: tool_definitions(),
         })
+    }
+
+    /// Keeps the AI history of a `--project` server in the app's settings folder too, so the
+    /// app shows these changes with the others.
+    #[must_use]
+    pub fn with_history_dir(mut self, config_dir: &Path) -> Self {
+        if let Target::Fixed { history_dir, .. } = &mut self.target {
+            *history_dir = Some(config_dir.to_path_buf());
+        }
+        self
     }
 
     /// Follows the app whose settings are in `config_dir`. Nothing is read yet: the app may
@@ -232,6 +245,7 @@ Design Dawn's AI integration screen to check it",
                 root,
                 project_id,
                 allow_write,
+                ..
             } => Ok(Resolved {
                 root: root.clone(),
                 project_id: project_id.clone(),
@@ -314,8 +328,9 @@ listProjects and selectProject for another one"
         .text)
     }
 
-    /// Adds the write to the app's AI history. Only a server that follows the app keeps one;
-    /// a failure to record is reported on stderr and does not undo the write.
+    /// Adds the write to the app's AI history (in its settings folder, whichever way the
+    /// server was started); a failure to record is reported on stderr and does not undo the
+    /// write.
     fn record_history(
         &self,
         tool: &str,
@@ -323,8 +338,13 @@ listProjects and selectProject for another one"
         before: Option<String>,
         result: &Value,
     ) {
-        let Target::FollowApp { config_dir, .. } = &self.target else {
-            return;
+        let config_dir = match &self.target {
+            Target::FollowApp { config_dir, .. } => config_dir,
+            Target::Fixed {
+                history_dir: Some(history_dir),
+                ..
+            } => history_dir,
+            Target::Fixed { .. } => return,
         };
         let Ok(resolved) = self.resolve() else {
             return;

@@ -33,8 +33,12 @@ fn main() -> ExitCode {
             folder,
             allow_write,
         } => match ToolContext::open(&folder, allow_write) {
+            // The app's settings folder, so its AI history shows these changes too.
             Ok(context) => (
-                context,
+                match dirs::config_dir().map(|base| base.join(APP_IDENTIFIER)) {
+                    Some(config_dir) => context.with_history_dir(&config_dir),
+                    None => context,
+                },
                 if allow_write {
                     "one Project, read-write"
                 } else {

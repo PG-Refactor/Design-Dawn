@@ -1930,3 +1930,39 @@ fn a_template_sheet_brings_its_images_and_reuses_an_identical_one() {
     assert!(text_of(&third).contains("assets/pic-2.png"));
     assert_loads_without_issues(&root);
 }
+
+#[test]
+fn a_project_server_records_its_writes_in_the_app_history_too() {
+    use design_dawn_lib::application::local_state::ai_history::read;
+    let (temp, root) = project_copy();
+    let history_dir = temp.path().join("settings");
+    let context = ToolContext::open(&root, true)
+        .expect("open the project")
+        .with_history_dir(&history_dir);
+    let created = call(
+        &context,
+        "createBlock",
+        with(
+            overview_ids(),
+            json!({ "type": "markdown", "text": "# Noted" }),
+        ),
+    )
+    .ok();
+    let project = ProjectId::parse(PROJECT_ID).unwrap();
+    let entries = read(&history_dir, &project);
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].tool, "createBlock");
+    assert_eq!(entries[0].block_id.as_deref(), created["blockId"].as_str());
+    // Without a settings folder (as before) nothing is recorded anywhere.
+    let plain = context_for(&root, true);
+    call(
+        &plain,
+        "createBlock",
+        with(
+            overview_ids(),
+            json!({ "type": "markdown", "text": "# Quiet" }),
+        ),
+    )
+    .ok();
+    assert_eq!(read(&history_dir, &project).len(), 1);
+}
