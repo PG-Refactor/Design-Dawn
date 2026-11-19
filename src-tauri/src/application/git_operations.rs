@@ -123,8 +123,9 @@ pub struct GitStatusResult {
     pub branch: Option<GitBranchInfo>,
     /// Empty unless the repository is `ready`.
     pub files: Vec<GitFileStatus>,
-    /// Only for a `ready` repository.
-    pub long_paths: Option<GitLongPaths>,
+    /// Only for a `ready` repository. Boxed: the status travels inside other results, which
+    /// stay small.
+    pub long_paths: Option<Box<GitLongPaths>>,
 }
 
 impl GitStatusResult {
@@ -180,7 +181,7 @@ pub fn read_git_status(
         },
         branch: Some(branch),
         files,
-        long_paths: Some(long_paths_of(runner, project_root)),
+        long_paths: Some(Box::new(long_paths_of(runner, project_root))),
     })
 }
 
