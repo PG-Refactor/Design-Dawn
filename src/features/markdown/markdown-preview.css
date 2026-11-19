@@ -103,6 +103,11 @@
   padding: var(--space-1) var(--space-2);
   border: 1px solid var(--color-border-strong);
   text-align: left;
+  /* A cell breaks a word only when it does not fit on a line: with "anywhere" (inherited)
+     a table squeezes a short column down to one letter per line ("N / o") while a long
+     one takes the width. A long column is held to a readable measure instead. */
+  overflow-wrap: break-word;
+  max-width: 30em;
 }
 
 .markdown-preview .markdown-align-left {

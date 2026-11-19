@@ -920,12 +920,36 @@ export function createCanvasActions(
         ...(at === undefined ? {} : { at }),
       });
       if (!target.ok) return record("pasteBlocks", fromDomainResult(target));
+      // Into another sheet the group goes to the middle of the view: pasted again, it
+      // would land exactly on the first copy. It steps aside like a paste on its own sheet.
+      let corner = target.value;
+      if (!sameSheet && at === undefined) {
+        const taken = new Set(
+          blocksOf(documentId, sheetId).map(
+            (block) => `${block.position.x},${block.position.y}`,
+          ),
+        );
+        const lands = (point: Position) =>
+          content.blocks.some((block) =>
+            taken.has(
+              `${point.x + block.offset.x},${point.y + block.offset.y}`,
+            ),
+          );
+        while (lands(corner)) {
+          const stepped = commitPosition({
+            x: corner.x + PASTE_OFFSET.x,
+            y: corner.y + PASTE_OFFSET.y,
+          });
+          if (!stepped.ok) break;
+          corner = stepped.value;
+        }
+      }
       const command = record(
         "pasteBlocks",
         pasteBlocksCommand({
           content,
           sheetId,
-          target: target.value,
+          target: corner,
           idGenerator,
         }),
       );

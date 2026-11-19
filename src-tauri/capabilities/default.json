@@ -98,6 +98,7 @@
     "allow-project-window-at",
     "allow-show-project-in-title",
     "allow-git-status",
+    "allow-enable-git-long-paths",
     "allow-git-stage",
     "allow-git-unstage",
     "allow-git-discard-impact",

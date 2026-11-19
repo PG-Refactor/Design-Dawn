@@ -5,6 +5,7 @@ import {
   gitDiff,
   gitDiscard,
   gitDiscardImpact,
+  gitEnableLongPaths,
   gitFetch,
   gitHistory,
   gitPublish,
@@ -22,6 +23,7 @@ import {
 export function createTauriGitGateway(): GitGateway {
   return {
     gitStatus,
+    enableLongPaths: gitEnableLongPaths,
     stage: gitStage,
     conflictVersions: gitConflictVersions,
     resolveConflict: gitResolveConflict,

@@ -23,7 +23,7 @@ use super::layout::parse_project_tree_width;
 use super::text_size::TextSize;
 use super::theme::ThemePreference;
 use super::viewport::{SheetViewportKey, Viewport};
-use super::window_size::{parse_window_size, WindowSize};
+use super::window_size::{parse_window_coordinate, parse_window_size, WindowSize};
 use crate::application::error::{ApplicationError, ApplicationResult};
 use crate::domain::constants::MIN_SCHEMA_VERSION;
 use crate::domain::entity_id::ProjectId;
@@ -35,7 +35,7 @@ use crate::infrastructure::local_state::constants::{
 };
 use crate::infrastructure::local_state::dto::{
     number_from_f64, SettingsFileDto, SheetViewportEntryDto, SheetViewportsFileDto, ViewportDto,
-    WindowSizeDto,
+    WindowPositionDto, WindowSizeDto,
 };
 use crate::infrastructure::local_state::files::{read_json_file, write_json_file};
 
@@ -71,6 +71,9 @@ pub struct AppSettings {
     /// it; the Frontend gets a selection for it.
     #[serde(skip)]
     pub default_project_location: Option<PathBuf>,
+    /// The top-left corner of the window closed last (logical pixels). Only Rust uses it.
+    #[serde(skip)]
+    pub window_position: Option<(i32, i32)>,
     pub load_issue: Option<ApplicationError>,
 }
 
@@ -85,6 +88,7 @@ impl AppSettings {
             window_size: None,
             last_project_folder: None,
             default_project_location: None,
+            window_position: None,
             load_issue,
         }
     }
@@ -236,6 +240,13 @@ impl LocalState {
                 .as_deref()
                 .filter(|path| !path.is_empty())
                 .map(PathBuf::from),
+            // A hint too: a value that is not a sensible position is dropped, not an error.
+            window_position: dto.window_position.as_ref().and_then(|position| {
+                Some((
+                    parse_window_coordinate(&position.x)?,
+                    parse_window_coordinate(&position.y)?,
+                ))
+            }),
             load_issue: None,
         })
     }
@@ -275,6 +286,10 @@ impl LocalState {
                     .default_project_location
                     .as_ref()
                     .map(|path| path.to_string_lossy().into_owned()),
+                window_position: settings.window_position.map(|(x, y)| WindowPositionDto {
+                    x: Number::from(x),
+                    y: Number::from(y),
+                }),
             },
         )?;
         Ok(settings)
@@ -333,6 +348,11 @@ impl LocalState {
     /// Recorded when a window closes. Keeps the other settings (read-modify-write).
     pub fn set_window_size(&self, size: WindowSize) -> ApplicationResult<AppSettings> {
         self.update_settings(|settings| settings.window_size = Some(size))
+    }
+
+    /// Recorded with the size when a window closes.
+    pub fn set_window_position(&self, position: (i32, i32)) -> ApplicationResult<AppSettings> {
+        self.update_settings(|settings| settings.window_position = Some(position))
     }
 
     pub fn set_default_project_location(&self, folder: &Path) -> ApplicationResult<AppSettings> {

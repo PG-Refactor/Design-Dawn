@@ -83,3 +83,6 @@ pub const AI_REQUEST_POLL_INTERVAL_MS: u64 = 1000;
 /// After the user says no, requests for that Project are dropped for this long, so an AI
 /// cannot keep asking.
 pub const AI_REQUEST_DENIED_COOLDOWN_SECS: u64 = 300;
+/// How far from the origin a recorded window position may be (logical pixels): larger
+/// values come from a hand-edited or broken file, not from any monitor arrangement.
+pub const WINDOW_POSITION_LIMIT: i32 = 100_000;

@@ -422,4 +422,21 @@ describe("file drop", () => {
     cleanup();
     expect(shell.dropEventSource.listenerCount()).toBe(0);
   });
+
+  it("selects every block of the sheet with Ctrl+A on the canvas", async () => {
+    const { shell } = await renderWithImages();
+    let notPrevented = true;
+    await act(async () => {
+      notPrevented = fireEvent.keyDown(canvasElement(), {
+        key: "a",
+        ctrlKey: true,
+      });
+      await settle();
+    });
+    // The page's text is not selected instead.
+    expect(notPrevented).toBe(false);
+    expect([
+      ...getSelection(shell.uiStateStore.getState(), SHEET_A1),
+    ]).toHaveLength(screen.getAllByRole("option").length);
+  });
 });

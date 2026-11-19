@@ -56,12 +56,25 @@ export interface GitBranchInfo {
   readonly headPushed: boolean;
 }
 
+// Files of the Project whose full path reaches Windows' 260-character limit: Git on
+// Windows cannot read them (and leaves them out of the status without saying so) unless
+// the repository allows long paths.
+export interface GitLongPaths {
+  // The first of them, Project root relative; `count` is all of them.
+  readonly files: readonly string[];
+  readonly count: number;
+  // `core.longpaths` is on for the repository.
+  readonly enabled: boolean;
+}
+
 export interface GitStatus {
   readonly repositoryState: GitRepositoryState;
   // Null unless the repository state is `ready`.
   readonly branch: GitBranchInfo | null;
   // Empty unless the repository state is `ready`.
   readonly files: readonly GitFileStatus[];
+  // Only for a `ready` repository, when it was looked at.
+  readonly longPaths?: GitLongPaths;
 }
 
 export const GIT_DIFF_SIDES = ["unstaged", "staged"] as const;
@@ -191,6 +204,8 @@ export interface GitGateway {
     content: string,
   ): Promise<OperationResult<GitStatus>>;
   gitStatus(projectId: ProjectId): Promise<OperationResult<GitStatus>>;
+  // Turns `core.longpaths` on in the Project's own repository (asked by the user).
+  enableLongPaths(projectId: ProjectId): Promise<OperationResult<void>>;
   // Stages changed files (Project root relative, `/` separated) and returns the status
   // read afterwards. After a failure the index may be partly changed: read the status again.
   stage(

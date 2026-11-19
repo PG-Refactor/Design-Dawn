@@ -4,6 +4,7 @@ import { useGitState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import { GitBranchIndicator } from "./git-branch-indicator";
 import { RefreshIcon } from "./git-icons";
+import { GitLongPathsWarning } from "./git-long-paths";
 import { GitMoreActionsMenu } from "./git-more-actions-menu";
 import { GitRepositoryState } from "./git-repository-state";
 import { refreshGitView } from "./git-view-refresh";
@@ -56,6 +57,7 @@ export function GitPanel() {
           ) : null}
         </header>
       ) : null}
+      <GitLongPathsWarning />
       <GitRepositoryState />
     </section>
   );

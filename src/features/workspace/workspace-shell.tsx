@@ -3,6 +3,7 @@ import { PrintingCloseDialog } from "../export/printing-close";
 import { ProjectBanner } from "../external-change/external-change-banner";
 import { ExternalChangeDialog } from "../external-change/external-change-dialog";
 import { useExternalChangeWatching } from "../external-change/use-external-change-watching";
+import { useLongPathsNotice } from "../git/git-long-paths";
 import { useGitAutoRefresh } from "../git/use-git-auto-refresh";
 import { LoadIssueRepairDialog } from "../load-issue-repair/load-issue-repair-dialog";
 import { useFindShortcuts } from "../search/use-find-shortcuts";
@@ -35,6 +36,7 @@ export function WorkspaceShell() {
   useAppRequests(closeStatus);
   useWindowTitle();
   useGitAutoRefresh();
+  useLongPathsNotice();
   useExternalChangeWatching();
   return (
     <div className="workspace-shell">

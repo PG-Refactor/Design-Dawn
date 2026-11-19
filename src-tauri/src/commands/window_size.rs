@@ -10,6 +10,10 @@ use crate::application::local_state::operations::LocalState;
 use crate::application::local_state::window_size::{fit_to_work_area, size_to_record};
 use crate::config::MAIN_WINDOW_LABEL;
 
+/// How far inside a monitor's work area the recorded window corner must be to count as on it
+/// (logical pixels).
+const POSITION_PROBE_INSET: f64 = 8.0;
+
 /// The monitor's work area (the screen without taskbars / docks) in logical pixels.
 fn logical_work_area(monitor: &Monitor) -> (f64, f64) {
     let work_area = monitor.work_area();
@@ -46,6 +50,38 @@ pub fn record_window_size<R: Runtime>(window: &Window<R>) {
     if let Err(error) = local_state.set_window_size(size) {
         eprintln!("failed to record the window size: {error}");
     }
+    // Where it was, so the next start opens on the same monitor. A maximized window
+    // reports the monitor's corner, which is just as good for that.
+    let position = window
+        .scale_factor()
+        .and_then(|scale| Ok(window.outer_position()?.to_logical::<f64>(scale)));
+    match position {
+        #[allow(clippy::cast_possible_truncation)]
+        Ok(position) if position.x.is_finite() && position.y.is_finite() => {
+            let corner = (position.x.round() as i32, position.y.round() as i32);
+            if let Err(error) = local_state.set_window_position(corner) {
+                eprintln!("failed to record the window position: {error}");
+            }
+        }
+        Ok(_) => {}
+        Err(error) => eprintln!(
+            "failed to read the position of window {}: {error}",
+            window.label()
+        ),
+    }
+}
+
+/// The monitor whose work area holds the recorded window corner (a little inside it, so a
+/// window whose edge only touched a monitor does not count), when there is one.
+fn monitor_at<R: Runtime>(app: &AppHandle<R>, corner: (i32, i32)) -> Option<Monitor> {
+    let point = (
+        f64::from(corner.0) + POSITION_PROBE_INSET,
+        f64::from(corner.1) + POSITION_PROBE_INSET,
+    );
+    app.available_monitors().ok()?.into_iter().find(|monitor| {
+        let (x, y, width, height) = logical_work_area_rect(monitor);
+        point.0 >= x && point.0 < x + width && point.1 >= y && point.1 < y + height
+    })
 }
 
 /// The recorded size fitted to the monitor, as logical pixels; `None` when nothing is
@@ -89,10 +125,22 @@ fn apply_recorded_size<R: Runtime>(app: &AppHandle<R>, window: &WebviewWindow<R>
     let Some(local_state) = app.try_state::<LocalState>() else {
         return;
     };
-    let monitor = window
-        .current_monitor()
-        .ok()
-        .flatten()
+    // Back where it was closed when that place is still on a monitor (one unplugged since
+    // leaves the window where the system puts it).
+    let recorded_monitor = local_state
+        .get_app_settings()
+        .window_position
+        .and_then(|corner| Some((corner, monitor_at(app, corner)?)));
+    if let Some(((x, y), _)) = &recorded_monitor {
+        if let Err(error) =
+            window.set_position(tauri::LogicalPosition::new(f64::from(*x), f64::from(*y)))
+        {
+            eprintln!("failed to apply the recorded window position: {error}");
+        }
+    }
+    let monitor = recorded_monitor
+        .map(|(_, monitor)| monitor)
+        .or_else(|| window.current_monitor().ok().flatten())
         .or_else(|| window.primary_monitor().ok().flatten());
     let Some((width, height, maximized)) = recorded_size_on(&local_state, monitor.as_ref()) else {
         return;

@@ -3,7 +3,11 @@
 // file. The same page is used for the HTML export and, with page rules, for printing.
 
 import { PRINT_CONFIG } from "../../config/print-config";
-import { contentBounds, type Rect } from "../../domain/print/page-layout";
+import {
+  contentBounds,
+  drawnPictureRect,
+  type Rect,
+} from "../../domain/print/page-layout";
 import {
   PAPER_SIZES,
   type PaperSettings,
@@ -19,6 +23,9 @@ export interface ExportBlock {
     readonly text: string;
     readonly position: "above" | "below";
   };
+  // A picture's own size (an SVG's, an image file's), when known: where it is drawn in
+  // the block, so a page with only the empty edge of a large one can be left out.
+  readonly natural?: { readonly width: number; readonly height: number };
 }
 
 export interface ExportSheet {
@@ -84,7 +91,7 @@ html,body{margin:0;background:var(--background);color:var(--text);font-family:"S
 .block__body pre code{padding:0;background:none;}
 .block__body blockquote{margin:0 0 8px;padding-left:12px;border-left:3px solid var(--border);color:var(--muted);}
 .block__body table{border-collapse:collapse;margin:0 0 8px;}
-.block__body th,.block__body td{padding:4px 8px;border:1px solid var(--border-strong);text-align:left;}
+.block__body th,.block__body td{padding:4px 8px;border:1px solid var(--border-strong);text-align:left;overflow-wrap:break-word;max-width:30em;}
 .block__body th{background:var(--background);}
 .block__body .markdown-align-center{text-align:center;}.block__body .markdown-align-right{text-align:right;}
 .block__body .markdown-image-alt{color:var(--muted);font-style:italic;}
@@ -159,6 +166,12 @@ function sheetsMarkup(
       sheet.blocks.map((block) => ({
         ...block.rect,
         figure: block.content.kind === "image",
+        // A caption is text across the block: the whole block counts as drawn then.
+        ...(block.content.kind === "image" &&
+        block.natural !== undefined &&
+        block.caption === undefined
+          ? { drawn: drawnPictureRect(block.rect, block.natural) }
+          : {}),
       })),
       layout,
       SHEET_MARGIN,

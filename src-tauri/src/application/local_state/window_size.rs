@@ -3,7 +3,9 @@
 
 use serde_json::Number;
 
-use super::constants::{WINDOW_HEIGHT_MAX, WINDOW_HEIGHT_MIN, WINDOW_WIDTH_MAX, WINDOW_WIDTH_MIN};
+use super::constants::{
+    WINDOW_HEIGHT_MAX, WINDOW_HEIGHT_MIN, WINDOW_POSITION_LIMIT, WINDOW_WIDTH_MAX, WINDOW_WIDTH_MIN,
+};
 use crate::application::error::{ApplicationError, ApplicationResult};
 use crate::infrastructure::error::PersistenceErrorKind;
 
@@ -60,6 +62,15 @@ pub fn size_to_record(width: f64, height: f64, maximized: bool) -> Option<Window
         height: clamp(height, WINDOW_HEIGHT_MIN, WINDOW_HEIGHT_MAX),
         maximized,
     })
+}
+
+/// A recorded window coordinate: an integer within `WINDOW_POSITION_LIMIT` of the origin
+/// (monitors left of / above the main one have negative coordinates), else `None`.
+pub fn parse_window_coordinate(number: &Number) -> Option<i32> {
+    number
+        .as_i64()
+        .filter(|value| value.abs() <= i64::from(WINDOW_POSITION_LIMIT))
+        .and_then(|value| i32::try_from(value).ok())
 }
 
 /// Shrinks `size` to the monitor's work area (logical pixels) so a window recorded on a

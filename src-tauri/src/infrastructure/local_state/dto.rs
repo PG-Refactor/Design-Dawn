@@ -38,6 +38,17 @@ pub struct SettingsFileDto {
     /// Projects.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_project_location: Option<String>,
+    /// Where the last window closed (its top-left corner, logical pixels), so it opens on
+    /// the same monitor. Absent until then, and in files written before it was kept.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub window_position: Option<WindowPositionDto>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WindowPositionDto {
+    pub x: Number,
+    pub y: Number,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

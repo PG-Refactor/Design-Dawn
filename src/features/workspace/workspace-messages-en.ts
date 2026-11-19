@@ -262,6 +262,8 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     loadIssueRepaired: "Repaired",
     filesReloaded: "Files were read again",
     fileFormatUpdated: "File format updated",
+    longPathsFound:
+      "Some file paths are too long for Git on Windows (see Source Control)",
   },
   tree: {
     openProjectInNewWindow: "Open Project in New Window",

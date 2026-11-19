@@ -313,6 +313,7 @@ export const NOTICE_KINDS = [
   "loadIssueRepaired",
   "filesReloaded",
   "fileFormatUpdated",
+  "longPathsFound",
 ] as const;
 
 export type NoticeKind = (typeof NOTICE_KINDS)[number];

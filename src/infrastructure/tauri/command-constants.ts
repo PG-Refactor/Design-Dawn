@@ -97,6 +97,7 @@ export const COMMANDS = {
   showProjectInTitle: "show_project_in_title",
   applyWindowTheme: "apply_window_theme",
   gitStatus: "git_status",
+  enableGitLongPaths: "enable_git_long_paths",
   gitStage: "git_stage",
   gitUnstage: "git_unstage",
   gitDiscardImpact: "git_discard_impact",
