@@ -777,6 +777,18 @@ pub fn rename_template(
     )
 }
 
+/// Removes the kind's folder, then the place's, when the last template left them empty
+/// (an empty `templates/markdown/` left in the Project would only puzzle). Anything still
+/// in them, or a failure to remove, leaves them as they are.
+fn remove_emptied_folders(roots: &TemplateRoots, scope: TemplateScope, kind: TemplateKind) {
+    let Ok(root) = roots.root(scope) else {
+        return;
+    };
+    // `remove_dir` removes only an empty directory.
+    let _ = fs::remove_dir(root.join(kind.as_str()));
+    let _ = fs::remove_dir(root);
+}
+
 pub fn delete_template(
     roots: &TemplateRoots,
     scope: TemplateScope,
@@ -785,6 +797,7 @@ pub fn delete_template(
 ) -> ApplicationResult<()> {
     let (folder, _) = find_template(roots, scope, kind, template_id)?;
     fs::remove_dir_all(&folder).map_err(io_error(format!("remove {}", folder.display())))?;
+    remove_emptied_folders(roots, scope, kind);
     Ok(())
 }
 
@@ -831,5 +844,6 @@ pub fn move_template(
         return Err(error);
     }
     fs::remove_dir_all(&folder).map_err(io_error(format!("remove {}", folder.display())))?;
+    remove_emptied_folders(roots, scope, kind);
     Ok(())
 }

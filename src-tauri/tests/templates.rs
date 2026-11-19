@@ -228,6 +228,15 @@ fn templates_are_listed_by_place_and_kind_and_can_be_renamed_moved_and_deleted()
     )
     .unwrap();
     assert_eq!(list_templates(&roots).templates.len(), 1);
+    // Moving the last Project template away and deleting the last shared one leave no
+    // empty folders behind.
+    let shared = roots.shared.clone().unwrap();
+    assert!(!shared.join("markdown").exists());
+    assert!(!shared.exists());
+    let project = roots.project.clone().unwrap();
+    assert!(!project.join("markdown").exists());
+    // A folder that still holds a template stays.
+    assert!(roots.global.join("mermaid").is_dir());
 }
 
 #[test]
