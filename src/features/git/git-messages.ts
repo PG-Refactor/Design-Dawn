@@ -29,7 +29,7 @@ const GIT_MESSAGES_JA = {
   longPathsTitle: (count: number): string =>
     `パスが長すぎるファイルが ${count} 個あります`,
   longPathsBody:
-    "パスが 260 文字を超えるファイルは、Windows の Git（既定の設定）では扱えないことがあります。変更の一覧に出ていても、追加やコミットで失敗したり、コミットから漏れたりすることがあります。ほかの Windows のパソコンで取り出すときも、ファイルを作れずに失敗することがあります。フォルダを浅くするか名前を短くするか、このProjectで長いパスを有効にしてください（有効にするのはこのパソコンのこのリポジトリだけです）。",
+    "パスが 260 文字以上のファイルは、Windows の Git（長いパスを有効にしていない場合）では追加もコミットもできません。変更の一覧に出ていても追加で失敗し、1つあるだけで「すべて追加してコミット」全体が止まります。フォルダごと長すぎるファイルは変更の一覧にも出ず、気づかないままコミットから漏れます。そのため、このままではコミットしません。ほかの Windows のパソコンでも、取り出すときにファイルを作れず失敗します。フォルダを浅くするか名前を短くするか、このProjectで長いパスを有効にしてください（有効にするのはこのパソコンのこのリポジトリだけです）。",
   portablePathsTitle: (count: number): string =>
     `Project の中のパスが長いファイルが ${count} 個あります`,
   portablePathsBody:
@@ -222,7 +222,7 @@ const GIT_MESSAGES_EN: GitMessages = {
   panelTitle: "Source Control",
   longPathsTitle: (count) => `${count} files have paths that are too long`,
   longPathsBody:
-    "Git on Windows (with its default settings) may not handle files whose path is over 260 characters: even when they are listed as changes, adding or committing them can fail, or they can be left out of a commit. Checking them out on another Windows PC can fail too. Use shallower folders or shorter names, or allow long paths for this Project (only this repository on this PC).",
+    'Git on Windows (without long paths allowed) cannot add or commit files whose path is 260 characters or more. Listed as a change, such a file still fails to be added, and one of them stops a whole "add everything and commit". Files inside a folder whose path is too long are not even listed, and would be left out of commits unnoticed. So no commit is made as things are. Checking them out on another Windows PC fails too. Use shallower folders or shorter names, or allow long paths for this Project (only this repository on this PC).',
   portablePathsTitle: (count) =>
     `${count} files have long paths inside the Project`,
   portablePathsBody:

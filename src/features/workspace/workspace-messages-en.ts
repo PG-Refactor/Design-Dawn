@@ -155,6 +155,8 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
   invalidHistoryRequest: "The history request is invalid",
   gitDiscardRejected: "This change cannot be discarded",
   gitNoCommitToAmend: "There is no commit to amend yet",
+  gitLongPaths:
+    "Not committed: some files have paths too long for Git (they could not be added, or would be left out). Allow long paths from the Source Control warning, or use shallower folders or shorter names",
   gitCommitAlreadyPushed: "A pushed commit cannot be changed",
   gitCannotUndoCommit:
     "This commit cannot be undone (it is the first commit or a merge commit)",

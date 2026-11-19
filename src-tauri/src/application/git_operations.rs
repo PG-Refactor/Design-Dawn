@@ -23,7 +23,8 @@ use crate::infrastructure::git::constants::{
 };
 use crate::infrastructure::git::constants::{
     ARG_CONFIG_GET, ARG_CONFIG_LOCAL, ARG_GIT_CONFIG, CONFIG_KEY_LONG_PATHS, CONFIG_VALUE_TRUE,
-    GIT_DIRECTORY_NAME, LONG_PATHS_LISTED, PORTABLE_PATH_LIMIT, WINDOWS_MAX_PATH,
+    GIT_DIRECTORY_NAME, LONG_PATHS_LISTED, PORTABLE_PATH_LIMIT, UNC_PREFIX, VERBATIM_PREFIX,
+    VERBATIM_UNC_PREFIX, WINDOWS_MAX_PATH,
 };
 use crate::infrastructure::git::numstat_parser::contains_binary_file;
 use crate::infrastructure::git::paths::{
@@ -187,8 +188,23 @@ pub fn read_git_status(
 
 /// The Project's files whose full path is at least `WINDOWS_MAX_PATH` long (the `.git`
 /// folder aside), and whether the repository allows them.
-fn long_paths_of(runner: &GitRunner, project_root: &Path) -> GitLongPaths {
-    let root_length = project_root.as_os_str().len();
+/// The length Windows counts for a path: UTF-16 code units, without the `\\?\` prefix a
+/// canonical path carries there (`\\?\UNC\server` counts as `\\server`), which the
+/// limit does not include.
+fn windows_path_length(path: &Path) -> usize {
+    let text = path.to_string_lossy();
+    let shown = if let Some(rest) = text.strip_prefix(VERBATIM_UNC_PREFIX) {
+        format!("{UNC_PREFIX}{rest}")
+    } else if let Some(rest) = text.strip_prefix(VERBATIM_PREFIX) {
+        rest.to_owned()
+    } else {
+        text.into_owned()
+    };
+    shown.encode_utf16().count()
+}
+
+pub(crate) fn long_paths_of(runner: &GitRunner, project_root: &Path) -> GitLongPaths {
+    let root_length = windows_path_length(project_root);
     let mut files = Vec::new();
     let mut count = 0;
     let mut portable_files = Vec::new();
@@ -211,13 +227,14 @@ fn long_paths_of(runner: &GitRunner, project_root: &Path) -> GitLongPaths {
                 EntryKind::Directory => pending.push((directory.join(&entry.name), path)),
                 EntryKind::File => {
                     // The root, a separator and the relative path, as Windows counts it.
-                    if path.len() >= PORTABLE_PATH_LIMIT {
+                    let relative_length = path.encode_utf16().count();
+                    if relative_length >= PORTABLE_PATH_LIMIT {
                         portable_count += 1;
                         if portable_files.len() < LONG_PATHS_LISTED {
                             portable_files.push(path.clone());
                         }
                     }
-                    if root_length + 1 + path.len() >= WINDOWS_MAX_PATH {
+                    if root_length + 1 + relative_length >= WINDOWS_MAX_PATH {
                         count += 1;
                         if files.len() < LONG_PATHS_LISTED {
                             files.push(path);
@@ -965,6 +982,23 @@ fn file_change(change: FileChange) -> GitFileChange {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_windows_path_is_counted_without_its_verbatim_prefix_in_utf16_units() {
+        use super::windows_path_length;
+        use std::path::Path;
+        assert_eq!(
+            windows_path_length(Path::new(r"\\?\C:\a\b")),
+            r"C:\a\b".len()
+        );
+        assert_eq!(
+            windows_path_length(Path::new(r"\\?\UNC\server\share\x")),
+            r"\\server\share\x".len()
+        );
+        assert_eq!(windows_path_length(Path::new("/home/a")), 7);
+        // Three bytes in UTF-8, one unit in UTF-16.
+        assert_eq!(windows_path_length(Path::new("/資料")), 3);
+    }
+
     use super::*;
 
     #[test]

@@ -765,3 +765,29 @@ fn undo_outside_a_repository_is_not_ready() {
 
     assert_eq!(error.kind, ErrorKind::GitNotReady);
 }
+
+#[test]
+fn a_commit_is_refused_while_files_have_paths_too_long_for_git_on_windows() {
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    let before = fixture.head(&project);
+    write(&project, "tracked.md", "changed\n");
+    // A path over 260 characters with the Project root.
+    let root_length = project.as_os_str().len();
+    let mut relative = String::new();
+    while root_length + relative.len() < 300 {
+        relative.push_str(&"d".repeat(50));
+        relative.push('/');
+    }
+    write(&project, &format!("{relative}sheet.json"), "{}\n");
+
+    let error = fixture.commit(&project, SUBJECT, STAGE_ALL).unwrap_err();
+    assert_eq!(error.kind, ErrorKind::GitLongPaths);
+    // Nothing was added or committed.
+    assert_eq!(fixture.head(&project), before);
+
+    // Once the repository allows long paths, the commit goes through.
+    fixture.git(&project, &["config", "--local", "core.longpaths", "true"]);
+    fixture.commit(&project, SUBJECT, STAGE_ALL).unwrap();
+    assert_eq!(fixture.head_content(&project, "tracked.md"), "changed\n");
+}
