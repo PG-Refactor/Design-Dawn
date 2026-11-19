@@ -266,6 +266,9 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     fileFormatUpdated: "File format updated",
     longPathsFound:
       "Some file paths are too long for Git on Windows (see Source Control)",
+    aiImageRequestExpired:
+      "The AI's request to add an image expired (no image was added)",
+    aiImageRequestFailed: "The image the AI asked for could not be added",
     portablePathsFound:
       "Some paths inside the Project are long; other PCs may not handle them (see Source Control)",
   },

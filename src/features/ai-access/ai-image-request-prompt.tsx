@@ -1,12 +1,17 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { WindowEvent } from "../../application/ports/app-request-source";
+import { AI_ACCESS_CONFIG } from "../../config/ai-access-config";
 import { measureActiveCanvas } from "../canvas/block-dom";
 import { Modal } from "../workspace/modal";
+import { showNotice } from "../workspace/ui-state/shell-ui-state";
 import { useMessages } from "../workspace/use-messages";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import "./ai-access-dialog.css";
 
 type AiImageRequest = Extract<WindowEvent, { kind: "aiImageRequested" }>;
+
+// What answering a request that is no longer there gets back.
+const EXPIRED_KIND = "entityNotFound";
 
 // Asks the user when an AI wants to add an image file to a Sheet: the picture is shown
 // (read and validated by Rust), and only "Add" imports it and places the Image Block.
@@ -19,6 +24,7 @@ export function AiImageRequestPrompt() {
     actions,
     canvasActions,
     applicationStore,
+    uiStateStore,
   } = useWorkspaceServices();
   const titleId = useId();
   const descriptionId = useId();
@@ -27,12 +33,16 @@ export function AiImageRequestPrompt() {
   const [preview, setPreview] = useState<string | null>(null);
   const [previewFailed, setPreviewFailed] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  // When each request arrived: it expires a lifetime later, wherever it is in the queue.
+  const arrivedAt = useRef(new Map<string, number>());
 
   useEffect(
     () =>
       appRequestSource.subscribeWindowEvents((event) => {
         if (event.kind !== "aiImageRequested") return;
+        if (!arrivedAt.current.has(event.requestId)) {
+          arrivedAt.current.set(event.requestId, Date.now());
+        }
         setQueue((waiting) =>
           waiting.some((request) => request.requestId === event.requestId)
             ? waiting
@@ -58,6 +68,26 @@ export function AiImageRequestPrompt() {
     };
   }, [request, aiAccess]);
 
+  // The app drops a request nobody answered in time: its question closes and says so.
+  useEffect(() => {
+    if (request === undefined) return;
+    const arrived = arrivedAt.current.get(request.requestId) ?? Date.now();
+    const left = Math.max(
+      0,
+      arrived + AI_ACCESS_CONFIG.requestLifetimeMs - Date.now(),
+    );
+    const timer = setTimeout(() => {
+      arrivedAt.current.delete(request.requestId);
+      setQueue((waiting) =>
+        waiting.filter((each) => each.requestId !== request.requestId),
+      );
+      uiStateStore.setState((state) =>
+        showNotice(state, "aiImageRequestExpired"),
+      );
+    }, left);
+    return () => clearTimeout(timer);
+  }, [request, uiStateStore]);
+
   if (request === undefined) return null;
 
   const application = applicationStore.getState();
@@ -72,8 +102,9 @@ export function AiImageRequestPrompt() {
   async function answer(allow: boolean): Promise<void> {
     if (request === undefined || busy) return;
     setBusy(true);
-    setFailed(false);
     let ok = true;
+    // Rust no longer has it: it expired while the question was open.
+    let expired = false;
     if (allow) {
       // The file goes into the Document's assets, which needs the Document open here.
       const opened = await actions.openDocument(request.documentId);
@@ -96,9 +127,19 @@ export function AiImageRequestPrompt() {
       ok = placed.ok;
     } else if (answered === null || !answered.ok) {
       ok = false;
+      expired = answered?.ok === false && answered.error.kind === EXPIRED_KIND;
     }
     setBusy(false);
-    if (!ok && allow) setFailed(true);
+    arrivedAt.current.delete(request.requestId);
+    // The question goes either way (the request is taken), so the outcome is a notice.
+    if (!ok && allow) {
+      uiStateStore.setState((state) =>
+        showNotice(
+          state,
+          expired ? "aiImageRequestExpired" : "aiImageRequestFailed",
+        ),
+      );
+    }
     setQueue((waiting) => waiting.slice(1));
   }
 
@@ -128,7 +169,6 @@ export function AiImageRequestPrompt() {
           />
         )}
         {previewFailed && <p role="alert">{texts.previewFailed}</p>}
-        {failed && <p role="alert">{texts.failed}</p>}
       </div>
       <div className="modal__actions">
         <button
