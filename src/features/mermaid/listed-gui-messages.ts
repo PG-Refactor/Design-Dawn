@@ -55,6 +55,7 @@ const LISTED_GUI_MESSAGES_JA = {
   state: {
     states: "状態",
     statesEmpty: "状態がありません。",
+    notDrawn: "図に描かれません（説明を付けるか遷移を足すと描かれます）",
     stateId: "ID",
     description: "説明",
     addState: "状態を追加",
@@ -170,6 +171,7 @@ const LISTED_GUI_MESSAGES_EN: ListedGuiMessages = {
   state: {
     states: "States",
     statesEmpty: "No states.",
+    notDrawn: "Not drawn (it is once it has a description or a transition)",
     stateId: "ID",
     description: "Description",
     addState: "Add State",

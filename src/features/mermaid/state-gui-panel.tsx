@@ -63,7 +63,7 @@ export function StateGuiPanel({
   const messages = LISTED_GUI_MESSAGES[useDisplayLanguage()];
   const gui = useMessages().mermaid.gui;
   const texts = messages.state;
-  const { meaning } = useMemo(() => readState(source), [source]);
+  const { meaning, undrawn } = useMemo(() => readState(source), [source]);
   const { busy, run, status } = useListedRun(target);
   const [stateKey, setStateKey] = useState<string | null>(null);
   const [transitionKey, setTransitionKey] = useState<string | null>(null);
@@ -240,7 +240,8 @@ export function StateGuiPanel({
           items={meaning.states.map((item) => ({
             key: item.id,
             label: item.id,
-            detail: item.description,
+            // `state X` alone is not drawn by Mermaid: say so, or it looks lost.
+            detail: undrawn.has(item.id) ? texts.notDrawn : item.description,
           }))}
           selectedKey={stateKey}
           emptyText={texts.statesEmpty}

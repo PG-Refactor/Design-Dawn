@@ -62,6 +62,9 @@ export interface StateRead {
   // The line that declares or describes each state (null when only transitions name it).
   readonly stateLines: ReadonlyMap<string, ClassifiedLine>;
   readonly transitionLines: readonly ClassifiedLine[];
+  // States Mermaid does not draw: declared only as `state X` (no description) and in no
+  // transition.
+  readonly undrawn: ReadonlySet<string>;
 }
 
 const HEADERS = ["stateDiagram-v2", "stateDiagram"];
@@ -91,6 +94,7 @@ export function readState(source: string): StateRead {
   const stateLines = new Map<string, ClassifiedLine>();
   const transitions: StateTransition[] = [];
   const transitionLines: ClassifiedLine[] = [];
+  const declaredOnly = new Set<string>();
   let reason: string | null = read.structureProblem ? "structureIssue" : null;
   if (!HEADERS.includes(read.header?.text.trim() ?? ""))
     reason ??= "unsupportedLines";
@@ -128,6 +132,7 @@ export function readState(source: string): StateRead {
     const bare = BARE.exec(line.text);
     if (bare !== null) {
       describe(line, bare[1] ?? "", "");
+      declaredOnly.add(bare[1] ?? "");
       continue;
     }
     if (DIRECTION.test(line.text)) continue;
@@ -160,6 +165,14 @@ export function readState(source: string): StateRead {
     read,
     stateLines,
     transitionLines,
+    undrawn: new Set(
+      [...declaredOnly].filter(
+        (id) =>
+          !transitions.some(
+            (transition) => transition.from === id || transition.to === id,
+          ),
+      ),
+    ),
   };
 }
 

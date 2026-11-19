@@ -220,6 +220,15 @@ describe("state diagrams", () => {
         (state) => state.id,
       ),
     ).toContain("Waiting");
+    // ... and known to be left out of the picture until it has a transition.
+    expect([...readState(`${STATE}    state Waiting\n`).undrawn]).toEqual([
+      "Waiting",
+    ]);
+    expect(
+      readState(`${STATE}    state Waiting\n    Draft --> Waiting\n`).undrawn
+        .size,
+    ).toBe(0);
+    expect(read.undrawn.size).toBe(0);
   });
 
   it("refuses to delete a state a transition uses", () => {
