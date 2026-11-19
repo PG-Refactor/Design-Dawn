@@ -178,5 +178,12 @@ describe("the preview of a cell", () => {
     expect(previewLines("在庫<br>要確認")).toEqual(["在庫", "要確認"]);
     expect(previewLines("a \\| b")).toEqual(["a | b"]);
     expect(previewLines("")).toEqual([""]);
+    // A link shows its text (as it is written for the table, brackets escaped).
+    expect(previewLines("[年間契約](<https://example.com/contract>)")).toEqual([
+      "年間契約",
+    ]);
+    expect(
+      previewLines("[Docs \\[v2\\]](<https://example.com/a%20b>)"),
+    ).toEqual(["Docs [v2]"]);
   });
 });

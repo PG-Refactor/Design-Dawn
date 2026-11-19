@@ -47,6 +47,9 @@ const ESCAPE = "\\";
 const LINE_BREAK = /\r\n|\r|\n/g;
 const LINE_BREAK_TAG = "<br>";
 const LINK_TEXT_SPECIAL = /[[\]]/g;
+// A cell that is one link, as `markdownCell` writes it, and the brackets it escapes.
+const WHOLE_LINK = /^\[((?:\\.|[^\]\\])*)\]\(<[^>]*>\)$/;
+const ESCAPED_BRACKET = /\\([[\]])/g;
 const DESTINATION_UNSAFE = /[<>\s]/g;
 
 // 0 → "A", 25 → "Z", 26 → "AA".
@@ -101,7 +104,11 @@ export function parseCellRange(text: string): CellRange | null | undefined {
 // The lines a preview shows for a cell's Markdown: as the table will show it, with its
 // line breaks and without the escapes (`\|`), not the Markdown text itself.
 export function previewLines(markdown: string): readonly string[] {
-  return markdown
+  // A link cell (`[text](<address>)`) shows its text, as the table will.
+  const link = WHOLE_LINK.exec(markdown);
+  const shown =
+    link === null ? markdown : (link[1] ?? "").replace(ESCAPED_BRACKET, "$1");
+  return shown
     .split(LINE_BREAK_TAG)
     .map((line) =>
       line.replaceAll(`${ESCAPE}${CELL_SEPARATOR}`, CELL_SEPARATOR),
