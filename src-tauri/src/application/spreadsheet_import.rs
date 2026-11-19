@@ -114,6 +114,26 @@ fn date_time_text(printed: &str) -> String {
     }
 }
 
+const BOOL_TRUE: &str = "TRUE";
+const BOOL_FALSE: &str = "FALSE";
+const SECONDS_PER_DAY: f64 = 86_400.0;
+const SECONDS_PER_HOUR: u64 = 3_600;
+const SECONDS_PER_MINUTE: u64 = 60;
+
+/// A fraction of a day as `9:30` (with `:15` when there are seconds).
+fn time_of_day_text(day_fraction: f64) -> String {
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let seconds = (day_fraction * SECONDS_PER_DAY).round() as u64;
+    let hours = seconds / SECONDS_PER_HOUR;
+    let minutes = seconds % SECONDS_PER_HOUR / SECONDS_PER_MINUTE;
+    let rest = seconds % SECONDS_PER_MINUTE;
+    if rest == 0 {
+        format!("{hours}:{minutes:02}")
+    } else {
+        format!("{hours}:{minutes:02}:{rest:02}")
+    }
+}
+
 /// Whole numbers without `.0`, other numbers as Rust prints them (shortest exact form).
 fn number_text(value: f64) -> String {
     if value.fract() == 0.0 && value.abs() < 1e15 {
@@ -141,10 +161,19 @@ fn cell_of(cell: &Data, format: Option<&str>) -> SpreadsheetCell {
         Data::Float(value) => number(*value),
         #[allow(clippy::cast_precision_loss)]
         Data::Int(value) => number(*value as f64),
+        // As the spreadsheet shows them: TRUE / FALSE.
         Data::Bool(value) => SpreadsheetCell {
-            text: value.to_string(),
+            text: if *value { BOOL_TRUE } else { BOOL_FALSE }.to_owned(),
             ..SpreadsheetCell::default()
         },
+        // A time of day alone (no date: the value is below one day) is a clock time, not
+        // a moment on the spreadsheet's day zero (1899-12-31).
+        Data::DateTime(value) if !value.is_duration() && (0.0..1.0).contains(&value.as_f64()) => {
+            SpreadsheetCell {
+                text: time_of_day_text(value.as_f64()),
+                ..SpreadsheetCell::default()
+            }
+        }
         Data::DateTime(value) => SpreadsheetCell {
             text: value.as_datetime().map_or_else(
                 || number_text(value.as_f64()),
@@ -152,8 +181,9 @@ fn cell_of(cell: &Data, format: Option<&str>) -> SpreadsheetCell {
             ),
             ..SpreadsheetCell::default()
         },
+        // Excel's own spelling (#DIV/0!, #N/A ...).
         Data::Error(error) => SpreadsheetCell {
-            text: format!("#{error:?}"),
+            text: error.to_string(),
             ..SpreadsheetCell::default()
         },
     }
@@ -469,11 +499,35 @@ mod tests {
         assert_eq!(text(&Data::Float(3.0)), "3");
         assert_eq!(text(&Data::Float(2.5)), "2.5");
         assert_eq!(text(&Data::Int(-4)), "-4");
-        assert_eq!(text(&Data::Bool(true)), "true");
+        assert_eq!(text(&Data::Bool(true)), "TRUE");
+        assert_eq!(text(&Data::Bool(false)), "FALSE");
+        assert_eq!(text(&Data::Error(calamine::CellErrorType::Div0)), "#DIV/0!");
+        assert_eq!(text(&Data::Error(calamine::CellErrorType::NA)), "#N/A");
         assert_eq!(text(&Data::Empty), "");
         assert!(cell_of(&Data::Float(1.0), None).number);
         assert!(!cell_of(&Data::String("1".into()), None).number);
         assert_eq!(cell_of(&Data::Float(0.25), Some("0%")).text, "25%");
+    }
+
+    #[test]
+    fn a_time_alone_reads_as_a_clock_time() {
+        use calamine::{ExcelDateTime, ExcelDateTimeType};
+        let time = |fraction: f64| {
+            text(&Data::DateTime(ExcelDateTime::new(
+                fraction,
+                ExcelDateTimeType::DateTime,
+                false,
+            )))
+        };
+        // 9:30 is 0.3958... of a day.
+        assert_eq!(time(9.5 / 24.0), "9:30");
+        assert_eq!(
+            time((13.0 * 3600.0 + 5.0 * 60.0 + 7.0) / 86_400.0),
+            "13:05:07"
+        );
+        assert_eq!(time(0.0), "0:00");
+        // A date with a time keeps both.
+        assert!(time(46_023.5).starts_with("2026-"));
     }
 
     #[test]
