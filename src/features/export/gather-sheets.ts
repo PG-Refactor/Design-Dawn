@@ -84,8 +84,15 @@ async function exportBlock(
           text: block.caption,
           position: block.captionPosition ?? DEFAULT_CAPTION_POSITION,
         };
-  const withCaption = (content: ExportBlock["content"]): ExportBlock =>
-    caption === undefined ? { rect, content } : { rect, content, caption };
+  const withCaption = (
+    content: ExportBlock["content"],
+    natural?: { readonly width: number; readonly height: number },
+  ): ExportBlock => ({
+    rect,
+    content,
+    ...(caption === undefined ? {} : { caption }),
+    ...(natural === undefined ? {} : { natural }),
+  });
   switch (block.blockType) {
     case BLOCK_TYPE_DEFINITIONS.markdown.identifier: {
       if (text === undefined) return null;
@@ -116,11 +123,14 @@ async function exportBlock(
       const rendered = await renderDiagramForExport(renderer, text);
       const file = rendered.ok ? svgFileText(rendered.svg) : null;
       if (file === null) return null;
-      return withCaption({
-        kind: "image",
-        src: `${SVG_DATA_PREFIX}${base64OfText(file.text)}`,
-        alt: block.caption ?? "",
-      });
+      return withCaption(
+        {
+          kind: "image",
+          src: `${SVG_DATA_PREFIX}${base64OfText(file.text)}`,
+          alt: block.caption ?? "",
+        },
+        { width: file.width, height: file.height },
+      );
     }
     case BLOCK_TYPE_DEFINITIONS.image.identifier: {
       const read = await gateway.assetDataUrl(
@@ -129,11 +139,14 @@ async function exportBlock(
         block.contentPath,
       );
       if (!read.ok) return null;
-      return withCaption({
-        kind: "image",
-        src: read.value,
-        alt: block.caption ?? "",
-      });
+      return withCaption(
+        {
+          kind: "image",
+          src: read.value,
+          alt: block.caption ?? "",
+        },
+        await naturalSizeOf(read.value),
+      );
     }
   }
 }
@@ -175,4 +188,21 @@ export async function gatherSheets(
     sheets.push({ name: sheet.name, blocks });
   }
   return operationOk(sheets);
+}
+
+// The size of an image (a data URL), or undefined where it cannot be decoded here (then
+// the whole block counts as drawn when pages are cut).
+async function naturalSizeOf(
+  dataUrl: string,
+): Promise<{ readonly width: number; readonly height: number } | undefined> {
+  if (typeof createImageBitmap !== "function") return undefined;
+  try {
+    const blob = await (await fetch(dataUrl)).blob();
+    const bitmap = await createImageBitmap(blob);
+    const size = { width: bitmap.width, height: bitmap.height };
+    bitmap.close();
+    return size;
+  } catch {
+    return undefined;
+  }
 }

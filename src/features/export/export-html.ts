@@ -3,7 +3,11 @@
 // file. The same page is used for the HTML export and, with page rules, for printing.
 
 import { PRINT_CONFIG } from "../../config/print-config";
-import { contentBounds, type Rect } from "../../domain/print/page-layout";
+import {
+  contentBounds,
+  drawnPictureRect,
+  type Rect,
+} from "../../domain/print/page-layout";
 import {
   PAPER_SIZES,
   type PaperSettings,
@@ -19,6 +23,9 @@ export interface ExportBlock {
     readonly text: string;
     readonly position: "above" | "below";
   };
+  // A picture's own size (an SVG's, an image file's), when known: where it is drawn in
+  // the block, so a page with only the empty edge of a large one can be left out.
+  readonly natural?: { readonly width: number; readonly height: number };
 }
 
 export interface ExportSheet {
@@ -159,6 +166,12 @@ function sheetsMarkup(
       sheet.blocks.map((block) => ({
         ...block.rect,
         figure: block.content.kind === "image",
+        // A caption is text across the block: the whole block counts as drawn then.
+        ...(block.content.kind === "image" &&
+        block.natural !== undefined &&
+        block.caption === undefined
+          ? { drawn: drawnPictureRect(block.rect, block.natural) }
+          : {}),
       })),
       layout,
       SHEET_MARGIN,

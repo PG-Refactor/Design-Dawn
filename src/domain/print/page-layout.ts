@@ -12,10 +12,34 @@ export interface Rect {
 }
 
 // A block to paginate. A figure (a diagram or an image) larger than a page is split like
-// any block, but a page that would show only a thin leftover strip of it (mostly the
-// empty edge of its frame) is left out.
+// any block, but a page that would show only a thin leftover strip of it, with nothing of
+// the picture in it (the empty edge of its frame), is left out. `drawn` is where the
+// picture is drawn inside the block; without it nothing is left out.
 export interface PageBlock extends Rect {
   readonly figure?: boolean;
+  readonly drawn?: Rect;
+}
+
+// Where a picture of `natural` size is drawn in `block`: as large as it is, or shrunk to
+// fit (never enlarged), centred, as an export page draws it.
+export function drawnPictureRect(
+  block: Rect,
+  natural: { readonly width: number; readonly height: number },
+): Rect {
+  if (natural.width <= 0 || natural.height <= 0) return block;
+  const scale = Math.min(
+    1,
+    block.width / natural.width,
+    block.height / natural.height,
+  );
+  const width = natural.width * scale;
+  const height = natural.height * scale;
+  return {
+    x: block.x + (block.width - width) / 2,
+    y: block.y + (block.height - height) / 2,
+    width,
+    height,
+  };
 }
 
 // The box around every block, grown by `margin` on each side; null for an empty sheet.
@@ -82,7 +106,9 @@ function isFigureSliver(
   block: PageBlock,
   sliverFraction: number,
 ): boolean {
-  if (block.figure !== true) return false;
+  if (block.figure !== true || block.drawn === undefined) return false;
+  // Any of the picture on the page: it is printed.
+  if (intersects(page, block.drawn)) return false;
   const continuesAcross =
     block.x < page.x &&
     block.width > page.width &&
