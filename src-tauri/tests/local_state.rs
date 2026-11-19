@@ -946,3 +946,30 @@ fn a_version_6_settings_file_loads_without_a_last_project_folder() {
     assert_eq!(settings.theme_preference.as_str(), "dark");
     assert_eq!(settings.last_project_folder, None);
 }
+
+#[test]
+fn the_window_position_is_kept_and_a_file_without_it_still_reads() {
+    let fixture = fixture();
+    fixture
+        .state
+        .set_window_size(recorded(1000, 700, false))
+        .unwrap();
+    // Written before the position was kept: no position, everything else as before.
+    assert_eq!(fixture.state.get_app_settings().window_position, None);
+    // A monitor left of the main one has negative coordinates.
+    fixture.state.set_window_position((-1600, 120)).unwrap();
+    let settings = fixture.state.get_app_settings();
+    assert_eq!(settings.window_position, Some((-1600, 120)));
+    assert_eq!(settings.window_size, Some(recorded(1000, 700, false)));
+    assert_eq!(
+        read_json(&fixture.settings_path)["windowPosition"],
+        json!({ "x": -1600, "y": 120 })
+    );
+    // A position no monitor could have is dropped (a hint, not an error).
+    let mut file = read_json(&fixture.settings_path);
+    file["windowPosition"] = json!({ "x": 1e12, "y": 0 });
+    std::fs::write(&fixture.settings_path, file.to_string()).unwrap();
+    let reread = fixture.state.get_app_settings();
+    assert_eq!(reread.window_position, None);
+    assert!(reread.load_issue.is_none());
+}
