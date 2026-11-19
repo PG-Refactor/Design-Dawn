@@ -635,6 +635,9 @@ export function createCanvasActions(
       readonly position: Position;
       readonly size: Size;
     }[] = [],
+    // A chosen point is only where the search starts: the block goes to the free place
+    // nearest it (a large table must not cover what is there).
+    awayFromOthers = false,
   ): OperationResult<Position> {
     const viewport =
       uiStateStore.getState().viewportBySheet.get(input.sheetId) ??
@@ -659,7 +662,7 @@ export function createCanvasActions(
     ];
     // Without a chosen point, the free place nearest the centre: a new block does not
     // cover the ones already in view.
-    if (input.at === undefined) {
+    if (input.at === undefined || awayFromOthers) {
       const free = freePlacement(
         centred.value,
         size,
@@ -1189,6 +1192,7 @@ export function createCanvasActions(
           { documentId, sheetId, viewportSize, at: point },
           size.value,
           specs.map((spec) => ({ position: spec.position, size: spec.size })),
+          true,
         );
         if (!position.ok) return record("importSpreadsheet", position);
         specs.push({
