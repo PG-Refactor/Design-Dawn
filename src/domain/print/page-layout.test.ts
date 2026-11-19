@@ -54,4 +54,59 @@ describe("paginate", () => {
       [0, 200],
     ]);
   });
+
+  it("leaves out a page with only a thin strip of a figure larger than the page", () => {
+    // 0-120 wide on 100-wide pages: the second column shows 20 of it.
+    const figure = { ...block(0, 0, 120, 50), figure: true };
+    expect(
+      paginate(block(0, 0, 120, 50), [figure], 100, 100, 0.25).map(
+        (page) => page.x,
+      ),
+    ).toEqual([0]);
+    // A wider strip keeps its page.
+    expect(
+      paginate(
+        block(0, 0, 160, 50),
+        [{ ...figure, width: 160 }],
+        100,
+        100,
+        0.25,
+      ).length,
+    ).toBe(2);
+    // Text is never left out, however thin the strip.
+    expect(
+      paginate(block(0, 0, 120, 50), [block(0, 0, 120, 50)], 100, 100, 0.25)
+        .length,
+    ).toBe(2);
+  });
+
+  it("prints the diagrams sheet at 100% on A4 without pages of frame edges", () => {
+    // Sheet E of the Windows check: a note, then rows of two 960-wide diagrams.
+    const rows = [220, 780, 1340, 1900];
+    const blocks = [
+      block(0, 0, 700, 160),
+      ...rows.flatMap((y) => [
+        { ...block(0, y, 960, 520), figure: true },
+        { ...block(1000, y, 960, 520), figure: true },
+      ]),
+    ];
+    const bounds = contentBounds(blocks, 24);
+    if (bounds === null) throw new Error("bounds");
+    // A4 portrait at 100%: 794 wide, 1123 - 32 high.
+    const without = paginate(bounds, blocks, 794, 1091);
+    const pages = paginate(bounds, blocks, 794, 1091, 0.25);
+    expect(pages.length).toBeLessThan(without.length);
+    // Every block still starts on a page.
+    for (const each of blocks) {
+      expect(
+        pages.some(
+          (page) =>
+            each.x >= page.x &&
+            each.x < page.x + page.width &&
+            each.y >= page.y &&
+            each.y < page.y + page.height,
+        ),
+      ).toBe(true);
+    }
+  });
 });

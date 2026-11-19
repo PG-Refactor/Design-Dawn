@@ -6,4 +6,8 @@ export const PRINT_CONFIG = {
   // of every paper page.
   sheetTitleHeight: 48,
   paperHeadingHeight: 32,
+  // A diagram or image larger than the paper is split across pages; a page that would show
+  // only a strip of it this thin (a share of the page: mostly the empty edge of its frame)
+  // is left out, so no sheet of paper is spent on it.
+  figureSliverFraction: 0.25,
 } as const;

@@ -11,6 +11,13 @@ export interface Rect {
   readonly height: number;
 }
 
+// A block to paginate. A figure (a diagram or an image) larger than a page is split like
+// any block, but a page that would show only a thin leftover strip of it (mostly the
+// empty edge of its frame) is left out.
+export interface PageBlock extends Rect {
+  readonly figure?: boolean;
+}
+
 // The box around every block, grown by `margin` on each side; null for an empty sheet.
 export function contentBounds(
   blocks: readonly Rect[],
@@ -68,13 +75,36 @@ function intersects(page: Rect, block: Rect): boolean {
   );
 }
 
+// The part of a figure larger than the page that continues onto `page` from an earlier
+// page, when it is no more than `sliverFraction` of the page along that axis.
+function isFigureSliver(
+  page: Rect,
+  block: PageBlock,
+  sliverFraction: number,
+): boolean {
+  if (block.figure !== true) return false;
+  const continuesAcross =
+    block.x < page.x &&
+    block.width > page.width &&
+    Math.min(block.x + block.width, page.x + page.width) - page.x <=
+      page.width * sliverFraction;
+  const continuesDown =
+    block.y < page.y &&
+    block.height > page.height &&
+    Math.min(block.y + block.height, page.y + page.height) - page.y <=
+      page.height * sliverFraction;
+  return continuesAcross || continuesDown;
+}
+
 // Pages in reading order (rows from the top, left to right), each at most `pageWidth` by
-// `pageHeight` world units.
+// `pageHeight` world units. A page with nothing but figure slivers (`isFigureSliver`) is
+// left out.
 export function paginate(
   bounds: Rect,
-  blocks: readonly Rect[],
+  blocks: readonly PageBlock[],
   pageWidth: number,
   pageHeight: number,
+  sliverFraction = 0,
 ): Rect[] {
   const columns = cuts(
     bounds.x,
@@ -99,7 +129,16 @@ export function paginate(
         width: (columns[column + 1] ?? x) - x,
         height: (rows[row + 1] ?? y) - y,
       };
-      if (blocks.some((block) => intersects(page, block))) pages.push(page);
+      const shown = blocks.some(
+        (block) =>
+          intersects(page, block) &&
+          !isFigureSliver(
+            { ...page, width: pageWidth, height: pageHeight },
+            block,
+            sliverFraction,
+          ),
+      );
+      if (shown) pages.push(page);
     }
   }
   return pages;

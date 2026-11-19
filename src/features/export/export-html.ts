@@ -156,10 +156,14 @@ function sheetsMarkup(
       return;
     }
     const paper = paperLayout(
-      sheet.blocks.map((block) => block.rect),
+      sheet.blocks.map((block) => ({
+        ...block.rect,
+        figure: block.content.kind === "image",
+      })),
       layout,
       SHEET_MARGIN,
       HEADING_HEIGHT,
+      PRINT_CONFIG.figureSliverFraction,
     );
     if (paper === null) return;
     const canvas = sheetCanvas(sheet, bounds);

@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { PRINT_CONFIG } from "../../config/print-config";
 import type { Block } from "../../domain/block/block";
+import { BLOCK_TYPE_DEFINITIONS } from "../../domain/block/block-type";
 import { PAPER_SIZES, paperLayout } from "../../domain/print/paper";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import type { PrintSettings } from "../export/print-settings";
@@ -32,10 +33,13 @@ export function PageBreakOverlay({
       y: block.position.y,
       width: block.size.width,
       height: block.size.height,
+      // Diagrams and images: what prints as a picture (see figureSliverFraction).
+      figure: block.blockType !== BLOCK_TYPE_DEFINITIONS.markdown.identifier,
     })),
     settings.paper,
     PRINT_CONFIG.sheetMargin,
     PRINT_CONFIG.paperHeadingHeight,
+    PRINT_CONFIG.figureSliverFraction,
   );
   if (layout === null) return null;
   const { paper } = settings;

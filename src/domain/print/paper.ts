@@ -3,7 +3,12 @@
 // breaks and cut out by the print page, so both agree. Pure: world units in, rectangles
 // out; one CSS pixel per world unit at 100%.
 
-import { contentBounds, paginate, type Rect } from "./page-layout";
+import {
+  contentBounds,
+  type PageBlock,
+  paginate,
+  type Rect,
+} from "./page-layout";
 
 export const PAPER_SIZES = {
   // At the CSS reference of 96 pixels per inch.
@@ -72,12 +77,14 @@ export interface PaperLayout {
 }
 
 // Null for a sheet without blocks. `margin` is world units around the blocks; `heading`
-// is the height at the top of each page taken by the sheet's name.
+// is the height at the top of each page taken by the sheet's name; `sliverFraction` how
+// thin a leftover strip of a figure larger than a page may be to get no page of its own.
 export function paperLayout(
-  blocks: readonly Rect[],
+  blocks: readonly PageBlock[],
   settings: PaperSettings,
   margin: number,
   heading: number,
+  sliverFraction = 0,
 ): PaperLayout | null {
   const bounds = contentBounds(blocks, margin);
   if (bounds === null) return null;
@@ -89,6 +96,7 @@ export function paperLayout(
     blocks,
     area.width / scale,
     area.height / scale,
+    sliverFraction,
   );
   return { bounds, scale, paper, area, pages };
 }
