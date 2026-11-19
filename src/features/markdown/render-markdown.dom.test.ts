@@ -69,12 +69,26 @@ describe("rendering", () => {
     const document = render("| a | b | c |\n|:--|:-:|--:|\n| 1 | 2 | 3 |");
     expect(document.querySelectorAll("table thead th")).toHaveLength(3);
     const cells = [...document.querySelectorAll("table tbody td")];
+    // Each cell is short too (one character), which keeps it on one line.
     expect(cells.map((cell) => cell.className)).toEqual([
-      "markdown-align-left",
-      "markdown-align-center",
-      "markdown-align-right",
+      "markdown-align-left markdown-cell-short",
+      "markdown-align-center markdown-cell-short",
+      "markdown-align-right markdown-cell-short",
     ]);
     expect(document.querySelector("[style]")).toBeNull();
+    expect(unsafeFindings(document)).toEqual([]);
+  });
+
+  it("marks short cells (no space, a few characters) to keep them on one line", () => {
+    const document = render(
+      "| 担当 | メモ |\n| -- | -- |\n| 佐藤 | 次回の打ち合わせで要件を確認する |\n| 2026-01-01 | a b |\n",
+    );
+    const cells = [...document.querySelectorAll("tbody td")].map((cell) =>
+      cell.classList.contains("markdown-cell-short"),
+    );
+    // 佐藤: short; the long note: not; the date (10 characters): not; "a b" has a
+    // space: not.
+    expect(cells).toEqual([true, false, false, false]);
     expect(unsafeFindings(document)).toEqual([]);
   });
 

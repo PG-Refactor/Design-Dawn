@@ -92,6 +92,7 @@ html,body{margin:0;background:var(--background);color:var(--text);font-family:"S
 .block__body blockquote{margin:0 0 8px;padding-left:12px;border-left:3px solid var(--border);color:var(--muted);}
 .block__body table{border-collapse:collapse;margin:0 0 8px;}
 .block__body th,.block__body td{padding:4px 8px;border:1px solid var(--border-strong);text-align:left;overflow-wrap:break-word;max-width:30em;}
+.block__body .markdown-cell-short{white-space:nowrap;}
 .block__body th{background:var(--background);}
 .block__body .markdown-align-center{text-align:center;}.block__body .markdown-align-right{text-align:right;}
 .block__body .markdown-image-alt{color:var(--muted);font-style:italic;}

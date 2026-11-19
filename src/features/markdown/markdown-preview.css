@@ -110,6 +110,11 @@
   max-width: 30em;
 }
 
+/* A short value (a name, a date, a status) stays on one line; long cells wrap. */
+.markdown-preview .markdown-cell-short {
+  white-space: nowrap;
+}
+
 .markdown-preview .markdown-align-left {
   text-align: left;
 }

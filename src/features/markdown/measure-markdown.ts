@@ -5,6 +5,7 @@
 import { renderMarkdown } from "./render-markdown";
 
 const PREVIEW_CLASS = "markdown-preview";
+const HTML_MIME_TYPE = "text/html";
 // The canvas world pins the text size and spacing of block content (whatever the UI text
 // size): measured inside one, the text is as large as on the canvas.
 const WORLD_CLASS = "canvas__world";
@@ -27,8 +28,15 @@ export function measureMarkdownHeight(
   const preview = document.createElement("div");
   preview.className = PREVIEW_CLASS;
   Object.assign(preview.style, MEASURE_STYLE, { width: `${width}px` });
-  // Sanitised HTML, as the preview itself shows it.
-  preview.innerHTML = renderMarkdown(markdown);
+  // Sanitised HTML, as the preview itself shows it, parsed in an inert document (nothing
+  // runs or loads there) and moved into the measuring element.
+  const parsed = new DOMParser().parseFromString(
+    renderMarkdown(markdown),
+    HTML_MIME_TYPE,
+  );
+  preview.append(
+    ...[...parsed.body.childNodes].map((node) => document.adoptNode(node)),
+  );
   const world = document.createElement("div");
   world.className = WORLD_CLASS;
   world.style.visibility = "hidden";
