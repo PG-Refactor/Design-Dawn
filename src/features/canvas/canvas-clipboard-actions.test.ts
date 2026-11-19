@@ -280,6 +280,26 @@ describe("pasteClipboard into another sheet or document", () => {
     expect(harness.clipboard.read()?.pasteCount).toBe(0);
   });
 
+  it("puts a second paste into the same other sheet beside the first, not on it", async () => {
+    const harness = await openedCanvasHarness();
+    select(harness, BLOCK_ONE);
+    await harness.canvasActions.copySelection(SHEET_INPUT);
+    const into = {
+      documentId: DOCUMENT_A,
+      sheetId: SHEET_A2,
+      viewportSize: VIEWPORT_SIZE,
+    };
+    await harness.canvasActions.pasteClipboard(into);
+    await harness.canvasActions.pasteClipboard(into);
+    const blocks =
+      harness.store.getState().documents.get(DOCUMENT_A)?.sheets.get(SHEET_A2)
+        ?.blocks ?? [];
+    expect(blocks.slice(-2).map((block) => block.position)).toEqual([
+      { x: 326, y: 251 },
+      { x: 350, y: 275 },
+    ]);
+  });
+
   it("pastes into a different document", async () => {
     const harness = await openedCanvasHarness();
     expect((await harness.actions.openDocument(DOCUMENT_B)).ok).toBe(true);
