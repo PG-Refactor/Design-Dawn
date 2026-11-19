@@ -78,6 +78,11 @@
   font-weight: 700;
 }
 
+.save-status--changedOutside {
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
 .tab__icon {
   display: inline-flex;
 }

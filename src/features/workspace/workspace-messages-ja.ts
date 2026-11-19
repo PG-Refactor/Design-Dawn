@@ -322,6 +322,7 @@ export const WORKSPACE_MESSAGES_JA = {
     unsaved: "未保存",
     saving: "保存中",
     error: "保存エラー",
+    changedOutside: "外部で変更されています",
   },
   placeholder: {
     noDocument: "Documentをツリーから開いてください。",

@@ -322,6 +322,7 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     unsaved: "Unsaved",
     saving: "Saving",
     error: "Save error",
+    changedOutside: "Changed outside the app",
   },
   placeholder: {
     noDocument: "Open a Document from the tree.",

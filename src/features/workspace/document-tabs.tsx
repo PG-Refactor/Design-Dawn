@@ -38,6 +38,7 @@ const SAVE_STATUS_ICON = {
   unsaved: "●",
   saving: "…",
   error: "⚠",
+  changedOutside: "⚠",
 } as const;
 
 function SaveStatusIndicator({ tab }: { readonly tab: DocumentTab }) {
