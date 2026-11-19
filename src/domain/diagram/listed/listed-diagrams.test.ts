@@ -203,6 +203,25 @@ describe("state diagrams", () => {
     expect(added).toContain("    Review --> Draft : rework\n");
   });
 
+  it("adds a state without a description as its bare id, which Mermaid draws", () => {
+    // `state Paused` alone is not drawn by Mermaid; a line with the id is.
+    const added = apply(STATE, {
+      diagram: "state",
+      operation: { kind: "addState", state: { id: "Paused", description: "" } },
+    });
+    expect(added).toContain("\n    Paused\n");
+    expect(added).not.toContain("state Paused");
+    const read = readState(added);
+    expect(read.editable).toBe(true);
+    expect(read.meaning.states.map((state) => state.id)).toContain("Paused");
+    // The `state X` form written by hand is still read.
+    expect(
+      readState(`${STATE}    state Waiting\n`).meaning.states.map(
+        (state) => state.id,
+      ),
+    ).toContain("Waiting");
+  });
+
   it("refuses to delete a state a transition uses", () => {
     expect(
       refusal(STATE, {

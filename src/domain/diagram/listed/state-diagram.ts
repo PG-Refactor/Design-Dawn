@@ -76,6 +76,9 @@ const DECLARED = new RegExp(
   `^\\s*state\\s+"([^"]*)"\\s+as\\s+(${IDENTIFIER_SOURCE})\\s*$`,
 );
 const BARE = new RegExp(`^\\s*state\\s+(${IDENTIFIER_SOURCE})\\s*$`);
+// A state on a line of its own: what the GUI writes for a state without a description
+// (Mermaid draws it; `state X` alone it does not draw).
+const ID_ONLY = new RegExp(`^\\s*(${IDENTIFIER_SOURCE})\\s*$`);
 const DIRECTION = /^\s*direction\s+(?:LR|RL|TB|BT)\s*$/;
 // Text Mermaid would read as something else: a colon starts a label, braces a block.
 const FORBIDDEN_TEXT = /[{}"]/;
@@ -128,6 +131,11 @@ export function readState(source: string): StateRead {
       continue;
     }
     if (DIRECTION.test(line.text)) continue;
+    const idOnly = ID_ONLY.exec(line.text);
+    if (idOnly !== null) {
+      describe(line, idOnly[1] ?? "", "");
+      continue;
+    }
     const description = DESCRIPTION.exec(line.text);
     if (description !== null) {
       describe(line, description[1] ?? "", description[2] ?? "");
@@ -157,7 +165,7 @@ export function readState(source: string): StateRead {
 
 function stateText(state: StateItem): string {
   return state.description === ""
-    ? `state ${state.id}`
+    ? state.id
     : `${state.id} : ${state.description}`;
 }
 
