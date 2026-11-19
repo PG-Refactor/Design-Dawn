@@ -2,7 +2,7 @@ import { useEffect, useId, useRef } from "react";
 import { createStore } from "../../shared/store/store";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { Modal } from "../workspace/modal";
-import { isSaveShortcut } from "../workspace/save-shortcut";
+import { isSaveAllShortcut, isSaveShortcut } from "../workspace/save-shortcut";
 import { useMessages } from "../workspace/use-messages";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import "./template-dialogs.css";
@@ -81,7 +81,9 @@ export function TemplateEditBanner() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!isSaveShortcut(event) || !latestEditor.current.isEditing()) return;
+      // Save and Save All both write the template back: the window holds nothing else.
+      const save = isSaveShortcut(event) || isSaveAllShortcut(event);
+      if (!save || !latestEditor.current.isEditing()) return;
       void latestEditor.current.save();
     };
     window.addEventListener("keydown", onKeyDown, { capture: true });
