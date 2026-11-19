@@ -39,6 +39,7 @@ import {
   nullable,
   objectOf,
   oneOf,
+  optional,
 } from "./payload-decoder";
 
 const PAYLOAD_ROOT = "payload";
@@ -47,7 +48,7 @@ interface RawGitStatus {
   readonly repository: { readonly state: GitRepositoryState };
   readonly branch: GitBranchInfo | null;
   readonly files: readonly GitFileStatus[];
-  readonly longPaths: GitLongPaths | null;
+  readonly longPaths?: GitLongPaths | null | undefined;
 }
 
 // A commit count: a non-negative integer.
@@ -83,12 +84,16 @@ const rawGitStatus = objectOf<RawGitStatus>({
       originalPath: nullable(decodeString),
     }),
   ),
-  longPaths: nullable(
-    objectOf<GitLongPaths>({
-      files: arrayOf(decodeString),
-      count: decodeCount,
-      enabled: decodeBoolean,
-    }),
+  // Absent where the status is answered by a command that does not look (or null for a
+  // repository that is not ready).
+  longPaths: optional(
+    nullable(
+      objectOf<GitLongPaths>({
+        files: arrayOf(decodeString),
+        count: decodeCount,
+        enabled: decodeBoolean,
+      }),
+    ),
   ),
 });
 
@@ -99,7 +104,7 @@ export function toGitStatus(payload: unknown): CommandResult<GitStatus> {
         repositoryState: decoded.value.repository.state,
         branch: decoded.value.branch,
         files: decoded.value.files,
-        ...(decoded.value.longPaths === null
+        ...(decoded.value.longPaths == null
           ? {}
           : { longPaths: decoded.value.longPaths }),
       })

@@ -973,6 +973,7 @@ mod tests {
                 original_path: None,
             }],
             branch: None,
+            long_paths: None,
         };
 
         assert_eq!(
@@ -985,7 +986,8 @@ mod tests {
                     "indexStatus": "typeChanged",
                     "worktreeStatus": "unmodified",
                     "originalPath": null
-                }]
+                }],
+                "longPaths": null
             })
         );
     }
