@@ -75,6 +75,9 @@ pub const AI_HISTORY_MAX_TEXT_BYTES: usize = 256 * 1024;
 
 /// Where an AI's requests for write access wait (inside the app's config directory).
 pub const AI_REQUESTS_DIRECTORY_NAME: &str = "ai-requests";
+/// Where the app notes a "no" to an AI's request (one file per Project), so the MCP server
+/// can tell the AI it was refused instead of asking again in vain.
+pub const AI_DENIALS_DIRECTORY_NAME: &str = "ai-denials";
 /// A request older than this is dropped: an AI that still wants access asks again, and a
 /// question asked long ago is not shown to the user out of context.
 pub const AI_REQUEST_MAX_AGE_SECS: u64 = 120;

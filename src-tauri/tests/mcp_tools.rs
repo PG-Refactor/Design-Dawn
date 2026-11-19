@@ -2016,3 +2016,24 @@ fn a_tool_that_needs_the_app_says_so_on_a_project_server() {
     );
     assert_eq!(refused.error_kind(), "appRequired");
 }
+
+#[test]
+fn a_write_request_right_after_a_no_is_not_made_and_says_when_to_ask_again() {
+    use design_dawn_lib::application::local_state::ai_requests::record_denial;
+    let (_temp, root) = project_copy();
+    let config = TempDir::new();
+    app_list(config.path(), &[(PROJECT_ID, &root, false)]);
+    let context = ToolContext::follow_app(config.path());
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    record_denial(config.path(), &ProjectId::parse(PROJECT_ID).unwrap(), now).unwrap();
+
+    let refused = call(&context, "requestWriteAccess", json!({})).ok();
+    assert_eq!(refused["requested"], false);
+    assert_eq!(refused["deniedRecently"], true);
+    assert!(refused["retryAfterSeconds"].as_u64().unwrap() > 0);
+    // Nothing was left for the app to show.
+    assert!(!request_file(config.path(), PROJECT_ID).exists());
+}

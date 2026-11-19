@@ -23,7 +23,9 @@ use crate::application::export_markdown::document_markdown;
 use crate::application::local_state::ai_access::{listed_project_name, AiAccessList};
 use crate::application::local_state::ai_history::{append as append_ai_history, AiHistoryEntry};
 use crate::application::local_state::ai_image_requests::{request_image, AiImageRequest};
-use crate::application::local_state::ai_requests::{request_write_access, AiRequestOutcome};
+use crate::application::local_state::ai_requests::{
+    denial_seconds_left, request_write_access, AiRequestOutcome,
+};
 use crate::application::local_state::constants::APP_IDENTIFIER;
 use crate::application::project_search::{search_project, SearchQuery};
 use crate::application::templates::{
@@ -584,6 +586,18 @@ the user can add it in Design Dawn's AI integration screen",
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map_or(0, |elapsed| elapsed.as_secs());
+        // The user said no a moment ago: the app would not ask again yet.
+        if let Some(seconds) = denial_seconds_left(config_dir, &project_id, now) {
+            return Ok(json!({
+                "projectId": project_id.to_string(),
+                "writable": false,
+                "requested": false,
+                "deniedRecently": true,
+                "retryAfterSeconds": seconds,
+                "message": "The user refused editing in the Design Dawn app a moment ago, so \
+            they are not asked again yet. Tell them; do not ask again before retryAfterSeconds.",
+            }));
+        }
         let outcome = request_write_access(config_dir, project_id, now).map_err(ToolError::from)?;
         Ok(json!({
             "projectId": project_id.to_string(),

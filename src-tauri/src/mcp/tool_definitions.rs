@@ -201,7 +201,8 @@ projectId to follow the Project open in the app again. Only for this session.",
             "Asks the user, in the Design Dawn app, to let you edit a Project (the one in use, \
 or projectId). The user answers there; nothing is granted by this call. Then check \
 getProject's writable before writing; do not ask again while a request is waiting. Works for \
-an offered Project and for the Project open in the app (allowing it offers it too).",
+an offered Project and for the Project open in the app (allowing it offers it too). Right after \
+the user refused, nothing is asked: the result says deniedRecently and retryAfterSeconds.",
             vec![id(
                 "projectId",
                 false,

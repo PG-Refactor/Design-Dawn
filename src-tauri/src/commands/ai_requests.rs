@@ -4,6 +4,7 @@
 //! (`answer_ai_access_request`) changes the AI access list.
 
 use crate::application::local_state::ai_history::{append as append_ai_history, AiHistoryEntry};
+use crate::application::local_state::ai_requests::record_denial;
 use crate::mcp::tool_definitions::REQUEST_IMAGE_IMPORT;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -328,7 +329,14 @@ pub fn answer_ai_access_request<R: Runtime>(
         .ok_or_else(|| ApplicationError::entity_not_found("no local state"))?;
     lock(&prompts).answered(&project_id, answer, Instant::now());
     let result = match answer {
-        AiRequestAnswer::Deny => Ok(()),
+        // Noted for the MCP server, so the AI is told rather than left waiting. A failure
+        // to note it only costs that.
+        AiRequestAnswer::Deny => {
+            if let Err(error) = record_denial(local_state.config_dir(), &project_id, unix_now()) {
+                eprintln!("failed to note the refusal for the AI: {error}");
+            }
+            Ok(())
+        }
         AiRequestAnswer::Allow | AiRequestAnswer::AllowUntilAppExits => {
             let folder = folder_of(&app, &project_id)
                 .ok_or_else(|| ApplicationError::entity_not_found("unknown Project folder"))?;
