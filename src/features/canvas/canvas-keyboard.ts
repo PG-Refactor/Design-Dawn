@@ -15,6 +15,7 @@ export const CANVAS_KEY_COMMANDS = {
   sendBackward: "sendBackward",
   bringToFront: "bringToFront",
   sendToBack: "sendToBack",
+  selectAll: "selectAll",
 } as const;
 
 export type CanvasKeyCommand =
@@ -43,6 +44,7 @@ const KEYS = {
   cut: "x",
   paste: "v",
   duplicate: "d",
+  selectAll: "a",
   space: " ",
 } as const;
 
@@ -96,6 +98,9 @@ export function keyCommandOf(event: KeyEventLike): CanvasKeyCommand | null {
     if (isLetter(event, KEYS.cut)) return CANVAS_KEY_COMMANDS.cut;
     if (isLetter(event, KEYS.paste)) return CANVAS_KEY_COMMANDS.paste;
     if (isLetter(event, KEYS.duplicate)) return CANVAS_KEY_COMMANDS.duplicate;
+    // Every block of the sheet, not the text of the page (which would also stop the
+    // blocks from being dragged).
+    if (isLetter(event, KEYS.selectAll)) return CANVAS_KEY_COMMANDS.selectAll;
     return null;
   }
   if (event.key === KEYS.delete || event.key === KEYS.backspace) {

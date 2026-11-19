@@ -15,6 +15,8 @@ describe("clipboard and z-order shortcuts", () => {
     expect(keyCommandOf({ key: "x", ...withModifier })).toBe("cut");
     expect(keyCommandOf({ key: "v", ...withModifier })).toBe("paste");
     expect(keyCommandOf({ key: "d", ...withModifier })).toBe("duplicate");
+    expect(keyCommandOf({ key: "a", ...withModifier })).toBe("selectAll");
+    expect(keyCommandOf({ key: "a", ...NO_MODIFIERS })).toBeNull();
     expect(keyCommandOf({ key: "c", ...NO_MODIFIERS, metaKey: true })).toBe(
       "copy",
     );
@@ -143,7 +145,7 @@ describe("keyCommandOf", () => {
     );
     expect(keyCommandOf({ key: "z", ...NO_MODIFIERS })).toBeNull();
     expect(
-      keyCommandOf({ key: "a", ...NO_MODIFIERS, ctrlKey: true }),
+      keyCommandOf({ key: "q", ...NO_MODIFIERS, ctrlKey: true }),
     ).toBeNull();
     expect(
       keyCommandOf({ key: "Delete", ...NO_MODIFIERS, ctrlKey: true }),
