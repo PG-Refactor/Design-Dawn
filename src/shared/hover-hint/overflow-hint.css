@@ -1,0 +1,17 @@
+/* Above the menus and dialogs: it belongs to the pointer. It never takes the pointer, so
+   it cannot get in the way of the row under it. */
+.overflow-hint {
+  position: fixed;
+  z-index: 1000;
+  max-width: min(32rem, calc(100vw - 2rem));
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-raised);
+  color: var(--color-text);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  pointer-events: none;
+}

@@ -183,7 +183,8 @@ pub fn tool_definitions() -> Vec<ToolDefinition> {
         read(
             LIST_PROJECTS,
             "The Projects Design Dawn offers to AI, most recently opened first: projectId, name, \
-folder name, whether it is open in the app, whether the other tools use it now (inUse) and \
+folder name, whether it is the Project used last in the app (lastUsedInApp, also while the app \
+is closed), whether the other tools use it now (inUse) and \
 whether it may be changed (writable). Without selectProject the tools use the Project open in \
 the app.",
             vec![],

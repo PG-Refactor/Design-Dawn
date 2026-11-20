@@ -21,6 +21,15 @@ export const LAYOUT_CONFIG = {
   noticeDurationMs: 4000,
   // A right-click menu is kept at least this far inside the window edges.
   contextMenuEdgeMarginPx: 4,
+  // The full text of a name cut short with "…" (the Project Tree), shown beside the pointer:
+  // after a short rest, so moving across rows does not flash one hint after another; below
+  // and to the right of the pointer so the pointer itself does not cover it; and kept this
+  // far inside the window edges.
+  overflowHint: {
+    delayMs: 400,
+    pointerOffsetPx: 14,
+    edgeMarginPx: 4,
+  },
   // The Source | Preview split of the Markdown / Mermaid editor: the share of the width the
   // source takes. Kept inside the limits so neither side disappears (hiding the preview is
   // its own switch); the divider moves by the step per arrow key.

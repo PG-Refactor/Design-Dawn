@@ -3112,14 +3112,17 @@ fn files_whose_path_is_too_long_for_git_on_windows_are_reported() {
     write(&project, &format!("{relative}sheet.json"), "{}\n");
     let long = fixture.status(&project).long_paths.expect("ready");
     assert_eq!(long.count, 1);
-    // Long inside the Project too: over the limit on other PCs as well.
-    assert_eq!(long.portable_count, 1);
+    // In the warning, so not listed again in the note.
+    assert_eq!(long.portable_count, 0);
     assert_eq!(long.files, vec![format!("{relative}sheet.json")]);
     // The `.git` folder is not looked at.
     assert!(long.files.iter().all(|file| !file.starts_with(".git/")));
 
+    // With long paths allowed there is no warning: the note lists it (other PCs).
     fixture.git(&project, &["config", "--local", "core.longpaths", "true"]);
-    assert!(fixture.status(&project).long_paths.expect("ready").enabled);
+    let allowed = fixture.status(&project).long_paths.expect("ready");
+    assert!(allowed.enabled);
+    assert_eq!(allowed.portable_count, 1);
 }
 
 #[test]

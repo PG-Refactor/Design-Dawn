@@ -25,6 +25,7 @@ import {
   restoreActive,
   restoreDiffTabs,
   restoreTabOrder,
+  restoreViewports,
 } from "../workspace/view-restore";
 import type { WorkspaceServices } from "../workspace/workspace-services-context";
 import { refreshDiffAfterStatusChange } from "./git-diff-session";
@@ -92,6 +93,7 @@ async function runDiscard(
   // Brings back what this flow closed, then the view; used when the discard is not run.
   async function abandon(closed: readonly DocumentId[]): Promise<void> {
     await reopenDocuments(services, closed, view);
+    restoreViewports(services, view);
     restoreTabOrder(services, view);
     await restoreActive(services, view);
   }
@@ -131,6 +133,7 @@ async function runDiscard(
     reopensProject ? view.openDocumentIds : closed,
     view,
   );
+  restoreViewports(services, view);
   restoreTabOrder(services, view);
   await restoreActive(services, view);
   refreshDiffAfterStatusChange(services);

@@ -33,12 +33,15 @@
   border-radius: var(--radius-medium);
 }
 
-/* A zero basis lets a long name wrap inside the label instead of pushing the (hidden) menu
-   button onto a line of its own, which made the row twice as tall at large text sizes. */
+/* One line: a name too long for the tree ends in "…" and its whole text is shown beside
+   the pointer (`OverflowHintLabel`). The zero basis keeps the row on one line at large
+   text sizes. */
 .tree-item__label {
   flex: 1 1 0;
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Before the selection rule, so a selected row keeps its colour under the pointer. */

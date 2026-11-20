@@ -207,8 +207,8 @@ pub(crate) fn long_paths_of(runner: &GitRunner, project_root: &Path) -> GitLongP
     let root_length = windows_path_length(project_root);
     let mut files = Vec::new();
     let mut count = 0;
-    let mut portable_files = Vec::new();
-    let mut portable_count = 0;
+    // Long inside the Project, with whether the path is too long on this PC as well.
+    let mut portable = Vec::new();
     let mut pending = vec![(project_root.to_path_buf(), String::new())];
     while let Some((directory, relative)) = pending.pop() {
         let Ok(entries) = list_directory(&directory) else {
@@ -228,13 +228,11 @@ pub(crate) fn long_paths_of(runner: &GitRunner, project_root: &Path) -> GitLongP
                 EntryKind::File => {
                     // The root, a separator and the relative path, as Windows counts it.
                     let relative_length = path.encode_utf16().count();
+                    let too_long_here = root_length + 1 + relative_length >= WINDOWS_MAX_PATH;
                     if relative_length >= PORTABLE_PATH_LIMIT {
-                        portable_count += 1;
-                        if portable_files.len() < LONG_PATHS_LISTED {
-                            portable_files.push(path.clone());
-                        }
+                        portable.push((path.clone(), too_long_here));
                     }
-                    if root_length + 1 + relative_length >= WINDOWS_MAX_PATH {
+                    if too_long_here {
                         count += 1;
                         if files.len() < LONG_PATHS_LISTED {
                             files.push(path);
@@ -246,11 +244,19 @@ pub(crate) fn long_paths_of(runner: &GitRunner, project_root: &Path) -> GitLongP
         }
     }
     files.sort();
+    let enabled = long_paths_enabled(runner, project_root);
+    // A file in the warning (this PC's Git cannot take it) is not listed again in the note.
+    if !enabled {
+        portable.retain(|(_, too_long_here)| !too_long_here);
+    }
+    let portable_count = portable.len();
+    let mut portable_files: Vec<String> = portable.into_iter().map(|(path, _)| path).collect();
     portable_files.sort();
+    portable_files.truncate(LONG_PATHS_LISTED);
     GitLongPaths {
         files,
         count,
-        enabled: long_paths_enabled(runner, project_root),
+        enabled,
         portable_files,
         portable_count,
     }
