@@ -142,11 +142,12 @@ mod create_folder_command {
     }
 
     #[test]
-    fn untranslatable_names_fall_back_to_numbered_names_and_collisions_get_suffixes() {
+    fn names_keep_their_letters_and_collisions_get_suffixes() {
         let mut opened = open_folders();
         for (number, name, expected) in [
-            (1, "設計", "folder-1"),
-            (2, "設計", "folder-2"),
+            (1, "設計", "設計"),
+            (2, "設計", "設計-2"),
+            (5, "「」", "folder-1"),
             (3, "Archive", "archive-2"),
             (4, "ARCHIVE", "archive-3"),
         ] {

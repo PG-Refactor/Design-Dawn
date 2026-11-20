@@ -35,6 +35,41 @@ pub fn slugify(text: &str) -> String {
     slug
 }
 
+/// The directory name of a Folder, Document or Sheet: like `slugify`, but letters and digits
+/// of every script are kept (a Japanese name stays readable in the file tree and in Git),
+/// ASCII letters lowercased. Everything else (every character Windows forbids in a name,
+/// spaces, punctuation) still collapses to one `-`, and the name is cut at
+/// `SLUG_MAX_LENGTH` characters. The text comes from the app's own fields, which give
+/// composed (NFC) characters; Git on macOS keeps them composed by default.
+pub fn directory_slug(text: &str) -> String {
+    let mut slug = String::new();
+    let mut length = 0;
+    let mut separator_pending = false;
+    for character in text.chars().map(|c| c.to_ascii_lowercase()) {
+        let kept = if character.is_ascii() {
+            character.is_ascii_lowercase() || character.is_ascii_digit()
+        } else {
+            character.is_alphanumeric()
+        };
+        if !kept {
+            separator_pending = true;
+            continue;
+        }
+        let needs_separator = separator_pending && !slug.is_empty();
+        if length + usize::from(needs_separator) + 1 > SLUG_MAX_LENGTH {
+            break;
+        }
+        if needs_separator {
+            slug.push(SLUG_SEPARATOR);
+            length += 1;
+        }
+        separator_pending = false;
+        slug.push(character);
+        length += 1;
+    }
+    slug
+}
+
 fn is_reserved_device_name(name: &str) -> bool {
     RESERVED_DEVICE_NAMES
         .iter()
@@ -57,7 +92,7 @@ pub fn unique_directory_name(
     existing_names: &[String],
 ) -> String {
     let taken = lowercase_set(existing_names);
-    let slug = slugify(display_name);
+    let slug = directory_slug(display_name);
     if slug.is_empty() || is_reserved_device_name(&slug) {
         return (FALLBACK_FIRST_NUMBER..)
             .map(|number| format!("{fallback_base}{SLUG_SEPARATOR}{number}"))
@@ -258,14 +293,29 @@ mod tests {
     }
 
     #[test]
-    fn non_ascii_names_fall_back_to_numbered_names() {
+    fn japanese_names_are_kept_in_directory_names() {
+        assert_eq!(unique_directory_name("設計書", "document", &[]), "設計書");
         assert_eq!(
-            unique_directory_name("設計書", "document", &[]),
-            "document-1"
+            unique_directory_name("設計書", "document", &names(&["設計書"])),
+            "設計書-2"
+        );
+        // Letters of any script stay; spaces, punctuation and what Windows forbids do not.
+        assert_eq!(
+            unique_directory_name("API 仕様: v2 / 改訂版", "sheet", &[]),
+            "api-仕様-v2-改訂版"
         );
         assert_eq!(
-            unique_directory_name("設計書", "document", &names(&["document-1"])),
-            "document-2"
+            unique_directory_name("データー移行", "sheet", &[]),
+            "データー移行"
+        );
+        assert_eq!(unique_directory_name("「」・。", "folder", &[]), "folder-1");
+        // Cut at the limit in characters, never inside one.
+        let long = "設".repeat(SLUG_MAX_LENGTH + 5);
+        assert_eq!(
+            unique_directory_name(&long, "document", &[])
+                .chars()
+                .count(),
+            SLUG_MAX_LENGTH
         );
     }
 
@@ -426,10 +476,17 @@ mod tests {
 
     fn assert_safe_directory_name(name: &str) {
         assert!(!name.is_empty());
-        assert!(name.len() <= SLUG_MAX_LENGTH + "-99".len(), "{name}");
         assert!(
-            name.bytes()
-                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-'),
+            name.chars().count() <= SLUG_MAX_LENGTH + "-99".len(),
+            "{name}"
+        );
+        // ASCII only as lowercase letters, digits and `-`; other scripts' letters and digits.
+        assert!(
+            name.chars().all(|character| if character.is_ascii() {
+                character.is_ascii_lowercase() || character.is_ascii_digit() || character == '-'
+            } else {
+                character.is_alphanumeric()
+            }),
             "{name}"
         );
         assert!(!name.starts_with('-') && !name.ends_with('-'), "{name}");
@@ -527,7 +584,7 @@ mod tests {
     fn names_that_slug_to_nothing_fall_back() {
         for display in ["設計書", "!!!", "...", "   ", "日本語 only 日本語", "---"] {
             let name = unique_directory_name(display, "document", &[]);
-            if slugify(display).is_empty() {
+            if directory_slug(display).is_empty() {
                 assert_eq!(name, "document-1", "{display:?}");
             } else {
                 assert_safe_directory_name(&name);
