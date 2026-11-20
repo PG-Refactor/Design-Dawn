@@ -1,5 +1,5 @@
 //! The MCP tools against temporary copies of the sample Projects:
-//! every tool's success and refusals, the read-only mode, conflicts, hostile IDs, and that
+//! every tool's success and refusals, read-only Projects, conflicts, hostile IDs, and that
 //! what the tools write loads in the app's loader without Load Issues.
 
 mod support;
@@ -41,8 +41,17 @@ const WRITE_TOOLS: [&str; 11] = [
     "moveBlock",
     "updateBlockCaption",
     "deleteBlock",
-    "requestImageImport",
+    "importImage",
 ];
+/// Choosing and offering Projects; listed first.
+const ACCESS_TOOLS: [&str; 4] = [
+    "listProjects",
+    "selectProject",
+    "addProject",
+    "setWriteAccess",
+];
+/// What changes the AI access list rather than a Project.
+const ACCESS_CHANGING_TOOLS: [&str; 2] = ["addProject", "setWriteAccess"];
 const TEXT_LIMIT_PLUS_ONE: usize = 1024 * 1024 + 1;
 
 struct Reply {
@@ -76,8 +85,30 @@ fn call(context: &ToolContext, name: &str, arguments: Value) -> Reply {
     }
 }
 
+/// The app's settings folder of a test, beside the Project folder in its temporary folder.
+fn config_dir_beside(root: &Path) -> std::path::PathBuf {
+    root.parent().unwrap().join("app-config")
+}
+
+/// A server whose AI access list offers the Project in `root` and has it open in the app.
 fn context_for(root: &Path, allow_write: bool) -> ToolContext {
-    ToolContext::open(root, allow_write).expect("open the project")
+    let config_dir = config_dir_beside(root);
+    let project_id = design_dawn_lib::application::project_operations::read_project_identity(root)
+        .expect("a Project folder")
+        .project_id;
+    let mut list = AiAccessList::read(&config_dir).unwrap();
+    list.add(project_id, root);
+    list.record_used(project_id, root);
+    list.set_allow_write(&project_id, allow_write).unwrap();
+    list.write(&config_dir).unwrap();
+    ToolContext::new(&config_dir)
+}
+
+fn all_tools() -> Vec<&'static str> {
+    let mut expected: Vec<&str> = ACCESS_TOOLS.to_vec();
+    expected.extend(READ_TOOLS);
+    expected.extend(WRITE_TOOLS);
+    expected
 }
 
 fn overview_ids() -> Value {
@@ -297,10 +328,11 @@ fn tool_names(context: &ToolContext) -> Vec<String> {
 }
 
 #[test]
-fn read_only_mode_lists_only_the_read_tools_and_refuses_the_others() {
+fn a_read_only_project_refuses_every_write_tool() {
     let (_temp, root) = project_copy();
     let context = context_for(&root, false);
-    assert_eq!(tool_names(&context), READ_TOOLS);
+    // Listed all the same: the permission can change while the session runs.
+    assert_eq!(tool_names(&context), all_tools());
     let before = tree_snapshot(&root);
     for name in WRITE_TOOLS {
         let kind = call(&context, name, json!({})).error_kind();
@@ -318,18 +350,18 @@ fn read_only_mode_lists_only_the_read_tools_and_refuses_the_others() {
 }
 
 #[test]
-fn write_mode_lists_every_tool_with_a_closed_input_schema() {
+fn every_tool_is_listed_with_a_closed_input_schema() {
     let (_temp, root) = project_copy();
     let context = context_for(&root, true);
-    let mut expected: Vec<&str> = READ_TOOLS.to_vec();
-    expected.extend(WRITE_TOOLS);
-    assert_eq!(tool_names(&context), expected);
+    assert_eq!(tool_names(&context), all_tools());
     for tool in context.list_tools() {
         let schema = &tool["inputSchema"];
         assert_eq!(schema["type"], "object");
         assert_eq!(schema["additionalProperties"], false);
-        let writes = WRITE_TOOLS.contains(&tool["name"].as_str().unwrap());
-        assert_eq!(tool["annotations"]["readOnlyHint"], !writes);
+        let name = tool["name"].as_str().unwrap();
+        // The client asks the user before a call that is not read-only.
+        let changes = WRITE_TOOLS.contains(&name) || ACCESS_CHANGING_TOOLS.contains(&name);
+        assert_eq!(tool["annotations"]["readOnlyHint"], !changes, "{name}");
     }
 }
 
@@ -1132,10 +1164,28 @@ fn a_project_that_is_replaced_under_the_server_is_refused() {
 }
 
 #[test]
-fn a_folder_that_is_not_a_project_cannot_be_served() {
+fn a_folder_that_is_not_a_project_cannot_be_added() {
     let temp = TempDir::new();
-    assert!(ToolContext::open(temp.path(), false).is_err());
-    assert!(ToolContext::open(&temp.path().join("missing"), false).is_err());
+    let config = TempDir::new();
+    let context = ToolContext::new(config.path());
+    for folder in [temp.path().to_path_buf(), temp.path().join("missing")] {
+        let refused = call(
+            &context,
+            "addProject",
+            json!({ "folder": folder.to_string_lossy() }),
+        );
+        assert!(refused.is_error);
+    }
+    assert_eq!(
+        call(
+            &context,
+            "addProject",
+            json!({ "folder": "relative/project" })
+        )
+        .error_kind(),
+        "invalidArguments"
+    );
+    assert!(!config.path().join("ai-access.json").exists());
 }
 
 #[test]
@@ -1227,7 +1277,7 @@ fn a_whole_authoring_session_leaves_a_project_the_loader_reads_without_issues() 
     assert_loads_without_issues(&root);
 }
 
-// ---- following the app (no --project) ----
+// ---- which Project: the app's AI access list ----
 
 /// The app's AI access list in a temporary settings folder: `projects` in the order the app
 /// used them (the last one is open in the app), with their write permission.
@@ -1256,12 +1306,9 @@ fn following_the_app_uses_the_project_open_in_the_app() {
             (FOLDERS_PROJECT_ID, &folders, false),
         ],
     );
-    let context = ToolContext::follow_app(config.path());
+    let context = ToolContext::new(config.path());
 
-    let mut expected: Vec<&str> = vec!["listProjects", "selectProject", "requestWriteAccess"];
-    expected.extend(READ_TOOLS);
-    expected.extend(WRITE_TOOLS);
-    assert_eq!(tool_names(&context), expected);
+    assert_eq!(tool_names(&context), all_tools());
     assert!(context.instructions().contains("listProjects"));
 
     // The Project used last in the app.
@@ -1293,7 +1340,7 @@ fn the_ai_chooses_another_listed_project_and_can_follow_the_app_again() {
             (FOLDERS_PROJECT_ID, &folders, false),
         ],
     );
-    let context = ToolContext::follow_app(config.path());
+    let context = ToolContext::new(config.path());
 
     let selected = call(
         &context,
@@ -1342,7 +1389,7 @@ fn writes_follow_the_permission_the_user_set_in_the_app_at_each_call() {
     let (_temp, root) = project_copy();
     let config = TempDir::new();
     app_list(config.path(), &[(PROJECT_ID, &root, false)]);
-    let context = ToolContext::follow_app(config.path());
+    let context = ToolContext::new(config.path());
     let before = tree_snapshot(&root);
     let create = json!({ "documentId": DOCUMENT_ID, "name": "From AI" });
     assert_eq!(
@@ -1364,7 +1411,7 @@ fn writes_follow_the_permission_the_user_set_in_the_app_at_each_call() {
 #[test]
 fn following_the_app_before_it_opened_anything_or_after_a_project_moved_explains_itself() {
     let config = TempDir::new();
-    let context = ToolContext::follow_app(config.path());
+    let context = ToolContext::new(config.path());
     assert_eq!(
         call(&context, "getProject", json!({})).error_kind(),
         "noProject"
@@ -1386,16 +1433,6 @@ fn following_the_app_before_it_opened_anything_or_after_a_project_moved_explains
         call(&context, "getProject", json!({})).error_kind(),
         "accessListUnreadable"
     );
-}
-
-#[test]
-fn a_fixed_project_offers_no_project_choice() {
-    let (_temp, root) = project_copy();
-    let context = context_for(&root, true);
-    assert!(context
-        .call_tool("listProjects", &serde_json::Map::new())
-        .is_none());
-    assert!(!context.instructions().contains("listProjects"));
 }
 
 // ---- captions ----
@@ -1510,7 +1547,7 @@ fn the_project_open_in_the_app_is_used_only_when_the_user_offered_it() {
     list.add(ProjectId::parse(FOLDERS_PROJECT_ID).unwrap(), &folders);
     list.record_used(ProjectId::parse(PROJECT_ID).unwrap(), &root);
     list.write(config.path()).unwrap();
-    let context = ToolContext::follow_app(config.path());
+    let context = ToolContext::new(config.path());
 
     let refused = call(&context, "getProject", json!({}));
     assert!(refused.is_error);
@@ -1532,86 +1569,144 @@ fn the_project_open_in_the_app_is_used_only_when_the_user_offered_it() {
     );
 }
 
-// ---- asking the user for write access ----
-
-fn request_file(config: &Path, project_id: &str) -> std::path::PathBuf {
-    config
-        .join("ai-requests")
-        .join(format!("{project_id}.json"))
-}
+// ---- offering Projects and allowing changes from the AI client ----
 
 #[test]
-fn a_write_request_is_left_for_the_app_once_and_grants_nothing() {
+fn add_project_offers_a_project_read_only_and_keeps_it_in_the_history() {
     let (_temp, root) = project_copy();
     let config = TempDir::new();
-    app_list(config.path(), &[(PROJECT_ID, &root, false)]);
-    let context = ToolContext::follow_app(config.path());
+    let context = ToolContext::new(config.path());
+    let added = call(
+        &context,
+        "addProject",
+        json!({ "folder": root.to_string_lossy() }),
+    )
+    .ok();
+    assert_eq!(added["projectId"], PROJECT_ID);
+    assert_eq!(added["added"], true);
+    assert_eq!(added["writable"], false);
+    // The app's list has it, as if it was added on the AI integration screen.
+    let list = AiAccessList::read(config.path()).unwrap();
+    assert!(list.find(&ProjectId::parse(PROJECT_ID).unwrap()).is_some());
+    // No path reaches the AI.
+    assert!(!added.to_string().contains(root.to_str().unwrap()));
 
-    let asked = call(&context, "requestWriteAccess", json!({})).ok();
-    assert_eq!(asked["requested"], true);
-    assert_eq!(asked["alreadyWaiting"], false);
-    assert!(request_file(config.path(), PROJECT_ID).is_file());
-    let again = call(&context, "requestWriteAccess", json!({})).ok();
-    assert_eq!(again["alreadyWaiting"], true);
-    // Still read-only: only the app's answer changes that.
+    // Again: nothing changes.
+    let again = call(
+        &context,
+        "addProject",
+        json!({ "folder": root.to_string_lossy() }),
+    )
+    .ok();
+    assert_eq!(again["added"], false);
+    let history = design_dawn_lib::application::local_state::ai_history::read(
+        config.path(),
+        &ProjectId::parse(PROJECT_ID).unwrap(),
+    );
+    assert_eq!(history.len(), 2);
+    assert!(history.iter().all(|entry| entry.tool == "addProject"));
+
+    // Chosen, it reads; it is read-only until changes are allowed.
+    call(
+        &context,
+        "selectProject",
+        json!({ "projectId": PROJECT_ID }),
+    )
+    .ok();
     assert_eq!(
         call(&context, "getProject", json!({})).ok()["writable"],
         false
     );
-    assert_eq!(
-        call(
-            &context,
-            "createSheet",
-            json!({ "documentId": DOCUMENT_ID, "name": "X" })
-        )
-        .error_kind(),
-        "writeDisabled"
-    );
 }
 
 #[test]
-fn a_writable_project_needs_no_request_and_an_unknown_one_cannot_be_asked_for() {
+fn set_write_access_allows_and_stops_changes_and_keeps_them_in_the_history() {
     let (_temp, root) = project_copy();
     let config = TempDir::new();
-    app_list(config.path(), &[(PROJECT_ID, &root, true)]);
-    let context = ToolContext::follow_app(config.path());
-    let answer = call(&context, "requestWriteAccess", json!({})).ok();
-    assert_eq!(answer["writable"], true);
-    assert_eq!(answer["requested"], false);
-    assert!(!request_file(config.path(), PROJECT_ID).exists());
+    app_list(config.path(), &[(PROJECT_ID, &root, false)]);
+    let context = ToolContext::new(config.path());
+    let create = json!({ "documentId": DOCUMENT_ID, "name": "From AI" });
+    let refused = call(&context, "createSheet", create.clone());
+    assert!(refused.value["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("setWriteAccess"));
 
+    let allowed = call(&context, "setWriteAccess", json!({ "writable": true })).ok();
+    assert_eq!(allowed["projectId"], PROJECT_ID);
+    assert_eq!(allowed["writable"], true);
+    assert!(
+        AiAccessList::read(config.path())
+            .unwrap()
+            .find(&ProjectId::parse(PROJECT_ID).unwrap())
+            .unwrap()
+            .allow_write
+    );
+    call(&context, "createSheet", create.clone()).ok();
+
+    call(
+        &context,
+        "setWriteAccess",
+        json!({ "writable": false, "projectId": PROJECT_ID }),
+    )
+    .ok();
+    assert_eq!(
+        call(&context, "createSheet", create).error_kind(),
+        "writeDisabled"
+    );
+    let tools: Vec<String> = design_dawn_lib::application::local_state::ai_history::read(
+        config.path(),
+        &ProjectId::parse(PROJECT_ID).unwrap(),
+    )
+    .into_iter()
+    // Newest first.
+    .map(|entry| format!("{} {}", entry.tool, entry.after.unwrap_or_default()))
+    .collect();
+    assert_eq!(
+        tools,
+        [
+            "setWriteAccess false",
+            "createSheet ",
+            "setWriteAccess true"
+        ]
+    );
+    assert_loads_without_issues(&root);
+}
+
+#[test]
+fn set_write_access_needs_an_offered_project_and_a_flag() {
+    let (_temp, root) = project_copy();
+    let config = TempDir::new();
+    app_list(config.path(), &[(PROJECT_ID, &root, false)]);
+    let context = ToolContext::new(config.path());
     assert_eq!(
         call(
             &context,
-            "requestWriteAccess",
-            json!({ "projectId": FOLDERS_PROJECT_ID })
+            "setWriteAccess",
+            json!({ "writable": true, "projectId": FOLDERS_PROJECT_ID })
         )
         .error_kind(),
         "projectNotListed"
     );
-    assert!(!config.path().join("ai-requests").exists());
-}
-
-#[test]
-fn the_project_open_in_the_app_can_be_asked_for_before_it_is_offered() {
-    let (_temp, root) = project_copy();
-    let config = TempDir::new();
-    let mut list = AiAccessList::default();
-    list.record_used(ProjectId::parse(PROJECT_ID).unwrap(), &root);
-    list.write(config.path()).unwrap();
-    let context = ToolContext::follow_app(config.path());
-    let asked = call(&context, "requestWriteAccess", json!({})).ok();
-    assert_eq!(asked["requested"], true);
-    assert!(request_file(config.path(), PROJECT_ID).is_file());
-}
-
-#[test]
-fn a_fixed_project_has_no_write_request() {
-    let (_temp, root) = project_copy();
-    let context = context_for(&root, false);
-    assert!(context
-        .call_tool("requestWriteAccess", &serde_json::Map::new())
-        .is_none());
+    assert_eq!(
+        call(&context, "setWriteAccess", json!({})).error_kind(),
+        "invalidArguments"
+    );
+    // An unreadable list is left alone, not replaced.
+    fs::write(config.path().join("ai-access.json"), "not json").unwrap();
+    assert_eq!(
+        call(
+            &context,
+            "setWriteAccess",
+            json!({ "writable": true, "projectId": PROJECT_ID })
+        )
+        .error_kind(),
+        "accessListUnreadable"
+    );
+    assert_eq!(
+        fs::read_to_string(config.path().join("ai-access.json")).unwrap(),
+        "not json"
+    );
 }
 
 #[test]
@@ -1654,7 +1749,7 @@ fn a_write_by_a_server_following_the_app_is_kept_in_the_ai_history() {
     let (_temp, sample) = project_copy();
     let config = TempDir::new();
     app_list(config.path(), &[(PROJECT_ID, &sample, true)]);
-    let context = ToolContext::follow_app(config.path());
+    let context = ToolContext::new(config.path());
     call(
         &context,
         "selectProject",
@@ -1690,52 +1785,93 @@ fn a_write_by_a_server_following_the_app_is_kept_in_the_ai_history() {
 }
 
 #[test]
-fn an_image_request_waits_for_the_app_and_adds_nothing() {
-    let (_temp, sample) = project_copy();
-    let config = TempDir::new();
-    app_list(config.path(), &[(PROJECT_ID, &sample, true)]);
-    let context = ToolContext::follow_app(config.path());
-    call(
+fn import_image_adds_an_image_block_with_the_file_copied_into_the_document() {
+    let (temp, sample) = project_copy();
+    let context = context_for(&sample, true);
+    let outside = temp.path().join("photo.png");
+    fs::copy(document_dir(&sample).join("assets/pixel.png"), &outside).unwrap();
+    let added = call(
         &context,
-        "selectProject",
-        json!({ "projectId": PROJECT_ID }),
-    )
-    .ok();
-    let image = document_dir(&sample).join("assets/pixel.png");
-    let answer = call(
-        &context,
-        "requestImageImport",
+        "importImage",
         with(
             overview_ids(),
-            json!({ "path": image.to_str().unwrap(), "position": { "x": 5, "y": 6 } }),
+            json!({
+                "path": outside.to_str().unwrap(),
+                "position": { "x": 5, "y": 6 },
+                "caption": "A photo",
+            }),
         ),
     )
     .ok();
-    assert_eq!(answer["requested"], true);
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
+    assert_eq!(added["blockType"], "image");
+    assert_eq!(added["position"]["x"], 5);
+    assert_eq!(added["caption"], "A photo");
+    let content_path = added["contentPath"].as_str().unwrap();
+    assert!(document_dir(&sample).join(content_path).is_file());
+    let block_id = added["blockId"].as_str().unwrap().to_owned();
+    let sheet = call(&context, "getSheet", overview_ids()).ok();
+    assert!(sheet["blocks"]
+        .as_array()
         .unwrap()
-        .as_secs();
-    let pending =
-        design_dawn_lib::application::local_state::ai_image_requests::pending_image_requests(
-            config.path(),
-            now,
-        );
-    assert_eq!(pending.len(), 1);
-    assert_eq!(pending[0].1.x, Some(5));
-    assert_eq!(pending[0].1.path, image);
-    let refused = call(
-        &context,
-        "requestImageImport",
-        with(overview_ids(), json!({ "path": "relative.png" })),
+        .iter()
+        .any(|block| block["blockId"] == block_id.as_str()));
+    // Kept in the AI history with the file it added.
+    let history = design_dawn_lib::application::local_state::ai_history::read(
+        &config_dir_beside(&sample),
+        &ProjectId::parse(PROJECT_ID).unwrap(),
     );
-    assert_eq!(refused.error_kind(), "invalidArguments");
-    // Nothing went into the AI history: the request changed nothing.
-    assert!(design_dawn_lib::application::local_state::ai_history::read(
-        config.path(),
-        &ProjectId::parse(PROJECT_ID).unwrap()
+    let entry = history.last().unwrap();
+    assert_eq!(entry.tool, "importImage");
+    assert_eq!(entry.block_id.as_deref(), Some(block_id.as_str()));
+    assert_eq!(entry.after.as_deref(), Some(content_path));
+
+    // The same file again uses the copy made the first time.
+    let again = call(
+        &context,
+        "importImage",
+        with(overview_ids(), json!({ "path": outside.to_str().unwrap() })),
     )
-    .is_empty());
+    .ok();
+    assert_eq!(again["contentPath"], content_path);
+    assert_loads_without_issues(&sample);
+}
+
+#[test]
+fn import_image_refuses_what_is_not_an_image_file_and_a_read_only_project() {
+    let (temp, sample) = project_copy();
+    let context = context_for(&sample, true);
+    let before = tree_snapshot(&sample);
+    let text = temp.path().join("notes.txt");
+    fs::write(&text, "x").unwrap();
+    for path in [
+        "relative.png".to_owned(),
+        text.to_string_lossy().into_owned(),
+        temp.path()
+            .join("missing.png")
+            .to_string_lossy()
+            .into_owned(),
+    ] {
+        assert_eq!(
+            call(
+                &context,
+                "importImage",
+                with(overview_ids(), json!({ "path": path }))
+            )
+            .error_kind(),
+            "invalidArguments"
+        );
+    }
+    assert_eq!(tree_snapshot(&sample), before);
+    let read_only = context_for(&sample, false);
+    assert_eq!(
+        call(
+            &read_only,
+            "importImage",
+            with(overview_ids(), json!({ "path": text.to_string_lossy() }))
+        )
+        .error_kind(),
+        "writeDisabled"
+    );
 }
 
 /// A shared template written the way the app writes one (`application::templates`).
@@ -1932,42 +2068,6 @@ fn a_template_sheet_brings_its_images_and_reuses_an_identical_one() {
 }
 
 #[test]
-fn a_project_server_records_its_writes_in_the_app_history_too() {
-    use design_dawn_lib::application::local_state::ai_history::read;
-    let (temp, root) = project_copy();
-    let history_dir = temp.path().join("settings");
-    let context = ToolContext::open(&root, true)
-        .expect("open the project")
-        .with_history_dir(&history_dir);
-    let created = call(
-        &context,
-        "createBlock",
-        with(
-            overview_ids(),
-            json!({ "type": "markdown", "text": "# Noted" }),
-        ),
-    )
-    .ok();
-    let project = ProjectId::parse(PROJECT_ID).unwrap();
-    let entries = read(&history_dir, &project);
-    assert_eq!(entries.len(), 1);
-    assert_eq!(entries[0].tool, "createBlock");
-    assert_eq!(entries[0].block_id.as_deref(), created["blockId"].as_str());
-    // Without a settings folder (as before) nothing is recorded anywhere.
-    let plain = context_for(&root, true);
-    call(
-        &plain,
-        "createBlock",
-        with(
-            overview_ids(),
-            json!({ "type": "markdown", "text": "# Quiet" }),
-        ),
-    )
-    .ok();
-    assert_eq!(read(&history_dir, &project).len(), 1);
-}
-
-#[test]
 fn a_block_larger_than_the_app_allows_is_refused() {
     let (_temp, root) = project_copy();
     let context = context_for(&root, true);
@@ -2000,40 +2100,4 @@ fn a_block_larger_than_the_app_allows_is_refused() {
         ),
     )
     .ok();
-}
-
-#[test]
-fn a_tool_that_needs_the_app_says_so_on_a_project_server() {
-    let (_temp, root) = project_copy();
-    let context = context_for(&root, true);
-    let refused = call(
-        &context,
-        "requestImageImport",
-        with(
-            overview_ids(),
-            json!({ "path": root.join("missing.png").to_string_lossy() }),
-        ),
-    );
-    assert_eq!(refused.error_kind(), "appRequired");
-}
-
-#[test]
-fn a_write_request_right_after_a_no_is_not_made_and_says_when_to_ask_again() {
-    use design_dawn_lib::application::local_state::ai_requests::record_denial;
-    let (_temp, root) = project_copy();
-    let config = TempDir::new();
-    app_list(config.path(), &[(PROJECT_ID, &root, false)]);
-    let context = ToolContext::follow_app(config.path());
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-    record_denial(config.path(), &ProjectId::parse(PROJECT_ID).unwrap(), now).unwrap();
-
-    let refused = call(&context, "requestWriteAccess", json!({})).ok();
-    assert_eq!(refused["requested"], false);
-    assert_eq!(refused["deniedRecently"], true);
-    assert!(refused["retryAfterSeconds"].as_u64().unwrap() > 0);
-    // Nothing was left for the app to show.
-    assert!(!request_file(config.path(), PROJECT_ID).exists());
 }

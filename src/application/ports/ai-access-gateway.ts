@@ -1,9 +1,9 @@
 // Port for the AI integration: which Projects the MCP server (design-dawn-mcp) may use and
 // whether an AI may change each one. The list lives in the app's own settings folder, never
-// in a Project; only the app changes it.
+// in a Project; the MCP server changes it too (addProject / setWriteAccess, approved by the
+// user in the AI client), so it is read afresh whenever it is shown.
 
 import type { ProjectId } from "../../domain/shared/entity-id";
-import type { ImportedImage } from "./asset-types";
 import type { OperationError, OperationResult } from "./operation-error";
 
 export interface AiProjectAccess {
@@ -31,19 +31,12 @@ export interface AiAccessOverview {
   readonly loadIssue: OperationError | null;
 }
 
-// The user's answer to an AI's request for edit permission.
-export const AI_ACCESS_ANSWERS = [
-  "allow",
-  "allowUntilAppExits",
-  "deny",
-] as const;
-export type AiAccessAnswer = (typeof AI_ACCESS_ANSWERS)[number];
-
 // What choosing a folder to add came to.
 export type AiProjectFolderAddition = "added" | "cancelled";
 
-// One write an AI tool made through the MCP server (kept by the app's settings, not in the
-// Project). `before` / `after` are a Block's text around an `updateBlock`, when kept.
+// One change an AI tool made through the MCP server (kept by the app's settings, not in the
+// Project). `before` / `after` are a Block's text around an `updateBlock`, when kept; for
+// `setWriteAccess`, `after` is "true" or "false"; for `importImage`, the added file.
 export interface AiHistoryEntry {
   // Seconds since the Unix epoch.
   readonly at: number;
@@ -57,14 +50,6 @@ export interface AiHistoryEntry {
 }
 
 export interface AiAccessGateway {
-  // The picture an AI asks to add (a `data:` URL), validated like a dropped image.
-  imageRequestPreview(requestId: string): Promise<OperationResult<string>>;
-  // The user's answer to an image request. "Allow" imports the file into the Document's
-  // assets (the Document must be open) and returns it to place; "deny" returns null.
-  answerImageRequest(
-    requestId: string,
-    allow: boolean,
-  ): Promise<OperationResult<ImportedImage | null>>;
   // What AI tools changed in the Project, newest first.
   history(
     projectId: ProjectId,
@@ -79,8 +64,4 @@ export interface AiAccessGateway {
     allowWrite: boolean,
   ): Promise<OperationResult<void>>;
   remove(projectId: ProjectId): Promise<OperationResult<void>>;
-  answerRequest(
-    projectId: ProjectId,
-    answer: AiAccessAnswer,
-  ): Promise<OperationResult<void>>;
 }

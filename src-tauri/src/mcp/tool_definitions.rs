@@ -8,7 +8,8 @@ use super::config::{BLOCK_MAX_HEIGHT, BLOCK_MAX_WIDTH, BLOCK_MIN_HEIGHT, BLOCK_M
 
 pub const LIST_PROJECTS: &str = "listProjects";
 pub const SELECT_PROJECT: &str = "selectProject";
-pub const REQUEST_WRITE_ACCESS: &str = "requestWriteAccess";
+pub const ADD_PROJECT: &str = "addProject";
+pub const SET_WRITE_ACCESS: &str = "setWriteAccess";
 pub const GET_PROJECT: &str = "getProject";
 pub const GET_DOCUMENT: &str = "getDocument";
 pub const GET_SHEET: &str = "getSheet";
@@ -24,7 +25,7 @@ pub const UPDATE_BLOCK: &str = "updateBlock";
 pub const MOVE_BLOCK: &str = "moveBlock";
 pub const UPDATE_BLOCK_CAPTION: &str = "updateBlockCaption";
 pub const DELETE_BLOCK: &str = "deleteBlock";
-pub const REQUEST_IMAGE_IMPORT: &str = "requestImageImport";
+pub const IMPORT_IMAGE: &str = "importImage";
 pub const LIST_TEMPLATES: &str = "listTemplates";
 pub const CREATE_FROM_TEMPLATE: &str = "createFromTemplate";
 
@@ -35,8 +36,7 @@ pub const TEMPLATE_KINDS: [&str; 4] = ["markdown", "mermaid", "sheet", "document
 /// Where a caption can be shown, as `updateBlockCaption` takes it.
 pub const CAPTION_POSITIONS: [&str; 2] = ["below", "above"];
 
-/// Block types a tool can create from text. Images are not offered: they would need the
-/// server to read an arbitrary file.
+/// Block types createBlock makes from text (an image comes in with importImage).
 pub const CREATABLE_BLOCK_TYPES: [&str; 2] = ["markdown", "mermaid"];
 
 #[derive(Debug, Clone)]
@@ -50,11 +50,12 @@ pub struct Property {
 pub struct ToolDefinition {
     pub name: &'static str,
     pub description: &'static str,
-    /// Write tools are refused unless the Project may be changed (`--allow-write`, or the
-    /// app's per-Project permission).
+    /// Write tools are refused unless the Project may be changed (its permission in the AI
+    /// access list).
     pub writes: bool,
-    /// Choosing the Project: offered only when the server follows the app (no `--project`).
-    pub project_choice: bool,
+    /// Changes the AI access list itself (which Projects are offered, which may be changed);
+    /// the user approves such a call in the AI client, and it is kept in the AI history.
+    pub changes_access: bool,
     /// Whether the call replaces or removes something that cannot be brought back by the tool.
     pub destructive: bool,
     pub properties: Vec<Property>,
@@ -76,8 +77,9 @@ impl ToolDefinition {
             .filter(|property| property.required)
             .map(|property| property.name)
             .collect();
-        let mut annotations = json!({ "readOnlyHint": !self.writes, "openWorldHint": false });
-        if self.writes {
+        let read_only = !self.writes && !self.changes_access;
+        let mut annotations = json!({ "readOnlyHint": read_only, "openWorldHint": false });
+        if !read_only {
             annotations["destructiveHint"] = json!(self.destructive);
         }
         json!({
@@ -158,7 +160,7 @@ pub fn tool_definitions() -> Vec<ToolDefinition> {
         description,
         writes: false,
         destructive: false,
-        project_choice: false,
+        changes_access: false,
         properties,
     };
     let write = |name, description, destructive, properties| ToolDefinition {
@@ -166,19 +168,19 @@ pub fn tool_definitions() -> Vec<ToolDefinition> {
         description,
         writes: true,
         destructive,
-        project_choice: false,
+        changes_access: false,
         properties,
     };
-    let choice = |name, description, properties| ToolDefinition {
+    let access = |name, description, properties| ToolDefinition {
         name,
         description,
         writes: false,
         destructive: false,
-        project_choice: true,
+        changes_access: true,
         properties,
     };
     vec![
-        choice(
+        read(
             LIST_PROJECTS,
             "The Projects Design Dawn offers to AI, most recently opened first: projectId, name, \
 folder name, whether it is open in the app, whether the other tools use it now (inUse) and \
@@ -186,7 +188,7 @@ whether it may be changed (writable). Without selectProject the tools use the Pr
 the app.",
             vec![],
         ),
-        choice(
+        read(
             SELECT_PROJECT,
             "Chooses the Project the other tools work on, by projectId from listProjects. Omit \
 projectId to follow the Project open in the app again. Only for this session.",
@@ -196,18 +198,35 @@ projectId to follow the Project open in the app again. Only for this session.",
                 "ID of the Project (from listProjects); omit to follow the app",
             )],
         ),
-        choice(
-            REQUEST_WRITE_ACCESS,
-            "Asks the user, in the Design Dawn app, to let you edit a Project (the one in use, \
-or projectId). The user answers there; nothing is granted by this call. Then check \
-getProject's writable before writing; do not ask again while a request is waiting. Works for \
-an offered Project and for the Project open in the app (allowing it offers it too). Right after \
-the user refused, nothing is asked: the result says deniedRecently and retryAfterSeconds.",
-            vec![id(
-                "projectId",
-                false,
-                "ID of the Project (from listProjects); omit for the Project in use",
+        access(
+            ADD_PROJECT,
+            "Offers a Project to AI: the Project in folder (an absolute path of the folder \
+holding project.json) joins the list that listProjects shows and that Design Dawn's AI \
+integration screen shows, read-only. Call it only when the user asked to work on that Project; \
+already offered: nothing changes.",
+            vec![text(
+                "folder",
+                true,
+                "absolute path of the Project folder (the one holding project.json)",
             )],
+        ),
+        access(
+            SET_WRITE_ACCESS,
+            "Allows (writable true) or stops (false) AI changes to an offered Project: the one \
+in use, or projectId. Call it only when the user asked for changes to that Project, and tell \
+them; Design Dawn shows the setting and keeps the call in its AI history.",
+            vec![
+                property(
+                    "writable",
+                    true,
+                    json!({ "type": "boolean", "description": "true allows changes, false makes it read-only" }),
+                ),
+                id(
+                    "projectId",
+                    false,
+                    "ID of the Project (from listProjects); omit for the Project in use",
+                ),
+            ],
         ),
         read(
             GET_PROJECT,
@@ -470,11 +489,10 @@ kept. This cannot be undone through this server.",
             ],
         ),
         write(
-            REQUEST_IMAGE_IMPORT,
-            "Asks the user, in the Design Dawn app, to add an image file from this computer to \
-a Sheet as an Image Block. The app shows the picture; only if the user allows it is the file \
-imported (PNG, JPEG, WebP, SVG or GIF, up to 20 MiB) and the Block added. Nothing is added by \
-this call. Needs Design Dawn running (not available with --project).",
+            IMPORT_IMAGE,
+            "Adds an image file of this computer to a Sheet as an Image Block, as dropping it \
+in Design Dawn does: the file (PNG, JPEG, WebP, SVG or GIF, up to 20 MiB) is copied into the \
+Document's assets folder. Only for a file the user asked to add.",
             false,
             vec![
                 id("documentId", true, DOCUMENT_ID_HELP),
@@ -489,7 +507,7 @@ this call. Needs Design Dawn running (not available with --project).",
                     false,
                     "x",
                     "y",
-                    "where the image's top-left corner goes; omit to let the app choose",
+                    "where the image's top-left corner goes; omit to put it below the Blocks",
                 ),
                 text("caption", false, "an optional one-line caption"),
             ],

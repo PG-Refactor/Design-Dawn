@@ -46,7 +46,6 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         .manage(Mutex::new(DocumentTransfers::default()))
         .manage(Mutex::new(WindowLabelAllocator::default()))
         .manage(AppRequestSubscriber::default())
-        .manage(Mutex::new(commands::AiRequestPrompts::default()))
         .manage(DropSubscriber::default())
         .manage(CloseRequestSubscriber::default())
         // Read-only image access for `<img>`; the handler runs on the blocking pool because
@@ -73,7 +72,6 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         .invoke_handler(tauri::generate_handler![
             commands::select_project_folder,
             commands::ai_access_overview,
-            commands::ai_requests::answer_ai_access_request,
             commands::add_open_project_to_ai,
             commands::add_ai_project_folder,
             commands::set_ai_write_access,
@@ -144,8 +142,6 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::print_window::close_print_windows,
             commands::asset_data_url,
             commands::ai_history,
-            commands::ai_requests::ai_image_request_preview,
-            commands::ai_requests::answer_ai_image_request,
             commands::git_conflict_versions,
             commands::git_resolve_conflict,
             commands::copy_asset_to_document,
@@ -226,10 +222,6 @@ pub fn run() {
             app.manage(LocalState::new(directories));
             // Projects made for editing templates last time are not in use now.
             commands::templates::clear_template_editing(&app.state::<LocalState>());
-            // "This time only" write access for AI ends with the app; an exit the app could
-            // not see (a crash) ends it here.
-            let _ = app.state::<LocalState>().end_ai_grants_until_app_exits();
-            commands::install_ai_request_watch(app.handle());
             // Real file watching only in the running app: tests start no watcher threads.
             commands::install_external_change_watching(app.handle());
             app.state::<Mutex<WindowRegistry>>()
@@ -267,11 +259,5 @@ pub fn run() {
         })
         .build(tauri::generate_context!())
         .expect("error while building Design Dawn")
-        .run(|app, event| {
-            if let tauri::RunEvent::Exit = event {
-                if let Some(local_state) = app.try_state::<LocalState>() {
-                    let _ = local_state.end_ai_grants_until_app_exits();
-                }
-            }
-        });
+        .run(|_, _| {});
 }

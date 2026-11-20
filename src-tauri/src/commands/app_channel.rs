@@ -64,28 +64,6 @@ pub enum AppNotification {
     /// with `get_project_snapshot`.
     #[serde(rename_all = "camelCase")]
     ProjectTreeChanged { project_id: String },
-    /// An AI asks for write access to a Project: `{ "kind": "aiAccessRequested",
-    /// "projectId", "projectName", "folderDisplay" }`. The folder is display text only, like
-    /// a folder selection's; the answer names the Project by its id.
-    #[serde(rename_all = "camelCase")]
-    AiAccessRequested {
-        project_id: String,
-        project_name: String,
-        folder_display: String,
-    },
-    /// An AI asks to add an image file to a Sheet. Only the file's name is sent; the
-    /// picture comes from `ai_image_request_preview`.
-    #[serde(rename_all = "camelCase")]
-    AiImageRequested {
-        request_id: String,
-        project_id: String,
-        document_id: String,
-        sheet_id: String,
-        file_name: String,
-        x: Option<i64>,
-        y: Option<i64>,
-        caption: Option<String>,
-    },
 }
 
 impl AppNotification {

@@ -5,17 +5,6 @@ import type { Widen } from "../../shared/i18n/catalog-types";
 
 const AI_ACCESS_MESSAGES_JA = {
   menuItem: "AI連携（MCP）…",
-  imageRequest: {
-    title: "AIが画像の追加を求めています",
-    description: (fileName: string, where: string): string =>
-      `AIツールが「${fileName}」を ${where} に画像ブロックとして追加しようとしています。許可するとファイルをDocumentの assets に取り込みます。`,
-    previewLabel: "追加される画像",
-    previewFailed:
-      "画像として読み込めないファイルです。許可しても追加されません。",
-    allow: "追加する",
-    deny: "追加しない",
-    failed: "追加できませんでした。",
-  },
   history: {
     menuItem: "AIの変更履歴…",
     title: "AIの変更履歴",
@@ -47,7 +36,7 @@ const AI_ACCESS_MESSAGES_JA = {
     "この場所に MCP サーバーが見つかりません。アプリと同じフォルダに design-dawn-mcp を置いてください。",
   projectsHeading: "AIが使えるProject",
   projectsIntro:
-    "AI が使えるのは、ここに追加したProjectだけです。AI はふだん「使用中」のProject（最後に使ったウィンドウのもの）を操作し、AI から別のProjectを選ぶこともできます。AI が編集できるのは、編集を許可したProjectだけです。",
+    "AI が使えるのは、この一覧のProjectだけです。AI はふだん「使用中」のProject（最後に使ったウィンドウのもの）を操作し、AI から別のProjectを選ぶこともできます。AI が編集できるのは、編集を許可したProjectだけです。AI ツールから Project の追加や編集の許可をすることもでき（その都度 AI ツールが確認します）、ここに反映され、「AIの変更履歴」に残ります。",
   projectsEmpty: "まだありません。下のボタンでProjectを追加してください。",
   addOpenProject: "今開いているProjectを追加",
   addProjectFolder: "フォルダを指定して追加…",
@@ -67,34 +56,12 @@ const AI_ACCESS_MESSAGES_JA = {
     "保存されている一覧を読み込めませんでした。Projectを開き直すと作り直されます。",
   changeFailed: "変更できませんでした",
   close: "閉じる",
-  requestTitle: "AI が編集の許可を求めています",
-  requestBody: (name: string): string =>
-    `AI ツールが「${name}」を編集できるようにしてほしいと求めています。`,
-  requestEffect:
-    "許可すると、AI はこのProjectのブロックの追加・変更・削除、シートや Document の追加と名前の変更ができます。変更は Git で確認・取り消せます。",
-  requestSettingsHint:
-    "許可はあとから「ファイル → AI連携（MCP）」で変えられます。",
-  requestAllow: "許可する",
-  requestAllowUntilAppExits: "今回だけ許可（アプリを閉じるまで）",
-  requestDeny: "許可しない",
-  requestFailed: "答えを保存できませんでした",
 } as const;
 
 export type AiAccessMessages = Widen<typeof AI_ACCESS_MESSAGES_JA>;
 
 const AI_ACCESS_MESSAGES_EN: AiAccessMessages = {
   menuItem: "AI Integration (MCP)…",
-  imageRequest: {
-    title: "An AI wants to add an image",
-    description: (fileName, where) =>
-      `An AI tool wants to add “${fileName}” to ${where} as an Image Block. Allowing copies the file into the Document's assets.`,
-    previewLabel: "The image to add",
-    previewFailed:
-      "The file cannot be read as an image; allowing will not add it.",
-    allow: "Add",
-    deny: "Don't Add",
-    failed: "The image could not be added.",
-  },
   history: {
     menuItem: "AI Change History…",
     title: "AI Change History",
@@ -125,7 +92,7 @@ const AI_ACCESS_MESSAGES_EN: AiAccessMessages = {
     "The MCP server is not at this place. Put design-dawn-mcp in the same folder as the app.",
   projectsHeading: "Projects AI can use",
   projectsIntro:
-    "An AI can use only the Projects you add here. It normally works on the Project “in use” (the one of the window used last) and can choose another one. An AI can edit only the Projects you allow.",
+    "An AI can use only the Projects in this list. It normally works on the Project “in use” (the one of the window used last) and can choose another one. An AI can edit only the Projects allowed here. Projects can also be added and allowed from the AI tool (which asks you each time); that shows here and in the AI Change History.",
   projectsEmpty: "None yet. Add a Project with the buttons below.",
   addOpenProject: "Add the Open Project",
   addProjectFolder: "Add a Folder…",
@@ -145,16 +112,6 @@ const AI_ACCESS_MESSAGES_EN: AiAccessMessages = {
     "The stored list could not be read. It is made again when you open a Project.",
   changeFailed: "Could not change it",
   close: "Close",
-  requestTitle: "An AI asks to edit a Project",
-  requestBody: (name) => `An AI tool asks to be allowed to edit “${name}”.`,
-  requestEffect:
-    "If you allow it, the AI can add, change and delete blocks and add or rename sheets and Documents of this Project. You can review and undo the changes with Git.",
-  requestSettingsHint:
-    "You can change this later in File → AI Integration (MCP).",
-  requestAllow: "Allow",
-  requestAllowUntilAppExits: "Allow This Time (until the app closes)",
-  requestDeny: "Don’t Allow",
-  requestFailed: "The answer could not be saved",
 };
 
 export const AI_ACCESS_MESSAGES: Readonly<

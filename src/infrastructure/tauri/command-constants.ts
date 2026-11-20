@@ -5,7 +5,6 @@
 export const COMMANDS = {
   selectProjectFolder: "select_project_folder",
   aiAccessOverview: "ai_access_overview",
-  answerAiAccessRequest: "answer_ai_access_request",
   addOpenProjectToAi: "add_open_project_to_ai",
   addAiProjectFolder: "add_ai_project_folder",
   setAiWriteAccess: "set_ai_write_access",
@@ -70,8 +69,6 @@ export const COMMANDS = {
   closePrintWindows: "close_print_windows",
   assetDataUrl: "asset_data_url",
   aiHistory: "ai_history",
-  aiImageRequestPreview: "ai_image_request_preview",
-  answerAiImageRequest: "answer_ai_image_request",
   gitConflictVersions: "git_conflict_versions",
   gitResolveConflict: "git_resolve_conflict",
   selectImageFiles: "select_image_files",

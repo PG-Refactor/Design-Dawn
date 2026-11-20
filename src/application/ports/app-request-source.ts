@@ -5,11 +5,7 @@
 
 import type { LanguagePreference } from "../../config/language-config";
 import type { TextSize } from "../../config/text-size-config";
-import type {
-  DocumentId,
-  ProjectId,
-  SheetId,
-} from "../../domain/shared/entity-id";
+import type { DocumentId, ProjectId } from "../../domain/shared/entity-id";
 import type { ThemePreference } from "../local-state/theme";
 import type { OperationResult } from "./operation-error";
 import type { ExternalChanges } from "./persistence-types";
@@ -42,30 +38,10 @@ export interface ProjectFilesNotice {
 //   again when the window subscribes again).
 // - `activateDocument`: another window tried to open a Document this window holds.
 // - `projectTreeChanged`: the tree (or a Document's name) changed in another window.
-// - `aiAccessRequested`: an AI asks the user for permission to edit a Project (shown in this
-//   window; the folder is display text only).
 export type WindowEvent =
   | { readonly kind: "receiveDocument"; readonly transferId: string }
   | { readonly kind: "activateDocument"; readonly documentId: DocumentId }
-  | { readonly kind: "projectTreeChanged"; readonly projectId: ProjectId }
-  | {
-      readonly kind: "aiAccessRequested";
-      readonly projectId: ProjectId;
-      readonly projectName: string;
-      readonly folderDisplay: string;
-    }
-  // An AI asks to add an image file to a Sheet (`AiImageRequestPrompt` asks the user).
-  | {
-      readonly kind: "aiImageRequested";
-      readonly requestId: string;
-      readonly projectId: ProjectId;
-      readonly documentId: DocumentId;
-      readonly sheetId: SheetId;
-      readonly fileName: string;
-      readonly x: number | null;
-      readonly y: number | null;
-      readonly caption: string | null;
-    };
+  | { readonly kind: "projectTreeChanged"; readonly projectId: ProjectId };
 
 export interface AppRequestSource {
   // Returns the unsubscribe function.

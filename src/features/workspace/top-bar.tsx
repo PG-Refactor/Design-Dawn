@@ -14,9 +14,7 @@ import {
 import { TEXT_SIZES, type TextSize } from "../../config/text-size-config";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { AiAccessDialog } from "../ai-access/ai-access-dialog";
-import { AiAccessRequestPrompt } from "../ai-access/ai-access-request-prompt";
 import { AiHistoryDialog } from "../ai-access/ai-history-dialog";
-import { AiImageRequestPrompt } from "../ai-access/ai-image-request-prompt";
 import { ExportDialog, type ShownTarget } from "../export/export-dialog";
 import {
   closeExportDialog,
@@ -539,8 +537,6 @@ export function TopBar() {
       {aiAccessOpen && (
         <AiAccessDialog onClose={() => setAiAccessOpen(false)} />
       )}
-      <AiAccessRequestPrompt />
-      <AiImageRequestPrompt />
       {aiHistoryOpen && (
         <AiHistoryDialog onClose={() => setAiHistoryOpen(false)} />
       )}

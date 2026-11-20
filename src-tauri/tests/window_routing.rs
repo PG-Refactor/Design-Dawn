@@ -72,9 +72,7 @@ impl FakeSink {
                 | AppNotification::ProjectFilesChanged { .. }
                 | AppNotification::ReceiveDocument { .. }
                 | AppNotification::ActivateDocument { .. }
-                | AppNotification::ProjectTreeChanged { .. }
-                | AppNotification::AiAccessRequested { .. }
-                | AppNotification::AiImageRequested { .. } => None,
+                | AppNotification::ProjectTreeChanged { .. } => None,
             })
             .collect()
     }

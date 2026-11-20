@@ -56,6 +56,24 @@ fn tool_result(response: &Value) -> Value {
     serde_json::from_str(text).expect("the text is JSON")
 }
 
+/// The app's settings folder with the Project in `root` offered to AI and open in the app.
+fn app_config(root: &std::path::Path, allow_write: bool) -> TempDir {
+    use design_dawn_lib::application::local_state::ai_access::AiAccessList;
+    use design_dawn_lib::domain::entity_id::ProjectId;
+    let config = TempDir::new();
+    let mut list = AiAccessList::default();
+    let project_id = ProjectId::parse(PROJECT_ID).unwrap();
+    list.add(project_id, root);
+    list.record_used(project_id, root);
+    list.set_allow_write(&project_id, allow_write).unwrap();
+    list.write(config.path()).unwrap();
+    config
+}
+
+fn config_arguments(config: &TempDir) -> [&str; 2] {
+    ["--app-config-dir", config.path().to_str().unwrap()]
+}
+
 fn handshake() -> Vec<Value> {
     vec![
         request(
@@ -88,7 +106,8 @@ fn a_read_write_session_over_stdio() {
         request(6, "ping", json!({})),
         request(7, "unknown/method", json!({})),
     ]);
-    let output = run(&["--project", root_text, "--allow-write"], &input);
+    let config = app_config(&root, true);
+    let output = run(&config_arguments(&config), &input);
 
     assert!(output.status.success(), "{:?}", output.status);
     let replies = responses(&output);
@@ -99,7 +118,7 @@ fn a_read_write_session_over_stdio() {
         .collect();
     assert_eq!(ids, [1, 2, 3, 4, 5, 6, 7]);
     assert_eq!(replies[0]["result"]["protocolVersion"], "2025-06-18");
-    assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 18);
+    assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 22);
     assert_eq!(tool_result(&replies[2])["projectId"], PROJECT_ID);
     assert_eq!(replies[3]["result"]["isError"], false);
     assert_eq!(
@@ -119,7 +138,7 @@ fn a_read_write_session_over_stdio() {
 }
 
 #[test]
-fn the_default_is_read_only() {
+fn an_offered_project_is_read_only_until_changes_are_allowed() {
     let (_temp, root) = project_copy();
     let before = tree_snapshot(&root);
     let mut input = handshake();
@@ -127,10 +146,11 @@ fn the_default_is_read_only() {
         request(2, "tools/list", json!({})),
         tool_call(3, "createDocument", json!({ "name": "Nope" })),
     ]);
-    let output = run(&["--project", root.to_str().unwrap()], &input);
+    let config = app_config(&root, false);
+    let output = run(&config_arguments(&config), &input);
 
     let replies = responses(&output);
-    assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 7);
+    assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 22);
     assert_eq!(replies[2]["result"]["isError"], true);
     assert_eq!(tool_result(&replies[2])["error"]["kind"], "writeDisabled");
     assert_eq!(tree_snapshot(&root), before);
@@ -138,9 +158,9 @@ fn the_default_is_read_only() {
 
 #[test]
 fn bad_input_lines_get_errors_and_the_session_survives() {
-    let (_temp, root) = project_copy();
+    let config = TempDir::new();
     let mut child = Command::new(BINARY)
-        .args(["--project", root.to_str().unwrap()])
+        .args(config_arguments(&config))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -160,28 +180,20 @@ fn bad_input_lines_get_errors_and_the_session_survives() {
 }
 
 #[test]
-fn bad_arguments_or_a_wrong_folder_fail_with_a_message_on_stderr() {
-    // Following the app, writes are the app's choice per Project, not a switch.
-    let output = run(&["--allow-write"], &[]);
-    assert_eq!(output.status.code(), Some(2));
-    assert!(output.stdout.is_empty());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("--project"));
-
-    let temp = TempDir::new();
-    let output = run(&["--project", temp.path().to_str().unwrap()], &[]);
-    assert_eq!(output.status.code(), Some(1));
-    assert!(output.stdout.is_empty());
+fn bad_arguments_fail_with_the_usage_on_stderr() {
+    // The one-Project options are gone: permission is per Project in the access list.
+    for arguments in [&["--allow-write"][..], &["--project", "p"]] {
+        let output = run(arguments, &[]);
+        assert_eq!(output.status.code(), Some(2));
+        assert!(output.stdout.is_empty());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("--app-config-dir"));
+    }
 }
 
 #[test]
-fn without_a_project_it_serves_the_project_open_in_the_app() {
+fn it_serves_the_project_open_in_the_app() {
     let (_temp, root) = project_copy();
-    let config = TempDir::new();
-    let mut list = design_dawn_lib::application::local_state::ai_access::AiAccessList::default();
-    let project_id = design_dawn_lib::domain::entity_id::ProjectId::parse(PROJECT_ID).unwrap();
-    list.add(project_id, &root);
-    list.record_used(project_id, &root);
-    list.write(config.path()).unwrap();
+    let config = app_config(&root, false);
 
     let mut input = handshake();
     input.extend([
@@ -205,7 +217,7 @@ fn without_a_project_it_serves_the_project_open_in_the_app() {
         .contains("selectProject"));
     assert_eq!(tool_result(&replies[1])["projects"][0]["inUse"], true);
     assert_eq!(tool_result(&replies[2])["projectId"], PROJECT_ID);
-    // Read-only until the user allows it in the app.
+    // Read-only until changes are allowed (in the app, or with setWriteAccess).
     assert_eq!(replies[3]["result"]["isError"], true);
     assert_eq!(tool_result(&replies[3])["error"]["kind"], "writeDisabled");
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -216,7 +228,7 @@ fn without_a_project_it_serves_the_project_open_in_the_app() {
 fn help_and_version_print_to_stdout_and_succeed() {
     let help = run(&["--help"], &[]);
     assert!(help.status.success());
-    assert!(String::from_utf8_lossy(&help.stdout).contains("--allow-write"));
+    assert!(String::from_utf8_lossy(&help.stdout).contains("--app-config-dir"));
     let version = run(&["--version"], &[]);
     assert!(String::from_utf8_lossy(&version.stdout).starts_with("design-dawn-mcp "));
 }

@@ -1,22 +1,17 @@
 // An in-memory AI access list: the same rules as Rust (a change to an unlisted Project
 // fails), plus switches to make the next call fail.
 
-import type { ProjectId } from "../../domain/shared/entity-id";
 import type {
-  AiAccessAnswer,
   AiAccessGateway,
   AiAccessOverview,
   AiHistoryEntry,
   AiProjectAccess,
 } from "../ports/ai-access-gateway";
-import type { ImportedImage } from "../ports/asset-types";
 import { operationErr, operationOk } from "../ports/operation-error";
 
 export const FAKE_MCP_SERVER_PATH = "/opt/design-dawn/design-dawn-mcp";
 
 export interface FakeAiAccessGateway extends AiAccessGateway {
-  // The answers given, in order.
-  answers: { projectId: ProjectId; answer: AiAccessAnswer }[];
   projects: AiProjectAccess[];
   // The Project the window has open (null: none).
   openProject: AiProjectAccess | null;
@@ -25,11 +20,6 @@ export interface FakeAiAccessGateway extends AiAccessGateway {
   serverFound: boolean;
   // What `history` returns, newest first.
   historyEntries: AiHistoryEntry[];
-  // The image an allowed request imports; the answers given to image requests.
-  imageToImport: ImportedImage | null;
-  imageAnswers: { requestId: string; allow: boolean }[];
-  // Requests the app no longer has (expired): answering them fails like Rust.
-  goneImageRequests: string[];
   failNextOverview: boolean;
   failNextChange: boolean;
 }
@@ -39,28 +29,13 @@ export function createFakeAiAccessGateway(
 ): FakeAiAccessGateway {
   const gateway: FakeAiAccessGateway = {
     projects,
-    answers: [],
     openProject: null,
     nextFolderProject: null,
     serverFound: true,
     historyEntries: [],
-    imageToImport: null,
-    imageAnswers: [],
-    goneImageRequests: [],
     failNextOverview: false,
     failNextChange: false,
     history: () => Promise.resolve(operationOk([...gateway.historyEntries])),
-    imageRequestPreview: (requestId) =>
-      Promise.resolve(operationOk(`data:image/png;base64,${requestId}`)),
-    answerImageRequest: (requestId, allow) => {
-      gateway.imageAnswers.push({ requestId, allow });
-      if (gateway.goneImageRequests.includes(requestId)) {
-        return Promise.resolve(
-          operationErr("entityNotFound", "the request is gone"),
-        );
-      }
-      return Promise.resolve(operationOk(allow ? gateway.imageToImport : null));
-    },
     overview() {
       if (gateway.failNextOverview) {
         gateway.failNextOverview = false;
@@ -113,12 +88,6 @@ export function createFakeAiAccessGateway(
       gateway.projects = gateway.projects.map((candidate) =>
         candidate === project ? { ...candidate, allowWrite } : candidate,
       );
-      return Promise.resolve(operationOk(undefined));
-    },
-    answerRequest(projectId, answer) {
-      const failed = takeFailure();
-      if (failed !== null) return Promise.resolve(failed);
-      gateway.answers.push({ projectId, answer });
       return Promise.resolve(operationOk(undefined));
     },
     remove(projectId) {

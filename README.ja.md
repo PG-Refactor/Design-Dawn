@@ -154,19 +154,13 @@ NSIS と WiX は初回のビルドで Tauri がダウンロードします。NSI
 
 AI ツールの MCP サーバーの追加方法で登録してください（Claude Code の場合: `claude mcp add design-dawn -- <コマンド>`）。登録に Project を書く必要はありません。
 
-**AI が使える Project**: AI 連携の画面で追加したものだけです（**今開いているProjectを追加**、または任意の Project フォルダを **フォルダを指定して追加…**）。AI はふだん、アプリで開いている Project（最後に使ったウィンドウのもの。アプリを閉じているときは最後に使ったもの）が追加されていればそれを扱います。AI は追加された Project の一覧を見て（`listProjects`）選べる（`selectProject`）ので、「order-service の Project を要約して」のような依頼も登録し直さずに使えます。
+**AI が使える Project**: AI 連携の画面の一覧にあるものだけです。画面で追加するか（**今開いているProjectを追加**、または任意の Project フォルダを **フォルダを指定して追加…**）、AI に追加させます（`addProject` にフォルダを渡す）。AI はふだん、アプリで開いている Project（最後に使ったウィンドウのもの。アプリを閉じているときは最後に使ったもの）が一覧にあればそれを扱います。AI は一覧を見て（`listProjects`）選べる（`selectProject`）ので、「order-service の Project を要約して」のような依頼も登録し直さずに使えます。アプリを起動しておく必要はありません。
 
-**権限**: 追加した Project は、横の **AIによる編集を許可** にチェックを入れるまで、AI からは読み取り専用です。AI から依頼することもでき（`requestWriteAccess`）、そのときはアプリが **許可する** / **今回だけ許可**（アプリを閉じるまで） / **許可しない** を尋ね、あなたの答えだけが反映されます。アプリで開いている Project も依頼の対象になり、許可すると一覧に追加されます。「許可しない」と答えた Project の依頼は、しばらく無視されます。この一覧を変えられるのはアプリだけで（アプリの設定フォルダの `ai-access.json` に保存し、Project の中には置きません）、AI が自分で Project を追加したり権限を与えたりすることはできません。画面から Project を一覧から外すこともできます。
+**権限**: 一覧の Project は、編集を許可するまで AI からは読み取り専用です。横の **AIによる編集を許可** にチェックを入れるか、AI に `setWriteAccess` を呼ばせます。`addProject`・`setWriteAccess` と各変更は、読み取り以外のほかのツールと同じく、AI ツール側（Claude Code の許可の確認など）であなたが承認します。一覧はアプリの設定フォルダの `ai-access.json` に保存し（Project の中には置きません）、アプリと MCP サーバーで共有します。AI が変えた内容は画面と **AIの変更履歴** に表示されます。画面から Project を一覧から外すこともできます。
 
-- **ツール**: `listProjects`、`selectProject`、`requestWriteAccess`、`getProject`、`getDocument`、`getSheet`、`getBlock`。編集できる Project では、さらに `createDocument`、`createSheet`、`createBlock`（Markdown / Mermaid）、`updateDocument`、`updateSheet`、`updateBlock`、`moveBlock`、`updateBlockCaption`（Mermaid / 画像ブロックのキャプション）、`deleteBlock`。
+- **ツール**: `listProjects`、`selectProject`、`addProject`、`setWriteAccess`、`getProject`、`getDocument`、`getSheet`、`getBlock`、`searchProject`、`exportMarkdown`、`listTemplates`。編集できる Project では、さらに `createDocument`、`createSheet`、`createBlock`（Markdown / Mermaid）、`createFromTemplate`、`updateDocument`、`updateSheet`、`updateBlock`、`moveBlock`、`updateBlockCaption`（Mermaid / 画像ブロックのキャプション）、`deleteBlock`、`importImage`（このパソコンの画像ファイルを画像ブロックとして追加）。
 - Block の本文を変えるときは、AI が `getBlock` で読んだ `contentHash` を `expectedContentHash` として渡します。その間に本文が変わっていれば `conflict` が返ります。
-- Document・Sheet・Project の削除、ディスク上のファイルの取り込み、コマンドの実行、Git の操作、ネットワーク接続はできません。アプリがその Project を開いていれば、変更はすぐに表示されます。
-
-**1つの Project に固定する**（アプリの一覧を使わない）: `--project <project.json があるフォルダ>` を付けて起動し、編集を許可するときは `--allow-write` も付けます。
-
-```sh
-claude mcp add design-dawn -- /path/to/design-dawn-mcp --project /path/to/my-project
-```
+- Document・Sheet・Project の削除、コマンドの実行、Git の操作、ネットワーク接続はできません。アプリがその Project を開いていれば、変更はすぐに表示されます。
 
 サーバーだけをビルドする: `cargo build --release --manifest-path src-tauri/Cargo.toml --bin design-dawn-mcp`
 
