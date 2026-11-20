@@ -1033,6 +1033,7 @@ describe("commit", () => {
     "gitOperationInProgress",
     "gitIdentityMissing",
     "gitCommitRejected",
+    "gitLongPaths",
   ] as const)(
     "reports %s as a commit failure and reads the status again",
     async (kind) => {
@@ -1061,6 +1062,8 @@ describe("commit", () => {
       expect(state.status).toEqual(MODIFIED_STATUS);
       expect(state.lastCommit).toBeNull();
       expect(state.operating).toBe(false);
+      // No "Committing..." left behind.
+      expect(state.runningOperation).toBeNull();
     },
   );
 

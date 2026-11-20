@@ -95,4 +95,27 @@ describe("paths too long for Git on Windows", () => {
       screen.queryByRole("button", { name: TEXTS.enableLongPaths }),
     ).toBeNull();
   });
+
+  it("shows the gentler note beside the warning", async () => {
+    const shell = await renderShell();
+    shell.gitGateway.status = {
+      ...CLEAN_GIT_STATUS,
+      longPaths: {
+        files: [LONG],
+        count: 1,
+        enabled: false,
+        portableFiles: [LONG, "documents/x/sheet.json"],
+        portableCount: 2,
+      },
+    };
+    await shell.openProjectInUi();
+    await shell.user.click(
+      within(
+        screen.getByRole("tablist", { name: "左パネルの表示切り替え" }),
+      ).getByRole("tab", { name: "Git" }),
+    );
+    await act(settle);
+    expect(screen.getByText(TEXTS.longPathsTitle(1))).toBeTruthy();
+    expect(screen.getByText(TEXTS.portablePathsTitle(2))).toBeTruthy();
+  });
 });

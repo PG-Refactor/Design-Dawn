@@ -16,10 +16,10 @@ export function GitLongPathsWarning() {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   if (longPaths === null) return null;
-  // The strong warning while this PC's Git cannot handle the files; otherwise a gentler
-  // note for paths that are long inside the Project (other PCs may not handle them).
-  if (longPaths.count === 0 || longPaths.enabled) {
-    return longPaths.portableCount === 0 ? null : (
+  // The gentler note for paths long inside the Project (other PCs may not handle them),
+  // shown beside the strong warning too.
+  const note =
+    longPaths.portableCount === 0 ? null : (
       <div role="status" className="git-long-paths git-long-paths--note">
         <p className="git-long-paths__title">
           {messages.portablePathsTitle(longPaths.portableCount)}
@@ -31,7 +31,8 @@ export function GitLongPathsWarning() {
         />
       </div>
     );
-  }
+  // The strong warning while this PC's Git cannot handle the files.
+  if (longPaths.count === 0 || longPaths.enabled) return note;
 
   async function enable(): Promise<void> {
     setBusy(true);
@@ -44,43 +45,46 @@ export function GitLongPathsWarning() {
   }
 
   return (
-    <div role="alert" className="git-long-paths">
-      <p className="git-long-paths__title">
-        {messages.longPathsTitle(longPaths.count)}
-      </p>
-      <p>{messages.longPathsBody}</p>
-      <FileList files={longPaths.files} count={longPaths.count} />
-      {confirming ? (
-        <div className="git-long-paths__confirm">
-          <p>{messages.enableLongPathsConfirm}</p>
-          <button
-            type="button"
-            className="button button--primary"
-            disabled={busy}
-            onClick={() => void enable()}
-          >
-            {messages.enableLongPathsDo}
-          </button>
+    <>
+      <div role="alert" className="git-long-paths">
+        <p className="git-long-paths__title">
+          {messages.longPathsTitle(longPaths.count)}
+        </p>
+        <p>{messages.longPathsBody}</p>
+        <FileList files={longPaths.files} count={longPaths.count} />
+        {confirming ? (
+          <div className="git-long-paths__confirm">
+            <p>{messages.enableLongPathsConfirm}</p>
+            <button
+              type="button"
+              className="button button--primary"
+              disabled={busy}
+              onClick={() => void enable()}
+            >
+              {messages.enableLongPathsDo}
+            </button>
+            <button
+              type="button"
+              className="button"
+              disabled={busy}
+              onClick={() => setConfirming(false)}
+            >
+              {messages.enableLongPathsCancel}
+            </button>
+          </div>
+        ) : (
           <button
             type="button"
             className="button"
-            disabled={busy}
-            onClick={() => setConfirming(false)}
+            disabled={operating}
+            onClick={() => setConfirming(true)}
           >
-            {messages.enableLongPathsCancel}
+            {messages.enableLongPaths}
           </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          className="button"
-          disabled={operating}
-          onClick={() => setConfirming(true)}
-        >
-          {messages.enableLongPaths}
-        </button>
-      )}
-    </div>
+        )}
+      </div>
+      {note}
+    </>
   );
 }
 

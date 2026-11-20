@@ -7,6 +7,9 @@
   height: 100%;
   padding: var(--space-2);
   overflow: hidden;
+  /* Something wider than the block (a table) scrolls across inside it: the scrollbar is
+     at the block's bottom edge, whatever the block's height. */
+  overflow-x: auto;
   overflow-wrap: anywhere;
   color: var(--color-text);
   /* The canvas disables selection; rendered text may be selected and copied. */
@@ -96,11 +99,6 @@
 
 .markdown-preview table {
   border-collapse: collapse;
-  /* A table wider than its block scrolls inside it (its own scrollbar) instead of being
-     cut off at the block's edge. */
-  display: block;
-  max-width: 100%;
-  overflow-x: auto;
 }
 
 .markdown-preview th,
