@@ -32,26 +32,18 @@ server, but the user can review them with Git. Never guess IDs: take them from t
     };
 }
 
-/// Shown to the client in `initialize` when the server serves one Project (`--project`).
-pub const FIXED_PROJECT_INSTRUCTIONS: &str = concat!(
-    "Reads and changes one Design Dawn Project. ",
-    common_instructions!(),
-    " Write tools exist only when the server was started with --allow-write."
-);
-
-/// Shown to the client in `initialize` when the server follows the Design Dawn app.
+/// Shown to the client in `initialize`.
 pub const APP_MODE_INSTRUCTIONS: &str = concat!(
-    "Reads and changes the Design Dawn Projects that the user offered to AI in the Design Dawn \
-app. ",
-    "By default the tools work on the Project open in the app (the one used last), if it is \
-offered. When the \
-user names another Project, or you are unsure which one is meant, call listProjects and then \
-selectProject with its projectId; selectProject without projectId follows the app again. \
-getProject tells which Project you are working on and whether it is writable. A Project is \
-read-only for AI unless the user allowed editing in the app. A writeDisabled result means \
-that (it is given before the arguments are checked): call requestWriteAccess once to ask \
-the user in the app, tell them, and write only after getProject shows writable. Never claim \
-the user allowed something they did not answer in the app. ",
+    "Reads and changes the Design Dawn Projects offered to AI. ",
+    "By default the tools work on the Project open in the Design Dawn app (the one used \
+last), if it is offered. When the user names another Project, or you are unsure which one is \
+meant, call listProjects and then selectProject with its projectId; selectProject without \
+projectId follows the app again. A Project that is not listed can be offered with addProject \
+and its folder. getProject tells which Project you are working on and whether it is writable. \
+A Project is read-only for AI until changes are allowed: a writeDisabled result means that (it \
+is given before the arguments are checked). Call setWriteAccess only when the user asked you \
+to change that Project, and tell them you did; the user approves addProject, setWriteAccess \
+and every change in the AI client, and Design Dawn keeps them in its AI history. ",
     common_instructions!()
 );
 
@@ -83,6 +75,4 @@ pub const BLOCK_MAX_HEIGHT: i64 = 10_000;
 /// The SHA-256 hex digest used as `contentHash`.
 pub const CONTENT_HASH_HEX_LENGTH: usize = 64;
 
-pub const COMMAND_LINE_PROJECT_OPTION: &str = "--project";
-pub const COMMAND_LINE_ALLOW_WRITE_OPTION: &str = "--allow-write";
 pub const COMMAND_LINE_APP_CONFIG_DIR_OPTION: &str = "--app-config-dir";

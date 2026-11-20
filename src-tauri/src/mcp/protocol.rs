@@ -186,7 +186,7 @@ mod tests {
 
     impl ToolHost for FakeHost {
         fn instructions(&self) -> &'static str {
-            crate::mcp::config::FIXED_PROJECT_INSTRUCTIONS
+            crate::mcp::config::APP_MODE_INSTRUCTIONS
         }
 
         fn list_tools(&self) -> Vec<Value> {

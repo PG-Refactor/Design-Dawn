@@ -73,19 +73,6 @@ pub const AI_HISTORY_MAX_ENTRIES: usize = 200;
 /// A Block text larger than this is not kept in the history (the entry still is).
 pub const AI_HISTORY_MAX_TEXT_BYTES: usize = 256 * 1024;
 
-/// Where an AI's requests for write access wait (inside the app's config directory).
-pub const AI_REQUESTS_DIRECTORY_NAME: &str = "ai-requests";
-/// Where the app notes a "no" to an AI's request (one file per Project), so the MCP server
-/// can tell the AI it was refused instead of asking again in vain.
-pub const AI_DENIALS_DIRECTORY_NAME: &str = "ai-denials";
-/// A request older than this is dropped: an AI that still wants access asks again, and a
-/// question asked long ago is not shown to the user out of context.
-pub const AI_REQUEST_MAX_AGE_SECS: u64 = 120;
-/// How often the running app looks for new requests.
-pub const AI_REQUEST_POLL_INTERVAL_MS: u64 = 1000;
-/// After the user says no, requests for that Project are dropped for this long, so an AI
-/// cannot keep asking.
-pub const AI_REQUEST_DENIED_COOLDOWN_SECS: u64 = 300;
 /// How far from the origin a recorded window position may be (logical pixels): larger
 /// values come from a hand-edited or broken file, not from any monitor arrangement.
 pub const WINDOW_POSITION_LIMIT: i32 = 100_000;

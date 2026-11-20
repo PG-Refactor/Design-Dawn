@@ -201,35 +201,31 @@ the common JSON form:
 Register it the way your AI tool adds MCP servers (for Claude Code:
 `claude mcp add design-dawn -- <command>`). No project is named in the registration.
 
-**Which projects the AI may use**: only the ones you add in the AI Integration screen (**Add
-the Open Project**, or **Add a Folder…** for any project folder). By default the AI works on the
-project open in the app (the window used last; the last one used when the app is closed), if it
-is added. The AI can list the added projects (`listProjects`) and choose one (`selectProject`),
-so "summarize the order-service project" works without registering anything again.
+**Which projects the AI may use**: only the ones in the AI Integration screen's list. Add them
+there (**Add the Open Project**, or **Add a Folder…** for any project folder), or let the AI add
+one (`addProject` with the folder). By default the AI works on the project open in the app (the
+window used last; the last one used when the app is closed), if it is in the list. The AI can
+list them (`listProjects`) and choose one (`selectProject`), so "summarize the order-service
+project" works without registering anything again. The app need not be running.
 
-**Permissions**: an added project is read-only for AI until you tick **Allow editing by AI**
-next to it. An AI can also ask (`requestWriteAccess`): the app then asks you to **Allow**,
-**Allow This Time** (until the app closes) or **Don't Allow**, and only your answer counts. The
-project open in the app can be asked for too; allowing it adds it to the list. After a "no",
-requests for that project are ignored for a while. Only the app changes this list (it is kept in
-the app's settings folder as `ai-access.json`, never inside a project), so an AI cannot add a
-project or grant itself access. The screen also removes a project from the list.
+**Permissions**: a project in the list is read-only for AI until changes are allowed: tick
+**Allow editing by AI** next to it, or let the AI call `setWriteAccess`. Like every other tool
+call that is not read-only, `addProject`, `setWriteAccess` and each change are approved by you in
+the AI tool (for example Claude Code's permission prompt). The list is kept in the app's settings
+folder as `ai-access.json` (never inside a project) and is shared by the app and the MCP server;
+what the AI changes there shows in the screen and in **AI Change History**. The screen also
+removes a project from the list.
 
-- **Tools**: `listProjects`, `selectProject`, `requestWriteAccess`, `getProject`, `getDocument`,
-  `getSheet`, `getBlock`; for writable projects also `createDocument`, `createSheet`, `createBlock` (Markdown or Mermaid),
-  `updateDocument`, `updateSheet`, `updateBlock`, `moveBlock`, `updateBlockCaption` (the caption
-  of a Mermaid or Image block), `deleteBlock`.
+- **Tools**: `listProjects`, `selectProject`, `addProject`, `setWriteAccess`, `getProject`,
+  `getDocument`, `getSheet`, `getBlock`, `searchProject`, `exportMarkdown`, `listTemplates`; for
+  writable projects also `createDocument`, `createSheet`, `createBlock` (Markdown or Mermaid),
+  `createFromTemplate`, `updateDocument`, `updateSheet`, `updateBlock`, `moveBlock`,
+  `updateBlockCaption` (the caption of a Mermaid or Image block), `deleteBlock`, `importImage`
+  (an image file of this computer as an Image block).
 - To change a block's text, the AI reads it with `getBlock` and passes its `contentHash` as
   `expectedContentHash`; if the text changed in the meantime the call returns `conflict`.
-- It cannot delete documents, sheets or projects, import files from disk, run commands, use Git or
-  open network connections. If the app has the project open, it shows the changes at once.
-
-**One fixed project** (without the app's list): start it with
-`--project <folder holding project.json>`, and add `--allow-write` to allow changes:
-
-```sh
-claude mcp add design-dawn -- /path/to/design-dawn-mcp --project /path/to/my-project
-```
+- It cannot delete documents, sheets or projects, run commands, use Git or open network
+  connections. If the app has the project open, it shows the changes at once.
 
 To build only the server: `cargo build --release --manifest-path src-tauri/Cargo.toml --bin design-dawn-mcp`.
 

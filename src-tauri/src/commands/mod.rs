@@ -3,7 +3,6 @@
 //! not a command: images enter through `import_dropped_images` (the dropped paths never
 //! reach the Frontend) or `copy_asset_to_document`.
 
-pub mod ai_requests;
 mod app_channel;
 mod asset_protocol;
 mod drag_drop;
@@ -86,11 +85,10 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 113] = [
+pub const COMMAND_NAMES: [&str; 110] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
-    "answer_ai_access_request",
     "add_open_project_to_ai",
     "add_ai_project_folder",
     "set_ai_write_access",
@@ -161,8 +159,6 @@ pub const COMMAND_NAMES: [&str; 113] = [
     "close_print_windows",
     "asset_data_url",
     "ai_history",
-    "ai_image_request_preview",
-    "answer_ai_image_request",
     "git_conflict_versions",
     "git_resolve_conflict",
     "copy_asset_to_document",
@@ -202,7 +198,6 @@ pub const COMMAND_NAMES: [&str; 113] = [
     "update_outdated_files",
 ];
 
-pub use ai_requests::{install_ai_request_watch, AiRequestAnswer, AiRequestPrompts};
 pub use app_channel::{AppNotification, AppNotificationSink, AppRequestHub, AppRequestSubscriber};
 pub use asset_protocol::{respond_to_asset_request, ASSET_URL_SCHEME};
 pub use drag_drop::{DropNotification, DropSubscriber};

@@ -1,11 +1,12 @@
 //! Tool handlers. Each call reads the Project afresh (`Workspace`), does its one job through
 //! the Application layer and answers with JSON. Reads never write.
 //!
-//! Which Project a call works on: with `--project`, always that one, writable only with
-//! `--allow-write`. Otherwise the server follows the app: the Project the AI chose with
-//! selectProject, or else the one used last in the app, among the Projects the app lists in
-//! its AI access list; a Project is writable when the user allowed it there. The list is
-//! read on every call, so a change made in the app applies at once.
+//! Which Project a call works on: the Project the AI chose with selectProject, or else the
+//! one used last in the app, among the Projects of the AI access list in the app's settings
+//! folder; a Project is writable when it is allowed there. The list is shared with the app
+//! and read on every call, so a change made in the app applies at once. addProject and
+//! setWriteAccess change it from here: the user approves those calls in the AI client, as
+//! any other tool call, and each is kept in the Project's AI history for the app to show.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -22,11 +23,8 @@ use crate::application::authoring::{
 use crate::application::export_markdown::document_markdown;
 use crate::application::local_state::ai_access::{listed_project_name, AiAccessList};
 use crate::application::local_state::ai_history::{append as append_ai_history, AiHistoryEntry};
-use crate::application::local_state::ai_image_requests::{request_image, AiImageRequest};
-use crate::application::local_state::ai_requests::{
-    denial_seconds_left, request_write_access, AiRequestOutcome,
-};
 use crate::application::local_state::constants::APP_IDENTIFIER;
+use crate::application::project_operations::read_project_identity;
 use crate::application::project_search::{search_project, SearchQuery};
 use crate::application::templates::{
     list_templates, read_template, template_asset_path, TemplateBlockContent, TemplateKind,
@@ -51,36 +49,22 @@ use super::arguments::Arguments;
 use super::config::{
     APP_MODE_INSTRUCTIONS, BLOCK_MAX_HEIGHT, BLOCK_MAX_WIDTH, BLOCK_MIN_HEIGHT, BLOCK_MIN_WIDTH,
     CONTENT_HASH_HEX_LENGTH, DEFAULT_BLOCK_GAP, DEFAULT_BLOCK_HEIGHT, DEFAULT_BLOCK_WIDTH,
-    DEFAULT_BLOCK_X, DEFAULT_BLOCK_Y, FIXED_PROJECT_INSTRUCTIONS,
+    DEFAULT_BLOCK_X, DEFAULT_BLOCK_Y,
 };
 use super::protocol::{ToolHost, ToolOutput};
 use super::tool_definitions::{self as names, tool_definitions, ToolDefinition};
 use super::tool_error::{
-    ToolError, KIND_ACCESS_LIST_UNREADABLE, KIND_APP_REQUIRED, KIND_INTERNAL, KIND_NO_PROJECT,
+    ToolError, KIND_ACCESS_LIST_UNREADABLE, KIND_INTERNAL, KIND_NO_PROJECT,
     KIND_PROJECT_NOT_LISTED, KIND_WRITE_DISABLED,
 };
 use super::workspace::{find_sheet, Workspace};
 
 pub struct ToolContext {
-    target: Target,
+    /// The app's settings folder: the AI access list and the AI history are there.
+    config_dir: PathBuf,
+    /// The Project chosen with selectProject; `None` follows the app.
+    selected: Mutex<Option<ProjectId>>,
     definitions: Vec<ToolDefinition>,
-}
-
-enum Target {
-    /// `--project`: one Project for the whole session.
-    Fixed {
-        root: PathBuf,
-        project_id: String,
-        allow_write: bool,
-        /// The app's settings folder, where the AI history is kept (`None`: none kept).
-        history_dir: Option<PathBuf>,
-    },
-    /// No `--project`: the Projects of the app's AI access list in `config_dir`.
-    FollowApp {
-        config_dir: PathBuf,
-        /// The Project chosen with selectProject; `None` follows the app.
-        selected: Mutex<Option<ProjectId>>,
-    },
 }
 
 /// The Project one call works on.
@@ -175,69 +159,22 @@ fn default_block_geometry(sheet: &SheetDto) -> BlockGeometry {
 }
 
 impl ToolContext {
-    /// Reads the Project once, so a wrong folder fails at start-up, and remembers its ID:
-    /// every later call checks the folder still holds the same Project.
-    pub fn open(root: &Path, allow_write: bool) -> Result<Self, ToolError> {
-        let root = std::fs::canonicalize(root).map_err(|error| {
-            ToolError::from(crate::infrastructure::error::PersistenceError::from_io(
-                "resolve project folder",
-                &error,
-            ))
-        })?;
-        let mut sessions = crate::application::session::ProjectSessions::default();
-        let project = crate::application::project_operations::open_project(&mut sessions, &root)?;
-        Ok(Self {
-            target: Target::Fixed {
-                root,
-                project_id: project.project.project_id,
-                allow_write,
-                history_dir: None,
-            },
-            definitions: tool_definitions(),
-        })
-    }
-
-    /// Keeps the AI history of a `--project` server in the app's settings folder too, so the
-    /// app shows these changes with the others.
-    #[must_use]
-    pub fn with_history_dir(mut self, config_dir: &Path) -> Self {
-        if let Target::Fixed { history_dir, .. } = &mut self.target {
-            *history_dir = Some(config_dir.to_path_buf());
-        }
-        self
-    }
-
-    /// Follows the app whose settings are in `config_dir`. Nothing is read yet: the app may
-    /// not have been started, and every call reads the list afresh.
-    pub fn follow_app(config_dir: &Path) -> Self {
+    /// Works with the app whose settings are in `config_dir`. Nothing is read yet: the app
+    /// may not have been started, and every call reads the list afresh.
+    pub fn new(config_dir: &Path) -> Self {
         Self {
-            target: Target::FollowApp {
-                config_dir: config_dir.to_path_buf(),
-                selected: Mutex::new(None),
-            },
+            config_dir: config_dir.to_path_buf(),
+            selected: Mutex::new(None),
             definitions: tool_definitions(),
         }
     }
 
     pub fn instructions(&self) -> &'static str {
-        match self.target {
-            Target::Fixed { .. } => FIXED_PROJECT_INSTRUCTIONS,
-            Target::FollowApp { .. } => APP_MODE_INSTRUCTIONS,
-        }
-    }
-
-    fn follows_app(&self) -> bool {
-        matches!(self.target, Target::FollowApp { .. })
+        APP_MODE_INSTRUCTIONS
     }
 
     fn access_list(config_dir: &Path) -> Result<AiAccessList, ToolError> {
-        AiAccessList::read(config_dir).map_err(|_| {
-            ToolError::new(
-                KIND_ACCESS_LIST_UNREADABLE,
-                "the list of Projects that Design Dawn offers to AI cannot be read; open \
-Design Dawn's AI integration screen to check it",
-            )
-        })
+        AiAccessList::read(config_dir).map_err(|_| access_list_unreadable())
     }
 
     fn selected(selected: &Mutex<Option<ProjectId>>) -> Option<ProjectId> {
@@ -245,46 +182,26 @@ Design Dawn's AI integration screen to check it",
     }
 
     fn resolve(&self) -> Result<Resolved, ToolError> {
-        match &self.target {
-            Target::Fixed {
-                root,
-                project_id,
-                allow_write,
-                ..
-            } => Ok(Resolved {
-                root: root.clone(),
-                project_id: project_id.clone(),
-                allow_write: *allow_write,
-            }),
-            Target::FollowApp {
-                config_dir,
-                selected,
-            } => {
-                let list = Self::access_list(config_dir)?;
-                let project_id = Self::selected(selected)
-                    .or(list.current_project_id)
-                    .ok_or_else(no_project)?;
-                let chosen = Self::selected(selected).is_some();
-                let entry = list.find(&project_id).ok_or_else(|| {
-                    ToolError::new(
-                        KIND_PROJECT_NOT_LISTED,
-                        if chosen {
-                            "the Project is no longer offered to AI by Design Dawn; call \
-listProjects and selectProject"
-                        } else {
-                            "the Project open in Design Dawn is not offered to AI; the user can \
-add it in Design Dawn's AI integration screen (requestWriteAccess asks them), or call \
-listProjects and selectProject for another one"
-                        },
-                    )
-                })?;
-                Ok(Resolved {
-                    root: entry.folder.clone(),
-                    project_id: project_id.to_string(),
-                    allow_write: entry.allow_write,
-                })
-            }
-        }
+        let list = Self::access_list(&self.config_dir)?;
+        let chosen = Self::selected(&self.selected);
+        let project_id = chosen.or(list.current_project_id).ok_or_else(no_project)?;
+        let entry = list.find(&project_id).ok_or_else(|| {
+            ToolError::new(
+                KIND_PROJECT_NOT_LISTED,
+                if chosen.is_some() {
+                    "the Project is no longer offered to AI; call listProjects and selectProject"
+                } else {
+                    "the Project open in Design Dawn is not offered to AI; call addProject with \
+its folder (the user approves it in the AI client), or listProjects and selectProject for \
+another one"
+                },
+            )
+        })?;
+        Ok(Resolved {
+            root: entry.folder.clone(),
+            project_id: project_id.to_string(),
+            allow_write: entry.allow_write,
+        })
     }
 
     fn workspace(&self) -> Result<Workspace, ToolError> {
@@ -309,8 +226,7 @@ listProjects and selectProject for another one"
             .then(|| self.block_text(&arguments).ok())
             .flatten();
         let result = self.dispatch(definition, &arguments);
-        // A request to add an image changes nothing yet: the app adds the Block if allowed.
-        if definition.writes && definition.name != names::REQUEST_IMAGE_IMPORT {
+        if definition.writes || definition.changes_access {
             if let Ok(value) = &result {
                 self.record_history(definition.name, &arguments, before, value);
             }
@@ -333,9 +249,9 @@ listProjects and selectProject for another one"
         .text)
     }
 
-    /// Adds the write to the app's AI history (in its settings folder, whichever way the
-    /// server was started); a failure to record is reported on stderr and does not undo the
-    /// write.
+    /// Adds the change to the Project's AI history in the app's settings folder; a failure to
+    /// record is reported on stderr and does not undo the change. A change of access names
+    /// its Project in the result (addProject's Project may not be the one in use).
     fn record_history(
         &self,
         tool: &str,
@@ -343,18 +259,15 @@ listProjects and selectProject for another one"
         before: Option<String>,
         result: &Value,
     ) {
-        let config_dir = match &self.target {
-            Target::FollowApp { config_dir, .. } => config_dir,
-            Target::Fixed {
-                history_dir: Some(history_dir),
-                ..
-            } => history_dir,
-            Target::Fixed { .. } => return,
-        };
-        let Ok(resolved) = self.resolve() else {
-            return;
-        };
-        let Ok(project_id) = ProjectId::parse(&resolved.project_id) else {
+        let named = result
+            .get("projectId")
+            .and_then(Value::as_str)
+            .and_then(|text| ProjectId::parse(text).ok());
+        let Some(project_id) = named.or_else(|| {
+            self.resolve()
+                .ok()
+                .and_then(|resolved| ProjectId::parse(&resolved.project_id).ok())
+        }) else {
             return;
         };
         let text = |key: &str| {
@@ -390,13 +303,25 @@ listProjects and selectProject for another one"
                     .map(str::to_owned)
             }),
             before,
-            after: text("text"),
+            after: text("text").or_else(|| {
+                // What access became, or the image file an importImage added.
+                result
+                    .get("writable")
+                    .and_then(Value::as_bool)
+                    .map(|writable| writable.to_string())
+                    .or_else(|| {
+                        result
+                            .get("contentPath")
+                            .and_then(Value::as_str)
+                            .map(str::to_owned)
+                    })
+            }),
             after_hash: result
                 .get("contentHash")
                 .and_then(Value::as_str)
                 .map(str::to_owned),
         };
-        if let Err(error) = append_ai_history(config_dir, &project_id, entry) {
+        if let Err(error) = append_ai_history(&self.config_dir, &project_id, entry) {
             eprintln!(
                 "design-dawn-mcp: could not record the AI history: {}",
                 error.detail
@@ -412,7 +337,8 @@ listProjects and selectProject for another one"
         match definition.name {
             names::LIST_PROJECTS => self.list_projects(),
             names::SELECT_PROJECT => self.select_project(arguments),
-            names::REQUEST_WRITE_ACCESS => self.request_write_access(arguments),
+            names::ADD_PROJECT => self.add_project(arguments),
+            names::SET_WRITE_ACCESS => self.set_write_access(arguments),
             names::GET_PROJECT => self.get_project(),
             names::GET_DOCUMENT => self.get_document(arguments),
             names::GET_SHEET => self.get_sheet(arguments),
@@ -428,7 +354,7 @@ listProjects and selectProject for another one"
             names::MOVE_BLOCK => self.move_block(arguments),
             names::UPDATE_BLOCK_CAPTION => self.update_block_caption(arguments),
             names::DELETE_BLOCK => self.delete_block(arguments),
-            names::REQUEST_IMAGE_IMPORT => self.request_image_import(arguments),
+            names::IMPORT_IMAGE => self.import_image(arguments),
             names::LIST_TEMPLATES => self.list_templates(),
             names::CREATE_FROM_TEMPLATE => self.create_from_template(arguments),
             other => Err(ToolError::new(
@@ -439,15 +365,8 @@ listProjects and selectProject for another one"
     }
 
     fn list_projects(&self) -> Result<Value, ToolError> {
-        let Target::FollowApp {
-            config_dir,
-            selected,
-        } = &self.target
-        else {
-            return Err(fixed_project_only());
-        };
-        let list = Self::access_list(config_dir)?;
-        let selected = Self::selected(selected);
+        let list = Self::access_list(&self.config_dir)?;
+        let selected = Self::selected(&self.selected);
         let in_use = selected.or(list.current_project_id);
         let projects: Vec<Value> = list
             .projects
@@ -474,24 +393,18 @@ listProjects and selectProject for another one"
     }
 
     fn select_project(&self, arguments: &Arguments) -> Result<Value, ToolError> {
-        let Target::FollowApp {
-            config_dir,
-            selected,
-        } = &self.target
-        else {
-            return Err(fixed_project_only());
-        };
+        let selected = &self.selected;
         let Some(project_id) = arguments.optional_string("projectId")? else {
             *selected.lock().unwrap_or_else(PoisonError::into_inner) = None;
             return Ok(json!({ "selectedProjectId": null, "followsApp": true }));
         };
         let project_id = ProjectId::parse(project_id)?;
-        let list = Self::access_list(config_dir)?;
+        let list = Self::access_list(&self.config_dir)?;
         let entry = list.find(&project_id).ok_or_else(|| {
             ToolError::new(
                 KIND_PROJECT_NOT_LISTED,
-                "Design Dawn does not offer this Project to AI; use a projectId from \
-listProjects",
+                "this Project is not offered to AI; use a projectId from listProjects, or \
+addProject with its folder",
             )
         })?;
         // Checked now, so a Project that moved away fails here rather than on the next call.
@@ -505,14 +418,71 @@ listProjects",
         }))
     }
 
-    fn request_image_import(&self, arguments: &Arguments) -> Result<Value, ToolError> {
-        let Target::FollowApp { config_dir, .. } = &self.target else {
-            return Err(fixed_project_only());
+    /// Offers the Project in `folder` to AI (read-only; setWriteAccess allows changes), as
+    /// the app's AI integration screen does. Already offered: nothing changes.
+    fn add_project(&self, arguments: &Arguments) -> Result<Value, ToolError> {
+        let folder = PathBuf::from(arguments.string("folder")?);
+        if !folder.is_absolute() {
+            return Err(ToolError::invalid_arguments(
+                "folder must be an absolute path of a Project folder (the one holding \
+project.json)",
+            ));
+        }
+        let identity = read_project_identity(&folder)?;
+        let folder = std::fs::canonicalize(&folder).map_err(|error| {
+            ToolError::from(crate::infrastructure::error::PersistenceError::from_io(
+                "resolve project folder",
+                &error,
+            ))
+        })?;
+        let project_id = identity.project_id;
+        let (added, writable) = AiAccessList::update_file(&self.config_dir, |list| {
+            let added = list.find(&project_id).is_none();
+            list.add(project_id, &folder);
+            Ok((
+                added,
+                list.find(&project_id)
+                    .is_some_and(|entry| entry.allow_write),
+            ))
+        })
+        .map_err(|_| access_list_unreadable())?;
+        Ok(json!({
+            "projectId": project_id.to_string(),
+            "name": identity.name,
+            "added": added,
+            "writable": writable,
+        }))
+    }
+
+    /// Allows or stops AI changes to an offered Project (the one in use, or projectId).
+    fn set_write_access(&self, arguments: &Arguments) -> Result<Value, ToolError> {
+        let writable = arguments
+            .optional_bool("writable")?
+            .ok_or_else(|| ToolError::invalid_arguments("writable is required"))?;
+        let project_id = match arguments.optional_string("projectId")? {
+            Some(text) => ProjectId::parse(text)?,
+            None => ProjectId::parse(&self.resolve()?.project_id)?,
         };
-        let resolved = self.resolve()?;
-        let mut workspace = self.workspace()?;
-        let document = workspace.load_document(arguments.string("documentId")?)?;
-        let sheet = find_sheet(&document, arguments.string("sheetId")?)?;
+        let listed = AiAccessList::update_file(&self.config_dir, |list| {
+            if list.find(&project_id).is_none() {
+                return Ok(false);
+            }
+            list.set_allow_write(&project_id, writable)?;
+            Ok(true)
+        })
+        .map_err(|_| access_list_unreadable())?;
+        if !listed {
+            return Err(ToolError::new(
+                KIND_PROJECT_NOT_LISTED,
+                "this Project is not offered to AI; call addProject with its folder first",
+            ));
+        }
+        Ok(json!({ "projectId": project_id.to_string(), "writable": writable }))
+    }
+
+    /// Copies an image file of this computer into the Document's assets and shows it in a
+    /// new Image Block, as dropping the file on the Sheet does.
+    fn import_image(&self, arguments: &Arguments) -> Result<Value, ToolError> {
         let path = PathBuf::from(arguments.string("path")?);
         let file_name = path
             .file_name()
@@ -526,88 +496,56 @@ listProjects",
                 "path must be an absolute path of an existing PNG, JPEG, WebP, SVG or GIF file",
             ));
         }
-        let position = arguments.optional_pair("position", "x", "y")?;
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_or(0, |elapsed| elapsed.as_secs());
-        request_image(
-            config_dir,
-            &AiImageRequest {
-                project_id: resolved.project_id,
-                document_id: document.document.document_id.clone(),
-                sheet_id: sheet.sheet_id.clone(),
-                path,
-                x: position.map(|(x, _)| x),
-                y: position.map(|(_, y)| y),
-                caption: arguments.optional_string("caption")?.map(str::to_owned),
-                requested_at: now,
+        let caption = arguments.optional_string("caption")?;
+        let mut workspace = self.workspace()?;
+        let document_id = arguments.string("documentId")?;
+        let sheet_id = arguments.string("sheetId")?;
+        let document = workspace.load_document(document_id)?;
+        let defaults = default_block_geometry(find_sheet(&document, sheet_id)?);
+        let (x, y) = arguments
+            .optional_pair("position", "x", "y")?
+            .unwrap_or((defaults.x, defaults.y));
+        let document_id = document.document.document_id.clone();
+        // The same file again (an AI retrying) uses the copy made the first time.
+        let image = import_asset_reusing_same(
+            &mut workspace.sessions,
+            &workspace.project_id,
+            &document_id,
+            &path,
+        )?;
+        let sheet = find_sheet(&workspace.load_document(&document_id)?, sheet_id)?.clone();
+        let mut block = create_image_block(
+            &mut workspace.sessions,
+            &workspace.project_id,
+            &document_id,
+            &sheet,
+            &image.content_path,
+            BlockGeometry {
+                x,
+                y,
+                width: i64::from(image.initial_width),
+                height: i64::from(image.initial_height),
             },
         )?;
-        Ok(json!({
-            "requested": true,
-            "message": "The user is asked in the Design Dawn app. Tell them; the Image Block \
-        appears on the Sheet only if they allow it.",
-        }))
-    }
-
-    fn request_write_access(&self, arguments: &Arguments) -> Result<Value, ToolError> {
-        let Target::FollowApp {
-            config_dir,
-            selected,
-        } = &self.target
-        else {
-            return Err(fixed_project_only());
-        };
-        let list = Self::access_list(config_dir)?;
-        let project_id = match arguments.optional_string("projectId")? {
-            Some(text) => ProjectId::parse(text)?,
-            None => Self::selected(selected)
-                .or(list.current_project_id)
-                .ok_or_else(no_project)?,
-        };
-        if list
-            .find(&project_id)
-            .is_some_and(|entry| entry.allow_write)
-        {
-            return Ok(json!({
-                "projectId": project_id.to_string(),
-                "writable": true,
-                "requested": false,
-            }));
+        if let Some(caption) = caption.filter(|caption| !caption.is_empty()) {
+            let sheet = find_sheet(&workspace.load_document(&document_id)?, sheet_id)?.clone();
+            block = set_block_caption(
+                &mut workspace.sessions,
+                &workspace.project_id,
+                &document_id,
+                &sheet,
+                &block.block_id,
+                Some(caption),
+                None,
+            )?;
         }
-        // The app can show only a Project it knows: one offered to AI or the one open in it.
-        if list.find(&project_id).is_none() && list.current_project_id != Some(project_id) {
-            return Err(ToolError::new(
-                KIND_PROJECT_NOT_LISTED,
-                "Design Dawn does not offer this Project to AI and does not have it open; \
-the user can add it in Design Dawn's AI integration screen",
-            ));
+        let mut value = block_json(sheet.blocks.len(), &block);
+        if let Some(target) = value.as_object_mut() {
+            target.insert("documentId".to_owned(), json!(document_id));
+            target.insert("sheetId".to_owned(), json!(sheet.sheet_id));
+            target.insert("contentPath".to_owned(), json!(image.content_path));
         }
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_or(0, |elapsed| elapsed.as_secs());
-        // The user said no a moment ago: the app would not ask again yet.
-        if let Some(seconds) = denial_seconds_left(config_dir, &project_id, now) {
-            return Ok(json!({
-                "projectId": project_id.to_string(),
-                "writable": false,
-                "requested": false,
-                "deniedRecently": true,
-                "retryAfterSeconds": seconds,
-                "message": "The user refused editing in the Design Dawn app a moment ago, so \
-            they are not asked again yet. Tell them; do not ask again before retryAfterSeconds.",
-            }));
-        }
-        let outcome = request_write_access(config_dir, project_id, now).map_err(ToolError::from)?;
-        Ok(json!({
-            "projectId": project_id.to_string(),
-            "writable": false,
-            "requested": true,
-            "alreadyWaiting": outcome == AiRequestOutcome::AlreadyWaiting,
-            "message": "The user is asked in the Design Dawn app. Tell them, wait for their \
-        answer, then check getProject's writable. If Design Dawn is not running, the request is not \
-        shown: ask the user to open it.",
-        }))
+        Ok(value)
     }
 
     fn get_project(&self) -> Result<Value, ToolError> {
@@ -1250,30 +1188,20 @@ impl ToolHost for ToolContext {
     }
 
     fn list_tools(&self) -> Vec<Value> {
+        // Write permission is per Project and can change while the session runs, so every
+        // tool is listed and a write is refused when it is not allowed.
         self.definitions
             .iter()
-            .filter(|definition| match &self.target {
-                // The session's permission is fixed, so a tool it can never use is hidden.
-                Target::Fixed { allow_write, .. } => {
-                    !definition.project_choice && (*allow_write || !definition.writes)
-                }
-                // Write permission is per Project and can change while the session runs, so
-                // every tool is listed and a write is refused when it is not allowed.
-                Target::FollowApp { .. } => true,
-            })
             .map(ToolDefinition::to_value)
             .collect()
     }
 
     fn call_tool(&self, name: &str, arguments: &Map<String, Value>) -> Option<ToolOutput> {
         let definition = self.definition(name)?;
-        if definition.project_choice && !self.follows_app() {
-            return None;
-        }
         if definition.writes {
             match self.resolve() {
                 Ok(resolved) if resolved.allow_write => {}
-                Ok(_) => return Some(ToolOutput::failure(&write_disabled(self.follows_app()))),
+                Ok(_) => return Some(ToolOutput::failure(&write_disabled())),
                 Err(error) => return Some(ToolOutput::failure(&error)),
             }
         }
@@ -1284,15 +1212,19 @@ impl ToolHost for ToolContext {
     }
 }
 
-fn write_disabled(follows_app: bool) -> ToolError {
+fn write_disabled() -> ToolError {
     ToolError::new(
         KIND_WRITE_DISABLED,
-        if follows_app {
-            "this Project is read-only for AI; call requestWriteAccess to ask the user, who \
-answers in Design Dawn"
-        } else {
-            "this server is read-only; it was not started with --allow-write"
-        },
+        "this Project is read-only for AI; call setWriteAccess with writable true (the user \
+approves that call in the AI client), or ask the user to allow it in Design Dawn",
+    )
+}
+
+fn access_list_unreadable() -> ToolError {
+    ToolError::new(
+        KIND_ACCESS_LIST_UNREADABLE,
+        "the list of Projects offered to AI cannot be read; open Design Dawn's AI integration \
+screen to check it",
     )
 }
 
@@ -1301,14 +1233,6 @@ fn no_project() -> ToolError {
         KIND_NO_PROJECT,
         "no Project is chosen: none was selected and Design Dawn has not opened one yet; call \
 listProjects and selectProject",
-    )
-}
-
-fn fixed_project_only() -> ToolError {
-    ToolError::new(
-        KIND_APP_REQUIRED,
-        "this needs the Design Dawn app, which asks the user: start the server without \
---project",
     )
 }
 

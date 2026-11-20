@@ -7,7 +7,6 @@ import type {
   AiProjectAccess,
 } from "../../application/ports/ai-access-gateway";
 import { parseProjectId } from "../../domain/shared/entity-id";
-import { toImportedImageResult } from "./asset-payloads";
 import { COMMANDS } from "./command-constants";
 import {
   type CommandResult,
@@ -111,16 +110,6 @@ function toHistory(payload: unknown): CommandResult<readonly AiHistoryEntry[]> {
 export function createTauriAiAccessGateway(): AiAccessGateway {
   return {
     history: (projectId) => call(COMMANDS.aiHistory, { projectId }, toHistory),
-    imageRequestPreview: (requestId) =>
-      call(COMMANDS.aiImageRequestPreview, { requestId }, (payload) =>
-        typeof payload === "string"
-          ? commandOk(payload)
-          : commandErr("invalidCommandResponse", "expected a data URL"),
-      ),
-    answerImageRequest: (requestId, allow) =>
-      call(COMMANDS.answerAiImageRequest, { requestId, allow }, (payload) =>
-        payload === null ? commandOk(null) : toImportedImageResult(payload),
-      ),
     overview: () =>
       call(COMMANDS.aiAccessOverview, {}, toAiAccessOverviewResult),
     addOpenProject: async () => {
@@ -143,14 +132,6 @@ export function createTauriAiAccessGateway(): AiAccessGateway {
       const result = await call(
         COMMANDS.setAiWriteAccess,
         { projectId, allowWrite },
-        toVoidResult,
-      );
-      return result.ok ? commandOk(discard()) : result;
-    },
-    answerRequest: async (projectId, answer) => {
-      const result = await call(
-        COMMANDS.answerAiAccessRequest,
-        { projectId, answer },
         toVoidResult,
       );
       return result.ok ? commandOk(discard()) : result;

@@ -9,11 +9,7 @@ import type {
   SettingsChange,
   WindowEvent,
 } from "../../application/ports/app-request-source";
-import {
-  parseDocumentId,
-  parseProjectId,
-  parseSheetId,
-} from "../../domain/shared/entity-id";
+import { parseDocumentId, parseProjectId } from "../../domain/shared/entity-id";
 import { COMMANDS } from "./command-constants";
 import { commandOk } from "./command-error";
 import { call } from "./invoke-command";
@@ -27,61 +23,13 @@ const PROJECT_FILES_CHANGED_KIND = "projectFilesChanged";
 const RECEIVE_DOCUMENT_KIND = "receiveDocument";
 const ACTIVATE_DOCUMENT_KIND = "activateDocument";
 const PROJECT_TREE_CHANGED_KIND = "projectTreeChanged";
-const AI_ACCESS_REQUESTED_KIND = "aiAccessRequested";
-const AI_IMAGE_REQUESTED_KIND = "aiImageRequested";
-
-function optionalNumber(value: unknown): number | null | undefined {
-  if (value === null || value === undefined) return null;
-  return typeof value === "number" ? value : undefined;
-}
-
-function toAiImageRequest(
-  message: Record<string, unknown>,
-): WindowEvent | null {
-  const { requestId, projectId, documentId, sheetId, fileName, caption } =
-    message;
-  const x = optionalNumber(message.x);
-  const y = optionalNumber(message.y);
-  if (
-    typeof requestId !== "string" ||
-    typeof projectId !== "string" ||
-    typeof documentId !== "string" ||
-    typeof sheetId !== "string" ||
-    typeof fileName !== "string" ||
-    x === undefined ||
-    y === undefined ||
-    (caption !== null && caption !== undefined && typeof caption !== "string")
-  ) {
-    return null;
-  }
-  const project = parseProjectId(projectId);
-  const document = parseDocumentId(documentId);
-  const sheet = parseSheetId(sheetId);
-  return project.ok && document.ok && sheet.ok
-    ? {
-        kind: "aiImageRequested",
-        requestId,
-        projectId: project.value,
-        documentId: document.value,
-        sheetId: sheet.value,
-        fileName,
-        x,
-        y,
-        caption: typeof caption === "string" ? caption : null,
-      }
-    : null;
-}
 
 function toWindowEvent(message: unknown): WindowEvent | null {
   if (typeof message !== "object" || message === null) return null;
-  const {
-    kind,
-    transferId,
-    documentId,
-    projectId,
-    projectName,
-    folderDisplay,
-  } = message as Record<string, unknown>;
+  const { kind, transferId, documentId, projectId } = message as Record<
+    string,
+    unknown
+  >;
   if (kind === RECEIVE_DOCUMENT_KIND && typeof transferId === "string") {
     return { kind: "receiveDocument", transferId };
   }
@@ -90,25 +38,6 @@ function toWindowEvent(message: unknown): WindowEvent | null {
     return parsed.ok
       ? { kind: "activateDocument", documentId: parsed.value }
       : null;
-  }
-  if (
-    kind === AI_ACCESS_REQUESTED_KIND &&
-    typeof projectId === "string" &&
-    typeof projectName === "string" &&
-    typeof folderDisplay === "string"
-  ) {
-    const parsed = parseProjectId(projectId);
-    return parsed.ok
-      ? {
-          kind: "aiAccessRequested",
-          projectId: parsed.value,
-          projectName,
-          folderDisplay,
-        }
-      : null;
-  }
-  if (kind === AI_IMAGE_REQUESTED_KIND) {
-    return toAiImageRequest(message as Record<string, unknown>);
   }
   if (kind === PROJECT_TREE_CHANGED_KIND && typeof projectId === "string") {
     const parsed = parseProjectId(projectId);

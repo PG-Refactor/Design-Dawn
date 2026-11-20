@@ -19,9 +19,6 @@ pub const KIND_NO_PROJECT: &str = "noProject";
 pub const KIND_PROJECT_NOT_LISTED: &str = "projectNotListed";
 pub const KIND_ACCESS_LIST_UNREADABLE: &str = "accessListUnreadable";
 pub const KIND_INTERNAL: &str = "internalError";
-/// A tool that works only with the Design Dawn app (a server started without --project):
-/// the app asks the user.
-pub const KIND_APP_REQUIRED: &str = "appRequired";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ToolError {
