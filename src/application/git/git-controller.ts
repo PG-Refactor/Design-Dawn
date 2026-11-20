@@ -466,7 +466,12 @@ export function createGitController(
       // Inside this task, like Stage: nothing may run between the failure and the read.
       await readStatus(projectId, taskEpoch);
       if (taskEpoch === epoch) {
-        store.setState((state) => ({ ...state, operating: false }));
+        // The "Committing..." line goes with the attempt.
+        store.setState((state) => ({
+          ...state,
+          operating: false,
+          runningOperation: null,
+        }));
       }
       return result;
     });

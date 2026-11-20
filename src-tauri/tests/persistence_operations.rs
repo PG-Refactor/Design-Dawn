@@ -146,9 +146,9 @@ fn documents_get_slug_directories_with_fallbacks_and_collision_suffixes() {
         // The fixture already owns `system-design`.
         ("System Design", "system-design-2"),
         ("SYSTEM DESIGN", "system-design-3"),
-        ("設計書", "document-1"),
-        ("設計書", "document-2"),
-        ("CON", "document-3"),
+        ("設計書", "設計書"),
+        ("設計書", "設計書-2"),
+        ("CON", "document-1"),
         ("Plan v2!", "plan-v2"),
     ];
     for (index, (name, expected_directory)) in names.iter().enumerate() {
@@ -193,7 +193,7 @@ fn sheets_never_overwrite_existing_directories() {
     let created = [
         ("Overview", "overview-2"),
         ("OVERVIEW", "overview-3"),
-        ("概要", "sheet-1"),
+        ("概要", "概要"),
     ];
     for (index, (name, expected_directory)) in created.iter().enumerate() {
         let sheet_id = new_id(index as u32 + 100);

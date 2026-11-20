@@ -569,6 +569,27 @@ export function createWorkspaceActions(
     );
   }
 
+  // Opens every folder from `parentFolderId` down to the one above `folderId`, so a folder
+  // made several levels deep ("a/b/c") is in view.
+  function expandDownTo(
+    folderId: FolderId,
+    parentFolderId: FolderId | null,
+  ): void {
+    const folders = applicationStore.getState().project?.folders ?? [];
+    let current = folders.find(
+      (folder) => folder.folderId === folderId,
+    )?.parentFolderId;
+    while (current !== undefined && current !== null) {
+      expandFolder(current);
+      if (current === parentFolderId) break;
+      const above = current;
+      current = folders.find(
+        (folder) => folder.folderId === above,
+      )?.parentFolderId;
+    }
+    expandFolder(parentFolderId);
+  }
+
   function entryNameOf(entryId: EntryId): string | null {
     const project = applicationStore.getState().project;
     const found = project === null ? null : findProjectEntry(project, entryId);
@@ -1210,7 +1231,7 @@ export function createWorkspaceActions(
           record("createFolder", null, created.error);
           return created;
         }
-        expandFolder(parentFolderId);
+        expandDownTo(created.value, parentFolderId);
         return operationOk(undefined);
       }),
     requestRenameDocument(documentId) {
@@ -1382,7 +1403,7 @@ export function createWorkspaceActions(
           record("createFolder", null, created.error);
           return created;
         }
-        expandFolder(parentFolderId);
+        expandDownTo(created.value, parentFolderId);
         return created;
       }),
     setFolderExpanded(folderId, expanded) {

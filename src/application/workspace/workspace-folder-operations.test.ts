@@ -58,6 +58,35 @@ describe("createFolder", () => {
     expect(harness.store.getState().project?.save.dirty).toBe(false);
   });
 
+  it("makes nested folders from a name with / or \\, using the levels already there", async () => {
+    const harness = await openedFolderDiskWorkspace();
+    const folders = () => harness.store.getState().project?.folders ?? [];
+    const named = (name: string) =>
+      folders().find((folder) => folder.name === name);
+    const deepest = await harness.workspace.createFolder(
+      null,
+      " 設計 / 画面\\一覧 ",
+    );
+    expect(deepest.ok).toBe(true);
+    if (!deepest.ok) return;
+    const top = named("設計");
+    const middle = named("画面");
+    const bottom = named("一覧");
+    expect(top?.parentFolderId).toBeNull();
+    expect(middle?.parentFolderId).toBe(top?.folderId);
+    expect(bottom?.parentFolderId).toBe(middle?.folderId);
+    expect(bottom?.folderId).toBe(deepest.value);
+    // Again under the same levels: they are used, only the new one is made.
+    const count = folders().length;
+    const sibling = await harness.workspace.createFolder(
+      null,
+      "設計/画面/詳細",
+    );
+    expect(sibling.ok).toBe(true);
+    expect(folders()).toHaveLength(count + 1);
+    expect(named("詳細")?.parentFolderId).toBe(middle?.folderId);
+  });
+
   it("creates a nested folder: createFolder, then saveFolder of the parent", async () => {
     const harness = await openedFolderDiskWorkspace();
     const created = await harness.workspace.createFolder(FOLDER_2, "Deep");

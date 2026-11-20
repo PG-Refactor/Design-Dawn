@@ -29,11 +29,11 @@ const GIT_MESSAGES_JA = {
   longPathsTitle: (count: number): string =>
     `パスが長すぎるファイルが ${count} 個あります`,
   longPathsBody:
-    "パスが 260 文字以上のファイルは、Windows の Git（長いパスを有効にしていない場合）では追加もコミットもできません。変更の一覧に出ていても追加で失敗し、1つあるだけで「すべて追加してコミット」全体が止まります。フォルダごと長すぎるファイルは変更の一覧にも出ず、気づかないままコミットから漏れます。そのため、このままではコミットしません。ほかの Windows のパソコンでも、取り出すときにファイルを作れず失敗します。フォルダを浅くするか名前を短くするか、このProjectで長いパスを有効にしてください（有効にするのはこのパソコンのこのリポジトリだけです）。",
+    "Windows の Git では、パスが 260 文字以上のファイルは追加もコミットもできないため、コミットを止めています。フォルダを浅くするか名前を短くするか、長いパスを有効にしてください。",
   portablePathsTitle: (count: number): string =>
     `Project の中のパスが長いファイルが ${count} 個あります`,
   portablePathsBody:
-    "このパソコンでは問題ありませんが、ほかのパソコンで深いフォルダに取り出すと、Windows のパスの長さの上限（260 文字）を超えて扱えないことがあります。フォルダを浅くするか名前を短くすると安心です。",
+    "ほかのパソコンで深いフォルダに置くと、Windows のパスの上限（260 文字）を超えることがあります。",
   longPathsList: "該当するファイル",
   longPathsMore: (count: number): string => `ほか ${count} 個`,
   enableLongPaths: "このProjectで長いパスを有効にする…",
@@ -222,11 +222,11 @@ const GIT_MESSAGES_EN: GitMessages = {
   panelTitle: "Source Control",
   longPathsTitle: (count) => `${count} files have paths that are too long`,
   longPathsBody:
-    'Git on Windows (without long paths allowed) cannot add or commit files whose path is 260 characters or more. Listed as a change, such a file still fails to be added, and one of them stops a whole "add everything and commit". Files inside a folder whose path is too long are not even listed, and would be left out of commits unnoticed. So no commit is made as things are. Checking them out on another Windows PC fails too. Use shallower folders or shorter names, or allow long paths for this Project (only this repository on this PC).',
+    "Git on Windows cannot add or commit files whose path is 260 characters or more, so committing is stopped. Use shallower folders or shorter names, or allow long paths.",
   portablePathsTitle: (count) =>
     `${count} files have long paths inside the Project`,
   portablePathsBody:
-    "Fine on this PC, but on a PC that keeps the Project in a deeper folder they can pass Windows' 260-character path limit and fail. Shallower folders or shorter names are safer.",
+    "In a deeper folder on another PC, these can pass Windows' 260-character path limit.",
   longPathsList: "The files",
   longPathsMore: (count) => `and ${count} more`,
   enableLongPaths: "Allow Long Paths for This Project…",
