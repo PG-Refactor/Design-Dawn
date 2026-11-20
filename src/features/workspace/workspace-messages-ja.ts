@@ -156,7 +156,7 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
   gitDiscardRejected: "この変更は破棄できません",
   gitNoCommitToAmend: "コミットがまだありません",
   gitLongPaths:
-    "パスが長すぎるファイルがあるため、コミットしませんでした（このままでは追加できないか、コミットから漏れます）。ソース管理の警告から長いパスを有効にするか、フォルダを浅く・名前を短くしてください",
+    "パスが 260 文字以上のファイルがあるため、コミットを止めました。ソース管理の警告から長いパスを有効にするか、フォルダを浅く・名前を短くしてください",
   gitCommitAlreadyPushed: "プッシュ済みのコミットは変更できません",
   gitCannotUndoCommit:
     "このコミットは元に戻せません（最初のコミットまたはマージコミット）",

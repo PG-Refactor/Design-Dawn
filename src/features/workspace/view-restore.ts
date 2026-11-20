@@ -2,9 +2,14 @@
 // (a Git Discard or Pull; a change made outside the app). The affected Documents are closed WITHOUT saving and opened
 // again from disk; these helpers capture and restore what the user was looking at.
 
+import type { Viewport } from "../../application/local-state/viewport";
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
 import { restoreMainTab } from "./ui-state/diff-tabs";
-import type { DiffTab, MainTabRef } from "./ui-state/ui-state";
+import {
+  type DiffTab,
+  type MainTabRef,
+  setViewport,
+} from "./ui-state/ui-state";
 import type { WorkspaceServices } from "./workspace-services-context";
 
 export type ViewServices = Pick<
@@ -20,6 +25,9 @@ export interface ViewSnapshot {
   readonly activeSheets: ReadonlyMap<DocumentId, SheetId>;
   readonly mainTab: MainTabRef;
   readonly diffTabs: readonly DiffTab[];
+  // Zoom and position per Sheet: closing a Document forgets them, and reading the files
+  // again is not a reason for the view to jump back to the default.
+  readonly viewports: ReadonlyMap<SheetId, Viewport>;
 }
 
 export function captureView(services: ViewServices): ViewSnapshot {
@@ -31,7 +39,29 @@ export function captureView(services: ViewServices): ViewSnapshot {
     activeSheets: ui.activeSheetIdByDocument,
     mainTab: ui.activeMainTab,
     diffTabs: ui.diffTabs,
+    viewports: ui.viewportBySheet,
   };
+}
+
+// Puts back the zoom and position of the Sheets the reopened Documents still have (a Sheet
+// the files no longer hold is left out).
+export function restoreViewports(
+  services: ViewServices,
+  view: ViewSnapshot,
+): void {
+  const details = services.applicationStore.getState().documentDetails;
+  const sheetIds = new Set(
+    [...details.values()].flatMap((detail) =>
+      detail.sheetEntries.map((entry) => entry.sheetId),
+    ),
+  );
+  services.uiStateStore.setState((state) =>
+    [...view.viewports].reduce(
+      (next, [sheetId, viewport]) =>
+        sheetIds.has(sheetId) ? setViewport(next, sheetId, viewport) : next,
+      state,
+    ),
+  );
 }
 
 export function isOpen(

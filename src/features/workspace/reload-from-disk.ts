@@ -17,6 +17,7 @@ import {
   restoreActive,
   restoreDiffTabs,
   restoreTabOrder,
+  restoreViewports,
 } from "./view-restore";
 import type { WorkspaceServices } from "./workspace-services-context";
 
@@ -59,6 +60,7 @@ export async function reloadProjectFromDisk(
     nextOperationErrorId: state.nextOperationErrorId + nextOperationErrorId,
   }));
   await reopenDocuments(services, view.openDocumentIds, view);
+  restoreViewports(services, view);
   restoreTabOrder(services, view);
   await restoreActive(services, view);
   return operationOk(undefined);
@@ -78,6 +80,7 @@ export async function reloadDocumentFromDisk(
   if (!closed.ok) return closed;
   const opened = await services.actions.openDocument(documentId);
   if (opened.ok) {
+    restoreViewports(services, view);
     const sheetId = view.activeSheets.get(documentId);
     if (sheetId !== undefined) {
       await services.actions.selectSheet(documentId, sheetId);

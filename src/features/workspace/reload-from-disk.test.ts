@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { parseViewport } from "../../application/local-state/viewport";
 import { settle } from "../../application/test-support/fakes";
 import {
   DOCUMENT_A,
@@ -10,6 +11,11 @@ import {
   reloadProjectFromDisk,
 } from "./reload-from-disk";
 import { openedActionsHarness } from "./test-support/actions-harness";
+import { setViewport } from "./ui-state/ui-state";
+
+const parsed = parseViewport({ panX: -120, panY: 340, zoom: 0.67 });
+if (!parsed.ok) throw new Error("a valid viewport");
+const ZOOMED_OUT = parsed.value;
 
 async function twoDocuments() {
   const harness = await openedActionsHarness();
@@ -41,6 +47,20 @@ describe("reloadDocumentFromDisk", () => {
     expect(harness.uiStateStore.getState().activeDocumentId).toBe(DOCUMENT_B);
   });
 
+  it("keeps the zoom and position of the Document's sheets", async () => {
+    const harness = await twoDocuments();
+    harness.uiStateStore.setState((state) =>
+      setViewport(state, SHEET_A2, ZOOMED_OUT),
+    );
+
+    await reloadDocumentFromDisk(harness.services, DOCUMENT_A);
+    await settle();
+
+    expect(
+      harness.uiStateStore.getState().viewportBySheet.get(SHEET_A2),
+    ).toEqual(ZOOMED_OUT);
+  });
+
   it("writes nothing: the in-memory state is dropped, not saved", async () => {
     const harness = await twoDocuments();
     await reloadDocumentFromDisk(harness.services, DOCUMENT_A);
@@ -69,6 +89,20 @@ describe("reloadDocumentFromDisk", () => {
 });
 
 describe("reloadProjectFromDisk", () => {
+  it("keeps the zoom and position of the open sheets", async () => {
+    const harness = await twoDocuments();
+    harness.uiStateStore.setState((state) =>
+      setViewport(state, SHEET_A2, ZOOMED_OUT),
+    );
+
+    await reloadProjectFromDisk(harness.services);
+    await settle();
+
+    expect(
+      harness.uiStateStore.getState().viewportBySheet.get(SHEET_A2),
+    ).toEqual(ZOOMED_OUT);
+  });
+
   it("reads the Project and every Document again and restores the tabs", async () => {
     const harness = await twoDocuments();
 

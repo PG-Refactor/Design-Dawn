@@ -31,6 +31,7 @@ use crate::application::templates::{
     TemplateRoots, TemplateScope, TEMPLATES_DIRECTORY_NAME,
 };
 use crate::domain::constants::{ASSETS_DIRECTORY_NAME, PATH_SEPARATOR};
+use crate::infrastructure::file_format::constants::PROJECT_FILE_NAME;
 
 /// Under the app's local data, as the app keeps the user's own templates.
 const TEMPLATE_PROJECTS_DIRECTORY: &str = "projects";
@@ -54,7 +55,7 @@ use super::config::{
 use super::protocol::{ToolHost, ToolOutput};
 use super::tool_definitions::{self as names, tool_definitions, ToolDefinition};
 use super::tool_error::{
-    ToolError, KIND_ACCESS_LIST_UNREADABLE, KIND_INTERNAL, KIND_NO_PROJECT,
+    ToolError, KIND_ACCESS_LIST_UNREADABLE, KIND_INTERNAL, KIND_NOT_A_PROJECT, KIND_NO_PROJECT,
     KIND_PROJECT_NOT_LISTED, KIND_WRITE_DISABLED,
 };
 use super::workspace::{find_sheet, Workspace};
@@ -226,8 +227,17 @@ another one"
             .then(|| self.block_text(&arguments).ok())
             .flatten();
         let result = self.dispatch(definition, &arguments);
-        if definition.writes || definition.changes_access {
-            if let Ok(value) = &result {
+        if let Ok(value) = &result {
+            // A change of access that changed nothing (already offered, already so) is not
+            // a change to keep; what it was before is.
+            let changed = value.get("changed").and_then(Value::as_bool) != Some(false);
+            let before = before.or_else(|| {
+                value
+                    .get("previousWritable")
+                    .and_then(Value::as_bool)
+                    .map(|writable| writable.to_string())
+            });
+            if definition.writes || (definition.changes_access && changed) {
                 self.record_history(definition.name, &arguments, before, value);
             }
         }
@@ -380,7 +390,7 @@ another one"
                     // without handing the AI a path.
                     "folderName": entry.folder.file_name().map(|name| name.to_string_lossy()),
                     "available": name.is_some(),
-                    "openInApp": list.current_project_id == Some(entry.project_id),
+                    "lastUsedInApp": list.current_project_id == Some(entry.project_id),
                     "inUse": in_use == Some(entry.project_id),
                     "writable": entry.allow_write,
                 })
@@ -428,6 +438,13 @@ addProject with its folder",
 project.json)",
             ));
         }
+        // Said plainly: "not found" alone does not tell the AI which file is missing.
+        if !folder.join(PROJECT_FILE_NAME).is_file() {
+            return Err(ToolError::new(
+                KIND_NOT_A_PROJECT,
+                "the folder holds no project.json, so it is not a Design Dawn Project folder",
+            ));
+        }
         let identity = read_project_identity(&folder)?;
         let folder = std::fs::canonicalize(&folder).map_err(|error| {
             ToolError::from(crate::infrastructure::error::PersistenceError::from_io(
@@ -450,6 +467,7 @@ project.json)",
             "projectId": project_id.to_string(),
             "name": identity.name,
             "added": added,
+            "changed": added,
             "writable": writable,
         }))
     }
@@ -463,21 +481,26 @@ project.json)",
             Some(text) => ProjectId::parse(text)?,
             None => ProjectId::parse(&self.resolve()?.project_id)?,
         };
-        let listed = AiAccessList::update_file(&self.config_dir, |list| {
-            if list.find(&project_id).is_none() {
-                return Ok(false);
-            }
+        let previous = AiAccessList::update_file(&self.config_dir, |list| {
+            let Some(previous) = list.find(&project_id).map(|entry| entry.allow_write) else {
+                return Ok(None);
+            };
             list.set_allow_write(&project_id, writable)?;
-            Ok(true)
+            Ok(Some(previous))
         })
         .map_err(|_| access_list_unreadable())?;
-        if !listed {
+        let Some(previous) = previous else {
             return Err(ToolError::new(
                 KIND_PROJECT_NOT_LISTED,
                 "this Project is not offered to AI; call addProject with its folder first",
             ));
-        }
-        Ok(json!({ "projectId": project_id.to_string(), "writable": writable }))
+        };
+        Ok(json!({
+            "projectId": project_id.to_string(),
+            "writable": writable,
+            "previousWritable": previous,
+            "changed": previous != writable,
+        }))
     }
 
     /// Copies an image file of this computer into the Document's assets and shows it in a

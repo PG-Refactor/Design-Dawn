@@ -1,7 +1,9 @@
+/* Exactly the window's height: a long Project Tree or Git panel scrolls inside the sidebar
+   instead of making the whole window scroll (and the menus and tabs scroll away). */
 .workspace-shell {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
   background: var(--color-background);
   color: var(--color-text);
 }
@@ -16,6 +18,7 @@
       calc(100% - var(--document-area-min-width) - var(--splitter-width))
     )
     var(--splitter-width) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   min-height: 0;
 }
 
@@ -90,8 +93,15 @@
 
 /* Narrow windows stack the tree above the main area. */
 @media (max-width: 40rem) {
+  /* Stacked, the page scrolls as a whole. */
+  .workspace-shell {
+    height: auto;
+    min-height: 100vh;
+  }
+
   .workspace-shell__body {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
   }
 
   .workspace-shell__sidebar {

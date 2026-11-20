@@ -220,11 +220,16 @@ const GIT_MESSAGES_EN: GitMessages = {
   diffHunkLabel: "Change at",
   diffFailed: "Could not get the diff",
   panelTitle: "Source Control",
-  longPathsTitle: (count) => `${count} files have paths that are too long`,
+  longPathsTitle: (count) =>
+    count === 1
+      ? "1 file has a path that is too long"
+      : `${count} files have paths that are too long`,
   longPathsBody:
     "Git on Windows cannot add or commit files whose path is 260 characters or more, so committing is stopped. Use shallower folders or shorter names, or allow long paths.",
   portablePathsTitle: (count) =>
-    `${count} files have long paths inside the Project`,
+    count === 1
+      ? "1 file has a long path inside the Project"
+      : `${count} files have long paths inside the Project`,
   portablePathsBody:
     "In a deeper folder on another PC, these can pass Windows' 260-character path limit.",
   longPathsList: "The files",

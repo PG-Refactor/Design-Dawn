@@ -18,6 +18,8 @@ pub const KIND_SHEET_NOT_LOADED: &str = "sheetNotLoaded";
 pub const KIND_NO_PROJECT: &str = "noProject";
 pub const KIND_PROJECT_NOT_LISTED: &str = "projectNotListed";
 pub const KIND_ACCESS_LIST_UNREADABLE: &str = "accessListUnreadable";
+/// addProject was given a folder without `project.json`.
+pub const KIND_NOT_A_PROJECT: &str = "notAProject";
 pub const KIND_INTERNAL: &str = "internalError";
 
 #[derive(Debug, Clone, PartialEq, Eq)]

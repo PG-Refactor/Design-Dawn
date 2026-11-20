@@ -1174,7 +1174,11 @@ fn a_folder_that_is_not_a_project_cannot_be_added() {
             "addProject",
             json!({ "folder": folder.to_string_lossy() }),
         );
-        assert!(refused.is_error);
+        assert_eq!(refused.value["error"]["kind"], "notAProject");
+        assert!(refused.value["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("project.json"));
     }
     assert_eq!(
         call(
@@ -1320,7 +1324,7 @@ fn following_the_app_uses_the_project_open_in_the_app() {
     let projects = listed["projects"].as_array().unwrap();
     assert_eq!(projects.len(), 2);
     assert_eq!(projects[0]["projectId"], FOLDERS_PROJECT_ID);
-    assert_eq!(projects[0]["openInApp"], true);
+    assert_eq!(projects[0]["lastUsedInApp"], true);
     assert_eq!(projects[0]["inUse"], true);
     assert_eq!(projects[1]["available"], true);
     assert!(projects[1]["name"].is_string());
@@ -1603,8 +1607,9 @@ fn add_project_offers_a_project_read_only_and_keeps_it_in_the_history() {
         config.path(),
         &ProjectId::parse(PROJECT_ID).unwrap(),
     );
-    assert_eq!(history.len(), 2);
-    assert!(history.iter().all(|entry| entry.tool == "addProject"));
+    // Only the call that added it: the second changed nothing.
+    assert_eq!(history.len(), 1);
+    assert_eq!(history[0].tool, "addProject");
 
     // Chosen, it reads; it is read-only until changes are allowed.
     call(
@@ -1660,15 +1665,38 @@ fn set_write_access_allows_and_stops_changes_and_keeps_them_in_the_history() {
     )
     .into_iter()
     // Newest first.
-    .map(|entry| format!("{} {}", entry.tool, entry.after.unwrap_or_default()))
+    .map(|entry| {
+        format!(
+            "{} {}>{}",
+            entry.tool,
+            entry.before.unwrap_or_default(),
+            entry.after.unwrap_or_default()
+        )
+    })
     .collect();
     assert_eq!(
         tools,
         [
-            "setWriteAccess false",
-            "createSheet ",
-            "setWriteAccess true"
+            "setWriteAccess true>false",
+            "createSheet >",
+            "setWriteAccess false>true"
         ]
+    );
+    // Asking for what it is already changes nothing and is not kept.
+    let same = call(
+        &context,
+        "setWriteAccess",
+        json!({ "writable": false, "projectId": PROJECT_ID }),
+    )
+    .ok();
+    assert_eq!(same["changed"], false);
+    assert_eq!(
+        design_dawn_lib::application::local_state::ai_history::read(
+            config.path(),
+            &ProjectId::parse(PROJECT_ID).unwrap(),
+        )
+        .len(),
+        3
     );
     assert_loads_without_issues(&root);
 }

@@ -5,6 +5,7 @@ import {
   useId,
   useRef,
 } from "react";
+import { OverflowHintLabel } from "../../shared/hover-hint/overflow-hint";
 import type { PopupMenuEntry } from "../../shared/menu/popup-menu";
 import { FOCUS_FALLBACK_ATTRIBUTE } from "./focus-utils";
 import { TreeRenameInput } from "./tree-rename-input";
@@ -248,8 +249,9 @@ export function TreeItem({
         {icon === undefined ? null : (
           <span className="tree-item__icon">{icon}</span>
         )}
-        <span
+        <OverflowHintLabel
           id={labelId}
+          text={label}
           className={
             renaming === undefined
               ? "tree-item__label"
@@ -257,7 +259,7 @@ export function TreeItem({
           }
         >
           {label}
-        </span>
+        </OverflowHintLabel>
         {renaming === undefined ? null : (
           <TreeRenameInput
             initialName={label}
