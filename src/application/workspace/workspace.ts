@@ -122,6 +122,10 @@ export interface CloseOptions {
   readonly discardChanges?: boolean;
 }
 
+// A folder name with these makes nested folders ("a/b", "a\\b").
+const FOLDER_PATH_SEPARATORS = /[\\/]/;
+const LOADED_STATE = "loaded";
+
 // contentPaths use "/" on every platform.
 const CONTENT_PATH_SEPARATOR = "/";
 
@@ -193,6 +197,8 @@ export interface Workspace {
     name: string,
     parentFolderId?: FolderId | null,
   ): Promise<OperationResult<DocumentId>>;
+  // A name with "/" or "\\" makes nested folders, using the levels that are there already;
+  // resolves to the deepest one.
   createFolder(
     parentFolderId: FolderId | null,
     name: string,
@@ -1143,7 +1149,37 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     createDocument: (name, parentFolderId = null) =>
       createDocumentStep(name, parentFolderId),
     createFolder: (parentFolderId, name) =>
-      runLifecycle(() => treeSteps.createFolder(parentFolderId, name)),
+      runLifecycle(async () => {
+        // "a/b" or "a\\b" makes nested folders; a level that is there already is used.
+        const levels = name
+          .split(FOLDER_PATH_SEPARATORS)
+          .map((level) => level.trim())
+          .filter((level) => level !== "");
+        if (levels.length <= 1)
+          return treeSteps.createFolder(parentFolderId, name);
+        let parent = parentFolderId;
+        for (const level of levels) {
+          const existing = store
+            .getState()
+            .project?.folders.find(
+              (folder) =>
+                folder.parentFolderId === parent &&
+                folder.name === level &&
+                folder.state === LOADED_STATE,
+            );
+          if (existing !== undefined) {
+            parent = existing.folderId;
+            continue;
+          }
+          const created = await treeSteps.createFolder(parent, level);
+          if (!created.ok) return created;
+          parent = created.value;
+        }
+        // Every level was there already: nothing new, the deepest one is the answer.
+        return parent === null
+          ? operationErr("invalidDisplayName", "the name names no folder")
+          : operationOk(parent);
+      }),
     renameFolder: (folderId, name) =>
       runLifecycle(() => treeSteps.renameFolder(folderId, name)),
     moveFolder: (folderId, beforeEntryId) =>
