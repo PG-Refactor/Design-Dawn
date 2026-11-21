@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+import { LAYOUT_CONFIG } from "../../config/layout-config";
 import { useFileDrop } from "../canvas/use-file-drop";
 import { PrintingCloseDialog } from "../export/printing-close";
 import { ProjectBanner } from "../external-change/external-change-banner";
@@ -24,6 +26,17 @@ import { WorkspaceDialogs } from "./workspace-dialogs";
 import "./buttons.css";
 import "./workspace-shell.css";
 
+// The narrowest the window's content gets: the narrowest tree, the splitter and the
+// narrowest document area side by side. A narrower window scrolls across instead of
+// stacking them.
+const SHELL_STYLE: CSSProperties & Record<`--${string}`, string> = {
+  "--workspace-min-width": `${
+    LAYOUT_CONFIG.projectTree.minWidthPx +
+    LAYOUT_CONFIG.splitterWidthPx +
+    LAYOUT_CONFIG.documentAreaMinWidthPx
+  }px`,
+};
+
 // Layout: top bar, Project Tree on the left, Document Tabs /
 // Sheet Tabs / sheet area on the right. Dialogs render into a portal of their own.
 export function WorkspaceShell() {
@@ -39,7 +52,7 @@ export function WorkspaceShell() {
   useLongPathsNotice();
   useExternalChangeWatching();
   return (
-    <div className="workspace-shell">
+    <div className="workspace-shell" style={SHELL_STYLE}>
       <TopBar />
       <TemplateEditBanner />
       <LoadStatus />

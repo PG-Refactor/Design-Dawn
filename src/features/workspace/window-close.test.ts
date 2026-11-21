@@ -56,6 +56,10 @@ function setup(
         calls.push(`confirm:${token}`);
         return source.confirmClose(token);
       },
+      bringForward: () => {
+        calls.push("forward");
+        return Promise.resolve();
+      },
     },
   }));
   return {
@@ -121,13 +125,21 @@ describe("window close handler", () => {
     expect(calls).not.toContain("ask");
   });
 
+  // "forward": the window comes to the front before the question (a close from the
+  // taskbar of a window behind others).
   it("asks first and saves like the normal path on 保存", async () => {
     const { handler, calls } = setup({
       needsConfirmation: true,
       choice: "save",
     });
     await handler({ subscriptionToken: TOKEN });
-    expect(calls).toEqual(["ask", "saveAll", "flush", `confirm:${TOKEN}`]);
+    expect(calls).toEqual([
+      "forward",
+      "ask",
+      "saveAll",
+      "flush",
+      `confirm:${TOKEN}`,
+    ]);
   });
 
   it("keeps the window open when 保存 fails to save", async () => {
@@ -137,7 +149,7 @@ describe("window close handler", () => {
       saveResult: operationErr("ioError", "disk"),
     });
     await handler({ subscriptionToken: TOKEN });
-    expect(calls).toEqual(["ask", "saveAll"]);
+    expect(calls).toEqual(["forward", "ask", "saveAll"]);
     expect(source.confirmedTokens).toEqual([]);
   });
 
@@ -158,7 +170,7 @@ describe("window close handler", () => {
     });
     await handler({ subscriptionToken: TOKEN });
     await handler({ subscriptionToken: TOKEN });
-    expect(calls).toEqual(["ask", "ask"]);
+    expect(calls).toEqual(["forward", "ask", "forward", "ask"]);
     expect(source.confirmedTokens).toEqual([]);
   });
 
@@ -170,10 +182,10 @@ describe("window close handler", () => {
     const first = handler({ subscriptionToken: TOKEN });
     await settle();
     await handler({ subscriptionToken: TOKEN });
-    expect(calls).toEqual(["ask"]);
+    expect(calls).toEqual(["forward", "ask"]);
     answer("discard");
     await first;
-    expect(calls).toEqual(["ask", "flush", `confirm:${TOKEN}`]);
+    expect(calls).toEqual(["forward", "ask", "flush", `confirm:${TOKEN}`]);
   });
 });
 
@@ -252,6 +264,10 @@ describe("a window that edits a Custom Template", () => {
           calls.push(`confirm:${token}`);
           return source.confirmClose(token);
         },
+        bringForward: () => {
+          calls.push("forward");
+          return Promise.resolve();
+        },
       },
       templateEdit: {
         isEditing: () => true,
@@ -272,16 +288,25 @@ describe("a window that edits a Custom Template", () => {
   it("asks about the template only, saves it on Save and closes", async () => {
     const { handler, calls } = editing(true, "save");
     await handler({ subscriptionToken: TOKEN });
-    expect(calls).toEqual(["askTemplate", "saveTemplate", `confirm:${TOKEN}`]);
+    expect(calls).toEqual([
+      "forward",
+      "askTemplate",
+      "saveTemplate",
+      `confirm:${TOKEN}`,
+    ]);
   });
 
   it("closes without writing on Close Without Saving, and stays open on Cancel", async () => {
     const discard = editing(true, "discard");
     await discard.handler({ subscriptionToken: TOKEN });
-    expect(discard.calls).toEqual(["askTemplate", `confirm:${TOKEN}`]);
+    expect(discard.calls).toEqual([
+      "forward",
+      "askTemplate",
+      `confirm:${TOKEN}`,
+    ]);
     const cancel = editing(true, "cancel");
     await cancel.handler({ subscriptionToken: TOKEN });
-    expect(cancel.calls).toEqual(["askTemplate"]);
+    expect(cancel.calls).toEqual(["forward", "askTemplate"]);
     expect(cancel.handler.isClosing()).toBe(false);
   });
 

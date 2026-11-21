@@ -64,5 +64,8 @@ export function createTauriCloseRequestSource(): CloseRequestSource {
         commandOk(undefined),
       );
     },
+    async bringForward() {
+      await call(COMMANDS.bringWindowForward, {}, () => commandOk(undefined));
+    },
   };
 }

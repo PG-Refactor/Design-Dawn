@@ -1,11 +1,20 @@
 /* Exactly the window's height: a long Project Tree or Git panel scrolls inside the sidebar
-   instead of making the whole window scroll (and the menus and tabs scroll away). */
+   instead of making the whole window scroll (and the menus and tabs scroll away). A window
+   narrower than the content's minimum keeps the side-by-side layout and scrolls across;
+   the horizontal scrollbar is inside this box, so nothing scrolls up and down. */
 .workspace-shell {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  overflow-x: auto;
+  overflow-y: hidden;
   background: var(--color-background);
   color: var(--color-text);
+}
+
+.workspace-shell > * {
+  flex-shrink: 0;
+  min-width: var(--workspace-min-width);
 }
 
 .workspace-shell__body {
@@ -96,28 +105,18 @@
 }
 
 /* Narrow windows stack the tree above the main area. */
-@media (max-width: 40rem) {
-  /* Stacked, the page scrolls as a whole. */
-  .workspace-shell {
-    height: auto;
-    min-height: 100vh;
-  }
 
-  .workspace-shell__body {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto;
-  }
-
-  .workspace-shell__sidebar {
-    border-bottom: 1px solid var(--color-border);
-  }
-}
-
+/* The Project / Search / Git switch stays at the top while the panel below it scrolls. */
 .left-panel-header {
+  position: sticky;
+  top: calc(-1 * var(--space-2));
+  z-index: 1;
   display: flex;
   align-items: flex-start;
   gap: var(--space-1);
-  margin-bottom: var(--space-2);
+  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) var(--space-2);
+  padding: var(--space-2) var(--space-2) 0;
+  background: var(--color-surface);
 }
 
 .left-panel-tabs {

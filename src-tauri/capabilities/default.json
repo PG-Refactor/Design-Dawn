@@ -83,6 +83,7 @@
     "allow-subscribe-drop-notifications",
     "allow-subscribe-close-requests",
     "allow-confirm-window-close",
+    "allow-bring-window-forward",
     "allow-take-open-request",
     "allow-close-project",
     "allow-subscribe-app-requests",

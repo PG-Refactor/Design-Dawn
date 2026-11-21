@@ -5,6 +5,8 @@
 import { useEffect, useState } from "react";
 
 const ACTIVE_TAB_SELECTOR = '[role="tab"][aria-selected="true"]';
+// The whole tab (name and its close button), not only the part that is the `tab` role.
+const TAB_SELECTOR = ".tab";
 
 // Returns the ref callback for the tablist element (which may appear later, when the first
 // tab does).
@@ -31,7 +33,8 @@ export function useTabStripScroll(
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: activeKey is what says the active tab changed; the tab itself is found in the DOM.
   useEffect(() => {
-    const active = strip?.querySelector(ACTIVE_TAB_SELECTOR);
+    const selected = strip?.querySelector(ACTIVE_TAB_SELECTOR);
+    const active = selected?.closest(TAB_SELECTOR) ?? selected;
     // Not every environment lays out (tests); there, there is nothing to scroll.
     if (
       active instanceof HTMLElement &&

@@ -14,4 +14,7 @@ export interface CloseRequestSource {
   subscribe(listener: (request: CloseRequest) => void): () => void;
   // Asks Rust to close the window. Rust ignores a token from a replaced subscription.
   confirmClose(subscriptionToken: string): Promise<OperationResult<void>>;
+  // Brings this window to the front (restored from the taskbar, focused) before a question
+  // about the close is asked. Never fails: the question is asked either way.
+  bringForward(): Promise<void>;
 }
