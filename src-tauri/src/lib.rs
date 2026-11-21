@@ -148,6 +148,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::subscribe_drop_notifications,
             commands::subscribe_close_requests,
             commands::confirm_window_close,
+            commands::bring_window_forward,
             commands::take_open_request,
             commands::close_project,
             commands::subscribe_app_requests,

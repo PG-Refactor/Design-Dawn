@@ -80,6 +80,7 @@ export const COMMANDS = {
   subscribeDropNotifications: "subscribe_drop_notifications",
   subscribeCloseRequests: "subscribe_close_requests",
   confirmWindowClose: "confirm_window_close",
+  bringWindowForward: "bring_window_forward",
   takeOpenRequest: "take_open_request",
   closeProject: "close_project",
   subscribeAppRequests: "subscribe_app_requests",

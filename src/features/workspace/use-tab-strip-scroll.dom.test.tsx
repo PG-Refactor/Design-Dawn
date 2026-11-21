@@ -14,14 +14,12 @@ function Strip({ active }: { readonly active: number }) {
   return (
     <div ref={strip} role="tablist" data-testid="strip">
       {[0, 1, 2].map((index) => (
-        <button
-          key={index}
-          type="button"
-          role="tab"
-          aria-selected={index === active}
-        >
-          {`tab ${index}`}
-        </button>
+        <div key={index} className="tab">
+          <button type="button" role="tab" aria-selected={index === active}>
+            {`tab ${index}`}
+          </button>
+          <button type="button">x</button>
+        </div>
       ))}
     </div>
   );
@@ -66,7 +64,8 @@ describe("useTabStripScroll", () => {
     try {
       const view = render(<Strip active={0} />);
       view.rerender(<Strip active={2} />);
-      expect(scrolled).toEqual(["tab 0", "tab 2"]);
+      // The whole tab, with its close button.
+      expect(scrolled).toEqual(["tab 0x", "tab 2x"]);
     } finally {
       HTMLElement.prototype.scrollIntoView = original;
     }

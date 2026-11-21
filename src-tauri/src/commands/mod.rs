@@ -85,7 +85,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 110] = [
+pub const COMMAND_NAMES: [&str; 111] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -165,6 +165,7 @@ pub const COMMAND_NAMES: [&str; 110] = [
     "subscribe_drop_notifications",
     "subscribe_close_requests",
     "confirm_window_close",
+    "bring_window_forward",
     "take_open_request",
     "close_project",
     "subscribe_app_requests",
@@ -2011,6 +2012,19 @@ pub fn confirm_window_close<R: Runtime>(
     subscription_token: String,
 ) -> Result<(), ApplicationError> {
     log_failure(confirm_close(&subscriber, &window, &subscription_token))
+}
+
+/// Brings the calling window forward (restored from the taskbar and focused) before it asks
+/// about closing: a close chosen from the taskbar of a window behind others would otherwise
+/// ask where the user cannot see it. Failures are only logged; the question is asked anyway.
+#[tauri::command]
+pub fn bring_window_forward<R: Runtime>(window: tauri::Window<R>) {
+    if let Err(error) = window.unminimize() {
+        eprintln!("failed to restore the window: {error}");
+    }
+    if let Err(error) = window.set_focus() {
+        eprintln!("failed to focus the window: {error}");
+    }
 }
 
 /// The request a launch argument left for this window, consumed on the first call. The

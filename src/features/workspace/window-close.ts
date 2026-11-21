@@ -74,6 +74,9 @@ export function createWindowCloseHandler(
     } = getDependencies();
     try {
       if (printing !== undefined && (await printing.isOpen())) {
+        // Every question below is asked in front: the close may come from the taskbar of a
+        // window behind others (or minimized).
+        await closeRequestSource.bringForward();
         if (!(await printing.confirmStop())) {
           release();
           return;
@@ -82,6 +85,7 @@ export function createWindowCloseHandler(
       }
       if (templateEdit?.isEditing() === true) {
         if (await templateEdit.hasUnsavedChanges()) {
+          await closeRequestSource.bringForward();
           const answer = await templateEdit.ask();
           if (answer === "cancel") {
             release();
@@ -99,7 +103,9 @@ export function createWindowCloseHandler(
         return;
       }
       // The flag stays set while the question is open, so a repeated request is ignored.
-      const choice = needsConfirmation() ? await askUnsavedClose() : "save";
+      const asks = needsConfirmation();
+      if (asks) await closeRequestSource.bringForward();
+      const choice = asks ? await askUnsavedClose() : "save";
       if (choice === "cancel") {
         // Reset, so a later close request asks again.
         release();

@@ -81,6 +81,7 @@ const APP_COMMANDS: &[&str] = &[
     "subscribe_drop_notifications",
     "subscribe_close_requests",
     "confirm_window_close",
+    "bring_window_forward",
     "take_open_request",
     "close_project",
     "subscribe_app_requests",
