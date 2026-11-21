@@ -30,6 +30,8 @@ export interface BlockMenuCommands {
   readonly removeCaption?: () => void;
   // Present for one selected block: resizes it so all of its content shows.
   readonly fitToContent?: () => void;
+  // Present for one selected image block: resizes it to its picture's own size.
+  readonly originalSize?: () => void;
   // Present for one selected diagram: writes it as an SVG or PNG file.
   readonly exportDiagram?: (kind: "svg" | "png") => void;
   // Present for one selected Markdown or Mermaid block (the label comes with it).
@@ -84,6 +86,15 @@ export function blockMenuEntries(
             id: "fitToContent",
             label: labels.fitToContent,
             onSelect: commands.fitToContent,
+          },
+        ]),
+    ...(commands.originalSize === undefined
+      ? []
+      : [
+          {
+            id: "originalSize",
+            label: labels.originalSize,
+            onSelect: commands.originalSize,
           },
         ]),
     ...(commands.exportDiagram === undefined

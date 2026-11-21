@@ -23,6 +23,21 @@ function frameOf(blockId: string): HTMLElement | null {
   );
 }
 
+// Within what the app lets a block be (an original picture may be tiny or huge).
+function clampToBounds(size: Extent): Extent {
+  const { minSize, maxSize } = CANVAS_CONFIG.block;
+  return {
+    width: Math.min(
+      maxSize.width,
+      Math.max(minSize.width, Math.round(size.width)),
+    ),
+    height: Math.min(
+      maxSize.height,
+      Math.max(minSize.height, Math.round(size.height)),
+    ),
+  };
+}
+
 function clampToMinimum(size: Extent): Extent {
   const { minSize } = CANVAS_CONFIG.block;
   return {
@@ -107,4 +122,36 @@ export function measureFittedBlockSize(blockId: string): Extent | null {
   if (picture === null || area === null) return null;
   const fitted = fittedPicture(frame, area, picture);
   return fitted === null ? null : clampToMinimum(fitted);
+}
+
+const IMAGE_PICTURE_SELECTOR = ".image-block__picture";
+const IMAGE_AREA_SELECTOR = ".image-block";
+
+// "Original Size" of an image block: the size at which its picture is shown at its own
+// pixel size (100 %), what is around the picture (its caption) kept. Null when the block
+// is not on screen or its picture has not loaded.
+export function measureOriginalImageBlockSize(blockId: string): Extent | null {
+  const frame = frameOf(blockId);
+  const picture = frame?.querySelector<HTMLImageElement>(
+    IMAGE_PICTURE_SELECTOR,
+  );
+  const area = frame?.querySelector<HTMLElement>(IMAGE_AREA_SELECTOR);
+  if (
+    frame === null ||
+    frame === undefined ||
+    picture === null ||
+    picture === undefined ||
+    area === null ||
+    area === undefined ||
+    picture.naturalWidth <= 0 ||
+    picture.naturalHeight <= 0
+  ) {
+    return null;
+  }
+  const innerWidth = area.clientWidth - horizontalPadding(area);
+  const innerHeight = area.clientHeight - verticalPadding(area);
+  return clampToBounds({
+    width: frame.offsetWidth - innerWidth + picture.naturalWidth,
+    height: frame.offsetHeight - innerHeight + picture.naturalHeight,
+  });
 }
