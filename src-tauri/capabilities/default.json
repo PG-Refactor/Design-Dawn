@@ -78,6 +78,7 @@
     "allow-asset-data-url",
     "allow-ai-history",
     "allow-git-conflict-versions",
+    "allow-git-sheet-versions",
     "allow-git-resolve-conflict",
     "allow-copy-asset-to-document",
     "allow-subscribe-drop-notifications",

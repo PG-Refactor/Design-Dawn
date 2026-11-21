@@ -121,6 +121,15 @@
 }
 
 /* Beside its item, level with it (the popup's own padding lines the first items up). */
+/* A menu taller than the window (large text in a low window) stays inside it and scrolls.
+   Not a menu with a submenu: scrolling would clip the submenu that opens beside it. The
+   room is the window less the menu bar above the popup. */
+.menu-bar__popup:not(.menu-bar__popup--nested):not(:has(.menu-bar__submenu)) {
+  --menu-bar-room-above: 3rem;
+  max-height: calc(100vh - var(--menu-bar-room-above));
+  overflow-y: auto;
+}
+
 .menu-bar__popup.menu-bar__popup--nested {
   top: calc(-1 * var(--space-1));
   left: 100%;

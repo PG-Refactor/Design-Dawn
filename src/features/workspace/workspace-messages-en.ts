@@ -56,6 +56,7 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
     "Could not commit the edit of the block text (your edit is still on the screen)",
   setBlockCaption: "Could not change the caption",
   setBlockDisplay: "Could not change the display size",
+  openSheetFromDiff: "Could not open the sheet",
   editDiagram:
     "The diagram edit could not be applied (the source is unchanged).",
   loadBlockContents: "Could not load the block text",

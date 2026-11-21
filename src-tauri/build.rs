@@ -76,6 +76,7 @@ const APP_COMMANDS: &[&str] = &[
     "asset_data_url",
     "ai_history",
     "git_conflict_versions",
+    "git_sheet_versions",
     "git_resolve_conflict",
     "copy_asset_to_document",
     "subscribe_drop_notifications",

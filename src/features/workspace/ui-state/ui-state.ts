@@ -270,6 +270,7 @@ export const OPERATION_LABELS = [
   "editBlockContent",
   "setBlockCaption",
   "setBlockDisplay",
+  "openSheetFromDiff",
   "editDiagram",
   "loadBlockContents",
   "undo",
@@ -348,7 +349,12 @@ export interface EditingBlock {
 // lives here; the draft text is local to the input and reaches the application only when
 // the rename is committed.
 export type RenamingTarget =
-  | { readonly kind: "document"; readonly documentId: DocumentId }
+  | {
+      readonly kind: "document";
+      readonly documentId: DocumentId;
+      // Renamed in its tab rather than in the tree (only one of the two shows the input).
+      readonly inTab?: boolean;
+    }
   | { readonly kind: "folder"; readonly folderId: FolderId }
   | {
       readonly kind: "sheet";
@@ -369,6 +375,14 @@ export const DIFF_VIEW_MODES = ["split", "inline"] as const;
 export type DiffViewMode = (typeof DIFF_VIEW_MODES)[number];
 
 export const DEFAULT_DIFF_VIEW_MODE: DiffViewMode = "split";
+
+// What a diff of a file inside a Sheet shows: the text, or the Sheet as it looks at both
+// versions.
+export const DIFF_CONTENT_MODES = ["text", "visual"] as const;
+
+export type DiffContentMode = (typeof DIFF_CONTENT_MODES)[number];
+
+export const DEFAULT_DIFF_CONTENT_MODE: DiffContentMode = "text";
 
 export interface UiState {
   readonly activeDocumentId: DocumentId | null;
@@ -412,6 +426,8 @@ export interface UiState {
   // Side-by-side or inline diff. A view preference of this window shared by all diff tabs;
   // kept across Project changes (like `leftPanelMode`) and never saved.
   readonly diffViewMode: DiffViewMode;
+  // Text or looks, for a diff of a file inside a Sheet. Like `diffViewMode`.
+  readonly diffContentMode: DiffContentMode;
   // The diff tabs of the main tab strip, shown after the Document tabs. A view choice only
   // (the Git state itself lives in the Git controller); dropped when the Project changes.
   readonly diffTabs: readonly DiffTab[];
@@ -532,6 +548,7 @@ export function createInitialUiState(): UiState {
     sidebarCollapsed: false,
     sourceEditorLayout: DEFAULT_SOURCE_EDITOR_LAYOUT,
     diffViewMode: DEFAULT_DIFF_VIEW_MODE,
+    diffContentMode: DEFAULT_DIFF_CONTENT_MODE,
     diffTabs: [],
     activeMainTab: DOCUMENT_MAIN_TAB,
     compareTab: null,
@@ -729,7 +746,11 @@ export function sameRenamingTarget(
     return second.kind === "folder" && first.folderId === second.folderId;
   }
   if (first.kind === "document") {
-    return second.kind === "document" && first.documentId === second.documentId;
+    return (
+      second.kind === "document" &&
+      first.documentId === second.documentId &&
+      (first.inTab ?? false) === (second.inTab ?? false)
+    );
   }
   return (
     second.kind === "sheet" &&

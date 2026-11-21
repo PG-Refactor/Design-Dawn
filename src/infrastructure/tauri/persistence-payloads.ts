@@ -604,3 +604,18 @@ export function toVoidResult(payload: unknown): CommandResult<null> {
     ? commandOk(null)
     : commandErr("invalidCommandResponse", "payload: expected no value");
 }
+
+// A `sheet.json` text read from somewhere other than the Project's own files (a Git
+// version): checked like a loaded sheet; null when it is not one.
+export function parseSheetText(text: string): Sheet | null {
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  const raw = rawSheet(value, "sheet");
+  if (!raw.ok) return null;
+  const sheet = parseSheet(raw.value);
+  return sheet.ok ? sheet.value : null;
+}

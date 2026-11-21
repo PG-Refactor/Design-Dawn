@@ -143,6 +143,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::asset_data_url,
             commands::ai_history,
             commands::git_conflict_versions,
+            commands::git_sheet_versions,
             commands::git_resolve_conflict,
             commands::copy_asset_to_document,
             commands::subscribe_drop_notifications,

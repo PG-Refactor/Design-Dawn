@@ -260,7 +260,11 @@ export interface WorkspaceActions {
 
   // Opens the inline name editor of a loaded document (opening the document first when it
   // is not open) / of a loaded sheet. Nothing happens for entries that failed to load.
-  beginRenameDocument(documentId: DocumentId): Promise<OperationResult<void>>;
+  // `inTab`: the input is in the Document's tab instead of the tree.
+  beginRenameDocument(
+    documentId: DocumentId,
+    inTab?: boolean,
+  ): Promise<OperationResult<void>>;
   beginRenameSheet(
     documentId: DocumentId,
     sheetId: SheetId,
@@ -1466,7 +1470,7 @@ export function createWorkspaceActions(
       uiStateStore.setState(closeDialog);
     },
 
-    async beginRenameDocument(documentId) {
+    async beginRenameDocument(documentId, inTab = false) {
       const entry = applicationStore
         .getState()
         .project?.documents.find(
@@ -1481,7 +1485,11 @@ export function createWorkspaceActions(
         if (!opened.value) return operationOk(undefined);
         activateDocument(documentId);
       }
-      startRenaming({ kind: "document", documentId });
+      startRenaming(
+        inTab
+          ? { kind: "document", documentId, inTab: true }
+          : { kind: "document", documentId },
+      );
       return operationOk(undefined);
     },
     beginRenameSheet(documentId, sheetId) {

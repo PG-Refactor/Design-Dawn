@@ -58,6 +58,7 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
     "Blockの本文の編集を確定できませんでした（編集内容は画面に残っています）",
   setBlockCaption: "キャプションを変更できませんでした",
   setBlockDisplay: "表示サイズを変更できませんでした",
+  openSheetFromDiff: "シートを開けませんでした",
   editDiagram: "図の編集を適用できませんでした（ソースは変更されていません）",
   loadBlockContents: "Blockの本文を読み込めませんでした",
   undo: "元に戻せませんでした",

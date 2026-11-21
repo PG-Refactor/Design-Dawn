@@ -3,6 +3,7 @@
 // or its stderr. The values below are the wire identifiers Rust sends.
 
 import type { DocumentId, ProjectId } from "../../domain/shared/entity-id";
+import type { Sheet } from "../../domain/sheet/sheet";
 import type { GIT_ERROR_KINDS, OperationResult } from "./operation-error";
 
 // Anything but `ready` is a normal answer (the app works without Git), not an error.
@@ -196,7 +197,33 @@ export interface GitConflictVersions {
   readonly conflictingBlocks: readonly string[];
 }
 
+// One version of a Sheet as Git has it, for comparing how two versions look: its
+// `sheet.json` as written and the files its Blocks show, by `contentPath` (texts; images as
+// `data:` URLs). A file that could not be read is missing from the maps.
+export interface GitSheetVersion {
+  // Null when the file is not a Sheet the app can read.
+  readonly sheet: Sheet | null;
+  readonly texts: Readonly<Record<string, string>>;
+  readonly images: Readonly<Record<string, string>>;
+}
+
+// A Sheet at the two versions of a diff side (`unstaged`: index → working tree; `staged`:
+// HEAD → index). A side without the Sheet is null (it was added or deleted).
+export interface GitSheetVersions {
+  // The Document the Sheet belongs to, to open it.
+  readonly documentId: string | null;
+  readonly before: GitSheetVersion | null;
+  readonly after: GitSheetVersion | null;
+}
+
 export interface GitGateway {
+  // The Sheet a changed file belongs to, at both versions of the side. Read-only.
+  // `invalidGitPath` for a file outside any Sheet.
+  sheetVersions(
+    projectId: ProjectId,
+    path: string,
+    side: GitDiffSide,
+  ): Promise<OperationResult<GitSheetVersions>>;
   conflictVersions(
     projectId: ProjectId,
     path: string,

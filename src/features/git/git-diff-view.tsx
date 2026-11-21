@@ -1,12 +1,15 @@
 import type { GitStatus } from "../../application/ports/git-gateway";
 import type { GitSelection } from "../workspace/ui-state/ui-state";
 import { useMessages } from "../workspace/use-messages";
-import { useGitState } from "../workspace/workspace-hooks";
+import { useGitState, useUiState } from "../workspace/workspace-hooks";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import { changeSidesOf } from "./git-change-sections";
 import { GitDiffContent } from "./git-diff-content";
 import { activateDiff } from "./git-diff-session";
-import { DiffViewToggle } from "./git-diff-view-toggle";
+import { DiffContentModeSwitch, DiffViewToggle } from "./git-diff-view-toggle";
+import { sheetPathOf } from "./git-sheet-path";
+import { GitSheetVisualDiff } from "./git-sheet-visual-diff";
+import { openSheetFromDiff } from "./open-sheet-from-diff";
 
 interface GitDiffViewProps {
   readonly selection: GitSelection;
@@ -20,6 +23,10 @@ export function GitDiffView({ selection, status }: GitDiffViewProps) {
   const messages = useMessages().git;
   const services = useWorkspaceServices();
   const diff = useGitState((git) => git.diff);
+  const contentMode = useUiState((ui) => ui.diffContentMode);
+  // A file inside a Sheet can also be shown as the Sheet looks, and opened there.
+  const inSheet = sheetPathOf(selection.path) !== null;
+  const visual = inSheet && contentMode === "visual";
 
   const stagedEntry =
     status === null ? null : changeSidesOf(status, selection.path).staged;
@@ -37,6 +44,7 @@ export function GitDiffView({ selection, status }: GitDiffViewProps) {
       : null;
 
   function renderBody() {
+    if (visual) return <GitSheetVisualDiff selection={selection} />;
     if (diff === null) {
       // The controller clears the diff on failure and the failure is already reported.
       return (
@@ -66,7 +74,22 @@ export function GitDiffView({ selection, status }: GitDiffViewProps) {
     <div className="git-diff">
       <header className="git-diff__header">
         <h2 className="git-diff__path">{pathText}</h2>
-        {loaded?.outcome === "text" ? <DiffViewToggle /> : null}
+        {inSheet ? (
+          <>
+            <DiffContentModeSwitch />
+            <button
+              type="button"
+              className="button"
+              title={messages.sheetDiff.openSheetHint}
+              onClick={() =>
+                void openSheetFromDiff(services, selection.path, selection.side)
+              }
+            >
+              {messages.sheetDiff.openSheet}
+            </button>
+          </>
+        ) : null}
+        {!visual && loaded?.outcome === "text" ? <DiffViewToggle /> : null}
       </header>
       <div className="git-diff__body">{renderBody()}</div>
     </div>

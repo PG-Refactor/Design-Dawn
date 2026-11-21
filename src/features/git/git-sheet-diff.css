@@ -1,0 +1,206 @@
+/* The visual diff of a Sheet. Colours come from tokens only; every mark is also told by its
+   word and its line style, not by colour alone. */
+.sheet-diff {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+}
+
+.sheet-diff__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sheet-diff__summary {
+  flex: 1 1 auto;
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.sheet-diff__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sheet-diff__item {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.sheet-diff__item[aria-pressed="true"] {
+  border-color: var(--color-accent);
+  box-shadow: inset 0 -2px 0 var(--color-accent);
+}
+
+.sheet-diff__kinds {
+  font-weight: 700;
+}
+
+.sheet-diff__panes {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-2);
+  min-height: 20rem;
+}
+
+.sheet-snapshot__pane {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  background: var(--color-canvas-background);
+  cursor: grab;
+  touch-action: none;
+}
+
+.sheet-snapshot__label {
+  position: absolute;
+  top: var(--space-1);
+  left: var(--space-2);
+  z-index: 2;
+  margin: 0;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.sheet-snapshot__missing {
+  margin: var(--space-3);
+  padding-top: var(--space-3);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* Block content is laid out like on the canvas (its text size does not follow the UI's). */
+.sheet-snapshot__world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: var(--canvas-content-rem);
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.sheet-snapshot__block {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.sheet-snapshot__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sheet-snapshot__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.sheet-snapshot__caption {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 2px 8px;
+  background: var(--color-caption-background);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.sheet-snapshot__unreadable {
+  margin: 8px;
+  color: var(--color-text-muted);
+}
+
+.sheet-snapshot__block--added {
+  outline: 3px solid var(--color-git-added);
+}
+
+.sheet-snapshot__block--removed {
+  outline: 3px solid var(--color-git-deleted);
+}
+
+.sheet-snapshot__block--changed {
+  outline: 3px double var(--color-git-modified);
+}
+
+.sheet-snapshot__block--moved {
+  outline: 3px solid var(--color-git-renamed);
+}
+
+.sheet-snapshot__block--focused {
+  box-shadow: 0 0 0 6px var(--color-focus-ring);
+}
+
+/* Where a moved Block was. */
+.sheet-snapshot__from {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px dashed var(--color-git-renamed);
+  border-radius: var(--radius-medium);
+}
+
+.sheet-snapshot__mark {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 1px 6px;
+  border-bottom-left-radius: var(--radius-medium);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Text | Looks above a diff of a Sheet's file. */
+.git-diff__modes {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  overflow: hidden;
+}
+
+.git-diff__mode {
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.git-diff__mode + .git-diff__mode {
+  border-left: 1px solid var(--color-border);
+}
+
+.git-diff__mode[aria-pressed="true"] {
+  background: var(--color-selection);
+  box-shadow: inset 0 -2px 0 var(--color-accent);
+  font-weight: 700;
+}
