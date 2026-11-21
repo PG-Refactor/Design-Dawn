@@ -16,6 +16,10 @@ import {
 } from "../../domain/block/caption";
 import { parseContentPath } from "../../domain/block/content-path";
 import {
+  type BlockDisplay,
+  parseContentScalePercent,
+} from "../../domain/block/content-scale";
+import {
   parseDocument,
   type RawDocument,
 } from "../../domain/document/document";
@@ -281,6 +285,32 @@ function commandSnapshotOf(value: unknown): MetadataCommandSnapshot {
         caption: nullable(command.caption, captionOf),
         previous: nullable(command.previous, (previous) => ({
           caption: nullable(record(previous, "previous").caption, captionOf),
+        })),
+      };
+    }
+    case COMMAND_KINDS.setBlockDisplay: {
+      const displayOf = (value: unknown): BlockDisplay => {
+        const display = record(value, "display");
+        const { scalePercent, autoFit } = display;
+        if (typeof autoFit !== "boolean") fail("autoFit is not a boolean");
+        if (typeof scalePercent !== "number") {
+          fail("scalePercent is not a number");
+        }
+        return {
+          scalePercent: valid(
+            parseContentScalePercent(scalePercent),
+            "scalePercent",
+          ),
+          autoFit,
+        };
+      };
+      return {
+        kind: COMMAND_KINDS.setBlockDisplay,
+        sheetId: sheetIdOf(command.sheetId),
+        blockId: blockIdOf(command.blockId),
+        display: displayOf(command.display),
+        previous: nullable(command.previous, (previous) => ({
+          display: displayOf(record(previous, "previous").display),
         })),
       };
     }

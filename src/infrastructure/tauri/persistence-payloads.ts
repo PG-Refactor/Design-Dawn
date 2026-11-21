@@ -89,6 +89,8 @@ const rawBlock = objectOf<RawBlock>({
   contentPath: decodeString,
   caption: optional(decodeString),
   captionPosition: optional(decodeString),
+  contentScalePercent: optional(decodeNumber),
+  autoFit: optional(decodeBoolean),
 });
 const rawProject = objectOf<RawProject>({
   schemaVersion: decodeNumber,

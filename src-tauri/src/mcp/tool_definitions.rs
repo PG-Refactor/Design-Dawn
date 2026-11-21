@@ -5,6 +5,7 @@
 use serde_json::{json, Map, Value};
 
 use super::config::{BLOCK_MAX_HEIGHT, BLOCK_MAX_WIDTH, BLOCK_MIN_HEIGHT, BLOCK_MIN_WIDTH};
+use crate::domain::constants::{CONTENT_SCALE_MAX_PERCENT, CONTENT_SCALE_MIN_PERCENT};
 
 pub const LIST_PROJECTS: &str = "listProjects";
 pub const SELECT_PROJECT: &str = "selectProject";
@@ -24,6 +25,7 @@ pub const UPDATE_SHEET: &str = "updateSheet";
 pub const UPDATE_BLOCK: &str = "updateBlock";
 pub const MOVE_BLOCK: &str = "moveBlock";
 pub const UPDATE_BLOCK_CAPTION: &str = "updateBlockCaption";
+pub const UPDATE_BLOCK_DISPLAY: &str = "updateBlockDisplay";
 pub const DELETE_BLOCK: &str = "deleteBlock";
 pub const IMPORT_IMAGE: &str = "importImage";
 pub const LIST_TEMPLATES: &str = "listTemplates";
@@ -450,6 +452,31 @@ createBlock / updateBlock for text you wrote yourself",
                         "{WORLD_UNITS_HELP}, from {BLOCK_MIN_WIDTH} x {BLOCK_MIN_HEIGHT} to {BLOCK_MAX_WIDTH} x {BLOCK_MAX_HEIGHT} (width x height)"
                     ),
                 ),
+            ],
+        ),
+        write(
+            UPDATE_BLOCK_DISPLAY,
+            "Sets how large a Markdown or Mermaid Block shows its content: contentScalePercent \
+(100 is as written) and/or autoFit (true: the largest size at which all of the content fits \
+the Block, recomputed when the Block is resized; the scale is then not used). Mermaid Blocks \
+fit by default, Markdown Blocks do not. getSheet and getBlock show both. Image Blocks always \
+fit their Block.",
+            false,
+            vec![
+                id("documentId", true, DOCUMENT_ID_HELP),
+                id("sheetId", true, SHEET_ID_HELP),
+                id("blockId", true, BLOCK_ID_HELP),
+                property(
+                    "contentScalePercent",
+                    false,
+                    json!({
+                        "type": "integer",
+                        "minimum": CONTENT_SCALE_MIN_PERCENT,
+                        "maximum": CONTENT_SCALE_MAX_PERCENT,
+                        "description": "the content's size in percent; omit to keep it",
+                    }),
+                ),
+                flag("autoFit", "fit the content to the Block; omit to keep it"),
             ],
         ),
         write(

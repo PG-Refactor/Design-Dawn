@@ -21,6 +21,20 @@
   user-select: none;
 }
 
+/* Fitted to the block: as large as the room allows, larger than the diagram's own size too. */
+.mermaid-preview__image--fit {
+  width: 100%;
+  height: 100%;
+}
+
+/* At a chosen size: the diagram's own size times the scale; what passes the block is cut
+   off (the wheel belongs to the canvas). */
+.mermaid-preview__image--scaled {
+  flex: 0 0 auto;
+  max-width: none;
+  max-height: none;
+}
+
 .mermaid-preview__image--stale {
   opacity: 0.35;
 }

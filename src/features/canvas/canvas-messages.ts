@@ -78,6 +78,17 @@ const CANVAS_MESSAGES_JA = {
   },
   resizeHandleLabel: (blockName: string): string =>
     `${blockName} のサイズを変更`,
+  display: {
+    group: (blockName: string): string => `${blockName} の表示サイズ`,
+    smaller: "表示を小さく",
+    larger: "表示を大きく",
+    smallerText: "−",
+    largerText: "+",
+    reset: "100% に戻す",
+    autoFit: "ブロックに合わせる",
+    autoFitText: "自動",
+    percent: (percent: number): string => `${percent}%`,
+  },
 } as const;
 
 export type CanvasMessages = Widen<typeof CANVAS_MESSAGES_JA>;
@@ -151,6 +162,17 @@ const CANVAS_MESSAGES_EN: CanvasMessages = {
     zoomOutText: "−",
   },
   resizeHandleLabel: (blockName) => `Resize ${blockName}`,
+  display: {
+    group: (blockName) => `Display size of ${blockName}`,
+    smaller: "Smaller",
+    larger: "Larger",
+    smallerText: "−",
+    largerText: "+",
+    reset: "Back to 100%",
+    autoFit: "Fit to the block",
+    autoFitText: "Auto",
+    percent: (percent) => `${percent}%`,
+  },
 };
 
 export const CANVAS_MESSAGES: Readonly<

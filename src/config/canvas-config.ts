@@ -48,6 +48,9 @@ export const CANVAS_CONFIG = {
     // Characters of the block id shown in the placeholder and in accessible names. The
     // tail is used because the head of a UUIDv7 is a timestamp shared by nearby blocks.
     shortIdLength: 8,
+    // Fitting a text block's content to the block: halvings of the size range tried (each
+    // a layout of the text); enough to land within a percent of the largest that fits.
+    fitSearchSteps: 10,
   },
   grid: {
     // Spacing of the background dots AND the snap interval of block move / resize, in

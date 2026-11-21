@@ -10,6 +10,9 @@ export interface BlockRendererProps {
   readonly documentId: DocumentId;
   readonly sheetId: SheetId;
   readonly block: Block;
+  // Told the percent the content is shown at while it is fitted to the block (worked out
+  // where it is shown; never stored), so the display size buttons can show it.
+  readonly onFittedScale?: (percent: number) => void;
 }
 
 // One renderer per block type; the canvas itself has no block-type-specific code.

@@ -1,6 +1,7 @@
 use super::block_type::BlockType;
 use super::caption::{Caption, CaptionPosition};
 use super::content_path::ContentPath;
+use super::content_scale::{check_scalable, ContentScale};
 use super::entity_id::BlockId;
 use super::error::DomainError;
 use super::geometry::{Position, Size};
@@ -18,6 +19,10 @@ pub struct BlockInput {
     pub caption: Option<String>,
     /// None: the default place (below the figure).
     pub caption_position: Option<String>,
+    /// None: 100 percent.
+    pub content_scale_percent: Option<i64>,
+    /// None: the Block type's default (`default_auto_fit`).
+    pub auto_fit: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -29,6 +34,8 @@ pub struct Block {
     content_path: ContentPath,
     caption: Option<Caption>,
     caption_position: Option<CaptionPosition>,
+    content_scale: Option<ContentScale>,
+    auto_fit: Option<bool>,
 }
 
 impl Block {
@@ -45,6 +52,13 @@ impl Block {
             .as_deref()
             .map(CaptionPosition::parse)
             .transpose()?;
+        let content_scale = input
+            .content_scale_percent
+            .map(ContentScale::new)
+            .transpose()?;
+        if content_scale.is_some() || input.auto_fit.is_some() {
+            check_scalable(block_type)?;
+        }
         Ok(Self {
             block_id,
             block_type,
@@ -53,6 +67,8 @@ impl Block {
             content_path,
             caption,
             caption_position,
+            content_scale,
+            auto_fit: input.auto_fit,
         })
     }
 
@@ -83,5 +99,15 @@ impl Block {
     /// As written in the file: None when it was left out (the default place).
     pub fn caption_position(&self) -> Option<CaptionPosition> {
         self.caption_position
+    }
+
+    /// As written in the file: None when it was left out (100 percent).
+    pub fn content_scale(&self) -> Option<ContentScale> {
+        self.content_scale
+    }
+
+    /// As written in the file: None when it was left out (the type's default).
+    pub fn auto_fit(&self) -> Option<bool> {
+        self.auto_fit
     }
 }

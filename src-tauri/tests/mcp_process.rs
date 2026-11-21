@@ -118,7 +118,7 @@ fn a_read_write_session_over_stdio() {
         .collect();
     assert_eq!(ids, [1, 2, 3, 4, 5, 6, 7]);
     assert_eq!(replies[0]["result"]["protocolVersion"], "2025-06-18");
-    assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 22);
+    assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 23);
     assert_eq!(tool_result(&replies[2])["projectId"], PROJECT_ID);
     assert_eq!(replies[3]["result"]["isError"], false);
     assert_eq!(
@@ -150,7 +150,7 @@ fn an_offered_project_is_read_only_until_changes_are_allowed() {
     let output = run(&config_arguments(&config), &input);
 
     let replies = responses(&output);
-    assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 22);
+    assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 23);
     assert_eq!(replies[2]["result"]["isError"], true);
     assert_eq!(tool_result(&replies[2])["error"]["kind"], "writeDisabled");
     assert_eq!(tree_snapshot(&root), before);

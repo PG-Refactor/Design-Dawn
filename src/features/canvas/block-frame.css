@@ -100,3 +100,62 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* The display size buttons of a Markdown or Mermaid block: a small bar in the top-right
+   corner, there only while the pointer is on the block or it is selected, so they never
+   cover the content otherwise. Sized in world units like the grip, so they keep their
+   proportion to the block at every zoom. */
+.block-display {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 1;
+  display: none;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-subtle);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.block-frame:hover .block-display,
+.block-frame--selected .block-display,
+.block-display:focus-within {
+  display: inline-flex;
+}
+
+.block-display__button {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border: none;
+  border-radius: var(--radius-medium);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.block-display__button:hover:not(:disabled) {
+  background: var(--color-hover);
+}
+
+.block-display__button:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.block-display__percent {
+  min-width: 40px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* "Auto" switched on: marked by a filled background and its pressed state, not colour alone. */
+.block-display__auto[aria-pressed="true"] {
+  background: var(--color-selection);
+  box-shadow: inset 0 -2px 0 var(--color-accent);
+}

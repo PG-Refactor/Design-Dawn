@@ -15,6 +15,8 @@ import { EXPORT_MESSAGES } from "./export-messages";
 // jsdom does not load an iframe's srcdoc: the page measurement is given.
 vi.mock("./print-frame", () => ({
   measurePrintPage: async () => ({ blocks: 1, overflowing: 0 }),
+  // No layout in jsdom: the page is used as built.
+  fitExportPage: async (html: string) => html,
 }));
 
 const MESSAGES = EXPORT_MESSAGES.ja;

@@ -3,6 +3,7 @@ import {
   MERMAID_EDITOR_FALLBACK_VIEW,
   MERMAID_EDITOR_INITIAL_VIEW,
 } from "../../config/mermaid-gui-config";
+import { blockDisplayOf } from "../../domain/block/content-scale";
 import { analyzeDiagramSource } from "../../domain/diagram/diagram-source";
 import type { BlockRendererProps } from "../canvas/block-renderer";
 import { shortBlockId } from "../canvas/canvas-messages";
@@ -29,6 +30,7 @@ export function MermaidBlock({
   documentId,
   sheetId,
   block,
+  onFittedScale,
 }: BlockRendererProps) {
   const messages = useMessages().mermaid;
   const { blockId } = block;
@@ -126,6 +128,8 @@ export function MermaidBlock({
       debounced={false}
       showEditHint
       onRenderFailed={reportRenderFailure}
+      display={blockDisplayOf(block)}
+      onFittedScale={onFittedScale}
     />
   );
 }

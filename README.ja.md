@@ -158,7 +158,7 @@ AI ツールの MCP サーバーの追加方法で登録してください（Cla
 
 **権限**: 一覧の Project は、編集を許可するまで AI からは読み取り専用です。横の **AIによる編集を許可** にチェックを入れるか、AI に `setWriteAccess` を呼ばせます。`addProject`・`setWriteAccess` と各変更は、読み取り以外のほかのツールと同じく、AI ツール側（Claude Code の許可の確認など）であなたが承認します。一覧はアプリの設定フォルダの `ai-access.json` に保存し（Project の中には置きません）、アプリと MCP サーバーで共有します。AI が変えた内容は画面と **AIの変更履歴** に表示されます。画面から Project を一覧から外すこともできます。
 
-- **ツール**: `listProjects`、`selectProject`、`addProject`、`setWriteAccess`、`getProject`、`getDocument`、`getSheet`、`getBlock`、`searchProject`、`exportMarkdown`、`listTemplates`。編集できる Project では、さらに `createDocument`、`createSheet`、`createBlock`（Markdown / Mermaid）、`createFromTemplate`、`updateDocument`、`updateSheet`、`updateBlock`、`moveBlock`、`updateBlockCaption`（Mermaid / 画像ブロックのキャプション）、`deleteBlock`、`importImage`（このパソコンの画像ファイルを画像ブロックとして追加）。
+- **ツール**: `listProjects`、`selectProject`、`addProject`、`setWriteAccess`、`getProject`、`getDocument`、`getSheet`、`getBlock`、`searchProject`、`exportMarkdown`、`listTemplates`。編集できる Project では、さらに `createDocument`、`createSheet`、`createBlock`（Markdown / Mermaid）、`createFromTemplate`、`updateDocument`、`updateSheet`、`updateBlock`、`moveBlock`、`updateBlockDisplay`（Markdown / Mermaid の表示サイズ、ブロックに合わせる）、`updateBlockCaption`（Mermaid / 画像ブロックのキャプション）、`deleteBlock`、`importImage`（このパソコンの画像ファイルを画像ブロックとして追加）。
 - Block の本文を変えるときは、AI が `getBlock` で読んだ `contentHash` を `expectedContentHash` として渡します。その間に本文が変わっていれば `conflict` が返ります。
 - Document・Sheet・Project の削除、コマンドの実行、Git の操作、ネットワーク接続はできません。アプリがその Project を開いていれば、変更はすぐに表示されます。
 

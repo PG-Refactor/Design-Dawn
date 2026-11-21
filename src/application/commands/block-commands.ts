@@ -3,6 +3,10 @@ import {
   type FigureCaption,
   figureCaptionOf,
 } from "../../domain/block/caption";
+import {
+  type BlockDisplay,
+  blockDisplayOf,
+} from "../../domain/block/content-scale";
 import { type DomainResult, err, ok } from "../../domain/shared/domain-result";
 import type { BlockId, SheetId } from "../../domain/shared/entity-id";
 import type { Position, Size } from "../../domain/shared/geometry";
@@ -15,6 +19,7 @@ import {
   sendBlocksBackward,
   sendBlocksToBack,
   setBlockCaption,
+  setBlockDisplay,
   setBlockFrames,
 } from "../../domain/sheet/sheet";
 import type { MetadataCommand } from "./command";
@@ -187,6 +192,49 @@ export function setBlockCaptionCommand(
         previous === null
           ? commandNotApplied()
           : setBlockCaption(sheet, blockId, previous.caption),
+      ),
+  };
+}
+
+// How a Block showed its content before the first run, kept so undo puts exactly that back.
+export interface DisplayRestore {
+  readonly display: BlockDisplay;
+}
+
+export function setBlockDisplayCommand(
+  sheetId: SheetId,
+  blockId: BlockId,
+  display: BlockDisplay,
+  restored: DisplayRestore | null = null,
+): MetadataCommand {
+  let previous: DisplayRestore | null = restored;
+  return {
+    category: "metadata",
+    kind: COMMAND_KINDS.setBlockDisplay,
+    snapshot: () => ({
+      kind: COMMAND_KINDS.setBlockDisplay,
+      sheetId,
+      blockId,
+      display,
+      previous,
+    }),
+    apply: (state) =>
+      updateSheet(state, sheetId, (sheet) => {
+        const next = setBlockDisplay(sheet, blockId, display);
+        if (next.ok && next.value !== sheet && previous === null) {
+          const block = sheet.blocks.find(
+            (candidate) => candidate.blockId === blockId,
+          );
+          if (block !== undefined)
+            previous = { display: blockDisplayOf(block) };
+        }
+        return next;
+      }),
+    revert: (state) =>
+      updateSheet(state, sheetId, (sheet) =>
+        previous === null
+          ? commandNotApplied()
+          : setBlockDisplay(sheet, blockId, previous.display),
       ),
   };
 }

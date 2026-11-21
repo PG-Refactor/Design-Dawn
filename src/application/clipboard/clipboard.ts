@@ -3,12 +3,13 @@
 
 import type { CaptionFields } from "../../domain/block/caption";
 import type { ContentPath } from "../../domain/block/content-path";
+import type { DisplayStoredFields } from "../../domain/block/content-scale";
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
 import type { Size } from "../../domain/shared/geometry";
 import type { AssetBlockType, TextBlockType } from "../commands/command";
 
-// A figure's caption (and its place) goes with its copy.
-interface ClipboardBlockBase extends CaptionFields {
+// A figure's caption (and its place) and a block's display size go with its copy.
+interface ClipboardBlockBase extends CaptionFields, DisplayStoredFields {
   readonly size: Size;
   // Relative to the top-left corner of the copied group's bounding box.
   readonly offset: { readonly x: number; readonly y: number };

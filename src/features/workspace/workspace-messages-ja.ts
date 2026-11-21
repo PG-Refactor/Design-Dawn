@@ -57,6 +57,7 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   editBlockContent:
     "Blockの本文の編集を確定できませんでした（編集内容は画面に残っています）",
   setBlockCaption: "キャプションを変更できませんでした",
+  setBlockDisplay: "表示サイズを変更できませんでした",
   editDiagram: "図の編集を適用できませんでした（ソースは変更されていません）",
   loadBlockContents: "Blockの本文を読み込めませんでした",
   undo: "元に戻せませんでした",
@@ -91,6 +92,8 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
   invalidFolderName:
     'フォルダ名に使えない文字が含まれています（/ \\ : * ? " < > | や末尾の「.」・空白、CON等の予約名は使えません）。',
   invalidCaption: "キャプションは1行・500文字までで入力してください。",
+  invalidContentScale:
+    "表示サイズは 25%〜400% で、Markdown と Mermaid のブロックだけに設定できます。",
   invalidPosition: "位置の値が正しくありません。",
   invalidSize: "サイズの値が正しくありません。",
   unsupportedBlockType: "未対応のBlock種別です。",

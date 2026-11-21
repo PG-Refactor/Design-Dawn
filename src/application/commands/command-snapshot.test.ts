@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseCaption } from "../../domain/block/caption";
+import { steppedScalePercent } from "../../domain/block/content-scale";
 import {
   blockIdOf,
   displayName,
@@ -15,6 +16,7 @@ import {
   reorderBlocksCommand,
   resizeBlocksCommand,
   setBlockCaptionCommand,
+  setBlockDisplayCommand,
 } from "./block-commands";
 import { COMMAND_KINDS } from "./command-kind";
 
@@ -89,6 +91,14 @@ const COMMANDS: readonly (readonly [string, () => MetadataCommand])[] = [
       setBlockCaptionCommand(SHEET_ID, FIRST, {
         text: unwrapCaption(parseCaption("Figure 1: flow")),
         position: "above",
+      }),
+  ],
+  [
+    "setBlockDisplay",
+    () =>
+      setBlockDisplayCommand(SHEET_ID, FIRST, {
+        scalePercent: steppedScalePercent(140, 1),
+        autoFit: true,
       }),
   ],
   [

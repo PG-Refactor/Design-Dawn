@@ -14,6 +14,10 @@ import type { Block } from "../../domain/block/block";
 import { BLOCK_TYPE_DEFINITIONS } from "../../domain/block/block-type";
 import { DEFAULT_CAPTION_POSITION } from "../../domain/block/caption";
 import { parseContentPath } from "../../domain/block/content-path";
+import {
+  blockDisplayOf,
+  isScalableBlockType,
+} from "../../domain/block/content-scale";
 import type {
   DocumentId,
   ProjectId,
@@ -84,6 +88,9 @@ async function exportBlock(
           text: block.caption,
           position: block.captionPosition ?? DEFAULT_CAPTION_POSITION,
         };
+  const display = isScalableBlockType(block.blockType)
+    ? blockDisplayOf(block)
+    : undefined;
   const withCaption = (
     content: ExportBlock["content"],
     natural?: { readonly width: number; readonly height: number },
@@ -92,6 +99,7 @@ async function exportBlock(
     content,
     ...(caption === undefined ? {} : { caption }),
     ...(natural === undefined ? {} : { natural }),
+    ...(display === undefined ? {} : { display }),
   });
   switch (block.blockType) {
     case BLOCK_TYPE_DEFINITIONS.markdown.identifier: {

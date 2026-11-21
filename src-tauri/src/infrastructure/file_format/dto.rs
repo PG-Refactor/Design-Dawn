@@ -76,6 +76,13 @@ pub struct BlockDto {
     /// `"above"` or `"below"`; absent means below.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub caption_position: Option<String>,
+    /// The content's display size in percent (Markdown and Mermaid); absent means 100.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content_scale_percent: Option<Number>,
+    /// Fit the content to the Block; absent means the type's default (Mermaid yes,
+    /// Markdown no).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auto_fit: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -255,6 +262,12 @@ impl BlockDto {
             content_path: self.content_path.clone(),
             caption: self.caption.clone(),
             caption_position: self.caption_position.clone(),
+            // A fractional or huge value is outside every bound, so it is refused.
+            content_scale_percent: self
+                .content_scale_percent
+                .as_ref()
+                .map(|number| number.as_i64().unwrap_or(i64::MIN)),
+            auto_fit: self.auto_fit,
         }
     }
 
@@ -279,6 +292,10 @@ impl BlockDto {
             caption_position: block
                 .caption_position()
                 .map(|position| position.as_str().to_owned()),
+            content_scale_percent: block
+                .content_scale()
+                .map(|scale| Number::from(scale.percent())),
+            auto_fit: block.auto_fit(),
         }
     }
 }
@@ -472,6 +489,30 @@ mod caption_tests {
             dto.to_domain().unwrap_err().kind,
             DomainErrorKind::InvalidCaption
         );
+    }
+
+    #[test]
+    fn a_display_size_goes_through_the_domain_and_back_and_is_checked() {
+        let dto: SheetDto = serde_json::from_value(sheet_with(
+            json!({"contentScalePercent": 150, "autoFit": true}),
+        ))
+        .unwrap();
+        let sheet = dto.to_domain().unwrap();
+        let written = serde_json::to_value(SheetDto::from_domain(&sheet)).unwrap();
+        assert_eq!(written["blocks"][0]["contentScalePercent"], 150);
+        assert_eq!(written["blocks"][0]["autoFit"], true);
+        for bad in [json!(24), json!(401), json!(1.5)] {
+            let dto: SheetDto =
+                serde_json::from_value(sheet_with(json!({ "contentScalePercent": bad }))).unwrap();
+            assert_eq!(
+                dto.to_domain().unwrap_err().kind,
+                DomainErrorKind::InvalidContentScale
+            );
+        }
+        let plain: SheetDto = serde_json::from_value(sheet_with(json!({}))).unwrap();
+        let written = serde_json::to_value(plain).unwrap();
+        assert!(written["blocks"][0].get("contentScalePercent").is_none());
+        assert!(written["blocks"][0].get("autoFit").is_none());
     }
 
     #[test]

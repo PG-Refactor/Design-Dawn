@@ -25,7 +25,8 @@ use super::sheet_operations::{create_sheet, delete_sheet, save_sheet};
 use super::snapshot::{DocumentSnapshot, ProjectSnapshot, SheetSnapshot};
 use crate::domain::block_type::BlockType;
 use crate::domain::caption::{Caption, CaptionPosition};
-use crate::domain::constants::CURRENT_FOLDER_SCHEMA_VERSION;
+use crate::domain::constants::{CONTENT_SCALE_DEFAULT_PERCENT, CURRENT_FOLDER_SCHEMA_VERSION};
+use crate::domain::content_scale::{check_scalable, default_auto_fit, ContentScale};
 use crate::domain::display_name::DisplayName;
 use crate::domain::entity_id::{BlockId, DocumentId};
 use crate::domain::error::{DomainError, DomainErrorKind};
@@ -316,6 +317,8 @@ fn block_dto(
         content_path,
         caption: None,
         caption_position: None,
+        content_scale_percent: None,
+        auto_fit: None,
     }
 }
 
@@ -498,6 +501,44 @@ pub fn set_block_caption(
                     (position != CaptionPosition::Below).then(|| position.as_str().to_owned());
             }
         }
+    }
+    changed.to_domain()?;
+    save_sheet(sessions, project_id, document_id, &changed)?;
+    Ok(changed
+        .blocks
+        .into_iter()
+        .find(|block| block.block_id == target)
+        .expect("the block was found above"))
+}
+
+/// Sets how a Markdown or Mermaid Block shows its content: `content_scale_percent` and
+/// `auto_fit` are the values to have (None leaves one as it is). What equals the default
+/// (100 percent; the type's own fitting) is written as nothing, as the app does.
+pub fn set_block_display(
+    sessions: &mut ProjectSessions,
+    project_id: &str,
+    document_id: &str,
+    sheet: &SheetDto,
+    block_id: &str,
+    content_scale_percent: Option<i64>,
+    auto_fit: Option<bool>,
+) -> AuthoringResult<BlockDto> {
+    let target = find_block(sheet, block_id)?.block_id.clone();
+    let mut changed = sheet.clone();
+    let block = changed
+        .blocks
+        .iter_mut()
+        .find(|block| block.block_id == target)
+        .expect("find_block just found this block in the same sheet");
+    let block_type = BlockType::parse(&block.block_type)?;
+    check_scalable(block_type)?;
+    if let Some(percent) = content_scale_percent {
+        ContentScale::new(percent)?;
+        block.content_scale_percent =
+            (percent != CONTENT_SCALE_DEFAULT_PERCENT).then(|| Number::from(percent));
+    }
+    if let Some(fit) = auto_fit {
+        block.auto_fit = (fit != default_auto_fit(block_type)).then_some(fit);
     }
     changed.to_domain()?;
     save_sheet(sessions, project_id, document_id, &changed)?;

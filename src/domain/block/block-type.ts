@@ -2,10 +2,28 @@ import { type DomainResult, err, ok } from "../shared/domain-result";
 
 // BlockType definition table. Add a row here to introduce a new block type; do not
 // branch on identifiers elsewhere. File extensions and directories live in Rust only.
+// `scalable`: the content has a display size (−/+ and fitting to the Block);
+// `fitsByDefault`: it is fitted to the Block when the file says nothing (a diagram cannot
+// wrap, text can). Mirrors `content_scale.rs`.
 export const BLOCK_TYPE_DEFINITIONS = {
-  markdown: { identifier: "markdown", contentKind: "text" },
-  mermaid: { identifier: "mermaid", contentKind: "text" },
-  image: { identifier: "image", contentKind: "asset" },
+  markdown: {
+    identifier: "markdown",
+    contentKind: "text",
+    scalable: true,
+    fitsByDefault: false,
+  },
+  mermaid: {
+    identifier: "mermaid",
+    contentKind: "text",
+    scalable: true,
+    fitsByDefault: true,
+  },
+  image: {
+    identifier: "image",
+    contentKind: "asset",
+    scalable: false,
+    fitsByDefault: false,
+  },
 } as const;
 
 export type BlockType =

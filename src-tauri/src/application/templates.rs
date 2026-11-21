@@ -151,6 +151,12 @@ pub struct TemplateBlockFile {
     pub caption: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub caption_position: Option<String>,
+    /// The Block's display size in percent, as in its sheet.json (absent: 100).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content_scale_percent: Option<i64>,
+    /// Fit the content to the Block, as in its sheet.json (absent: the type's default).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auto_fit: Option<bool>,
     /// The text file (`.md` / `.mmd`) or the image under `assets/`, relative to the
     /// template folder.
     pub file: String,
@@ -198,6 +204,12 @@ pub struct TemplateBlockContent {
     pub caption: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub caption_position: Option<String>,
+    /// The Block's display size in percent, as in its sheet.json (absent: 100).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content_scale_percent: Option<i64>,
+    /// Fit the content to the Block, as in its sheet.json (absent: the type's default).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auto_fit: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -402,6 +414,8 @@ fn read_block(folder: &Path, block: &TemplateBlockFile) -> ApplicationResult<Tem
         height: block.height,
         caption: block.caption.clone(),
         caption_position: block.caption_position.clone(),
+        content_scale_percent: block.content_scale_percent,
+        auto_fit: block.auto_fit,
         text: None,
         asset: None,
     };
@@ -540,6 +554,8 @@ fn stage_block(
         height: block.height,
         caption: block.caption.clone(),
         caption_position: block.caption_position.clone(),
+        content_scale_percent: block.content_scale_percent,
+        auto_fit: block.auto_fit,
         file,
     })
 }

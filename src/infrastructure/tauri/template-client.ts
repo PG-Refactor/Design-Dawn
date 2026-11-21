@@ -22,6 +22,7 @@ import { call } from "./invoke-command";
 import {
   arrayOf,
   type Decoder,
+  decodeBoolean,
   decodeNumber,
   decodeString,
   nullable,
@@ -60,6 +61,8 @@ const block = objectOf<TemplateBlockContent>({
   height: decodeNumber,
   caption: optional(decodeString),
   captionPosition: optional(decodeString),
+  contentScalePercent: optional(decodeNumber),
+  autoFit: optional(decodeBoolean),
   text: optional(decodeString),
   asset: optional(decodeString),
 });

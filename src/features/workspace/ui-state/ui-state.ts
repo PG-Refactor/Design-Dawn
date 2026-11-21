@@ -269,6 +269,7 @@ export const OPERATION_LABELS = [
   "renderDiagram",
   "editBlockContent",
   "setBlockCaption",
+  "setBlockDisplay",
   "editDiagram",
   "loadBlockContents",
   "undo",

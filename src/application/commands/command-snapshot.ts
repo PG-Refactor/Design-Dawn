@@ -4,17 +4,20 @@
 // and `commandFromSnapshot` rebuilds an equivalent command.
 
 import type { FigureCaption } from "../../domain/block/caption";
+import type { BlockDisplay } from "../../domain/block/content-scale";
 import type { DisplayName } from "../../domain/shared/display-name";
 import type { BlockId, SheetId } from "../../domain/shared/entity-id";
 import {
   type BlockFrame,
   type BlockMove,
   type CaptionRestore,
+  type DisplayRestore,
   moveBlocksCommand,
   type ReorderDirection,
   reorderBlocksCommand,
   resizeBlocksCommand,
   setBlockCaptionCommand,
+  setBlockDisplayCommand,
 } from "./block-commands";
 import type { MetadataCommand } from "./command";
 import { COMMAND_KINDS } from "./command-kind";
@@ -75,6 +78,13 @@ export type MetadataCommandSnapshot =
       readonly previous: CaptionRestore | null;
     }
   | {
+      readonly kind: typeof COMMAND_KINDS.setBlockDisplay;
+      readonly sheetId: SheetId;
+      readonly blockId: BlockId;
+      readonly display: BlockDisplay;
+      readonly previous: DisplayRestore | null;
+    }
+  | {
       readonly kind: typeof COMMAND_KINDS.editBlockContent;
       readonly sheetId: SheetId;
       readonly blockId: BlockId;
@@ -124,6 +134,13 @@ export function commandFromSnapshot(
         snapshot.sheetId,
         snapshot.blockId,
         snapshot.caption,
+        snapshot.previous,
+      );
+    case COMMAND_KINDS.setBlockDisplay:
+      return setBlockDisplayCommand(
+        snapshot.sheetId,
+        snapshot.blockId,
+        snapshot.display,
         snapshot.previous,
       );
     case COMMAND_KINDS.editBlockContent:

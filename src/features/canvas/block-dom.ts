@@ -10,8 +10,11 @@ export const BLOCK_BODY_ATTRIBUTE = "data-block-body";
 // Marks the inline editor of a block. Pointer, wheel and keyboard events that start inside
 // it belong to the editor, never to the canvas gestures and shortcuts.
 export const BLOCK_EDITOR_ATTRIBUTE = "data-block-editor";
+// Marks a block's own small controls (the display size buttons): like the editor, what
+// starts there is theirs, not a canvas drag, selection or double-click.
+export const BLOCK_CONTROLS_ATTRIBUTE = "data-block-controls";
 
-const BLOCK_EDITOR_SELECTOR = `[${BLOCK_EDITOR_ATTRIBUTE}]`;
+const BLOCK_EDITOR_SELECTOR = `[${BLOCK_EDITOR_ATTRIBUTE}], [${BLOCK_CONTROLS_ATTRIBUTE}]`;
 
 export function isInsideBlockEditor(target: EventTarget | null): boolean {
   return (
