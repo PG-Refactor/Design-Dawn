@@ -440,3 +440,43 @@ describe("file drop", () => {
     ]).toHaveLength(screen.getAllByRole("option").length);
   });
 });
+
+describe("Original Size", () => {
+  it("resizes the block to its picture's own size from the block menu, one undo step", async () => {
+    const { shell, canvas } = await renderWithImages();
+    const picture = imageOf(blockOption(PHOTO_INDEX));
+    // jsdom loads no picture: its own size is given here.
+    Object.defineProperty(picture, "naturalWidth", { value: 320 });
+    Object.defineProperty(picture, "naturalHeight", { value: 180 });
+    fireEvent.contextMenu(blockOption(PHOTO_INDEX), {
+      clientX: 1,
+      clientY: 1,
+      button: 2,
+    });
+    const menu = screen.getByRole("menu");
+    await shell.user.click(
+      within(menu).getByRole("menuitem", { name: "元の大きさに戻す" }),
+    );
+    await act(settle);
+    const block = sheetA1Blocks(shell).find(
+      (candidate) => candidate.blockId === blockIdOf(PHOTO_COUNTER),
+    );
+    expect(block?.size).toEqual({ width: 320, height: 180 });
+    expect(block?.position).toEqual({ x: 400, y: 300 });
+    expect(await canvas.undoDepth()).toBe(1);
+  });
+
+  it("is offered on image blocks only", async () => {
+    await renderWithImages();
+    fireEvent.contextMenu(blockOption(0), {
+      clientX: 1,
+      clientY: 1,
+      button: 2,
+    });
+    expect(
+      within(screen.getByRole("menu")).queryByRole("menuitem", {
+        name: "元の大きさに戻す",
+      }),
+    ).toBeNull();
+  });
+});

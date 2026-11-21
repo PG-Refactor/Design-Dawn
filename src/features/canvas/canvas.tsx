@@ -78,7 +78,10 @@ import {
 } from "./canvas-keyboard";
 import { routePointerDown } from "./canvas-pointer-routing";
 import { CaptionDialog } from "./caption-dialog";
-import { measureFittedBlockSize } from "./fit-block-size";
+import {
+  measureFittedBlockSize,
+  measureOriginalImageBlockSize,
+} from "./fit-block-size";
 import { displayedFrame, isInteracting } from "./geometry/preview-frame";
 import { normalizeRect } from "./geometry/range-selection";
 import {
@@ -513,6 +516,27 @@ export function Canvas({ documentId, sheetId, sheetName }: CanvasProps) {
             ? {
                 fitToContent: () => {
                   const size = measureFittedBlockSize(onlyBlock.blockId);
+                  if (size === null) return;
+                  void canvasActions.commitResize({
+                    documentId,
+                    sheetId,
+                    blockId: onlyBlock.blockId,
+                    frame: {
+                      x: onlyBlock.position.x,
+                      y: onlyBlock.position.y,
+                      ...size,
+                    },
+                  });
+                },
+              }
+            : {}),
+          ...(selectedIds.length === 1 &&
+          onlyBlock !== undefined &&
+          onlyBlock.blockType === BLOCK_TYPE_DEFINITIONS.image.identifier
+            ? {
+                // The picture at its own pixel size; one Undo step like a resize.
+                originalSize: () => {
+                  const size = measureOriginalImageBlockSize(onlyBlock.blockId);
                   if (size === null) return;
                   void canvasActions.commitResize({
                     documentId,
