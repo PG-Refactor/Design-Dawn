@@ -348,7 +348,12 @@ export interface EditingBlock {
 // lives here; the draft text is local to the input and reaches the application only when
 // the rename is committed.
 export type RenamingTarget =
-  | { readonly kind: "document"; readonly documentId: DocumentId }
+  | {
+      readonly kind: "document";
+      readonly documentId: DocumentId;
+      // Renamed in its tab rather than in the tree (only one of the two shows the input).
+      readonly inTab?: boolean;
+    }
   | { readonly kind: "folder"; readonly folderId: FolderId }
   | {
       readonly kind: "sheet";
@@ -729,7 +734,11 @@ export function sameRenamingTarget(
     return second.kind === "folder" && first.folderId === second.folderId;
   }
   if (first.kind === "document") {
-    return second.kind === "document" && first.documentId === second.documentId;
+    return (
+      second.kind === "document" &&
+      first.documentId === second.documentId &&
+      (first.inTab ?? false) === (second.inTab ?? false)
+    );
   }
   return (
     second.kind === "sheet" &&

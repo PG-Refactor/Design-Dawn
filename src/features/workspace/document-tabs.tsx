@@ -17,8 +17,14 @@ import { openUnusedAssets } from "../unused-assets/unused-assets-dialog";
 import { focusFallbackElement } from "./focus-utils";
 import { documentPanelId, documentTabId } from "./tab-ids";
 import { DocumentIcon } from "./tree-icons";
+import { TreeRenameInput } from "./tree-rename-input";
 import { activateCompareTab, closeCompareTab } from "./ui-state/diff-tabs";
-import type { CompareTab, DiffTab, GitSelection } from "./ui-state/ui-state";
+import {
+  type CompareTab,
+  type DiffTab,
+  type GitSelection,
+  sameRenamingTarget,
+} from "./ui-state/ui-state";
 import { useMessages } from "./use-messages";
 import { useProjectWindows } from "./use-project-windows";
 import { useTabDrag } from "./use-tab-drag";
@@ -33,6 +39,19 @@ import { type DocumentTab, selectDocumentTabs } from "./view-models/tabs-model";
 import { useUiState, useWorkspaceModel } from "./workspace-hooks";
 import { useWorkspaceServices } from "./workspace-services-context";
 import "./tabs.css";
+
+const RENAME_KEY = "F2";
+const TAB_KEY = "Tab";
+const PAGE_DOWN_KEY = "PageDown";
+const PAGE_UP_KEY = "PageUp";
+
+// Which way Ctrl + a key moves along the tabs (null: not a tab switch).
+export function tabCycleStep(key: string, shift: boolean): 1 | -1 | null {
+  if (key === TAB_KEY) return shift ? -1 : 1;
+  if (key === PAGE_DOWN_KEY && !shift) return 1;
+  if (key === PAGE_UP_KEY && !shift) return -1;
+  return null;
+}
 
 const SAVE_STATUS_ICON = {
   saved: "",
@@ -91,6 +110,7 @@ export function DocumentTabs() {
   const diffTabs = useUiState((ui) => ui.diffTabs);
   const activeMainTab = useUiState((ui) => ui.activeMainTab);
   const activeDocumentId = useUiState((ui) => ui.activeDocumentId);
+  const renaming = useUiState((ui) => ui.renaming);
   const compareTab = useUiState((ui) => ui.compareTab);
   const tabElements = useRef(new Map<string, HTMLButtonElement>());
   // Set after a tab was closed (the neighbour that became active gets focus, because the
@@ -150,7 +170,25 @@ export function DocumentTabs() {
   const strip = useTabStripScroll(
     `${activeMainTab.kind}/${activeDocumentId ?? ""}/${activeMainTab.kind === "diff" ? activeMainTab.path : ""}/${entries.length}`,
   );
-  if (entries.length === 0) return null;
+  // Ctrl+Tab / Ctrl+PageDown: the next tab; with Shift / PageUp the previous one; round
+  // from one end to the other. Anywhere in the window, also while typing, as in browsers
+  // and editors. The handler reads this render's tabs through the ref.
+  const cycle = useRef<((step: 1 | -1) => void) | null>(null);
+  useEffect(() => {
+    function onKeyDown(event: globalThis.KeyboardEvent): void {
+      if (!event.ctrlKey || event.altKey || event.metaKey) return;
+      const step = tabCycleStep(event.key, event.shiftKey);
+      if (step === null || cycle.current === null) return;
+      event.preventDefault();
+      cycle.current(step);
+    }
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, []);
+  if (entries.length === 0) {
+    cycle.current = null;
+    return null;
+  }
 
   const activeIndex = entries.findIndex((entry) =>
     entry.kind === "compare"
@@ -170,6 +208,12 @@ export function DocumentTabs() {
     else activateDiff(services, entry.tab);
   }
 
+  cycle.current = (step) => {
+    const from = activeIndex < 0 ? 0 : activeIndex;
+    const next = entries[(from + step + entries.length) % entries.length];
+    if (next !== undefined) activate(next);
+  };
+
   function registerElement(key: string) {
     return (element: HTMLButtonElement | null): void => {
       if (element === null) tabElements.current.delete(key);
@@ -183,6 +227,12 @@ export function DocumentTabs() {
   ): void {
     const entry = entries[index];
     if (entry === undefined) return;
+    // F2 renames the Document in its tab, as on a sheet tab.
+    if (event.key === RENAME_KEY && entry.kind === "document") {
+      event.preventDefault();
+      void actions.beginRenameDocument(entry.tab.documentId, true);
+      return;
+    }
     // Ctrl/Cmd+Arrow moves a Document tab by one place; plain arrows keep moving focus.
     // Nothing happens at the ends, nor on a diff tab (they are not reorderable).
     if (
@@ -361,6 +411,11 @@ export function DocumentTabs() {
           );
         }
         const { tab } = entry;
+        const isRenaming = sameRenamingTarget(renaming, {
+          kind: "document",
+          documentId: tab.documentId,
+          inTab: true,
+        });
         const pointerHandlers = drag.handlersFor(tab.documentId);
         const dragState = drag.dragState;
         return (
@@ -380,7 +435,11 @@ export function DocumentTabs() {
             ]
               .filter((name) => name !== "")
               .join(" ")}
-            onContextMenu={(event) => openTabMenu(event, tab)}
+            onContextMenu={(event) => {
+              // The rename input keeps the webview's text menu.
+              if (isRenaming) return;
+              openTabMenu(event, tab);
+            }}
           >
             <button
               ref={registerElement(documentKey(tab.documentId))}
@@ -392,7 +451,9 @@ export function DocumentTabs() {
                 tab.isActive ? documentPanelId(tab.documentId) : undefined
               }
               tabIndex={isTabStop ? 0 : -1}
-              className="tab__select"
+              className={
+                isRenaming ? "tab__select tab__select--hidden" : "tab__select"
+              }
               onClick={() => {
                 if (drag.consumeClickSuppression()) return;
                 void actions.openDocument(tab.documentId);
@@ -400,6 +461,9 @@ export function DocumentTabs() {
                 // active Document, so the tree is told directly.
                 actions.revealDocumentInTree(tab.documentId);
               }}
+              onDoubleClick={() =>
+                void actions.beginRenameDocument(tab.documentId, true)
+              }
               onKeyDown={(event) => handleKeyDown(event, index)}
               {...pointerHandlers}
             >
@@ -409,6 +473,17 @@ export function DocumentTabs() {
               <span className="tab__name">{tab.name}</span>
               <SaveStatusIndicator tab={tab} />
             </button>
+            {isRenaming ? (
+              <TreeRenameInput
+                initialName={tab.name}
+                label={messages.renameInputLabel(tab.name)}
+                onSubmit={(name) => void actions.commitRename(name)}
+                onCancel={actions.cancelRename}
+                restoreFocus={() =>
+                  tabElements.current.get(documentKey(tab.documentId))?.focus()
+                }
+              />
+            ) : null}
             {tab.saveStatus === "error" ? (
               <button
                 type="button"
