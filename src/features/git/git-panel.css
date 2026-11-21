@@ -263,9 +263,20 @@
   color: var(--color-text);
 }
 
+/* One line: a long name or folder shrinks with "…" and the status letter stays at the right
+   end (a row wrapped, so its letter went down a line). Only a row with a conflict note
+   wraps, to put the note under it. */
 .git-file-row {
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   padding: 0 var(--space-1) 0 var(--space-4);
+}
+
+.git-file-row:has(.git-file-row__note) {
+  flex-wrap: wrap;
+}
+
+.git-file-row .git-file-row__kind {
+  margin-left: auto;
 }
 
 .git-file-row--selected {
