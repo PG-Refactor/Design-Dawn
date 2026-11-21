@@ -1,6 +1,7 @@
 import type { Block } from "../../domain/block/block";
 import {
   blockDisplayOf,
+  keptScalePercent,
   steppedScalePercent,
 } from "../../domain/block/content-scale";
 import {
@@ -105,8 +106,13 @@ export function BlockDisplayControls({
         aria-pressed={display.autoFit}
         aria-label={messages.autoFit}
         title={messages.autoFit}
+        // Leaving "fit" keeps the size it shows now, so the content does not jump.
         onClick={() =>
-          set({ scalePercent: display.scalePercent, autoFit: !display.autoFit })
+          set(
+            display.autoFit
+              ? { scalePercent: keptScalePercent(shown), autoFit: false }
+              : { scalePercent: display.scalePercent, autoFit: true },
+          )
         }
       >
         {messages.autoFitText}

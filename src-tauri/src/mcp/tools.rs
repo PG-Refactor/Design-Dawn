@@ -35,6 +35,8 @@ use crate::domain::constants::{
 };
 use crate::infrastructure::file_format::constants::PROJECT_FILE_NAME;
 
+/// A ratio as a percent.
+const PERCENT_OF_ONE: f64 = 100.0;
 /// Under the app's local data, as the app keeps the user's own templates.
 const TEMPLATE_PROJECTS_DIRECTORY: &str = "projects";
 const TEMPLATE_GLOBAL_DIRECTORY: &str = "global";
@@ -44,7 +46,7 @@ const EXPORT_ASSETS_PREFIX: &str = "assets/";
 use crate::application::snapshot::EntityState;
 use crate::domain::block_type::BlockType;
 use crate::domain::caption::CaptionPosition;
-use crate::domain::content_scale::{check_scalable, default_auto_fit};
+use crate::domain::content_scale::{check_scalable, default_auto_fit, ContentScale};
 use crate::domain::entity_id::ProjectId;
 use crate::domain::error::DomainErrorKind;
 use crate::infrastructure::file_format::dto::{BlockDto, SheetDto};
@@ -735,6 +737,18 @@ project.json)",
                     "format": format,
                     "width": size.map(|(width, _)| width),
                     "height": size.map(|(_, height)| height),
+                    // How large the Block shows the picture against its own size (the
+                    // smaller of the two sides, as the picture fits the Block).
+                    "scalePercent": size.and_then(|(width, height)| {
+                        let block_width = block.size.width.as_f64()?;
+                        let block_height = block.size.height.as_f64()?;
+                        (width > 0 && height > 0).then(|| {
+                            ((block_width / f64::from(width))
+                                .min(block_height / f64::from(height))
+                                * PERCENT_OF_ONE)
+                                .round()
+                        })
+                    }),
                 },
             })
         } else {
@@ -1204,6 +1218,17 @@ project.json)",
         let mut workspace = self.workspace()?;
         let document = workspace.load_document(arguments.string("documentId")?)?;
         let sheet = find_sheet(&document, arguments.string("sheetId")?)?;
+        if find_block(sheet, arguments.string("blockId")?)?.block_type == BlockType::Image.as_str()
+        {
+            return self.scale_image_block(
+                &mut workspace,
+                &document.document.document_id,
+                sheet,
+                arguments,
+                percent,
+                auto_fit,
+            );
+        }
         let changed = set_block_display(
             &mut workspace.sessions,
             &workspace.project_id,
@@ -1219,6 +1244,76 @@ project.json)",
             .position(|candidate| candidate.block_id == changed.block_id)
             .unwrap_or_default();
         Ok(block_json(z_index, &changed))
+    }
+
+    /// An image Block has no display size of its own (its picture always fills it): its
+    /// Block is made `percent` of the picture's own size instead, keeping the picture's
+    /// proportions and its top-left corner.
+    fn scale_image_block(
+        &self,
+        workspace: &mut Workspace,
+        document_id: &str,
+        sheet: &SheetDto,
+        arguments: &Arguments,
+        percent: Option<i64>,
+        auto_fit: Option<bool>,
+    ) -> Result<Value, ToolError> {
+        if auto_fit.is_some() {
+            return Err(ToolError::invalid_arguments(
+                "an image Block always fits its picture to the Block; give \
+contentScalePercent (100 is the picture's own size) instead of autoFit",
+            ));
+        }
+        let Some(percent) = percent else {
+            return Err(ToolError::invalid_arguments(
+                "give contentScalePercent (100 is the picture's own size)",
+            ));
+        };
+        ContentScale::new(percent)?;
+        let block = find_block(sheet, arguments.string("blockId")?)?.clone();
+        let (width, height) = image_natural_size(
+            &mut workspace.sessions,
+            &workspace.project_id,
+            document_id,
+            &block,
+        )
+        .ok_or_else(|| {
+            ToolError::new(
+                DomainErrorKind::InvalidContentPath.as_str(),
+                "the picture of this image Block cannot be read, so its own size is not known",
+            )
+        })?;
+        let scaled = |side: u32| {
+            (i64::from(side) * percent + CONTENT_SCALE_DEFAULT_PERCENT / 2)
+                / CONTENT_SCALE_DEFAULT_PERCENT
+        };
+        let size = (
+            scaled(width).clamp(BLOCK_MIN_WIDTH, BLOCK_MAX_WIDTH),
+            scaled(height).clamp(BLOCK_MIN_HEIGHT, BLOCK_MAX_HEIGHT),
+        );
+        let position = (
+            block.position.x.as_i64().unwrap_or_default(),
+            block.position.y.as_i64().unwrap_or_default(),
+        );
+        let moved = move_block(
+            &mut workspace.sessions,
+            &workspace.project_id,
+            document_id,
+            sheet,
+            &block.block_id,
+            position,
+            Some(size),
+        )?;
+        let z_index = sheet
+            .blocks
+            .iter()
+            .position(|candidate| candidate.block_id == moved.block_id)
+            .unwrap_or_default();
+        let mut value = block_json(z_index, &moved);
+        if let Some(target) = value.as_object_mut() {
+            target.insert("imageScalePercent".to_owned(), json!(percent));
+        }
+        Ok(value)
     }
 
     fn update_block_caption(&self, arguments: &Arguments) -> Result<Value, ToolError> {

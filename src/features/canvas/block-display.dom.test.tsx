@@ -116,6 +116,8 @@ describe("block display size", () => {
     await rendered.shell.user.click(auto);
     await settle();
     expect(blockAt(rendered, 1)?.autoFit).toBe(false);
+    // The size it had while fitted is kept (none is worked out without layout: 100%).
+    expect(blockAt(rendered, 1)?.contentScalePercent).toBeUndefined();
     expect(auto.getAttribute("aria-pressed")).toBe("false");
     await rendered.shell.user.click(auto);
     await settle();

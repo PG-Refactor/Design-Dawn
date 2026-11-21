@@ -1,5 +1,6 @@
-import type { CSSProperties } from "react";
+import { type CSSProperties, useEffect } from "react";
 import { LAYOUT_CONFIG } from "../../config/layout-config";
+import { installThemedTitles } from "../../shared/hover-hint/themed-titles";
 import { useFileDrop } from "../canvas/use-file-drop";
 import { PrintingCloseDialog } from "../export/printing-close";
 import { ProjectBanner } from "../external-change/external-change-banner";
@@ -51,6 +52,8 @@ export function WorkspaceShell() {
   useGitAutoRefresh();
   useLongPathsNotice();
   useExternalChangeWatching();
+  // Explanations of controls in the theme's colours, for this window.
+  useEffect(() => installThemedTitles(), []);
   return (
     <div className="workspace-shell" style={SHELL_STYLE}>
       <TopBar />
