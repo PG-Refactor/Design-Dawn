@@ -49,14 +49,30 @@ describe("installThemedTitles", () => {
     );
   });
 
-  it("puts the title back when the pointer leaves", () => {
+  it("puts the title back when the pointer moves off it or leaves the window", () => {
     pointer("pointerover", button());
     vi.advanceTimersByTime(HINT.delayMs);
-    pointer("pointerout", button(), {
-      relatedTarget: document.querySelector("p"),
-    });
+    pointer("pointerover", document.querySelector("p") as Element);
     expect(hint()).toBeNull();
     expect(button().getAttribute("title")).toBe("Zoom in");
+    pointer("pointerover", button());
+    pointer("pointerout", button(), { relatedTarget: null });
+    expect(button().getAttribute("title")).toBe("Zoom in");
+  });
+
+  it("goes by what is under the pointer, not by the element holding the pointer", () => {
+    const paragraph = document.querySelector("p") as Element;
+    // jsdom does no layout and has no elementFromPoint: one is given here.
+    Object.defineProperty(document, "elementFromPoint", {
+      configurable: true,
+      value: () => button(),
+    });
+    // The events name another element (it holds the pointer); the button is under it.
+    pointer("pointermove", paragraph);
+    expect(button().hasAttribute("title")).toBe(false);
+    pointer("pointermove", paragraph);
+    expect(button().hasAttribute("title")).toBe(false);
+    Reflect.deleteProperty(document, "elementFromPoint");
   });
 
   it("hides on a click but keeps the title aside until the pointer leaves", () => {

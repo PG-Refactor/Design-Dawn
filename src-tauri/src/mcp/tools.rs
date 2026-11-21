@@ -567,11 +567,18 @@ project.json)",
             &document_id,
             &sheet,
             &image.content_path,
-            BlockGeometry {
-                x,
-                y,
-                width: i64::from(image.initial_width),
-                height: i64::from(image.initial_height),
+            {
+                // Never smaller (or larger) than the app lets a Block be.
+                let (width, height) = proportional_block_size(
+                    i64::from(image.initial_width),
+                    i64::from(image.initial_height),
+                );
+                BlockGeometry {
+                    x,
+                    y,
+                    width,
+                    height,
+                }
             },
         )?;
         if let Some(caption) = caption.filter(|caption| !caption.is_empty()) {
@@ -1287,10 +1294,7 @@ contentScalePercent (100 is the picture's own size) instead of autoFit",
             (i64::from(side) * percent + CONTENT_SCALE_DEFAULT_PERCENT / 2)
                 / CONTENT_SCALE_DEFAULT_PERCENT
         };
-        let size = (
-            scaled(width).clamp(BLOCK_MIN_WIDTH, BLOCK_MAX_WIDTH),
-            scaled(height).clamp(BLOCK_MIN_HEIGHT, BLOCK_MAX_HEIGHT),
-        );
+        let size = proportional_block_size(scaled(width), scaled(height));
         let position = (
             block.position.x.as_i64().unwrap_or_default(),
             block.position.y.as_i64().unwrap_or_default(),
@@ -1417,6 +1421,23 @@ listProjects and selectProject",
     )
 }
 
+/// A picture's size as a Block size the app allows: scaled as a whole (keeping its
+/// proportions) when it is too large or too small, and only then cut to the bounds.
+fn proportional_block_size(width: i64, height: i64) -> (i64, i64) {
+    let (width_f, height_f) = (width.max(1) as f64, height.max(1) as f64);
+    let shrink = (BLOCK_MAX_WIDTH as f64 / width_f)
+        .min(BLOCK_MAX_HEIGHT as f64 / height_f)
+        .min(1.0);
+    let grow = (BLOCK_MIN_WIDTH as f64 / width_f)
+        .max(BLOCK_MIN_HEIGHT as f64 / height_f)
+        .max(1.0);
+    let factor = if shrink < 1.0 { shrink } else { grow };
+    (
+        ((width_f * factor).round() as i64).clamp(BLOCK_MIN_WIDTH, BLOCK_MAX_WIDTH),
+        ((height_f * factor).round() as i64).clamp(BLOCK_MIN_HEIGHT, BLOCK_MAX_HEIGHT),
+    )
+}
+
 /// The template a `createFromTemplate` call reads its images from.
 struct TemplateSource<'a> {
     roots: &'a TemplateRoots,
@@ -1439,4 +1460,21 @@ fn rewritten_image_paths(text: &str, images: &BTreeMap<String, String>) -> Strin
                 content_path,
             )
         })
+}
+
+#[cfg(test)]
+mod proportional_size_tests {
+    use super::*;
+
+    #[test]
+    fn a_picture_outside_the_bounds_keeps_its_proportions() {
+        // Too wide: scaled down as a whole.
+        assert_eq!(proportional_block_size(12_000, 300), (10_000, 250));
+        // Too small: scaled up as a whole until it is a Block the app allows.
+        assert_eq!(proportional_block_size(10, 10), (48, 48));
+        // Inside the bounds: as it is.
+        assert_eq!(proportional_block_size(640, 480), (640, 480));
+        // So thin that no scaling fits both bounds: the long side is cut.
+        assert_eq!(proportional_block_size(20_000, 10).1, BLOCK_MIN_HEIGHT);
+    }
 }

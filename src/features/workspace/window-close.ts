@@ -15,6 +15,9 @@ export interface WindowCloseDependencies {
   // Auto-save off with unsaved changes: the user is asked before anything happens.
   readonly needsConfirmation: () => boolean;
   readonly askUnsavedClose: () => Promise<UnsavedCloseChoice>;
+  // Resolves once the screen has been drawn again: after an answer the question goes away
+  // on screen before the window does (otherwise it stays in the window's last picture).
+  readonly afterRepaint?: () => Promise<void>;
   // Print windows of this window: asked about first (stop printing and close?), and
   // closed before anything else happens.
   readonly printing?: {
@@ -69,6 +72,7 @@ export function createWindowCloseHandler(
       closeRequestSource,
       needsConfirmation,
       askUnsavedClose,
+      afterRepaint,
       printing,
       templateEdit,
     } = getDependencies();
@@ -91,6 +95,7 @@ export function createWindowCloseHandler(
             release();
             return;
           }
+          await afterRepaint?.();
           if (answer === "save" && !(await templateEdit.save()).ok) {
             release();
             return;
@@ -106,6 +111,7 @@ export function createWindowCloseHandler(
       const asks = needsConfirmation();
       if (asks) await closeRequestSource.bringForward();
       const choice = asks ? await askUnsavedClose() : "save";
+      if (asks && choice !== "cancel") await afterRepaint?.();
       if (choice === "cancel") {
         // Reset, so a later close request asks again.
         release();

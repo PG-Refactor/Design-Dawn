@@ -119,19 +119,19 @@ export function GitConflictDialog({
       <div className="modal__actions">
         <button
           type="button"
-          className="button"
-          onClick={onClose}
-          disabled={busy}
-        >
-          {texts.cancel}
-        </button>
-        <button
-          type="button"
           className="button button--primary"
           disabled={busy || versions === null}
           onClick={() => void resolve(text)}
         >
           {texts.resolve}
+        </button>
+        <button
+          type="button"
+          className="button"
+          onClick={onClose}
+          disabled={busy}
+        >
+          {texts.cancel}
         </button>
       </div>
     </Modal>

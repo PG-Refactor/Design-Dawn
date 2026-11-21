@@ -36,6 +36,10 @@
   flex-direction: column;
   padding: var(--space-2);
   overflow: auto;
+  /* The room of the vertical scrollbar is always kept: a long Git list or tree that brings
+     it must not take width from the Project / Search / Git tabs (the narrowest panel is
+     measured to fit them). */
+  scrollbar-gutter: stable;
   background: var(--color-surface);
 }
 

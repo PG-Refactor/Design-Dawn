@@ -466,6 +466,28 @@ describe("Original Size", () => {
     expect(await canvas.undoDepth()).toBe(1);
   });
 
+  it("keeps the picture's proportions when it is too large for a block", async () => {
+    const { shell } = await renderWithImages();
+    const picture = imageOf(blockOption(PHOTO_INDEX));
+    Object.defineProperty(picture, "naturalWidth", { value: 12000 });
+    Object.defineProperty(picture, "naturalHeight", { value: 300 });
+    fireEvent.contextMenu(blockOption(PHOTO_INDEX), {
+      clientX: 1,
+      clientY: 1,
+      button: 2,
+    });
+    await shell.user.click(
+      within(screen.getByRole("menu")).getByRole("menuitem", {
+        name: "元の大きさに戻す",
+      }),
+    );
+    await act(settle);
+    const block = sheetA1Blocks(shell).find(
+      (candidate) => candidate.blockId === blockIdOf(PHOTO_COUNTER),
+    );
+    expect(block?.size).toEqual({ width: 10000, height: 250 });
+  });
+
   it("is offered on image blocks only", async () => {
     await renderWithImages();
     fireEvent.contextMenu(blockOption(0), {

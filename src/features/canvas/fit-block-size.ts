@@ -150,8 +150,28 @@ export function measureOriginalImageBlockSize(blockId: string): Extent | null {
   }
   const innerWidth = area.clientWidth - horizontalPadding(area);
   const innerHeight = area.clientHeight - verticalPadding(area);
+  const around = {
+    width: frame.offsetWidth - innerWidth,
+    height: frame.offsetHeight - innerHeight,
+  };
+  // A picture too large or too small for a block is scaled as a whole, so it keeps its
+  // proportions; only what still does not fit is cut to the bounds.
+  const { minSize, maxSize } = CANVAS_CONFIG.block;
+  const width = picture.naturalWidth;
+  const height = picture.naturalHeight;
+  const shrink = Math.min(
+    1,
+    (maxSize.width - around.width) / width,
+    (maxSize.height - around.height) / height,
+  );
+  const grow = Math.max(
+    1,
+    (minSize.width - around.width) / width,
+    (minSize.height - around.height) / height,
+  );
+  const factor = shrink < 1 ? shrink : grow;
   return clampToBounds({
-    width: frame.offsetWidth - innerWidth + picture.naturalWidth,
-    height: frame.offsetHeight - innerHeight + picture.naturalHeight,
+    width: around.width + width * factor,
+    height: around.height + height * factor,
   });
 }

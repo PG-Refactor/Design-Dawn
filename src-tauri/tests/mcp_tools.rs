@@ -1529,14 +1529,13 @@ fn an_image_block_is_sized_against_its_pictures_own_size() {
         block_arguments(IMAGE_BLOCK_ID, json!({ "contentScalePercent": percent })),
     )
     .ok();
-    assert_eq!(
-        set["size"]["width"],
-        scaled(width, percent).clamp(BLOCK_MIN_WIDTH, 10_000)
-    );
-    assert_eq!(
-        set["size"]["height"],
-        scaled(height, percent).clamp(BLOCK_MIN_HEIGHT, 10_000)
-    );
+    // That percent of the picture, scaled as a whole into what a Block may be (the fixture's
+    // picture is tiny): its proportions stay.
+    let block_width = set["size"]["width"].as_i64().unwrap();
+    let block_height = set["size"]["height"].as_i64().unwrap();
+    assert!(block_width >= scaled(width, percent).min(10_000));
+    assert!(block_width >= BLOCK_MIN_WIDTH && block_height >= BLOCK_MIN_HEIGHT);
+    assert_eq!(block_width * height, block_height * width);
     assert_eq!(set["imageScalePercent"], percent);
     // The place stays; the file keeps no display size for an image.
     assert_eq!(set["position"], image["position"]);
