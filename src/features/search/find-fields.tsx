@@ -1,4 +1,5 @@
 import { type KeyboardEvent, type ReactNode, type Ref, useId } from "react";
+import { GlyphIcon } from "../../shared/icons/glyph-icon";
 import type { FindFields } from "./find-store";
 import "./find-fields.css";
 
@@ -62,9 +63,9 @@ export function FindFieldsView({
         aria-controls={replaceRowId}
         onClick={() => onChange({ replaceShown: !fields.replaceShown })}
       >
-        <span aria-hidden="true" className="find-fields__icon">
-          {fields.replaceShown ? "▾" : "▸"}
-        </span>
+        <GlyphIcon
+          glyph={fields.replaceShown ? "chevronDown" : "chevronRight"}
+        />
       </button>
       <div className="find-fields__rows">
         <div className="find-fields__row">

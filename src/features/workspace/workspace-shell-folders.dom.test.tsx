@@ -400,8 +400,9 @@ describe("moving to another place", () => {
         row.getAttribute("aria-disabled"),
       ]),
     ).toEqual([
-      [`▾${MOVE.projectRoot}`, "1", "true"],
-      ["▾Folder 1", "2", null],
+      // The open / closed mark is a shape now, not text.
+      [MOVE.projectRoot, "1", "true"],
+      ["Folder 1", "2", null],
       ["Folder 2", "3", null],
     ]);
     expect(rows[0]?.getAttribute("title")).toBe(MOVE.currentParentHint);

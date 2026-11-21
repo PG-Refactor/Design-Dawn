@@ -1,4 +1,5 @@
 import { type KeyboardEvent, useId } from "react";
+import { GlyphIcon } from "../../shared/icons/glyph-icon";
 import { COMPARE_PANEL_ID, COMPARE_TAB_ID } from "../workspace/tab-ids";
 import type { CompareTab } from "../workspace/ui-state/ui-state";
 import { useMessages } from "../workspace/use-messages";
@@ -72,9 +73,7 @@ export function ExternalCompareTabItem({
         aria-label={texts.compareClose}
         onClick={onClose}
       >
-        <span aria-hidden="true">
-          {messages.workspace.tabs.closeButtonText}
-        </span>
+        <GlyphIcon glyph="close" />
       </button>
     </div>
   );

@@ -21,10 +21,13 @@ export function parseProjectTreeWidth(value: number): LocalStateResult<number> {
 }
 
 // Rounds first so a pointer position such as 300.4 becomes a storable width.
+// `minWidthPxLimit`: a larger lower bound right now (what the panel's own header needs).
 export function clampProjectTreeWidth(
   value: number,
   maxWidthPxLimit: number = maxWidthPx,
+  minWidthPxLimit: number = minWidthPx,
 ): number {
-  const upper = Math.max(minWidthPx, Math.min(maxWidthPx, maxWidthPxLimit));
-  return Math.min(upper, Math.max(minWidthPx, Math.round(value)));
+  const lower = Math.min(maxWidthPx, Math.max(minWidthPx, minWidthPxLimit));
+  const upper = Math.max(lower, Math.min(maxWidthPx, maxWidthPxLimit));
+  return Math.min(upper, Math.max(lower, Math.round(value)));
 }

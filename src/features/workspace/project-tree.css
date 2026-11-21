@@ -73,10 +73,17 @@
 
 /* A fixed width, so a document's icon lines up with a folder's even without a marker. */
 .tree-item__folder-marker {
+  display: inline-flex;
   flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
   width: 0.75em;
   color: var(--color-text-muted);
-  text-align: center;
+}
+
+.tree-item__folder-marker .glyph-icon {
+  width: 0.75em;
+  height: 0.75em;
 }
 
 .tree-item__icon {

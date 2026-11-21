@@ -17,6 +17,7 @@ import {
   type DocumentId,
   parseDocumentId,
 } from "../../domain/shared/entity-id";
+import { GlyphIcon } from "../../shared/icons/glyph-icon";
 import {
   clampViewport,
   panBy,
@@ -322,7 +323,7 @@ export function GitSheetVisualDiff({
           title={messages.zoomOut}
           onClick={() => zoomBy(1 / BUTTON_ZOOM_FACTOR)}
         >
-          −
+          <GlyphIcon glyph="minus" />
         </button>
         <button
           type="button"
@@ -331,7 +332,7 @@ export function GitSheetVisualDiff({
           title={messages.zoomIn}
           onClick={() => zoomBy(BUTTON_ZOOM_FACTOR)}
         >
-          +
+          <GlyphIcon glyph="plus" />
         </button>
         <button type="button" className="button" onClick={fitAll}>
           {messages.fit}

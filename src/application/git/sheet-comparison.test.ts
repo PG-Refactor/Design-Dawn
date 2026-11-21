@@ -67,6 +67,15 @@ describe("compareSheetVersions", () => {
     });
   });
 
+  it("marks only the Block brought to the front, not the ones it passed", () => {
+    const before = version([block(1), block(2), block(3), block(4)], {});
+    const after = version([block(2), block(3), block(4), block(1)], {});
+    const changed = compareSheetVersions(before, after).changes.map(
+      (change) => change.blockId,
+    );
+    expect(changed).toEqual([ID(1)]);
+  });
+
   it("sees display, caption and stacking order changes", () => {
     const before = version([block(1), block(2)], {});
     const after = version(
@@ -74,10 +83,11 @@ describe("compareSheetVersions", () => {
       {},
     );
     const changes = compareSheetVersions(before, after).changes;
+    // Two Blocks that swap places: one of them is the one that moved in the order.
     expect(changes.find((change) => change.blockId === ID(1))).toMatchObject({
       display: true,
-      order: true,
     });
+    expect(changes.filter((change) => change.order)).toHaveLength(1);
   });
 
   it("treats a whole Sheet as added or removed when one side has none", () => {

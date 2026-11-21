@@ -1,6 +1,7 @@
-import { type CSSProperties, useRef, useState } from "react";
+import { type CSSProperties, useLayoutEffect, useRef, useState } from "react";
 import type { LayoutSettingsState } from "../../application/settings/layout-settings-controller";
 import { LAYOUT_CONFIG } from "../../config/layout-config";
+import { GlyphIcon } from "../../shared/icons/glyph-icon";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { ExternalComparePanel } from "../external-change/external-compare-panel";
 import { GitDiffPanel } from "../git/git-diff-panel";
@@ -12,10 +13,14 @@ import { useMessages } from "./use-messages";
 import { useUiState, useWorkspaceModel } from "./workspace-hooks";
 import { useWorkspaceServices } from "./workspace-services-context";
 
-const { defaultWidthPx, maxWidthPx } = LAYOUT_CONFIG.projectTree;
+const { defaultWidthPx, maxWidthPx, minWidthPx } = LAYOUT_CONFIG.projectTree;
 const { documentAreaMinWidthPx, splitterWidthPx } = LAYOUT_CONFIG;
 
 // The CSS reads the widths from custom properties so the numbers live in the config only.
+const SIDEBAR_SELECTOR = ".workspace-shell__sidebar";
+const LEFT_PANEL_TABS_SELECTOR = ".left-panel-tabs";
+const identity = <T,>(value: T): T => value;
+
 type LayoutStyle = CSSProperties & Record<`--${string}`, string>;
 
 const selectProjectTreeWidth = (state: LayoutSettingsState) =>
@@ -25,8 +30,13 @@ const selectProjectTreeWidth = (state: LayoutSettingsState) =>
 // settings; while the user drags, a local live width is shown and stored only at the end.
 export function WorkspaceBody() {
   const messages = useMessages().workspace;
-  const { layoutSettingsController, actions, templateEditor } =
-    useWorkspaceServices();
+  const {
+    layoutSettingsController,
+    actions,
+    templateEditor,
+    textSizeController,
+    languageController,
+  } = useWorkspaceServices();
   // A window that edits a Custom Template shows the template alone: no tree.
   const editingTemplate = useStoreSelector(
     templateEditor.store,
@@ -69,6 +79,46 @@ export function WorkspaceBody() {
     }
   }
 
+  // What the panel's header (the Project / Search / Git tabs and the fold button) needs to
+  // show the tabs without scrolling: the panel's width, less the room the tab list has, plus
+  // what its tabs take. Not less than the configured minimum.
+  function measureMinWidth(): number {
+    const sidebar =
+      bodyRef.current?.querySelector<HTMLElement>(SIDEBAR_SELECTOR);
+    const tabs = sidebar?.querySelector<HTMLElement>(LEFT_PANEL_TABS_SELECTOR);
+    const first = tabs?.firstElementChild;
+    const last = tabs?.lastElementChild;
+    if (
+      sidebar === null ||
+      sidebar === undefined ||
+      tabs === null ||
+      tabs === undefined ||
+      !(first instanceof HTMLElement) ||
+      !(last instanceof HTMLElement)
+    ) {
+      return minWidthPx;
+    }
+    const tabsWidth =
+      last.getBoundingClientRect().right - first.getBoundingClientRect().left;
+    const needed =
+      sidebar.getBoundingClientRect().width -
+      tabs.getBoundingClientRect().width +
+      tabsWidth;
+    return Math.max(minWidthPx, Math.ceil(needed));
+  }
+
+  // The header needs more room with larger text or another language: a narrower stored
+  // width is shown at that size (and not stored until the user moves the splitter).
+  const textSize = useStoreSelector(textSizeController.store, identity);
+  const language = useStoreSelector(languageController.store, identity);
+  const [headerMinWidth, setHeaderMinWidth] = useState<number>(minWidthPx);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: measured again when what decides the tabs' width changes.
+  useLayoutEffect(() => {
+    if (sidebarCollapsed || documentsOnly) return;
+    setHeaderMinWidth(measureMinWidth());
+  }, [textSize, language, sidebarCollapsed, documentsOnly]);
+  const shownWidth = Math.max(width, headerMinWidth);
+
   function measureMaxWidth(): number {
     const containerWidth = bodyRef.current?.getBoundingClientRect().width ?? 0;
     // An unmeasurable container (not laid out) must not collapse the limit to zero.
@@ -80,7 +130,7 @@ export function WorkspaceBody() {
   }
 
   const style: LayoutStyle = {
-    "--project-tree-width": `${width}px`,
+    "--project-tree-width": `${shownWidth}px`,
     "--document-area-min-width": `${documentAreaMinWidthPx}px`,
     "--splitter-width": `${splitterWidthPx}px`,
   };
@@ -109,7 +159,7 @@ export function WorkspaceBody() {
             title={messages.leftPanel.expandSidebar}
             onClick={() => actions.setSidebarCollapsed(false)}
           >
-            {messages.leftPanel.expandSidebarButtonText}
+            <GlyphIcon glyph="doubleChevronRight" />
           </button>
         </div>
       ) : (
@@ -121,8 +171,9 @@ export function WorkspaceBody() {
             <Sidebar />
           </aside>
           <ProjectTreeSplitter
-            width={width}
+            width={shownWidth}
             measureMaxWidth={measureMaxWidth}
+            measureMinWidth={measureMinWidth}
             onPreview={setLiveWidth}
             onCommit={(next) => void commit(next)}
             onCancel={() => setLiveWidth(null)}

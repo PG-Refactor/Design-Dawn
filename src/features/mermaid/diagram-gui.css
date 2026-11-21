@@ -308,8 +308,11 @@
 }
 
 .diagram-gui__disclosure-marker {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 1em;
+  vertical-align: middle;
 }
 
 .diagram-gui__disclosure-body {

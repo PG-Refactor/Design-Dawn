@@ -61,10 +61,11 @@ describe("close confirmation with auto-save off", () => {
     const buttons = within(dialog)
       .getAllByRole("button")
       .map((button) => [button.textContent, button.className]);
+    // As in Windows: Save, Don't Save, Cancel.
     expect(buttons).toEqual([
-      [MESSAGES.dialogs.cancel, "button"],
-      [TEXTS.discard, "button button--danger"],
       [TEXTS.save, "button button--primary"],
+      [TEXTS.discard, "button button--danger"],
+      [MESSAGES.dialogs.cancel, "button"],
     ]);
   });
 

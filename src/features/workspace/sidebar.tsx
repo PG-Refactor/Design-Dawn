@@ -1,4 +1,5 @@
 import { type KeyboardEvent, useRef } from "react";
+import { GlyphIcon } from "../../shared/icons/glyph-icon";
 import { GitPanel } from "../git/git-panel";
 import { SearchPanel } from "../search/search-panel";
 import { ProjectTree } from "./project-tree";
@@ -85,7 +86,7 @@ export function Sidebar() {
           title={messages.leftPanel.collapseSidebar}
           onClick={() => actions.setSidebarCollapsed(true)}
         >
-          {messages.leftPanel.collapseSidebarButtonText}
+          <GlyphIcon glyph="doubleChevronLeft" />
         </button>
       </div>
       <div

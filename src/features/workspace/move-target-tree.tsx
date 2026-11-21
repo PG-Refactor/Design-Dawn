@@ -7,6 +7,7 @@ import {
   useId,
   useRef,
 } from "react";
+import { GlyphIcon } from "../../shared/icons/glyph-icon";
 import { TreeRenameInput } from "./tree-rename-input";
 import { useMessages } from "./use-messages";
 import {
@@ -213,11 +214,11 @@ export function MoveTargetTree({
                 className={`tree-item__folder-marker ${FOLD_MARKER_CLASS}`}
                 aria-hidden="true"
               >
-                {row.hasChildFolders
-                  ? expanded
-                    ? messages.tree.folderExpandedMarker
-                    : messages.tree.folderCollapsedMarker
-                  : ""}
+                {row.hasChildFolders ? (
+                  <GlyphIcon
+                    glyph={expanded ? "chevronDown" : "chevronRight"}
+                  />
+                ) : null}
               </span>
               <span id={`${idPrefix}-${row.key}`} className="tree-item__label">
                 {rowName(row)}

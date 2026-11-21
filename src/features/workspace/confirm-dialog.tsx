@@ -64,15 +64,15 @@ export function ConfirmDialog({
           </ul>
         )}
       </div>
+      {/* As in Windows: the answer first, then the other answer, Cancel last. */}
       <div className="modal__actions">
         <button
-          ref={cancelRef}
           type="button"
-          className="button"
+          className={`button button--${confirmVariant}`}
           disabled={busy}
-          onClick={onCancel}
+          onClick={onConfirm}
         >
-          {cancelLabel}
+          {confirmLabel}
         </button>
         {alternative === undefined ? null : (
           <button
@@ -85,12 +85,13 @@ export function ConfirmDialog({
           </button>
         )}
         <button
+          ref={cancelRef}
           type="button"
-          className={`button button--${confirmVariant}`}
+          className="button"
           disabled={busy}
-          onClick={onConfirm}
+          onClick={onCancel}
         >
-          {confirmLabel}
+          {cancelLabel}
         </button>
       </div>
     </Modal>

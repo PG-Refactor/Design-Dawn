@@ -14,6 +14,7 @@ interface DragState {
   readonly startWidth: number;
   // Measured once per drag: the window cannot change size under a captured pointer.
   readonly maxWidth: number;
+  readonly minWidth: number;
   latestWidth: number;
 }
 
@@ -23,6 +24,9 @@ export interface ProjectTreeSplitterProps {
   // Upper limit right now: the configured maximum, reduced so the document area keeps
   // its minimum width.
   readonly measureMaxWidth: () => number;
+  // Lower limit right now: the configured minimum, raised so the panel's Project / Search /
+  // Git tabs fit without scrolling.
+  readonly measureMinWidth: () => number;
   // Live width while the pointer moves; nothing is stored yet.
   readonly onPreview: (width: number) => void;
   // A finished gesture or key press: the caller stores the width.
@@ -38,6 +42,7 @@ export interface ProjectTreeSplitterProps {
 export function ProjectTreeSplitter({
   width,
   measureMaxWidth,
+  measureMinWidth,
   onPreview,
   onCommit,
   onCancel,
@@ -60,6 +65,7 @@ export function ProjectTreeSplitter({
       startClientX: event.clientX,
       startWidth: width,
       maxWidth: measureMaxWidth(),
+      minWidth: measureMinWidth(),
       latestWidth: width,
     };
   }
@@ -70,6 +76,7 @@ export function ProjectTreeSplitter({
     const next = clampProjectTreeWidth(
       drag.startWidth + event.clientX - drag.startClientX,
       drag.maxWidth,
+      drag.minWidth,
     );
     if (next === drag.latestWidth) return;
     drag.latestWidth = next;
@@ -105,7 +112,7 @@ export function ProjectTreeSplitter({
         next = width + step;
         break;
       case "Home":
-        next = minWidthPx;
+        next = measureMinWidth();
         break;
       case "End":
         next = maxWidthPx;
@@ -114,7 +121,7 @@ export function ProjectTreeSplitter({
         return;
     }
     event.preventDefault();
-    onCommit(clampProjectTreeWidth(next, measureMaxWidth()));
+    onCommit(clampProjectTreeWidth(next, measureMaxWidth(), measureMinWidth()));
   }
 
   return (

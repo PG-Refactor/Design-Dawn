@@ -9,6 +9,7 @@ import {
   CONTENT_SCALE_MIN_PERCENT,
 } from "../../domain/domain-constants";
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
+import { GlyphIcon } from "../../shared/icons/glyph-icon";
 import { useMessages } from "../workspace/use-messages";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import { BLOCK_CONTROLS_ATTRIBUTE } from "./block-dom";
@@ -70,7 +71,7 @@ export function BlockDisplayControls({
         disabled={!display.autoFit && shown <= CONTENT_SCALE_MIN_PERCENT}
         onClick={() => step(-1)}
       >
-        {messages.smallerText}
+        <GlyphIcon glyph="minus" />
       </button>
       <button
         type="button"
@@ -96,7 +97,7 @@ export function BlockDisplayControls({
         disabled={!display.autoFit && shown >= CONTENT_SCALE_MAX_PERCENT}
         onClick={() => step(1)}
       >
-        {messages.largerText}
+        <GlyphIcon glyph="plus" />
       </button>
       <button
         type="button"

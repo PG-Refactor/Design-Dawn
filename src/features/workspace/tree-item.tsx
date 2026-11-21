@@ -35,7 +35,7 @@ export interface TreeItemProps {
   readonly level?: number;
   // A decorative glyph before the name (the fold state of a folder). Not part of the
   // accessible name, which `aria-expanded` already covers.
-  readonly leadingMarker?: string;
+  readonly leadingMarker?: ReactNode;
   // Tells folders from documents at a glance. Decorative, like the marker; with an icon
   // the marker's place is kept even when there is no marker, so the icons line up.
   readonly icon?: ReactNode;

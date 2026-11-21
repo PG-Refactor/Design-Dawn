@@ -57,15 +57,52 @@ function sameDisplay(first: Block, second: Block): boolean {
   return a.scalePercent === b.scalePercent && a.autoFit === b.autoFit;
 }
 
-// The ids of the Blocks both versions have, in each version's stacking order: a Block has
-// changed place in the order when it is at another index among those.
-function sharedOrder(
-  blocks: readonly Block[],
+// The Blocks whose place in the stacking order changed: of the Blocks both versions have,
+// the fewest that, moved, turn the earlier order into the later one. The others keep their
+// order (the longest run of them in the same order), so bringing one Block to the front
+// marks that Block only, not every Block it passed.
+function reordered(
+  beforeBlocks: readonly Block[],
+  afterBlocks: readonly Block[],
   shared: ReadonlySet<BlockId>,
-): readonly BlockId[] {
-  return blocks
+): ReadonlySet<BlockId> {
+  const beforeIndex = new Map(
+    beforeBlocks
+      .filter((block) => shared.has(block.blockId))
+      .map((block, index) => [block.blockId, index]),
+  );
+  const order = afterBlocks
     .filter((block) => shared.has(block.blockId))
-    .map((block) => block.blockId);
+    .map((block) => ({
+      blockId: block.blockId,
+      index: beforeIndex.get(block.blockId) ?? 0,
+    }));
+  // Longest increasing run of earlier indices (patience sorting, with back links).
+  const tails: number[] = [];
+  const previous: number[] = new Array(order.length).fill(-1);
+  for (let position = 0; position < order.length; position += 1) {
+    const value = order[position]?.index ?? 0;
+    let low = 0;
+    let high = tails.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      const tail = tails[middle] ?? 0;
+      if ((order[tail]?.index ?? 0) < value) low = middle + 1;
+      else high = middle;
+    }
+    if (low > 0) previous[position] = tails[low - 1] ?? -1;
+    tails[low] = position;
+  }
+  const kept = new Set<BlockId>();
+  let position = tails[tails.length - 1] ?? -1;
+  while (position >= 0) {
+    const entry = order[position];
+    if (entry !== undefined) kept.add(entry.blockId);
+    position = previous[position] ?? -1;
+  }
+  return new Set(
+    order.map((entry) => entry.blockId).filter((blockId) => !kept.has(blockId)),
+  );
 }
 
 export function compareSheetVersions(
@@ -83,8 +120,7 @@ export function compareSheetVersions(
       .map((block) => block.blockId)
       .filter((blockId) => beforeById.has(blockId)),
   );
-  const beforeOrder = sharedOrder(beforeBlocks, shared);
-  const afterOrder = sharedOrder(afterBlocks, shared);
+  const movedInOrder = reordered(beforeBlocks, afterBlocks, shared);
   const changes: BlockChange[] = [];
   for (const block of afterBlocks) {
     const earlier = beforeById.get(block.blockId);
@@ -106,9 +142,7 @@ export function compareSheetVersions(
       caption:
         earlier.caption !== block.caption ||
         earlier.captionPosition !== block.captionPosition,
-      order:
-        beforeOrder.indexOf(block.blockId) !==
-        afterOrder.indexOf(block.blockId),
+      order: movedInOrder.has(block.blockId),
     };
     if (Object.values(change).some(Boolean)) {
       changes.push({ blockId: block.blockId, kind: "changed", ...change });

@@ -42,13 +42,15 @@ function CloseDialog() {
         {messages.closeEditTitle}
       </h2>
       <p>{messages.closeEditQuestion}</p>
+      {/* As in Windows (and the app's other close questions): Save, Don't Save, Cancel. */}
       <div className="modal__actions">
         <button
+          ref={saveRef}
           type="button"
-          className="button"
-          onClick={() => answer("cancel")}
+          className="button button--primary"
+          onClick={() => answer("save")}
         >
-          {messages.cancel}
+          {messages.saveAndClose}
         </button>
         <button
           type="button"
@@ -58,12 +60,11 @@ function CloseDialog() {
           {messages.closeWithoutSaving}
         </button>
         <button
-          ref={saveRef}
           type="button"
-          className="button button--primary"
-          onClick={() => answer("save")}
+          className="button"
+          onClick={() => answer("cancel")}
         >
-          {messages.saveAndClose}
+          {messages.cancel}
         </button>
       </div>
     </Modal>

@@ -2241,10 +2241,12 @@ pub fn project_window_at<R: Runtime>(
 /// The most of a Project name the window title shows; the rest is cut (the title bar has
 /// no room for more, and a name is at most a display name anyway).
 const TITLE_PROJECT_NAME_MAX_CHARS: usize = 120;
+/// Between the Project's name and the app name in the title.
+const TITLE_SEPARATOR: &str = " - ";
 
-/// The window title: the app name, followed by the Project's name in parentheses when the
-/// window has one ("Design Dawn (Order Service)"). Control characters never reach the title
-/// bar.
+/// The window title: the Project's name first, then the app name ("Order Service - Design
+/// Dawn"), so a taskbar button that cuts the title still shows which Project it is; only the
+/// app name without a Project. Control characters never reach the title bar.
 pub fn window_title(project_name: Option<&str>) -> String {
     let name: String = project_name
         .unwrap_or_default()
@@ -2256,7 +2258,7 @@ pub fn window_title(project_name: Option<&str>) -> String {
     if name.is_empty() {
         crate::config::APP_NAME.to_owned()
     } else {
-        format!("{} ({name})", crate::config::APP_NAME)
+        format!("{name}{TITLE_SEPARATOR}{}", crate::config::APP_NAME)
     }
 }
 
