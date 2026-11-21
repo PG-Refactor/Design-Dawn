@@ -37,10 +37,18 @@ import {
   largestFitPage,
 } from "./export-html";
 import { gatherSheets } from "./gather-sheets";
+import { fitExportPage } from "./print-frame";
 import {
   createPrintSettingsStore,
   type PrintSettingsStore,
 } from "./print-settings";
+
+// The page with every text that is to fit its block sized (see `fitExportPage`).
+function buildFittedExportHtml(
+  input: Parameters<typeof buildExportHtml>[0],
+): Promise<string> {
+  return fitExportPage(buildExportHtml(input));
+}
 
 export interface DiagramExportInput {
   readonly renderer: MermaidRenderer;
@@ -224,7 +232,7 @@ export function createExportActions(
     if (!gathered.ok) return gathered;
     return {
       ok: true,
-      value: buildExportHtml({
+      value: await buildFittedExportHtml({
         title: input.title,
         sheets: gathered.value,
         palette: exportPalette(document.documentElement),
@@ -293,7 +301,7 @@ export function createExportActions(
       if (!sheets.ok) return sheets;
       const palette = exportPalette(globalThis.document.documentElement);
       if (input.format === "html") {
-        const page = buildExportHtml({
+        const page = await buildFittedExportHtml({
           title: document.name,
           sheets: sheets.value,
           palette,
@@ -308,7 +316,7 @@ export function createExportActions(
       }
       const pages = pdfPages(sheets.value);
       if (pages === null) return operationOk(null);
-      const page = buildExportHtml({
+      const page = await buildFittedExportHtml({
         title: document.name,
         sheets: sheets.value,
         palette,
@@ -440,7 +448,7 @@ export function createExportActions(
       if (!gathered.ok) return reported(gathered);
       const palette = exportPalette(globalThis.document.documentElement);
       if (format === "html") {
-        const page = buildExportHtml({
+        const page = await buildFittedExportHtml({
           title,
           sheets: gathered.value,
           palette,
@@ -458,7 +466,7 @@ export function createExportActions(
       if (pages === null) {
         return reported(operationErr("exportFailed", "there are no blocks"));
       }
-      const page = buildExportHtml({
+      const page = await buildFittedExportHtml({
         title,
         sheets: gathered.value,
         palette,

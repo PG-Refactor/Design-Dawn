@@ -1,9 +1,12 @@
-import { memo } from "react";
+import { memo, useCallback, useState } from "react";
 import type { Block } from "../../domain/block/block";
 import { figureCaptionOf } from "../../domain/block/caption";
+import { isScalableBlockType } from "../../domain/block/content-scale";
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
 import { useMessages } from "../workspace/use-messages";
+import { useUiState } from "../workspace/workspace-hooks";
 import { isCaptionableBlockType } from "./block-capabilities";
+import { BlockDisplayControls } from "./block-display-controls";
 import {
   BLOCK_BODY_ATTRIBUTE,
   BLOCK_ID_ATTRIBUTE,
@@ -41,6 +44,14 @@ export const BlockFrame = memo(function BlockFrame({
   height,
 }: BlockFrameProps) {
   const messages = useMessages().canvas;
+  const [fittedPercent, setFittedPercent] = useState<number | null>(null);
+  const onFittedScale = useCallback(
+    (percent: number) => setFittedPercent(percent),
+    [],
+  );
+  const editing = useUiState(
+    (ui) => ui.editingBlock?.blockId === block.blockId,
+  );
   const classNames = ["block-frame"];
   // A figure's caption: one line above or below it, inside the block's frame.
   const caption = isCaptionableBlockType(block.blockType)
@@ -67,8 +78,17 @@ export const BlockFrame = memo(function BlockFrame({
           documentId={documentId}
           sheetId={sheetId}
           block={block}
+          onFittedScale={onFittedScale}
         />
       </div>
+      {isScalableBlockType(block.blockType) && !editing ? (
+        <BlockDisplayControls
+          documentId={documentId}
+          sheetId={sheetId}
+          block={block}
+          fittedPercent={fittedPercent}
+        />
+      ) : null}
       {caption === null ? null : (
         <p
           className={`block-frame__caption block-frame__caption--${caption.position}`}

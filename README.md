@@ -220,7 +220,8 @@ removes a project from the list.
   `getDocument`, `getSheet`, `getBlock`, `searchProject`, `exportMarkdown`, `listTemplates`; for
   writable projects also `createDocument`, `createSheet`, `createBlock` (Markdown or Mermaid),
   `createFromTemplate`, `updateDocument`, `updateSheet`, `updateBlock`, `moveBlock`,
-  `updateBlockCaption` (the caption of a Mermaid or Image block), `deleteBlock`, `importImage`
+  `updateBlockDisplay` (the display size of a Markdown or Mermaid block, or fitting it to the
+  block), `updateBlockCaption` (the caption of a Mermaid or Image block), `deleteBlock`, `importImage`
   (an image file of this computer as an Image block).
 - To change a block's text, the AI reads it with `getBlock` and passes its `contentHash` as
   `expectedContentHash`; if the text changed in the meantime the call returns `conflict`.

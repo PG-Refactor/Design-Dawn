@@ -3,6 +3,7 @@ import {
   buildExportHtml,
   type ExportPalette,
   escapeHtml,
+  FIT_TEXT_ATTRIBUTE,
   largestFitPage,
 } from "./export-html";
 
@@ -56,6 +57,47 @@ describe("buildExportHtml", () => {
     expect(html).not.toContain("<script");
     // An empty sheet is left out.
     expect(html).not.toContain(">Empty<");
+  });
+
+  it("shows a block's chosen display size, and marks a text to fit for later", () => {
+    const html = buildExportHtml({
+      title: "Sizes",
+      sheets: [
+        {
+          name: "S",
+          blocks: [
+            {
+              rect: { x: 0, y: 0, width: 200, height: 100 },
+              content: { kind: "html" as const, html: "<p>big</p>" },
+              display: { scalePercent: 150, autoFit: false },
+            },
+            {
+              rect: { x: 300, y: 0, width: 200, height: 100 },
+              content: { kind: "html" as const, html: "<p>fit</p>" },
+              display: { scalePercent: 100, autoFit: true },
+            },
+            {
+              rect: { x: 600, y: 0, width: 200, height: 100 },
+              content: { kind: "image" as const, src: "data:,", alt: "" },
+              natural: { width: 80, height: 40 },
+              display: { scalePercent: 50, autoFit: false },
+            },
+            {
+              rect: { x: 900, y: 0, width: 200, height: 100 },
+              content: { kind: "image" as const, src: "data:,", alt: "" },
+              natural: { width: 80, height: 40 },
+              display: { scalePercent: 100, autoFit: true },
+            },
+          ],
+        },
+      ],
+      palette: PALETTE,
+      layout: { kind: "screen" },
+    });
+    expect(html).toContain('<div class="block__content" style="zoom:1.5">');
+    expect(html).toContain(`<div class="block__body" ${FIT_TEXT_ATTRIBUTE}>`);
+    expect(html).toContain('style="width:40px;height:20px"');
+    expect(html).toContain("block__body--image block__body--fit");
   });
 
   it("gives each sheet a page of its own size when fitting", () => {

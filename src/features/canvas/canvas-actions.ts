@@ -24,6 +24,7 @@ import {
   reorderBlocksCommand,
   resizeBlocksCommand,
   setBlockCaptionCommand,
+  setBlockDisplayCommand,
 } from "../../application/commands/block-commands";
 import type {
   ApplicationCommand,
@@ -74,6 +75,10 @@ import {
   parseCaptionPosition,
 } from "../../domain/block/caption";
 import type { ContentPath } from "../../domain/block/content-path";
+import {
+  type BlockDisplay,
+  parseContentScalePercent,
+} from "../../domain/block/content-scale";
 import type { DiagramOperation } from "../../domain/diagram/diagram-operation";
 import {
   formatTable,
@@ -159,6 +164,13 @@ export interface SetBlockCaptionInput {
   readonly blockId: BlockId;
   readonly text: string;
   readonly position: CaptionPosition;
+}
+
+export interface SetBlockDisplayInput {
+  readonly documentId: DocumentId;
+  readonly sheetId: SheetId;
+  readonly blockId: BlockId;
+  readonly display: BlockDisplay;
 }
 
 export interface CommitContentEditInput {
@@ -332,6 +344,9 @@ export interface CanvasActions {
   // Sets the caption of a figure (`text` is trimmed; empty removes the caption): one
   // history entry, none when it is unchanged. `invalidCaption` for a text that cannot be one.
   setBlockCaption(input: SetBlockCaptionInput): Promise<OperationResult<void>>;
+  // Sets how a Markdown or Mermaid block shows its content (−/+ / fit to the block): one
+  // history entry, none when it is unchanged.
+  setBlockDisplay(input: SetBlockDisplayInput): Promise<OperationResult<void>>;
   // Makes the edited text the block's text: one history entry, none when it is unchanged.
   commitContentEdit(
     input: CommitContentEditInput,
@@ -456,6 +471,8 @@ export interface TemplateBlockInput {
   // A text block's text, or an image block's asset in the Document.
   readonly text?: string;
   readonly contentPath?: ContentPath;
+  readonly contentScalePercent?: number;
+  readonly autoFit?: boolean;
   readonly caption?: string;
   readonly captionPosition?: string;
 }
@@ -1337,6 +1354,12 @@ export function createCanvasActions(
             ...captionFields,
           });
         } else if (block.text !== undefined && block.blockType !== "image") {
+          // A display size the template's file says (a bad one is left out, like a bad
+          // caption): the block starts as it was saved.
+          const scale =
+            block.contentScalePercent === undefined
+              ? null
+              : parseContentScalePercent(block.contentScalePercent);
           specs.push({
             blockId,
             blockType: block.blockType,
@@ -1344,6 +1367,8 @@ export function createCanvasActions(
             size: size.value,
             text: block.text,
             ...captionFields,
+            ...(scale?.ok === true ? { contentScalePercent: scale.value } : {}),
+            ...(block.autoFit === undefined ? {} : { autoFit: block.autoFit }),
           });
         }
       }
@@ -1575,6 +1600,14 @@ export function createCanvasActions(
           blockId,
           caption === null ? null : { text: caption.value, position },
         ),
+      );
+    },
+
+    setBlockDisplay({ documentId, sheetId, blockId, display }) {
+      return execute(
+        "setBlockDisplay",
+        documentId,
+        setBlockDisplayCommand(sheetId, blockId, display),
       );
     },
 

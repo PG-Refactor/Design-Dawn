@@ -3,6 +3,7 @@ import type { Block } from "../../domain/block/block";
 import { isTextBlockType } from "../../domain/block/block-type";
 import { captionFieldsOf } from "../../domain/block/caption";
 import type { ContentPath } from "../../domain/block/content-path";
+import { displayStoredFieldsOf } from "../../domain/block/content-scale";
 import { type DomainResult, ok } from "../../domain/shared/domain-result";
 import type {
   BlockId,
@@ -137,6 +138,7 @@ function readGroup(request: CopyRequest): OperationResult<{
     const base = {
       size: block.size,
       ...captionFieldsOf(block),
+      ...displayStoredFieldsOf(block),
       offset: {
         x: block.position.x - origin.x,
         y: block.position.y - origin.y,
@@ -229,6 +231,7 @@ function pastedSpecs(
       position: position.value,
       size: block.size,
       ...captionFieldsOf(block),
+      ...displayStoredFieldsOf(block),
     };
     specs.push(
       block.kind === "text"

@@ -1,7 +1,9 @@
-import { type MouseEvent, useEffect } from "react";
+import { type MouseEvent, useEffect, useRef, useState } from "react";
 import type { ThemeState } from "../../application/theme/theme-controller";
 import { MERMAID_PREVIEW_DEBOUNCE_MS } from "../../config/mermaid-preview-config";
+import type { BlockDisplay } from "../../domain/block/content-scale";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
+import { fittedPicturePercent, zoomOf } from "../canvas/fit-content-scale";
 import { useMessages } from "../workspace/use-messages";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import "./mermaid-diagram-preview.css";
@@ -20,6 +22,15 @@ export interface MermaidDiagramPreviewProps {
   readonly showEditHint: boolean;
   // Told once per source that fails to draw (the normal view reports it as a notification).
   readonly onRenderFailed?: (message: string) => void;
+  // How the block shows the diagram (the normal view). Absent (the editor's picture): it
+  // is shrunk to the room it has, never enlarged.
+  readonly display?: BlockDisplay;
+  readonly onFittedScale?: (percent: number) => void;
+}
+
+interface NaturalSize {
+  readonly width: number;
+  readonly height: number;
 }
 
 const selectResolvedTheme = (state: ThemeState) => state.resolvedTheme;
@@ -33,7 +44,12 @@ export function MermaidDiagramPreview({
   debounced,
   showEditHint,
   onRenderFailed,
+  display,
+  onFittedScale,
 }: MermaidDiagramPreviewProps) {
+  const imageRef = useRef<HTMLImageElement>(null);
+  // The picture's own size (the sanitiser writes the diagram's size on the SVG).
+  const [natural, setNatural] = useState<NaturalSize | null>(null);
   const messages = useMessages().mermaid;
   const renderer = useMermaidRenderer();
   const { themeController } = useWorkspaceServices();
@@ -50,6 +66,46 @@ export function MermaidDiagramPreview({
   useEffect(() => {
     if (failed) onRenderFailed?.(errorMessage ?? "");
   }, [failed, errorMessage, onRenderFailed]);
+
+  const fitting = display?.autoFit === true;
+  // What a fitted diagram is shown at, for the display size buttons: again whenever the
+  // block (and so the picture) changes size.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: onFittedScale is a fresh function on each render of the block; telling it again changes nothing.
+  useEffect(() => {
+    const image = imageRef.current;
+    if (!fitting || image === null || natural === null) return undefined;
+    const report = () => {
+      const percent = fittedPicturePercent(natural, {
+        width: image.clientWidth,
+        height: image.clientHeight,
+      });
+      if (percent !== null) onFittedScale?.(percent);
+    };
+    report();
+    if (typeof ResizeObserver !== "function") return undefined;
+    const observer = new ResizeObserver(report);
+    observer.observe(image);
+    return () => observer.disconnect();
+  }, [fitting, natural]);
+
+  const imageClass = [
+    "mermaid-preview__image",
+    display === undefined
+      ? ""
+      : fitting
+        ? "mermaid-preview__image--fit"
+        : "mermaid-preview__image--scaled",
+    failed ? "mermaid-preview__image--stale" : "",
+  ]
+    .filter((name) => name !== "")
+    .join(" ");
+  const imageStyle =
+    display === undefined || fitting || natural === null
+      ? undefined
+      : {
+          width: natural.width * zoomOf(display.scalePercent),
+          height: natural.height * zoomOf(display.scalePercent),
+        };
 
   // The shape under the pointer, when the event is on the picture.
   function hitOf(event: MouseEvent<HTMLElement>): DiagramHit | null {
@@ -90,10 +146,14 @@ export function MermaidDiagramPreview({
     >
       {url !== null && (
         <img
-          className={
-            failed
-              ? "mermaid-preview__image mermaid-preview__image--stale"
-              : "mermaid-preview__image"
+          ref={imageRef}
+          className={imageClass}
+          style={imageStyle}
+          onLoad={(event) =>
+            setNatural({
+              width: event.currentTarget.naturalWidth,
+              height: event.currentTarget.naturalHeight,
+            })
           }
           src={url}
           alt={messages.diagramAlt(shortId)}

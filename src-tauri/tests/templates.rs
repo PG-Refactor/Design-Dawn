@@ -31,6 +31,8 @@ fn text_block(block_type: &str, text: &str, x: i64) -> TemplateBlockContent {
         height: 200,
         caption: None,
         caption_position: None,
+        content_scale_percent: None,
+        auto_fit: None,
         text: Some(text.to_owned()),
         asset: None,
     }
@@ -45,6 +47,8 @@ fn image_block(asset: &str) -> TemplateBlockContent {
         height: 120,
         caption: Some("Logo".to_owned()),
         caption_position: Some("below".to_owned()),
+        content_scale_percent: None,
+        auto_fit: None,
         text: None,
         asset: Some(asset.to_owned()),
     }

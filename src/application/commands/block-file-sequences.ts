@@ -1,4 +1,5 @@
 import { captionFieldsOf } from "../../domain/block/caption";
+import { displayStoredFieldsOf } from "../../domain/block/content-scale";
 // The ONE place that orders block content files against sheet metadata:
 //
 //   add     content file(s) first, then sheet metadata
@@ -135,6 +136,7 @@ function blockOfSpec(spec: BlockSpec, contentPath: ContentPath): Block {
     size: spec.size,
     contentPath,
     ...captionFieldsOf(spec),
+    ...displayStoredFieldsOf(spec),
   };
 }
 
@@ -273,6 +275,7 @@ export async function addBlocksWithContent(
           size: spec.size,
           contentPath: spec.contentPath,
           ...captionFieldsOf(spec),
+          ...displayStoredFieldsOf(spec),
         },
         index,
         text: null,
@@ -298,6 +301,7 @@ export async function addBlocksWithContent(
         size: spec.size,
         contentPath: content.value,
         ...captionFieldsOf(spec),
+        ...displayStoredFieldsOf(spec),
       },
       index,
       text: spec.text,

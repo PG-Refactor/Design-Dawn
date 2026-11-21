@@ -44,6 +44,16 @@ impl<'a> Arguments<'a> {
         }
     }
 
+    pub fn optional_integer(&self, key: &str) -> Result<Option<i64>, ToolError> {
+        match self.values.get(key) {
+            None | Some(Value::Null) => Ok(None),
+            Some(Value::Number(number)) if number.as_i64().is_some() => Ok(number.as_i64()),
+            Some(_) => Err(ToolError::invalid_arguments(format!(
+                "{key} must be an integer"
+            ))),
+        }
+    }
+
     pub fn optional_bool(&self, key: &str) -> Result<Option<bool>, ToolError> {
         match self.values.get(key) {
             None | Some(Value::Null) => Ok(None),

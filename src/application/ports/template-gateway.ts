@@ -46,6 +46,9 @@ export interface TemplateBlockContent {
   readonly height: number;
   readonly caption?: string;
   readonly captionPosition?: string;
+  // The block's display size, as in its sheet.json (absent: the defaults).
+  readonly contentScalePercent?: number;
+  readonly autoFit?: boolean;
   readonly text?: string;
   readonly asset?: string;
 }

@@ -20,6 +20,12 @@ pub const CURRENT_SHEET_SCHEMA_VERSION: u32 = 2;
 
 /// The longest Block caption, in code points (a line under a figure, not a paragraph).
 pub const CAPTION_MAX_CODE_POINTS: usize = 500;
+/// How large a Markdown or Mermaid Block shows its content, in percent (100 = as written).
+/// The app steps by `CONTENT_SCALE_STEP_PERCENT` between these bounds.
+pub const CONTENT_SCALE_MIN_PERCENT: i64 = 25;
+pub const CONTENT_SCALE_MAX_PERCENT: i64 = 400;
+/// The size a file that says nothing means (the content as written).
+pub const CONTENT_SCALE_DEFAULT_PERCENT: i64 = 100;
 
 /// Inclusive code point ranges rejected in display names (C0, DEL, C1, line/paragraph separators).
 pub const DISPLAY_NAME_FORBIDDEN_CODE_POINT_RANGES: [(u32, u32); 3] =

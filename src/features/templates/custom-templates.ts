@@ -28,6 +28,7 @@ import {
   parseBlockType,
 } from "../../domain/block/block-type";
 import type { ContentPath } from "../../domain/block/content-path";
+import { displayStoredFieldsOf } from "../../domain/block/content-scale";
 import type {
   BlockId,
   DocumentId,
@@ -280,6 +281,7 @@ export function createCustomTemplates({
       ...(block.captionPosition === undefined
         ? {}
         : { captionPosition: block.captionPosition }),
+      ...displayStoredFieldsOf(block),
     };
     if (block.blockType === "image") {
       return { ...common, asset: block.contentPath };
@@ -381,6 +383,10 @@ export function createCustomTemplates({
           ...(block.captionPosition === undefined
             ? {}
             : { captionPosition: block.captionPosition }),
+          ...(block.contentScalePercent === undefined
+            ? {}
+            : { contentScalePercent: block.contentScalePercent }),
+          ...(block.autoFit === undefined ? {} : { autoFit: block.autoFit }),
         },
       ];
     });

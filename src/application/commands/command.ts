@@ -1,6 +1,7 @@
 import { type BlockType, isTextBlockType } from "../../domain/block/block-type";
 import type { CaptionFields } from "../../domain/block/caption";
 import type { ContentPath } from "../../domain/block/content-path";
+import type { DisplayStoredFields } from "../../domain/block/content-scale";
 import type { BlockId, SheetId } from "../../domain/shared/entity-id";
 import type { Position, Size } from "../../domain/shared/geometry";
 import type { OperationResult } from "../ports/operation-error";
@@ -32,7 +33,7 @@ export type AssetBlockType = Extract<BlockType, "image">;
 export type TextBlockType = Exclude<BlockType, AssetBlockType>;
 
 // A copied figure keeps its caption and its place.
-interface BlockSpecBase extends CaptionFields {
+interface BlockSpecBase extends CaptionFields, DisplayStoredFields {
   readonly blockId: BlockId;
   readonly position: Position;
   readonly size: Size;

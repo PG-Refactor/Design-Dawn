@@ -1,4 +1,4 @@
-import { type DomainResult, ok } from "../shared/domain-result";
+import { type DomainResult, err, ok } from "../shared/domain-result";
 import type { BlockId } from "../shared/entity-id";
 import { parseBlockId } from "../shared/entity-id";
 import {
@@ -17,6 +17,11 @@ import {
   parseCaptionPosition,
 } from "./caption";
 import { type ContentPath, parseContentPath } from "./content-path";
+import {
+  type ContentScalePercent,
+  isScalableBlockType,
+  parseContentScalePercent,
+} from "./content-scale";
 
 export interface Block {
   readonly blockId: BlockId;
@@ -28,6 +33,10 @@ export interface Block {
   readonly caption?: Caption;
   // Absent: the default place (below the figure).
   readonly captionPosition?: CaptionPosition;
+  // Markdown and Mermaid only. Absent: 100 percent.
+  readonly contentScalePercent?: ContentScalePercent;
+  // Markdown and Mermaid only. Absent: the type's default (`fitsByDefault`).
+  readonly autoFit?: boolean;
 }
 
 export interface RawBlock {
@@ -38,6 +47,8 @@ export interface RawBlock {
   readonly contentPath: string;
   readonly caption?: string;
   readonly captionPosition?: string;
+  readonly contentScalePercent?: number;
+  readonly autoFit?: boolean;
 }
 
 // Reports the first error in file-format key order.
@@ -59,6 +70,19 @@ export function parseBlock(raw: RawBlock): DomainResult<Block> {
       ? null
       : parseCaptionPosition(raw.captionPosition);
   if (captionPosition !== null && !captionPosition.ok) return captionPosition;
+  const contentScalePercent =
+    raw.contentScalePercent === undefined
+      ? null
+      : parseContentScalePercent(raw.contentScalePercent);
+  if (contentScalePercent !== null && !contentScalePercent.ok) {
+    return contentScalePercent;
+  }
+  if (
+    (contentScalePercent !== null || raw.autoFit !== undefined) &&
+    !isScalableBlockType(blockType.value)
+  ) {
+    return err("invalidContentScale", "an image Block has no display size");
+  }
   return ok({
     blockId: blockId.value,
     blockType: blockType.value,
@@ -69,5 +93,9 @@ export function parseBlock(raw: RawBlock): DomainResult<Block> {
     ...(captionPosition === null
       ? {}
       : { captionPosition: captionPosition.value }),
+    ...(contentScalePercent === null
+      ? {}
+      : { contentScalePercent: contentScalePercent.value }),
+    ...(raw.autoFit === undefined ? {} : { autoFit: raw.autoFit }),
   });
 }

@@ -55,6 +55,7 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   editBlockContent:
     "Could not commit the edit of the block text (your edit is still on the screen)",
   setBlockCaption: "Could not change the caption",
+  setBlockDisplay: "Could not change the display size",
   editDiagram:
     "The diagram edit could not be applied (the source is unchanged).",
   loadBlockContents: "Could not load the block text",
@@ -90,6 +91,8 @@ const ERROR_KINDS: Record<OperationErrorKind, string> = {
   invalidFolderName:
     'The folder name cannot contain / \\ : * ? " < > |, end with a dot or space, or be a reserved name such as CON.',
   invalidCaption: "A caption is one line of up to 500 characters.",
+  invalidContentScale:
+    "The display size must be 25% to 400%, and only Markdown and Mermaid blocks have one.",
   invalidPosition: "The position value is invalid.",
   invalidSize: "The size value is invalid.",
   unsupportedBlockType: "The block type is not supported.",

@@ -11,6 +11,7 @@ export const COMMAND_KINDS = {
   moveSheet: "moveSheet",
   editBlockContent: "editBlockContent",
   setBlockCaption: "setBlockCaption",
+  setBlockDisplay: "setBlockDisplay",
 } as const;
 
 export type CommandKind = (typeof COMMAND_KINDS)[keyof typeof COMMAND_KINDS];

@@ -30,7 +30,7 @@ const READ_TOOLS: [&str; 7] = [
     "searchProject",
     "exportMarkdown",
 ];
-const WRITE_TOOLS: [&str; 11] = [
+const WRITE_TOOLS: [&str; 12] = [
     "createDocument",
     "createSheet",
     "createBlock",
@@ -39,6 +39,7 @@ const WRITE_TOOLS: [&str; 11] = [
     "updateSheet",
     "updateBlock",
     "moveBlock",
+    "updateBlockDisplay",
     "updateBlockCaption",
     "deleteBlock",
     "importImage",
@@ -1457,6 +1458,103 @@ fn sheet_block(context: &ToolContext, block_id: &str) -> Value {
 }
 
 #[test]
+fn the_display_size_of_text_and_diagrams_reads_back_and_only_differences_are_written() {
+    let (_temp, root) = project_copy();
+    let context = context_for(&root, true);
+    // The defaults are shown though nothing is written: diagrams fit, text does not.
+    let diagram = sheet_block(&context, MERMAID_BLOCK_ID);
+    assert_eq!(diagram["contentScalePercent"], 100);
+    assert_eq!(diagram["autoFit"], true);
+    let text = sheet_block(&context, OVERVIEW_MARKDOWN_BLOCK_ID);
+    assert_eq!(text["autoFit"], false);
+    let sheet_file = overview_file(&root, "sheet.json");
+    assert!(!read_text(&sheet_file).contains("contentScalePercent"));
+
+    let set = call(
+        &context,
+        "updateBlockDisplay",
+        block_arguments(
+            OVERVIEW_MARKDOWN_BLOCK_ID,
+            json!({ "contentScalePercent": 150, "autoFit": true }),
+        ),
+    )
+    .ok();
+    assert_eq!(set["contentScalePercent"], 150);
+    assert_eq!(set["autoFit"], true);
+    let written = read_text(&sheet_file);
+    assert!(written.contains("\"contentScalePercent\": 150"));
+    assert!(written.contains("\"autoFit\": true"));
+
+    // Back to the defaults: the keys go away again.
+    call(
+        &context,
+        "updateBlockDisplay",
+        block_arguments(
+            OVERVIEW_MARKDOWN_BLOCK_ID,
+            json!({ "contentScalePercent": 100, "autoFit": false }),
+        ),
+    )
+    .ok();
+    let written = read_text(&sheet_file);
+    assert!(!written.contains("contentScalePercent"));
+    assert!(!written.contains("autoFit"));
+    // A diagram that should not fit says so (the opposite of its default).
+    call(
+        &context,
+        "updateBlockDisplay",
+        block_arguments(MERMAID_BLOCK_ID, json!({ "autoFit": false })),
+    )
+    .ok();
+    assert!(read_text(&sheet_file).contains("\"autoFit\": false"));
+    assert_loads_without_issues(&root);
+}
+
+#[test]
+fn the_display_size_is_refused_out_of_range_on_images_and_with_nothing_to_set() {
+    let (_temp, root) = project_copy();
+    let context = context_for(&root, true);
+    let before = tree_snapshot(&root);
+    for (block, arguments, kind) in [
+        (
+            OVERVIEW_MARKDOWN_BLOCK_ID,
+            json!({ "contentScalePercent": 24 }),
+            "invalidContentScale",
+        ),
+        (
+            OVERVIEW_MARKDOWN_BLOCK_ID,
+            json!({ "contentScalePercent": 401 }),
+            "invalidContentScale",
+        ),
+        (
+            OVERVIEW_MARKDOWN_BLOCK_ID,
+            json!({ "contentScalePercent": 1.5 }),
+            "invalidArguments",
+        ),
+        (
+            IMAGE_BLOCK_ID,
+            json!({ "autoFit": true }),
+            "invalidContentScale",
+        ),
+        (OVERVIEW_MARKDOWN_BLOCK_ID, json!({}), "invalidArguments"),
+    ] {
+        assert_eq!(
+            call(
+                &context,
+                "updateBlockDisplay",
+                block_arguments(block, arguments)
+            )
+            .error_kind(),
+            kind
+        );
+    }
+    assert_eq!(tree_snapshot(&root), before);
+    // Images show no display size.
+    assert!(sheet_block(&context, IMAGE_BLOCK_ID)
+        .get("contentScalePercent")
+        .is_none());
+}
+
+#[test]
 fn a_figure_gets_a_caption_that_reads_back_and_loads() {
     let (_temp, root) = project_copy();
     let context = context_for(&root, true);
@@ -1921,6 +2019,8 @@ fn shared_sheet_template(root: &Path) -> String {
         height: 200,
         caption: None,
         caption_position: None,
+        content_scale_percent: None,
+        auto_fit: None,
         text: Some(text.to_owned()),
         asset: None,
     };
@@ -2009,6 +2109,8 @@ fn a_template_sheet_brings_its_images_and_reuses_an_identical_one() {
             height: 200,
             caption: None,
             caption_position: None,
+            content_scale_percent: None,
+            auto_fit: None,
             text: text.map(str::to_owned),
             asset: asset.map(str::to_owned),
         };

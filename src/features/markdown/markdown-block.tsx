@@ -1,5 +1,9 @@
 import { useMemo } from "react";
 import type { ContentPath } from "../../domain/block/content-path";
+import {
+  type BlockDisplay,
+  blockDisplayOf,
+} from "../../domain/block/content-scale";
 import type { BlockId, DocumentId } from "../../domain/shared/entity-id";
 import type { BlockRendererProps } from "../canvas/block-renderer";
 import { shortBlockId } from "../canvas/canvas-messages";
@@ -17,6 +21,7 @@ export function MarkdownBlock({
   documentId,
   sheetId,
   block,
+  onFittedScale,
 }: BlockRendererProps) {
   const messages = useMessages().markdown;
   const { blockId } = block;
@@ -46,6 +51,8 @@ export function MarkdownBlock({
       blockId={block.blockId}
       contentPath={block.contentPath}
       text={text}
+      display={blockDisplayOf(block)}
+      onFittedScale={onFittedScale}
     />
   );
 }
@@ -55,11 +62,15 @@ function RenderedMarkdown({
   blockId,
   contentPath,
   text,
+  display,
+  onFittedScale,
 }: {
   readonly documentId: DocumentId;
   readonly blockId: BlockId;
   readonly contentPath: ContentPath;
   readonly text: string;
+  readonly display: BlockDisplay;
+  readonly onFittedScale: ((percent: number) => void) | undefined;
 }) {
   const markdownMessages = useMessages().markdown;
   const images = useMarkdownImageContext(documentId, contentPath);
@@ -68,6 +79,9 @@ function RenderedMarkdown({
     <MarkdownPreview
       html={html}
       label={markdownMessages.previewLabel(shortBlockId(blockId))}
+      scalePercent={display.scalePercent}
+      autoFit={display.autoFit}
+      onFittedScale={onFittedScale}
     />
   );
 }

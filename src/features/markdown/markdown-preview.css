@@ -21,11 +21,11 @@
   overflow: auto;
 }
 
-.markdown-preview > :first-child {
+.markdown-preview__content > :first-child {
   margin-top: 0;
 }
 
-.markdown-preview > :last-child {
+.markdown-preview__content > :last-child {
   margin-bottom: 0;
 }
 

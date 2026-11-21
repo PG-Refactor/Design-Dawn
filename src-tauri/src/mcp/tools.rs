@@ -12,13 +12,13 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
 
-use serde_json::{json, Map, Value};
+use serde_json::{json, Map, Number, Value};
 
 use crate::application::asset_import::import_asset_reusing_same;
 use crate::application::authoring::{
     create_image_block, create_listed_document, create_listed_sheet, create_text_block,
     delete_block, find_block, image_natural_size, move_block, read_text_block, rename_document,
-    rename_sheet, set_block_caption, update_text_block, BlockGeometry,
+    rename_sheet, set_block_caption, set_block_display, update_text_block, BlockGeometry,
 };
 use crate::application::export_markdown::document_markdown;
 use crate::application::local_state::ai_access::{listed_project_name, AiAccessList};
@@ -30,7 +30,9 @@ use crate::application::templates::{
     list_templates, read_template, template_asset_path, TemplateBlockContent, TemplateKind,
     TemplateRoots, TemplateScope, TEMPLATES_DIRECTORY_NAME,
 };
-use crate::domain::constants::{ASSETS_DIRECTORY_NAME, PATH_SEPARATOR};
+use crate::domain::constants::{
+    ASSETS_DIRECTORY_NAME, CONTENT_SCALE_DEFAULT_PERCENT, PATH_SEPARATOR,
+};
 use crate::infrastructure::file_format::constants::PROJECT_FILE_NAME;
 
 /// Under the app's local data, as the app keeps the user's own templates.
@@ -40,7 +42,9 @@ const TEMPLATE_GLOBAL_DIRECTORY: &str = "global";
 /// Image references in `exportMarkdown` point at the Document's own assets folder.
 const EXPORT_ASSETS_PREFIX: &str = "assets/";
 use crate::application::snapshot::EntityState;
+use crate::domain::block_type::BlockType;
 use crate::domain::caption::CaptionPosition;
+use crate::domain::content_scale::{check_scalable, default_auto_fit};
 use crate::domain::entity_id::ProjectId;
 use crate::domain::error::DomainErrorKind;
 use crate::infrastructure::file_format::dto::{BlockDto, SheetDto};
@@ -96,6 +100,23 @@ fn block_json(z_index: usize, block: &BlockDto) -> Value {
     });
     if let (Some(target), Value::Object(geometry)) = (value.as_object_mut(), geometry_json(block)) {
         target.extend(geometry);
+        // How the content is shown, as the app shows it (the defaults filled in).
+        if let Ok(block_type) = BlockType::parse(&block.block_type) {
+            if check_scalable(block_type).is_ok() {
+                target.insert(
+                    "contentScalePercent".to_owned(),
+                    json!(block
+                        .content_scale_percent
+                        .as_ref()
+                        .and_then(Number::as_i64)
+                        .unwrap_or(CONTENT_SCALE_DEFAULT_PERCENT)),
+                );
+                target.insert(
+                    "autoFit".to_owned(),
+                    json!(block.auto_fit.unwrap_or(default_auto_fit(block_type))),
+                );
+            }
+        }
         if let Some(caption) = &block.caption {
             target.insert("caption".to_owned(), json!(caption));
             target.insert(
@@ -363,6 +384,7 @@ another one"
             names::UPDATE_BLOCK => self.update_block(arguments),
             names::MOVE_BLOCK => self.move_block(arguments),
             names::UPDATE_BLOCK_CAPTION => self.update_block_caption(arguments),
+            names::UPDATE_BLOCK_DISPLAY => self.update_block_display(arguments),
             names::DELETE_BLOCK => self.delete_block(arguments),
             names::IMPORT_IMAGE => self.import_image(arguments),
             names::LIST_TEMPLATES => self.list_templates(),
@@ -935,6 +957,19 @@ project.json)",
                     position,
                 )?;
             }
+            if block.content_scale_percent.is_some() || block.auto_fit.is_some() {
+                let document = workspace.load_document(document_id)?;
+                let sheet = find_sheet(&document, sheet_id)?.clone();
+                set_block_display(
+                    &mut workspace.sessions,
+                    &workspace.project_id,
+                    document_id,
+                    &sheet,
+                    &made.block_id,
+                    block.content_scale_percent,
+                    block.auto_fit,
+                )?;
+            }
             created.push(made.block_id);
         }
         Ok(created)
@@ -1156,6 +1191,34 @@ project.json)",
             .position(|candidate| candidate.block_id == moved.block_id)
             .unwrap_or_default();
         Ok(block_json(z_index, &moved))
+    }
+
+    fn update_block_display(&self, arguments: &Arguments) -> Result<Value, ToolError> {
+        let percent = arguments.optional_integer("contentScalePercent")?;
+        let auto_fit = arguments.optional_bool("autoFit")?;
+        if percent.is_none() && auto_fit.is_none() {
+            return Err(ToolError::invalid_arguments(
+                "give contentScalePercent, autoFit or both",
+            ));
+        }
+        let mut workspace = self.workspace()?;
+        let document = workspace.load_document(arguments.string("documentId")?)?;
+        let sheet = find_sheet(&document, arguments.string("sheetId")?)?;
+        let changed = set_block_display(
+            &mut workspace.sessions,
+            &workspace.project_id,
+            &document.document.document_id,
+            sheet,
+            arguments.string("blockId")?,
+            percent,
+            auto_fit,
+        )?;
+        let z_index = sheet
+            .blocks
+            .iter()
+            .position(|candidate| candidate.block_id == changed.block_id)
+            .unwrap_or_default();
+        Ok(block_json(z_index, &changed))
     }
 
     fn update_block_caption(&self, arguments: &Arguments) -> Result<Value, ToolError> {

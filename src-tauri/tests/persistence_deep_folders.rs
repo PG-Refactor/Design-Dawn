@@ -189,6 +189,8 @@ fn block_dto(content_path: String) -> BlockDto {
         content_path,
         caption: None,
         caption_position: None,
+        content_scale_percent: None,
+        auto_fit: None,
     }
 }
 

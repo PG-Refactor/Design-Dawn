@@ -8,6 +8,12 @@ export const INT32_MAX = 2_147_483_647;
 export const DISPLAY_NAME_MAX_CODE_POINTS = 200;
 // The longest Block caption (a line under a figure). Mirrors `CAPTION_MAX_CODE_POINTS`.
 export const CAPTION_MAX_CODE_POINTS = 500;
+// How large a Markdown or Mermaid Block shows its content, in percent (100 = as written).
+// Mirrors `CONTENT_SCALE_*_PERCENT` in Rust; the step is the app's −/+ buttons.
+export const CONTENT_SCALE_MIN_PERCENT = 25;
+export const CONTENT_SCALE_MAX_PERCENT = 400;
+export const CONTENT_SCALE_DEFAULT_PERCENT = 100;
+export const CONTENT_SCALE_STEP_PERCENT = 10;
 
 export const POSITION_MIN = INT32_MIN;
 export const POSITION_MAX = INT32_MAX;

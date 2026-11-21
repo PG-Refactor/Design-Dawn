@@ -26,7 +26,17 @@ export interface ExportBlock {
   // A picture's own size (an SVG's, an image file's), when known: where it is drawn in
   // the block, so a page with only the empty edge of a large one can be left out.
   readonly natural?: { readonly width: number; readonly height: number };
+  // How a Markdown or Mermaid block shows its content (absent: as written, an image
+  // shrunk to fit). A fitted text is sized when the page is laid out (`fitExportPage`).
+  readonly display?: {
+    readonly scalePercent: number;
+    readonly autoFit: boolean;
+  };
 }
+
+// Marks a text body to be fitted to its block once the page is laid out.
+export const FIT_TEXT_ATTRIBUTE = "data-fit-text";
+const PERCENT = 100;
 
 export interface ExportSheet {
   readonly name: string;
@@ -82,6 +92,9 @@ html,body{margin:0;background:var(--background);color:var(--text);font-family:"S
 .block__body{flex:1 1 auto;min-height:0;overflow:hidden;padding:8px;overflow-wrap:anywhere;}
 .block__body--image{padding:0;display:flex;align-items:center;justify-content:center;}
 .block__body--image img{max-width:100%;max-height:100%;}
+.block__body--fit img{width:100%;height:100%;object-fit:contain;}
+.block__body--scaled img{flex:0 0 auto;max-width:none;max-height:none;}
+.block__content>:first-child{margin-top:0;}.block__content>:last-child{margin-bottom:0;}
 .caption{flex:0 0 auto;padding:4px 8px;background:var(--caption);color:var(--muted);font-size:12px;text-align:center;}
 .block__body>:first-child{margin-top:0;}.block__body>:last-child{margin-bottom:0;}
 .block__body img{max-width:100%;height:auto;}
@@ -112,10 +125,31 @@ function blockHtml(
   offsetY: number,
 ): string {
   const { rect } = block;
-  const body =
-    block.content.kind === "html"
-      ? `<div class="block__body">${block.content.html}</div>`
-      : `<div class="block__body block__body--image"><img src="${escapeHtml(block.content.src)}" alt="${escapeHtml(block.content.alt)}"></div>`;
+  const { display, natural } = block;
+  const zoom =
+    display === undefined || display.autoFit
+      ? null
+      : display.scalePercent / PERCENT;
+  let body: string;
+  if (block.content.kind === "html") {
+    const fit = display?.autoFit === true ? ` ${FIT_TEXT_ATTRIBUTE}` : "";
+    const style = zoom === null ? "" : ` style="zoom:${zoom}"`;
+    body = `<div class="block__body"${fit}><div class="block__content"${style}>${block.content.html}</div></div>`;
+  } else {
+    const mode =
+      display === undefined
+        ? ""
+        : display.autoFit
+          ? " block__body--fit"
+          : natural === undefined
+            ? ""
+            : " block__body--scaled";
+    const size =
+      zoom === null || natural === undefined || mode === ""
+        ? ""
+        : ` style="width:${natural.width * zoom}px;height:${natural.height * zoom}px"`;
+    body = `<div class="block__body block__body--image${mode}"><img src="${escapeHtml(block.content.src)}" alt="${escapeHtml(block.content.alt)}"${size}></div>`;
+  }
   const caption =
     block.caption === undefined
       ? ""

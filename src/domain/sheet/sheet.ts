@@ -5,6 +5,12 @@ import {
   figureCaptionOf,
   sameFigureCaption,
 } from "../block/caption";
+import {
+  type BlockDisplay,
+  blockDisplayOf,
+  displayFields,
+  isScalableBlockType,
+} from "../block/content-scale";
 import { type DisplayName, parseDisplayName } from "../shared/display-name";
 import { type DomainResult, err, ok } from "../shared/domain-result";
 import { type BlockId, parseSheetId, type SheetId } from "../shared/entity-id";
@@ -276,6 +282,44 @@ export function setBlockCaption(
     };
   });
   return ok(changed ? { ...sheet, blocks } : sheet);
+}
+
+// Sets how one Markdown or Mermaid Block shows its content. What equals the default is left
+// out of the Block, as in the file. The same sheet comes back when nothing changes.
+export function setBlockDisplay(
+  sheet: Sheet,
+  blockId: BlockId,
+  display: BlockDisplay,
+): DomainResult<Sheet> {
+  const target = ensureTargets(sheet, [blockId]);
+  if (!target.ok) return target;
+  const block = sheet.blocks.find((candidate) => candidate.blockId === blockId);
+  if (block === undefined) return ok(sheet);
+  if (!isScalableBlockType(block.blockType)) {
+    return err("invalidContentScale", "an image Block has no display size");
+  }
+  const current = blockDisplayOf(block);
+  if (
+    current.scalePercent === display.scalePercent &&
+    current.autoFit === display.autoFit
+  ) {
+    return ok(sheet);
+  }
+  const {
+    contentScalePercent: _previousScale,
+    autoFit: _previousFit,
+    ...rest
+  } = block;
+  const changed: Block = {
+    ...rest,
+    ...displayFields(block.blockType, display),
+  };
+  return ok({
+    ...sheet,
+    blocks: sheet.blocks.map((candidate) =>
+      candidate.blockId === blockId ? changed : candidate,
+    ),
+  });
 }
 
 export function bringBlocksToFront(
