@@ -105,3 +105,23 @@ export function sanitizeHtml(
     allowedImageSourcePrefix = null;
   }
 }
+
+// Only pictures the app made itself (images read from a Git version): `data:` URLs of an
+// image type, nothing that could carry markup into an attribute.
+const IMAGE_DATA_URL_PATTERN =
+  /^data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+$/;
+
+// Shows other pictures in place of some of the image sources of sanitised HTML: each
+// `src="<url>"` whose URL is a key gets the `data:` URL it maps to. A value that is not an
+// image `data:` URL is ignored, so the result stays as safe as the input.
+export function withImageSources(
+  html: SanitizedHtml,
+  sources: ReadonlyMap<string, string>,
+): SanitizedHtml {
+  let result: string = html;
+  for (const [url, dataUrl] of sources) {
+    if (!IMAGE_DATA_URL_PATTERN.test(dataUrl)) continue;
+    result = result.split(`src="${url}"`).join(`src="${dataUrl}"`);
+  }
+  return result as SanitizedHtml;
+}
