@@ -2,6 +2,7 @@
 // from `project-tree.tsx` so the tree view keeps to focus handling and shortcuts.
 
 import type { KeyboardEvent } from "react";
+import { GlyphIcon } from "../../shared/icons/glyph-icon";
 import type { PopupMenuEntry } from "../../shared/menu/popup-menu";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { openExportDialog } from "../export/export-dialog-store";
@@ -277,9 +278,9 @@ function FolderTreeItem({
       {...dragProps(handlers, itemKey, !failed)}
       expanded={folderNode.isExpanded}
       leadingMarker={
-        folderNode.isExpanded
-          ? messages.tree.folderExpandedMarker
-          : messages.tree.folderCollapsedMarker
+        <GlyphIcon
+          glyph={folderNode.isExpanded ? "chevronDown" : "chevronRight"}
+        />
       }
       icon={folderNode.isExpanded ? <FolderOpenIcon /> : <FolderIcon />}
       failed={failed}

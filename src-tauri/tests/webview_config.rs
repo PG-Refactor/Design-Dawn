@@ -67,3 +67,13 @@ fn the_mcp_server_looks_for_the_app_settings_under_the_configured_identifier() {
         design_dawn_lib::application::local_state::constants::APP_IDENTIFIER
     );
 }
+
+/// Every window made from this config (the first one and every new Project or Document
+/// window) has a smallest size: a menu, the tabs, a usable canvas and the sheet tabs fit.
+#[test]
+fn windows_cannot_be_made_smaller_than_the_layout_needs() {
+    let config: serde_json::Value = serde_json::from_str(CONFIG_FILE).unwrap();
+    let window = &config["app"]["windows"][0];
+    assert!(window["minWidth"].as_u64().unwrap() >= 480);
+    assert!(window["minHeight"].as_u64().unwrap() >= 400);
+}

@@ -10,6 +10,7 @@ import {
   isValidQuery,
   type TextQuery,
 } from "../../domain/text-search/text-search";
+import { GlyphIcon } from "../../shared/icons/glyph-icon";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import type { Extent } from "../canvas/geometry/viewport-math";
 import { useMessages } from "../workspace/use-messages";
@@ -248,9 +249,7 @@ export function SheetFindWidget({
               disabled={matches.length === 0}
               onClick={() => go(-1)}
             >
-              <span aria-hidden="true" className="find-fields__icon">
-                ↑
-              </span>
+              <GlyphIcon glyph="arrowUp" />
             </button>
             <button
               type="button"
@@ -260,9 +259,7 @@ export function SheetFindWidget({
               disabled={matches.length === 0}
               onClick={() => go(1)}
             >
-              <span aria-hidden="true" className="find-fields__icon">
-                ↓
-              </span>
+              <GlyphIcon glyph="arrowDown" />
             </button>
             <button
               type="button"
@@ -271,9 +268,7 @@ export function SheetFindWidget({
               title={messages.closeFind}
               onClick={close}
             >
-              <span aria-hidden="true" className="find-fields__icon">
-                ×
-              </span>
+              <GlyphIcon glyph="close" />
             </button>
           </>
         }

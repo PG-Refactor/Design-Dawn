@@ -1,5 +1,6 @@
 import { type KeyboardEvent, type MouseEvent, useRef } from "react";
 import type { DocumentId, SheetId } from "../../domain/shared/entity-id";
+import { GlyphIcon } from "../../shared/icons/glyph-icon";
 import { useContextMenu } from "../../shared/menu/context-menu";
 import type { PopupMenuEntry } from "../../shared/menu/menu-list";
 import {
@@ -103,7 +104,9 @@ function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
   const tabElements = useRef(new Map<SheetId, HTMLButtonElement>());
   const renaming = useUiState((ui) => ui.renaming);
   const { tabs, documentId, activeSheetId } = model;
-  const strip = useTabStripScroll(`${activeSheetId ?? ""}/${tabs.length}`);
+  const strip = useTabStripScroll(
+    `${activeSheetId ?? ""}/${tabs.map((tab) => tab.sheetId).join("|")}`,
+  );
   const tabIds = tabs.map((tab) => tab.sheetId);
   const contextMenu = useContextMenu();
 
@@ -292,9 +295,7 @@ function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
                 actions.requestDeleteSheet(documentId, tab.sheetId)
               }
             >
-              <span aria-hidden="true">
-                {messages.tabs.deleteSheetButtonText}
-              </span>
+              <GlyphIcon glyph="close" />
             </button>
           </div>
         );
@@ -339,7 +340,7 @@ export function SheetTabs() {
         title={messages.tabs.createSheet}
         onClick={() => void actions.requestCreateSheet(model.documentId)}
       >
-        <span aria-hidden="true">{messages.tabs.createSheetButtonText}</span>
+        <GlyphIcon glyph="plus" />
       </button>
       {contextMenu.element}
     </div>

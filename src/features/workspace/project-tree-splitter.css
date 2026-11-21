@@ -27,10 +27,3 @@
 .project-tree-splitter:focus-visible {
   outline-offset: calc(var(--focus-ring-width) * -1);
 }
-
-/* Narrow windows stack the tree above the main area: there is nothing to split. */
-@media (max-width: 40rem) {
-  .project-tree-splitter {
-    display: none;
-  }
-}

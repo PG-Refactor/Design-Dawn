@@ -27,6 +27,7 @@ import { createPortal } from "react-dom";
 import { previewDiagramOperation } from "../../application/diagram/preview-diagram-operation";
 import { fromDomainResult } from "../../application/ports/operation-error";
 import type { DiagramOperation } from "../../domain/diagram/diagram-operation";
+import { GlyphIcon } from "../../shared/icons/glyph-icon";
 import type { PopupMenuEntry } from "../../shared/menu/popup-menu";
 import { EDITOR_OVERLAY_ATTRIBUTE } from "../../shared/overlay/editor-overlay";
 import { BLOCK_EDITOR_ATTRIBUTE } from "../canvas/block-dom";
@@ -360,7 +361,7 @@ function GuiDisclosure({
         onClick={() => setOpen((wasOpen) => !wasOpen)}
       >
         <span aria-hidden="true" className="diagram-gui__disclosure-marker">
-          {open ? "▾" : "▸"}
+          <GlyphIcon glyph={open ? "chevronDown" : "chevronRight"} />
         </span>
         {label}
       </button>

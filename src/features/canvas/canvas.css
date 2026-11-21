@@ -114,7 +114,11 @@
 }
 
 .zoom-control__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 1.75em;
+  min-height: 1.6em;
   padding: 0 var(--space-1);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-medium);

@@ -7,6 +7,7 @@ import {
 } from "react";
 import type { DocumentWindowTarget } from "../../application/ports/document-window-gateway";
 import type { DocumentId } from "../../domain/shared/entity-id";
+import { GlyphIcon } from "../../shared/icons/glyph-icon";
 import { useContextMenu } from "../../shared/menu/context-menu";
 import type { PopupMenuEntry } from "../../shared/menu/popup-menu";
 import { ExternalCompareTabItem } from "../external-change/external-compare-tab";
@@ -167,8 +168,10 @@ export function DocumentTabs() {
   ];
   // Changes whenever another tab becomes active or tabs come and go. Before the early
   // return: a hook runs on every render.
+  // The order of the tabs is part of it: after a reload puts the tabs back in their order,
+  // the active tab is brought into view again where it now is.
   const strip = useTabStripScroll(
-    `${activeMainTab.kind}/${activeDocumentId ?? ""}/${activeMainTab.kind === "diff" ? activeMainTab.path : ""}/${entries.length}`,
+    `${activeMainTab.kind}/${activeDocumentId ?? ""}/${activeMainTab.kind === "diff" ? activeMainTab.path : ""}/${entries.map(keyOf).join("|")}`,
   );
   // Ctrl+Tab / Ctrl+PageDown: the next tab; with Shift / PageUp the previous one; round
   // from one end to the other. Anywhere in the window, also while typing, as in browsers
@@ -502,7 +505,7 @@ export function DocumentTabs() {
               aria-label={messages.closeTabLabel(tab.name)}
               onClick={() => void handleClose(tab)}
             >
-              <span aria-hidden="true">{messages.tabs.closeButtonText}</span>
+              <GlyphIcon glyph="close" />
             </button>
           </div>
         );

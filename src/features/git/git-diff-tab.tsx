@@ -1,4 +1,5 @@
 import { type KeyboardEvent, useId } from "react";
+import { GlyphIcon } from "../../shared/icons/glyph-icon";
 import { DIFF_PANEL_ID, diffTabId } from "../workspace/tab-ids";
 import type { DiffTab } from "../workspace/ui-state/ui-state";
 import { useMessages } from "../workspace/use-messages";
@@ -82,7 +83,7 @@ export function GitDiffTabItem({
         aria-label={workspaceMessages.closeTabLabel(title)}
         onClick={onClose}
       >
-        <span aria-hidden="true">{workspaceMessages.tabs.closeButtonText}</span>
+        <GlyphIcon glyph="close" />
       </button>
     </div>
   );

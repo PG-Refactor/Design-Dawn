@@ -1021,19 +1021,20 @@ fn a_drop_point_finds_the_window_under_it_front_most_first() {
 }
 
 #[test]
-fn the_window_title_names_the_project_in_parentheses() {
+fn the_window_title_names_the_project_first() {
     use design_dawn_lib::commands::window_title;
     assert_eq!(window_title(None), "Design Dawn");
     assert_eq!(window_title(Some("  ")), "Design Dawn");
+    // The Project first: a taskbar button that cuts the title still tells the Projects apart.
     assert_eq!(
         window_title(Some("Order Service")),
-        "Design Dawn (Order Service)"
+        "Order Service - Design Dawn"
     );
     // Control characters (a newline) never reach the title bar; a long name is cut.
-    assert_eq!(window_title(Some("a\nb")), "Design Dawn (ab)");
+    assert_eq!(window_title(Some("a\nb")), "ab - Design Dawn");
     let long = "x".repeat(500);
     assert_eq!(
         window_title(Some(&long)).chars().count(),
-        "Design Dawn ()".len() + 120
+        " - Design Dawn".len() + 120
     );
 }

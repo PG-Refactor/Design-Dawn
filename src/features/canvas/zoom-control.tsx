@@ -1,5 +1,6 @@
 import { type KeyboardEvent, useEffect, useState } from "react";
 import { CANVAS_CONFIG } from "../../config/canvas-config";
+import { GlyphIcon } from "../../shared/icons/glyph-icon";
 import { useMessages } from "../workspace/use-messages";
 import {
   nextZoomStep,
@@ -72,7 +73,7 @@ export function ZoomControl({ zoom, onZoom }: ZoomControlProps) {
         disabled={zoom <= zoomMin}
         onClick={() => step("out")}
       >
-        {messages.zoomOutText}
+        <GlyphIcon glyph="minus" />
       </button>
       <label className="zoom-control__field">
         <input
@@ -107,7 +108,7 @@ export function ZoomControl({ zoom, onZoom }: ZoomControlProps) {
         disabled={zoom >= zoomMax}
         onClick={() => step("in")}
       >
-        {messages.zoomInText}
+        <GlyphIcon glyph="plus" />
       </button>
     </div>
   );

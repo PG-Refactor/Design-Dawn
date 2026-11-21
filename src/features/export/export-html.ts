@@ -65,6 +65,12 @@ export type ExportLayout =
 const SHEET_MARGIN = PRINT_CONFIG.sheetMargin;
 const TITLE_HEIGHT = PRINT_CONFIG.sheetTitleHeight;
 const HEADING_HEIGHT = PRINT_CONFIG.paperHeadingHeight;
+// Block text is set as on the canvas (`--canvas-content-rem` and the Markdown preview's
+// sizes), so a block holds the same text in print as on screen, also when it is enlarged.
+const CONTENT_FONT_PX = 16;
+const CONTENT_GAP_PX = 8;
+const HEADING_GAP_PX = 16;
+const LIST_INDENT_PX = 24;
 
 const HTML_ESCAPES: Readonly<Record<string, string>> = {
   "&": "&amp;",
@@ -89,7 +95,11 @@ html,body{margin:0;background:var(--background);color:var(--text);font-family:"S
 .sheet-title{margin:0;padding:12px ${SHEET_MARGIN}px;height:${TITLE_HEIGHT}px;font-size:18px;}
 .sheet{position:relative;}
 .block{position:absolute;display:flex;flex-direction:column;border:1px solid var(--border);border-radius:6px;background:var(--surface);overflow:hidden;}
-.block__body{flex:1 1 auto;min-height:0;overflow:hidden;padding:8px;overflow-wrap:anywhere;}
+.block__body{flex:1 1 auto;min-height:0;overflow:hidden;padding:${CONTENT_GAP_PX}px;overflow-wrap:anywhere;font-size:${CONTENT_FONT_PX}px;}
+.block__body h1,.block__body h2,.block__body h3,.block__body h4,.block__body h5,.block__body h6{margin:${HEADING_GAP_PX}px 0 ${CONTENT_GAP_PX}px;line-height:1.25;}
+.block__body h1{font-size:1.6em;}.block__body h2{font-size:1.35em;}.block__body h3{font-size:1.15em;}
+.block__body p,.block__body ul,.block__body ol,.block__body pre,.block__body blockquote,.block__body table{margin:0 0 ${CONTENT_GAP_PX}px;}
+.block__body ul,.block__body ol{padding-left:${LIST_INDENT_PX}px;}
 .block__body--image{padding:0;display:flex;align-items:center;justify-content:center;}
 .block__body--image img{max-width:100%;max-height:100%;}
 .block__body--fit img{width:100%;height:100%;object-fit:contain;}
