@@ -1510,6 +1510,41 @@ fn the_display_size_of_text_and_diagrams_reads_back_and_only_differences_are_wri
 }
 
 #[test]
+fn an_image_block_is_sized_against_its_pictures_own_size() {
+    let (_temp, root) = project_copy();
+    let context = context_for(&root, true);
+    let image = call(
+        &context,
+        "getBlock",
+        block_arguments(IMAGE_BLOCK_ID, json!({})),
+    )
+    .ok();
+    let width = image["image"]["width"].as_i64().unwrap();
+    let height = image["image"]["height"].as_i64().unwrap();
+    let scaled = |side: i64, percent: i64| (side * percent + 50) / 100;
+    let percent = 400;
+    let set = call(
+        &context,
+        "updateBlockDisplay",
+        block_arguments(IMAGE_BLOCK_ID, json!({ "contentScalePercent": percent })),
+    )
+    .ok();
+    assert_eq!(
+        set["size"]["width"],
+        scaled(width, percent).clamp(BLOCK_MIN_WIDTH, 10_000)
+    );
+    assert_eq!(
+        set["size"]["height"],
+        scaled(height, percent).clamp(BLOCK_MIN_HEIGHT, 10_000)
+    );
+    assert_eq!(set["imageScalePercent"], percent);
+    // The place stays; the file keeps no display size for an image.
+    assert_eq!(set["position"], image["position"]);
+    assert!(!read_text(&overview_file(&root, "sheet.json")).contains("contentScalePercent"));
+    assert_loads_without_issues(&root);
+}
+
+#[test]
 fn the_display_size_is_refused_out_of_range_on_images_and_with_nothing_to_set() {
     let (_temp, root) = project_copy();
     let context = context_for(&root, true);
@@ -1533,7 +1568,8 @@ fn the_display_size_is_refused_out_of_range_on_images_and_with_nothing_to_set() 
         (
             IMAGE_BLOCK_ID,
             json!({ "autoFit": true }),
-            "invalidContentScale",
+            // An image fits its Block always: only a size against its picture applies.
+            "invalidArguments",
         ),
         (OVERVIEW_MARKDOWN_BLOCK_ID, json!({}), "invalidArguments"),
     ] {

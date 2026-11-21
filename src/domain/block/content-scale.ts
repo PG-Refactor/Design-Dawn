@@ -56,6 +56,15 @@ export function blockDisplayOf(block: {
   };
 }
 
+// A size worked out elsewhere (a fitted size) as a size the Block can keep: a whole percent
+// inside the bounds.
+export function keptScalePercent(percent: number): ContentScalePercent {
+  return Math.min(
+    CONTENT_SCALE_MAX_PERCENT,
+    Math.max(CONTENT_SCALE_MIN_PERCENT, Math.round(percent)),
+  ) as ContentScalePercent;
+}
+
 // One press of − (direction -1) or + (+1): to the next multiple of the step, kept inside
 // the bounds (so 25 goes up to 30, not 35).
 export function steppedScalePercent(

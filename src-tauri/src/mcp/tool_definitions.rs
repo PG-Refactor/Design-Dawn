@@ -459,8 +459,10 @@ createBlock / updateBlock for text you wrote yourself",
             "Sets how large a Markdown or Mermaid Block shows its content: contentScalePercent \
 (100 is as written) and/or autoFit (true: the largest size at which all of the content fits \
 the Block, recomputed when the Block is resized; the scale is then not used). Mermaid Blocks \
-fit by default, Markdown Blocks do not. getSheet and getBlock show both. Image Blocks always \
-fit their Block.",
+fit by default, Markdown Blocks do not. getSheet and getBlock show both. For an Image Block, \
+contentScalePercent resizes the Block to that percent of the picture's own size (100 is its \
+pixel size; proportions and top-left corner kept); getBlock's image.scalePercent tells the \
+current one. autoFit does not apply to images.",
             false,
             vec![
                 id("documentId", true, DOCUMENT_ID_HELP),

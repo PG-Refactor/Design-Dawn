@@ -5,6 +5,7 @@ import { type Block, parseBlock, type RawBlock } from "./block";
 import {
   blockDisplayOf,
   displayFields,
+  keptScalePercent,
   parseContentScalePercent,
   steppedScalePercent,
 } from "./content-scale";
@@ -48,6 +49,12 @@ describe("content scale", () => {
       const result = parseContentScalePercent(bad);
       expect(!result.ok && result.error.kind).toBe("invalidContentScale");
     }
+  });
+
+  it("keeps a worked-out size as a whole percent inside the bounds", () => {
+    expect(keptScalePercent(83.6)).toBe(84);
+    expect(keptScalePercent(3)).toBe(25);
+    expect(keptScalePercent(900)).toBe(400);
   });
 
   it("steps by 10 to the next multiple, inside the bounds", () => {
