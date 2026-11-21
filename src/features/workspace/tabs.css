@@ -1,13 +1,22 @@
+/* One row, never wrapped: more tabs than fit scroll across (`useTabStripScroll`), as in
+   VS Code. The line under the row is a shadow rather than a border, so the active tab can
+   still cover it while the row clips what is scrolled away. */
 .tab-list {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--space-1);
-  border-bottom: 1px solid var(--color-border);
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  box-shadow: inset 0 -1px 0 var(--color-border);
 }
 
 .tab {
   position: relative;
   display: inline-flex;
+  flex: 0 0 auto;
+  white-space: nowrap;
   align-items: stretch;
   border: 1px solid transparent;
   border-bottom: none;
@@ -25,7 +34,6 @@
    bottom line), with a heavier top edge as well as a different background. */
 .tab--active,
 .tab--active:hover {
-  margin-bottom: -1px;
   border-color: var(--color-border);
   background: var(--color-surface);
   box-shadow: inset 0 2px 0 var(--color-accent);
@@ -98,15 +106,18 @@
 .sheet-tabs {
   display: flex;
   align-items: flex-start;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--space-2);
   /* Cancels the panel's gap, so the tabs touch the canvas. */
   margin-top: calc(-1 * var(--space-2));
 }
 
 .sheet-tabs .tab-list {
-  border-top: 1px solid var(--color-border);
-  border-bottom: none;
+  box-shadow: inset 0 1px 0 var(--color-border);
+}
+
+.sheet-tabs__add {
+  flex: 0 0 auto;
 }
 
 .sheet-tabs .tab {
@@ -125,7 +136,6 @@
 .sheet-tabs .tab--active,
 .sheet-tabs .tab--active:hover {
   /* Same colour as the canvas, so the active sheet reads as part of it. */
-  margin-top: -1px;
   background: var(--color-canvas-background);
   box-shadow: inset 0 -2px 0 var(--color-accent);
 }

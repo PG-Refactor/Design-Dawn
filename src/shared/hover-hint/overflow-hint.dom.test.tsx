@@ -62,7 +62,7 @@ describe("OverflowHintLabel", () => {
     expect(hint()).toBeNull();
   });
 
-  it("goes when the pointer leaves or anything is pressed", () => {
+  it("goes when the pointer leaves, anything is pressed or the window is resized", () => {
     const label = renderLabel(false);
     rest(label, 40, 50);
     expect(hint()).not.toBeNull();
@@ -70,6 +70,9 @@ describe("OverflowHintLabel", () => {
     expect(hint()).toBeNull();
     rest(label, 40, 50);
     fireEvent.pointerDown(window);
+    expect(hint()).toBeNull();
+    rest(label, 40, 50);
+    fireEvent(window, new Event("resize"));
     expect(hint()).toBeNull();
   });
 });

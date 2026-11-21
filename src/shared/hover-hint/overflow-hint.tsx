@@ -112,17 +112,20 @@ export function OverflowHintLabel({
     );
   }, [shownAt]);
 
-  // Scrolling or a click moves the label away from the pointer: the hint goes.
+  // Scrolling, a click, a key or a resized window (the label may fit now) moves the label
+  // away from the pointer or changes it: the hint goes.
   useEffect(() => {
     if (shownAt === null) return undefined;
     const dismiss = () => hide();
     window.addEventListener("scroll", dismiss, true);
     window.addEventListener("pointerdown", dismiss, true);
     window.addEventListener("keydown", dismiss, true);
+    window.addEventListener("resize", dismiss);
     return () => {
       window.removeEventListener("scroll", dismiss, true);
       window.removeEventListener("pointerdown", dismiss, true);
       window.removeEventListener("keydown", dismiss, true);
+      window.removeEventListener("resize", dismiss);
     };
   });
 
