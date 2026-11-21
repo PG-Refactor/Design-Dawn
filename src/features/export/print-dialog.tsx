@@ -192,14 +192,6 @@ export function PrintDialog({
         )}
       </div>
       <div className="modal__actions">
-        <button
-          type="button"
-          className="button"
-          onClick={close}
-          disabled={busy}
-        >
-          {messages.cancel}
-        </button>
         {status.kind === "warning" ? (
           <button
             type="button"
@@ -212,17 +204,17 @@ export function PrintDialog({
           <>
             <button
               type="button"
-              className="button"
-              onClick={() => void prepareAndPrint()}
-            >
-              {messages.printWithoutSaving}
-            </button>
-            <button
-              type="button"
               className="button button--primary"
               onClick={() => void saveAndPrint()}
             >
               {messages.saveAndPrint}
+            </button>
+            <button
+              type="button"
+              className="button"
+              onClick={() => void prepareAndPrint()}
+            >
+              {messages.printWithoutSaving}
             </button>
           </>
         ) : (
@@ -236,6 +228,14 @@ export function PrintDialog({
             {busy ? messages.preparing : messages.printButton}
           </button>
         )}
+        <button
+          type="button"
+          className="button"
+          onClick={close}
+          disabled={busy}
+        >
+          {messages.cancel}
+        </button>
       </div>
     </Modal>
   );

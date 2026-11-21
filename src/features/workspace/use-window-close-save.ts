@@ -7,6 +7,14 @@ import {
 } from "./window-close";
 import { useWorkspaceServices } from "./workspace-services-context";
 
+// Two frames: the first is drawn with the change, the second starts after it was shown.
+function nextPaint(): Promise<void> {
+  if (typeof requestAnimationFrame !== "function") return Promise.resolve();
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  });
+}
+
 // What other window-level hooks may ask of the close handling (read only).
 export type WindowCloseStatus = Pick<
   WindowCloseHandler,
@@ -51,6 +59,7 @@ export function useWindowCloseSave(): WindowCloseStatus {
         needsConfirmation: () =>
           latest.current.actions.windowCloseNeedsConfirmation(),
         askUnsavedClose: () => latest.current.actions.askUnsavedWindowClose(),
+        afterRepaint: nextPaint,
         printing: {
           isOpen: () => latest.current.exportActions.printWindowsOpen(),
           confirmStop: askCloseWhilePrinting,

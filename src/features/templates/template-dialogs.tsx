@@ -157,15 +157,15 @@ function SaveForm({
           ))}
         </fieldset>
         <div className="modal__actions">
+          <button type="submit" className="button button--primary">
+            {messages.save}
+          </button>
           <button
             type="button"
             className="button"
             onClick={() => onAnswer(null)}
           >
             {messages.cancel}
-          </button>
-          <button type="submit" className="button button--primary">
-            {messages.save}
           </button>
         </div>
       </form>
@@ -216,17 +216,17 @@ function TemplateRow({ template }: { readonly template: TemplateSummary }) {
         </span>
         <button
           type="button"
-          className="button"
-          onClick={() => setConfirmingDelete(false)}
-        >
-          {messages.cancel}
-        </button>
-        <button
-          type="button"
           className="button button--danger"
           onClick={() => void templates.remove(template)}
         >
           {messages.delete}
+        </button>
+        <button
+          type="button"
+          className="button"
+          onClick={() => setConfirmingDelete(false)}
+        >
+          {messages.cancel}
         </button>
       </li>
     );

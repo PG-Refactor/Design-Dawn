@@ -154,14 +154,6 @@ export function MoveDialog({
         </button>
         <button
           type="button"
-          className="button"
-          disabled={busy}
-          onClick={onCancel}
-        >
-          {messages.dialogs.cancel}
-        </button>
-        <button
-          type="button"
           className="button button--primary"
           disabled={busy || !canChoose}
           onClick={() => {
@@ -169,6 +161,14 @@ export function MoveDialog({
           }}
         >
           {messages.dialogs.moveEntry.choose}
+        </button>
+        <button
+          type="button"
+          className="button"
+          disabled={busy}
+          onClick={onCancel}
+        >
+          {messages.dialogs.cancel}
         </button>
       </div>
     </Modal>

@@ -106,11 +106,11 @@ export function CaptionDialog({
           ))}
         </div>
         <div className="modal__actions">
-          <button type="button" className="button" onClick={onCancel}>
-            {cancelLabel}
-          </button>
           <button type="submit" className="button button--primary">
             {messages.save}
+          </button>
+          <button type="button" className="button" onClick={onCancel}>
+            {cancelLabel}
           </button>
         </div>
       </form>

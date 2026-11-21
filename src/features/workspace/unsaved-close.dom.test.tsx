@@ -4,6 +4,7 @@ import {
   cleanup,
   fireEvent,
   screen,
+  waitFor,
   within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
@@ -145,8 +146,11 @@ describe("close confirmation with auto-save off", () => {
         name: TEXTS.discard,
       }),
     );
-    await act(settle);
-    expect(shell.closeRequestSource.confirmedTokens).toEqual([TOKEN]);
+    // The question leaves the screen first (the window waits for a repaint), then it closes.
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await waitFor(() =>
+      expect(shell.closeRequestSource.confirmedTokens).toEqual([TOKEN]),
+    );
     expect(shell.gateway.methods(...WRITE_METHODS)).toEqual([]);
   });
 

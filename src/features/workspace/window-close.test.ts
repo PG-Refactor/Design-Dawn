@@ -28,6 +28,9 @@ function setup(
   let answer: (choice: UnsavedCloseChoice) => void = () => undefined;
   const handler = createWindowCloseHandler(() => ({
     needsConfirmation: () => options.needsConfirmation ?? false,
+    afterRepaint: async () => {
+      calls.push("repaint");
+    },
     askUnsavedClose: () => {
       calls.push("ask");
       if (options.choice === "hold" || options.choice === undefined) {
@@ -136,6 +139,7 @@ describe("window close handler", () => {
     expect(calls).toEqual([
       "forward",
       "ask",
+      "repaint",
       "saveAll",
       "flush",
       `confirm:${TOKEN}`,
@@ -149,7 +153,7 @@ describe("window close handler", () => {
       saveResult: operationErr("ioError", "disk"),
     });
     await handler({ subscriptionToken: TOKEN });
-    expect(calls).toEqual(["forward", "ask", "saveAll"]);
+    expect(calls).toEqual(["forward", "ask", "repaint", "saveAll"]);
     expect(source.confirmedTokens).toEqual([]);
   });
 
@@ -185,7 +189,13 @@ describe("window close handler", () => {
     expect(calls).toEqual(["forward", "ask"]);
     answer("discard");
     await first;
-    expect(calls).toEqual(["forward", "ask", "flush", `confirm:${TOKEN}`]);
+    expect(calls).toEqual([
+      "forward",
+      "ask",
+      "repaint",
+      "flush",
+      `confirm:${TOKEN}`,
+    ]);
   });
 });
 

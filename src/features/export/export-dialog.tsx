@@ -411,34 +411,34 @@ export function ExportDialog({
           <>
             <button
               type="button"
-              className="button"
-              onClick={() => setStatus({ kind: "choosing" })}
-            >
-              {messages.back}
-            </button>
-            <button
-              type="button"
               className="button button--primary"
               onClick={start}
             >
               {messages.saveAndExport}
+            </button>
+            <button
+              type="button"
+              className="button"
+              onClick={() => setStatus({ kind: "choosing" })}
+            >
+              {messages.back}
             </button>
           </>
         ) : status.kind === "confirmReplace" ? (
           <>
             <button
               type="button"
-              className="button"
-              onClick={() => setStatus({ kind: "choosing" })}
-            >
-              {messages.back}
-            </button>
-            <button
-              type="button"
               className="button button--primary"
               onClick={() => void exportInto(status.folder)}
             >
               {messages.replaceAndExport}
+            </button>
+            <button
+              type="button"
+              className="button"
+              onClick={() => setStatus({ kind: "choosing" })}
+            >
+              {messages.back}
             </button>
           </>
         ) : status.kind === "done" || status.kind === "saved" ? (
@@ -452,14 +452,6 @@ export function ExportDialog({
         ) : (
           <>
             <button
-              type="button"
-              className="button"
-              onClick={onClose}
-              disabled={busy}
-            >
-              {messages.cancel}
-            </button>
-            <button
               ref={startRef}
               type="button"
               className="button button--primary"
@@ -470,6 +462,14 @@ export function ExportDialog({
             </button>
           </>
         )}
+        <button
+          type="button"
+          className="button"
+          onClick={onClose}
+          disabled={busy}
+        >
+          {messages.cancel}
+        </button>
       </div>
     </Modal>
   );

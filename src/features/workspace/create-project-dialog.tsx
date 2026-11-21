@@ -238,19 +238,19 @@ export function CreateProjectDialog({
         )}
         <div className="modal__actions">
           <button
+            type="submit"
+            className="button button--primary"
+            disabled={busy}
+          >
+            {texts.submit}
+          </button>
+          <button
             type="button"
             className="button"
             disabled={busy}
             onClick={onCancel}
           >
             {messages.dialogs.cancel}
-          </button>
-          <button
-            type="submit"
-            className="button button--primary"
-            disabled={busy}
-          >
-            {texts.submit}
           </button>
         </div>
       </form>

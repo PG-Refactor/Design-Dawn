@@ -342,9 +342,6 @@ function ImportDialog({
         )}
       </div>
       <div className="modal__actions">
-        <button type="button" className="button" onClick={() => onAnswer(null)}>
-          {messages.cancel}
-        </button>
         <button
           ref={importRef}
           type="button"
@@ -353,6 +350,9 @@ function ImportDialog({
           onClick={() => onAnswer(selected)}
         >
           {messages.importButton}
+        </button>
+        <button type="button" className="button" onClick={() => onAnswer(null)}>
+          {messages.cancel}
         </button>
       </div>
     </Modal>

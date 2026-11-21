@@ -70,19 +70,19 @@ export function GitRemoteDialog({
       <div className="modal__actions">
         <button
           type="button"
-          className="button"
-          disabled={busy}
-          onClick={services.actions.cancelDialog}
-        >
-          {messages.workspace.dialogs.cancel}
-        </button>
-        <button
-          type="button"
           className="button button--primary"
           disabled={busy || selected === ""}
           onClick={() => void confirmGitRemote(services, selected)}
         >
           {texts.confirm}
+        </button>
+        <button
+          type="button"
+          className="button"
+          disabled={busy}
+          onClick={services.actions.cancelDialog}
+        >
+          {messages.workspace.dialogs.cancel}
         </button>
       </div>
     </Modal>

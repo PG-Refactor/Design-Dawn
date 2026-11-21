@@ -70,10 +70,24 @@ export function installThemedTitles(root: Document = document): () => void {
     hovered = null;
   }
 
-  function onOver(event: PointerEvent): void {
-    const target = event.target instanceof Element ? event.target : null;
-    const titled = target?.closest(TITLED_SELECTOR) ?? null;
-    if (titled === hovered?.element) return;
+  // What is under the pointer, read from its position: while an element holds the pointer
+  // (the canvas does, between a press and its release), the events name that element, not
+  // the button the pointer is over, and the title would come back under the pointer.
+  function elementUnder(event: PointerEvent): Element | null {
+    const found =
+      typeof root.elementFromPoint === "function"
+        ? root.elementFromPoint(event.clientX, event.clientY)
+        : null;
+    if (found !== null) return found;
+    return event.target instanceof Element ? event.target : null;
+  }
+
+  function follow(event: PointerEvent): void {
+    const under = elementUnder(event);
+    // Still on the element whose title is aside (it has none now, so it is not found by it).
+    if (hovered !== null && under !== null && hovered.element.contains(under))
+      return;
+    const titled = under?.closest(TITLED_SELECTOR) ?? null;
     release();
     const title = titled?.getAttribute("title") ?? "";
     if (titled === null || title.trim() === "") return;
@@ -89,13 +103,13 @@ export function installThemedTitles(root: Document = document): () => void {
 
   function onMove(event: PointerEvent): void {
     pointer = { x: event.clientX, y: event.clientY };
+    follow(event);
     place();
   }
 
+  // Leaving the window (nothing next): the title goes back.
   function onOut(event: PointerEvent): void {
-    if (hovered === null) return;
-    const next = event.relatedTarget;
-    if (next instanceof Node && hovered.element.contains(next)) return;
+    if (hovered === null || event.relatedTarget !== null) return;
     release();
   }
 
@@ -103,7 +117,7 @@ export function installThemedTitles(root: Document = document): () => void {
   // when the pointer leaves).
   const dismiss = () => hideHint();
 
-  root.addEventListener("pointerover", onOver, true);
+  root.addEventListener("pointerover", follow, true);
   root.addEventListener("pointermove", onMove, true);
   root.addEventListener("pointerout", onOut, true);
   root.addEventListener("pointerdown", dismiss, true);
@@ -112,7 +126,7 @@ export function installThemedTitles(root: Document = document): () => void {
   view.addEventListener("blur", release);
   return () => {
     release();
-    root.removeEventListener("pointerover", onOver, true);
+    root.removeEventListener("pointerover", follow, true);
     root.removeEventListener("pointermove", onMove, true);
     root.removeEventListener("pointerout", onOut, true);
     root.removeEventListener("pointerdown", dismiss, true);
