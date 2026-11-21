@@ -55,6 +55,8 @@ describe("buildExportHtml", () => {
     expect(html).toContain('alt="a&quot;b"');
     expect(html).toContain('<div class="caption">Figure 1</div>');
     expect(html).not.toContain("<script");
+    // Set in the app's own fonts, so text breaks where it does on screen.
+    expect(html).toContain("font-family:system-ui,-apple-system");
     // An empty sheet is left out.
     expect(html).not.toContain(">Empty<");
   });

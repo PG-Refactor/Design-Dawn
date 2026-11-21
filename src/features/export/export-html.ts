@@ -68,6 +68,10 @@ const HEADING_HEIGHT = PRINT_CONFIG.paperHeadingHeight;
 // Block text is set as on the canvas (`--canvas-content-rem` and the Markdown preview's
 // sizes), so a block holds the same text in print as on screen, also when it is enlarged.
 const CONTENT_FONT_PX = 16;
+// The app's own font list (`--font-family-base`): Japanese is drawn with the same font, so
+// its punctuation takes the same room and lines break at the same places.
+const CONTENT_FONT_FAMILY =
+  'system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",sans-serif';
 const CONTENT_GAP_PX = 8;
 const HEADING_GAP_PX = 16;
 const LIST_INDENT_PX = 24;
@@ -91,7 +95,7 @@ function styleOf(palette: ExportPalette): string {
   return `
 :root{--text:${palette.text};--muted:${palette.textMuted};--border:${palette.border};--border-strong:${palette.borderStrong};--background:${palette.background};--surface:${palette.surface};--accent:${palette.accent};--caption:${palette.captionBackground};}
 *{box-sizing:border-box;}
-html,body{margin:0;background:var(--background);color:var(--text);font-family:"Segoe UI","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;font-size:14px;line-height:1.5;}
+html,body{margin:0;background:var(--background);color:var(--text);font-family:${CONTENT_FONT_FAMILY};font-size:14px;line-height:1.5;}
 .sheet-title{margin:0;padding:12px ${SHEET_MARGIN}px;height:${TITLE_HEIGHT}px;font-size:18px;}
 .sheet{position:relative;}
 .block{position:absolute;display:flex;flex-direction:column;border:1px solid var(--border);border-radius:6px;background:var(--surface);overflow:hidden;}

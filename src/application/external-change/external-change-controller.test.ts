@@ -320,8 +320,19 @@ describe("a change at the Project level", () => {
     expect(reloaded).toEqual(["project"]);
   });
 
-  it("never reads the Project again unasked for a structural change", async () => {
+  it("reads the Project again unasked for a structural change when nothing is unsaved", async () => {
+    // A Document or Folder made or removed outside (an AI tool, Git).
     const { harness, controller, reloaded } = await opened();
+    await controller.handleNotice(
+      notice(harness, { project: { structure: true, files: [] } }),
+    );
+    expect(reloaded).toHaveLength(1);
+    expect(controller.store.getState().projectConflict).toBeNull();
+  });
+
+  it("asks about a structural change while something is unsaved", async () => {
+    const { harness, controller, reloaded } = await opened();
+    await makeUnsaved(harness);
     await controller.handleNotice(
       notice(harness, { project: { structure: true, files: [] } }),
     );

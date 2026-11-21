@@ -303,12 +303,12 @@ export function createExternalChangeController(
           },
         }));
       } else {
-        // A structural change (a Document or Folder appeared or vanished) is never taken
-        // in unasked, and neither is anything while there are unsaved changes: reading
-        // the Project again closes every Document without saving.
-        const readable =
-          !changes.project.structure &&
-          changes.project.files.every((file) => file.readable);
+        // Nothing unsaved: read again unasked, a Document or Folder that appeared or
+        // vanished (an AI tool, Git) included, as a Sheet is (a Document gone from the
+        // files leaves its tab; the notice says the files were read again). With unsaved
+        // changes the user is asked: reading the Project again closes every Document
+        // without saving.
+        const readable = changes.project.files.every((file) => file.readable);
         if (readable && !anythingUnsaved()) {
           await reloadProjectBy();
           return;
