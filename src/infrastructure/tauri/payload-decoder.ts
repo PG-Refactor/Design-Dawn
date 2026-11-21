@@ -34,6 +34,24 @@ export function optional<T>(inner: Decoder<T>): Decoder<T | undefined> {
     value === undefined ? decoded(undefined) : inner(value, path);
 }
 
+// An object used as a map from strings to values of one kind.
+export function recordOf<T>(
+  inner: Decoder<T>,
+): Decoder<Readonly<Record<string, T>>> {
+  return (value, path) => {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+      return mismatch(path, "an object");
+    }
+    const entries: Record<string, T> = {};
+    for (const [key, item] of Object.entries(value)) {
+      const decodedItem = inner(item, `${path}.${key}`);
+      if (!decodedItem.ok) return decodedItem;
+      entries[key] = decodedItem.value;
+    }
+    return decoded(entries);
+  };
+}
+
 export function arrayOf<T>(inner: Decoder<T>): Decoder<readonly T[]> {
   return (value, path) => {
     if (!Array.isArray(value)) return mismatch(path, "an array");

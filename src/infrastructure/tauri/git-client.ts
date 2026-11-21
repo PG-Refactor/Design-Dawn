@@ -10,6 +10,8 @@ import type {
   GitDiscardImpact,
   GitHistoryPage,
   GitRemoteResult,
+  GitSheetVersion,
+  GitSheetVersions,
   GitStatus,
   GitUndoCommitResult,
 } from "../../application/ports/git-gateway";
@@ -27,7 +29,14 @@ import {
   toRemoteNames,
 } from "./git-payloads";
 import { call } from "./invoke-command";
-import { arrayOf, decodeString, nullable, objectOf } from "./payload-decoder";
+import {
+  arrayOf,
+  decodeString,
+  nullable,
+  objectOf,
+  recordOf,
+} from "./payload-decoder";
+import { parseSheetText } from "./persistence-payloads";
 
 export function gitStatus(
   projectId: ProjectId,
@@ -158,6 +167,50 @@ const rawConflictVersions = objectOf<GitConflictVersions>({
   merged: nullable(decodeString),
   conflictingBlocks: arrayOf(decodeString),
 });
+
+interface RawSheetVersion extends Omit<GitSheetVersion, "sheet"> {
+  readonly sheet: string;
+}
+interface RawSheetVersions {
+  readonly documentId: string | null;
+  readonly before: RawSheetVersion | null;
+  readonly after: RawSheetVersion | null;
+}
+const rawSheetVersion = objectOf<RawSheetVersion>({
+  sheet: decodeString,
+  texts: recordOf(decodeString),
+  images: recordOf(decodeString),
+});
+const rawSheetVersions = objectOf<RawSheetVersions>({
+  documentId: nullable(decodeString),
+  before: nullable(rawSheetVersion),
+  after: nullable(rawSheetVersion),
+});
+
+function toSheetVersion(raw: RawSheetVersion | null): GitSheetVersion | null {
+  return raw === null ? null : { ...raw, sheet: parseSheetText(raw.sheet) };
+}
+
+export function gitSheetVersions(
+  projectId: ProjectId,
+  path: string,
+  side: GitDiffSide,
+): Promise<CommandResult<GitSheetVersions>> {
+  return call(
+    COMMANDS.gitSheetVersions,
+    { projectId, path, side },
+    (payload) => {
+      const decoded = rawSheetVersions(payload, "payload");
+      return decoded.ok
+        ? commandOk({
+            documentId: decoded.value.documentId,
+            before: toSheetVersion(decoded.value.before),
+            after: toSheetVersion(decoded.value.after),
+          })
+        : commandErr("invalidCommandResponse", decoded.detail);
+    },
+  );
+}
 
 export function gitConflictVersions(
   projectId: ProjectId,

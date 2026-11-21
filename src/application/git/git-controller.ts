@@ -24,6 +24,7 @@ import {
   type GitHistoryEntry,
   type GitHistoryPage,
   type GitRemoteResult,
+  type GitSheetVersions,
   type GitStatus,
   type GitUndoCommitResult,
 } from "../ports/git-gateway";
@@ -148,6 +149,12 @@ export interface GitController {
   stage(paths: readonly string[]): Promise<OperationResult<void>>;
   // The versions of a conflicted file (a plain read, not queued).
   conflictVersions(path: string): Promise<OperationResult<GitConflictVersions>>;
+  // The Sheet a changed file is in, at both versions of the side (read-only; not queued:
+  // it changes nothing). A failure is returned, not reported: the view shows it.
+  sheetVersions(
+    path: string,
+    side: GitDiffSide,
+  ): Promise<OperationResult<GitSheetVersions>>;
   // Writes the chosen text over a conflicted file and stages it, on the queue like Stage.
   resolveConflict(
     path: string,
@@ -781,6 +788,13 @@ export function createGitController(
         return operationErr("projectNotOpen", "no project is open");
       }
       return gateway.conflictVersions(projectId, path);
+    },
+    sheetVersions: async (path, side) => {
+      const projectId = store.getState().projectId;
+      if (projectId === null) {
+        return operationErr("projectNotOpen", "no project is open");
+      }
+      return gateway.sheetVersions(projectId, path, side);
     },
     unstage: (paths) => changeIndex("unstage", paths),
     discard: (paths) => changeIndex("discard", paths),

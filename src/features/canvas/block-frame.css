@@ -122,9 +122,9 @@
   line-height: 1;
 }
 
-.block-frame:hover .block-display,
+.block-display:focus-within,
 .block-frame--selected .block-display,
-.block-display:focus-within {
+.block-frame:hover .block-display {
   display: inline-flex;
 }
 

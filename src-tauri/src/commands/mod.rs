@@ -50,6 +50,7 @@ use crate::application::git_discard;
 use crate::application::git_history;
 use crate::application::git_operations::{self, GitStatusResult};
 use crate::application::git_remote;
+use crate::application::git_sheet_versions;
 use crate::application::image_selection::{
     select_image_files as select_images, ImagePicker, ImageSelection,
 };
@@ -85,7 +86,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 111] = [
+pub const COMMAND_NAMES: [&str; 112] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -160,6 +161,7 @@ pub const COMMAND_NAMES: [&str; 111] = [
     "asset_data_url",
     "ai_history",
     "git_conflict_versions",
+    "git_sheet_versions",
     "git_resolve_conflict",
     "copy_asset_to_document",
     "subscribe_drop_notifications",
@@ -1846,6 +1848,24 @@ pub async fn git_diff<R: Runtime>(
     run_blocking(move || {
         let sessions = app.state::<Mutex<ProjectSessions>>();
         git_operations::git_diff(&sessions, &project_id, &path, side)
+    })
+    .await
+}
+
+/// A Sheet of the calling window's Project at the two versions of a diff side, with the
+/// files its Blocks show, for comparing how they look. Read-only.
+#[tauri::command]
+pub async fn git_sheet_versions<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    path: String,
+    side: git_operations::DiffSide,
+) -> Result<git_sheet_versions::SheetVersions, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_sheet_versions::git_sheet_versions(&sessions, &project_id, &path, side)
     })
     .await
 }

@@ -3147,3 +3147,89 @@ fn a_path_long_inside_the_project_is_noted_even_when_this_pc_can_use_it() {
     assert_eq!(long.portable_count, 1);
     assert_eq!(long.portable_files, vec![file]);
 }
+
+#[test]
+fn a_sheet_is_read_at_both_versions_of_a_diff_side_with_its_texts_and_images() {
+    use design_dawn_lib::application::git_sheet_versions::read_sheet_versions;
+    let fixture = fixture_or_skip!();
+    let project = fixture.repository();
+    let sheet_dir = "documents/design/sheets/overview";
+    let sheet = |text_path: &str| {
+        format!(
+            r#"{{"schemaVersion":2,"sheetId":"s","name":"Overview","blocks":[{{"blockId":"b","blockType":"markdown","position":{{"x":0,"y":0}},"size":{{"width":10,"height":10}},"contentPath":"{text_path}"}},{{"blockId":"i","blockType":"image","position":{{"x":0,"y":0}},"size":{{"width":10,"height":10}},"contentPath":"assets/dot.svg"}}]}}"#
+        )
+    };
+    let text_path = "sheets/overview/blocks/markdown-1.md";
+    write(
+        &project,
+        "documents/design/document.json",
+        r#"{"schemaVersion":2,"documentId":"doc-1","name":"D","sheetOrder":["s"]}"#,
+    );
+    write(
+        &project,
+        &format!("{sheet_dir}/sheet.json"),
+        &sheet(text_path),
+    );
+    write(
+        &project,
+        &format!("documents/design/{text_path}"),
+        "# Before\n",
+    );
+    write(
+        &project,
+        "documents/design/assets/dot.svg",
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>"#,
+    );
+    fixture.git(&project, &["add", "-A"]);
+    fixture.git(&project, &["commit", "-q", "-m", "sheet"]);
+    // Changed in the working tree only.
+    write(
+        &project,
+        &format!("documents/design/{text_path}"),
+        "# After\n",
+    );
+
+    let changed = format!("documents/design/{text_path}");
+    let versions = read_sheet_versions(
+        Some(&fixture.runner()),
+        &project,
+        &changed,
+        DiffSide::Unstaged,
+    )
+    .expect("versions");
+    assert_eq!(versions.document_id.as_deref(), Some("doc-1"));
+    let before = versions.before.expect("before");
+    let after = versions.after.expect("after");
+    assert_eq!(
+        before.texts.get(text_path).map(String::as_str),
+        Some("# Before\n")
+    );
+    assert_eq!(
+        after.texts.get(text_path).map(String::as_str),
+        Some("# After\n")
+    );
+    assert!(after.images["assets/dot.svg"].starts_with("data:image/svg+xml;base64,"));
+
+    // Staged: HEAD against the index (nothing staged yet: the same text on both sides).
+    let staged = read_sheet_versions(
+        Some(&fixture.runner()),
+        &project,
+        &changed,
+        DiffSide::Staged,
+    )
+    .expect("staged");
+    assert_eq!(
+        staged.before.unwrap().texts.get(text_path),
+        staged.after.unwrap().texts.get(text_path)
+    );
+
+    // A path outside a Sheet, or leaving the Project, is refused.
+    for bad in ["documents/design/document.json", "../x/sheets/a/sheet.json"] {
+        assert_eq!(
+            read_sheet_versions(Some(&fixture.runner()), &project, bad, DiffSide::Unstaged)
+                .unwrap_err()
+                .kind,
+            ErrorKind::InvalidGitPath
+        );
+    }
+}

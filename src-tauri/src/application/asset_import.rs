@@ -433,7 +433,7 @@ const BASE64_ALPHABET: &[u8; 64] =
 const BASE64_PADDING: char = '=';
 
 /// Standard base64 with padding (RFC 4648 section 4).
-fn base64(bytes: &[u8]) -> String {
+pub(crate) fn base64(bytes: &[u8]) -> String {
     let mut text = String::with_capacity(bytes.len().div_ceil(3) * 4);
     for chunk in bytes.chunks(3) {
         let value = chunk.iter().enumerate().fold(0u32, |value, (index, byte)| {

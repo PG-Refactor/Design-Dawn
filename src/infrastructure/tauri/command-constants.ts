@@ -70,6 +70,7 @@ export const COMMANDS = {
   assetDataUrl: "asset_data_url",
   aiHistory: "ai_history",
   gitConflictVersions: "git_conflict_versions",
+  gitSheetVersions: "git_sheet_versions",
   gitResolveConflict: "git_resolve_conflict",
   selectImageFiles: "select_image_files",
   defaultProjectLocation: "default_project_location",

@@ -25,6 +25,7 @@ pub mod git_discard;
 pub mod git_history;
 pub mod git_operations;
 pub mod git_remote;
+pub mod git_sheet_versions;
 pub mod image_selection;
 pub mod line_diff;
 pub mod load_issue;

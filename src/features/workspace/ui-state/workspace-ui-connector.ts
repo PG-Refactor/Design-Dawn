@@ -35,6 +35,7 @@ export function connectWorkspaceToUiState(
           sidebarCollapsed: state.sidebarCollapsed,
           sourceEditorLayout: state.sourceEditorLayout,
           diffViewMode: state.diffViewMode,
+          diffContentMode: state.diffContentMode,
         }));
         return;
     }

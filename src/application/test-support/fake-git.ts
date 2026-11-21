@@ -11,6 +11,7 @@ import type {
   GitGateway,
   GitHistoryPage,
   GitRemoteResult,
+  GitSheetVersions,
   GitStatus,
   GitUndoCommitResult,
 } from "../ports/git-gateway";
@@ -28,6 +29,8 @@ export interface FakeGitGateway extends GitGateway {
   readonly stageCalls: { projectId: ProjectId; paths: readonly string[] }[];
   // What `conflictVersions` answers, and the resolutions asked for.
   conflict: GitConflictVersions | null;
+  // What `sheetVersions` answers (null: the path is outside any Sheet).
+  sheetVersionsAnswer: GitSheetVersions | null;
   readonly resolveCalls: { path: string; content: string }[];
   readonly unstageCalls: { projectId: ProjectId; paths: readonly string[] }[];
   readonly discardCalls: { projectId: ProjectId; paths: readonly string[] }[];
@@ -166,6 +169,13 @@ export function createFakeGitGateway(): FakeGitGateway {
     longPathsEnabled: [],
     stageCalls: [],
     conflict: null,
+    sheetVersionsAnswer: null,
+    sheetVersions: (_projectId, path) =>
+      Promise.resolve(
+        gateway.sheetVersionsAnswer === null
+          ? operationErr<GitSheetVersions>("invalidGitPath", path)
+          : operationOk(gateway.sheetVersionsAnswer),
+      ),
     resolveCalls: [],
     conflictVersions: (_projectId, path) =>
       Promise.resolve(

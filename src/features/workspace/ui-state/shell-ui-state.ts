@@ -7,6 +7,7 @@ import { LAYOUT_CONFIG } from "../../../config/layout-config";
 import type { TreeSelection } from "../view-models/tree-selection";
 import type {
   DialogState,
+  DiffContentMode,
   DiffViewMode,
   GitChangeSectionId,
   LeftPanelMode,
@@ -128,6 +129,15 @@ export function setTreeSelection(
     current.keys.length === selection.keys.length &&
     current.keys.every((key, index) => key === selection.keys[index]);
   return unchanged ? state : { ...state, treeSelection: selection };
+}
+
+export function setDiffContentMode(
+  state: UiState,
+  mode: DiffContentMode,
+): UiState {
+  return state.diffContentMode === mode
+    ? state
+    : { ...state, diffContentMode: mode };
 }
 
 export function setDiffViewMode(state: UiState, mode: DiffViewMode): UiState {
