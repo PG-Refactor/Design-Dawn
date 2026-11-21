@@ -22,6 +22,7 @@ import type { CompareTab, DiffTab, GitSelection } from "./ui-state/ui-state";
 import { useMessages } from "./use-messages";
 import { useProjectWindows } from "./use-project-windows";
 import { useTabDrag } from "./use-tab-drag";
+import { useTabStripScroll } from "./use-tab-strip-scroll";
 import {
   NAVIGATION_KEYS,
   tabTargetIndex,
@@ -89,6 +90,7 @@ export function DocumentTabs() {
   const tabs = useWorkspaceModel(selectDocumentTabs);
   const diffTabs = useUiState((ui) => ui.diffTabs);
   const activeMainTab = useUiState((ui) => ui.activeMainTab);
+  const activeDocumentId = useUiState((ui) => ui.activeDocumentId);
   const compareTab = useUiState((ui) => ui.compareTab);
   const tabElements = useRef(new Map<string, HTMLButtonElement>());
   // Set after a tab was closed (the neighbour that became active gets focus, because the
@@ -143,6 +145,11 @@ export function DocumentTabs() {
       ? []
       : [{ kind: "compare", tab: compareTab } satisfies StripEntry]),
   ];
+  // Changes whenever another tab becomes active or tabs come and go. Before the early
+  // return: a hook runs on every render.
+  const strip = useTabStripScroll(
+    `${activeMainTab.kind}/${activeDocumentId ?? ""}/${activeMainTab.kind === "diff" ? activeMainTab.path : ""}/${entries.length}`,
+  );
   if (entries.length === 0) return null;
 
   const activeIndex = entries.findIndex((entry) =>
@@ -315,6 +322,7 @@ export function DocumentTabs() {
 
   return (
     <div
+      ref={strip}
       role="tablist"
       aria-label={messages.tabs.documentTabsLabel}
       className="tab-list"

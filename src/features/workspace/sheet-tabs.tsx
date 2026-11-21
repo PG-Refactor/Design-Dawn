@@ -27,6 +27,7 @@ import { type SheetTabsModel, selectSheetTabs } from "./view-models/tabs-model";
 import { useUiState, useWorkspaceModel } from "./workspace-hooks";
 import { useWorkspaceServices } from "./workspace-services-context";
 import "./tabs.css";
+import { useTabStripScroll } from "./use-tab-strip-scroll";
 
 const RENAME_KEY = "F2";
 
@@ -102,6 +103,7 @@ function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
   const tabElements = useRef(new Map<SheetId, HTMLButtonElement>());
   const renaming = useUiState((ui) => ui.renaming);
   const { tabs, documentId, activeSheetId } = model;
+  const strip = useTabStripScroll(`${activeSheetId ?? ""}/${tabs.length}`);
   const tabIds = tabs.map((tab) => tab.sheetId);
   const contextMenu = useContextMenu();
 
@@ -210,6 +212,7 @@ function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
   if (tabs.length === 0) return null;
   return (
     <div
+      ref={strip}
       role="tablist"
       aria-label={messages.tabs.sheetTabsLabel}
       className="tab-list"
