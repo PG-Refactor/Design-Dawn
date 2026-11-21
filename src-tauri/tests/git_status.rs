@@ -3173,7 +3173,12 @@ fn a_sheet_is_read_at_both_versions_of_a_diff_side_with_its_texts_and_images() {
     write(
         &project,
         &format!("documents/design/{text_path}"),
-        "# Before\n",
+        "# Before\n![p](../../../assets/pic.svg)\n",
+    );
+    write(
+        &project,
+        "documents/design/assets/pic.svg",
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>"#,
     );
     write(
         &project,
@@ -3182,11 +3187,16 @@ fn a_sheet_is_read_at_both_versions_of_a_diff_side_with_its_texts_and_images() {
     );
     fixture.git(&project, &["add", "-A"]);
     fixture.git(&project, &["commit", "-q", "-m", "sheet"]);
-    // Changed in the working tree only.
+    // Changed in the working tree only: the text, and the picture it shows.
     write(
         &project,
         &format!("documents/design/{text_path}"),
-        "# After\n",
+        "# After\n![p](../../../assets/pic.svg)\n",
+    );
+    write(
+        &project,
+        "documents/design/assets/pic.svg",
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"/>"#,
     );
 
     let changed = format!("documents/design/{text_path}");
@@ -3200,13 +3210,13 @@ fn a_sheet_is_read_at_both_versions_of_a_diff_side_with_its_texts_and_images() {
     assert_eq!(versions.document_id.as_deref(), Some("doc-1"));
     let before = versions.before.expect("before");
     let after = versions.after.expect("after");
-    assert_eq!(
-        before.texts.get(text_path).map(String::as_str),
-        Some("# Before\n")
-    );
-    assert_eq!(
-        after.texts.get(text_path).map(String::as_str),
-        Some("# After\n")
+    assert!(before.texts[text_path].starts_with("# Before"));
+    assert!(after.texts[text_path].starts_with("# After"));
+    // The picture the Markdown shows is read at each version too.
+    assert!(before.images.contains_key("assets/pic.svg"));
+    assert_ne!(
+        before.images["assets/pic.svg"],
+        after.images["assets/pic.svg"]
     );
     assert!(after.images["assets/dot.svg"].starts_with("data:image/svg+xml;base64,"));
 

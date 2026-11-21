@@ -136,6 +136,57 @@ describe("visual sheet diff", () => {
     );
   });
 
+  it("shows the picture a Markdown text had at the earlier version", async () => {
+    const OLD_PICTURE = "data:image/png;base64,T0xE";
+    const shell = await renderShell({
+      seed: (harness) =>
+        seedSheetBlocks(harness, DOCUMENT_A, SHEET_A1, [KEPT, ADDED]),
+    });
+    shell.gitGateway.status = {
+      repositoryState: "ready",
+      branch: null,
+      files: [
+        {
+          path: SHEET_FILE,
+          indexStatus: "unmodified",
+          worktreeStatus: "modified",
+          originalPath: null,
+        },
+      ],
+    };
+    const text = "![p](../../../assets/pic.png)";
+    shell.gitGateway.sheetVersionsAnswer = {
+      ...versions(),
+      before: {
+        sheet: makeSheetWith(SHEET_A1, [KEPT]),
+        texts: { [KEPT.contentPath]: text },
+        images: { "assets/pic.png": OLD_PICTURE },
+      },
+    };
+    shell.gitGateway.diffs[`unstaged:${SHEET_FILE}`] = {
+      path: SHEET_FILE,
+      side: "unstaged",
+      outcome: "empty",
+    };
+    shell.uiStateStore.setState((state) => ({
+      ...state,
+      diffContentMode: "visual",
+    }));
+    await shell.openProjectInUi();
+    await act(async () => {
+      openDiffPinned(shell, { path: SHEET_FILE, side: "unstaged" });
+      await settle();
+    });
+    const before = await screen.findByRole("region", {
+      name: MESSAGES.paneLabel(MESSAGES.before),
+    });
+    await waitFor(() =>
+      expect(before.querySelector("img")?.getAttribute("src")).toBe(
+        OLD_PICTURE,
+      ),
+    );
+  });
+
   it("offers neither for a file outside a Sheet", async () => {
     await openSheetDiff("documents/a/document.json");
     expect(

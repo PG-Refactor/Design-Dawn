@@ -10,6 +10,7 @@ import type { GitSheetVersion } from "../../application/ports/git-gateway";
 import type { Block } from "../../domain/block/block";
 import { BLOCK_TYPE_DEFINITIONS } from "../../domain/block/block-type";
 import { figureCaptionOf } from "../../domain/block/caption";
+import { parseContentPath } from "../../domain/block/content-path";
 import {
   blockDisplayOf,
   isScalableBlockType,
@@ -19,6 +20,7 @@ import { shortBlockId } from "../canvas/canvas-messages";
 import { worldLayerTransform } from "../canvas/geometry/viewport-math";
 import { MarkdownPreview } from "../markdown/markdown-preview";
 import { renderMarkdown } from "../markdown/render-markdown";
+import { withImageSources } from "../markdown/sanitize-html";
 import { useMarkdownImageContext } from "../markdown/use-markdown-image-context";
 import { MermaidDiagramPreview } from "../mermaid/mermaid-diagram-preview";
 import { useMessages } from "../workspace/use-messages";
@@ -50,17 +52,37 @@ function markOf(
   return side === "after" && (change.moved || change.resized) ? "moved" : null;
 }
 
+// A URL as an HTML serialiser writes it inside an attribute.
+function attributeText(url: string): string {
+  return url.replaceAll("&", "&amp;").replaceAll('"', "&quot;");
+}
+
 function MarkdownContent({
   text,
   block,
   documentId,
+  version,
 }: {
   readonly text: string;
   readonly block: Block;
   readonly documentId: DocumentId;
+  readonly version: GitSheetVersion;
 }) {
   const images = useMarkdownImageContext(documentId, block.contentPath);
-  const html = useMemo(() => renderMarkdown(text, images), [text, images]);
+  // Rendered with the Document's own image URLs, then each picture this version has is
+  // shown instead: the text shows the pictures as they were at that version.
+  const html = useMemo(() => {
+    const rendered = renderMarkdown(text, images);
+    if (images === undefined) return rendered;
+    const sources = new Map<string, string>();
+    for (const [assetPath, dataUrl] of Object.entries(version.images)) {
+      const path = parseContentPath(assetPath);
+      if (path.ok) {
+        sources.set(attributeText(images.urlFor(path.value)), dataUrl);
+      }
+    }
+    return withImageSources(rendered, sources);
+  }, [text, images, version]);
   const display = blockDisplayOf(block);
   return (
     <MarkdownPreview
@@ -93,7 +115,12 @@ function BlockContent({
           label={shortBlockId(block.blockId)}
         />
       ) : (
-        <MarkdownContent text={text} block={block} documentId={documentId} />
+        <MarkdownContent
+          text={text}
+          block={block}
+          documentId={documentId}
+          version={version}
+        />
       );
     case BLOCK_TYPE_DEFINITIONS.mermaid.identifier:
       if (text === undefined) break;

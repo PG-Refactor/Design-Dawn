@@ -34,6 +34,35 @@ const TEXT_MAX_BYTES: usize = 2 * 1024 * 1024;
 const BLOCKS_KEY: &str = "blocks";
 const CONTENT_PATH_KEY: &str = "contentPath";
 const DOCUMENT_ID_KEY: &str = "documentId";
+/// Where a Markdown text names an image of its Document (`../../../assets/<file>`).
+const ASSET_REFERENCE: &str = "assets/";
+/// What ends a file name written in Markdown or HTML.
+const REFERENCE_END: [char; 8] = [')', '"', '\'', ' ', '\n', '\r', '<', '>'];
+const MARKDOWN_EXTENSION: &str = ".md";
+
+/// The images of the Document a Markdown text shows (`assets/<file>`, as a Block's
+/// `contentPath` names one), so the version of each can be read too.
+fn markdown_assets(text: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    let mut rest = text;
+    while let Some(index) = rest.find(ASSET_REFERENCE) {
+        let after = &rest[index + ASSET_REFERENCE.len()..];
+        let name: String = after
+            .chars()
+            .take_while(|c| !REFERENCE_END.contains(c))
+            .collect();
+        let path = format!("{ASSET_REFERENCE}{name}");
+        if !name.is_empty()
+            && !name.contains('/')
+            && ImageFormat::from_file_name(&name).is_some()
+            && !found.contains(&path)
+        {
+            found.push(path);
+        }
+        rest = after;
+    }
+    found
+}
 
 /// One version of a Sheet: its `sheet.json` as written, and the files its Blocks show, by
 /// their `contentPath` (texts as text, images as `data:` URLs). A file that is missing, too
@@ -148,6 +177,19 @@ fn read_sheet(
                 images.insert(content_path.to_owned(), image);
             }
         } else if let Some(body) = read_text(runner, root, source, &path) {
+            // The images a Markdown text shows are read at the same version.
+            if content_path.ends_with(MARKDOWN_EXTENSION) {
+                for asset in markdown_assets(&body) {
+                    if images.contains_key(&asset) {
+                        continue;
+                    }
+                    if let Some(image) =
+                        read_image(runner, root, source, &format!("{document}/{asset}"))
+                    {
+                        images.insert(asset, image);
+                    }
+                }
+            }
             texts.insert(content_path.to_owned(), body);
         }
     }
@@ -221,6 +263,16 @@ pub fn git_sheet_versions(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_images_a_markdown_text_shows_are_found_once() {
+        let text = "![a](../../../assets/pic.png) and <img src=\"../../../assets/b-2.svg\"> \
+![again](../../../assets/pic.png) [not an image](../../../assets/notes.txt) assets/";
+        assert_eq!(
+            markdown_assets(text),
+            vec!["assets/pic.png".to_owned(), "assets/b-2.svg".to_owned()]
+        );
+    }
 
     #[test]
     fn a_file_inside_a_sheet_names_its_document_and_sheet_folders() {
