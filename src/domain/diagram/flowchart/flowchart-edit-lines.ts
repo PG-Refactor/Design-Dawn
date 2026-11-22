@@ -1,3 +1,4 @@
+import { itemAt } from "../../shared/item-at";
 import type { TextEdit } from "../text-edit";
 import { FLOWCHART_STATEMENT_SEPARATOR } from "./flowchart-config";
 import {
@@ -101,9 +102,10 @@ export function deleteLinesEdits(
         text: "",
       });
     } else {
-      const previous = reading.lines[first - 1];
+      // Not the first line (handled above), so there is one before it.
+      const previous = itemAt(reading.lines, first - 1, firstLine);
       edits.push({
-        start: previous === undefined ? firstLine.start : previous.end,
+        start: previous.end,
         end: lastLine.end,
         text: "",
       });
