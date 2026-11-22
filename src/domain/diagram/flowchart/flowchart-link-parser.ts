@@ -9,6 +9,7 @@ import {
   FLOWCHART_MAX_LINK_LENGTH,
   FLOWCHART_PIPE,
   FLOWCHART_STRING_QUOTE,
+  type FlowchartInlineLinkKind,
   type FlowchartLinkStroke,
   type FlowchartLinkType,
 } from "./flowchart-config";
@@ -101,20 +102,14 @@ function describeEnd(token: string): LinkInfo & { readonly end: string } {
   };
 }
 
-// The starting half of an inline-labelled link (`--`, `<--`, `-.`, `==` ...).
-function describeStart(token: string): {
-  readonly mark: "none" | "arrow" | "cross" | "circle";
-  readonly stroke: FlowchartLinkStroke;
-} {
+// The mark of the starting half of an inline-labelled link (`--`, `<--`, `x--` ...). Its
+// stroke is the end's: the end is looked for with the start's own pattern.
+function startMarkOf(token: string): "none" | "arrow" | "cross" | "circle" {
   const first = token.charAt(0);
-  let mark: "none" | "arrow" | "cross" | "circle" = "none";
-  if (first === LESS_THAN) mark = "arrow";
-  else if (first === CROSS_MARK) mark = "cross";
-  else if (first === CIRCLE_MARK) mark = "circle";
-  let stroke: FlowchartLinkStroke = "normal";
-  if (token.includes(EQUALS)) stroke = "thick";
-  if (token.includes(DOT)) stroke = "dotted";
-  return { mark, stroke };
+  if (first === LESS_THAN) return "arrow";
+  if (first === CROSS_MARK) return "cross";
+  if (first === CIRCLE_MARK) return "circle";
+  return "none";
 }
 
 const MARK_TO_END_TYPE = {
@@ -131,14 +126,13 @@ const MARK_TO_DOUBLE_TYPE = {
 // Combines the two halves of `-- text -->`; null when Mermaid would make an invalid edge.
 function combineHalves(startToken: string, endToken: string): LinkInfo | null {
   const end = describeEnd(endToken);
-  const start = describeStart(startToken);
-  if (start.stroke !== end.stroke) return null;
-  if (start.mark === "none") {
+  const mark = startMarkOf(startToken);
+  if (mark === "none") {
     return { type: end.type, stroke: end.stroke, length: end.length };
   }
-  if (end.type !== MARK_TO_END_TYPE[start.mark]) return null;
+  if (end.type !== MARK_TO_END_TYPE[mark]) return null;
   return {
-    type: MARK_TO_DOUBLE_TYPE[start.mark],
+    type: MARK_TO_DOUBLE_TYPE[mark],
     stroke: end.stroke,
     length: end.length,
   };
@@ -212,9 +206,9 @@ function readInlineParts(
   if (startMatch === null) return null;
   const startToken = startMatch[1] as string;
   const startEnd = position + startToken.length;
-  const kind = startToken.replace(/^[xo<]/, "");
+  // The start pattern catches only the kinds with an end pattern.
+  const kind = startToken.replace(/^[xo<]/, "") as FlowchartInlineLinkKind;
   const endPattern = FLOWCHART_INLINE_LINK_END_PATTERNS[kind];
-  if (endPattern === undefined) return failed("invalidLink");
   const textStart = skipBlanks(scan.text, startEnd);
 
   let label: FlowchartLabel;
