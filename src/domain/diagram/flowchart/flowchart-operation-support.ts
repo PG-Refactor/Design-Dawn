@@ -81,20 +81,11 @@ export function resolveEdge(
       "the link joins an `&` list, so it belongs to several edges",
     );
   }
+  // An edge of the meaning comes from a written link of a node or edge statement.
   const statement = reading.statements.find(
     (candidate) => candidate.index === edge.statementIndex,
-  );
-  const link =
-    statement?.kind === "edge" || statement?.kind === "node"
-      ? statement.links[edge.linkIndex]
-      : undefined;
-  if (
-    statement === undefined ||
-    (statement.kind !== "edge" && statement.kind !== "node") ||
-    link === undefined
-  ) {
-    return refuse("targetNotFound", `edge ${edge.id} has no written link`);
-  }
+  ) as FlowchartVertexStatement;
+  const link = statement.links[edge.linkIndex] as FlowchartLink;
   return ok({
     index: target.index,
     edge,

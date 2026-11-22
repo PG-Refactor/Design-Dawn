@@ -44,11 +44,10 @@ export type FlowchartEditability =
       readonly lines: readonly LineRef[];
     };
 
+// A line the reading reported (always one of its lines).
 function refOf(reading: FlowchartReading, lineIndex: number): LineRef {
-  const line = reading.lines[lineIndex];
-  return line === undefined
-    ? { index: lineIndex, start: 0, end: 0 }
-    : { index: line.index, start: line.start, end: line.end };
+  const line = reading.lines[lineIndex] as FlowchartReading["lines"][number];
+  return { index: line.index, start: line.start, end: line.end };
 }
 
 function uniqueLineRefs(
@@ -94,7 +93,10 @@ function describeOpaque(reading: FlowchartReading): string {
     .join(", ");
 }
 
-function findDuplicateEdgeIds(reading: FlowchartReading): ReadonlySet<string> {
+function findDuplicateEdgeIds(
+  reading: FlowchartReading,
+  meaning: FlowchartMeaning,
+): ReadonlySet<string> {
   const seen = new Set<string>();
   const duplicates = new Set<string>();
   for (const id of reading.declaredEdgeIds) {
@@ -104,9 +106,7 @@ function findDuplicateEdgeIds(reading: FlowchartReading): ReadonlySet<string> {
   // A declared id that Mermaid did not take (an auto id already has that name) is as
   // ambiguous as a repeated one.
   const applied = new Set(
-    (reading.meaning?.edges ?? [])
-      .filter((edge) => edge.userDefinedId)
-      .map((edge) => edge.id),
+    meaning.edges.filter((edge) => edge.userDefinedId).map((edge) => edge.id),
   );
   for (const id of reading.declaredEdgeIds) {
     if (!applied.has(id)) duplicates.add(id);
@@ -183,7 +183,7 @@ export function flowchartEditability(
     };
   }
   const meaning = reading.meaning;
-  const duplicateEdgeIds = findDuplicateEdgeIds(reading);
+  const duplicateEdgeIds = findDuplicateEdgeIds(reading, meaning);
   if (duplicateEdgeIds.size > 0) {
     return {
       editable: false,

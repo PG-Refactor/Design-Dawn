@@ -116,7 +116,8 @@ export function resolveMembers(
     const members: string[] = [];
     for (const mention of block.mentions) {
       if (mention.trim() === "" || members.includes(mention)) continue;
-      if (mention === block.id) continue;
+      // A block's own id is never among its mentions here: a node with a block's id makes
+      // the flowchart not editable (nodeSubgraphIdConflict).
       if ([...resolved.values()].some((other) => other.includes(mention))) {
         continue;
       }
