@@ -30,6 +30,7 @@ import {
   isFolderAtOrBelow,
   orderWithout,
   type ParentId,
+  type ProjectEntry,
   requireWritableParent,
   sortSiblings,
   withAppendedChild,
@@ -272,11 +273,12 @@ export function createProjectTreeSteps(
   }
 
   // The rules Rust validates again; checked here first so an impossible move never starts.
+  // Gives the entry that moves.
   function checkMove(
     project: OpenProjectState,
     entryId: EntryId,
     targetParentFolderId: ParentId,
-  ): OperationResult<void> {
+  ): OperationResult<ProjectEntry> {
     const found = findProjectEntry(project, entryId);
     if (found === null) {
       return operationErr("entityNotFound", `entry not found: ${entryId}`);
@@ -295,7 +297,7 @@ export function createProjectTreeSteps(
         "a folder cannot move into itself or a descendant",
       );
     }
-    return operationOk(undefined);
+    return operationOk(found);
   }
 
   async function moveEntry(
@@ -306,8 +308,7 @@ export function createProjectTreeSteps(
     if (!project.ok) return project;
     const checked = checkMove(project.value, entryId, targetParentFolderId);
     if (!checked.ok) return checked;
-    const found = findProjectEntry(project.value, entryId);
-    if (found === null) return operationOk(undefined);
+    const found = checked.value;
     const sourceParentId = found.entry.parentFolderId;
     // Moving to where it already is changes nothing (Rust accepts it as a no-op too).
     if (sourceParentId === targetParentFolderId) return operationOk(undefined);
