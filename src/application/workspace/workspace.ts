@@ -53,6 +53,7 @@ import type {
   OpenInNewWindowResult,
 } from "../ports/persistence-types";
 import type { Scheduler } from "../ports/scheduler";
+import { createSerialQueue } from "../serial-queue";
 import {
   type ApplicationState,
   connectSessionToStore,
@@ -316,24 +317,14 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     }
   });
   const connectSession = connectSessionToStore(store);
-  let lifecycleTail: Promise<void> = Promise.resolve();
+  // Lifecycle steps (open / close / create / delete ...) run one after another.
+  const runLifecycle = createSerialQueue().run;
 
   // Lives as long as the app: the workspace has no teardown and the policy never outlives it.
   autoSavePolicy?.subscribe((enabled) => {
     if (!enabled) return;
     for (const session of sessions.values()) session.resumeAutoSave();
   });
-
-  function runLifecycle<T>(
-    task: () => Promise<OperationResult<T>>,
-  ): Promise<OperationResult<T>> {
-    const result = lifecycleTail.then(task);
-    lifecycleTail = result.then(
-      () => undefined,
-      () => undefined,
-    );
-    return result;
-  }
 
   function requireProject(): OperationResult<OpenProjectState> {
     const project = store.getState().project;
