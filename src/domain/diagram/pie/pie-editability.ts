@@ -44,10 +44,9 @@ export function findDuplicateLabels(parsed: ParsedPie): readonly string[] {
 }
 
 function refOf(parsed: ParsedPie, lineIndex: number): LineRef {
-  const line = parsed.lines[lineIndex];
-  return line === undefined
-    ? { index: lineIndex, start: 0, end: 0 }
-    : { index: line.index, start: line.start, end: line.end };
+  // A line the parser reported (always one of its lines).
+  const line = parsed.lines[lineIndex] as ParsedPie["lines"][number];
+  return { index: line.index, start: line.start, end: line.end };
 }
 
 function describeUnsupported(

@@ -138,14 +138,14 @@ function readHeaderToken(line: SourceLine): {
   let offset = 0;
   while (
     offset < line.text.length &&
-    WHITESPACE_PATTERN.test(line.text[offset] ?? "")
+    WHITESPACE_PATTERN.test(line.text.charAt(offset))
   ) {
     offset += 1;
   }
   let tokenEnd = offset;
   while (
     tokenEnd < line.text.length &&
-    !WHITESPACE_PATTERN.test(line.text[tokenEnd] ?? "")
+    !WHITESPACE_PATTERN.test(line.text.charAt(tokenEnd))
   ) {
     tokenEnd += 1;
   }

@@ -31,7 +31,8 @@ export function findCodePointViolation(
 ): string | null {
   let codePointCount = 0;
   for (const character of value) {
-    const codePoint = character.codePointAt(0) ?? 0;
+    // A character of the text: it has a code point.
+    const codePoint = character.codePointAt(0) as number;
     if (isForbiddenCodePoint(codePoint)) {
       return `contains control character U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}`;
     }
