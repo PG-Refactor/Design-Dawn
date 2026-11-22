@@ -17,7 +17,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use design_dawn_lib::application::error::ErrorKind;
-use design_dawn_lib::application::git_commit::{commit_staged, GitCommitResult, GitCommitStatus};
+use design_dawn_lib::application::git_commit::{
+    commit_staged, commit_with_options, GitCommitOptions, GitCommitResult, GitCommitStatus,
+};
 use design_dawn_lib::application::git_operations::{
     read_git_status, GitFileChange, GitStatusResult,
 };
@@ -468,9 +470,8 @@ fn unmerged_files_are_refused() {
     );
 }
 
-#[test]
-fn a_merge_in_progress_is_refused() {
-    let fixture = fixture_or_skip!();
+/// A merge without conflicts left, stopped before its commit (`--no-commit`).
+fn merge_waiting_for_its_commit(fixture: &Fixture) -> PathBuf {
     let project = fixture.repository();
     fixture.git(&project, &["checkout", "-q", "-b", "side"]);
     write(&project, "side.md", "side\n");
@@ -481,15 +482,40 @@ fn a_merge_in_progress_is_refused() {
     fixture.git(&project, &["add", "main.md"]);
     fixture.git(&project, &["commit", "-q", "-m", "main change"]);
     fixture.git(&project, &["merge", "--no-commit", "--no-ff", "side"]);
-    let before = fixture.head(&project);
+    project
+}
 
-    assert_refused(
-        &fixture,
+#[test]
+fn a_merge_whose_conflicts_are_resolved_is_finished_by_the_commit() {
+    let fixture = fixture_or_skip!();
+    let project = merge_waiting_for_its_commit(&fixture);
+    fixture
+        .commit(&project, SUBJECT)
+        .expect("the merge is committed");
+    // A merge commit: two parents, and nothing is unfinished any more.
+    let parents = fixture.git_output(&project, &["log", "-1", "--format=%P"]);
+    assert_eq!(parents.split_whitespace().count(), 2);
+    let status = fixture.git_output(&project, &["status", "--porcelain=v2", "--branch"]);
+    assert!(!status.contains("merge"), "{status}");
+}
+
+#[test]
+fn amending_during_a_merge_is_refused() {
+    let fixture = fixture_or_skip!();
+    let project = merge_waiting_for_its_commit(&fixture);
+    let before = fixture.head(&project);
+    let error = commit_with_options(
+        Some(&fixture.runner()),
         &project,
         SUBJECT,
-        ErrorKind::GitOperationInProgress,
-        &before,
-    );
+        GitCommitOptions {
+            amend: true,
+            stage_all: false,
+        },
+    )
+    .expect_err("refused");
+    assert_eq!(error.kind, ErrorKind::GitOperationInProgress);
+    assert_eq!(fixture.head(&project), before);
 }
 
 #[test]

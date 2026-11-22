@@ -460,16 +460,16 @@ export function ExportDialog({
             >
               {scope === "choose" ? messages.chooseFolder : messages.exportFile}
             </button>
+            <button
+              type="button"
+              className="button"
+              onClick={onClose}
+              disabled={busy}
+            >
+              {messages.cancel}
+            </button>
           </>
         )}
-        <button
-          type="button"
-          className="button"
-          onClick={onClose}
-          disabled={busy}
-        >
-          {messages.cancel}
-        </button>
       </div>
     </Modal>
   );

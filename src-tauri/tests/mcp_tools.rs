@@ -1536,7 +1536,12 @@ fn an_image_block_is_sized_against_its_pictures_own_size() {
     assert!(block_width >= scaled(width, percent).min(10_000));
     assert!(block_width >= BLOCK_MIN_WIDTH && block_height >= BLOCK_MIN_HEIGHT);
     assert_eq!(block_width * height, block_height * width);
-    assert_eq!(set["imageScalePercent"], percent);
+    // The percent reached (the fixture's tiny picture is enlarged beyond what was asked).
+    assert_eq!(
+        set["imageScalePercent"].as_f64().unwrap(),
+        ((block_width as f64 / width as f64).min(block_height as f64 / height as f64) * 100.0)
+            .round()
+    );
     // The place stays; the file keeps no display size for an image.
     assert_eq!(set["position"], image["position"]);
     assert!(!read_text(&overview_file(&root, "sheet.json")).contains("contentScalePercent"));

@@ -538,7 +538,12 @@ export function createGitController(
       reportFailure("undoGitCommit", result.error);
       await readStatus(projectId, taskEpoch);
       if (taskEpoch === epoch) {
-        store.setState((state) => ({ ...state, operating: false }));
+        // The "Undoing the commit..." line goes with the attempt.
+        store.setState((state) => ({
+          ...state,
+          operating: false,
+          runningOperation: null,
+        }));
       }
       return result;
     });

@@ -1834,6 +1834,8 @@ describe("undoLastCommit", () => {
       expect(failureLabels).toEqual(["undoGitCommit"]);
       expect(gitGateway.calls).toHaveLength(1);
       expect(controller.store.getState().operating).toBe(false);
+      // No "Undoing the commit..." left behind.
+      expect(controller.store.getState().runningOperation).toBeNull();
     },
   );
 

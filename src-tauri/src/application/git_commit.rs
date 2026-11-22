@@ -200,10 +200,16 @@ pub fn commit_with_options(
 
     let mut files = read_file_statuses(runner, project_root)?;
     require_no_unmerged(&files)?;
+    // A merge whose conflicts are all resolved is finished by this commit (as `git commit`
+    // finishes it); anything else unfinished (a cherry-pick, revert or rebase) is refused,
+    // and so is amending in the middle of a merge.
+    let concluding_merge = !options.amend && only_a_merge_in_progress(runner, project_root)?;
     if options.stage_all {
-        // Checked before adding: `git add -A` during a merge would mark conflicted files
-        // as resolved.
-        require_no_operation_in_progress(runner, project_root)?;
+        // Checked before adding: `git add -A` during a merge with a conflict left would mark
+        // it as resolved (no conflict is left here: `require_no_unmerged` above).
+        if !concluding_merge {
+            require_no_operation_in_progress(runner, project_root)?;
+        }
         let output = runner
             .run(
                 &[ARG_ADD, ARG_ADD_ALL],
@@ -233,7 +239,9 @@ pub fn commit_with_options(
         ));
     }
 
-    require_no_operation_in_progress(runner, project_root)?;
+    if !concluding_merge {
+        require_no_operation_in_progress(runner, project_root)?;
+    }
     for variable in [VAR_AUTHOR_IDENT, VAR_COMMITTER_IDENT] {
         require_identity(runner, project_root, variable)?;
     }
@@ -375,6 +383,9 @@ pub(crate) fn require_no_unmerged(files: &[GitFileStatus]) -> ApplicationResult<
     Ok(())
 }
 
+/// git's marker of an unfinished merge (the first of `IN_PROGRESS_GIT_PATHS`).
+const MERGE_IN_PROGRESS_MARKER: &str = IN_PROGRESS_GIT_PATHS[0];
+
 pub(crate) fn require_no_operation_in_progress(
     runner: &GitRunner,
     project_root: &Path,
@@ -465,9 +476,21 @@ fn read_head_object_id_if_any(
     ))
 }
 
-/// True when git's own locations for `MERGE_HEAD` and friends exist. Asking git keeps this
-/// correct for worktrees and a relocated git directory.
+/// True when a merge, and nothing else, is unfinished.
+fn only_a_merge_in_progress(runner: &GitRunner, project_root: &Path) -> ApplicationResult<bool> {
+    Ok(in_progress_markers(runner, project_root)? == [MERGE_IN_PROGRESS_MARKER])
+}
+
 fn operation_in_progress(runner: &GitRunner, project_root: &Path) -> ApplicationResult<bool> {
+    Ok(!in_progress_markers(runner, project_root)?.is_empty())
+}
+
+/// Which of git's own markers (`MERGE_HEAD` and friends) exist. Asking git keeps this
+/// correct for worktrees and a relocated git directory.
+fn in_progress_markers(
+    runner: &GitRunner,
+    project_root: &Path,
+) -> ApplicationResult<Vec<&'static str>> {
     let mut arguments: Vec<&str> = vec![ARG_REV_PARSE];
     for name in IN_PROGRESS_GIT_PATHS {
         arguments.push(ARG_GIT_PATH);
@@ -500,10 +523,12 @@ fn operation_in_progress(runner: &GitRunner, project_root: &Path) -> Application
         ));
     }
     // Paths are relative to the working directory (the repository root) unless absolute.
-    Ok(paths.iter().any(|path| {
-        let path = PathBuf::from(path);
-        project_root.join(path).exists()
-    }))
+    Ok(IN_PROGRESS_GIT_PATHS
+        .iter()
+        .zip(paths)
+        .filter(|(_, path)| project_root.join(PathBuf::from(path)).exists())
+        .map(|(name, _)| *name)
+        .collect())
 }
 
 fn require_identity(
