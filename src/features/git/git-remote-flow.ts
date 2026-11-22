@@ -134,3 +134,19 @@ export function runGitSync(services: GitFlowServices): Promise<GitFlowOutcome> {
     return runGitPush(services, null);
   });
 }
+
+// Abort Merge: like a Pull, it rewrites working tree files, so it saves first and every
+// Document is read again from disk afterwards (HEAD stays, the files go back).
+export function runAbortMerge(
+  services: GitFlowServices,
+): Promise<GitFlowOutcome> {
+  return withBusy(services, async () => {
+    const { gitController } = services;
+    if (gitController.store.getState().projectId === null) return "skipped";
+    if (!(await saveBeforePull(services))) return "failed";
+    const result = await gitController.abortMerge();
+    await reloadAfterPull(services);
+    refreshDiffAfterStatusChange(services);
+    return outcomeOf(result);
+  });
+}

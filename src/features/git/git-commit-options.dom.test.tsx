@@ -524,3 +524,42 @@ describe("progress", () => {
     expect(screen.queryByText(ja.runningOperation.commit)).toBeNull();
   });
 });
+
+describe("an unfinished merge", () => {
+  const MERGING: GitStatus = { ...statusOf([STAGED]), operation: "merge" };
+
+  it("is told at the top of the Git tab and aborted after a confirmation", async () => {
+    const shell = await openGit(MERGING);
+    expect(screen.getByText(ja.unfinished.merge)).toBeTruthy();
+    await shell.user.click(screen.getByRole("button", { name: ja.abortMerge }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText(ja.abortMergeDialog.body)).toBeTruthy();
+    // Nothing runs before the answer.
+    expect(shell.gitGateway.abortMergeCalls).toHaveLength(0);
+    await shell.user.click(
+      within(dialog).getByRole("button", { name: ja.abortMergeDialog.confirm }),
+    );
+    await settled();
+    expect(shell.gitGateway.abortMergeCalls).toHaveLength(1);
+    expect(screen.queryByText(ja.unfinished.merge)).toBeNull();
+  });
+
+  it("keeps the merge on Cancel", async () => {
+    const shell = await openGit(MERGING);
+    await shell.user.click(screen.getByRole("button", { name: ja.abortMerge }));
+    await shell.user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "キャンセル",
+      }),
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(shell.gitGateway.abortMergeCalls).toHaveLength(0);
+    expect(screen.getByText(ja.unfinished.merge)).toBeTruthy();
+  });
+
+  it("points a rebase to git itself, without an abort button", async () => {
+    await openGit({ ...statusOf([]), operation: "rebase" });
+    expect(screen.getByText(ja.unfinished.rebase)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: ja.abortMerge })).toBeNull();
+  });
+});

@@ -154,6 +154,8 @@ export interface ExportActions {
   // Print windows of this window: is one open, and closing them all.
   printWindowsOpen(): Promise<boolean>;
   closePrintWindows(): Promise<void>;
+  // While the window asks about them, they are out of the way.
+  setPrintWindowsHidden(hidden: boolean): Promise<void>;
   buildPrintPage(
     input: SheetsExportInput & { readonly layout: ExportLayout },
   ): Promise<OperationResult<string>>;
@@ -391,6 +393,10 @@ export function createExportActions(
 
     async closePrintWindows() {
       await gateway.closePrintWindows();
+    },
+
+    async setPrintWindowsHidden(hidden) {
+      await gateway.setPrintWindowsHidden(hidden);
     },
 
     async buildPrintPage(input) {

@@ -120,6 +120,24 @@ const GIT_MESSAGES_JA = {
     pull: "プルしています...",
     push: "プッシュしています...",
     publish: "ブランチを発行しています...",
+    abortMerge: "マージを中止しています...",
+  },
+  // A merge, cherry-pick, revert or rebase that git left unfinished.
+  unfinished: {
+    merge:
+      "マージの途中です。競合をすべて解決してコミットすると、マージが終わります。",
+    cherryPick:
+      "cherry-pick の途中です。続けるか中止するには、ターミナルの git を使ってください。",
+    revert:
+      "リバートの途中です。続けるか中止するには、ターミナルの git を使ってください。",
+    rebase:
+      "リベースの途中です。続けるか中止するには、ターミナルの git を使ってください。",
+  },
+  abortMerge: "マージを中止...",
+  abortMergeDialog: {
+    title: "マージを中止しますか?",
+    body: "マージをやめて、マージする前の状態に戻します。マージで変わったファイルと、ここまでに解決した内容は失われます。元に戻すことはできません。",
+    confirm: "マージを中止",
   },
   // Commit options, remote operations and their menus.
   commitMenuLabel: "その他のコミット操作",
@@ -344,6 +362,23 @@ const GIT_MESSAGES_EN: GitMessages = {
     pull: "Pulling...",
     push: "Pushing...",
     publish: "Publishing the branch...",
+    abortMerge: "Aborting the merge...",
+  },
+  unfinished: {
+    merge:
+      "A merge is in progress. Resolve every conflict and commit to finish the merge.",
+    cherryPick:
+      "A cherry-pick is in progress. Use git in a terminal to continue or abort it.",
+    revert:
+      "A revert is in progress. Use git in a terminal to continue or abort it.",
+    rebase:
+      "A rebase is in progress. Use git in a terminal to continue or abort it.",
+  },
+  abortMerge: "Abort Merge...",
+  abortMergeDialog: {
+    title: "Are you sure you want to abort the merge?",
+    body: "The merge is stopped and everything goes back to how it was before the merge. The files the merge changed and the conflicts resolved so far are lost. This cannot be undone.",
+    confirm: "Abort Merge",
   },
   commitMenuLabel: "More Commit Actions",
   commitActions: {

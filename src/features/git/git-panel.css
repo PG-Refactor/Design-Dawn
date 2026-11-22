@@ -665,3 +665,26 @@
 .git-long-paths--note {
   border-color: var(--color-border-strong);
 }
+
+/* What git left unfinished: a framed note in the warning colour, with its action. */
+.git-unfinished {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface-raised);
+}
+
+.git-unfinished__text {
+  flex: 1 1 12rem;
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.git-unfinished__action {
+  flex: 0 0 auto;
+}

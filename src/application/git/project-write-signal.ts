@@ -103,6 +103,7 @@ export const GATEWAY_METHOD_KINDS = {
   openPrintWindow: "read",
   printWindowsOpen: "read",
   closePrintWindows: "read",
+  setPrintWindowsHidden: "read",
   assetDataUrl: "read",
   copyAssetToDocument: "write",
   listUnusedAssets: "read",

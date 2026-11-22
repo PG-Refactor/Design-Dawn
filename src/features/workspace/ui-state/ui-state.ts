@@ -294,6 +294,7 @@ export const OPERATION_LABELS = [
   "pullGit",
   "pushGit",
   "publishGit",
+  "abortGitMerge",
   "loadGitHistory",
   "repairLoadIssue",
   "updateFileFormat",

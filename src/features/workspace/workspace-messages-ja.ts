@@ -82,6 +82,7 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   pullGit: "プルできませんでした",
   pushGit: "プッシュできませんでした",
   publishGit: "ブランチを発行できませんでした",
+  abortGitMerge: "マージを中止できませんでした",
   repairLoadIssue: "問題を修復できませんでした",
   updateFileFormat: "ファイル形式を更新できませんでした",
   loadGitHistory: "履歴を取得できませんでした",

@@ -8,6 +8,7 @@ import {
   GIT_DIFF_SIDES,
   GIT_FILE_CHANGES,
   GIT_REPOSITORY_STATES,
+  GIT_UNFINISHED_OPERATIONS,
   type GitBranchInfo,
   type GitCommitOutcome,
   type GitCommitResult,
@@ -26,6 +27,7 @@ import {
   type GitRepositoryState,
   type GitStatus,
   type GitUndoCommitResult,
+  type GitUnfinishedOperation,
 } from "../../application/ports/git-gateway";
 import { GIT_ERROR_KINDS } from "../../application/ports/operation-error";
 import { parseDocumentId } from "../../domain/shared/entity-id";
@@ -44,8 +46,13 @@ import {
 
 const PAYLOAD_ROOT = "payload";
 
+interface RawRepository {
+  readonly state: GitRepositoryState;
+  readonly operation?: GitUnfinishedOperation | null | undefined;
+}
+
 interface RawGitStatus {
-  readonly repository: { readonly state: GitRepositoryState };
+  readonly repository: RawRepository;
   readonly branch: GitBranchInfo | null;
   readonly files: readonly GitFileStatus[];
   readonly longPaths?: GitLongPaths | null | undefined;
@@ -63,8 +70,13 @@ const decodeCount: Decoder<number> = (value, path) => {
 const decodeFileChange = oneOf<readonly GitFileChange[]>(GIT_FILE_CHANGES);
 
 const rawGitStatus = objectOf<RawGitStatus>({
-  repository: objectOf<{ readonly state: GitRepositoryState }>({
+  repository: objectOf<RawRepository>({
     state: oneOf<readonly GitRepositoryState[]>(GIT_REPOSITORY_STATES),
+    operation: optional(
+      nullable(
+        oneOf<readonly GitUnfinishedOperation[]>(GIT_UNFINISHED_OPERATIONS),
+      ),
+    ),
   }),
   branch: nullable(
     objectOf<GitBranchInfo>({
@@ -109,6 +121,9 @@ export function toGitStatus(payload: unknown): CommandResult<GitStatus> {
         ...(decoded.value.longPaths == null
           ? {}
           : { longPaths: decoded.value.longPaths }),
+        ...(decoded.value.repository.operation == null
+          ? {}
+          : { operation: decoded.value.repository.operation }),
       })
     : commandErr("invalidCommandResponse", decoded.detail);
 }

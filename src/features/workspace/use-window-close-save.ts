@@ -64,6 +64,8 @@ export function useWindowCloseSave(): WindowCloseStatus {
           isOpen: () => latest.current.exportActions.printWindowsOpen(),
           confirmStop: askCloseWhilePrinting,
           closeAll: () => latest.current.exportActions.closePrintWindows(),
+          setHidden: (hidden) =>
+            latest.current.exportActions.setPrintWindowsHidden(hidden),
         },
         templateEdit: {
           isEditing: () => latest.current.templateEditor.isEditing(),

@@ -310,6 +310,8 @@ export interface PersistenceGateway {
   // closes).
   printWindowsOpen(): Promise<OperationResult<boolean>>;
   closePrintWindows(): Promise<OperationResult<void>>;
+  // Hides the window's print windows while it asks something, and shows them again.
+  setPrintWindowsHidden(hidden: boolean): Promise<OperationResult<void>>;
   // Every match of `text` in the Project's text Blocks and captions, read from disk (not
   // from the app's open Documents).
   searchProject(

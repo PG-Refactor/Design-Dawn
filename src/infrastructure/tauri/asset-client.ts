@@ -315,6 +315,14 @@ export function printWindowsOpen(): Promise<CommandResult<boolean>> {
   );
 }
 
+export function setPrintWindowsHidden(
+  hidden: boolean,
+): Promise<CommandResult<void>> {
+  return call(COMMANDS.setPrintWindowsHidden, { hidden }, () =>
+    commandOk(undefined),
+  );
+}
+
 export function closePrintWindows(): Promise<CommandResult<void>> {
   return call(COMMANDS.closePrintWindows, {}, () => commandOk(undefined));
 }

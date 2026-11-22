@@ -20,6 +20,7 @@ import {
   printWindowsOpen,
   readSpreadsheetViaDialog,
   selectImageFiles,
+  setPrintWindowsHidden,
 } from "./asset-client";
 import {
   acceptDiskState,
@@ -130,6 +131,7 @@ export function createTauriPersistenceGateway(): PersistenceGateway {
     openPrintWindow,
     printWindowsOpen,
     closePrintWindows,
+    setPrintWindowsHidden,
     assetDataUrl,
     copyAssetToDocument,
     listUnusedAssets,

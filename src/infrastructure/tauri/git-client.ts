@@ -133,6 +133,12 @@ export function gitFetch(
   return call(COMMANDS.gitFetch, { projectId }, toGitRemoteResult);
 }
 
+export function gitAbortMerge(
+  projectId: ProjectId,
+): Promise<CommandResult<GitRemoteResult>> {
+  return call(COMMANDS.gitAbortMerge, { projectId }, toGitRemoteResult);
+}
+
 export function gitPull(
   projectId: ProjectId,
 ): Promise<CommandResult<GitRemoteResult>> {

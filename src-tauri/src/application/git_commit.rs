@@ -10,17 +10,19 @@ use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
 use crate::application::git_operations::{
     head_is_pushed, is_unstageable, long_paths_of, not_ready_error, project_root_of,
     read_file_statuses, read_git_status, repository_state, run_error, GitFileChange, GitFileStatus,
-    GitRepositoryState, GitStatusResult,
+    GitRepositoryState, GitStatusResult, GitUnfinishedOperation,
 };
+use crate::application::git_remote::GitRemoteResult;
 use crate::application::session::ProjectSessions;
 use crate::infrastructure::git::constants::WINDOWS_MAX_PATH;
 use crate::infrastructure::git::constants::{
-    ARG_ADD, ARG_ADD_ALL, ARG_AMEND, ARG_CLEANUP_WHITESPACE, ARG_COMMIT, ARG_CONFIG, ARG_GIT_PATH,
-    ARG_LOG, ARG_MAX_COUNT, ARG_MESSAGE_FILE, ARG_NO_EDIT, ARG_NO_SHOW_SIGNATURE, ARG_QUIET,
-    ARG_RESET, ARG_REV_PARSE, ARG_SOFT, ARG_STDIN_FILE, ARG_VAR, ARG_VERIFY,
-    COMMIT_MESSAGE_LIMIT_BYTES, CONFIG_COMMIT_ENCODING_UTF8, FORMAT_PARENTS, FORMAT_RAW_BODY,
-    GIT_COMMAND_TIMEOUT, GIT_COMMIT_TIMEOUT, GIT_FATAL_EXIT_CODE, IN_PROGRESS_GIT_PATHS,
-    OBJECT_ID_LENGTHS, REVISION_HEAD, SINGLE_COMMIT_COUNT, VAR_AUTHOR_IDENT, VAR_COMMITTER_IDENT,
+    ARG_ABORT, ARG_ADD, ARG_ADD_ALL, ARG_AMEND, ARG_CLEANUP_WHITESPACE, ARG_COMMIT, ARG_CONFIG,
+    ARG_GIT_PATH, ARG_LOG, ARG_MAX_COUNT, ARG_MERGE, ARG_MESSAGE_FILE, ARG_NO_EDIT,
+    ARG_NO_SHOW_SIGNATURE, ARG_QUIET, ARG_RESET, ARG_REV_PARSE, ARG_SOFT, ARG_STDIN_FILE, ARG_VAR,
+    ARG_VERIFY, COMMIT_MESSAGE_LIMIT_BYTES, CONFIG_COMMIT_ENCODING_UTF8, FORMAT_PARENTS,
+    FORMAT_RAW_BODY, GIT_COMMAND_TIMEOUT, GIT_COMMIT_TIMEOUT, GIT_FATAL_EXIT_CODE,
+    IN_PROGRESS_GIT_PATHS, OBJECT_ID_LENGTHS, REVISION_HEAD, SINGLE_COMMIT_COUNT, VAR_AUTHOR_IDENT,
+    VAR_COMMITTER_IDENT,
 };
 use crate::infrastructure::git::redaction::redact_credentials;
 use crate::infrastructure::git::runner::GitRunner;
@@ -383,8 +385,12 @@ pub(crate) fn require_no_unmerged(files: &[GitFileStatus]) -> ApplicationResult<
     Ok(())
 }
 
-/// git's marker of an unfinished merge (the first of `IN_PROGRESS_GIT_PATHS`).
+// git's markers, in the order of `IN_PROGRESS_GIT_PATHS`.
 const MERGE_IN_PROGRESS_MARKER: &str = IN_PROGRESS_GIT_PATHS[0];
+const CHERRY_PICK_MARKER: &str = IN_PROGRESS_GIT_PATHS[1];
+const REVERT_MARKER: &str = IN_PROGRESS_GIT_PATHS[2];
+const REBASE_MERGE_MARKER: &str = IN_PROGRESS_GIT_PATHS[3];
+const REBASE_APPLY_MARKER: &str = IN_PROGRESS_GIT_PATHS[4];
 
 pub(crate) fn require_no_operation_in_progress(
     runner: &GitRunner,
@@ -474,6 +480,81 @@ fn read_head_object_id_if_any(
         ErrorKind::GitCommandFailed,
         format!("git rev-parse HEAD exited with {:?}", output.exit_code()),
     ))
+}
+
+/// What is unfinished; when git left several markers, the one that decides what can be done
+/// (a rebase or cherry-pick stopped on a conflict also leaves its own marker).
+pub(crate) fn unfinished_operation(
+    runner: &GitRunner,
+    project_root: &Path,
+) -> ApplicationResult<Option<GitUnfinishedOperation>> {
+    let markers = in_progress_markers(runner, project_root)?;
+    let has = |name: &str| markers.contains(&name);
+    Ok(if has(REBASE_MERGE_MARKER) || has(REBASE_APPLY_MARKER) {
+        Some(GitUnfinishedOperation::Rebase)
+    } else if has(CHERRY_PICK_MARKER) {
+        Some(GitUnfinishedOperation::CherryPick)
+    } else if has(REVERT_MARKER) {
+        Some(GitUnfinishedOperation::Revert)
+    } else if has(MERGE_IN_PROGRESS_MARKER) {
+        Some(GitUnfinishedOperation::Merge)
+    } else {
+        None
+    })
+}
+
+/// Abort Merge: `git merge --abort`, back to the state before the merge (what the merge
+/// changed, and the conflicts resolved so far, are gone). Only a merge is aborted here;
+/// nothing unfinished is not an error (the merge may have been ended elsewhere meanwhile).
+pub fn abort_merge(
+    runner: Option<&GitRunner>,
+    project_root: &Path,
+) -> ApplicationResult<GitRemoteResult> {
+    let state = repository_state(runner, project_root)?;
+    let (GitRepositoryState::Ready, Some(runner)) = (state, runner) else {
+        return Err(not_ready_error(state));
+    };
+    match unfinished_operation(runner, project_root)? {
+        None => {}
+        Some(GitUnfinishedOperation::Merge) => {
+            let output = runner
+                .run(
+                    &[ARG_MERGE, ARG_ABORT],
+                    project_root,
+                    None,
+                    GIT_COMMAND_TIMEOUT,
+                )
+                .map_err(|error| run_error("merge --abort", error))?;
+            if !output.success() {
+                return Err(ApplicationError::new(
+                    ErrorKind::GitCommandFailed,
+                    format!(
+                        "git merge --abort exited with {:?}: {}",
+                        output.exit_code(),
+                        redact_credentials(output.stderr_text().trim_end())
+                    ),
+                ));
+            }
+        }
+        Some(_) => {
+            return Err(ApplicationError::new(
+                ErrorKind::GitOperationInProgress,
+                "a cherry-pick, revert or rebase is unfinished, not a merge",
+            ))
+        }
+    }
+    Ok(GitRemoteResult {
+        status: status_after_change(runner, project_root, "a merge abort"),
+    })
+}
+
+/// Aborts the unfinished merge of the Project with the `git` found on PATH.
+pub fn git_abort_merge(
+    sessions: &Mutex<ProjectSessions>,
+    project_id: &str,
+) -> ApplicationResult<GitRemoteResult> {
+    let project_root = project_root_of(sessions, project_id)?;
+    abort_merge(GitRunner::discover().ok().as_ref(), &project_root)
 }
 
 /// True when a merge, and nothing else, is unfinished.

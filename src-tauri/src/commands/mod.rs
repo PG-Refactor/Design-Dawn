@@ -86,7 +86,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 112] = [
+pub const COMMAND_NAMES: [&str; 114] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -158,6 +158,7 @@ pub const COMMAND_NAMES: [&str; 112] = [
     "open_print_window",
     "print_windows_open",
     "close_print_windows",
+    "set_print_windows_hidden",
     "asset_data_url",
     "ai_history",
     "git_conflict_versions",
@@ -191,6 +192,7 @@ pub const COMMAND_NAMES: [&str; 112] = [
     "git_history",
     "git_fetch",
     "git_pull",
+    "git_abort_merge",
     "git_push",
     "git_publish",
     "git_remotes",
@@ -1916,6 +1918,23 @@ pub async fn git_fetch<R: Runtime>(
     run_blocking(move || {
         let sessions = app.state::<Mutex<ProjectSessions>>();
         git_remote::git_fetch(&sessions, &project_id)
+    })
+    .await
+}
+
+/// Aborts the unfinished merge of the calling window's Project (`git merge --abort`).
+/// Rewrites working tree files: the caller saves first and reloads afterwards. Not an Undo
+/// step.
+#[tauri::command]
+pub async fn git_abort_merge<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+) -> Result<git_remote::GitRemoteResult, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_commit::git_abort_merge(&sessions, &project_id)
     })
     .await
 }

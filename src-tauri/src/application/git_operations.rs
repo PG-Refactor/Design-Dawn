@@ -8,6 +8,7 @@ use std::sync::{Mutex, PoisonError};
 use serde::{Deserialize, Serialize};
 
 use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
+use crate::application::git_commit::unfinished_operation;
 use crate::application::git_discard::untracked_file_location;
 use crate::application::session::ProjectSessions;
 use crate::infrastructure::filesystem::directory::{list_directory, EntryKind};
@@ -78,6 +79,19 @@ pub struct GitFileStatus {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct GitRepositoryInfo {
     pub state: GitRepositoryState,
+    /// What git left unfinished (`null` when nothing is, or the repository is not ready).
+    pub operation: Option<GitUnfinishedOperation>,
+}
+
+/// A merge, cherry-pick, revert or rebase that stopped before its end (on a conflict, or
+/// with `--no-commit`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum GitUnfinishedOperation {
+    Merge,
+    CherryPick,
+    Revert,
+    Rebase,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -132,7 +146,10 @@ pub struct GitStatusResult {
 impl GitStatusResult {
     fn without_files(state: GitRepositoryState) -> Self {
         Self {
-            repository: GitRepositoryInfo { state },
+            repository: GitRepositoryInfo {
+                state,
+                operation: None,
+            },
             branch: None,
             files: Vec::new(),
             long_paths: None,
@@ -176,9 +193,16 @@ pub fn read_git_status(
             false
         });
     }
+    // A failed lookup only hides the "unfinished" line; the commands that depend on it ask
+    // again and refuse on a failure.
+    let operation = unfinished_operation(runner, project_root).unwrap_or_else(|error| {
+        eprintln!("git unfinished operation lookup failed: {error}");
+        None
+    });
     Ok(GitStatusResult {
         repository: GitRepositoryInfo {
             state: GitRepositoryState::Ready,
+            operation,
         },
         branch: Some(branch),
         files,
@@ -1022,6 +1046,7 @@ mod tests {
         let result = GitStatusResult {
             repository: GitRepositoryInfo {
                 state: GitRepositoryState::UnsupportedRepositoryLayout,
+                operation: None,
             },
             files: vec![GitFileStatus {
                 path: "a.md".to_owned(),
@@ -1036,7 +1061,7 @@ mod tests {
         assert_eq!(
             serde_json::to_value(result).unwrap(),
             serde_json::json!({
-                "repository": { "state": "unsupportedRepositoryLayout" },
+                "repository": { "state": "unsupportedRepositoryLayout", "operation": null },
                 "branch": null,
                 "files": [{
                     "path": "a.md",

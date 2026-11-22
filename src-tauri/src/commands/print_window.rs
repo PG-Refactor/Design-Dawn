@@ -204,6 +204,25 @@ pub fn print_windows_open<R: Runtime>(app: AppHandle<R>, window: Window<R>) -> b
     !labels_owned_by(&app, window.label()).is_empty()
 }
 
+/// Hides (or shows again) the calling window's print windows: a question of the calling
+/// window ("stop printing and close?") is not covered by them while it is asked (a print
+/// window belongs to its window and so always stays in front of it).
+#[tauri::command]
+pub fn set_print_windows_hidden<R: Runtime>(app: AppHandle<R>, window: Window<R>, hidden: bool) {
+    for label in labels_owned_by(&app, window.label()) {
+        if let Some(print_window) = app.get_webview_window(&label) {
+            let shown = if hidden {
+                print_window.hide()
+            } else {
+                print_window.show()
+            };
+            if let Err(error) = shown {
+                eprintln!("failed to hide or show a print window: {error}");
+            }
+        }
+    }
+}
+
 /// Closes the calling window's print windows (their print dialogs end with them).
 #[tauri::command]
 pub fn close_print_windows<R: Runtime>(app: AppHandle<R>, window: Window<R>) {

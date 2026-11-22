@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DOCUMENT_ID, PROJECT_ID } from "../../domain/shared/test-fixtures";
 import { COMMANDS } from "./command-constants";
 import {
+  gitAbortMerge,
   gitCommit,
   gitDiff,
   gitDiscard,
@@ -69,6 +70,27 @@ describe("gitStatus", () => {
         files: VALID_PAYLOAD.files,
       },
     });
+  });
+
+  it("decodes what git left unfinished, and a null as nothing unfinished", async () => {
+    invokeMock.mockResolvedValueOnce({
+      ...VALID_PAYLOAD,
+      repository: { state: "ready", operation: "merge" },
+    });
+    const merging = await gitStatus(PROJECT_ID);
+    expect(merging.ok && merging.value.operation).toBe("merge");
+    invokeMock.mockResolvedValueOnce({
+      ...VALID_PAYLOAD,
+      repository: { state: "ready", operation: null },
+    });
+    const none = await gitStatus(PROJECT_ID);
+    expect(none.ok && "operation" in none.value).toBe(false);
+    invokeMock.mockResolvedValueOnce({
+      ...VALID_PAYLOAD,
+      repository: { state: "ready", operation: "bisect" },
+    });
+    const unknown = await gitStatus(PROJECT_ID);
+    expect(!unknown.ok && unknown.error.kind).toBe("invalidCommandResponse");
   });
 
   it.each([
@@ -953,5 +975,18 @@ describe("gitRemotes", () => {
       ok: false,
       error: { kind: "gitNotReady", detail: "d" },
     });
+  });
+});
+
+describe("gitAbortMerge", () => {
+  it("sends the project id and decodes the status read afterwards", async () => {
+    invokeMock.mockResolvedValueOnce({
+      status: { outcome: "updated", status: VALID_PAYLOAD },
+    });
+    const result = await gitAbortMerge(PROJECT_ID);
+    expect(invokeMock.mock.calls).toStrictEqual([
+      [COMMANDS.gitAbortMerge, { projectId: PROJECT_ID }],
+    ]);
+    expect(result.ok && result.value.status.outcome).toBe("updated");
   });
 });

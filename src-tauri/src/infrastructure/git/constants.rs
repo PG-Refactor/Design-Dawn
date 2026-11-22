@@ -210,6 +210,8 @@ pub const ARG_AMEND: &str = "--amend";
 /// Keeps the old message when an amend is given none.
 pub const ARG_NO_EDIT: &str = "--no-edit";
 pub const ARG_RESET: &str = "reset";
+pub const ARG_MERGE: &str = "merge";
+pub const ARG_ABORT: &str = "--abort";
 /// Moves HEAD only; the index and the working tree stay as they are.
 pub const ARG_SOFT: &str = "--soft";
 /// `-n 1` for the commit at HEAD.

@@ -24,6 +24,8 @@ export interface WindowCloseDependencies {
     readonly isOpen: () => Promise<boolean>;
     readonly confirmStop: () => Promise<boolean>;
     readonly closeAll: () => Promise<void>;
+    // Out of the way of the question (they stay in front of their window), and back.
+    readonly setHidden?: (hidden: boolean) => Promise<void>;
   };
   // A window that edits a Custom Template: what matters is the template, not the window's
   // working copy, so it asks about the template (and never about the working copy).
@@ -81,7 +83,10 @@ export function createWindowCloseHandler(
         // Every question below is asked in front: the close may come from the taskbar of a
         // window behind others (or minimized).
         await closeRequestSource.bringForward();
+        await printing.setHidden?.(true);
         if (!(await printing.confirmStop())) {
+          // Printing goes on: the print window comes back.
+          await printing.setHidden?.(false);
           release();
           return;
         }

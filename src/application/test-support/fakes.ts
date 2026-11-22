@@ -1209,6 +1209,10 @@ export function createFakeGateway(
       }),
     printWindowsOpen: () =>
       enter("printWindowsOpen", "", () => operationOk(printWindows.count > 0)),
+    setPrintWindowsHidden: (hidden) =>
+      enter("setPrintWindowsHidden", String(hidden), () =>
+        operationOk(undefined),
+      ),
     closePrintWindows: () =>
       enter("closePrintWindows", "", () => {
         printWindows.count = 0;

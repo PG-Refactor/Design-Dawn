@@ -82,6 +82,7 @@ export interface FakeGitGateway extends GitGateway {
   // Remote operations (`fetch` / `pull` / `push` / `publish` share the hold and `failure`).
   readonly fetchCalls: { projectId: ProjectId }[];
   readonly pullCalls: { projectId: ProjectId }[];
+  readonly abortMergeCalls: { projectId: ProjectId }[];
   readonly pushCalls: { projectId: ProjectId }[];
   readonly publishCalls: { projectId: ProjectId; remote: string }[];
   readonly remotesCalls: { projectId: ProjectId }[];
@@ -203,6 +204,7 @@ export function createFakeGitGateway(): FakeGitGateway {
     commitResult: null,
     fetchCalls: [],
     pullCalls: [],
+    abortMergeCalls: [],
     pushCalls: [],
     publishCalls: [],
     remotesCalls: [],
@@ -225,6 +227,14 @@ export function createFakeGitGateway(): FakeGitGateway {
     async pull(projectId) {
       gateway.pullCalls.push({ projectId });
       return remoteAnswer(gateway.pullResult);
+    },
+    async abortMerge(projectId) {
+      gateway.abortMergeCalls.push({ projectId });
+      if (gateway.failure === null) {
+        const { operation: _ended, ...rest } = gateway.status;
+        gateway.status = rest;
+      }
+      return remoteAnswer(null);
     },
     async push(projectId) {
       gateway.pushCalls.push({ projectId });
