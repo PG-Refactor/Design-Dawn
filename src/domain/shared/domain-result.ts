@@ -14,3 +14,11 @@ export function err<T = never>(
 ): DomainResult<T> {
   return { ok: false, error: { kind, detail } };
 }
+
+// The value of a success changed by `map`; a failure as it is.
+export function mapOk<T, U>(
+  result: DomainResult<T>,
+  map: (value: T) => U,
+): DomainResult<U> {
+  return result.ok ? ok(map(result.value)) : result;
+}

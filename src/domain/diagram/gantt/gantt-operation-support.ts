@@ -210,3 +210,16 @@ export function readBack(
     ? ok(undefined)
     : refuse("unreadableResult", verdict.error.detail);
 }
+
+// `finish`, and then the read-back: for a plan whose text could read differently from what
+// it promises (moves, links, settings that share lines with others).
+export function finishChecked(
+  source: string,
+  edits: readonly TextEdit[],
+  expected: GanttMeaning,
+): DomainResult<GanttOperationPlan> {
+  const planned = finish(edits, expected);
+  if (!planned.ok) return planned;
+  const verdict = readBack(source, edits, expected);
+  return verdict.ok ? planned : verdict;
+}

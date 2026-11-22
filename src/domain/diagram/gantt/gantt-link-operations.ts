@@ -7,11 +7,10 @@ import {
 } from "./gantt-edit-lines";
 import type { GanttMeaning } from "./gantt-meaning";
 import {
-  finish,
+  finishChecked,
   type GanttOperationPlan,
   type GanttTaskTarget,
   prepare,
-  readBack,
   refuse,
   resolveTask,
 } from "./gantt-operation-support";
@@ -61,10 +60,7 @@ export function addLink(
   links.splice(before, 0, { id: task.id, url });
   const edits = [insertLineAfter(parsed, task.lineIndex, statement)];
   const expected: GanttMeaning = { ...meaning, links };
-  const planned = finish(edits, expected);
-  if (!planned.ok) return planned;
-  const verdict = readBack(source, edits, expected);
-  return verdict.ok ? planned : verdict;
+  return finishChecked(source, edits, expected);
 }
 
 export function removeLink(
@@ -117,8 +113,5 @@ export function removeLink(
     (_, index) => index !== skipped + position,
   );
   const expected: GanttMeaning = { ...meaning, links };
-  const planned = finish(edits, expected);
-  if (!planned.ok) return planned;
-  const verdict = readBack(source, edits, expected);
-  return verdict.ok ? planned : verdict;
+  return finishChecked(source, edits, expected);
 }

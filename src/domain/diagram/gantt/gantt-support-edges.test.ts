@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ganttMeaningOf } from "./gantt-meaning";
 import {
+  finishChecked,
   readBack,
   regionEnd,
   resolveSectionTarget,
@@ -54,5 +55,23 @@ describe("the view", () => {
       "gantt\n    dateFormat YYYY-MM-DD\n    A :gtprobe, 2026-01-01, 1d\n",
     );
     expect(view?.tasks[0]?.id).toBe("gtprobe");
+  });
+});
+
+describe("finishing a plan with its read-back", () => {
+  const meaning = ganttMeaningOf(parseGantt(SOURCE));
+  if (meaning === null) throw new Error("no meaning");
+
+  it("hands out a plan that reads back, and refuses one with a problem or another meaning", () => {
+    expect(finishChecked(SOURCE, [], meaning).ok).toBe(true);
+    const problem = finishChecked(SOURCE, [], {
+      ...meaning,
+      sections: ["S", "S"],
+    });
+    expect(!problem.ok && problem.error.detail).toContain(
+      "duplicateSectionNames",
+    );
+    const other = finishChecked(SOURCE, [], { ...meaning, title: "Other" });
+    expect(!other.ok && other.error.detail).toContain("unreadableResult");
   });
 });

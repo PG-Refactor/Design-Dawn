@@ -1,4 +1,4 @@
-import { type DomainResult, ok } from "../../shared/domain-result";
+import { type DomainResult, mapOk } from "../../shared/domain-result";
 import type { TextEdit } from "../text-edit";
 import { GANTT_FIELD_SEPARATOR } from "./gantt-config";
 import { formatGanttDate } from "./gantt-date";
@@ -6,18 +6,18 @@ import { insertLineAfter } from "./gantt-edit-lines";
 import {
   type GanttMeaning,
   type GanttTaskMeaning,
+  type ResolvedDates,
   resolveGanttSchedule,
 } from "./gantt-meaning";
 import {
   existingIds,
-  finish,
+  finishChecked,
   type GanttOperationPlan,
   type GanttSectionTarget,
   type GanttTaskTarget,
   nextGeneratedId,
   type PreparedGantt,
   prepare,
-  readBack,
   refuse,
   regionEnd,
   resolveSectionTarget,
@@ -85,10 +85,6 @@ function editOfLines(
       text: units.slice(first, last + 1).join(""),
     },
   ];
-}
-
-function sameSchedule<T>(left: T, right: T): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 // Applies the layout, freezes what has to be frozen, builds the meaning the result must have
@@ -201,17 +197,10 @@ function planLayout(
       value: setting.value,
     })),
   };
-  const schedule = resolveGanttSchedule(unscheduled);
-  const moved = taskOrder.findIndex(
-    (oldIndex, position) =>
-      !sameSchedule(schedule[position], oldSchedule[oldIndex]),
+  // The promise is that every task keeps its dates: the read-back refuses any other result.
+  const schedule = taskOrder.map(
+    (oldIndex) => oldSchedule[oldIndex] as ResolvedDates | null,
   );
-  if (moved !== -1) {
-    return refuse(
-      "datesWouldChange",
-      `task ${taskOrder[moved]} would get other dates`,
-    );
-  }
   const expected: GanttMeaning = { ...unscheduled, schedule };
 
   const texts = layout.order.map((lineIndex) => {
@@ -226,14 +215,10 @@ function planLayout(
     return `${line.text.slice(0, offset)}${start}${GANTT_FIELD_SEPARATOR}${line.text.slice(offset)}`;
   });
   const edits = editOfLines(parsed, texts);
-  const planned = finish(edits, expected);
-  if (!planned.ok) return planned;
-  const checked = readBack(parsed.source, edits, expected);
-  if (!checked.ok) return checked;
-  return ok({
-    ...planned.value,
+  return mapOk(finishChecked(parsed.source, edits, expected), (plan) => ({
+    ...plan,
     ...(frozen.size > 0 ? { frozenTasks: [...frozen.keys()] } : {}),
-  });
+  }));
 }
 
 // A task and the click lines right below it that name only that task: they move together,
@@ -414,20 +399,17 @@ export function duplicateTask(
   }
   const tasks = [...meaning.tasks];
   tasks.splice(target.index + 1, 0, { ...original, id: copyId });
-  const schedule = resolveGanttSchedule({ ...meaning, tasks });
+  // Every task keeps its dates (the read-back refuses any other result); the copy has its own.
+  const copySchedule = resolveGanttSchedule({ ...meaning, tasks });
   const oldSchedule = resolveGanttSchedule(meaning);
-  const changed = oldSchedule.findIndex(
-    (dates, index) =>
-      !sameSchedule(dates, schedule[index <= target.index ? index : index + 1]),
+  const schedule = copySchedule.map((dates, index) =>
+    index === target.index + 1
+      ? dates
+      : (oldSchedule[
+          index <= target.index ? index : index - 1
+        ] as ResolvedDates | null),
   );
-  if (changed !== -1) {
-    return refuse("datesWouldChange", `task ${changed} would get other dates`);
-  }
   const expected: GanttMeaning = { ...meaning, tasks, schedule };
   const edits = [insertLineAfter(parsed, anchor, text)];
-  const planned = finish(edits, expected);
-  if (!planned.ok) return planned;
-  const checked = readBack(parsed.source, edits, expected);
-  if (!checked.ok) return checked;
-  return planned;
+  return finishChecked(parsed.source, edits, expected);
 }
