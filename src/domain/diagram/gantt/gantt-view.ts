@@ -16,6 +16,7 @@ import {
   planGanttOperation,
 } from "./gantt-operations";
 import { parseGantt } from "./gantt-parser";
+import type { ParsedGantt } from "./gantt-types";
 
 // What the gantt GUI shows of an editable gantt chart. Read-only and derived from the source
 // on every call, so the GUI never holds a model of its own that could drift from the text
@@ -147,10 +148,11 @@ export function readGanttView(source: string): GanttView | null {
       : (meaning.links.find((link) => link.id === id)?.url ?? "");
   const tasks = meaning.tasks.map((task, index): GanttTaskView => {
     const target = { index, name: task.name };
-    const entry = parsed.tasks[index];
+    // The meaning has one task for each task of the parse.
+    const entry = parsed.tasks[index] as ParsedGantt["tasks"][number];
     return {
       target,
-      sectionIndex: entry?.sectionIndex ?? -1,
+      sectionIndex: entry.sectionIndex,
       sectionName: task.section,
       name: task.name,
       id: task.id,
