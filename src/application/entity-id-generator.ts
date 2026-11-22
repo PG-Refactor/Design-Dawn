@@ -15,7 +15,7 @@ import {
 
 // Going through the domain parser guarantees generated IDs satisfy the same rule as
 // loaded ones. A failure here means the uuid library broke its contract, so it throws.
-function generate<Id extends string>(
+export function generateEntityId<Id extends string>(
   parse: (value: string) => DomainResult<Id>,
 ): Id {
   const result = parse(generateUuidV7());
@@ -28,21 +28,21 @@ function generate<Id extends string>(
 }
 
 export function generateProjectId(): ProjectId {
-  return generate(parseProjectId);
+  return generateEntityId(parseProjectId);
 }
 
 export function generateDocumentId(): DocumentId {
-  return generate(parseDocumentId);
+  return generateEntityId(parseDocumentId);
 }
 
 export function generateFolderId(): FolderId {
-  return generate(parseFolderId);
+  return generateEntityId(parseFolderId);
 }
 
 export function generateSheetId(): SheetId {
-  return generate(parseSheetId);
+  return generateEntityId(parseSheetId);
 }
 
 export function generateBlockId(): BlockId {
-  return generate(parseBlockId);
+  return generateEntityId(parseBlockId);
 }

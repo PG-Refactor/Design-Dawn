@@ -4,6 +4,7 @@ import { editBlockContentCommand } from "../commands/content-commands";
 import {
   blockIdOf,
   DOCUMENT_ID,
+  documentIdOf,
   makeBlockAt,
   SHEET_ID,
   settle,
@@ -217,5 +218,22 @@ describe("applyDiagramEdits", () => {
     expect(outcome).toEqual({ ok: true, value: { changed: true } });
     expect(contentOf(harness)).toBe('pie\n  "Dogs" : 400\n  "Cats" : 85\n');
     expect(harness.session.getState().history.canUndo).toBe(true);
+  });
+});
+
+describe("applying to a session that cannot take it", () => {
+  it("refuses another document and a session that is closed", async () => {
+    const harness = await sessionWithSource();
+    const other = await applyDiagramEdits(
+      harness.session,
+      request([replace("386", "400")], { documentId: documentIdOf(5) }),
+    );
+    expect(!other.ok && other.error.kind).toBe("entityNotFound");
+    await harness.session.close();
+    const closed = await applyDiagramEdits(
+      harness.session,
+      request([replace("386", "400")]),
+    );
+    expect(closed.ok).toBe(false);
   });
 });

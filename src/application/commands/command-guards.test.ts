@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { blockDisplayOf } from "../../domain/block/content-scale";
 import { parseDisplayName } from "../../domain/shared/display-name";
 import { unwrap } from "../../domain/shared/test-support";
+import { ALWAYS_ENABLED_AUTO_SAVE_POLICY } from "../ports/auto-save-policy";
 import {
   blockIdOf,
   makeBlockAt,
@@ -18,6 +19,7 @@ import {
   setBlockCaptionCommand,
   setBlockDisplayCommand,
 } from "./block-commands";
+import { editBlockContentCommand } from "./content-commands";
 import { updateDocument, withContentPath, withContents } from "./document-data";
 import { moveSheetCommand, renameDocumentCommand } from "./naming-commands";
 
@@ -82,5 +84,27 @@ describe("sheet structure", () => {
     const unlisted = withSheetRemoved(DATA, sheetIdOf(42));
     expect(unlisted.ok && unlisted.value.document).toBe(DATA.document);
     expect(withSheetRemoved(DATA, OTHER_SHEET_ID).ok).toBe(true);
+  });
+});
+
+describe("editing a text", () => {
+  it("refuses to put the text back once it is no longer loaded", () => {
+    const loaded = withContents(DATA, [[FIRST, "before"]]);
+    const command = editBlockContentCommand({
+      sheetId: SHEET_ID,
+      blockId: FIRST,
+      text: "after",
+    });
+    const applied = command.apply(loaded);
+    expect(applied.ok).toBe(true);
+    expect(command.revert(DATA).ok).toBe(false);
+  });
+});
+
+describe("the always-on auto-save policy", () => {
+  it("has nothing to unsubscribe", () => {
+    const unsubscribe = ALWAYS_ENABLED_AUTO_SAVE_POLICY.subscribe(() => {});
+    expect(unsubscribe()).toBeUndefined();
+    expect(ALWAYS_ENABLED_AUTO_SAVE_POLICY.isEnabled()).toBe(true);
   });
 });
