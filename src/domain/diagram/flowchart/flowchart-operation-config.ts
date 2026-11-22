@@ -61,15 +61,18 @@ export interface FlowchartBracketPair {
   readonly closer: string;
 }
 
+// Every shape name is the shape of one closer of the bracket forms.
 export function bracketPairOf(
   shape: FlowchartBracketShapeName,
-): FlowchartBracketPair | null {
-  for (const form of FLOWCHART_BRACKET_FORMS) {
-    const closer = form.closers.find((candidate) => candidate.shape === shape);
-    if (closer !== undefined)
-      return { opener: form.opener, closer: closer.text };
-  }
-  return null;
+): FlowchartBracketPair {
+  const pairs = FLOWCHART_BRACKET_FORMS.flatMap((form) =>
+    form.closers.map((closer) => ({
+      shape: closer.shape,
+      pair: { opener: form.opener, closer: closer.text },
+    })),
+  );
+  const found = pairs.find((candidate) => candidate.shape === shape);
+  return (found as (typeof pairs)[number]).pair;
 }
 
 // `TD` and `TB` are the same direction; the conventional spelling of top-to-bottom is `TD`.

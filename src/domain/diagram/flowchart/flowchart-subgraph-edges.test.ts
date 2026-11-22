@@ -252,3 +252,34 @@ describe("deleting a node, more cases", () => {
     );
   });
 });
+
+describe("taking a node out for a reading it does not hold for", () => {
+  it("refuses when neither way of writing it reads back as promised", () => {
+    const source = "flowchart TD\n    subgraph S\n        B\n    end\n";
+    const base = prepared(source);
+    const phantom = {
+      ...base,
+      meaning: {
+        ...base.meaning,
+        nodes: [...base.meaning.nodes, { ...base.meaning.nodes[0], id: "Z" }],
+      },
+    } as PreparedFlowchart;
+    const result = planRemoveNodeFromSubgraph(source, phantom, "B", "S");
+    expect(!result.ok && reasonOfRefusal(result.error)).toBe(
+      "notPlainlyRemovable",
+    );
+  });
+});
+
+describe("lists with the node twice", () => {
+  it("takes a run of the node's entries out of a list", () => {
+    const result = runOperation(
+      "flowchart TD\n    A\n    B\n    class B,A,A hot\n",
+      {
+        kind: "deleteNode",
+        nodeId: "A",
+      },
+    );
+    expect(result).toContain("class B hot");
+  });
+});

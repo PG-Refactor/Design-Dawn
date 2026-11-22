@@ -96,10 +96,13 @@ function findBlock(
 function requireNode(
   prepared: PreparedFlowchart,
   nodeId: string,
-): DomainResult<void> {
-  return prepared.meaning.nodes.some((node) => node.id === nodeId)
-    ? ok(undefined)
-    : refuse("targetNotFound", `no node ${nodeId}`);
+): DomainResult<FlowchartMeaning["nodes"][number]> {
+  const node = prepared.meaning.nodes.find(
+    (candidate) => candidate.id === nodeId,
+  );
+  return node === undefined
+    ? refuse("targetNotFound", `no node ${nodeId}`)
+    : ok(node);
 }
 
 // One level deeper than the top level of the file.
@@ -560,7 +563,7 @@ export function planRemoveNodeFromSubgraph(
       ...stays,
       ...(plan.relocate ? [relocatedAt] : []),
     );
-    const ordered = withNodeFirstMention(meaning, nodeId, firstAfter);
+    const ordered = withNodeFirstMention(meaning, known.value, firstAfter);
     if (ordered === null) {
       lastFailure = `nodeOrderAmbiguous: ${nodeId} shares its first statement with another node`;
       continue;

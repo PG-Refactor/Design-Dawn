@@ -166,7 +166,8 @@ export function withMembers(
     ...meaning,
     subgraphs: meaning.subgraphs.map((subgraph) => ({
       ...subgraph,
-      members: members.get(subgraph.id) ?? subgraph.members,
+      // The rule gives members for every subgraph.
+      members: members.get(subgraph.id) as readonly string[],
     })),
   };
 }
@@ -196,16 +197,14 @@ export function withoutSubgraph(
 // mentioned in the same statement: the order inside one statement is not modelled.
 export function withNodeFirstMention(
   meaning: FlowchartMeaning,
-  nodeId: string,
+  node: FlowchartMeaning["nodes"][number],
   position: number,
 ): FlowchartMeaning | null {
-  const node = meaning.nodes.find((candidate) => candidate.id === nodeId);
-  if (node === undefined) return meaning;
   if (node.firstMention.statementIndex === position) return meaning;
   if (
     meaning.nodes.some(
       (other) =>
-        other.id !== nodeId && other.firstMention.statementIndex === position,
+        other.id !== node.id && other.firstMention.statementIndex === position,
     )
   ) {
     return null;
