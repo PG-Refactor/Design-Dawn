@@ -1,5 +1,6 @@
 import { expect } from "vitest";
 import { applyTextEdits, type TextEdit } from "../text-edit";
+import { refusalReason } from "./flowchart-operation-support";
 import {
   type FlowchartOperation,
   planFlowchartOperation,
@@ -76,4 +77,4 @@ export function refusalOf(source: string, operation: FlowchartOperation) {
 }
 
 export const reasonOfRefusal = (error: { readonly detail: string }): string =>
-  error.detail.split(":")[0] as string;
+  refusalReason(error.detail);

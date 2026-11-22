@@ -1,5 +1,4 @@
 import { type DomainResult, ok } from "../../shared/domain-result";
-import { itemAt } from "../../shared/item-at";
 import type { TextEdit } from "../text-edit";
 import {
   FLOWCHART_MAX_EDGES,
@@ -45,6 +44,7 @@ import {
   type FlowchartEdgeTarget,
   type PreparedFlowchart,
   prepareFlowchart,
+  refusalReason,
   refuse,
   resolveEdge,
   type TermReference,
@@ -267,9 +267,7 @@ export function nodeEditRestriction(
   nodeId: string,
 ): string | null {
   const writing = writingOfNode(prepared, nodeId);
-  return writing.ok
-    ? null
-    : itemAt(writing.error.detail.split(":"), 0, "").trim();
+  return writing.ok ? null : refusalReason(writing.error.detail);
 }
 
 function findNode(

@@ -1,4 +1,5 @@
 import { type DomainResult, err, ok } from "../../shared/domain-result";
+import { itemAt } from "../../shared/item-at";
 import { applyTextEdits, type TextEdit } from "../text-edit";
 import { flowchartEditability } from "./flowchart-editability";
 import {
@@ -153,4 +154,9 @@ export function confirmEdits(
   const candidate = candidateOf(source, edits, expected);
   if (candidate.ok) return ok(undefined);
   return refuse("planUnverified", candidate.error.detail);
+}
+
+// The reason code at the start of a refusal's detail (`targetNotFound: no node X`).
+export function refusalReason(detail: string): string {
+  return itemAt(detail.split(":"), 0, "").trim();
 }

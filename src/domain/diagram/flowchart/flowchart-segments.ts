@@ -43,12 +43,12 @@ function trimmedSegment(
   start: number,
   end: number,
   flag: SegmentFlag,
-): RawSegment | null {
+): RawSegment {
+  // `start` is a character that is not blank, so something is left.
   let trimmedEnd = end;
   while (trimmedEnd > start && isBlankCharacter(lineText[trimmedEnd - 1])) {
     trimmedEnd -= 1;
   }
-  if (trimmedEnd <= start) return null;
   return {
     text: lineText.slice(start, trimmedEnd),
     start: lineStart + start,
@@ -90,7 +90,7 @@ export function splitSegments(
         lineText.length,
         "accessibility",
       );
-      if (segment !== null) segments.push(segment);
+      segments.push(segment);
       break;
     }
 
@@ -135,8 +135,7 @@ export function splitSegments(
       cursor += 1;
     }
     if (inQuote) flag = "unterminatedQuote";
-    const segment = trimmedSegment(lineText, lineStart, first, cursor, flag);
-    if (segment !== null) segments.push(segment);
+    segments.push(trimmedSegment(lineText, lineStart, first, cursor, flag));
     segmentStart = cursor + 1;
   }
   return segments;
