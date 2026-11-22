@@ -106,6 +106,20 @@ export interface SaveCoordinator {
   dispose(): void;
 }
 
+// Saves every item in turn: a failure does not stop the others, and the first one is
+// reported. The items are copied first, since saving one changes the set it came from.
+async function firstFailure<Item>(
+  items: Iterable<Item>,
+  save: (item: Item) => Promise<OperationError | null>,
+): Promise<OperationError | null> {
+  let first: OperationError | null = null;
+  for (const item of [...items]) {
+    const error = await save(item);
+    first ??= error;
+  }
+  return first;
+}
+
 export function createSaveCoordinator(
   options: SaveCoordinatorOptions,
 ): SaveCoordinator {
@@ -157,12 +171,12 @@ export function createSaveCoordinator(
 
   // The planned files, before anything that refers to them is saved. A reserved name that
   // was taken meanwhile is given up for a new one.
-  async function createPlannedFiles(
+  function createPlannedFiles(
     data: DocumentData,
   ): Promise<OperationError | null> {
-    let firstError: OperationError | null = null;
-    for (const create of [...plannedCreates.values()]) {
-      const text = data.contents.get(create.blockId) ?? "";
+    return firstFailure(plannedCreates.values(), async (create) => {
+      // A planned creation is dropped together with its block, so its text is loaded.
+      const text = data.contents.get(create.blockId) as string;
       const created = await gateway.restoreBlockContent(
         projectId,
         documentId,
@@ -170,8 +184,10 @@ export function createSaveCoordinator(
         create.contentPath,
         text,
       );
-      let done = created.ok;
-      if (!created.ok && created.error.kind === ALREADY_EXISTS) {
+      if (!created.ok && created.error.kind !== ALREADY_EXISTS) {
+        return created.error;
+      }
+      if (!created.ok) {
         const fresh = await gateway.createBlockContent(
           projectId,
           documentId,
@@ -179,99 +195,72 @@ export function createSaveCoordinator(
           create.blockType,
           text,
         );
-        if (fresh.ok) {
-          options.relocate(create.blockId, fresh.value);
-          done = true;
-        } else {
-          firstError ??= fresh.error;
-        }
-      } else if (!created.ok) {
-        firstError ??= created.error;
+        if (!fresh.ok) return fresh.error;
+        options.relocate(create.blockId, fresh.value);
       }
-      if (done) {
-        plannedCreates = new Map(
-          [...plannedCreates].filter(([blockId]) => blockId !== create.blockId),
-        );
-        // The new file already holds the current text.
-        dirtyContentBlockIds = withoutId(dirtyContentBlockIds, create.blockId);
-      }
-    }
-    return firstError;
+      plannedCreates = new Map(
+        [...plannedCreates].filter(([blockId]) => blockId !== create.blockId),
+      );
+      // The new file already holds the current text.
+      dirtyContentBlockIds = withoutId(dirtyContentBlockIds, create.blockId);
+      return null;
+    });
   }
 
   // Once no saved sheet refers to them any more. A file that is already gone is fine.
-  async function deletePlannedFiles(): Promise<OperationError | null> {
-    let firstError: OperationError | null = null;
-    for (const contentPath of [...plannedDeletes]) {
+  function deletePlannedFiles(): Promise<OperationError | null> {
+    return firstFailure(plannedDeletes, async (contentPath) => {
       const deleted = await gateway.deleteBlockContent(
         projectId,
         documentId,
         contentPath,
       );
-      if (deleted.ok || deleted.error.kind === FILE_NOT_FOUND) {
-        plannedDeletes = withoutId(plannedDeletes, contentPath);
-      } else {
-        firstError ??= deleted.error;
+      if (!deleted.ok && deleted.error.kind !== FILE_NOT_FOUND) {
+        return deleted.error;
       }
-    }
-    return firstError;
+      plannedDeletes = withoutId(plannedDeletes, contentPath);
+      return null;
+    });
   }
 
   // Content goes first: a sheet never references a text file that is older than the
   // metadata saved with it (content -> metadata, like the file-backed sequences).
-  async function saveContents(
-    data: DocumentData,
-  ): Promise<OperationError | null> {
-    if (dirtyContentBlockIds.size === 0) return null;
+  function saveContents(data: DocumentData): Promise<OperationError | null> {
     const contentPaths = new Map<BlockId, ContentPath>();
     for (const sheet of data.sheets.values()) {
       for (const block of sheet.blocks) {
         contentPaths.set(block.blockId, block.contentPath);
       }
     }
-    let firstError: OperationError | null = null;
-    for (const blockId of [...dirtyContentBlockIds]) {
+    return firstFailure(dirtyContentBlockIds, async (blockId) => {
       const contentPath = contentPaths.get(blockId);
       const text = data.contents.get(blockId);
-      if (contentPath === undefined || text === undefined) {
-        // The block no longer exists; there is nothing left to save for it.
-        dirtyContentBlockIds = withoutId(dirtyContentBlockIds, blockId);
-        continue;
+      if (contentPath !== undefined && text !== undefined) {
+        const saved = await gateway.writeBlockContent(
+          projectId,
+          documentId,
+          contentPath,
+          text,
+        );
+        if (!saved.ok) return saved.error;
       }
-      const saved = await gateway.writeBlockContent(
-        projectId,
-        documentId,
-        contentPath,
-        text,
-      );
-      if (saved.ok) {
-        dirtyContentBlockIds = withoutId(dirtyContentBlockIds, blockId);
-      } else {
-        firstError ??= saved.error;
-      }
-    }
-    return firstError;
+      // Saved, or the block no longer exists and there is nothing left to save for it.
+      dirtyContentBlockIds = withoutId(dirtyContentBlockIds, blockId);
+      return null;
+    });
   }
 
-  async function saveSheets(
-    data: DocumentData,
-  ): Promise<OperationError | null> {
-    let firstError: OperationError | null = null;
-    for (const sheetId of [...dirtySheetIds]) {
+  function saveSheets(data: DocumentData): Promise<OperationError | null> {
+    return firstFailure(dirtySheetIds, async (sheetId) => {
       const sheet: Sheet | undefined = data.sheets.get(sheetId);
-      if (sheet === undefined) {
-        // The sheet no longer exists; there is nothing left to save for it.
-        dirtySheetIds = withoutId(dirtySheetIds, sheetId);
-        continue;
+      if (sheet !== undefined) {
+        const saved = await gateway.saveSheet(projectId, documentId, sheet);
+        if (!saved.ok) return saved.error;
       }
-      const saved = await gateway.saveSheet(projectId, documentId, sheet);
-      if (saved.ok) {
-        dirtySheetIds = withoutId(dirtySheetIds, sheetId);
-      } else {
-        firstError ??= saved.error;
-      }
-    }
-    return firstError;
+      // Saved, or the sheet no longer exists and there is nothing left to save for it.
+      dirtySheetIds = withoutId(dirtySheetIds, sheetId);
+      return null;
+    });
   }
 
   async function saveDocumentIfDirty(
