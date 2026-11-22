@@ -79,6 +79,7 @@ const APP_COMMANDS: &[&str] = &[
     "git_conflict_versions",
     "git_sheet_versions",
     "git_resolve_conflict",
+    "git_resolve_conflict_with_side",
     "copy_asset_to_document",
     "subscribe_drop_notifications",
     "subscribe_close_requests",

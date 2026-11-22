@@ -146,6 +146,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::git_conflict_versions,
             commands::git_sheet_versions,
             commands::git_resolve_conflict,
+            commands::git_resolve_conflict_with_side,
             commands::copy_asset_to_document,
             commands::subscribe_drop_notifications,
             commands::subscribe_close_requests,

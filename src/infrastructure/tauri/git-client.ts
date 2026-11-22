@@ -4,6 +4,8 @@
 import type {
   GitCommitOptions,
   GitCommitResult,
+  GitConflictImages,
+  GitConflictSide,
   GitConflictVersions,
   GitDiff,
   GitDiffSide,
@@ -31,6 +33,7 @@ import {
 import { call } from "./invoke-command";
 import {
   arrayOf,
+  decodeBoolean,
   decodeString,
   nullable,
   objectOf,
@@ -172,6 +175,15 @@ const rawConflictVersions = objectOf<GitConflictVersions>({
   current: nullable(decodeString),
   merged: nullable(decodeString),
   conflictingBlocks: arrayOf(decodeString),
+  images: nullable(
+    objectOf<GitConflictImages>({
+      base: nullable(decodeString),
+      ours: nullable(decodeString),
+      theirs: nullable(decodeString),
+      oursDeleted: decodeBoolean,
+      theirsDeleted: decodeBoolean,
+    }),
+  ),
 });
 
 interface RawSheetVersion extends Omit<GitSheetVersion, "sheet"> {
@@ -238,6 +250,18 @@ export function gitResolveConflict(
   return call(
     COMMANDS.gitResolveConflict,
     { projectId, path, content },
+    toGitStatus,
+  );
+}
+
+export function gitResolveConflictWithSide(
+  projectId: ProjectId,
+  path: string,
+  side: GitConflictSide,
+): Promise<CommandResult<GitStatus>> {
+  return call(
+    COMMANDS.gitResolveConflictWithSide,
+    { projectId, path, side },
     toGitStatus,
   );
 }

@@ -207,7 +207,23 @@ export interface GitConflictVersions {
   readonly current: string | null;
   readonly merged: string | null;
   readonly conflictingBlocks: readonly string[];
+  // For a picture: each version as a `data:` URL (null on a side without the file, or
+  // when it cannot be shown); null for other files.
+  readonly images: GitConflictImages | null;
 }
+
+export interface GitConflictImages {
+  readonly base: string | null;
+  readonly ours: string | null;
+  readonly theirs: string | null;
+  // The side deleted the file: choosing it deletes the file.
+  readonly oursDeleted: boolean;
+  readonly theirsDeleted: boolean;
+}
+
+export const GIT_CONFLICT_SIDES = ["ours", "theirs"] as const;
+
+export type GitConflictSide = (typeof GIT_CONFLICT_SIDES)[number];
 
 // One version of a Sheet as Git has it, for comparing how two versions look: its
 // `sheet.json` as written and the files its Blocks show, by `contentPath` (texts; images as
@@ -245,6 +261,13 @@ export interface GitGateway {
     projectId: ProjectId,
     path: string,
     content: string,
+  ): Promise<OperationResult<GitStatus>>;
+  // Resolves a conflicted file with one side's file as it is (a picture), and stages it; a
+  // side without the file deletes it. Returns the status afterwards.
+  resolveConflictWithSide(
+    projectId: ProjectId,
+    path: string,
+    side: GitConflictSide,
   ): Promise<OperationResult<GitStatus>>;
   gitStatus(projectId: ProjectId): Promise<OperationResult<GitStatus>>;
   // Turns `core.longpaths` on in the Project's own repository (asked by the user).

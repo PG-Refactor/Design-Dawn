@@ -193,6 +193,7 @@ describe("change list display", () => {
       current: "<<<<<<<\n",
       merged: null,
       conflictingBlocks: [],
+      images: null,
     };
     await shell.user.click(
       within(row).getByRole("button", {
@@ -212,6 +213,77 @@ describe("change list display", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(shell.gitGateway.resolveCalls).toEqual([
       { path: "x.md", content: "theirs\n" },
+    ]);
+  });
+});
+
+describe("a conflicted picture", () => {
+  const OURS = "data:image/png;base64,b3Vycw==";
+  const THEIRS = "data:image/png;base64,dGhlaXJz";
+  const conflict = GIT_MESSAGES.ja.conflict;
+
+  async function openPicture(theirs: string | null) {
+    const shell = await openChanges(file("p.png", "unmerged", "unmerged"));
+    shell.gitGateway.conflict = {
+      path: "p.png",
+      base: null,
+      ours: null,
+      theirs: null,
+      current: null,
+      merged: null,
+      conflictingBlocks: [],
+      images: {
+        base: null,
+        ours: OURS,
+        theirs,
+        oursDeleted: false,
+        theirsDeleted: theirs === null,
+      },
+    };
+    await shell.user.click(
+      within(rowOf("マージの変更", "競合 p.png")).getByRole("button", {
+        name: GIT_MESSAGES.ja.resolveConflict,
+      }),
+    );
+    const dialog = await screen.findByRole("dialog", {
+      name: conflict.title("p.png"),
+    });
+    return { shell, dialog };
+  }
+
+  it("shows both pictures side by side and resolves with the one chosen", async () => {
+    const { shell, dialog } = await openPicture(THEIRS);
+    expect(
+      within(dialog)
+        .getByRole("img", { name: conflict.ours })
+        .getAttribute("src"),
+    ).toBe(OURS);
+    expect(
+      within(dialog)
+        .getByRole("img", { name: conflict.theirs })
+        .getAttribute("src"),
+    ).toBe(THEIRS);
+    // No text to edit for a picture.
+    expect(within(dialog).queryByRole("textbox")).toBeNull();
+    await shell.user.click(
+      within(dialog).getByRole("button", { name: conflict.resolveWithTheirs }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(shell.gitGateway.resolveSideCalls).toEqual([
+      { path: "p.png", side: "theirs" },
+    ]);
+    expect(shell.gitGateway.resolveCalls).toEqual([]);
+  });
+
+  it("says when a side deleted the picture, and choosing it deletes the file", async () => {
+    const { shell, dialog } = await openPicture(null);
+    expect(within(dialog).getByText(conflict.deletedOnSide)).toBeTruthy();
+    await shell.user.click(
+      within(dialog).getByRole("button", { name: conflict.resolveByDeleting }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(shell.gitGateway.resolveSideCalls).toEqual([
+      { path: "p.png", side: "theirs" },
     ]);
   });
 });

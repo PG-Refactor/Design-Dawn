@@ -14,6 +14,7 @@ import {
   gitPull,
   gitPush,
   gitRemotes,
+  gitResolveConflictWithSide,
   gitStage,
   gitStatus,
   gitUndoLastCommit,
@@ -988,5 +989,23 @@ describe("gitAbortMerge", () => {
       [COMMANDS.gitAbortMerge, { projectId: PROJECT_ID }],
     ]);
     expect(result.ok && result.value.status.outcome).toBe("updated");
+  });
+});
+
+describe("gitResolveConflictWithSide", () => {
+  it("sends the project id, the path and the side and decodes the status", async () => {
+    invokeMock.mockResolvedValueOnce(VALID_PAYLOAD);
+    const result = await gitResolveConflictWithSide(
+      PROJECT_ID,
+      "p.png",
+      "theirs",
+    );
+    expect(invokeMock.mock.calls).toStrictEqual([
+      [
+        COMMANDS.gitResolveConflictWithSide,
+        { projectId: PROJECT_ID, path: "p.png", side: "theirs" },
+      ],
+    ]);
+    expect(result.ok).toBe(true);
   });
 });

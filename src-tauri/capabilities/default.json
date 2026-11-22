@@ -81,6 +81,7 @@
     "allow-git-conflict-versions",
     "allow-git-sheet-versions",
     "allow-git-resolve-conflict",
+    "allow-git-resolve-conflict-with-side",
     "allow-copy-asset-to-document",
     "allow-subscribe-drop-notifications",
     "allow-subscribe-close-requests",
