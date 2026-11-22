@@ -30,6 +30,7 @@ import {
   resolveItem,
   type SequenceItemTarget,
 } from "./sequence-operation-support";
+import type { SequenceReading } from "./sequence-reader";
 import { planStatementRemoval } from "./sequence-removal";
 import {
   blockExtentOf,
@@ -113,18 +114,16 @@ export function planWrapInBlock(
   const first = from.value.statement;
   let lastIndex = to.value.statement.index;
   if (to.value.statement.kind === "blockStart") {
-    const extent = blockExtentOf(reading.statements, lastIndex);
-    if (extent === null)
-      return refuse("rangeCrossesBlock", "the block has no end");
-    lastIndex = extent.end;
+    lastIndex = blockExtentOf(reading.statements, lastIndex).end;
   }
   if (lastIndex < first.index) {
     return refuse("rangeOrder", "the range ends before it starts");
   }
   let level = 0;
-  for (let index = first.index; index <= lastIndex; index += 1) {
-    const statement = reading.statements[index];
-    if (statement === undefined) break;
+  for (const statement of reading.statements.slice(
+    first.index,
+    lastIndex + 1,
+  )) {
     if (!RANGE_KINDS.has(statement.kind)) {
       return refuse(
         "unsupportedInRange",
@@ -143,9 +142,7 @@ export function planWrapInBlock(
   if (level !== 0) {
     return refuse("rangeCrossesBlock", "the range ends inside a nested block");
   }
-  const last = reading.statements[lastIndex];
-  if (last === undefined)
-    return refuse("rangeCrossesBlock", "no last statement");
+  const last = reading.statements[lastIndex] as SequenceStatement;
   if (!isFirstOnLine(reading, first) || !isLastOnLine(reading, last)) {
     return refuse(
       "statementsShareLine",
@@ -156,9 +153,9 @@ export function planWrapInBlock(
   const unit = indentUnitOf(reading);
   const ending = dominantLineEnding(reading);
   const insertions = new InsertionSet();
-  const firstLine = reading.lines[first.lineIndex];
-  if (firstLine === undefined)
-    return refuse("rangeCrossesBlock", "no first line");
+  const firstLine = reading.lines[
+    first.lineIndex
+  ] as SequenceReading["lines"][number];
   insertions.add(
     firstLine.start,
     `${base}${headerLine(operation.block, encoded.value)}${ending}`,
@@ -215,10 +212,7 @@ export function planUnwrapBlock(
   if (!resolved.ok) return resolved;
   const header = resolved.value.statement;
   const extent = blockExtentOf(reading.statements, header.index);
-  const end = extent === null ? undefined : reading.statements[extent.end];
-  if (extent === null || end === undefined) {
-    return refuse("wrongTargetKind", "the block has no end");
-  }
+  const end = reading.statements[extent.end] as SequenceStatement;
   if (extent.branches.length > 0) {
     return refuse(
       "hasBranches",
@@ -250,8 +244,7 @@ export function planUnwrapBlock(
   if (unit !== "") {
     const lines = new Set(inner.map((statement) => statement.lineIndex));
     for (const lineIndex of lines) {
-      const line = reading.lines[lineIndex];
-      if (line === undefined) continue;
+      const line = reading.lines[lineIndex] as SequenceReading["lines"][number];
       if (line.text.startsWith(`${headerIndent}${unit}`)) {
         const start = line.start + headerIndent.length;
         edits.push({ start, end: start + unit.length, text: "" });
@@ -281,10 +274,9 @@ export function planAddBranch(
   }
   const encoded = encodeSequenceText(operation.text, "blockLabel");
   if (!encoded.ok) return encoded;
-  const extent = blockExtentOf(reading.statements, header.index);
-  const end = extent === null ? undefined : reading.statements[extent.end];
-  if (end === undefined)
-    return refuse("wrongTargetKind", "the block has no end");
+  const end = reading.statements[
+    blockExtentOf(reading.statements, header.index).end
+  ] as SequenceStatement;
   const line = `${indentOfLine(reading, header.lineIndex)}${headerLine(keyword, encoded.value)}`;
   let edit: TextEdit;
   let itemIndex: number;
@@ -347,11 +339,9 @@ export function planDeleteBranch(
     reading.statements,
     resolved.value.statement.index,
   );
-  if (segment === null)
-    return refuse("wrongTargetKind", "the branch has no block");
   for (const index of segment) {
-    const statement = reading.statements[index];
-    if (statement !== undefined && !RANGE_KINDS.has(statement.kind)) {
+    const statement = reading.statements[index] as SequenceStatement;
+    if (!RANGE_KINDS.has(statement.kind)) {
       return refuse(
         "unsupportedInRange",
         `a ${statement.kind} statement stands inside the branch`,

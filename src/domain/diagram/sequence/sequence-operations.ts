@@ -977,7 +977,16 @@ export function planSequenceOperation(
 ): Planned {
   const prepared = prepareSequence(source);
   if (!prepared.ok) return prepared;
-  const state = prepared.value;
+  return planPreparedSequenceOperation(source, prepared.value, operation);
+}
+
+// The same for a diagram already read (its reading and meaning). Every plan proves itself
+// against `state`, so one that does not hold for it is refused.
+export function planPreparedSequenceOperation(
+  source: string,
+  state: PreparedSequence,
+  operation: SequenceOperation,
+): Planned {
   switch (operation.kind) {
     case "addParticipant":
       return planAddParticipant(source, state, operation);
