@@ -32,9 +32,9 @@ export function planStatementRemoval(
   const keptItems = meaning.items.filter(
     (item) => !removed.has(item.statementIndex),
   );
-  const before = pairActivations(meaning.items);
-  const after = pairActivations(keptItems);
-  for (const [opener, closer] of before.pairs) {
+  // An editable diagram pairs every close with an open activation. Removing only whole pairs
+  // (and opens that are never closed) leaves every other pair as it was.
+  for (const [opener, closer] of pairActivations(meaning.items).pairs) {
     if (removed.has(opener) !== removed.has(closer)) {
       return refuse(
         "activationPairing",
@@ -42,31 +42,11 @@ export function planStatementRemoval(
       );
     }
   }
-  for (const [opener, closer] of after.pairs) {
-    if (before.pairs.get(opener) !== closer) {
-      return refuse(
-        "activationPairing",
-        "the remaining activations would pair differently",
-      );
-    }
-  }
-  if (!after.valid) {
-    return refuse(
-      "activationPairing",
-      "a deactivation would have no activation to end",
-    );
-  }
   const removedStatements = reading.statements.filter((statement) =>
     removed.has(statement.index),
   );
   const perLine = new Map<number, number>();
   for (const statement of removedStatements) {
-    if (statement.kind === "participant" && !dropped.has(statement.id.text)) {
-      return refuse(
-        "declarationInRange",
-        `the declaration of ${statement.id.text} would be removed`,
-      );
-    }
     perLine.set(
       statement.lineIndex,
       (perLine.get(statement.lineIndex) ?? 0) + 1,

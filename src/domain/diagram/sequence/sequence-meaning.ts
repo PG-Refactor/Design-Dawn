@@ -166,8 +166,8 @@ export function buildSequenceMeaning(
       next: undefined,
     });
     if (previousId !== undefined) {
-      const previous = records.get(previousId);
-      if (previous !== undefined) previous.next = id;
+      // The previous column was recorded before this one.
+      (records.get(previousId) as ParticipantRecord).next = id;
     }
     previousId = id;
   };

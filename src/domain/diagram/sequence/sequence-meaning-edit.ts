@@ -83,10 +83,9 @@ export function withItemsSwapped(
   second: number,
 ): SequenceMeaning {
   const items = [...meaning.items];
-  const firstItem = items[first];
-  const secondItem = items[second];
-  if (firstItem === undefined || secondItem === undefined) return meaning;
-  items[first] = secondItem;
+  // Both are entries of the meaning (the planner found them there).
+  const firstItem = items[first] as SequenceItemMeaning;
+  items[first] = items[second] as SequenceItemMeaning;
   items[second] = firstItem;
   return { ...meaning, items };
 }

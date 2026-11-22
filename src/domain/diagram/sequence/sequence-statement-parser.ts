@@ -1,7 +1,6 @@
 import {
   isSequenceReservedWord,
   SEQUENCE_NOTE_PLACEMENT_WORDS,
-  SEQUENCE_PARTICIPANT_KINDS,
   SEQUENCE_STATEMENT_PATTERNS,
   SEQUENCE_WRAP_PREFIX_PATTERN,
   type SequenceArrow,
@@ -118,16 +117,12 @@ const parseParticipant: KindParser = (where) => {
   const alias = optionalTokenOf(where, match, 4);
   if (alias !== null && hasWrapPrefix(alias)) return refuse("wrapPrefix");
   const keyword = tokenOf(where, match, 2);
-  const declaration = keyword.text.toLowerCase();
-  if (
-    !(SEQUENCE_PARTICIPANT_KINDS as readonly string[]).includes(declaration)
-  ) {
-    return refuse("unrecognisedStatement");
-  }
+  // The pattern only matches the kinds (in any case).
+  const declaration = keyword.text.toLowerCase() as SequenceParticipantKind;
   return parsed({
     ...baseOf(where),
     kind: "participant",
-    declaration: declaration as SequenceParticipantKind,
+    declaration,
     keyword,
     id,
     alias,

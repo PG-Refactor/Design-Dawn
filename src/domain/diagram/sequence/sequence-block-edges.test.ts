@@ -187,3 +187,17 @@ describe("more branches and messages", () => {
     ).not.toBe("");
   });
 });
+
+describe("activation pairing", () => {
+  it("refuses taking away a + that an open activation relies on to stay open", () => {
+    const source =
+      "sequenceDiagram\n    activate A\n    B->>+A: x\n    deactivate A\n";
+    expect(
+      refusal(source, {
+        kind: "setMessageActivation",
+        target: targetOf(source, isMessage),
+        sign: null,
+      }),
+    ).toContain("activationPairing");
+  });
+});

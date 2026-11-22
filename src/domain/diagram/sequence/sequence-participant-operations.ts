@@ -14,6 +14,7 @@ import {
   refuse,
 } from "./sequence-operation-support";
 import { planStatementRemoval } from "./sequence-removal";
+import type { SequenceStatement } from "./sequence-types";
 
 // Tier 2 operations on participants.
 
@@ -101,10 +102,10 @@ export function planReorderParticipants(
   if (left === undefined || right === undefined) {
     return refuse("atBoundary", "there is no column on that side");
   }
-  const anchor = reading.statements[left.firstMention.statementIndex];
-  if (anchor === undefined) {
-    return refuse("firstMentionNotFound", `${left.id} is not written`);
-  }
+  // A participant is first mentioned by a statement of the reading.
+  const anchor = reading.statements[
+    left.firstMention.statementIndex
+  ] as SequenceStatement;
   const createdThere = participantsCreatedBy(meaning, anchor.index);
   const inFront = createdThere
     .slice(

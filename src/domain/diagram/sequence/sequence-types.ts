@@ -110,18 +110,16 @@ export type SequenceStatement =
   | SequenceTitleStatement;
 
 // Why a statement is read but not understood. The whole diagram is then read-only.
-export const SEQUENCE_OPAQUE_REASONS = [
-  "unrecognisedStatement",
-  "reservedWordAsId",
-  "wrapPrefix",
-  "hashInDeclaration",
-  "statementOnHeaderLine",
-  "boxStatement",
-  "createDestroy",
-  "linkStatement",
-  "accessibilityStatement",
-] as const;
-export type SequenceOpaqueReason = (typeof SEQUENCE_OPAQUE_REASONS)[number];
+export type SequenceOpaqueReason =
+  | "unrecognisedStatement"
+  | "reservedWordAsId"
+  | "wrapPrefix"
+  | "hashInDeclaration"
+  | "statementOnHeaderLine"
+  | "boxStatement"
+  | "createDestroy"
+  | "linkStatement"
+  | "accessibilityStatement";
 
 export interface SequenceOpaqueStatement {
   readonly lineIndex: number;
