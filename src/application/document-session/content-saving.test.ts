@@ -135,9 +135,7 @@ describe("saving edited content", () => {
     const { session, gateway } = await loadedSession();
     await session.execute(edit("edited"));
     await session.runExclusive(async (scope) => {
-      const removed = withSheetRemoved(scope.getData(), SHEET_ID);
-      if (!removed.ok) return removed;
-      scope.applyStructuralChange(removed.value, {
+      scope.applyStructuralChange(withSheetRemoved(scope.getData(), SHEET_ID), {
         clearHistory: true,
         markDirty: false,
       });

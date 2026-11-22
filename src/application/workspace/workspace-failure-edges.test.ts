@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { CURRENT_SCHEMA_VERSIONS } from "../../domain/domain-constants";
 import { renameSheetCommand } from "../commands/naming-commands";
 import { operationErr, operationOk } from "../ports/operation-error";
 import { createFakeDocumentWindows } from "../test-support/fake-document-windows";
 import {
+  createSequentialIdGenerator,
   displayName,
   documentIdOf,
   folderIdOf,
+  makeSheetWith,
   sheetIdOf,
 } from "../test-support/fakes";
 import {
@@ -13,6 +16,7 @@ import {
   createWorkspaceHarness,
   DOCUMENT_A,
   DOCUMENT_C,
+  FAILED_SHEET_ID,
   FOLDER_1,
   FOLDER_2,
   openedDocumentA,
@@ -291,5 +295,177 @@ describe("unused assets and windows", () => {
     snapshotFails = false;
     harness.store.setState((state) => ({ ...state, windowRole: "document" }));
     expect((await harness.workspace.refreshProjectTree()).ok).toBe(true);
+  });
+});
+
+describe("the last workspace edges", () => {
+  it("lists no open Documents without a Project or for an unknown entry", async () => {
+    const harness = await openedDocumentA();
+    expect(harness.workspace.openDocumentsUnder(folderIdOf(97))).toEqual([]);
+    await harness.workspace.closeProject();
+    expect(harness.workspace.openDocumentsUnder(DOCUMENT_A)).toEqual([]);
+  });
+
+  it("stops closing the Project when its own file cannot be saved", async () => {
+    const harness = await openedDocumentA();
+    harness.gateway.failAlways("saveProject", "ioError");
+    expect((await harness.workspace.renameProject("Renamed")).ok).toBe(false);
+    const closed = await harness.workspace.closeProject();
+    expect(!closed.ok && closed.error.kind).toBe("ioError");
+    harness.gateway.clearFailures();
+  });
+
+  it("saves a Project left unsaved by a failed save before closing it", async () => {
+    const harness = await openedDocumentA();
+    harness.gateway.failOn("saveProject", "ioError");
+    expect((await harness.workspace.renameProject("Renamed")).ok).toBe(false);
+    expect((await harness.workspace.closeProject()).ok).toBe(true);
+    expect(harness.gateway.methods("saveProject")).toHaveLength(2);
+  });
+
+  it("keeps a Document here when it cannot be handed over", async () => {
+    const first = createWorkspaceHarness();
+    const windows = createFakeDocumentWindows(first.gateway);
+    const harness = createWorkspaceHarness({
+      sharedGateway: first.gateway,
+      windows: windows.gatewayFor("main"),
+    });
+    await harness.workspace.openProject(SELECTION_ID);
+    await harness.workspace.openDocument(DOCUMENT_A);
+    const session = harness.workspace.getDocumentSession(DOCUMENT_A);
+    if (session === null) throw new Error("not open");
+    Object.assign(session, {
+      handOver: async () => operationErr("notWritable", "busy"),
+    });
+    expect(
+      (
+        await harness.workspace.moveDocumentToWindow(DOCUMENT_A, {
+          kind: "newWindow",
+          screenX: 0,
+          screenY: 0,
+        })
+      ).ok,
+    ).toBe(false);
+    expect(harness.workspace.getDocumentSession(DOCUMENT_A)).toBe(session);
+  });
+
+  it("refuses a tree Rust sends that is not consistent, and takes a valid one with its folders", async () => {
+    const folders = await openedFolderDiskWorkspace();
+    const windows = createFakeDocumentWindows(folders.gateway);
+    const base = windows.gatewayFor("doc");
+    let broken = false;
+    const harness = createWorkspaceHarness({
+      sharedGateway: folders.gateway,
+      windows: {
+        ...base,
+        // The tree as the folder window holds it.
+        getProjectSnapshot: async () => {
+          const project = folders.store.getState().project;
+          if (project === null) return operationErr("projectNotOpen", "closed");
+          const snapshot = {
+            // Raw, as Rust sends it.
+            project: {
+              ...project.project,
+              schemaVersion: CURRENT_SCHEMA_VERSIONS.project,
+            } as never,
+            sessionGeneration: project.sessionGeneration,
+            folders: project.folders,
+            documents: project.documents,
+            issues: [],
+          };
+          return operationOk(
+            broken
+              ? {
+                  ...snapshot,
+                  folders: [...snapshot.folders, ...snapshot.folders],
+                }
+              : snapshot,
+          );
+        },
+      },
+    });
+    await harness.workspace.openProject(SELECTION_ID);
+    harness.store.setState((state) => ({ ...state, windowRole: "document" }));
+    broken = true;
+    expect((await harness.workspace.refreshProjectTree()).ok).toBe(false);
+    broken = false;
+    const refreshed = await harness.workspace.refreshProjectTree();
+    expect(refreshed.ok).toBe(true);
+    expect(harness.store.getState().project?.folders.length).toBeGreaterThan(0);
+  });
+
+  it("refuses a new Sheet whose id the Document already has", async () => {
+    const taken = createSequentialIdGenerator().sheetId();
+    const lone = documentIdOf(30);
+    const harness = patchedHarness((gateway) => {
+      gateway.seedDocument({
+        documentId: lone,
+        name: "Lone",
+        sheets: [{ sheetId: taken, name: "S" }],
+      });
+      gateway.createSheet = async (_projectId, _documentId, sheetId, name) =>
+        operationOk({
+          sheetId,
+          name,
+          state: "loaded",
+          sheet: makeSheetWith(sheetId, []),
+        });
+    });
+    await harness.workspace.openProject(SELECTION_ID);
+    expect((await harness.workspace.openDocument(lone)).ok).toBe(true);
+    const created = await harness.workspace.createSheet(lone, "New");
+    expect(!created.ok && created.error.kind).toBe("duplicateId");
+  });
+
+  it("deletes a Sheet its Document does not list, without writing the order", async () => {
+    const harness = patchedHarness((gateway) => {
+      const load = gateway.loadDocument.bind(gateway);
+      gateway.loadDocument = async (projectId, documentId) => {
+        const loaded = await load(projectId, documentId);
+        return loaded.ok
+          ? operationOk({
+              ...loaded.value,
+              document: {
+                ...loaded.value.document,
+                sheetOrder: loaded.value.document.sheetOrder.filter(
+                  (id) => id !== FAILED_SHEET_ID,
+                ),
+              },
+            })
+          : loaded;
+      };
+    });
+    await harness.workspace.openProject(SELECTION_ID);
+    await harness.workspace.openDocument(DOCUMENT_A);
+    harness.gateway.failOn("deleteSheet", "ioError");
+    expect(
+      (
+        await harness.workspace.deleteSheet(
+          DOCUMENT_A,
+          FAILED_SHEET_ID,
+          CONFIRMED,
+        )
+      ).ok,
+    ).toBe(false);
+    harness.gateway.clearCalls();
+    expect(
+      (
+        await harness.workspace.deleteSheet(
+          DOCUMENT_A,
+          FAILED_SHEET_ID,
+          CONFIRMED,
+        )
+      ).ok,
+    ).toBe(true);
+    expect(harness.gateway.methods("saveDocument")).toEqual([]);
+  });
+
+  it("passes on a launch request whose Project cannot replace the open one", async () => {
+    const harness = await openedDocumentA();
+    harness.gateway.failAlways("saveProject", "ioError");
+    await harness.workspace.renameProject("Renamed");
+    harness.gateway.queueOpenRequest(DOCUMENT_A);
+    expect((await harness.workspace.openLaunchRequest()).ok).toBe(false);
+    harness.gateway.clearFailures();
   });
 });

@@ -978,17 +978,12 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
       // if the process stops between the steps below.
       const flushed = await scope.saveDirty();
       if (!flushed.ok) return flushed;
-      // Refused before anything is written (the last Sheet of a Document stays).
       const without = withSheetRemoved(data, sheetId);
-      if (!without.ok) return failWith(without.error);
-      const orderChanged = without.value.document !== data.document;
+      const orderChanged = without.document !== data.document;
       // Order first, directory second. Memory is untouched
       // until the directory is really gone, so a failure here changes nothing.
       if (orderChanged) {
-        const saved = await gateway.saveDocument(
-          projectId,
-          without.value.document,
-        );
+        const saved = await gateway.saveDocument(projectId, without.document);
         if (!saved.ok) return saved;
       }
       const deleted = await gateway.deleteSheet(projectId, documentId, sheetId);
@@ -1019,7 +1014,7 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
         });
       });
       // The order was saved above; history may reference the removed sheet.
-      scope.applyStructuralChange(without.value, {
+      scope.applyStructuralChange(without, {
         clearHistory: true,
         markDirty: false,
       });

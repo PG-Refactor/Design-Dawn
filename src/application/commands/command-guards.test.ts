@@ -81,9 +81,10 @@ describe("sheet structure", () => {
   });
 
   it("removes a sheet the order does not list", () => {
-    const unlisted = withSheetRemoved(DATA, sheetIdOf(42));
-    expect(unlisted.ok && unlisted.value.document).toBe(DATA.document);
-    expect(withSheetRemoved(DATA, OTHER_SHEET_ID).ok).toBe(true);
+    expect(withSheetRemoved(DATA, sheetIdOf(42)).document).toBe(DATA.document);
+    expect(
+      withSheetRemoved(DATA, OTHER_SHEET_ID).document.sheetOrder,
+    ).not.toContain(OTHER_SHEET_ID);
   });
 });
 
