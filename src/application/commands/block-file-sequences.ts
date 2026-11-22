@@ -140,6 +140,19 @@ function blockOfSpec(spec: BlockSpec, contentPath: ContentPath): Block {
   };
 }
 
+// `addBlocksWithContent` refused duplicate ids before any file work, and that is all adding
+// blocks checks, so the new blocks are always added.
+function appendChecked(
+  sheet: Sheet,
+  captured: readonly CapturedBlock[],
+): Sheet {
+  const added = addBlocks(
+    sheet,
+    captured.map((entry) => entry.block),
+  ) as { readonly ok: true; readonly value: Sheet };
+  return added.value;
+}
+
 async function addBlocksLater(
   ctx: SequenceContext,
   deferred: DeferredFiles,
@@ -171,11 +184,7 @@ async function addBlocksLater(
       text: spec.text,
     });
   }
-  const added = addBlocks(
-    sheet,
-    captured.map((entry) => entry.block),
-  );
-  if (!added.ok) return failWith(added.error);
+  const added = appendChecked(sheet, captured);
   for (const { block, text } of captured) {
     if (text === null) continue;
     deferred.planCreate({
@@ -185,7 +194,7 @@ async function addBlocksLater(
       contentPath: block.contentPath,
     });
   }
-  return operationOk({ sheet: added.value, captured, warnings: [] });
+  return operationOk({ sheet: added, captured, warnings: [] });
 }
 
 async function removeBlocksLater(
@@ -268,15 +277,7 @@ export async function addBlocksWithContent(
       // The asset exists already (the import / copy ran first), so there is nothing to
       // create and nothing to roll back for this block.
       captured.push({
-        block: {
-          blockId: spec.blockId,
-          blockType: spec.blockType,
-          position: spec.position,
-          size: spec.size,
-          contentPath: spec.contentPath,
-          ...captionFieldsOf(spec),
-          ...displayStoredFieldsOf(spec),
-        },
+        block: blockOfSpec(spec, spec.contentPath),
         index,
         text: null,
       });
@@ -294,32 +295,20 @@ export async function addBlocksWithContent(
     }
     createdPaths.push(content.value);
     captured.push({
-      block: {
-        blockId: spec.blockId,
-        blockType: spec.blockType,
-        position: spec.position,
-        size: spec.size,
-        contentPath: content.value,
-        ...captionFieldsOf(spec),
-        ...displayStoredFieldsOf(spec),
-      },
+      block: blockOfSpec(spec, content.value),
       index,
       text: spec.text,
     });
   }
 
-  const added = addBlocks(
-    sheet,
-    captured.map((entry) => entry.block),
-  );
-  if (!added.ok) return failAfterRollback(ctx, added.error, createdPaths);
+  const added = appendChecked(sheet, captured);
   const saved = await ctx.gateway.saveSheet(
     ctx.projectId,
     ctx.documentId,
-    added.value,
+    added,
   );
   if (!saved.ok) return failAfterRollback(ctx, saved.error, createdPaths);
-  return operationOk({ sheet: added.value, captured, warnings: [] });
+  return operationOk({ sheet: added, captured, warnings: [] });
 }
 
 export async function removeBlocksWithContent(
