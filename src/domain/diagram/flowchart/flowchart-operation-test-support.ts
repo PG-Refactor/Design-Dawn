@@ -1,6 +1,6 @@
 import { expect } from "vitest";
+import { refusalReason } from "../refusal-reason";
 import { applyTextEdits, type TextEdit } from "../text-edit";
-import { refusalReason } from "./flowchart-operation-support";
 import {
   type FlowchartOperation,
   planFlowchartOperation,

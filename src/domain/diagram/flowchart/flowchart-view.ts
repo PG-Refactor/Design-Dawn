@@ -1,3 +1,4 @@
+import { refusalReason } from "../refusal-reason";
 import type {
   FlowchartDirection,
   FlowchartLinkStroke,
@@ -5,11 +6,7 @@ import type {
 } from "./flowchart-config";
 import { normalizeFlowchartDirection } from "./flowchart-config";
 import { decodeFlowchartLabel } from "./flowchart-label-text";
-import {
-  prepareFlowchart,
-  refusalReason,
-  resolveEdge,
-} from "./flowchart-operation-support";
+import { prepareFlowchart, resolveEdge } from "./flowchart-operation-support";
 import {
   type FlowchartOperation,
   nodeEditRestriction,

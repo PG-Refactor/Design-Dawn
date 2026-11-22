@@ -1,3 +1,4 @@
+import { refusalReason } from "../refusal-reason";
 import type {
   SequenceArrow,
   SequenceBlock,
@@ -162,7 +163,7 @@ function refusalOf(
 ): string | null {
   const plan = planSequenceOperation(source, operation);
   if (plan.ok) return null;
-  return plan.error.detail.split(":")[0]?.trim() ?? null;
+  return refusalReason(plan.error.detail);
 }
 
 // Null when the text can be edited; the restriction a written text carries otherwise.

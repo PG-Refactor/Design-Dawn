@@ -1,4 +1,5 @@
 import { type DomainResult, ok } from "../../shared/domain-result";
+import { refusalReason } from "../refusal-reason";
 import type { TextEdit } from "../text-edit";
 import {
   FLOWCHART_MAX_EDGES,
@@ -44,7 +45,6 @@ import {
   type FlowchartEdgeTarget,
   type PreparedFlowchart,
   prepareFlowchart,
-  refusalReason,
   refuse,
   resolveEdge,
   type TermReference,

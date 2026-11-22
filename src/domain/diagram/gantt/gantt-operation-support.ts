@@ -58,14 +58,9 @@ export function prepare(source: string): DomainResult<PreparedGantt> {
       `${editability.reason}: ${editability.detail}`,
     );
   }
-  const meaning = ganttMeaningOf(parsed);
-  if (meaning === null || parsed.dateFormat === null) {
-    return err(
-      "diagramNotEditable",
-      "noMeaning: the chart has no meaning to edit",
-    );
-  }
-  return ok({ parsed, meaning, format: parsed.dateFormat });
+  // An editable chart has a usable dateFormat and no invalid task, so it has a meaning.
+  const meaning = ganttMeaningOf(parsed) as GanttMeaning;
+  return ok({ parsed, meaning, format: meaning.dateFormat });
 }
 
 export function resolveTask(

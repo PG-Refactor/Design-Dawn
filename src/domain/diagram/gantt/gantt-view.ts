@@ -1,3 +1,4 @@
+import { refusalReason } from "../refusal-reason";
 import type { GanttTag } from "./gantt-config";
 import {
   GANTT_EXCLUDE_TOKEN_SEPARATOR,
@@ -7,7 +8,7 @@ import {
 import { ganttEditability } from "./gantt-editability";
 import { excludeTokensOf } from "./gantt-excludes";
 import { ganttEndText, ganttStartText } from "./gantt-input";
-import { ganttMeaningOf } from "./gantt-meaning";
+import { type GanttMeaning, ganttMeaningOf } from "./gantt-meaning";
 import {
   type GanttOperation,
   type GanttSectionTarget,
@@ -87,14 +88,14 @@ const PROBE_ID_SUFFIX = "probe";
 function refusalOf(source: string, operation: GanttOperation): string | null {
   const plan = planGanttOperation(source, operation);
   if (plan.ok) return null;
-  return plan.error.detail.split(":")[0]?.trim() ?? null;
+  return refusalReason(plan.error.detail);
 }
 
 function moveViewOf(source: string, operation: GanttOperation): GanttMoveView {
   const plan = planGanttOperation(source, operation);
   if (!plan.ok) {
     return {
-      restriction: plan.error.detail.split(":")[0]?.trim() ?? null,
+      restriction: refusalReason(plan.error.detail),
       freezes: 0,
     };
   }
@@ -131,8 +132,8 @@ export function readGanttMoveTargets(
 export function readGanttView(source: string): GanttView | null {
   const parsed = parseGantt(source);
   if (!ganttEditability(parsed).editable) return null;
-  const meaning = ganttMeaningOf(parsed);
-  if (meaning === null) return null;
+  // An editable chart has a meaning (see ganttEditability).
+  const meaning = ganttMeaningOf(parsed) as GanttMeaning;
 
   const knownIds = new Set(
     meaning.tasks.flatMap((task) => (task.id === null ? [] : [task.id])),
