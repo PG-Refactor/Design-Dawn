@@ -812,9 +812,9 @@ describe("flowchart grammar of mermaid 12.3.0", () => {
   }, 60_000);
 
   it("a source of exactly 500 edges reads, 501 is refused by the reader too", () => {
-    expect(flowchartEditability(readFlowchart(edgesProgram(500)))).toEqual({
-      editable: true,
-    });
+    expect(
+      flowchartEditability(readFlowchart(edgesProgram(500))),
+    ).toMatchObject({ editable: true });
     expect(
       flowchartEditability(readFlowchart(edgesProgram(501))),
     ).toMatchObject({ editable: false, reason: "tooManyEdges" });

@@ -44,13 +44,7 @@ export function prepareFlowchart(
       `${editability.reason}: ${editability.detail}`,
     );
   }
-  if (reading.meaning === null) {
-    return err(
-      "diagramNotEditable",
-      "unsupportedStatements: the meaning of the text could not be established",
-    );
-  }
-  return ok({ reading, meaning: reading.meaning });
+  return ok({ reading, meaning: editability.meaning });
 }
 
 export interface ResolvedEdge {

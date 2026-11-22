@@ -4,6 +4,7 @@ import {
   FLOWCHART_MAX_SOURCE_LENGTH,
   FLOWCHART_UNDRAWABLE_SHAPES,
 } from "./flowchart-config";
+import type { FlowchartMeaning } from "./flowchart-meaning";
 import type { FlowchartReading } from "./flowchart-reader";
 import type { FlowchartStatement } from "./flowchart-types";
 
@@ -33,7 +34,8 @@ export type FlowchartNotEditableReason =
   | "undrawableShape";
 
 export type FlowchartEditability =
-  | { readonly editable: true }
+  // With the meaning the reading established (an editable flowchart always has one).
+  | { readonly editable: true; readonly meaning: FlowchartMeaning }
   | {
       readonly editable: false;
       readonly reason: FlowchartNotEditableReason;
@@ -159,7 +161,17 @@ export function flowchartEditability(
       lines: uniqueLineRefs(reading, sourceIssue.lineIndexes),
     };
   }
-  if (reading.opaque.length > 0) {
+  if (reading.edgeCount > FLOWCHART_MAX_EDGES) {
+    return {
+      editable: false,
+      reason: "tooManyEdges",
+      detail: `${reading.edgeCount} edges; Mermaid draws at most ${FLOWCHART_MAX_EDGES}`,
+      lines: [],
+    };
+  }
+  // A reading without a meaning (once the edge count is allowed) has statements it could
+  // not place.
+  if (reading.opaque.length > 0 || reading.meaning === null) {
     return {
       editable: false,
       reason: "unsupportedStatements",
@@ -170,24 +182,7 @@ export function flowchartEditability(
       ),
     };
   }
-  if (reading.edgeCount > FLOWCHART_MAX_EDGES) {
-    return {
-      editable: false,
-      reason: "tooManyEdges",
-      detail: `${reading.edgeCount} edges; Mermaid draws at most ${FLOWCHART_MAX_EDGES}`,
-      lines: [],
-    };
-  }
   const meaning = reading.meaning;
-  if (meaning === null) {
-    // Cannot happen once the checks above passed; refuse instead of guessing.
-    return {
-      editable: false,
-      reason: "unsupportedStatements",
-      detail: "the meaning of the text could not be established",
-      lines: [],
-    };
-  }
   const duplicateEdgeIds = findDuplicateEdgeIds(reading);
   if (duplicateEdgeIds.size > 0) {
     return {
@@ -258,5 +253,5 @@ export function flowchartEditability(
       lines: linesMentioning(reading, undrawable),
     };
   }
-  return { editable: true };
+  return { editable: true, meaning };
 }

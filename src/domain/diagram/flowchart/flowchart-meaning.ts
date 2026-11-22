@@ -212,13 +212,7 @@ export function checkFlowchartMeaning(
       `candidate ${editability.reason}: ${editability.detail}`,
     );
   }
-  if (candidate.meaning === null) {
-    return err(
-      "diagramNotEditable",
-      "candidate meaning: the meaning of the text could not be established",
-    );
-  }
-  const differences = describeDifferences(candidate.meaning, expected);
+  const differences = describeDifferences(editability.meaning, expected);
   return differences.length === 0
     ? ok(undefined)
     : err(
