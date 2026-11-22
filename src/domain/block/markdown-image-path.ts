@@ -4,13 +4,17 @@
 // file shows the picture outside the app as well. Anything else (a URL, an absolute path,
 // a path that leaves the Document, a file outside `assets/`) is not an image the app shows.
 
-import { type ContentPath, parseContentPath } from "./content-path";
+import {
+  CONTENT_PATH_SEPARATOR,
+  type ContentPath,
+  joinedContentPath,
+} from "./content-path";
 
 // Must match `ASSETS_DIRECTORY_NAME` on the Rust side, which owns the file format and
 // validates every asset path again before reading it.
 export const DOCUMENT_ASSETS_DIRECTORY = "assets";
 
-const PATH_SEPARATOR = "/";
+const PATH_SEPARATOR = CONTENT_PATH_SEPARATOR;
 const CURRENT_SEGMENT = ".";
 const PARENT_SEGMENT = "..";
 // A scheme (`https:`, `file:`, `C:`) means the destination is not a relative path.
@@ -76,10 +80,7 @@ export function resolveMarkdownImagePath(
   ) {
     return null;
   }
-  const parsed = parseContentPath(
-    `${DOCUMENT_ASSETS_DIRECTORY}${PATH_SEPARATOR}${fileName}`,
-  );
-  return parsed.ok ? parsed.value : null;
+  return joinedContentPath(DOCUMENT_ASSETS_DIRECTORY, fileName);
 }
 
 const EXTENSION_SEPARATOR = ".";
@@ -92,7 +93,9 @@ export function markdownImageReference(
   markdownContentPath: string,
   assetContentPath: string,
 ): string {
-  const fileName = assetContentPath.split(PATH_SEPARATOR).at(-1) ?? "";
+  const fileName = assetContentPath.slice(
+    assetContentPath.lastIndexOf(PATH_SEPARATOR) + 1,
+  );
   const dot = fileName.lastIndexOf(EXTENSION_SEPARATOR);
   const stem = dot > 0 ? fileName.slice(0, dot) : fileName;
   const altText = stem.replace(
@@ -130,7 +133,8 @@ const HEX_BYTE_DIGITS = 2;
 // `encodeURIComponent` leaves `(` and `)` alone, so ASCII characters are escaped by hand;
 // other whitespace (an ideographic space) is UTF-8 encoded by it.
 function percentEncode(character: string): string {
-  const codePoint = character.codePointAt(0) ?? 0;
+  // A character outside ASCII starts with a code unit above it (a surrogate included).
+  const codePoint = character.charCodeAt(0);
   return codePoint < ASCII_LIMIT
     ? `%${codePoint.toString(HEX_RADIX).toUpperCase().padStart(HEX_BYTE_DIGITS, "0")}`
     : encodeURIComponent(character);

@@ -5,6 +5,7 @@ import { type Block, parseBlock, type RawBlock } from "./block";
 import {
   blockDisplayOf,
   displayFields,
+  displayStoredFieldsOf,
   keptScalePercent,
   parseContentScalePercent,
   steppedScalePercent,
@@ -139,5 +140,16 @@ describe("setBlockDisplay", () => {
       autoFit: false,
     });
     expect(!image.ok && image.error.kind).toBe("invalidContentScale");
+  });
+});
+
+describe("displayStoredFieldsOf", () => {
+  it("carries only the display keys that are written", () => {
+    expect(displayStoredFieldsOf({})).toEqual({});
+    const stored = {
+      contentScalePercent: keptScalePercent(150),
+      autoFit: false,
+    };
+    expect(displayStoredFieldsOf(stored)).toEqual(stored);
   });
 });

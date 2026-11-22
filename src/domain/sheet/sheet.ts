@@ -188,30 +188,25 @@ export function insertBlocksAt(
     return err("duplicateId", `blockId already present: ${duplicate}`);
   }
   const total = sheet.blocks.length + insertions.length;
-  const slots = new Map<number, Block>();
-  for (const { block, index } of insertions) {
+  const usedIndexes = new Set<number>();
+  for (const { index } of insertions) {
     if (!Number.isInteger(index) || index < 0 || index >= total) {
       return err(
         "invalidBlockIndex",
         `insertion index ${index} is outside 0..${total - 1}`,
       );
     }
-    if (slots.has(index)) {
+    if (usedIndexes.has(index)) {
       return err("invalidBlockIndex", `insertion index used twice: ${index}`);
     }
-    slots.set(index, block);
+    usedIndexes.add(index);
   }
-  const remaining = [...sheet.blocks];
-  const blocks: Block[] = [];
-  let nextRemaining = 0;
-  for (let index = 0; index < total; index += 1) {
-    const block = slots.get(index) ?? remaining[nextRemaining++];
-    // Unreachable: slot count + remaining count equals `total` by construction.
-    if (block === undefined) {
-      return err("invalidBlockIndex", "insertion left a gap");
-    }
-    blocks.push(block);
-  }
+  // In ascending order, each one lands on its final index: the ones before it are placed.
+  const blocks = [...sheet.blocks];
+  const ascending = [...insertions].sort(
+    (left, right) => left.index - right.index,
+  );
+  for (const { block, index } of ascending) blocks.splice(index, 0, block);
   return ok({ ...sheet, blocks });
 }
 
@@ -256,32 +251,25 @@ export function setBlockCaption(
   blockId: BlockId,
   caption: FigureCaption | null,
 ): DomainResult<Sheet> {
-  const target = ensureTargets(sheet, [blockId]);
-  if (!target.ok) return target;
-  let changed = false;
-  const blocks = sheet.blocks.map((block) => {
-    if (
-      block.blockId !== blockId ||
-      sameFigureCaption(figureCaptionOf(block), caption)
-    ) {
-      return block;
-    }
-    changed = true;
-    const {
-      caption: _previous,
-      captionPosition: _previousPosition,
-      ...withoutCaption
-    } = block;
-    if (caption === null) return withoutCaption;
-    return {
-      ...withoutCaption,
-      caption: caption.text,
-      ...(caption.position === DEFAULT_CAPTION_POSITION
-        ? {}
-        : { captionPosition: caption.position }),
-    };
-  });
-  return ok(changed ? { ...sheet, blocks } : sheet);
+  const block = sheet.blocks.find((candidate) => candidate.blockId === blockId);
+  if (block === undefined) return blockNotFound(blockId);
+  if (sameFigureCaption(figureCaptionOf(block), caption)) return ok(sheet);
+  const {
+    caption: _previous,
+    captionPosition: _previousPosition,
+    ...withoutCaption
+  } = block;
+  const changed: Block =
+    caption === null
+      ? withoutCaption
+      : {
+          ...withoutCaption,
+          caption: caption.text,
+          ...(caption.position === DEFAULT_CAPTION_POSITION
+            ? {}
+            : { captionPosition: caption.position }),
+        };
+  return ok(replaceBlock(sheet, changed));
 }
 
 // Sets how one Markdown or Mermaid Block shows its content. What equals the default is left
@@ -291,10 +279,8 @@ export function setBlockDisplay(
   blockId: BlockId,
   display: BlockDisplay,
 ): DomainResult<Sheet> {
-  const target = ensureTargets(sheet, [blockId]);
-  if (!target.ok) return target;
   const block = sheet.blocks.find((candidate) => candidate.blockId === blockId);
-  if (block === undefined) return ok(sheet);
+  if (block === undefined) return blockNotFound(blockId);
   if (!isScalableBlockType(block.blockType)) {
     return err("invalidContentScale", "an image Block has no display size");
   }
@@ -314,12 +300,7 @@ export function setBlockDisplay(
     ...rest,
     ...displayFields(block.blockType, display),
   };
-  return ok({
-    ...sheet,
-    blocks: sheet.blocks.map((candidate) =>
-      candidate.blockId === blockId ? changed : candidate,
-    ),
-  });
+  return ok(replaceBlock(sheet, changed));
 }
 
 export function bringBlocksToFront(
@@ -375,15 +356,12 @@ export function reorderBlocks(
       `order lists ${orderedBlockIds.length} of ${sheet.blocks.length} blocks`,
     );
   }
-  const blockById = new Map(
-    sheet.blocks.map((block) => [block.blockId, block]),
+  // Every id is a Block of the sheet, once each (checked above): ordered by its place.
+  const blocks = [...sheet.blocks].sort(
+    (left, right) =>
+      orderedBlockIds.indexOf(left.blockId) -
+      orderedBlockIds.indexOf(right.blockId),
   );
-  const blocks: Block[] = [];
-  for (const blockId of orderedBlockIds) {
-    const block = blockById.get(blockId);
-    if (block === undefined) return blockNotFound(blockId);
-    blocks.push(block);
-  }
   return ok(withBlocks(sheet, blocks));
 }
 
@@ -448,21 +426,27 @@ function swapTargetsWithNeighbours(
   direction: 1 | -1,
 ): readonly Block[] {
   const result = [...blocks];
+  // Kept in step with `result`, so no Block is looked up by index.
+  const targets = result.map(isTarget);
   for (let step = 0; step < result.length - 1; step += 1) {
     const index = direction === 1 ? result.length - 2 - step : step + 1;
-    const block = result[index];
-    const neighbour = result[index + direction];
-    if (
-      block !== undefined &&
-      neighbour !== undefined &&
-      isTarget(block) &&
-      !isTarget(neighbour)
-    ) {
-      result[index] = neighbour;
-      result[index + direction] = block;
+    if (targets[index] === true && targets[index + direction] === false) {
+      const lower = Math.min(index, index + direction);
+      result.splice(lower, 0, ...result.splice(lower, 2).reverse());
+      targets.splice(lower, 0, ...targets.splice(lower, 2).reverse());
     }
   }
   return result;
+}
+
+// The sheet with `changed` in place of the Block of the same id.
+function replaceBlock(sheet: Sheet, changed: Block): Sheet {
+  return {
+    ...sheet,
+    blocks: sheet.blocks.map((block) =>
+      block.blockId === changed.blockId ? changed : block,
+    ),
+  };
 }
 
 function findBlockIndex(sheet: Sheet, blockId: BlockId): number {
