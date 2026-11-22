@@ -78,36 +78,32 @@
 }</code></pre>
       <p>Register it the way your AI tool adds MCP servers. For Claude Code, for example:</p>
 <pre><code>claude mcp add design-dawn -- &lt;command&gt;</code></pre>
-      <p>The server talks over standard input and output only. It opens no network port, and it works whether or not the app is running.</p>
+      <p>No project is named in the registration; the server takes no arguments. The server talks over standard input and output only. It opens no network port, and it works whether or not the app is running.</p>
 
       <h2>You choose which projects AI can see</h2>
-      <p>An AI tool can use only the projects you add in the AI Integration screen (<strong>Add the Open Project</strong>, or <strong>Add a Folder…</strong>). By default it works on the project open in the app, if that project has been added. It can list the added projects and pick one, so a request like “summarize the order-service project” needs no new registration.</p>
+      <p>An AI tool can use only the projects in the AI Integration screen’s list. Add them there (<strong>Add the Open Project</strong>, or <strong>Add a Folder…</strong>), or let the AI add one with <code>addProject</code> — you approve that call in your AI tool. By default it works on the project open in the app, if that project has been added. It can list the added projects and pick one, so a request like “summarize the order-service project” needs no new registration.</p>
 
       <h2>Read-only until you allow editing</h2>
-      <figure class="fig"><img class="shot" loading="lazy" src="../images/ai-request.png" width="1600" height="1000" alt="The app asking whether an AI may edit a project"><figcaption>An AI tool asks for edit permission; only your answer counts</figcaption></figure>
-      <p>An added project is read-only for AI until you tick <strong>Allow editing by AI</strong> next to it. An AI tool can also ask for it; the app then asks you to <strong>Allow</strong>, <strong>Allow This Time</strong> (until the app closes) or <strong>Don’t Allow</strong>. After a “no”, further requests for that project are ignored for a while.</p>
-      <p>The list of projects and permissions is kept in the app’s settings folder, never inside a project, and only the app changes it. An AI tool cannot add a project or give itself access.</p>
+      <p>A project in the list is read-only for AI until changes are allowed: tick <strong>Allow editing by AI</strong> next to it, or let the AI call <code>setWriteAccess</code>. Like every other tool call that is not read-only, <code>addProject</code>, <code>setWriteAccess</code> and each change are approved by you in the AI tool (for example Claude Code’s permission prompt), so the decisions stay where you are working with the AI.</p>
+      <p>The list is kept in the app’s settings folder as <code>ai-access.json</code> (never inside a project) and is shared by the app and the MCP server: what the AI changes there shows in the AI Integration screen at once, and every change by AI is listed in <strong>AI Change History</strong>.</p>
 
       <h2>What an AI tool can do</h2>
       <div class="table-wrap"><table>
         <thead><tr><th>Projects</th><th>Tools</th></tr></thead>
         <tbody>
-          <tr><td>Any added project</td><td><code>listProjects</code>, <code>selectProject</code>, <code>requestWriteAccess</code>, <code>getProject</code>, <code>getDocument</code>, <code>getSheet</code>, <code>getBlock</code></td></tr>
-          <tr><td>Projects you allowed editing for</td><td><code>createDocument</code>, <code>createSheet</code>, <code>createBlock</code>, <code>updateDocument</code>, <code>updateSheet</code>, <code>updateBlock</code>, <code>moveBlock</code>, <code>updateBlockCaption</code>, <code>deleteBlock</code></td></tr>
+          <tr><td>Any project in the list</td><td><code>listProjects</code>, <code>selectProject</code>, <code>addProject</code>, <code>setWriteAccess</code>, <code>getProject</code>, <code>getDocument</code>, <code>getSheet</code>, <code>getBlock</code>, <code>searchProject</code>, <code>exportMarkdown</code>, <code>listTemplates</code></td></tr>
+          <tr><td>Projects allowed to be edited</td><td><code>createDocument</code>, <code>createSheet</code>, <code>createBlock</code>, <code>createFromTemplate</code>, <code>updateDocument</code>, <code>updateSheet</code>, <code>updateBlock</code>, <code>moveBlock</code>, <code>updateBlockDisplay</code>, <code>updateBlockCaption</code>, <code>deleteBlock</code>, <code>importImage</code></td></tr>
         </tbody>
       </table></div>
       <ul>
-        <li><code>createBlock</code> makes Markdown or Mermaid blocks. <code>updateBlockCaption</code> sets the caption of a Mermaid or image block.</li>
+        <li><code>createBlock</code> makes Markdown or Mermaid blocks; <code>importImage</code> adds an image file of this computer as an image block. <code>updateBlockDisplay</code> sets the display size of a block (or fits it to the block), <code>updateBlockCaption</code> the caption of a Mermaid or image block.</li>
         <li>To change a block’s text, the AI reads it with <code>getBlock</code> and sends back its <code>contentHash</code>. If the text changed in the meantime, the call returns <code>conflict</code> instead of overwriting your edit.</li>
         <li>If the app has the project open, changes made by the AI appear at once.</li>
       </ul>
 
       <h2>What it cannot do</h2>
-      <p>The server cannot delete documents, sheets or projects, import files from disk, run commands, use Git, or open network connections.</p>
+      <p>The server cannot delete documents, sheets or projects, run commands, use Git, or open network connections. Apart from <code>importImage</code> (an image you name, copied into the project), it reads and writes nothing outside the projects in the list.</p>
 
-      <h2>One fixed project, without the app’s list</h2>
-      <p>For scripts or a single shared project, start the server with <code>--project</code>; add <code>--allow-write</code> to allow changes:</p>
-<pre><code>claude mcp add design-dawn -- /path/to/design-dawn-mcp --project /path/to/my-project</code></pre>
       <p>The Windows download includes <code>design-dawn-mcp.exe</code> next to the app. See <a href="../download/">Download and first steps</a>, or how the files AI edits are <a href="../docs-as-code/">tracked with Git</a>.</p>
 
       <div class="cta-box">

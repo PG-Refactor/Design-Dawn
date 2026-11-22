@@ -78,36 +78,32 @@
 }</code></pre>
       <p>お使いの AI ツールの MCP サーバー追加の方法で登録してください。Claude Code の場合の例：</p>
 <pre><code>claude mcp add design-dawn -- &lt;コマンド&gt;</code></pre>
-      <p>サーバーは標準入出力だけで通信します。ネットワークポートは開かず、アプリが起動していなくても動きます。</p>
+      <p>登録で Project を指定する必要はなく、サーバーに引数も要りません。サーバーは標準入出力だけで通信します。ネットワークポートは開かず、アプリが起動していなくても動きます。</p>
 
       <h2>AI に見せる Project は自分で選ぶ</h2>
-      <p>AI ツールが使えるのは、AI 連携の画面で追加した Project だけです（<strong>今開いているProjectを追加</strong>、または <strong>フォルダを指定して追加…</strong>）。追加済みであれば、アプリで開いている Project が既定の対象になります。AI は追加済みの Project の一覧を取得して選べるので、「order-service の Project を要約して」のような依頼に、登録のやり直しは要りません。</p>
+      <p>AI ツールが使えるのは、AI 連携の画面の一覧にある Project だけです。一覧へは画面から追加するか（<strong>今開いているProjectを追加</strong>、または <strong>フォルダを指定して追加…</strong>）、AI に <code>addProject</code> で追加させます（その呼び出しは AI ツールであなたが承認します）。追加済みであれば、アプリで開いている Project が既定の対象になります。AI は追加済みの Project の一覧を取得して選べるので、「order-service の Project を要約して」のような依頼に、登録のやり直しは要りません。</p>
 
       <h2>許可するまでは読み取り専用</h2>
-      <figure class="fig"><img class="shot" loading="lazy" src="../../images/ai-request.png" width="1600" height="1000" alt="AI が Project を編集してよいかをアプリが確認する画面"><figcaption>AI からの編集許可の依頼。反映されるのはあなたの答えだけです</figcaption></figure>
-      <p>追加した Project は、横の <strong>AIによる編集を許可</strong> にチェックを入れるまで、AI からは読み取り専用です。AI ツールから依頼することもでき、そのときはアプリが <strong>許可する</strong> / <strong>今回だけ許可</strong>（アプリを閉じるまで）/ <strong>許可しない</strong> を尋ねます。「許可しない」と答えた Project への依頼は、しばらく無視されます。</p>
-      <p>Project と権限の一覧はアプリの設定フォルダに保存され、Project の中には置かれません。変更できるのはアプリだけです。AI ツールが自分で Project を追加したり、権限を与えたりすることはできません。</p>
+      <p>一覧の Project は、編集が許可されるまで AI からは読み取り専用です。横の <strong>AIによる編集を許可</strong> にチェックを入れるか、AI に <code>setWriteAccess</code> を呼ばせて許可します。読み取り以外のツールの呼び出しと同じく、<code>addProject</code>・<code>setWriteAccess</code>・各変更は、AI ツールの中であなたが承認します（Claude Code の許可の確認など）。AI と作業している場所で判断できます。</p>
+      <p>一覧はアプリの設定フォルダに <code>ai-access.json</code> として保存され（Project の中には置きません）、アプリと MCP サーバーで共有します。AI が変えた内容はすぐ AI 連携の画面に反映され、AI による変更はすべて <strong>AIの変更履歴</strong> に残ります。</p>
 
       <h2>AI ツールにできること</h2>
       <div class="table-wrap"><table>
         <thead><tr><th>対象の Project</th><th>ツール</th></tr></thead>
         <tbody>
-          <tr><td>追加した Project すべて</td><td><code>listProjects</code>, <code>selectProject</code>, <code>requestWriteAccess</code>, <code>getProject</code>, <code>getDocument</code>, <code>getSheet</code>, <code>getBlock</code></td></tr>
-          <tr><td>編集を許可した Project</td><td><code>createDocument</code>, <code>createSheet</code>, <code>createBlock</code>, <code>updateDocument</code>, <code>updateSheet</code>, <code>updateBlock</code>, <code>moveBlock</code>, <code>updateBlockCaption</code>, <code>deleteBlock</code></td></tr>
+          <tr><td>一覧の Project すべて</td><td><code>listProjects</code>, <code>selectProject</code>, <code>addProject</code>, <code>setWriteAccess</code>, <code>getProject</code>, <code>getDocument</code>, <code>getSheet</code>, <code>getBlock</code>, <code>searchProject</code>, <code>exportMarkdown</code>, <code>listTemplates</code></td></tr>
+          <tr><td>編集が許可された Project</td><td><code>createDocument</code>, <code>createSheet</code>, <code>createBlock</code>, <code>createFromTemplate</code>, <code>updateDocument</code>, <code>updateSheet</code>, <code>updateBlock</code>, <code>moveBlock</code>, <code>updateBlockDisplay</code>, <code>updateBlockCaption</code>, <code>deleteBlock</code>, <code>importImage</code></td></tr>
         </tbody>
       </table></div>
       <ul>
-        <li><code>createBlock</code> で作れるのは Markdown と Mermaid のブロックです。<code>updateBlockCaption</code> は Mermaid ブロックと画像ブロックのキャプションを設定します。</li>
+        <li><code>createBlock</code> で作れるのは Markdown と Mermaid のブロックです。<code>importImage</code> は、このパソコンの画像ファイルを画像ブロックとして追加します。<code>updateBlockDisplay</code> はブロックの表示サイズ（またはブロックに合わせる自動調整）を、<code>updateBlockCaption</code> は Mermaid ブロックと画像ブロックのキャプションを設定します。</li>
         <li>ブロックの本文を変えるとき、AI は <code>getBlock</code> で読んだ <code>contentHash</code> を一緒に送ります。その間に本文が変わっていれば、あなたの編集を上書きせず <code>conflict</code> を返します。</li>
         <li>アプリがその Project を開いていれば、AI による変更はすぐ画面に反映されます。</li>
       </ul>
 
       <h2>できないこと</h2>
-      <p>このサーバーは、Document・Sheet・Project の削除、ディスク上のファイルの取り込み、コマンドの実行、Git の操作、ネットワーク接続を行えません。</p>
+      <p>このサーバーは、Document・Sheet・Project の削除、コマンドの実行、Git の操作、ネットワーク接続を行えません。<code>importImage</code>（指定された画像を Project へコピーする）を除き、一覧の Project の外は読み書きしません。</p>
 
-      <h2>アプリの一覧を使わず、1つの Project に固定する</h2>
-      <p>スクリプトから使う場合などは、<code>--project</code> を付けて起動します。変更も許可する場合は <code>--allow-write</code> を加えます。</p>
-<pre><code>claude mcp add design-dawn -- /path/to/design-dawn-mcp --project /path/to/my-project</code></pre>
       <p>Windows 版のダウンロードには、アプリと同じフォルダに <code>design-dawn-mcp.exe</code> が入っています。<a href="../download/">ダウンロードと始め方</a>、AI が編集したファイルを <a href="../docs-as-code/">Git で管理する方法</a>もご覧ください。</p>
 
       <div class="cta-box">

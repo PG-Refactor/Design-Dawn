@@ -48,7 +48,7 @@
       "パン・ズーム・整列・Undo/Redo に対応した自由配置キャンバス",
       "ソースとプレビューを分割表示できる Markdown ブロック",
       "ローカルで描画する Mermaid の図",
-      "フローチャート・シーケンス図・ガントチャート・円グラフの GUI 編集",
+      "フローチャート・シーケンス図・クラス図・状態遷移図・ER 図・ガントチャート・円グラフの GUI 編集",
       "画像ブロック（PNG・JPEG・WebP・SVG・GIF）",
       "Git 連携：状態・コミット・履歴・左右比較の差分・プル / プッシュ",
       "他のエディタ・Git・AI ツールによる外部変更の検知",
@@ -100,10 +100,13 @@
         <div class="card"><h3>Project ツリー</h3><p>Document をフォルダで整理し、複数を同時に開けます。行のドラッグで並べ替え・移動できます。</p></div>
         <div class="card"><h3>Markdown ブロック</h3><p>キャンバス上では表示結果、編集中はソースとプレビューの分割表示。</p></div>
         <div class="card"><h3>Mermaid の図</h3><p>Mermaid のあらゆる図をローカルで描画・サニタイズ。ネットワークもスクリプトも使いません。</p></div>
-        <div class="card"><h3><a href="mermaid-gui-editor/">Mermaid の GUI 編集</a></h3><p>フローチャート・シーケンス図・ガントチャート・円グラフを、構文を書かずに一覧とプロパティ欄で編集。正本は Mermaid のソースのままです。</p></div>
-        <div class="card"><h3><a href="docs-as-code/">Git 連携</a></h3><p>状態・ステージ・コミット・履歴・左右比較の差分・フェッチ / プル / プッシュをアプリ内で。</p></div>
+        <div class="card"><h3><a href="mermaid-gui-editor/">Mermaid の GUI 編集</a></h3><p>フローチャート・シーケンス図・クラス図・状態遷移図・ER 図・ガントチャート・円グラフを、構文を書かずに一覧とプロパティ欄で編集。正本は Mermaid のソースのままです。</p></div>
+        <div class="card"><h3><a href="docs-as-code/">Git 連携</a></h3><p>状態・ステージ・コミット・履歴・左右比較の差分と、シートの見た目での比較。マージの競合もアプリ内で解決（画像は両方を見て選ぶ）。フェッチ / プル / プッシュも。</p></div>
         <div class="card"><h3>外部変更の検知</h3><p>他のエディタ・Git・AI ツールによる変更を検知。読み直す・維持する・比較するを選べます。</p></div>
         <div class="card"><h3>画像とキャプション</h3><p>PNG・JPEG・WebP・SVG・GIF をドラッグ & ドロップで。図には1行のキャプションを付けられます。</p></div>
+        <div class="card"><h3>表示サイズと自動調整</h3><p>ブロックの中の文字や図を拡大・縮小、またはブロックに合わせて自動調整。画像は元の大きさに戻せます。</p></div>
+        <div class="card"><h3>テンプレート・印刷・書き出し</h3><p>テンプレート（自分で作ったものも）から設計書を作成。印刷し、PDF・HTML・Markdown に書き出せます。</p></div>
+        <div class="card"><h3>検索と表計算の取り込み</h3><p>Project 全体を検索。表計算ファイルの表を Markdown の表として取り込めます。</p></div>
         <div class="card"><h3>ライト / ダーク、日本語 / 英語</h3><p>2つのテーマと2つの表示言語に対応しています。</p></div>
       </div>
     </div>
@@ -157,12 +160,12 @@
         <h2>AI に設計書を読み書きさせる（MCP）</h2>
         <p><code>design-dawn-mcp</code> はローカルの MCP サーバー（標準入出力のみ、ネットワークポートなし）で、
           <strong>Claude・Codex・GitHub Copilot・Cursor</strong> などの MCP クライアントが、あなたが許可した Project を読み書きできます。</p>
-        <p>どの Project も、編集を許可するまでは AI からは読み取り専用です。AI は書き込みを依頼できますが、決めるのはアプリでのあなたの回答だけです。
+        <p>どの Project も、編集を許可するまでは AI からは読み取り専用です。編集の許可は、アプリで付けるか、AI ツールで AI の依頼を承認して付けます（Claude Code の許可の確認など）。
           編集は内容のハッシュで確認されるため、同時の変更は黙って上書きされず衝突として返ります。</p>
 <pre><code>claude mcp add design-dawn -- /path/to/design-dawn-mcp</code></pre>
         <p class="more"><a href="mcp/">設定・権限・ツールの一覧 →</a></p>
       </div>
-      <img class="shot" loading="lazy" src="../images/ai-request.png" width="1600" height="1000" alt="AI が Project を編集してよいかを確認する Design Dawn の画面">
+      <img class="shot" loading="lazy" src="../images/ai-integration.png" width="1600" height="1000" alt="登録するコマンドと AI に見せる Project の一覧がある AI 連携の画面">
     </div>
   </section>
 </main>

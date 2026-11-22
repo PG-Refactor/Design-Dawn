@@ -48,9 +48,9 @@
       "Free-form canvas with pan, zoom, align and undo/redo",
       "Markdown blocks with split source/preview editing",
       "Mermaid diagrams rendered locally",
-      "GUI editor for Mermaid flowcharts, sequence diagrams, Gantt and pie charts",
+      "GUI editor for Mermaid flowcharts, sequence, class, state and ER diagrams, Gantt and pie charts",
       "Image blocks (PNG, JPEG, WebP, SVG, GIF)",
-      "Git integration: status, commit, history, side-by-side diffs, pull/push",
+      "Git integration: status, commit, history, side-by-side and visual sheet diffs, conflict resolution, pull/push",
       "Detection of external changes made by other editors, Git or AI tools",
       "Local MCP server for Claude, Codex, GitHub Copilot and Cursor"
     ]
@@ -100,10 +100,13 @@
         <div class="card"><h3>Project tree</h3><p>Documents in folders, several open at once; drag rows to reorder or move them.</p></div>
         <div class="card"><h3>Markdown blocks</h3><p>Rendered on the canvas; split source/preview editor while you write.</p></div>
         <div class="card"><h3>Mermaid diagrams</h3><p>Any Mermaid diagram, rendered locally and sanitised — no network, no scripts.</p></div>
-        <div class="card"><h3><a href="mermaid-gui-editor/">Mermaid GUI editor</a></h3><p>Edit flowcharts, sequence diagrams, Gantt and pie charts with lists and property fields. The Mermaid source stays the single source of truth.</p></div>
-        <div class="card"><h3><a href="docs-as-code/">Git integration</a></h3><p>Status, stage, commit, history, side-by-side diffs, fetch, pull and push without leaving the app.</p></div>
+        <div class="card"><h3><a href="mermaid-gui-editor/">Mermaid GUI editor</a></h3><p>Edit flowcharts, sequence, class, state and ER diagrams, Gantt and pie charts with lists and property fields. The Mermaid source stays the single source of truth.</p></div>
+        <div class="card"><h3><a href="docs-as-code/">Git integration</a></h3><p>Status, stage, commit, history, side-by-side diffs and a visual before/after of a sheet, merge conflicts resolved in the app (images by looking at both), fetch, pull and push.</p></div>
         <div class="card"><h3>External change detection</h3><p>Edits from another editor, Git or an AI tool are picked up; reload, keep yours or compare.</p></div>
         <div class="card"><h3>Images and captions</h3><p>PNG, JPEG, WebP, SVG and GIF by drag and drop, with one-line captions for figures.</p></div>
+        <div class="card"><h3>Display size and fit</h3><p>Zoom the text or diagram inside a block, or let it fit the block; images go back to their original size.</p></div>
+        <div class="card"><h3>Templates, print and export</h3><p>Start documents from templates (yours too), print, and export to PDF, HTML or Markdown.</p></div>
+        <div class="card"><h3>Search and spreadsheets</h3><p>Search the whole project; turn a spreadsheet into a Markdown table.</p></div>
         <div class="card"><h3>Light / dark, English / Japanese</h3><p>Both themes and both UI languages are built in.</p></div>
       </div>
     </div>
@@ -157,12 +160,12 @@
         <h2>Let AI read and edit your design docs (MCP)</h2>
         <p><code>design-dawn-mcp</code> is a local MCP server (stdio only, no network port) that lets
           <strong>Claude, Codex, GitHub Copilot, Cursor</strong> and other MCP clients read and edit the projects you offer to them.</p>
-        <p>Every project is read-only for AI until you allow editing. An AI can ask for write access, but only your answer in the app counts.
+        <p>Every project is read-only for AI until you allow editing — in the app, or by approving the AI’s request in your AI tool (for example Claude Code’s permission prompt).
           Edits use content hashes, so concurrent changes become conflicts instead of silent overwrites.</p>
 <pre><code>claude mcp add design-dawn -- /path/to/design-dawn-mcp</code></pre>
         <p class="more"><a href="mcp/">Set-up, permissions and the list of tools →</a></p>
       </div>
-      <img class="shot" loading="lazy" src="images/ai-request.png" width="1600" height="1000" alt="Design Dawn asking whether an AI tool may edit a project">
+      <img class="shot" loading="lazy" src="images/ai-integration.png" width="1600" height="1000" alt="AI Integration screen with the command to register and the projects offered to AI">
     </div>
   </section>
 </main>
