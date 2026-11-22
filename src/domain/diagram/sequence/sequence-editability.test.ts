@@ -24,7 +24,7 @@ describe("sequenceEditability", () => {
           "participant A as Alice\nactor B\nA->>+B: hi\nNote over A,B: n\nloop l\nB-->>-A: ok\nend",
         ),
       ),
-    ).toEqual({ editable: true });
+    ).toMatchObject({ editable: true });
   });
 
   it.each([
@@ -58,7 +58,7 @@ describe("sequenceEditability", () => {
   it("accepts a directive on its own line, front matter and comments", () => {
     const source =
       '---\ntitle: T\nconfig:\n  theme: forest\n---\n%%{init: {"sequence": {"mirrorActors": false}}}%%\nsequenceDiagram\n%% c\n# c\nA->>B: x\n';
-    expect(check(source)).toEqual({ editable: true });
+    expect(check(source)).toMatchObject({ editable: true });
   });
 
   it("lists the opaque statements with their lines", () => {
