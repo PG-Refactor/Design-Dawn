@@ -57,7 +57,12 @@ type DistributiveOmit<Type, Key extends PropertyKey> = Type extends unknown
   ? Omit<Type, Key>
   : never;
 
-export type PendingStatement = DistributiveOmit<FlowchartStatement, "index">;
+// What the parser reads; an edge attribute statement is made by the resolver (it needs the
+// edges read before it).
+export type PendingStatement = DistributiveOmit<
+  Exclude<FlowchartStatement, { readonly kind: "edgeAttributes" }>,
+  "index"
+>;
 
 // A stray `;` (see segments). Not a statement of the reading: the resolver drops it, or
 // refuses it inside a subgraph block.
