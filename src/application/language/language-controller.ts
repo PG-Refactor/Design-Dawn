@@ -9,16 +9,14 @@ import {
   type LanguagePreference,
 } from "../../config/language-config";
 import { createStore, type Store } from "../../shared/store/store";
-import type {
-  AppSettingsGateway,
-  AppSettingsSnapshot,
-} from "../ports/app-settings-gateway";
+import type { AppSettingsGateway } from "../ports/app-settings-gateway";
 import {
   type OperationError,
   type OperationResult,
-  operationErr,
+  settleOperation,
 } from "../ports/operation-error";
 import type { SystemLanguageSource } from "../ports/system-language-source";
+import { createSerialQueue } from "../serial-queue";
 import { resolveDisplayLanguage } from "./resolve-display-language";
 
 export type LanguageStatus = "loading" | "ready";
@@ -51,20 +49,6 @@ export interface LanguageControllerDependencies {
   readonly systemLanguageSource: SystemLanguageSource;
 }
 
-// The gateway should return errors as values, but a rejection must not break start-up.
-async function settle(
-  request: () => Promise<OperationResult<AppSettingsSnapshot>>,
-): Promise<OperationResult<AppSettingsSnapshot>> {
-  try {
-    return await request();
-  } catch (error) {
-    return operationErr(
-      "unexpectedCommandError",
-      error instanceof Error ? error.message : String(error),
-    );
-  }
-}
-
 export function createLanguageController(
   dependencies: LanguageControllerDependencies,
 ): LanguageController {
@@ -82,13 +66,7 @@ export function createLanguageController(
 
   let initialization: Promise<void> | null = null;
   // Settings requests run one at a time so the last requested value is the one stored.
-  let queue: Promise<unknown> = Promise.resolve();
-
-  function enqueue<T>(task: () => Promise<T>): Promise<T> {
-    const result = queue.then(task);
-    queue = result.catch(() => undefined);
-    return result;
-  }
+  const enqueue = createSerialQueue().run;
 
   // The system languages are read on every change of preference, so the language follows
   // the WebView's current setting rather than the one at construction time.
@@ -107,7 +85,7 @@ export function createLanguageController(
   }
 
   async function load(): Promise<void> {
-    const result = await settle(() => gateway.getAppSettings());
+    const result = await settleOperation(() => gateway.getAppSettings());
     store.setState((state) => {
       if (!result.ok) {
         return { ...state, status: "ready", loadIssue: result.error };
@@ -128,7 +106,7 @@ export function createLanguageController(
     },
     setPreference(preference) {
       return enqueue(async () => {
-        const result = await settle(() =>
+        const result = await settleOperation(() =>
           gateway.setLanguagePreference(preference),
         );
         if (!result.ok) {

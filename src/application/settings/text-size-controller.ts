@@ -11,8 +11,9 @@ import type { AppSettingsGateway } from "../ports/app-settings-gateway";
 import {
   type OperationError,
   type OperationResult,
-  operationErr,
+  settleOperation,
 } from "../ports/operation-error";
+import { createSerialQueue } from "../serial-queue";
 
 export type TextSizeStatus = "loading" | "ready";
 
@@ -35,20 +36,6 @@ export interface TextSizeController {
   applyExternal(size: TextSize): void;
 }
 
-// The gateway should return errors as values, but a rejection must not break start-up.
-async function settle<T>(
-  request: () => Promise<OperationResult<T>>,
-): Promise<OperationResult<T>> {
-  try {
-    return await request();
-  } catch (error) {
-    return operationErr(
-      "unexpectedCommandError",
-      error instanceof Error ? error.message : String(error),
-    );
-  }
-}
-
 export function createTextSizeController(dependencies: {
   readonly gateway: AppSettingsGateway;
 }): TextSizeController {
@@ -61,16 +48,10 @@ export function createTextSizeController(dependencies: {
   });
   let initialization: Promise<void> | null = null;
   // Requests run one at a time so the last requested value is the one stored.
-  let queue: Promise<unknown> = Promise.resolve();
-
-  function enqueue<T>(task: () => Promise<T>): Promise<T> {
-    const result = queue.then(task);
-    queue = result.catch(() => undefined);
-    return result;
-  }
+  const enqueue = createSerialQueue().run;
 
   async function load(): Promise<void> {
-    const result = await settle(() => gateway.getAppSettings());
+    const result = await settleOperation(() => gateway.getAppSettings());
     store.setState((state) =>
       result.ok
         ? {
@@ -91,7 +72,7 @@ export function createTextSizeController(dependencies: {
     },
     setSize(size) {
       return enqueue(async () => {
-        const result = await settle(() => gateway.setTextSize(size));
+        const result = await settleOperation(() => gateway.setTextSize(size));
         if (!result.ok) {
           store.setState((state) => ({ ...state, saveError: result.error }));
           return result;

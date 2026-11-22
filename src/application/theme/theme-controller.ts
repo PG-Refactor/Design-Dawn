@@ -10,16 +10,14 @@ import {
   resolveTheme,
   type ThemePreference,
 } from "../local-state/theme";
-import type {
-  AppSettingsGateway,
-  AppSettingsSnapshot,
-} from "../ports/app-settings-gateway";
+import type { AppSettingsGateway } from "../ports/app-settings-gateway";
 import {
   type OperationError,
   type OperationResult,
-  operationErr,
+  settleOperation,
 } from "../ports/operation-error";
 import type { OsThemeSource } from "../ports/os-theme-source";
+import { createSerialQueue } from "../serial-queue";
 
 export type ThemeStatus = "loading" | "ready";
 
@@ -67,20 +65,6 @@ function withPreference(
   };
 }
 
-// The gateway should return errors as values, but a rejection must not break start-up.
-async function settle(
-  request: () => Promise<OperationResult<AppSettingsSnapshot>>,
-): Promise<OperationResult<AppSettingsSnapshot>> {
-  try {
-    return await request();
-  } catch (error) {
-    return operationErr(
-      "unexpectedCommandError",
-      error instanceof Error ? error.message : String(error),
-    );
-  }
-}
-
 export function createThemeController(
   dependencies: ThemeControllerDependencies,
 ): ThemeController {
@@ -98,20 +82,14 @@ export function createThemeController(
   let unsubscribeOsTheme: (() => void) | null = null;
   let initialization: Promise<void> | null = null;
   // Settings requests run one at a time so the last requested value is the one stored.
-  let queue: Promise<unknown> = Promise.resolve();
-
-  function enqueue<T>(task: () => Promise<T>): Promise<T> {
-    const result = queue.then(task);
-    queue = result.catch(() => undefined);
-    return result;
-  }
+  const enqueue = createSerialQueue().run;
 
   function onOsThemeChange(theme: ResolvedTheme): void {
     store.setState((state) => withPreference(state, state.preference, theme));
   }
 
   async function load(): Promise<void> {
-    const result = await settle(() => gateway.getAppSettings());
+    const result = await settleOperation(() => gateway.getAppSettings());
     store.setState((state) => {
       if (!result.ok) {
         return { ...state, status: "ready", loadIssue: result.error };
@@ -140,7 +118,7 @@ export function createThemeController(
     },
     setPreference(preference) {
       return enqueue(async () => {
-        const result = await settle(() =>
+        const result = await settleOperation(() =>
           gateway.setThemePreference(preference),
         );
         if (!result.ok) {

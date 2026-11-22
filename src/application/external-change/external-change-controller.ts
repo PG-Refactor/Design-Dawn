@@ -23,6 +23,7 @@ import type {
   ChangedFile,
   ExternalChanges,
 } from "../ports/persistence-types";
+import { createSerialQueue } from "../serial-queue";
 import type { ApplicationStore } from "../state/application-state";
 import {
   hasUnsavedDocumentChanges,
@@ -157,7 +158,7 @@ export function createExternalChangeController(
 ): ExternalChangeController {
   const { gateway, applicationStore } = options;
   const store = createStore<ExternalChangeState>(EMPTY_STATE);
-  let queueTail: Promise<unknown> = Promise.resolve();
+  const enqueue = createSerialQueue().run;
   let recheckPending = false;
   let trackedRead: string | null = null;
   let watchUnavailableReported = false;
@@ -166,15 +167,6 @@ export function createExternalChangeController(
   function emit(event: ExternalChangeEvent): void {
     options.onEvent?.(event);
     for (const listener of [...eventListeners]) listener(event);
-  }
-
-  function enqueue<T>(task: () => Promise<T>): Promise<T> {
-    const result = queueTail.then(task);
-    queueTail = result.then(
-      () => undefined,
-      () => undefined,
-    );
-    return result;
   }
 
   function currentProject() {

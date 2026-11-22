@@ -6,10 +6,12 @@ import { createStore, type Store } from "../../shared/store/store";
 import { parseProjectTreeWidth } from "../local-state/project-tree-width";
 import type { AppSettingsGateway } from "../ports/app-settings-gateway";
 import {
+  failWith,
   type OperationError,
   type OperationResult,
-  operationErr,
+  settleOperation,
 } from "../ports/operation-error";
+import { createSerialQueue } from "../serial-queue";
 
 export type LayoutSettingsStatus = "loading" | "ready";
 
@@ -37,20 +39,6 @@ export interface LayoutSettingsControllerDependencies {
   readonly defaultProjectTreeWidth: number;
 }
 
-// The gateway should return errors as values, but a rejection must not break start-up.
-async function settle<T>(
-  request: () => Promise<OperationResult<T>>,
-): Promise<OperationResult<T>> {
-  try {
-    return await request();
-  } catch (error) {
-    return operationErr(
-      "unexpectedCommandError",
-      error instanceof Error ? error.message : String(error),
-    );
-  }
-}
-
 export function createLayoutSettingsController(
   dependencies: LayoutSettingsControllerDependencies,
 ): LayoutSettingsController {
@@ -63,16 +51,10 @@ export function createLayoutSettingsController(
   });
   let initialization: Promise<void> | null = null;
   // Requests run one at a time so the last requested width is the one stored.
-  let queue: Promise<unknown> = Promise.resolve();
-
-  function enqueue<T>(task: () => Promise<T>): Promise<T> {
-    const result = queue.then(task);
-    queue = result.catch(() => undefined);
-    return result;
-  }
+  const enqueue = createSerialQueue().run;
 
   async function load(): Promise<void> {
-    const result = await settle(() => gateway.getAppSettings());
+    const result = await settleOperation(() => gateway.getAppSettings());
     if (!result.ok) {
       store.setState((state) => ({
         ...state,
@@ -101,9 +83,11 @@ export function createLayoutSettingsController(
         if (!parsed.ok) {
           const error = parsed.error;
           store.setState((state) => ({ ...state, saveError: error }));
-          return operationErr(error.kind, error.detail);
+          return failWith(error);
         }
-        const result = await settle(() => gateway.setProjectTreeWidth(width));
+        const result = await settleOperation(() =>
+          gateway.setProjectTreeWidth(width),
+        );
         if (!result.ok) {
           store.setState((state) => ({ ...state, saveError: result.error }));
           return result;

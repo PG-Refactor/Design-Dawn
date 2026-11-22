@@ -35,7 +35,9 @@ import {
   type OperationResult,
   operationErr,
   operationOk,
+  settleOperation,
 } from "../ports/operation-error";
+import { createSerialQueue } from "../serial-queue";
 import type { ApplicationStore } from "../state/application-state";
 
 // The Diff the UI shows or waits for. Only the latest request is kept.
@@ -296,7 +298,7 @@ export function createGitController(
   let epoch = 0;
   // Git operations of this controller run one after another, so two index-changing calls
   // never overlap and a status read never interleaves with them.
-  let queueTail: Promise<unknown> = Promise.resolve();
+  const enqueue = createSerialQueue().run;
   // Identifies the latest Diff request; older answers are dropped.
   let latestDiffRequest = 0;
   // Same for the history; `settledHistory` is what a failed load goes back to.
@@ -305,33 +307,13 @@ export function createGitController(
   let waitingRefresh: Promise<OperationResult<void>> | null = null;
   let waitingRefreshSilent = false;
 
-  function enqueue<T>(task: () => Promise<T>): Promise<T> {
-    const next = queueTail.then(task);
-    // A task never rejects (failures are results); this keeps the chain alive regardless.
-    queueTail = next.catch(() => undefined);
-    return next;
-  }
-
-  async function call(
-    request: () => Promise<OperationResult<GitStatus>>,
-  ): Promise<OperationResult<GitStatus>> {
-    try {
-      return await request();
-    } catch (failure) {
-      return operationErr(
-        "unexpectedCommandError",
-        failure instanceof Error ? failure.message : String(failure),
-      );
-    }
-  }
-
   async function readStatus(
     projectId: ProjectId,
     taskEpoch: number,
     silent = false,
   ): Promise<OperationResult<void>> {
     if (!silent) store.setState((state) => ({ ...state, refreshing: true }));
-    const result = await call(() => gateway.gitStatus(projectId));
+    const result = await settleOperation(() => gateway.gitStatus(projectId));
     if (taskEpoch !== epoch) return result.ok ? operationOk(undefined) : result;
     if (result.ok) {
       store.setState((state) => ({
@@ -383,7 +365,7 @@ export function createGitController(
     return enqueue(async () => {
       if (taskEpoch !== epoch) return operationOk(undefined);
       store.setState((state) => ({ ...state, operating: true }));
-      const result = await call(() => {
+      const result = await settleOperation(() => {
         if (typeof operation !== "string") {
           return "side" in operation
             ? gateway.resolveConflictWithSide(
@@ -449,14 +431,9 @@ export function createGitController(
         runningOperation: options.amend ? "amend" : "commit",
       }));
       let result: OperationResult<GitCommitResult>;
-      try {
-        result = await gateway.commit(projectId, message, options);
-      } catch (failure) {
-        result = operationErr(
-          "unexpectedCommandError",
-          failure instanceof Error ? failure.message : String(failure),
-        );
-      }
+      result = await settleOperation(() =>
+        gateway.commit(projectId, message, options),
+      );
       if (taskEpoch !== epoch)
         return result.ok ? operationOk(undefined) : result;
       if (result.ok) {
@@ -518,14 +495,7 @@ export function createGitController(
         runningOperation: "undo",
       }));
       let result: OperationResult<GitUndoCommitResult>;
-      try {
-        result = await gateway.undoLastCommit(projectId);
-      } catch (failure) {
-        result = operationErr(
-          "unexpectedCommandError",
-          failure instanceof Error ? failure.message : String(failure),
-        );
-      }
+      result = await settleOperation(() => gateway.undoLastCommit(projectId));
       if (taskEpoch !== epoch) {
         return result.ok ? operationOk({ message: null }) : result;
       }
@@ -590,14 +560,7 @@ export function createGitController(
         runningOperation: operation,
       }));
       let result: OperationResult<GitRemoteResult>;
-      try {
-        result = await request(projectId);
-      } catch (failure) {
-        result = operationErr(
-          "unexpectedCommandError",
-          failure instanceof Error ? failure.message : String(failure),
-        );
-      }
+      result = await settleOperation(() => request(projectId));
       if (taskEpoch !== epoch)
         return result.ok ? operationOk(undefined) : result;
       if (result.ok) {
@@ -657,14 +620,7 @@ export function createGitController(
         return operationOk(undefined);
       }
       let result: OperationResult<GitDiff>;
-      try {
-        result = await gateway.diff(projectId, path, side);
-      } catch (failure) {
-        result = operationErr(
-          "unexpectedCommandError",
-          failure instanceof Error ? failure.message : String(failure),
-        );
-      }
+      result = await settleOperation(() => gateway.diff(projectId, path, side));
       if (taskEpoch !== epoch || request !== latestDiffRequest) {
         return result.ok ? operationOk(undefined) : result;
       }
@@ -685,14 +641,9 @@ export function createGitController(
     projectId: ProjectId,
     cursor: string | null,
   ): Promise<OperationResult<GitHistoryPage>> {
-    try {
-      return await gateway.history(projectId, HISTORY_PAGE_SIZE, cursor);
-    } catch (failure) {
-      return operationErr(
-        "unexpectedCommandError",
-        failure instanceof Error ? failure.message : String(failure),
-      );
-    }
+    return settleOperation(() =>
+      gateway.history(projectId, HISTORY_PAGE_SIZE, cursor),
+    );
   }
 
   // `previous` is the loaded state a `loadMore` appends to; null for the first page.
@@ -830,14 +781,7 @@ export function createGitController(
       if (projectId === null) {
         return operationOk({ documentIds: [], projectFilesAffected: false });
       }
-      try {
-        return await gateway.discardImpact(projectId, paths);
-      } catch (failure) {
-        return operationErr(
-          "unexpectedCommandError",
-          failure instanceof Error ? failure.message : String(failure),
-        );
-      }
+      return settleOperation(() => gateway.discardImpact(projectId, paths));
     },
     loadDiff,
     commit,
@@ -851,28 +795,16 @@ export function createGitController(
     async enableLongPaths() {
       const projectId = store.getState().projectId;
       if (projectId === null) return operationOk(undefined);
-      try {
-        const enabled = await gateway.enableLongPaths(projectId);
-        if (!enabled.ok) return enabled;
-      } catch (failure) {
-        return operationErr(
-          "unexpectedCommandError",
-          failure instanceof Error ? failure.message : String(failure),
-        );
-      }
+      const enabled = await settleOperation(() =>
+        gateway.enableLongPaths(projectId),
+      );
+      if (!enabled.ok) return enabled;
       return refreshProject(projectId);
     },
     async remotes() {
       const projectId = store.getState().projectId;
       if (projectId === null) return operationOk([]);
-      try {
-        return await gateway.remotes(projectId);
-      } catch (failure) {
-        return operationErr(
-          "unexpectedCommandError",
-          failure instanceof Error ? failure.message : String(failure),
-        );
-      }
+      return settleOperation(() => gateway.remotes(projectId));
     },
     loadHistory,
     loadMoreHistory,
