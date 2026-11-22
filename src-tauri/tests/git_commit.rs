@@ -502,6 +502,24 @@ fn a_merge_whose_conflicts_are_resolved_is_finished_by_the_commit() {
 }
 
 #[test]
+fn a_merge_resolved_with_our_versions_is_committed_with_nothing_staged() {
+    let fixture = fixture_or_skip!();
+    let project = merge_waiting_for_its_commit(&fixture);
+    // Take this branch's side for everything: the index is HEAD's tree again.
+    fixture.git(&project, &["checkout", "HEAD", "--", "."]);
+    fixture.git(&project, &["rm", "-q", "--cached", "side.md"]);
+    std::fs::remove_file(project.join("side.md")).unwrap();
+    let staged = fixture.git_output(&project, &["diff", "--cached", "--name-only"]);
+    assert_eq!(staged.trim(), "", "nothing is staged");
+
+    fixture
+        .commit(&project, SUBJECT)
+        .expect("the merge is committed");
+    let parents = fixture.git_output(&project, &["log", "-1", "--format=%P"]);
+    assert_eq!(parents.split_whitespace().count(), 2);
+}
+
+#[test]
 fn amending_during_a_merge_is_refused() {
     let fixture = fixture_or_skip!();
     let project = merge_waiting_for_its_commit(&fixture);

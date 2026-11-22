@@ -233,8 +233,12 @@ pub fn commit_with_options(
         files = read_file_statuses(runner, project_root)?;
         require_no_unmerged(&files)?;
     }
-    // A message-only amend has nothing staged.
-    if !options.amend && !files.iter().any(|file| is_unstageable(file.index_status)) {
+    // A message-only amend has nothing staged; nor has a merge resolved with this branch's
+    // own versions (its commit still records the merge).
+    if !options.amend
+        && !concluding_merge
+        && !files.iter().any(|file| is_unstageable(file.index_status))
+    {
         return Err(ApplicationError::new(
             ErrorKind::NothingToCommit,
             "nothing is staged",

@@ -60,6 +60,7 @@ import type {
   FolderId,
   SheetId,
 } from "../../domain/shared/entity-id";
+import { raiseAssetRevision } from "../image/asset-revision";
 import type { DraftRegistry } from "./draft-registry";
 import { restoreMainTab, showDocumentTab } from "./ui-state/diff-tabs";
 import {
@@ -491,6 +492,9 @@ export function createWorkspaceActions(
       record("openDocument", entry.name, opened.error);
       return opened;
     }
+    // Read from disk again (a reopen, a reload after a change made outside or by git): its
+    // pictures are read again too.
+    raiseAssetRevision();
     return operationOk(true);
   }
 

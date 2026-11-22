@@ -77,7 +77,7 @@ export function GitConflictImageChoice({
               )}
               <button
                 type="button"
-                className="button"
+                className="button git-conflict-images__choose"
                 // A side whose file cannot be shown is not chosen blind.
                 disabled={busy || (!deleted && source === null)}
                 onClick={() => onChoose(side)}

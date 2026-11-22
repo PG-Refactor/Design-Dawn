@@ -9,10 +9,12 @@ import {
 } from "../workspace/ui-state/ui-state";
 import { useMessages } from "../workspace/use-messages";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
+import { assetRevisionStore, withAssetRevision } from "./asset-revision";
 import "./image-block.css";
 
 const selectProjectId = (application: ApplicationState) =>
   application.project?.projectId ?? null;
+const selectRevision = (state: { readonly revision: number }) => state.revision;
 
 // The renderer of an Image block: an `<img>` over the asset URL, or an error state when
 // the picture cannot be loaded. The URL comes from the resolver port, so the component
@@ -21,12 +23,16 @@ const selectProjectId = (application: ApplicationState) =>
 export function ImageBlock({ documentId, sheetId, block }: BlockRendererProps) {
   const { applicationStore, assetUrlResolver } = useWorkspaceServices();
   const projectId = useStoreSelector(applicationStore, selectProjectId);
+  const revision = useStoreSelector(assetRevisionStore, selectRevision);
   const source = useMemo(
     () =>
       projectId === null
         ? null
-        : assetUrlResolver.urlFor(projectId, documentId, block.contentPath),
-    [assetUrlResolver, projectId, documentId, block.contentPath],
+        : withAssetRevision(
+            assetUrlResolver.urlFor(projectId, documentId, block.contentPath),
+            revision,
+          ),
+    [assetUrlResolver, projectId, documentId, block.contentPath, revision],
   );
   if (source === null) return null;
   // Keyed by the URL: a block that now points elsewhere starts a fresh load attempt.

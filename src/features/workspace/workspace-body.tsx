@@ -21,8 +21,6 @@ const SIDEBAR_SELECTOR = ".workspace-shell__sidebar";
 const LEFT_PANEL_TABS_SELECTOR = ".left-panel-tabs";
 // A panel header whose items must all show in full (the Git tab's: title, branch, buttons).
 const FULL_HEADER_SELECTOR = ".git-panel__header";
-// Text in such a header that may be cut with an ellipsis (it is measured in full).
-const CUT_TEXT_SELECTOR = ".git-branch__name";
 const identity = <T,>(value: T): T => value;
 
 type LayoutStyle = CSSProperties & Record<`--${string}`, string>;
@@ -83,9 +81,9 @@ export function WorkspaceBody() {
     }
   }
 
-  // The widest the Git header was found to need (it exists only while its tab is shown):
-  // kept, so the panel does not narrow again when another tab is chosen. Forgotten when the
-  // text size or language changes.
+  // What the Git header was last found to need (it exists only while its tab is shown):
+  // kept, so the panel does not narrow when another tab is chosen. Measured again whenever
+  // the header is there (another branch, another text size or language).
   const fullHeaderNeedRef = useRef(0);
 
   // What the panel needs so that nothing in its headers is hidden or overlapping: the Project
@@ -115,12 +113,10 @@ export function WorkspaceBody() {
     }
     const header = sidebar.querySelector<HTMLElement>(FULL_HEADER_SELECTOR);
     if (header !== null) {
-      fullHeaderNeedRef.current = Math.max(
-        fullHeaderNeedRef.current,
+      fullHeaderNeedRef.current =
         sidebarWidth -
-          header.getBoundingClientRect().width +
-          contentWidth(header),
-      );
+        header.getBoundingClientRect().width +
+        naturalWidth(header);
     }
     return Math.max(
       minWidthPx,
@@ -133,10 +129,6 @@ export function WorkspaceBody() {
   const textSize = useStoreSelector(textSizeController.store, identity);
   const language = useStoreSelector(languageController.store, identity);
   const [headerMinWidth, setHeaderMinWidth] = useState<number>(minWidthPx);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: measured again when what decides the headers' width changes.
-  useLayoutEffect(() => {
-    fullHeaderNeedRef.current = 0;
-  }, [textSize, language]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: measured again when what decides the headers' width changes.
   useLayoutEffect(() => {
     if (sidebarCollapsed || documentsOnly) return;
@@ -158,9 +150,17 @@ export function WorkspaceBody() {
       subtree: true,
       characterData: true,
     });
+    // A text size or language change is drawn after this effect: measured again once it is.
+    let settleFrame: number | null = requestAnimationFrame(() => {
+      settleFrame = requestAnimationFrame(() => {
+        settleFrame = null;
+        setHeaderMinWidth(measureMinWidth());
+      });
+    });
     return () => {
       observer.disconnect();
       if (frame !== null) cancelAnimationFrame(frame);
+      if (settleFrame !== null) cancelAnimationFrame(settleFrame);
     };
   }, [textSize, language, sidebarCollapsed, documentsOnly]);
   const shownWidth = Math.max(width, headerMinWidth);
@@ -239,26 +239,12 @@ export function WorkspaceBody() {
   );
 }
 
-// The width a flex row's items take side by side at their full size: their widths, the text
-// cut with an ellipsis at its full length, the gaps between them and the row's padding.
-function contentWidth(row: HTMLElement): number {
-  const style = getComputedStyle(row);
-  const gap = Number.parseFloat(style.columnGap) || 0;
-  const padding =
-    (Number.parseFloat(style.paddingLeft) || 0) +
-    (Number.parseFloat(style.paddingRight) || 0);
-  const items = [...row.children].filter(
-    (item): item is HTMLElement => item instanceof HTMLElement,
-  );
-  let width = padding + gap * Math.max(0, items.length - 1);
-  for (const item of items) {
-    width += item.getBoundingClientRect().width;
-    for (const cut of item.querySelectorAll<HTMLElement>(CUT_TEXT_SELECTOR)) {
-      width += Math.max(0, cut.scrollWidth - cut.clientWidth);
-    }
-    if (item.matches(CUT_TEXT_SELECTOR)) {
-      width += Math.max(0, item.scrollWidth - item.clientWidth);
-    }
-  }
+// The width a row takes with nothing in it cut or squeezed: laid out at its own content
+// width for a moment (read synchronously, so it is never drawn that way).
+function naturalWidth(row: HTMLElement): number {
+  const previous = row.style.width;
+  row.style.width = "max-content";
+  const width = row.getBoundingClientRect().width;
+  row.style.width = previous;
   return width;
 }

@@ -557,6 +557,17 @@ describe("an unfinished merge", () => {
     expect(screen.getByText(ja.unfinished.merge)).toBeTruthy();
   });
 
+  it("commits a merge resolved with this branch's versions (nothing staged)", async () => {
+    const shell = await openGit({ ...statusOf([]), operation: "merge" });
+    // The commit is offered (not Publish): it ends the merge.
+    expect(screen.queryByRole("button", { name: ja.publishBranch })).toBeNull();
+    await typeMessage(shell, "merge");
+    await shell.user.keyboard("{Control>}{Enter}{/Control}");
+    await settled();
+    expect(shell.gitGateway.commitCalls).toHaveLength(1);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
   it("points a rebase to git itself, without an abort button", async () => {
     await openGit({ ...statusOf([]), operation: "rebase" });
     expect(screen.getByText(ja.unfinished.rebase)).toBeTruthy();

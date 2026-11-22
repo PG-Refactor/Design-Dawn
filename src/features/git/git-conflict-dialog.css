@@ -98,6 +98,17 @@
   object-fit: contain;
 }
 
+/* Larger: a small picture is enlarged to the frame too (its proportions kept). */
+.git-conflict-images__sides--large .git-conflict-images__picture {
+  width: 100%;
+  height: 100%;
+}
+
+/* The choice buttons line up at the bottom of both sides, whatever is above them. */
+.git-conflict-images__choose {
+  margin-top: auto;
+}
+
 .git-conflict-images__size {
   color: var(--color-text-muted);
   font-size: 0.8125rem;

@@ -5,6 +5,7 @@ import { setGitCommitMessage } from "../workspace/ui-state/shell-ui-state";
 import type { GitCommitFollowUp } from "../workspace/ui-state/ui-state";
 import { deriveGitChangeSections } from "./git-change-sections";
 import { refreshDiffAfterStatusChange } from "./git-diff-session";
+import { concludesMerge } from "./git-menu-items";
 import {
   type GitFlowOutcome,
   type GitFlowServices,
@@ -49,7 +50,13 @@ export async function runGitCommit(
   const submitted = uiStateStore.getState().gitCommitMessage;
   if (!request.amend) {
     if (submitted.trim() === "") return "skipped";
-    if (!request.stageAll && !hasStagedChanges(services)) return "skipped";
+    if (
+      !request.stageAll &&
+      !hasStagedChanges(services) &&
+      !concludesMerge(status)
+    ) {
+      return "skipped";
+    }
   }
   const result = await gitController.commit(submitted, {
     amend: request.amend,

@@ -36,6 +36,8 @@ export function installThemedTitles(root: Document = document): () => void {
   let hint: HTMLDivElement | null = null;
   let timer: number | null = null;
   let pointer = { x: 0, y: 0 };
+  // What the pointer is over (null once it has left the window).
+  let underPointer: Element | null = null;
 
   function cancelTimer(): void {
     if (timer !== null) {
@@ -121,6 +123,7 @@ export function installThemedTitles(root: Document = document): () => void {
   function follow(event: PointerEvent): void {
     pointer = { x: event.clientX, y: event.clientY };
     const under = elementUnder(event);
+    underPointer = under;
     // Still on the element whose title is aside (it has none now, so it is not found by it).
     if (hovered !== null && under !== null && hovered.element.contains(under))
       return;
@@ -135,6 +138,7 @@ export function installThemedTitles(root: Document = document): () => void {
   // Leaving the window (nothing next): the titles go back.
   function onOut(event: PointerEvent): void {
     if (hovered === null || event.relatedTarget !== null) return;
+    underPointer = null;
     release();
   }
 
@@ -152,6 +156,9 @@ export function installThemedTitles(root: Document = document): () => void {
     if (hovered === null) return;
     const next = event.relatedTarget;
     if (next instanceof Node && hovered.element.contains(next)) return;
+    // Still pointed at (a clicked button that became disabled loses the focus): the title
+    // stays aside, or the webview would show it under the pointer.
+    if (underPointer !== null && hovered.element.contains(underPointer)) return;
     release();
   }
 

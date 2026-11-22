@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+
 import {
   act,
   cleanup,
@@ -24,6 +25,7 @@ import {
 } from "../markdown/test-support/markdown-harness";
 import { seedSheetBlocks } from "../workspace/test-support/actions-harness";
 import { getSelection } from "../workspace/ui-state/ui-state";
+import { raiseAssetRevision } from "./asset-revision";
 
 afterEach(() => {
   cleanup();
@@ -79,8 +81,11 @@ describe("rendering", () => {
   it("shows an <img> over the resolver URL, filling the block, not draggable", async () => {
     await renderWithImages();
     const image = imageOf(blockOption(PHOTO_INDEX));
-    expect(image.getAttribute("src")).toBe(
-      `test-asset://${PROJECT_ID}/${DOCUMENT_A}/${PHOTO_PATH}`,
+    // The resolver URL, with the page's picture revision (raised when Documents open).
+    expect(image.getAttribute("src")).toMatch(
+      new RegExp(
+        `^test-asset://${PROJECT_ID}/${DOCUMENT_A}/${PHOTO_PATH}(\\?v=\\d+)?$`,
+      ),
     );
     expect(image.getAttribute("alt")).toBe(`画像（${shortId(PHOTO_COUNTER)}）`);
     expect(image.getAttribute("draggable")).toBe("false");
@@ -96,7 +101,9 @@ describe("rendering", () => {
     try {
       await renderWithImages();
       const option = blockOption(VECTOR_INDEX);
-      expect(imageOf(option).getAttribute("src")).toMatch(/diagram\.svg$/);
+      expect(imageOf(option).getAttribute("src")).toMatch(
+        /diagram\.svg(\?v=\d+)?$/,
+      );
       expect(option.querySelector("svg")).toBeNull();
       expect(document.querySelector("canvas svg, .image-block svg")).toBeNull();
       expect(option.querySelectorAll("*")).toHaveLength(2);
@@ -500,5 +507,16 @@ describe("Original Size", () => {
         name: "元の大きさに戻す",
       }),
     ).toBeNull();
+  });
+});
+
+describe("a picture file rewritten under the app", () => {
+  it("is asked for again when the revision is raised", async () => {
+    await renderWithImages();
+    const before = imageOf(blockOption(PHOTO_INDEX)).getAttribute("src");
+    act(() => raiseAssetRevision());
+    const after = imageOf(blockOption(PHOTO_INDEX)).getAttribute("src");
+    expect(after).not.toBe(before);
+    expect(after).toContain(PHOTO_PATH);
   });
 });

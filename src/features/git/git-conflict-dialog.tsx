@@ -3,6 +3,7 @@ import type {
   GitConflictSide,
   GitConflictVersions,
 } from "../../application/ports/git-gateway";
+import { raiseAssetRevision } from "../image/asset-revision";
 import { Modal } from "../workspace/modal";
 import { useMessages } from "../workspace/use-messages";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
@@ -47,6 +48,7 @@ export function GitConflictDialog({
   async function resolve(content: string): Promise<void> {
     setBusy(true);
     const resolved = await gitController.resolveConflict(path, content);
+    if (resolved.ok) raiseAssetRevision();
     setBusy(false);
     if (resolved.ok) onClose();
   }
@@ -54,6 +56,8 @@ export function GitConflictDialog({
   async function resolveWithSide(side: GitConflictSide): Promise<void> {
     setBusy(true);
     const resolved = await gitController.resolveConflictWithSide(path, side);
+    // The file was replaced under the open Documents: a picture shows its new content.
+    if (resolved.ok) raiseAssetRevision();
     setBusy(false);
     if (resolved.ok) onClose();
   }

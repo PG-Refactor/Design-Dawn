@@ -148,11 +148,10 @@ fn open<R: Runtime>(
             }
         });
     }
-    if let Some(parent) = app.get_webview_window(owner) {
-        builder = builder
-            .parent(&parent)
-            .map_err(|error| failed(format!("print window owner: {error}")))?;
-    }
+    // Not made an owned window of `owner` (it is still closed with it, by the label kept
+    // below): on Windows the print dialog of an owned window also holds its owner, whose
+    // frame was then seen drawn wrongly (square corners, the title bar wider than the
+    // window) and whose close button once did nothing.
     app.state::<Mutex<PrintWindows>>()
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
@@ -205,8 +204,7 @@ pub fn print_windows_open<R: Runtime>(app: AppHandle<R>, window: Window<R>) -> b
 }
 
 /// Hides (or shows again) the calling window's print windows: a question of the calling
-/// window ("stop printing and close?") is not covered by them while it is asked (a print
-/// window belongs to its window and so always stays in front of it).
+/// window ("stop printing and close?") is not covered by them while it is asked.
 #[tauri::command]
 pub fn set_print_windows_hidden<R: Runtime>(app: AppHandle<R>, window: Window<R>, hidden: bool) {
     for label in labels_owned_by(&app, window.label()) {

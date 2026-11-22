@@ -106,4 +106,14 @@ describe("installThemedTitles", () => {
     expect(button().getAttribute("title")).toBe("Zoom in");
     expect(hint()).toBeNull();
   });
+
+  it("keeps the title aside when a pointed-at button loses the focus", () => {
+    pointer("pointerover", button());
+    button().focus();
+    // Clicked and disabled: the focus goes, the pointer stays.
+    button().blur();
+    expect(button().hasAttribute("title")).toBe(false);
+    pointer("pointerout", button(), { relatedTarget: null });
+    expect(button().getAttribute("title")).toBe("Zoom in");
+  });
 });

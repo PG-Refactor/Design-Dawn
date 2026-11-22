@@ -137,12 +137,12 @@
   color: var(--color-warning);
 }
 
-/* A short notice ("read again", "already open") floats over the window just below the menu
-   bar instead of taking a line: nothing moves while it shows, so a click lands where it was
-   aimed. The region stays (empty) between notices so screen readers hear each one; it takes
+/* A short notice ("read again", "already open") floats in the middle of the menu bar (its
+   empty part) instead of taking a line: nothing moves while it shows, so a click lands where
+   it was aimed, and the tabs below stay readable. The region stays (empty) between notices so screen readers hear each one; it takes
    no pointer, so what is under it can still be used. */
 .transient-notice {
-  --transient-notice-top: 3rem;
+  --transient-notice-top: var(--space-1);
   position: fixed;
   top: var(--transient-notice-top);
   left: 50%;

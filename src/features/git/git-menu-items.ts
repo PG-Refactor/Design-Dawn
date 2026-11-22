@@ -50,9 +50,23 @@ export function branchFactsOf(status: GitStatus): GitBranchFacts {
 
 // Whether a non-amend commit has anything to commit: staged changes, or changes that the
 // smart commit question can stage. Conflicts alone do not count.
+// A merge whose conflicts are all resolved: its commit ends it even when nothing is staged
+// (every file was resolved with this branch's own version).
+export function concludesMerge(status: GitStatus): boolean {
+  return (
+    status.operation === "merge" &&
+    !deriveGitChangeSections(status).some(
+      (section) => section.id === "conflicts",
+    )
+  );
+}
+
 export function hasCommittableChanges(status: GitStatus): boolean {
-  return deriveGitChangeSections(status).some(
-    (section) => section.id === "staged" || section.id === "changes",
+  return (
+    concludesMerge(status) ||
+    deriveGitChangeSections(status).some(
+      (section) => section.id === "staged" || section.id === "changes",
+    )
   );
 }
 

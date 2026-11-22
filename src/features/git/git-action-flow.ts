@@ -20,6 +20,7 @@ import {
   type GitChangeSectionId,
 } from "./git-change-sections";
 import { runGitCommit } from "./git-commit-flow";
+import { concludesMerge } from "./git-menu-items";
 import {
   type GitFlowOutcome,
   type GitFlowServices,
@@ -116,7 +117,9 @@ async function startCommit(
       "staged",
       "changes",
     ]);
-    if (!staged) {
+    const status = services.gitController.store.getState().status;
+    const mergeOnly = status !== null && concludesMerge(status) && !changes;
+    if (!staged && !mergeOnly) {
       // Nothing to stage, or a merge in the way (Rust would refuse the commit anyway).
       if (!changes || conflicts || !questionAllowed(services)) return "skipped";
       uiStateStore.setState((state) =>

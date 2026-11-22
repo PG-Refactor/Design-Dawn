@@ -5,7 +5,11 @@ import { useMessages } from "../workspace/use-messages";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import { requestGitPush } from "./git-action-flow";
 import { CheckIcon, ChevronIcon, CloudUploadIcon, SyncIcon } from "./git-icons";
-import { branchFactsOf, commitMenuItems } from "./git-menu-items";
+import {
+  branchFactsOf,
+  commitMenuItems,
+  concludesMerge,
+} from "./git-menu-items";
 import { runGitSync } from "./git-remote-flow";
 import { useGitMenuRunner } from "./use-git-menu-runner";
 
@@ -18,7 +22,11 @@ export type GitPrimaryAction =
 
 export function primaryActionOf(status: GitStatus): GitPrimaryAction {
   const facts = branchFactsOf(status);
-  if (status.files.length > 0 || status.branch === null) {
+  if (
+    status.files.length > 0 ||
+    status.branch === null ||
+    concludesMerge(status)
+  ) {
     return { kind: "commit" };
   }
   if (facts.hasUpstream) {
