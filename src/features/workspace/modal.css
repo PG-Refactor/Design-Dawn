@@ -1,6 +1,9 @@
+/* Above everything of the window (the left panel's pinned tabs, the menus), below the
+   pointer's hints. */
 .modal-backdrop {
   position: fixed;
   inset: 0;
+  z-index: 50;
   display: flex;
   align-items: center;
   justify-content: center;

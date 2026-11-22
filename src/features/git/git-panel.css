@@ -275,10 +275,6 @@
   flex-wrap: wrap;
 }
 
-.git-file-row .git-file-row__kind {
-  margin-left: auto;
-}
-
 .git-file-row--selected {
   background: var(--color-selection);
   /* A bar as well, so the selection does not rely on colour alone. */
@@ -307,8 +303,10 @@
   color: var(--color-text-muted);
 }
 
+/* At the right end of its row (the row stays one line). */
 .git-file-row__kind {
   flex: 0 0 auto;
+  margin-left: auto;
   min-width: 1.25rem;
   font-family: monospace;
   font-weight: 700;

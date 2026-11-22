@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+
 import { act, cleanup, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type {
@@ -7,6 +8,7 @@ import type {
   GitStatus,
 } from "../../application/ports/git-gateway";
 import { settle } from "../../application/test-support/fakes";
+import { ASIDE_TITLE_ATTRIBUTE } from "../../shared/hover-hint/themed-titles";
 import {
   renderShell,
   type ShellHarness,
@@ -86,6 +88,13 @@ async function settled(): Promise<void> {
   });
 }
 
+// A control's explanation: its title, or the title moved aside while it is focused or
+// pointed at (shown in the theme's style then).
+const explanationOf = (element: HTMLElement): string =>
+  element.getAttribute("title") ??
+  element.getAttribute(ASIDE_TITLE_ATTRIBUTE) ??
+  "";
+
 describe("commit split menu", () => {
   it("opens with the keyboard, moves with the arrows and closes with Escape", async () => {
     const shell = await openGit(statusOf([STAGED]));
@@ -157,16 +166,16 @@ describe("commit split menu", () => {
   it("disables Amend for a pushed commit, and push items when detached", async () => {
     const pushed = await openGit(statusOf([STAGED], { headPushed: true }));
     await pushed.user.click(splitTrigger());
-    expect(menuItem(ja.commitActions.amend).title).toBe(
+    expect(explanationOf(menuItem(ja.commitActions.amend))).toBe(
       ja.disabledReasons.alreadyPushed,
     );
     cleanup();
     const detached = await openGit(statusOf([STAGED], { head: null }));
     await detached.user.click(splitTrigger());
-    expect(menuItem(ja.commitActions.commitPush).title).toBe(
+    expect(explanationOf(menuItem(ja.commitActions.commitPush))).toBe(
       ja.disabledReasons.detached,
     );
-    expect(menuItem(ja.commitActions.commitSync).title).toBe(
+    expect(explanationOf(menuItem(ja.commitActions.commitSync))).toBe(
       ja.disabledReasons.detached,
     );
   });
@@ -174,7 +183,7 @@ describe("commit split menu", () => {
   it("says there are no commits when Amend has no HEAD", async () => {
     const shell = await openGit(statusOf([STAGED], { oid: null }));
     await shell.user.click(splitTrigger());
-    expect(menuItem(ja.commitActions.amend).title).toBe(
+    expect(explanationOf(menuItem(ja.commitActions.amend))).toBe(
       ja.disabledReasons.noCommits,
     );
   });
@@ -412,10 +421,10 @@ describe("header More Actions menu", () => {
       statusOf([], { upstream: null, ahead: null, behind: null }),
     );
     await shell.user.click(moreTrigger());
-    expect(menuItem(ja.headerActions.pull).title).toBe(
+    expect(explanationOf(menuItem(ja.headerActions.pull))).toBe(
       ja.disabledReasons.noUpstream,
     );
-    expect(menuItem(ja.headerActions.sync).title).toBe(
+    expect(explanationOf(menuItem(ja.headerActions.sync))).toBe(
       ja.disabledReasons.noUpstream,
     );
     expect(menuItem(ja.headerActions.push).getAttribute("aria-disabled")).toBe(
@@ -427,10 +436,10 @@ describe("header More Actions menu", () => {
     cleanup();
     const detached = await openGit(statusOf([], { head: null }));
     await detached.user.click(moreTrigger());
-    expect(menuItem(ja.headerActions.push).title).toBe(
+    expect(explanationOf(menuItem(ja.headerActions.push))).toBe(
       ja.disabledReasons.detached,
     );
-    expect(menuItem(ja.headerActions.pull).title).toBe(
+    expect(explanationOf(menuItem(ja.headerActions.pull))).toBe(
       ja.disabledReasons.detached,
     );
   });
@@ -458,7 +467,7 @@ describe("header More Actions menu", () => {
   it("disables Undo Last Commit for a pushed or missing HEAD", async () => {
     const shell = await openGit(statusOf([], { headPushed: true }));
     await shell.user.click(moreTrigger());
-    expect(menuItem(ja.headerActions.undoLastCommit).title).toBe(
+    expect(explanationOf(menuItem(ja.headerActions.undoLastCommit))).toBe(
       ja.disabledReasons.alreadyPushed,
     );
   });

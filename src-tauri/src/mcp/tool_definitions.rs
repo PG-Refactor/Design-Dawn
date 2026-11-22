@@ -461,8 +461,9 @@ createBlock / updateBlock for text you wrote yourself",
 the Block, recomputed when the Block is resized; the scale is then not used). Mermaid Blocks \
 fit by default, Markdown Blocks do not. getSheet and getBlock show both. For an Image Block, \
 contentScalePercent resizes the Block to that percent of the picture's own size (100 is its \
-pixel size; proportions and top-left corner kept); getBlock's image.scalePercent tells the \
-current one. autoFit does not apply to images.",
+pixel size; proportions and top-left corner kept, and kept within the Block size bounds, so \
+the result's imageScalePercent tells the percent reached); getBlock's image.scalePercent tells \
+the current one. A caption takes room inside the Block. autoFit does not apply to images.",
             false,
             vec![
                 id("documentId", true, DOCUMENT_ID_HELP),

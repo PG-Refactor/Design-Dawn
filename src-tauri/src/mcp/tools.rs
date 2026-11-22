@@ -1314,8 +1314,12 @@ contentScalePercent (100 is the picture's own size) instead of autoFit",
             .position(|candidate| candidate.block_id == moved.block_id)
             .unwrap_or_default();
         let mut value = block_json(z_index, &moved);
+        // What the Block now shows (a size at a bound is less, or more, than asked for).
+        let shown = ((size.0 as f64 / f64::from(width)).min(size.1 as f64 / f64::from(height))
+            * PERCENT_OF_ONE)
+            .round();
         if let Some(target) = value.as_object_mut() {
-            target.insert("imageScalePercent".to_owned(), json!(percent));
+            target.insert("imageScalePercent".to_owned(), json!(shown));
         }
         Ok(value)
     }

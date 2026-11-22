@@ -1,8 +1,10 @@
 // The short explanations of buttons and other controls (their `title`), shown in the
-// theme's colours below and to the right of the pointer, like the full names of the tree,
-// instead of the webview's own white box. While the pointer is on an element with a title,
-// the title is moved aside (so the webview shows nothing) and put back when the pointer
-// leaves; the element keeps its name (`aria-label`) for assistive technology.
+// theme's colours below and to the right of the pointer (or below a control reached with
+// the keyboard), like the full names of the tree, instead of the webview's own white box.
+// While an element is pointed at or focused, its title and those of the elements around it
+// are moved aside (the webview shows the nearest title it finds, so an outer one would
+// show instead) and put back afterwards; elements keep their names (`aria-label`) for
+// assistive technology.
 
 import { LAYOUT_CONFIG } from "../../config/layout-config";
 import { hintPosition } from "./overflow-hint";
@@ -10,11 +12,20 @@ import "./overflow-hint.css";
 
 const HINT = LAYOUT_CONFIG.overflowHint;
 const TITLED_SELECTOR = "[title]";
+const TITLE = "title";
+// Where a title waits while it is aside (readable, and shown by nothing).
+export const ASIDE_TITLE_ATTRIBUTE = "data-hint-title";
 const HINT_CLASS = "overflow-hint";
 
 interface Hovered {
+  // The element whose title is shown.
   readonly element: Element;
   readonly title: string;
+  // Every element whose title is aside, that one included.
+  readonly aside: readonly {
+    readonly element: Element;
+    readonly title: string;
+  }[];
 }
 
 // Returns the function that stops it.
@@ -61,13 +72,38 @@ export function installThemedTitles(root: Document = document): () => void {
     place();
   }
 
-  // Puts the title back (unless the page gave the element a new one meanwhile).
+  // Puts the titles back (unless the page gave an element a new one meanwhile).
   function release(): void {
     hideHint();
-    if (hovered !== null && !hovered.element.hasAttribute("title")) {
-      hovered.element.setAttribute("title", hovered.title);
+    for (const { element, title } of hovered?.aside ?? []) {
+      element.removeAttribute(ASIDE_TITLE_ATTRIBUTE);
+      if (!element.hasAttribute(TITLE)) element.setAttribute(TITLE, title);
     }
     hovered = null;
+  }
+
+  // Takes `titled` (and every titled element around it) for the explanation.
+  function take(titled: Element | null): void {
+    release();
+    const title = titled?.getAttribute(TITLE) ?? "";
+    if (titled === null || title.trim() === "") return;
+    const aside: { element: Element; title: string }[] = [];
+    for (
+      let current: Element | null = titled;
+      current !== null;
+      current = current.parentElement?.closest(TITLED_SELECTOR) ?? null
+    ) {
+      const text = current.getAttribute(TITLE) ?? "";
+      aside.push({ element: current, title: text });
+      current.setAttribute(ASIDE_TITLE_ATTRIBUTE, text);
+      current.removeAttribute(TITLE);
+    }
+    hovered = { element: titled, title, aside };
+    timer =
+      view?.setTimeout(() => {
+        timer = null;
+        if (hovered !== null) showHint(hovered.title);
+      }, HINT.delayMs) ?? null;
   }
 
   // What is under the pointer, read from its position: while an element holds the pointer
@@ -83,38 +119,44 @@ export function installThemedTitles(root: Document = document): () => void {
   }
 
   function follow(event: PointerEvent): void {
+    pointer = { x: event.clientX, y: event.clientY };
     const under = elementUnder(event);
     // Still on the element whose title is aside (it has none now, so it is not found by it).
     if (hovered !== null && under !== null && hovered.element.contains(under))
       return;
-    const titled = under?.closest(TITLED_SELECTOR) ?? null;
-    release();
-    const title = titled?.getAttribute("title") ?? "";
-    if (titled === null || title.trim() === "") return;
-    titled.removeAttribute("title");
-    hovered = { element: titled, title };
-    pointer = { x: event.clientX, y: event.clientY };
-    timer =
-      view?.setTimeout(() => {
-        timer = null;
-        if (hovered !== null) showHint(hovered.title);
-      }, HINT.delayMs) ?? null;
+    take(under?.closest(TITLED_SELECTOR) ?? null);
   }
 
   function onMove(event: PointerEvent): void {
-    pointer = { x: event.clientX, y: event.clientY };
     follow(event);
     place();
   }
 
-  // Leaving the window (nothing next): the title goes back.
+  // Leaving the window (nothing next): the titles go back.
   function onOut(event: PointerEvent): void {
     if (hovered === null || event.relatedTarget !== null) return;
     release();
   }
 
-  // A click, a key or scrolling: the explanation has done its job (the title comes back
-  // when the pointer leaves).
+  // Reached with the keyboard: the explanation goes below the control.
+  function onFocusIn(event: FocusEvent): void {
+    const target = event.target instanceof Element ? event.target : null;
+    const titled = target?.closest(TITLED_SELECTOR) ?? null;
+    if (titled === null) return;
+    const box = titled.getBoundingClientRect();
+    pointer = { x: box.left, y: box.bottom };
+    take(titled);
+  }
+
+  function onFocusOut(event: FocusEvent): void {
+    if (hovered === null) return;
+    const next = event.relatedTarget;
+    if (next instanceof Node && hovered.element.contains(next)) return;
+    release();
+  }
+
+  // A click, a key or scrolling: the explanation has done its job (the titles come back
+  // when the pointer or the focus leaves).
   const dismiss = () => hideHint();
 
   root.addEventListener("pointerover", follow, true);
@@ -123,6 +165,8 @@ export function installThemedTitles(root: Document = document): () => void {
   root.addEventListener("pointerdown", dismiss, true);
   root.addEventListener("keydown", dismiss, true);
   root.addEventListener("scroll", dismiss, true);
+  root.addEventListener("focusin", onFocusIn, true);
+  root.addEventListener("focusout", onFocusOut, true);
   view.addEventListener("blur", release);
   return () => {
     release();
@@ -132,6 +176,8 @@ export function installThemedTitles(root: Document = document): () => void {
     root.removeEventListener("pointerdown", dismiss, true);
     root.removeEventListener("keydown", dismiss, true);
     root.removeEventListener("scroll", dismiss, true);
+    root.removeEventListener("focusin", onFocusIn, true);
+    root.removeEventListener("focusout", onFocusOut, true);
     view.removeEventListener("blur", release);
   };
 }

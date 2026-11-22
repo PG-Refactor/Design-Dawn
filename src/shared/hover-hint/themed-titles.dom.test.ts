@@ -82,4 +82,28 @@ describe("installThemedTitles", () => {
     expect(hint()).toBeNull();
     expect(button().hasAttribute("title")).toBe(false);
   });
+
+  it("moves the titles around the control aside too, so no outer title shows", () => {
+    document.body.innerHTML =
+      '<div class="row" title="documents/a/sheet.json"><button type="button" title="Discard" aria-label="Discard">x</button></div>';
+    pointer("pointerover", button());
+    expect(button().hasAttribute("title")).toBe(false);
+    expect(document.querySelector(".row")?.hasAttribute("title")).toBe(false);
+    vi.advanceTimersByTime(HINT.delayMs);
+    expect(hint()?.textContent).toBe("Discard");
+    pointer("pointerout", button(), { relatedTarget: null });
+    expect(document.querySelector(".row")?.getAttribute("title")).toBe(
+      "documents/a/sheet.json",
+    );
+  });
+
+  it("explains a control reached with the keyboard, below it", () => {
+    button().focus();
+    expect(button().hasAttribute("title")).toBe(false);
+    vi.advanceTimersByTime(HINT.delayMs);
+    expect(hint()?.textContent).toBe("Zoom in");
+    button().blur();
+    expect(button().getAttribute("title")).toBe("Zoom in");
+    expect(hint()).toBeNull();
+  });
 });
