@@ -3,24 +3,16 @@
 // or accessible name, hence `aria-hidden`.
 
 import type { ReactNode } from "react";
+import { IconFrame } from "../../shared/icons/icon-frame";
 
-const ICON_VIEW_BOX = "0 0 16 16";
+// Stroke width of these icons.
+const STROKE_WIDTH = 1.5;
 
 function Icon({ children }: { readonly children: ReactNode }) {
   return (
-    <svg
-      className="git-icon"
-      viewBox={ICON_VIEW_BOX}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      focusable="false"
-    >
+    <IconFrame className="git-icon" strokeWidth={STROKE_WIDTH}>
       {children}
-    </svg>
+    </IconFrame>
   );
 }
 

@@ -82,8 +82,7 @@ export const FLOWCHART_DIRECTION_WRITE_TOKENS: Readonly<
   LR: "LR",
 };
 
-// Labels. A label is always written between double quotes.
-export const FLOWCHART_LABEL_QUOTE = '"';
+// Labels. A label is always written between double quotes (FLOWCHART_STRING_QUOTE).
 export const FLOWCHART_LABEL_LINE_BREAK_TAG = "<br/>";
 export const FLOWCHART_LABEL_LESS_THAN_ENTITY = "#lt;";
 export const FLOWCHART_LABEL_GREATER_THAN_ENTITY = "#gt;";

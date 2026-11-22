@@ -9,6 +9,7 @@
 // Anything else (generics, namespaces, annotations outside a block, cardinalities, notes,
 // styles ...) makes the diagram read-only in the GUI.
 
+import { capturedText } from "../../shared/captured-text";
 import { type DomainResult, ok } from "../../shared/domain-result";
 import type { DiagramEditorEntry } from "../diagram-source";
 import type { ClassifiedLine, LineRef } from "../source-lines";
@@ -165,7 +166,7 @@ export function readClass(source: string): ClassRead {
     }
     const open = OPEN.exec(line.text);
     if (open !== null) {
-      const name = open[1] ?? "";
+      const name = capturedText(open, 1);
       if (declaredTwice(name)) unsupported.push(lineRef(line));
       classFor(name);
       block = { name, open: line, members: [] };
@@ -173,34 +174,34 @@ export function readClass(source: string): ClassRead {
     }
     const bare = BARE.exec(line.text);
     if (bare !== null) {
-      const name = bare[1] ?? "";
+      const name = capturedText(bare, 1);
       if (declaredTwice(name)) unsupported.push(lineRef(line));
       lines.set(name, { ...classFor(name), bare: line });
       continue;
     }
     const relationship = RELATIONSHIP.exec(line.text);
     if (relationship !== null) {
-      const from = relationship[1] ?? "";
-      const to = relationship[5] ?? "";
+      const from = capturedText(relationship, 1);
+      const to = capturedText(relationship, 5);
       classFor(from);
       classFor(to);
       relationships.push({
         from,
-        fromCardinality: relationship[2] ?? "",
+        fromCardinality: capturedText(relationship, 2),
         arrow: relationship[3] as ClassArrow,
-        toCardinality: relationship[4] ?? "",
+        toCardinality: capturedText(relationship, 4),
         to,
-        label: relationship[6] ?? "",
+        label: capturedText(relationship, 6),
       });
       relationshipLines.push(line);
       continue;
     }
     if (DIRECTION.test(line.text)) continue;
     const outside = OUTSIDE_MEMBER.exec(line.text);
-    if (outside !== null && !FORBIDDEN_MEMBER.test(outside[2] ?? "")) {
-      const name = outside[1] ?? "";
+    if (outside !== null && !FORBIDDEN_MEMBER.test(capturedText(outside, 2))) {
+      const name = capturedText(outside, 1);
       const entry = classFor(name);
-      members.get(name)?.push(outside[2] ?? "");
+      members.get(name)?.push(capturedText(outside, 2));
       lines.set(name, {
         ...entry,
         members: [...entry.members, { line, inBlock: false }],

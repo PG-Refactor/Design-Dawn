@@ -79,6 +79,4 @@ export const SEQUENCE_WRAP_BLOCKS = [
 export type SequenceWrapBlock = (typeof SEQUENCE_WRAP_BLOCKS)[number];
 // How a text is joined to the keyword of a block header or branch (`loop retry`).
 export const SEQUENCE_KEYWORD_TEXT_SEPARATOR = " ";
-// The indentation unit used when nothing in the file shows one.
-export const SEQUENCE_TAB_INDENT = "\t";
 export const SEQUENCE_COPY_COLON = ": ";

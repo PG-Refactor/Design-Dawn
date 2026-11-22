@@ -418,7 +418,7 @@ export const FLOWCHART_STYLE_FORBIDDEN_SEQUENCES: readonly string[] = [
   "--",
   "-.",
   ":::",
-  "%%",
+  FLOWCHART_COMMENT_MARK,
 ];
 
 export const FLOWCHART_CLICK_TARGETS = [

@@ -8,6 +8,7 @@
 // Anything else (aliases, a second block for the same entity, direction ...) makes the
 // diagram read-only in the GUI.
 
+import { capturedText } from "../../shared/captured-text";
 import { type DomainResult, ok } from "../../shared/domain-result";
 import type { DiagramEditorEntry } from "../diagram-source";
 import type { ClassifiedLine, LineRef } from "../source-lines";
@@ -165,17 +166,17 @@ export function readEr(source: string): ErRead {
         continue;
       }
       entityFor(openBlock.name).attributes.push({
-        type: attribute[1] ?? "",
-        name: attribute[2] ?? "",
+        type: capturedText(attribute, 1),
+        name: capturedText(attribute, 2),
         keys: parseKeys(attribute[3]),
-        comment: attribute[4] ?? "",
+        comment: capturedText(attribute, 4),
       });
       openBlock.attributes.push(line);
       continue;
     }
     const open = BLOCK_OPEN.exec(line.text);
     if (open !== null) {
-      const name = open[1] ?? "";
+      const name = capturedText(open, 1);
       const existing = entities.get(name)?.lines;
       // A second declaration of the same entity: Mermaid merges them, the GUI does not.
       if (
@@ -190,8 +191,8 @@ export function readEr(source: string): ErRead {
     }
     const relationship = RELATIONSHIP.exec(line.text);
     if (relationship !== null) {
-      const left = relationship[1] ?? "";
-      const right = relationship[5] ?? "";
+      const left = capturedText(relationship, 1);
+      const right = capturedText(relationship, 5);
       entityFor(left);
       entityFor(right);
       relationships.push({
@@ -200,14 +201,14 @@ export function readEr(source: string): ErRead {
         identifying: relationship[3] === "--",
         rightCardinality: relationship[4] as ErRightCardinality,
         right,
-        label: relationship[6] ?? relationship[7] ?? "",
+        label: relationship[6] ?? capturedText(relationship, 7),
       });
       relationshipLines.push(line);
       continue;
     }
     const bare = BARE_ENTITY.exec(line.text);
     if (bare !== null) {
-      const name = bare[1] ?? "";
+      const name = capturedText(bare, 1);
       const existing = entities.get(name)?.lines;
       if (
         existing !== undefined &&

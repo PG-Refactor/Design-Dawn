@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef } from "react";
 import { LAYOUT_CONFIG } from "../../config/layout-config";
+import { IconFrame } from "../../shared/icons/icon-frame";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { clearNotice } from "./ui-state/shell-ui-state";
 import type { UiState } from "./ui-state/ui-state";
@@ -21,6 +22,12 @@ import { useWorkspaceServices } from "./workspace-services-context";
 import "./notifications.css";
 
 const SEVERITY_ICON = { error: "✖", warning: "⚠" } as const;
+
+// The bell of the notifications button, drawn in its own 24 x 24 box.
+const BELL_VIEW_BOX = "0 0 24 24";
+const BELL_STROKE_WIDTH = 2;
+const BELL_PATH =
+  "M12 3a6 6 0 0 0-6 6v4l-2 3h16l-2-3V9a6 6 0 0 0-6-6zm-2 15a2 2 0 0 0 4 0";
 
 const identity = <Value,>(value: Value): Value => value;
 const selectOperationErrors = (ui: UiState) => ui.operationErrors;
@@ -265,23 +272,13 @@ export function Notifications() {
         aria-controls={panelId}
         onClick={() => actions.setNotificationsOpen(!open)}
       >
-        <svg
+        <IconFrame
           className="notifications__icon"
-          viewBox="0 0 24 24"
-          width="16"
-          height="16"
-          aria-hidden="true"
-          focusable="false"
+          strokeWidth={BELL_STROKE_WIDTH}
+          viewBox={BELL_VIEW_BOX}
         >
-          <path
-            d="M12 3a6 6 0 0 0-6 6v4l-2 3h16l-2-3V9a6 6 0 0 0-6-6zm-2 15a2 2 0 0 0 4 0"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+          <path d={BELL_PATH} />
+        </IconFrame>
         {total > 0 ? (
           <span className="notifications__badge" aria-hidden="true">
             {total}

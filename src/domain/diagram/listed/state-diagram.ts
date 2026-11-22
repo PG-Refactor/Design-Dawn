@@ -11,6 +11,7 @@
 // Anything else (composite states, notes, forks, choices, styles ...) makes the diagram
 // read-only in the GUI.
 
+import { capturedText } from "../../shared/captured-text";
 import { type DomainResult, ok } from "../../shared/domain-result";
 import type { DiagramEditorEntry } from "../diagram-source";
 import type { ClassifiedLine, LineRef } from "../source-lines";
@@ -116,34 +117,38 @@ export function readState(source: string): StateRead {
   for (const line of read.statements) {
     const transition = TRANSITION.exec(line.text);
     if (transition !== null) {
-      const from = transition[1] ?? "";
-      const to = transition[2] ?? "";
+      const from = capturedText(transition, 1);
+      const to = capturedText(transition, 2);
       note(from);
       note(to);
-      transitions.push({ from, to, label: transition[3] ?? "" });
+      transitions.push({ from, to, label: capturedText(transition, 3) });
       transitionLines.push(line);
       continue;
     }
     const declared = DECLARED.exec(line.text);
     if (declared !== null) {
-      describe(line, declared[2] ?? "", declared[1] ?? "");
+      describe(line, capturedText(declared, 2), capturedText(declared, 1));
       continue;
     }
     const bare = BARE.exec(line.text);
     if (bare !== null) {
-      describe(line, bare[1] ?? "", "");
-      declaredOnly.add(bare[1] ?? "");
+      describe(line, capturedText(bare, 1), "");
+      declaredOnly.add(capturedText(bare, 1));
       continue;
     }
     if (DIRECTION.test(line.text)) continue;
     const idOnly = ID_ONLY.exec(line.text);
     if (idOnly !== null) {
-      describe(line, idOnly[1] ?? "", "");
+      describe(line, capturedText(idOnly, 1), "");
       continue;
     }
     const description = DESCRIPTION.exec(line.text);
     if (description !== null) {
-      describe(line, description[1] ?? "", description[2] ?? "");
+      describe(
+        line,
+        capturedText(description, 1),
+        capturedText(description, 2),
+      );
       continue;
     }
     unsupported.push(lineRef(line));

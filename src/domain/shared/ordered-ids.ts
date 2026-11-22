@@ -17,16 +17,6 @@ export function findDuplicate<Id extends string>(
   return null;
 }
 
-export function ensureUniqueIds<Id extends string>(
-  ids: readonly Id[],
-): DomainResult<readonly Id[]> {
-  const duplicate = findDuplicate(ids);
-  if (duplicate !== null) {
-    return err("duplicateId", `duplicate id: ${duplicate}`);
-  }
-  return ok(ids);
-}
-
 export function addToOrder<Id extends string>(
   order: readonly Id[],
   id: Id,

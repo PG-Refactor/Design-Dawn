@@ -36,8 +36,6 @@ export const GANTT_MAX_YEAR = 9999;
 // zero-length task.
 export const GANTT_DURATION_PATTERN = /^(\d+(?:\.\d+)?)(ms|[Mdhmswy])$/;
 export const GANTT_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
-// A generated id starts with a letter, so it is never mistaken for a number or a date.
-export const GANTT_GENERATED_ID_PATTERN = /^[A-Za-z][A-Za-z0-9_-]*$/;
 export const GANTT_GENERATED_ID_PREFIX = "gt";
 // Mermaid names a task without an id `task<N>`; an explicit id of that shape would collide.
 export const GANTT_AUTO_ID_PATTERN = /^task\d+$/;

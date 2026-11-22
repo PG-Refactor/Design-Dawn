@@ -246,7 +246,7 @@ function findAtBlockEnd(text: string, position: number): number {
     if (quote !== null) {
       if (character === "\\") index += 1;
       else if (character === quote) quote = null;
-    } else if (character === '"' || character === "'") {
+    } else if (character === FLOWCHART_STRING_QUOTE || character === "'") {
       quote = character;
     } else if (character === "{") {
       depth += 1;
@@ -269,7 +269,7 @@ function splitAtBlockBody(
     const character = body.charAt(index);
     if (quote !== null) {
       if (character === quote) quote = null;
-    } else if (character === '"' || character === "'") {
+    } else if (character === FLOWCHART_STRING_QUOTE || character === "'") {
       quote = character;
     } else if (character === ",") {
       parts.push({ start: partStart, end: index });
@@ -313,12 +313,13 @@ function readAtEntry(
   const rawValue = scan.text.slice(valueStart, valueEnd);
   let quoted = false;
   let valueToken: FlowchartToken;
-  if (rawValue.startsWith('"')) {
-    if (rawValue.length < 2 || !rawValue.endsWith('"')) {
+  if (rawValue.startsWith(FLOWCHART_STRING_QUOTE)) {
+    if (rawValue.length < 2 || !rawValue.endsWith(FLOWCHART_STRING_QUOTE)) {
       return failed("atBlockMalformed");
     }
     const inner = rawValue.slice(1, -1);
-    if (inner.includes('"')) return failed("atBlockMalformed");
+    if (inner.includes(FLOWCHART_STRING_QUOTE))
+      return failed("atBlockMalformed");
     if (inner.length === 0) return failed("atBlockUnsupportedValue");
     quoted = true;
     valueToken = tokenOf(scan, valueStart + 1, valueEnd - 1);

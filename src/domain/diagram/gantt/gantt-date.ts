@@ -126,13 +126,6 @@ export function parseGanttDate(
   return value;
 }
 
-export function isGanttDateText(
-  format: GanttDateFormat,
-  text: string,
-): boolean {
-  return parseGanttDate(format, text) !== null;
-}
-
 export function formatGanttDate(
   format: GanttDateFormat,
   value: number,
