@@ -2,6 +2,7 @@
 // asked. The signal carries no data: what changed is
 // Git's to say, not ours.
 
+import { createListenerSet } from "../listener-set";
 import type { PersistenceGateway } from "../ports/persistence-gateway";
 import type { TemplateGateway } from "../ports/template-gateway";
 
@@ -12,37 +13,13 @@ export interface ProjectWriteSignal {
   subscribe(listener: ProjectWriteListener): () => void;
 }
 
-// Rethrown outside the notifying call so it surfaces as an unhandled error.
-function rethrowLater(failure: unknown): void {
-  queueMicrotask(() => {
-    throw failure;
-  });
-}
-
 export function createProjectWriteSignal(
-  reportListenerFailure: (failure: unknown) => void = rethrowLater,
+  reportListenerFailure?: (failure: unknown) => void,
 ): ProjectWriteSignal {
-  const listeners = new Set<{ readonly listener: ProjectWriteListener }>();
+  const listeners = createListenerSet<void>(reportListenerFailure);
   return {
-    notify() {
-      for (const subscription of [...listeners]) {
-        if (!listeners.has(subscription)) continue;
-        try {
-          subscription.listener();
-        } catch (failure) {
-          // A faulty subscriber must not break the save that is notifying, but the
-          // failure must not vanish either.
-          reportListenerFailure(failure);
-        }
-      }
-    },
-    subscribe(listener) {
-      const subscription = { listener };
-      listeners.add(subscription);
-      return () => {
-        listeners.delete(subscription);
-      };
-    },
+    notify: () => listeners.notify(),
+    subscribe: listeners.subscribe,
   };
 }
 
@@ -139,8 +116,10 @@ function decorateWrites<Gateway extends object>(
 ): Gateway {
   const decorated: Record<string, GatewayMethod> = {};
   for (const [name, kind] of Object.entries(kinds)) {
-    const method = (gateway as unknown as Record<string, GatewayMethod>)[name];
-    if (method === undefined) continue;
+    // `kinds` lists exactly the methods of the gateway.
+    const method = (gateway as unknown as Record<string, GatewayMethod>)[
+      name
+    ] as GatewayMethod;
     decorated[name] =
       kind === "write"
         ? async (...args) => {

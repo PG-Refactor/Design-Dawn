@@ -107,3 +107,22 @@ describe("blockToReveal", () => {
     expect(blockToReveal(comparison, null, textPath(1))).toBeNull();
   });
 });
+
+describe("comparison edges", () => {
+  it("is null when only removals changed, and marks the one Block that moved to the front", () => {
+    const before = version([block(1), block(2), block(3)], {});
+    const removedOnly = compareSheetVersions(before, version([block(1)], {}));
+    expect(
+      blockToReveal(removedOnly, version([block(1)], {}).sheet, null),
+    ).toBeNull();
+    const toFront = compareSheetVersions(
+      before,
+      version([block(2), block(3), block(1)], {}),
+    );
+    expect(
+      toFront.changes
+        .filter((change) => change.order)
+        .map((change) => change.blockId),
+    ).toEqual([ID(1)]);
+  });
+});
