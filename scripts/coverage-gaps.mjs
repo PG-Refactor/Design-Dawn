@@ -44,7 +44,10 @@ if (args[0] === SUMMARY_FLAG) {
   for (const [file, missed] of rows) console.log(`${missed}\t${file}`);
 } else {
   for (const target of args) {
-    const wanted = relative(process.cwd(), resolve(target)).replaceAll("\\", "/");
+    const wanted = relative(process.cwd(), resolve(target)).replaceAll(
+      "\\",
+      "/",
+    );
     const found = entries.find(([file]) => file === wanted);
     if (found === undefined) {
       console.log(`== ${wanted}: not in the report`);
