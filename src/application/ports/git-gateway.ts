@@ -17,6 +17,16 @@ export const GIT_REPOSITORY_STATES = [
 
 export type GitRepositoryState = (typeof GIT_REPOSITORY_STATES)[number];
 
+// What git left unfinished: stopped on a conflict, or before its commit.
+export const GIT_UNFINISHED_OPERATIONS = [
+  "merge",
+  "cherryPick",
+  "revert",
+  "rebase",
+] as const;
+
+export type GitUnfinishedOperation = (typeof GIT_UNFINISHED_OPERATIONS)[number];
+
 export const GIT_FILE_CHANGES = [
   "unmodified",
   "modified",
@@ -80,6 +90,8 @@ export interface GitStatus {
   readonly files: readonly GitFileStatus[];
   // Only for a `ready` repository, when it was looked at.
   readonly longPaths?: GitLongPaths;
+  // Absent when nothing is unfinished (or it could not be told).
+  readonly operation?: GitUnfinishedOperation;
 }
 
 export const GIT_DIFF_SIDES = ["unstaged", "staged"] as const;
@@ -283,6 +295,10 @@ export interface GitGateway {
   undoLastCommit(
     projectId: ProjectId,
   ): Promise<OperationResult<GitUndoCommitResult>>;
+  // Aborts the unfinished merge (`git merge --abort`): back to before the merge. Rewrites
+  // working tree files: the caller saves first and reloads afterwards. Nothing unfinished
+  // is not an error; another unfinished operation is `gitOperationInProgress`.
+  abortMerge(projectId: ProjectId): Promise<OperationResult<GitRemoteResult>>;
   // Fetches from the branch's remote (needs a remote: `gitNoRemote`). The working tree is
   // not changed. Authentication is the user's own git setup; nothing is asked here.
   fetch(projectId: ProjectId): Promise<OperationResult<GitRemoteResult>>;

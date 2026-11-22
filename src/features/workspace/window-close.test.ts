@@ -326,3 +326,65 @@ describe("a window that edits a Custom Template", () => {
     expect(calls).toEqual([`confirm:${TOKEN}`]);
   });
 });
+
+describe("window close while printing", () => {
+  function printingSetup(stop: boolean) {
+    const source = createFakeCloseRequestSource();
+    const calls: string[] = [];
+    const handler = createWindowCloseHandler(() => ({
+      needsConfirmation: () => false,
+      askUnsavedClose: () => Promise.resolve("cancel" as UnsavedCloseChoice),
+      saveAll: async () => {
+        calls.push("saveAll");
+        return operationOk(undefined);
+      },
+      finishViewportSaves: async () => undefined,
+      printing: {
+        isOpen: async () => true,
+        confirmStop: async () => {
+          calls.push("askStop");
+          return stop;
+        },
+        closeAll: async () => {
+          calls.push("closePrint");
+        },
+        setHidden: async (hidden) => {
+          calls.push(hidden ? "hidePrint" : "showPrint");
+        },
+      },
+      closeRequestSource: {
+        subscribe: source.subscribe,
+        confirmClose: (token) => {
+          calls.push(`confirm:${token}`);
+          return source.confirmClose(token);
+        },
+        bringForward: () => {
+          calls.push("forward");
+          return Promise.resolve();
+        },
+      },
+    }));
+    return { handler, calls };
+  }
+
+  it("puts the print window out of the way of the question", async () => {
+    const { handler, calls } = printingSetup(true);
+    await handler({ subscriptionToken: TOKEN });
+    await settle();
+    expect(calls.slice(0, 4)).toEqual([
+      "forward",
+      "hidePrint",
+      "askStop",
+      "closePrint",
+    ]);
+    expect(calls).toContain(`confirm:${TOKEN}`);
+  });
+
+  it("brings the print window back when printing goes on", async () => {
+    const { handler, calls } = printingSetup(false);
+    await handler({ subscriptionToken: TOKEN });
+    await settle();
+    expect(calls).toEqual(["forward", "hidePrint", "askStop", "showPrint"]);
+    expect(handler.isClosing()).toBe(false);
+  });
+});

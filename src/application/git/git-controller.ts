@@ -68,6 +68,7 @@ export const GIT_RUNNING_OPERATIONS = [
   "pull",
   "push",
   "publish",
+  "abortMerge",
 ] as const;
 
 export type GitRunningOperation = (typeof GIT_RUNNING_OPERATIONS)[number];
@@ -121,6 +122,7 @@ export const GIT_OPERATION_LABELS = [
   "pullGit",
   "pushGit",
   "publishGit",
+  "abortGitMerge",
   "loadGitHistory",
 ] as const;
 
@@ -205,6 +207,9 @@ export interface GitController {
   pull(): Promise<OperationResult<void>>;
   push(): Promise<OperationResult<void>>;
   publish(remote: string): Promise<OperationResult<void>>;
+  // Like `pull` (rewrites working tree files; reported as `abortGitMerge`): back to before
+  // the unfinished merge (`runAbortMerge` saves first and reloads).
+  abortMerge(): Promise<OperationResult<void>>;
   // Names of the remotes. A plain read like `discardImpact` (no state, no queue): the
   // failure is returned, not reported, because the caller decides whether to ask.
   remotes(): Promise<OperationResult<readonly string[]>>;
@@ -262,7 +267,7 @@ const INDEX_OPERATION_LABELS: Record<IndexOperation, GitOperationLabel> = {
 
 type RemoteOperation = Extract<
   GitRunningOperation,
-  "fetch" | "pull" | "push" | "publish"
+  "fetch" | "pull" | "push" | "publish" | "abortMerge"
 >;
 
 const REMOTE_OPERATION_LABELS: Record<RemoteOperation, GitOperationLabel> = {
@@ -270,6 +275,7 @@ const REMOTE_OPERATION_LABELS: Record<RemoteOperation, GitOperationLabel> = {
   pull: "pullGit",
   push: "pushGit",
   publish: "publishGit",
+  abortMerge: "abortGitMerge",
 };
 
 export function createGitController(
@@ -822,6 +828,7 @@ export function createGitController(
     undoLastCommit,
     fetch: () => runRemote("fetch", (id) => gateway.fetch(id)),
     pull: () => runRemote("pull", (id) => gateway.pull(id)),
+    abortMerge: () => runRemote("abortMerge", (id) => gateway.abortMerge(id)),
     push: () => runRemote("push", (id) => gateway.push(id)),
     publish: (remote) =>
       runRemote("publish", (id) => gateway.publish(id, remote)),

@@ -81,6 +81,7 @@ const OPERATION_HEADLINES: Record<OperationLabel, string> = {
   pullGit: "Could not pull",
   pushGit: "Could not push",
   publishGit: "Could not publish the branch",
+  abortGitMerge: "Could not abort the merge",
   repairLoadIssue: "Could not repair the issue",
   updateFileFormat: "Could not update the file format",
   loadGitHistory: "Could not get the history",

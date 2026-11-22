@@ -18,8 +18,10 @@ use std::process::Command;
 
 use design_dawn_lib::application::error::ErrorKind;
 use design_dawn_lib::application::git_commit::{
-    commit_staged, commit_with_options, GitCommitOptions, GitCommitResult, GitCommitStatus,
+    abort_merge, commit_staged, commit_with_options, GitCommitOptions, GitCommitResult,
+    GitCommitStatus,
 };
+use design_dawn_lib::application::git_operations::GitUnfinishedOperation;
 use design_dawn_lib::application::git_operations::{
     read_git_status, GitFileChange, GitStatusResult,
 };
@@ -516,6 +518,32 @@ fn amending_during_a_merge_is_refused() {
     .expect_err("refused");
     assert_eq!(error.kind, ErrorKind::GitOperationInProgress);
     assert_eq!(fixture.head(&project), before);
+}
+
+#[test]
+fn the_status_tells_an_unfinished_merge_and_abort_merge_ends_it() {
+    let fixture = fixture_or_skip!();
+    let project = merge_waiting_for_its_commit(&fixture);
+    let before_merge = fixture.git_output(&project, &["rev-parse", "HEAD"]);
+    let status = read_git_status(Some(&fixture.runner()), &project).unwrap();
+    assert_eq!(
+        status.repository.operation,
+        Some(GitUnfinishedOperation::Merge)
+    );
+
+    let result = abort_merge(Some(&fixture.runner()), &project).expect("aborted");
+    let GitCommitStatus::Updated { status } = result.status else {
+        panic!("the status is read after the abort");
+    };
+    assert_eq!(status.repository.operation, None);
+    assert_eq!(
+        fixture.git_output(&project, &["rev-parse", "HEAD"]),
+        before_merge
+    );
+    // What the merge brought is gone.
+    assert!(!project.join("side.md").exists());
+    // Nothing unfinished any more: aborting again is not an error.
+    abort_merge(Some(&fixture.runner()), &project).expect("nothing to abort");
 }
 
 #[test]

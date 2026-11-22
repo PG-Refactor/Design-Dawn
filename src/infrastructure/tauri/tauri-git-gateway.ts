@@ -1,5 +1,6 @@
 import type { GitGateway } from "../../application/ports/git-gateway";
 import {
+  gitAbortMerge,
   gitCommit,
   gitConflictVersions,
   gitDiff,
@@ -38,6 +39,7 @@ export function createTauriGitGateway(): GitGateway {
     history: gitHistory,
     fetch: gitFetch,
     pull: gitPull,
+    abortMerge: gitAbortMerge,
     push: gitPush,
     publish: gitPublish,
     remotes: gitRemotes,

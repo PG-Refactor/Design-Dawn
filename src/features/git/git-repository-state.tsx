@@ -6,6 +6,7 @@ import { useWorkspaceServices } from "../workspace/workspace-services-context";
 import { GitChangeList } from "./git-change-list";
 import { GitCommitBox } from "./git-commit-box";
 import { GitHistorySection } from "./git-history-section";
+import { GitUnfinishedBanner } from "./git-unfinished-banner";
 import { refreshGitView } from "./git-view-refresh";
 
 // What the panel knows, decided from the Git state only.
@@ -83,6 +84,9 @@ export function GitRepositoryState() {
           >
             {messages.repositoryStates[view.status.repositoryState]}
           </p>
+          {view.status.operation === undefined ? null : (
+            <GitUnfinishedBanner operation={view.status.operation} />
+          )}
           {view.status.repositoryState === "ready" ? (
             <div className="git-panel__changes">
               <GitCommitBox status={view.status} />
