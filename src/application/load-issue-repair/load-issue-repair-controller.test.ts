@@ -39,7 +39,12 @@ interface Setup {
   readonly controller: LoadIssueRepairController;
   // Everything the controller did, in order.
   readonly log: string[];
-  readonly state: { unsaved: boolean; blocked: boolean; saveFails: boolean };
+  readonly state: {
+    unsaved: boolean;
+    blocked: boolean;
+    saveFails: boolean;
+    reloadFails: boolean;
+  };
   readonly failures: { operation: RepairOperation; error: OperationError }[];
   readonly done: RepairDone[];
 }
@@ -47,7 +52,12 @@ interface Setup {
 async function setup(): Promise<Setup> {
   const harness = await openedDocumentA();
   const log: string[] = [];
-  const state = { unsaved: false, blocked: false, saveFails: false };
+  const state = {
+    unsaved: false,
+    blocked: false,
+    saveFails: false,
+    reloadFails: false,
+  };
   const failures: Setup["failures"] = [];
   const done: RepairDone[] = [];
   const controller = createLoadIssueRepairController({
@@ -63,11 +73,15 @@ async function setup(): Promise<Setup> {
     reload: {
       document: async (documentId) => {
         log.push(`reload:document:${documentId}`);
-        return operationOk(undefined);
+        return state.reloadFails
+          ? operationErr("ioError", "unreadable")
+          : operationOk(undefined);
       },
       project: async () => {
         log.push("reload:project");
-        return operationOk(undefined);
+        return state.reloadFails
+          ? operationErr("ioError", "unreadable")
+          : operationOk(undefined);
       },
     },
     underBusy: async (task) => {
@@ -320,6 +334,41 @@ const ALL_ACTIONS: readonly RepairAction[] = [
   "addAsBlock",
   "deleteTempFile",
 ];
+describe("LoadIssueRepairController edges", () => {
+  it("reports a reading that fails after a repair and after a format update", async () => {
+    const { harness, controller, state, failures, done } = await setup();
+    state.reloadFails = true;
+    controller.requestReload(DOCUMENT_TARGET);
+    await controller.confirm();
+    harness.gateway.setFormatUpdate({ updated: ["project.json"] });
+    controller.requestFormatUpdate(["project.json"]);
+    await controller.confirm();
+    expect(failures.map((failure) => failure.operation)).toEqual([
+      "repairLoadIssue",
+      "updateFileFormat",
+    ]);
+    expect(done).toEqual([]);
+  });
+
+  it("does not cancel a change that is running", async () => {
+    const { controller } = await setup();
+    controller.requestReload(DOCUMENT_TARGET);
+    const running = controller.confirm();
+    controller.cancel();
+    expect(controller.store.getState().status).toBe("running");
+    await running;
+  });
+
+  it("asks nothing and does nothing without an open Project", async () => {
+    const { harness, controller } = await setup();
+    harness.store.setState((current) => ({ ...current, project: null }));
+    await controller.request(DOCUMENT_TARGET, ISSUE, "deleteFile");
+    controller.requestReload(DOCUMENT_TARGET);
+    await controller.confirm();
+    expect(harness.gateway.repairRequests).toEqual([]);
+  });
+});
+
 describe("repair catalog", () => {
   it("lists only known actions for every issue kind", async () => {
     const { REPAIR_ACTIONS_BY_ISSUE_KIND } = await import("./repair-catalog");
