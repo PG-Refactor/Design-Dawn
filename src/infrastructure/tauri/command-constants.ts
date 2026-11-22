@@ -71,6 +71,7 @@ export const COMMANDS = {
   assetDataUrl: "asset_data_url",
   aiHistory: "ai_history",
   gitConflictVersions: "git_conflict_versions",
+  gitResolveConflictWithSide: "git_resolve_conflict_with_side",
   gitSheetVersions: "git_sheet_versions",
   gitResolveConflict: "git_resolve_conflict",
   selectImageFiles: "select_image_files",

@@ -15,7 +15,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use design_dawn_lib::application::error::ErrorKind;
-use design_dawn_lib::application::git_conflict::{read_conflict_versions, resolve_conflict};
+use design_dawn_lib::application::git_conflict::{
+    read_conflict_versions, resolve_conflict, resolve_conflict_with_side, ConflictSide,
+};
 use design_dawn_lib::application::git_operations::GitFileChange;
 use design_dawn_lib::infrastructure::git::executable::find_git_executable;
 use design_dawn_lib::infrastructure::git::runner::GitRunner;
@@ -195,4 +197,95 @@ fn a_path_that_is_not_conflicted_is_refused() {
     )
     .unwrap_err();
     assert_eq!(escape.kind, ErrorKind::InvalidGitPath);
+}
+
+fn svg(colour: &str) -> String {
+    format!(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"10\" height=\"10\">\n<rect width=\"10\" height=\"10\" fill=\"{colour}\"/>\n</svg>\n"
+    )
+}
+
+const PICTURE: &str = "documents/d/assets/picture.svg";
+
+#[test]
+fn a_conflicted_picture_shows_each_version_and_is_resolved_with_the_chosen_side() {
+    let Some(repository) = Repository::new() else {
+        return;
+    };
+    repository.conflict(PICTURE, &svg("gray"), &svg("red"), &svg("blue"));
+    let runner = repository.runner();
+    let versions = read_conflict_versions(Some(&runner), root_of(&repository), PICTURE).unwrap();
+    let images = versions.images.expect("a picture has picture versions");
+    for version in [&images.base, &images.ours, &images.theirs] {
+        let url = version.as_deref().expect("every side has the picture");
+        assert!(url.starts_with("data:image/svg+xml;base64,"), "{url}");
+    }
+    assert_ne!(images.ours, images.theirs);
+    assert!(!images.ours_deleted && !images.theirs_deleted);
+
+    let status = resolve_conflict_with_side(
+        Some(&runner),
+        root_of(&repository),
+        PICTURE,
+        ConflictSide::Theirs,
+    )
+    .unwrap();
+    assert_eq!(
+        fs::read_to_string(repository.root.join(PICTURE)).unwrap(),
+        svg("blue")
+    );
+    let file = status
+        .files
+        .iter()
+        .find(|file| file.path == PICTURE)
+        .unwrap();
+    assert_ne!(file.worktree_status, GitFileChange::Unmerged);
+    assert_ne!(file.index_status, GitFileChange::Unmerged);
+}
+
+#[test]
+fn choosing_the_side_that_deleted_the_picture_deletes_it() {
+    let Some(repository) = Repository::new() else {
+        return;
+    };
+    repository.write(PICTURE, &svg("gray"));
+    repository.commit("base");
+    repository.git(&["checkout", "-q", "-b", "other"]);
+    repository.git(&["rm", "-q", PICTURE]);
+    repository.commit("theirs deleted");
+    repository.git(&["checkout", "-q", "main"]);
+    repository.write(PICTURE, &svg("red"));
+    repository.commit("ours");
+    assert!(!repository.git_ok(&["merge", "-q", "other"]));
+    let runner = repository.runner();
+    let versions = read_conflict_versions(Some(&runner), root_of(&repository), PICTURE).unwrap();
+    let images = versions.images.unwrap();
+    assert!(images.ours.is_some());
+    assert!(images.theirs.is_none());
+    assert!(!images.ours_deleted);
+    assert!(images.theirs_deleted);
+
+    let status = resolve_conflict_with_side(
+        Some(&runner),
+        root_of(&repository),
+        PICTURE,
+        ConflictSide::Theirs,
+    )
+    .unwrap();
+    assert!(!repository.root.join(PICTURE).exists());
+    assert!(status.files.iter().all(|file| file.path != PICTURE
+        || (file.index_status != GitFileChange::Unmerged
+            && file.worktree_status != GitFileChange::Unmerged)));
+}
+
+#[test]
+fn a_text_file_has_no_picture_versions() {
+    let Some(repository) = Repository::new() else {
+        return;
+    };
+    let path = "documents/d/sheets/s/blocks/markdown-1.md";
+    repository.conflict(path, "base\n", "ours\n", "theirs\n");
+    let versions =
+        read_conflict_versions(Some(&repository.runner()), root_of(&repository), path).unwrap();
+    assert_eq!(versions.images, None);
 }

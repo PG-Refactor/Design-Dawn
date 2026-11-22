@@ -86,7 +86,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 114] = [
+pub const COMMAND_NAMES: [&str; 115] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -164,6 +164,7 @@ pub const COMMAND_NAMES: [&str; 114] = [
     "git_conflict_versions",
     "git_sheet_versions",
     "git_resolve_conflict",
+    "git_resolve_conflict_with_side",
     "copy_asset_to_document",
     "subscribe_drop_notifications",
     "subscribe_close_requests",
@@ -1781,6 +1782,24 @@ pub async fn git_resolve_conflict<R: Runtime>(
     run_blocking(move || {
         let sessions = app.state::<Mutex<ProjectSessions>>();
         git_conflict::git_resolve_conflict(&sessions, &project_id, &path, &content)
+    })
+    .await
+}
+
+/// Resolves a conflicted file of the calling window's Project with one side's file as it is
+/// (a picture is chosen by looking) and stages it; returns the status after.
+#[tauri::command]
+pub async fn git_resolve_conflict_with_side<R: Runtime>(
+    app: AppHandle<R>,
+    window: Window<R>,
+    project_id: String,
+    path: String,
+    side: git_conflict::ConflictSide,
+) -> Result<GitStatusResult, ApplicationError> {
+    ensure_window_project(&window, &project_id)?;
+    run_blocking(move || {
+        let sessions = app.state::<Mutex<ProjectSessions>>();
+        git_conflict::git_resolve_conflict_with_side(&sessions, &project_id, &path, side)
     })
     .await
 }

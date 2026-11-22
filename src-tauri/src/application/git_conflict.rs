@@ -5,8 +5,9 @@
 use std::path::Path;
 use std::sync::Mutex;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
+use super::asset_import::base64;
 use super::error::{ApplicationError, ApplicationResult, ErrorKind};
 use super::export_markdown::write_file_atomically;
 use super::git_operations::{
@@ -15,8 +16,11 @@ use super::git_operations::{
 };
 use super::session::ProjectSessions;
 use super::sheet_merge::merge_sheet;
-use crate::infrastructure::file_format::constants::SHEET_FILE_NAME;
-use crate::infrastructure::git::constants::GIT_COMMAND_TIMEOUT;
+use crate::infrastructure::file_format::constants::{ASSET_MAX_BYTES, SHEET_FILE_NAME};
+use crate::infrastructure::file_format::image_validation::{validate_image_content, ImageFormat};
+use crate::infrastructure::git::constants::{
+    ARG_QUIET, ARG_REV_PARSE, ARG_VERIFY, GIT_COMMAND_TIMEOUT,
+};
 use crate::infrastructure::git::runner::GitRunner;
 
 const ARG_SHOW: &str = "show";
@@ -43,6 +47,96 @@ pub struct ConflictVersions {
     pub merged: Option<String>,
     /// For `sheet.json`: the Block ids (and fields) that both sides changed differently.
     pub conflicting_blocks: Vec<String>,
+    /// For a picture (by its extension): each version as a data URL, to choose between by
+    /// looking. Absent for other files.
+    pub images: Option<ConflictImages>,
+}
+
+/// The versions of a conflicted picture; a side is absent when it has no such file (or it
+/// is not a valid picture of its format, or too large to show).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConflictImages {
+    pub base: Option<String>,
+    pub ours: Option<String>,
+    pub theirs: Option<String>,
+    /// The side deleted the file (choosing it deletes the file).
+    pub ours_deleted: bool,
+    pub theirs_deleted: bool,
+}
+
+/// Which side's file a conflict is resolved with (for files that cannot be merged by text).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ConflictSide {
+    Ours,
+    Theirs,
+}
+
+impl ConflictSide {
+    fn stage(self) -> u8 {
+        match self {
+            Self::Ours => STAGE_OURS,
+            Self::Theirs => STAGE_THEIRS,
+        }
+    }
+}
+
+fn picture_size_limit() -> usize {
+    usize::try_from(ASSET_MAX_BYTES).unwrap_or(usize::MAX)
+}
+
+/// The bytes of one stage; `None` when the stage has no file or it cannot be read whole.
+fn show_stage_bytes(
+    runner: &GitRunner,
+    root: &Path,
+    stage: u8,
+    path: &str,
+    max_bytes: usize,
+) -> Option<Vec<u8>> {
+    let object = format!(":{stage}:{path}");
+    let output = runner
+        .run_with_stdout_limit(
+            &[ARG_SHOW, object.as_str()],
+            root,
+            None,
+            GIT_COMMAND_TIMEOUT,
+            max_bytes,
+        )
+        .ok()?;
+    (output.success() && !output.stdout_truncated).then_some(output.stdout)
+}
+
+fn stage_picture(runner: &GitRunner, root: &Path, stage: u8, path: &str) -> Option<String> {
+    let format = ImageFormat::from_file_name(path)?;
+    let bytes = show_stage_bytes(runner, root, stage, path, picture_size_limit())?;
+    validate_image_content(format, &bytes).ok()?;
+    Some(format!(
+        "data:{};base64,{}",
+        format.mime_type(),
+        base64(&bytes)
+    ))
+}
+
+/// Whether the stage has a file (a side that deleted the file has none).
+fn stage_exists(runner: &GitRunner, root: &Path, stage: u8, path: &str) -> ApplicationResult<bool> {
+    let object = format!(":{stage}:{path}");
+    let output = runner
+        .run(
+            &[ARG_REV_PARSE, ARG_VERIFY, ARG_QUIET, object.as_str()],
+            root,
+            None,
+            GIT_COMMAND_TIMEOUT,
+        )
+        .map_err(|error| super::git_operations::run_error("rev-parse", error))?;
+    match output.exit_code() {
+        Some(0) => Ok(true),
+        Some(1) => Ok(false),
+        code => Err(ApplicationError::new(
+            ErrorKind::GitCommandFailed,
+            format!("git rev-parse of a conflict stage exited with {code:?}"),
+        )),
+    }
 }
 
 fn show_stage(runner: &GitRunner, root: &Path, stage: u8, path: &str) -> Option<String> {
@@ -113,6 +207,16 @@ pub fn read_conflict_versions(
         }
         _ => (None, Vec::new()),
     };
+    let images = match ImageFormat::from_file_name(&path) {
+        None => None,
+        Some(_) => Some(ConflictImages {
+            base: stage_picture(&runner, root, STAGE_BASE, &path),
+            ours: stage_picture(&runner, root, STAGE_OURS, &path),
+            theirs: stage_picture(&runner, root, STAGE_THEIRS, &path),
+            ours_deleted: !stage_exists(&runner, root, STAGE_OURS, &path)?,
+            theirs_deleted: !stage_exists(&runner, root, STAGE_THEIRS, &path)?,
+        }),
+    };
     Ok(ConflictVersions {
         path,
         base,
@@ -121,6 +225,7 @@ pub fn read_conflict_versions(
         current,
         merged,
         conflicting_blocks,
+        images,
     })
 }
 
@@ -135,6 +240,48 @@ pub fn resolve_conflict(
     let path = require_conflicted(&ready, root, path)?;
     write_file_atomically(&root.join(&path), content.as_bytes())?;
     stage_paths(Some(&ready), root, &[path])
+}
+
+/// Resolves the conflict with one side's file as it is (byte for byte, for a picture or any
+/// file that cannot be merged as text) and stages it. A side without the file resolves it
+/// by deleting the file.
+pub fn resolve_conflict_with_side(
+    runner: Option<&GitRunner>,
+    root: &Path,
+    path: &str,
+    side: ConflictSide,
+) -> ApplicationResult<GitStatusResult> {
+    let ready = ready_runner(runner, root)?;
+    let path = require_conflicted(&ready, root, path)?;
+    let target = root.join(&path);
+    if stage_exists(&ready, root, side.stage(), &path)? {
+        let bytes = show_stage_bytes(&ready, root, side.stage(), &path, picture_size_limit())
+            .ok_or_else(|| {
+                ApplicationError::new(
+                    ErrorKind::GitCommandFailed,
+                    "the chosen version could not be read whole",
+                )
+            })?;
+        write_file_atomically(&target, &bytes)?;
+    } else if target.exists() {
+        std::fs::remove_file(&target).map_err(|error| {
+            ApplicationError::new(
+                ErrorKind::GitCommandFailed,
+                format!("the file could not be removed: {error}"),
+            )
+        })?;
+    }
+    stage_paths(Some(&ready), root, &[path])
+}
+
+pub fn git_resolve_conflict_with_side(
+    sessions: &Mutex<ProjectSessions>,
+    project_id: &str,
+    path: &str,
+    side: ConflictSide,
+) -> ApplicationResult<GitStatusResult> {
+    let root = project_root_of(sessions, project_id)?;
+    resolve_conflict_with_side(GitRunner::discover().ok().as_ref(), &root, path, side)
 }
 
 pub fn git_conflict_versions(

@@ -4,6 +4,7 @@ import type { ProjectId } from "../../domain/shared/entity-id";
 import type {
   GitCommitOptions,
   GitCommitResult,
+  GitConflictSide,
   GitConflictVersions,
   GitDiff,
   GitDiffSide,
@@ -32,6 +33,7 @@ export interface FakeGitGateway extends GitGateway {
   // What `sheetVersions` answers (null: the path is outside any Sheet).
   sheetVersionsAnswer: GitSheetVersions | null;
   readonly resolveCalls: { path: string; content: string }[];
+  readonly resolveSideCalls: { path: string; side: GitConflictSide }[];
   readonly unstageCalls: { projectId: ProjectId; paths: readonly string[] }[];
   readonly discardCalls: { projectId: ProjectId; paths: readonly string[] }[];
   readonly discardImpactCalls: {
@@ -178,6 +180,7 @@ export function createFakeGitGateway(): FakeGitGateway {
           : operationOk(gateway.sheetVersionsAnswer),
       ),
     resolveCalls: [],
+    resolveSideCalls: [],
     conflictVersions: (_projectId, path) =>
       Promise.resolve(
         gateway.conflict === null
@@ -186,6 +189,10 @@ export function createFakeGitGateway(): FakeGitGateway {
       ),
     resolveConflict: (_projectId, path, content) => {
       gateway.resolveCalls.push({ path, content });
+      return Promise.resolve(indexAnswer());
+    },
+    resolveConflictWithSide: (_projectId, path, side) => {
+      gateway.resolveSideCalls.push({ path, side });
       return Promise.resolve(indexAnswer());
     },
     unstageCalls: [],

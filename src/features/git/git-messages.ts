@@ -213,6 +213,19 @@ const GIT_MESSAGES_JA = {
     editLabel: "解決後の内容",
     resolve: "この内容で解決",
     cancel: "キャンセル",
+    imageDescription:
+      "画像は混ぜ合わせられないため、どちらかの版を選んで解決します。選んだ版のファイルに置き換えてステージします。すべて解決したらコミットしてください。",
+    base: "元の版（共通の祖先）",
+    resolveWithOurs: "自分の版で解決",
+    resolveWithTheirs: "相手の版で解決",
+    resolveByDeleting: "削除して解決",
+    deletedOnSide: "この側では画像が削除されています",
+    imageUnreadable:
+      "この版の画像は表示できません（壊れている、または大きすぎます）",
+    imageSize: (width: number, height: number): string =>
+      `${width} × ${height} px`,
+    enlarge: "拡大して表示",
+    shrink: "縮小して表示",
   },
   sectionTitles: {
     conflicts: "マージの変更",
@@ -454,6 +467,17 @@ const GIT_MESSAGES_EN: GitMessages = {
     editLabel: "Resolved text",
     resolve: "Resolve with This Text",
     cancel: "Cancel",
+    imageDescription:
+      "Pictures cannot be merged: choose one version. The file is replaced with it and staged. When everything is resolved, commit.",
+    base: "Original (common ancestor)",
+    resolveWithOurs: "Resolve with Ours",
+    resolveWithTheirs: "Resolve with Theirs",
+    resolveByDeleting: "Resolve by Deleting",
+    deletedOnSide: "The picture was deleted on this side",
+    imageUnreadable: "This version cannot be shown (damaged or too large)",
+    imageSize: (width, height) => `${width} × ${height} px`,
+    enlarge: "Show Larger",
+    shrink: "Show Smaller",
   },
   sectionTitles: {
     conflicts: "Merge Changes",

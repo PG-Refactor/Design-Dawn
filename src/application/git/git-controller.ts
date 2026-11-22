@@ -16,6 +16,7 @@ import {
   DEFAULT_GIT_COMMIT_OPTIONS,
   type GitCommitOptions,
   type GitCommitResult,
+  type GitConflictSide,
   type GitConflictVersions,
   type GitDiff,
   type GitDiffSide,
@@ -162,6 +163,11 @@ export interface GitController {
     path: string,
     content: string,
   ): Promise<OperationResult<void>>;
+  // Resolves it with one side's file as it is (a picture), the same way.
+  resolveConflictWithSide(
+    path: string,
+    side: GitConflictSide,
+  ): Promise<OperationResult<void>>;
   unstage(paths: readonly string[]): Promise<OperationResult<void>>;
   // Discards working tree changes of the given files (restores tracked files, deletes
   // untracked ones) on the same queue, exactly like Stage: on success the status is replaced
@@ -257,7 +263,9 @@ const NO_PROJECT_STATE: GitState = {
 };
 
 type IndexOperation = "stage" | "unstage" | "discard";
-type ResolveOperation = { readonly path: string; readonly content: string };
+type ResolveOperation =
+  | { readonly path: string; readonly content: string }
+  | { readonly path: string; readonly side: GitConflictSide };
 
 const INDEX_OPERATION_LABELS: Record<IndexOperation, GitOperationLabel> = {
   stage: "stageGitFiles",
@@ -377,11 +385,17 @@ export function createGitController(
       store.setState((state) => ({ ...state, operating: true }));
       const result = await call(() => {
         if (typeof operation !== "string") {
-          return gateway.resolveConflict(
-            projectId,
-            operation.path,
-            operation.content,
-          );
+          return "side" in operation
+            ? gateway.resolveConflictWithSide(
+                projectId,
+                operation.path,
+                operation.side,
+              )
+            : gateway.resolveConflict(
+                projectId,
+                operation.path,
+                operation.content,
+              );
         }
         switch (operation) {
           case "stage":
@@ -793,6 +807,8 @@ export function createGitController(
     },
     stage: (paths) => changeIndex("stage", paths),
     resolveConflict: (path, content) => changeIndex({ path, content }, [path]),
+    resolveConflictWithSide: (path, side) =>
+      changeIndex({ path, side }, [path]),
     conflictVersions: async (path) => {
       const projectId = store.getState().projectId;
       if (projectId === null) {

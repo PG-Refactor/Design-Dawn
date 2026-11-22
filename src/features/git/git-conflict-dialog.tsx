@@ -1,8 +1,12 @@
 import { useEffect, useId, useState } from "react";
-import type { GitConflictVersions } from "../../application/ports/git-gateway";
+import type {
+  GitConflictSide,
+  GitConflictVersions,
+} from "../../application/ports/git-gateway";
 import { Modal } from "../workspace/modal";
 import { useMessages } from "../workspace/use-messages";
 import { useWorkspaceServices } from "../workspace/workspace-services-context";
+import { GitConflictImageChoice } from "./git-conflict-images";
 import "./git-conflict-dialog.css";
 
 // Resolving one conflicted file: both versions side by side, the Block-by-Block merge of a
@@ -47,6 +51,15 @@ export function GitConflictDialog({
     if (resolved.ok) onClose();
   }
 
+  async function resolveWithSide(side: GitConflictSide): Promise<void> {
+    setBusy(true);
+    const resolved = await gitController.resolveConflictWithSide(path, side);
+    setBusy(false);
+    if (resolved.ok) onClose();
+  }
+
+  const images = versions?.images ?? null;
+
   return (
     <Modal
       titleId={titleId}
@@ -59,10 +72,19 @@ export function GitConflictDialog({
         {texts.title(path)}
       </h2>
       <div className="modal__body git-conflict">
-        <p id={descriptionId}>{texts.description}</p>
+        <p id={descriptionId}>
+          {images === null ? texts.description : texts.imageDescription}
+        </p>
         {versions === null && !failed && <p role="status">{texts.loading}</p>}
         {failed && <p role="alert">{texts.loadFailed}</p>}
-        {versions !== null && (
+        {images !== null && (
+          <GitConflictImageChoice
+            images={images}
+            busy={busy}
+            onChoose={(side) => void resolveWithSide(side)}
+          />
+        )}
+        {versions !== null && images === null && (
           <>
             {versions.merged !== null && (
               <p className="git-conflict__merged">
@@ -117,14 +139,16 @@ export function GitConflictDialog({
         )}
       </div>
       <div className="modal__actions">
-        <button
-          type="button"
-          className="button button--primary"
-          disabled={busy || versions === null}
-          onClick={() => void resolve(text)}
-        >
-          {texts.resolve}
-        </button>
+        {images === null ? (
+          <button
+            type="button"
+            className="button button--primary"
+            disabled={busy || versions === null}
+            onClick={() => void resolve(text)}
+          >
+            {texts.resolve}
+          </button>
+        ) : null}
         <button
           type="button"
           className="button"
