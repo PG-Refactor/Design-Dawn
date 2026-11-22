@@ -133,15 +133,11 @@ export function createSaveCoordinator(
   let disposed = false;
   // Set while saving is stopped; the error `saveDirty` fails with.
   let suspension: OperationError | null = null;
+  const initialPlan = options.plannedFiles ?? NO_PLANNED_FILES;
   let plannedCreates: ReadonlyMap<BlockId, PlannedCreate> = new Map(
-    (options.plannedFiles?.creates ?? []).map((create) => [
-      create.blockId,
-      create,
-    ]),
+    initialPlan.creates.map((create) => [create.blockId, create]),
   );
-  let plannedDeletes: ReadonlySet<ContentPath> = new Set(
-    options.plannedFiles?.deletes ?? [],
-  );
+  let plannedDeletes: ReadonlySet<ContentPath> = new Set(initialPlan.deletes);
 
   function stopTimer(): void {
     cancelTimer?.();

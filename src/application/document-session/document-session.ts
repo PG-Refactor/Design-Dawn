@@ -107,7 +107,7 @@ export interface DocumentSessionSeed {
   // What is not saved yet; the new session saves it (auto-save, flush, close).
   readonly unsaved: DocumentDataChange;
   // Auto-save off: block files the next save creates and deletes.
-  readonly plannedFiles?: PlannedFiles;
+  readonly plannedFiles: PlannedFiles;
 }
 
 export interface StructuralChangeOptions {
@@ -250,9 +250,7 @@ export function createDocumentSession(
     relocate: (blockId, contentPath) => {
       data = withContentPath(data, blockId, contentPath);
     },
-    ...(seed?.plannedFiles === undefined
-      ? {}
-      : { plannedFiles: seed.plannedFiles }),
+    ...(seed === undefined ? {} : { plannedFiles: seed.plannedFiles }),
   });
   const autoSavePolicy =
     options.autoSavePolicy ?? ALWAYS_ENABLED_AUTO_SAVE_POLICY;

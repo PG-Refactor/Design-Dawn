@@ -38,7 +38,13 @@ export interface BlockFrame {
   readonly size: Size;
 }
 
-export type ReorderDirection = "forward" | "backward" | "toFront" | "toBack";
+export const REORDER_DIRECTIONS = [
+  "forward",
+  "backward",
+  "toFront",
+  "toBack",
+] as const;
+export type ReorderDirection = (typeof REORDER_DIRECTIONS)[number];
 
 const REORDER_OPERATIONS: Readonly<
   Record<
