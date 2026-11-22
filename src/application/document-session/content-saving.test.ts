@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ok } from "../../domain/shared/domain-result";
 import { moveBlocksCommand } from "../commands/block-commands";
 import type { BlockSpec } from "../commands/command";
 import { editBlockContentCommand } from "../commands/content-commands";
@@ -133,12 +134,15 @@ describe("saving edited content", () => {
   it("drops the dirty flag when its sheet is removed without flushing", async () => {
     const { session, gateway } = await loadedSession();
     await session.execute(edit("edited"));
-    await session.runExclusive(async (scope) =>
-      scope.applyStructuralChange((data) => withSheetRemoved(data, SHEET_ID), {
+    await session.runExclusive(async (scope) => {
+      const removed = withSheetRemoved(scope.getData(), SHEET_ID);
+      if (!removed.ok) return removed;
+      scope.applyStructuralChange(removed.value, {
         clearHistory: true,
         markDirty: false,
-      }),
-    );
+      });
+      return ok(undefined);
+    });
     const state = session.getState();
     expect(state.save.dirtyContentBlockIds.size).toBe(0);
     expect(state.contents.size).toBe(0);

@@ -25,7 +25,7 @@ export function withSheetAdded(
 
 // A sheet that failed to load is not in `sheets`, and its id may not even be in the
 // order, so removal tolerates both.
-export function documentWithoutSheet(
+function documentWithoutSheet(
   data: DocumentData,
   sheetId: SheetId,
 ): DomainResult<DocumentData["document"]> {

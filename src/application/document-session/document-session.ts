@@ -12,7 +12,6 @@
 
 import { isTextBlockType } from "../../domain/block/block-type";
 import type { Document } from "../../domain/document/document";
-import type { DomainResult } from "../../domain/shared/domain-result";
 import type {
   BlockId,
   ProjectId,
@@ -59,7 +58,6 @@ import {
 } from "../ports/auto-save-policy";
 import {
   failWith,
-  fromDomainResult,
   type OperationError,
   type OperationResult,
   operationErr,
@@ -130,10 +128,12 @@ export interface SessionExclusiveScope {
   // so it never goes through `execute`. Sheets that
   // appear or disappear are not marked dirty: their files are created / deleted by
   // the caller through the gateway, not saved by the coordinator.
+  // `next` is computed by the caller from `getData()` (where it can be refused); taking
+  // it over cannot fail.
   applyStructuralChange(
-    change: (data: DocumentData) => DomainResult<DocumentData>,
+    next: DocumentData,
     options: StructuralChangeOptions,
-  ): OperationResult<void>;
+  ): void;
 }
 
 export interface DocumentSession {
@@ -603,21 +603,18 @@ export function createDocumentSession(
   }
 
   function applyStructuralChange(
-    change: (current: DocumentData) => DomainResult<DocumentData>,
+    next: DocumentData,
     structuralOptions: StructuralChangeOptions,
-  ): OperationResult<void> {
-    const changed = fromDomainResult(change(data));
-    if (!changed.ok) return failWith(changed.error);
-    const diff = diffDocumentData(data, changed.value);
+  ): void {
+    const diff = diffDocumentData(data, next);
     const pending: DocumentDataChange = {
       changedContentBlockIds: diff.changedContentBlockIds,
       documentChanged: diff.documentChanged,
       changedSheetIds: diff.changedSheetIds.filter(
-        (sheetId) =>
-          data.sheets.has(sheetId) && changed.value.sheets.has(sheetId),
+        (sheetId) => data.sheets.has(sheetId) && next.sheets.has(sheetId),
       ),
     };
-    data = syncBlockState(changed.value);
+    data = syncBlockState(next);
     if (structuralOptions.clearHistory) {
       undoStack = [];
       redoStack = [];
@@ -629,7 +626,6 @@ export function createDocumentSession(
     } else {
       publish();
     }
-    return operationOk(undefined);
   }
 
   const exclusiveScope: SessionExclusiveScope = {

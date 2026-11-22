@@ -26,9 +26,9 @@ describe("project operations", () => {
   );
 
   it("renames", () => {
-    expect(
-      unwrap(renameProject(project, unwrap(parseDisplayName("New")))).name,
-    ).toBe("New");
+    expect(renameProject(project, unwrap(parseDisplayName("New"))).name).toBe(
+      "New",
+    );
   });
 
   it("adds, removes and moves documents through childOrder", () => {

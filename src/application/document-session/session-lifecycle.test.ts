@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { err, ok } from "../../domain/shared/domain-result";
+import { ok } from "../../domain/shared/domain-result";
 import { deleteBlocksCommand } from "../commands/file-backed-commands";
 import {
   renameDocumentCommand,
@@ -74,57 +74,41 @@ describe("runExclusive", () => {
     const { session } = openSession();
     await session.execute(renameSheetCommand(SHEET_ID, displayName("A")));
     await session.runExclusive(async (scope) => {
-      const renamed = scope.applyStructuralChange(
-        (data) =>
-          ok({
-            ...data,
-            document: {
-              ...data.document,
-              sheetOrder: [OTHER_SHEET_ID],
-            },
-          }),
+      const data = scope.getData();
+      scope.applyStructuralChange(
+        {
+          ...data,
+          document: { ...data.document, sheetOrder: [OTHER_SHEET_ID] },
+        },
         { clearHistory: false, markDirty: true },
       );
-      expect(renamed.ok).toBe(true);
       return ok(undefined);
     });
     expect(session.getState().history.canUndo).toBe(true);
     expect(session.getState().save.documentDirty).toBe(true);
-    await session.runExclusive(async (scope) =>
-      scope.applyStructuralChange((data) => ok(data), {
+    await session.runExclusive(async (scope) => {
+      scope.applyStructuralChange(scope.getData(), {
         clearHistory: true,
         markDirty: false,
-      }),
-    );
+      });
+      return ok(undefined);
+    });
     expect(session.getState().history.canUndo).toBe(false);
   });
 
   it("does not mark sheets that appear or disappear dirty", async () => {
     const { session } = openSession();
-    await session.runExclusive(async (scope) =>
+    await session.runExclusive(async (scope) => {
+      const data = scope.getData();
+      const sheets = new Map(data.sheets);
+      sheets.delete(OTHER_SHEET_ID);
       scope.applyStructuralChange(
-        (data) => {
-          const sheets = new Map(data.sheets);
-          sheets.delete(OTHER_SHEET_ID);
-          return ok({ ...data, sheets });
-        },
+        { ...data, sheets },
         { clearHistory: false, markDirty: true },
-      ),
-    );
+      );
+      return ok(undefined);
+    });
     expect(session.getState().save.dirtySheetIds.size).toBe(0);
-  });
-
-  it("returns a failing change as an error and changes nothing", async () => {
-    const { session } = openSession();
-    const before = session.getState();
-    const result = await session.runExclusive(async (scope) =>
-      scope.applyStructuralChange(() => err("entityNotFound", "nope"), {
-        clearHistory: true,
-        markDirty: true,
-      }),
-    );
-    expect(!result.ok && result.error.kind).toBe("entityNotFound");
-    expect(session.getState()).toBe(before);
   });
 
   it("runs behind queued commands", async () => {
@@ -163,16 +147,16 @@ describe("session edges", () => {
     expect(
       (await session.execute(deleteBlocksCommand(SHEET_ID, [blockIdOf(1)]))).ok,
     ).toBe(true);
-    await session.runExclusive(async (scope) =>
+    await session.runExclusive(async (scope) => {
+      const data = scope.getData();
+      const sheets = new Map(data.sheets);
+      sheets.delete(SHEET_ID);
       scope.applyStructuralChange(
-        (data) => {
-          const sheets = new Map(data.sheets);
-          sheets.delete(SHEET_ID);
-          return ok({ ...data, sheets });
-        },
+        { ...data, sheets },
         { clearHistory: false, markDirty: false },
-      ),
-    );
+      );
+      return ok(undefined);
+    });
     expect((await session.undo()).ok).toBe(false);
   });
 });
