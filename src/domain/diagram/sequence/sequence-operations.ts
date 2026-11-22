@@ -895,15 +895,14 @@ function planSetAutonumber(
       withItemRemoved(meaning, index),
     );
   }
-  if (reading.headerLineIndex === null) {
-    return refuse("noHeader", "the diagram has no header line");
-  }
+  // An editable diagram has its header line.
+  const headerLineIndex = reading.headerLineIndex as number;
   return planned(
     source,
     [
       insertLineAfterEdit(
         reading,
-        reading.headerLineIndex,
+        headerLineIndex,
         `${topLevelIndent(reading)}${SEQUENCE_AUTONUMBER_KEYWORD}`,
       ),
     ],
@@ -953,15 +952,14 @@ function planSetTitle(
       withTitle(meaning, encoded.value),
     );
   }
-  if (reading.headerLineIndex === null) {
-    return refuse("noHeader", "the diagram has no header line");
-  }
+  // An editable diagram has its header line.
+  const headerLineIndex = reading.headerLineIndex as number;
   return planned(
     source,
     [
       insertLineAfterEdit(
         reading,
-        reading.headerLineIndex,
+        headerLineIndex,
         `${topLevelIndent(reading)}${SEQUENCE_TITLE_KEYWORD} ${encoded.value}`,
       ),
     ],

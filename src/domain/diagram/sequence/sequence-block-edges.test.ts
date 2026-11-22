@@ -153,3 +153,37 @@ describe("branches", () => {
     ).toContain("unsupportedInRange");
   });
 });
+
+describe("more branches and messages", () => {
+  const THREE = `sequenceDiagram
+    alt one
+        A->>B: a
+    else two
+        A->>B: b
+    else three
+        A->>B: c
+    end
+`;
+
+  it("deletes a branch followed by another, keeping that one", () => {
+    const result = run(THREE, {
+      kind: "deleteBranch",
+      target: targetOf(THREE, isBranch, 0),
+    });
+    expect(result).not.toContain("else two");
+    expect(result).toContain("else three");
+  });
+
+  it("refuses an activation sign it does not know, and a stale message to copy", () => {
+    expect(
+      refusal(THREE, {
+        kind: "setMessageActivation",
+        target: targetOf(THREE, isMessage),
+        sign: "*" as never,
+      }),
+    ).toContain("invalidSign");
+    expect(
+      refusal(THREE, { kind: "duplicateMessage", target: STALE }),
+    ).not.toBe("");
+  });
+});
