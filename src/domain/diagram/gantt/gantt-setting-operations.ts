@@ -98,7 +98,7 @@ function writeSetting(
         insertLineAfter(
           parsed,
           anchor,
-          `${indentOf(parsed.lines[anchor])}${setting} ${value}`,
+          `${indentOf(parsed.lines[anchor] as GanttLine)}${setting} ${value}`,
         ),
       ],
       settings,

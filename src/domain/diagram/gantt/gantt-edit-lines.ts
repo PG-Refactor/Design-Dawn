@@ -3,10 +3,7 @@ import {
   deleteLinesEdits as deleteLines,
   dominantLineEnding as sharedLineEnding,
 } from "../text-lines";
-import {
-  GANTT_DEFAULT_INDENT,
-  GANTT_DEFAULT_LINE_ENDING,
-} from "./gantt-config";
+import { GANTT_DEFAULT_LINE_ENDING } from "./gantt-config";
 import type { GanttLine, ParsedGantt } from "./gantt-types";
 
 // Whole-line edits: inserting a line and deleting lines, and the facts about the file's layout
@@ -17,8 +14,7 @@ export function dominantLineEnding(parsed: ParsedGantt): string {
   return sharedLineEnding(parsed.lines, GANTT_DEFAULT_LINE_ENDING);
 }
 
-export function indentOf(line: GanttLine | undefined): string {
-  if (line === undefined) return GANTT_DEFAULT_INDENT;
+export function indentOf(line: GanttLine): string {
   return line.text.slice(0, line.text.length - line.text.trimStart().length);
 }
 

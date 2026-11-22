@@ -72,9 +72,10 @@ function editOfLines(
     units[position] ===
     (parsed.lines[position] as GanttLine).text +
       (parsed.lines[position] as GanttLine).terminator;
+  // A layout always differs from the text (an operation that changes nothing is refused
+  // before); were it the same, the edit would rewrite the last line as it is.
   let first = 0;
-  while (first < units.length && same(first)) first += 1;
-  if (first === units.length) return [];
+  while (first < units.length - 1 && same(first)) first += 1;
   let last = units.length - 1;
   while (last > first && same(last)) last -= 1;
   const lastLine = parsed.lines[last] as GanttLine;

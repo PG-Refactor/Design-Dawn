@@ -247,8 +247,9 @@ export function validateGanttLinkUrl(url: string): DomainResult<string> {
       "a link is printable ASCII without blanks, quotes, #, ;, % or \\",
     );
   }
+  // An http(s) URL without a host does not parse at all.
   try {
-    if (new URL(url).hostname === "") throw new Error("no host");
+    new URL(url);
   } catch {
     return refuse("invalidUrl", "the link has no readable host");
   }

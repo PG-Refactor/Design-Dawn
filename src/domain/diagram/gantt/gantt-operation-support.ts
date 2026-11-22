@@ -185,7 +185,9 @@ export function taskIndentNear(parsed: ParsedGantt, lineIndex: number): string {
     .reverse()
     .find((entry) => entry.lineIndex <= lineIndex);
   return indentOf(
-    parsed.lines[(task ?? parsed.tasks[0])?.lineIndex ?? lineIndex],
+    parsed.lines[
+      (task ?? parsed.tasks[0])?.lineIndex ?? lineIndex
+    ] as GanttLine,
   );
 }
 

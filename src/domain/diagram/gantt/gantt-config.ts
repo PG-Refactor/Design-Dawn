@@ -105,7 +105,6 @@ export const GANTT_BARE_KEYWORD_PATTERN =
 export const GANTT_COMMENT_MARK = "%%";
 export const GANTT_DIRECTIVE_MARK = "%%{";
 
-export const GANTT_DEFAULT_INDENT = "    ";
 export const GANTT_DEFAULT_LINE_ENDING = "\n";
 
 // ---- Tier 2 ----
