@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import type { ExternalChangeEvent } from "../../application/external-change/external-change-controller";
 import { refreshDiffAfterStatusChange } from "../git/git-diff-session";
+import { raiseAssetRevision } from "../image/asset-revision";
 import {
   addOperationError,
   showNotice,
@@ -34,6 +35,9 @@ function applyEvent(
       uiStateStore.setState((state) =>
         showNotice(state, "externalWatchUnavailable"),
       );
+      return;
+    case "picturesChanged":
+      raiseAssetRevision();
       return;
     case "projectFilesActivity":
       // Files changed under the Project, so the Git status behind the panel is stale.

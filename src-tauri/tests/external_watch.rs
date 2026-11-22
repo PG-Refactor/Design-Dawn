@@ -219,11 +219,23 @@ fn events_for_untracked_files_and_a_rescan_are_reported_without_changes() {
         &batch_of(&["documents/system-design/assets/new.png"], false),
     );
     assert!(matches!(&untracked, BatchOutcome::Report(changes) if changes.is_empty()));
+    // A picture: the window is told to show its pictures again.
+    assert!(matches!(&untracked, BatchOutcome::Report(changes) if changes.pictures_touched));
+
+    let note = confirm_batch(
+        &sessions,
+        &project_id,
+        generation,
+        &batch_of(&["documents/system-design/notes.txt"], false),
+    );
+    assert!(matches!(&note, BatchOutcome::Report(changes) if !changes.pictures_touched));
 
     let rescan = confirm_batch(&sessions, &project_id, generation, &batch_of(&[], true));
     assert!(
         matches!(&rescan, BatchOutcome::Report(changes) if changes.rescan && changes.is_empty())
     );
+    // Events may have been lost: pictures too.
+    assert!(matches!(&rescan, BatchOutcome::Report(changes) if changes.pictures_touched));
 }
 
 #[test]

@@ -24,7 +24,7 @@ export interface WindowCloseDependencies {
     readonly isOpen: () => Promise<boolean>;
     readonly confirmStop: () => Promise<boolean>;
     readonly closeAll: () => Promise<void>;
-    // Out of the way of the question (they may be in front of the window), and back.
+    // Out of the way of the question (they stay in front of their window), and back.
     readonly setHidden?: (hidden: boolean) => Promise<void>;
   };
   // A window that edits a Custom Template: what matters is the template, not the window's

@@ -333,6 +333,7 @@ mod tests {
             session_generation: 3,
             watching: true,
             rescan: false,
+            pictures_touched: false,
             project: ProjectChanges {
                 structure: false,
                 files: Vec::new(),
@@ -372,7 +373,8 @@ mod tests {
                         "change": "modified",
                         "readable": true
                     }]
-                }]
+                }],
+                "picturesTouched": false
             })
         );
     }

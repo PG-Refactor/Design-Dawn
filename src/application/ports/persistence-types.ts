@@ -216,6 +216,9 @@ export interface ExternalChanges {
   readonly rescan: boolean;
   readonly project: ProjectFileChanges;
   readonly documents: readonly DocumentFileChanges[];
+  // A picture file was named by the events (or events were lost): pictures are not compared
+  // like the other files, so the window shows them again. Absent: none.
+  readonly picturesTouched?: boolean;
 }
 
 export const ENTRY_POINT_RESOLUTIONS = ["path", "idScan"] as const;

@@ -73,6 +73,8 @@ export type ExternalChangeEvent =
   // Rust told us something changed under the Project (also when nothing needs reloading):
   // the Git status is stale.
   | { readonly type: "projectFilesActivity" }
+  // Picture files changed: shown again (they are not compared like the other files).
+  | { readonly type: "picturesChanged" }
   | { readonly type: "checkFailed"; readonly error: OperationError };
 
 export interface ExternalChangeReloader {
@@ -284,6 +286,7 @@ export function createExternalChangeController(
       changes.project.files.length > 0 ||
       changes.documents.length > 0;
     if (!changes.rescan || hasChanges) emit({ type: "projectFilesActivity" });
+    if (changes.picturesTouched === true) emit({ type: "picturesChanged" });
     if (options.isBlocked()) {
       recheckPending = true;
       return;

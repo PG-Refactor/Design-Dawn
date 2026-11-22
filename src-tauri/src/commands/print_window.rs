@@ -148,10 +148,13 @@ fn open<R: Runtime>(
             }
         });
     }
-    // Not made an owned window of `owner` (it is still closed with it, by the label kept
-    // below): on Windows the print dialog of an owned window also holds its owner, whose
-    // frame was then seen drawn wrongly (square corners, the title bar wider than the
-    // window) and whose close button once did nothing.
+    // Owned by `owner`: without it, the window that asked for the print stopped drawing and
+    // answering once the print was saved (seen on Windows).
+    if let Some(parent) = app.get_webview_window(owner) {
+        builder = builder
+            .parent(&parent)
+            .map_err(|error| failed(format!("print window owner: {error}")))?;
+    }
     app.state::<Mutex<PrintWindows>>()
         .lock()
         .unwrap_or_else(PoisonError::into_inner)

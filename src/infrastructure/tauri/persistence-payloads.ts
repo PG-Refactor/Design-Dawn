@@ -481,6 +481,7 @@ interface RawExternalChanges {
     readonly documentId: string;
     readonly files: readonly ChangedFile[];
   }[];
+  readonly picturesTouched?: boolean | undefined;
 }
 const rawExternalChanges = objectOf<RawExternalChanges>({
   sessionGeneration: decodeNumber,
@@ -496,6 +497,7 @@ const rawExternalChanges = objectOf<RawExternalChanges>({
       files: arrayOf(decodeChangedFile),
     }),
   ),
+  picturesTouched: optional(decodeBoolean),
 });
 
 // Shared by the `check_external_changes` result and the `projectFilesChanged` notification.
@@ -517,6 +519,9 @@ export function toExternalChanges(
     rescan: raw.value.rescan,
     project: raw.value.project,
     documents: documents.value,
+    ...(raw.value.picturesTouched === undefined
+      ? {}
+      : { picturesTouched: raw.value.picturesTouched }),
   });
 }
 
