@@ -54,6 +54,7 @@ export default defineConfig(({ mode }) => {
           "src/**/*.test.{ts,tsx}",
           "src/**/test-support/**",
           "src/**/*test-support.{ts,tsx}",
+          "src/**/test-fixtures.ts",
           "src/**/*.d.ts",
         ],
         reporter: ["text-summary", "json-summary", "json", "html"],
