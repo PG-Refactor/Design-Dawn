@@ -1,10 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { err, ok } from "../../domain/shared/domain-result";
+import { deleteBlocksCommand } from "../commands/file-backed-commands";
 import {
   renameDocumentCommand,
   renameSheetCommand,
 } from "../commands/naming-commands";
-import { displayName, OTHER_SHEET_ID, SHEET_ID } from "../test-support/fakes";
+import {
+  blockIdOf,
+  displayName,
+  OTHER_SHEET_ID,
+  SHEET_ID,
+  sheetIdOf,
+} from "../test-support/fakes";
 import { openSession } from "../test-support/session-harness";
 
 describe("close", () => {
@@ -132,5 +139,40 @@ describe("runExclusive", () => {
     });
     await Promise.all([command, exclusive]);
     expect(order).toEqual(["command", "exclusive"]);
+  });
+});
+
+describe("session edges", () => {
+  it("refuses to hand over a closed session", async () => {
+    const { session } = openSession();
+    await session.close();
+    expect((await session.handOver()).ok).toBe(false);
+  });
+
+  it("refuses a file-backed command for a sheet it does not have", async () => {
+    const { session } = openSession();
+    const result = await session.execute(
+      deleteBlocksCommand(sheetIdOf(77), [blockIdOf(1)]),
+    );
+    expect(result.ok).toBe(false);
+  });
+
+  it("refuses to undo a file-backed step whose sheet is gone", async () => {
+    const { session } = openSession();
+    await session.loadSheetContents(SHEET_ID);
+    expect(
+      (await session.execute(deleteBlocksCommand(SHEET_ID, [blockIdOf(1)]))).ok,
+    ).toBe(true);
+    await session.runExclusive(async (scope) =>
+      scope.applyStructuralChange(
+        (data) => {
+          const sheets = new Map(data.sheets);
+          sheets.delete(SHEET_ID);
+          return ok({ ...data, sheets });
+        },
+        { clearHistory: false, markDirty: false },
+      ),
+    );
+    expect((await session.undo()).ok).toBe(false);
   });
 });

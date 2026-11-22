@@ -67,6 +67,7 @@ import {
 } from "../ports/operation-error";
 import type { PersistenceGateway } from "../ports/persistence-gateway";
 import type { Scheduler } from "../ports/scheduler";
+import { createSerialQueue } from "../serial-queue";
 import type {
   ContentLoadStatus,
   DocumentSessionState,
@@ -231,17 +232,9 @@ export function createDocumentSession(
   let savedStateId: number | null = currentStateId;
   let warnings: readonly OperationWarning[] = [];
   let closed = false;
-  let queueTail: Promise<void> = Promise.resolve();
   let current: DocumentSessionState;
 
-  function runExclusive<T>(task: () => Promise<T>): Promise<T> {
-    const result = queueTail.then(task);
-    queueTail = result.then(
-      () => undefined,
-      () => undefined,
-    );
-    return result;
-  }
+  const runExclusive = createSerialQueue().run;
 
   const coordinator = createSaveCoordinator({
     projectId,
@@ -415,14 +408,16 @@ export function createDocumentSession(
   ): void {
     if (move === "undo") {
       redoStateIds = [...redoStateIds, currentStateId];
-      currentStateId = undoStateIds.at(-1) ?? newStateId();
+      // An undo has an entry, and the ids run parallel to the entries.
+      currentStateId = undoStateIds.at(-1) as number;
       undoStateIds = undoStateIds.slice(0, -1);
       return;
     }
     const pushed = [...undoStateIds, currentStateId];
     undoStateIds = pushed.slice(Math.max(0, pushed.length - undoLength));
     if (move === "redo") {
-      currentStateId = redoStateIds.at(-1) ?? newStateId();
+      // A redo has an entry, and the ids run parallel to the entries.
+      currentStateId = redoStateIds.at(-1) as number;
       redoStateIds = redoStateIds.slice(0, -1);
     } else {
       currentStateId = newStateId();
