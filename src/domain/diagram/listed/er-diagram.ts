@@ -68,10 +68,15 @@ export interface ErMeaning {
 
 interface EntityLines {
   readonly name: string;
-  // The bare line, or the block's opening and closing lines with one line per attribute.
+  // The bare line, or the block (opening and closing lines, one line per attribute).
   readonly bare: ClassifiedLine | null;
-  readonly open: ClassifiedLine | null;
-  readonly close: ClassifiedLine | null;
+  readonly block: EntityBlock | null;
+}
+
+// An entity's block: the lines that open and close it, and its attribute lines.
+interface EntityBlock {
+  readonly open: ClassifiedLine;
+  readonly close: ClassifiedLine;
   readonly attributes: readonly ClassifiedLine[];
 }
 
@@ -104,11 +109,17 @@ const RELATIONSHIP = new RegExp(
   `^\\s*${NAME}\\s+(${LEFT})(--|\\.\\.)(${RIGHT})\\s+${NAME}\\s*:\\s*(?:"([^"]*)"|([^\\s"]+))\\s*$`,
 );
 const KEY_SEPARATOR = /\s*,\s*/;
+// An attribute's type and name are one word each; a comment and a label are quoted, and
+// braces would open or close a block.
+const FORBIDDEN_IN_WORD = /[\s{}"]/;
+const FORBIDDEN_IN_COMMENT = /["{}]/;
+const FORBIDDEN_IN_LABEL = /"/;
 // One word labels are written bare; anything else in quotes (which cannot hold a quote).
 const BARE_LABEL = /^[A-Za-z0-9_-]+$/;
 
-function parseKeys(text: string | undefined): ErKey[] {
-  if (text === undefined || text.trim() === "") return [];
+// The keys written after an attribute's name (empty when there are none).
+function parseKeys(text: string): ErKey[] {
+  if (text === "") return [];
   return text
     .split(KEY_SEPARATOR)
     .filter((key): key is ErKey =>
@@ -125,7 +136,6 @@ export function readEr(source: string): ErRead {
   >();
   const relationships: ErRelationship[] = [];
   const relationshipLines: ClassifiedLine[] = [];
-  const order: string[] = [];
   let reason: string | null = read.structureProblem ? "structureIssue" : null;
   if (read.header?.text.trim() !== HEADER) reason ??= "unsupportedLines";
 
@@ -133,11 +143,10 @@ export function readEr(source: string): ErRead {
     let entry = entities.get(name);
     if (entry === undefined) {
       entry = {
-        lines: { name, bare: null, open: null, close: null, attributes: [] },
+        lines: { name, bare: null, block: null },
         attributes: [],
       };
       entities.set(name, entry);
-      order.push(name);
     }
     return entry;
   };
@@ -153,9 +162,11 @@ export function readEr(source: string): ErRead {
         const entry = entityFor(openBlock.name);
         entry.lines = {
           ...entry.lines,
-          open: openBlock.open,
-          close: line,
-          attributes: openBlock.attributes,
+          block: {
+            open: openBlock.open,
+            close: line,
+            attributes: openBlock.attributes,
+          },
         };
         openBlock = null;
         continue;
@@ -168,7 +179,7 @@ export function readEr(source: string): ErRead {
       entityFor(openBlock.name).attributes.push({
         type: capturedText(attribute, 1),
         name: capturedText(attribute, 2),
-        keys: parseKeys(attribute[3]),
+        keys: parseKeys(capturedText(attribute, 3)),
         comment: capturedText(attribute, 4),
       });
       openBlock.attributes.push(line);
@@ -181,7 +192,7 @@ export function readEr(source: string): ErRead {
       // A second declaration of the same entity: Mermaid merges them, the GUI does not.
       if (
         existing !== undefined &&
-        (existing.open !== null || existing.bare !== null)
+        (existing.block !== null || existing.bare !== null)
       ) {
         unsupported.push(lineRef(line));
       }
@@ -212,7 +223,7 @@ export function readEr(source: string): ErRead {
       const existing = entities.get(name)?.lines;
       if (
         existing !== undefined &&
-        (existing.open !== null || existing.bare !== null)
+        (existing.block !== null || existing.bare !== null)
       ) {
         unsupported.push(lineRef(line));
       }
@@ -228,26 +239,16 @@ export function readEr(source: string): ErRead {
   return {
     editable,
     meaning: {
-      entities: order.map((name) => ({
+      // In the order the entities are first named (the order of the map).
+      entities: [...entities.entries()].map(([name, entry]) => ({
         name,
-        attributes: entities.get(name)?.attributes ?? [],
+        attributes: entry.attributes,
       })),
       relationships,
     },
-    notReadable: editable
-      ? null
-      : { reason: reason ?? "unsupportedLines", lines: unsupported },
+    notReadable: reason === null ? null : { reason, lines: unsupported },
     read,
-    entityLines: order.map(
-      (name) =>
-        entities.get(name)?.lines ?? {
-          name,
-          bare: null,
-          open: null,
-          close: null,
-          attributes: [],
-        },
-    ),
+    entityLines: [...entities.values()].map((entry) => entry.lines),
     relationshipLines,
   };
 }
@@ -294,11 +295,15 @@ export type ErOperation =
   | { readonly kind: "deleteRelationship"; readonly index: number };
 
 function checkAttribute(attribute: ErAttribute): DomainResult<ErAttribute> {
-  const type = requireText(attribute.type, "attribute type", /[\s{}"]/);
+  const type = requireText(attribute.type, "attribute type", FORBIDDEN_IN_WORD);
   if (!type.ok) return type;
-  const name = requireText(attribute.name, "attribute name", /[\s{}"]/);
+  const name = requireText(attribute.name, "attribute name", FORBIDDEN_IN_WORD);
   if (!name.ok) return name;
-  const comment = requireText(attribute.comment, "comment", /["{}]/);
+  const comment = requireText(
+    attribute.comment,
+    "comment",
+    FORBIDDEN_IN_COMMENT,
+  );
   if (!comment.ok) return comment;
   if (type.value === "" || name.value === "")
     return refuse("emptyText", "attribute");
@@ -317,7 +322,7 @@ function checkRelationship(
   if (!left.ok) return left;
   const right = requireIdentifier(relationship.right, "entity");
   if (!right.ok) return right;
-  const label = requireText(relationship.label, "label", /"/);
+  const label = requireText(relationship.label, "label", FORBIDDEN_IN_LABEL);
   if (!label.ok) return label;
   if (label.value === "") return refuse("emptyText", "label");
   return ok({ ...relationship, label: label.value });
@@ -326,13 +331,6 @@ function checkRelationship(
 export interface ErPlan {
   readonly edits: readonly TextEdit[];
   readonly expected: ErMeaning;
-}
-
-// Every entity that appears in the meaning, including those named only by relationships.
-function withEntity(meaning: ErMeaning, name: string): ErMeaning {
-  return meaning.entities.some((entity) => entity.name === name)
-    ? meaning
-    : { ...meaning, entities: [...meaning.entities, { name, attributes: [] }] };
 }
 
 export function planErOperation(
@@ -346,12 +344,8 @@ export function planErOperation(
   const inner = `${indent}${indent}`;
   const entityAt = (name: string) =>
     current.entityLines.find((lines) => lines.name === name);
-  const appendLines = (texts: readonly string[]): DomainResult<TextEdit> => {
-    const edit = append(read, texts);
-    return edit === null
-      ? refuse("emptySource", "nothing to add to")
-      : ok(edit);
-  };
+  const appendLines = (texts: readonly string[]): TextEdit =>
+    append(read, texts);
 
   switch (operation.kind) {
     case "addEntity": {
@@ -360,10 +354,12 @@ export function planErOperation(
       if (entityAt(name.value) !== undefined)
         return refuse("duplicateName", name.value);
       const edit = appendLines([`${indent}${name.value}`]);
-      if (!edit.ok) return edit;
       return ok({
-        edits: [edit.value],
-        expected: withEntity(meaning, name.value),
+        edits: [edit],
+        expected: {
+          ...meaning,
+          entities: [...meaning.entities, { name: name.value, attributes: [] }],
+        },
       });
     }
     case "deleteEntity": {
@@ -379,11 +375,11 @@ export function planErOperation(
         return refuse("entityInUse", operation.name);
       }
       const removed = [
-        lines.bare,
-        lines.open,
-        ...lines.attributes,
-        lines.close,
-      ].filter((line): line is ClassifiedLine => line !== null);
+        ...(lines.bare === null ? [] : [lines.bare]),
+        ...(lines.block === null
+          ? []
+          : [lines.block.open, ...lines.block.attributes, lines.block.close]),
+      ];
       return ok({
         edits: removed.map((line) => removeLine(line, read.lines)),
         expected: {
@@ -401,13 +397,14 @@ export function planErOperation(
       if (!attribute.ok) return attribute;
       const text = attributeText(attribute.value);
       let edit: TextEdit;
-      if (lines.open !== null && lines.close !== null) {
-        const last =
-          lines.attributes[lines.attributes.length - 1] ?? lines.open;
+      if (lines.block !== null) {
+        const { open, attributes } = lines.block;
+        const first = attributes[0];
+        const last = attributes[attributes.length - 1] ?? open;
         const attributeIndent =
-          lines.attributes[0] === undefined
-            ? `${leadingWhitespace(lines.open)}${indent}`
-            : leadingWhitespace(lines.attributes[0]);
+          first === undefined
+            ? `${leadingWhitespace(open)}${indent}`
+            : leadingWhitespace(first);
         edit = insertAfter(last, [`${attributeIndent}${text}`]);
       } else if (lines.bare !== null) {
         const own = leadingWhitespace(lines.bare);
@@ -418,13 +415,11 @@ export function planErOperation(
           ),
         );
       } else {
-        const appended = appendLines([
+        edit = appendLines([
           `${indent}${lines.name} {`,
           `${inner}${text}`,
           `${indent}}`,
         ]);
-        if (!appended.ok) return appended;
-        edit = appended.value;
       }
       return ok({
         edits: [edit],
@@ -443,8 +438,8 @@ export function planErOperation(
     }
     case "updateAttribute": {
       const lines = entityAt(operation.entity);
-      const line = lines?.attributes[operation.index];
-      if (lines === undefined || line === undefined) {
+      const line = lines?.block?.attributes[operation.index];
+      if (line === undefined) {
         return refuse(
           "unknownAttribute",
           `${operation.entity}[${operation.index}]`,
@@ -476,13 +471,9 @@ export function planErOperation(
     }
     case "deleteAttribute": {
       const lines = entityAt(operation.entity);
-      const line = lines?.attributes[operation.index];
-      if (
-        lines === undefined ||
-        line === undefined ||
-        lines.open === null ||
-        lines.close === null
-      ) {
+      const block = lines?.block;
+      const line = block?.attributes[operation.index];
+      if (lines === undefined || block == null || line === undefined) {
         return refuse(
           "unknownAttribute",
           `${operation.entity}[${operation.index}]`,
@@ -491,12 +482,12 @@ export function planErOperation(
       // The last attribute: the block becomes a bare entity line (an empty block is not
       // something every Mermaid version reads).
       const edits =
-        lines.attributes.length === 1
+        block.attributes.length === 1
           ? [
               {
-                start: lines.open.start,
-                end: lines.close.end,
-                text: `${leadingWhitespace(lines.open)}${lines.name}`,
+                start: block.open.start,
+                end: block.close.end,
+                text: `${leadingWhitespace(block.open)}${lines.name}`,
               },
             ]
           : [removeLine(line, read.lines)];
@@ -523,9 +514,8 @@ export function planErOperation(
       const edit = appendLines([
         `${indent}${relationshipText(relationship.value)}`,
       ]);
-      if (!edit.ok) return edit;
       return ok({
-        edits: [edit.value],
+        edits: [edit],
         expected: withRelationships(current, [
           ...meaning.relationships,
           relationship.value,
@@ -575,7 +565,7 @@ function withRelationships(
   relationships: readonly ErRelationship[],
 ): ErMeaning {
   const declared = current.entityLines
-    .filter((lines) => lines.bare !== null || lines.open !== null)
+    .filter((lines) => lines.bare !== null || lines.block !== null)
     .map((lines) => lines.name);
   const names = new Set([
     ...declared,

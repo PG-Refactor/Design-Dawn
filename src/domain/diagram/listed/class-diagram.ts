@@ -111,47 +111,53 @@ const DIRECTION = /^\s*direction\s+(?:LR|RL|TB|BT)\s*$/;
 const FORBIDDEN_MEMBER = /[{}]/;
 const FORBIDDEN_LABEL = /[{}"]/;
 
+// One class while reading: its lines and its members' texts, in the order they come.
+interface ClassEntry {
+  readonly name: string;
+  bare: ClassifiedLine | null;
+  open: ClassifiedLine | null;
+  close: ClassifiedLine | null;
+  readonly members: MemberLine[];
+  readonly texts: string[];
+}
+
 export function readClass(source: string): ClassRead {
   const read = readLines(source);
   const unsupported: LineRef[] = [];
-  const order: string[] = [];
-  const members = new Map<string, string[]>();
-  const lines = new Map<string, ClassLines>();
+  // In the order the classes are first named.
+  const entries = new Map<string, ClassEntry>();
   const relationships: ClassRelationship[] = [];
   const relationshipLines: ClassifiedLine[] = [];
   let reason: string | null = read.structureProblem ? "structureIssue" : null;
   if (read.header?.text.trim() !== HEADER) reason ??= "unsupportedLines";
 
-  const classFor = (name: string): ClassLines => {
-    let entry = lines.get(name);
-    if (entry === undefined) {
-      entry = { name, bare: null, open: null, close: null, members: [] };
-      lines.set(name, entry);
-      members.set(name, []);
-      order.push(name);
-    }
+  const classFor = (name: string): ClassEntry => {
+    const existing = entries.get(name);
+    if (existing !== undefined) return existing;
+    const entry: ClassEntry = {
+      name,
+      bare: null,
+      open: null,
+      close: null,
+      members: [],
+      texts: [],
+    };
+    entries.set(name, entry);
     return entry;
   };
-  const declaredTwice = (name: string) => {
-    const entry = lines.get(name);
-    return entry !== undefined && (entry.bare !== null || entry.open !== null);
-  };
+  const declaredTwice = (entry: ClassEntry) =>
+    entry.bare !== null || entry.open !== null;
 
+  // The class whose block is open, if any, and the line that opened it.
   let block: {
-    name: string;
-    open: ClassifiedLine;
-    members: MemberLine[];
+    readonly entry: ClassEntry;
+    readonly open: ClassifiedLine;
   } | null = null;
   for (const line of read.statements) {
     if (block !== null) {
       if (CLOSE.test(line.text)) {
-        const entry = classFor(block.name);
-        lines.set(block.name, {
-          ...entry,
-          open: block.open,
-          close: line,
-          members: [...entry.members, ...block.members],
-        });
+        block.entry.open = block.open;
+        block.entry.close = line;
         block = null;
         continue;
       }
@@ -160,35 +166,32 @@ export function readClass(source: string): ClassRead {
         unsupported.push(lineRef(line));
         continue;
       }
-      members.get(block.name)?.push(member);
-      block.members.push({ line, inBlock: true });
+      block.entry.texts.push(member);
+      block.entry.members.push({ line, inBlock: true });
       continue;
     }
     const open = OPEN.exec(line.text);
     if (open !== null) {
-      const name = capturedText(open, 1);
-      if (declaredTwice(name)) unsupported.push(lineRef(line));
-      classFor(name);
-      block = { name, open: line, members: [] };
+      const entry = classFor(capturedText(open, 1));
+      if (declaredTwice(entry)) unsupported.push(lineRef(line));
+      block = { entry, open: line };
       continue;
     }
     const bare = BARE.exec(line.text);
     if (bare !== null) {
-      const name = capturedText(bare, 1);
-      if (declaredTwice(name)) unsupported.push(lineRef(line));
-      lines.set(name, { ...classFor(name), bare: line });
+      const entry = classFor(capturedText(bare, 1));
+      if (declaredTwice(entry)) unsupported.push(lineRef(line));
+      entry.bare = line;
       continue;
     }
     const relationship = RELATIONSHIP.exec(line.text);
     if (relationship !== null) {
-      const from = capturedText(relationship, 1);
-      const to = capturedText(relationship, 5);
-      classFor(from);
-      classFor(to);
+      const from = classFor(capturedText(relationship, 1)).name;
+      const to = classFor(capturedText(relationship, 5)).name;
       relationships.push({
         from,
         fromCardinality: capturedText(relationship, 2),
-        arrow: relationship[3] as ClassArrow,
+        arrow: capturedText(relationship, 3) as ClassArrow,
         toCardinality: capturedText(relationship, 4),
         to,
         label: capturedText(relationship, 6),
@@ -198,44 +201,38 @@ export function readClass(source: string): ClassRead {
     }
     if (DIRECTION.test(line.text)) continue;
     const outside = OUTSIDE_MEMBER.exec(line.text);
-    if (outside !== null && !FORBIDDEN_MEMBER.test(capturedText(outside, 2))) {
-      const name = capturedText(outside, 1);
-      const entry = classFor(name);
-      members.get(name)?.push(capturedText(outside, 2));
-      lines.set(name, {
-        ...entry,
-        members: [...entry.members, { line, inBlock: false }],
-      });
+    const outsideText = outside === null ? "" : capturedText(outside, 2);
+    if (outside !== null && !FORBIDDEN_MEMBER.test(outsideText)) {
+      const entry = classFor(capturedText(outside, 1));
+      entry.texts.push(outsideText);
+      entry.members.push({ line, inBlock: false });
       continue;
     }
     unsupported.push(lineRef(line));
   }
+  // A block that is never closed.
   if (block !== null) unsupported.push(lineRef(block.open));
   if (unsupported.length > 0) reason ??= "unsupportedLines";
   const editable = reason === null;
+  const classes = [...entries.values()];
   return {
     editable,
     meaning: {
-      classes: order.map((name) => ({
-        name,
-        members: members.get(name) ?? [],
+      classes: classes.map((entry) => ({
+        name: entry.name,
+        members: entry.texts,
       })),
       relationships,
     },
-    notReadable: editable
-      ? null
-      : { reason: reason ?? "unsupportedLines", lines: unsupported },
+    notReadable: reason === null ? null : { reason, lines: unsupported },
     read,
-    classLines: order.map(
-      (name) =>
-        lines.get(name) ?? {
-          name,
-          bare: null,
-          open: null,
-          close: null,
-          members: [],
-        },
-    ),
+    classLines: classes.map((entry) => ({
+      name: entry.name,
+      bare: entry.bare,
+      open: entry.open,
+      close: entry.close,
+      members: entry.members,
+    })),
     relationshipLines,
   };
 }
@@ -378,12 +375,8 @@ export function planClassOperation(
   const indent = indentOf(read);
   const classAt = (name: string) =>
     current.classLines.find((lines) => lines.name === name);
-  const appendLines = (texts: readonly string[]): DomainResult<TextEdit> => {
-    const edit = append(read, texts);
-    return edit === null
-      ? refuse("emptySource", "nothing to add to")
-      : ok(edit);
-  };
+  const appendLines = (texts: readonly string[]): TextEdit =>
+    append(read, texts);
   switch (operation.kind) {
     case "addClass": {
       const name = requireIdentifier(operation.name, "class");
@@ -391,9 +384,8 @@ export function planClassOperation(
       if (classAt(name.value) !== undefined)
         return refuse("duplicateName", name.value);
       const edit = appendLines([`${indent}class ${name.value}`]);
-      if (!edit.ok) return edit;
       return ok({
-        edits: [edit.value],
+        edits: [edit],
         expected: {
           ...meaning,
           classes: [...meaning.classes, { name: name.value, members: [] }],
@@ -447,11 +439,7 @@ export function planClassOperation(
         edit = insertAfter(after, [`${memberIndent}${member.value}`]);
       } else {
         // No block: a member line outside it, which needs no change to the class line.
-        const appended = appendLines([
-          `${indent}${lines.name} : ${member.value}`,
-        ]);
-        if (!appended.ok) return appended;
-        edit = appended.value;
+        edit = appendLines([`${indent}${lines.name} : ${member.value}`]);
       }
       return ok({
         edits: [edit],
@@ -508,9 +496,8 @@ export function planClassOperation(
       const edit = appendLines([
         `${indent}${classRelationshipText(relationship.value)}`,
       ]);
-      if (!edit.ok) return edit;
       return ok({
-        edits: [edit.value],
+        edits: [edit],
         expected: withRelationships(current, [
           ...meaning.relationships,
           relationship.value,

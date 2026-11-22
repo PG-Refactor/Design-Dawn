@@ -164,9 +164,7 @@ export function readState(source: string): StateRead {
       })),
       transitions,
     },
-    notReadable: editable
-      ? null
-      : { reason: reason ?? "unsupportedLines", lines: unsupported },
+    notReadable: reason === null ? null : { reason, lines: unsupported },
     read,
     stateLines,
     transitionLines,
@@ -229,8 +227,8 @@ export interface StatePlan {
 function withTransitions(
   current: StateRead,
   transitions: readonly StateTransition[],
-  states: readonly StateItem[] = current.meaning.states,
 ): StateMeaning {
+  const states = current.meaning.states;
   const named = new Set(
     transitions
       .flatMap((transition) => [transition.from, transition.to])
@@ -259,12 +257,8 @@ export function planStateOperation(
   const { meaning, read } = current;
   const indent = indentOf(read);
   const known = (id: string) => meaning.states.some((state) => state.id === id);
-  const appendLines = (texts: readonly string[]): DomainResult<TextEdit> => {
-    const edit = append(read, texts);
-    return edit === null
-      ? refuse("emptySource", "nothing to add to")
-      : ok(edit);
-  };
+  const appendLines = (texts: readonly string[]): TextEdit =>
+    append(read, texts);
   switch (operation.kind) {
     case "addState": {
       const id = requireIdentifier(operation.state.id, "state");
@@ -278,9 +272,8 @@ export function planStateOperation(
       if (!description.ok) return description;
       const state = { id: id.value, description: description.value };
       const edit = appendLines([`${indent}${stateText(state)}`]);
-      if (!edit.ok) return edit;
       return ok({
-        edits: [edit.value],
+        edits: [edit],
         expected: { ...meaning, states: [...meaning.states, state] },
       });
     }
@@ -302,9 +295,7 @@ export function planStateOperation(
           `${leadingWhitespace(line)}${stateText(state)}`,
         );
       } else {
-        const appended = appendLines([`${indent}${stateText(state)}`]);
-        if (!appended.ok) return appended;
-        edit = appended.value;
+        edit = appendLines([`${indent}${stateText(state)}`]);
       }
       return ok({
         edits: [edit],
@@ -317,7 +308,6 @@ export function planStateOperation(
       });
     }
     case "deleteState": {
-      if (!known(operation.id)) return refuse("unknownState", operation.id);
       if (
         meaning.transitions.some(
           (transition) =>
@@ -326,6 +316,7 @@ export function planStateOperation(
       ) {
         return refuse("stateInUse", operation.id);
       }
+      // A state no transition names exists only by its own line.
       const line = current.stateLines.get(operation.id);
       if (line === undefined) return refuse("unknownState", operation.id);
       return ok({
@@ -342,9 +333,8 @@ export function planStateOperation(
       const edit = appendLines([
         `${indent}${transitionText(transition.value)}`,
       ]);
-      if (!edit.ok) return edit;
       return ok({
-        edits: [edit.value],
+        edits: [edit],
         expected: withTransitions(current, [
           ...meaning.transitions,
           transition.value,
