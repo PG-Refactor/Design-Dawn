@@ -11,6 +11,9 @@ import {
   SEQUENCE_INLINE_SEPARATOR,
 } from "./sequence-operation-config";
 import type { SequenceReading } from "./sequence-reader";
+
+type SequenceLine = SequenceReading["lines"][number];
+
 import type { SequenceStatement } from "./sequence-types";
 
 // Whole-line edits and the facts about the file's layout that make a new line look like its
@@ -26,8 +29,8 @@ export function indentOfLine(
   reading: SequenceReading,
   lineIndex: number,
 ): string {
-  const line = reading.lines[lineIndex];
-  if (line === undefined) return SEQUENCE_DEFAULT_INDENT;
+  // Always a line of the reading: the line of a statement or of the header.
+  const line = reading.lines[lineIndex] as SequenceLine;
   return line.text.slice(0, line.text.length - line.text.trimStart().length);
 }
 
@@ -57,8 +60,7 @@ export function insertLineAfterEdit(
   lineIndex: number,
   content: string,
 ): TextEdit {
-  const line = reading.lines[lineIndex];
-  if (line === undefined) return appendLineEdit(reading, content);
+  const line = reading.lines[lineIndex] as SequenceLine;
   const ending = dominantLineEnding(reading);
   if (line.terminator === "") {
     return { start: line.end, end: line.end, text: ending + content };
@@ -72,8 +74,7 @@ export function insertLineBeforeEdit(
   lineIndex: number,
   content: string,
 ): TextEdit {
-  const line = reading.lines[lineIndex];
-  if (line === undefined) return appendLineEdit(reading, content);
+  const line = reading.lines[lineIndex] as SequenceLine;
   return {
     start: line.start,
     end: line.start,
@@ -104,8 +105,8 @@ export function occupiesWholeLine(
   reading: SequenceReading,
   statement: SequenceStatement,
 ): boolean {
-  const line = reading.lines[statement.lineIndex];
-  if (line === undefined || line.kind !== "statement") return false;
+  // The line of a statement is a statement line.
+  const line = reading.lines[statement.lineIndex] as SequenceLine;
   if (statementsOnLine(reading, statement.lineIndex).length !== 1) return false;
   const text = line.text.trim();
   return (
@@ -168,8 +169,7 @@ export function insertStatementsBeforeEdit(
   if (occupiesWholeLine(reading, statement)) {
     const indent = indentOfLine(reading, statement.lineIndex);
     const ending = dominantLineEnding(reading);
-    const line = reading.lines[statement.lineIndex];
-    const start = line?.start ?? statement.span.start;
+    const start = (reading.lines[statement.lineIndex] as SequenceLine).start;
     return {
       start,
       end: start,
@@ -190,8 +190,8 @@ export function replaceStatementEdit(
   statement: SequenceStatement,
   texts: readonly string[],
 ): TextEdit {
-  const line = reading.lines[statement.lineIndex];
-  if (line !== undefined && occupiesWholeLine(reading, statement)) {
+  const line = reading.lines[statement.lineIndex] as SequenceLine;
+  if (occupiesWholeLine(reading, statement)) {
     const indent = indentOfLine(reading, statement.lineIndex);
     const ending = dominantLineEnding(reading);
     return {

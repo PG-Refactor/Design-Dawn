@@ -215,7 +215,12 @@ describe("more sequence operations", () => {
     ],
     [
       "a note text it cannot write",
-      { kind: "addNote", placement: "over", participants: ["A"], text: "a\u0001b" },
+      {
+        kind: "addNote",
+        placement: "over",
+        participants: ["A"],
+        text: "a\u0001b",
+      },
     ],
     [
       "moving a stale message",
