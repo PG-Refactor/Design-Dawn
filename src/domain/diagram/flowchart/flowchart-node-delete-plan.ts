@@ -1,4 +1,5 @@
 import { type DomainResult, ok } from "../../shared/domain-result";
+import { itemAt } from "../../shared/item-at";
 import type { TextEdit } from "../text-edit";
 import {
   repairEdgeAttributes,
@@ -20,6 +21,7 @@ import type {
   FlowchartClassStatement,
   FlowchartClickStatement,
   FlowchartStatement,
+  FlowchartTermGroup,
   FlowchartVertexStatement,
 } from "./flowchart-types";
 
@@ -71,24 +73,24 @@ function cutVertexStatement(
     }
     let last = position;
     while (dead[last + 1] === true) last += 1;
+    // Not every group goes (that is the whole statement), so one comes before or after.
     const before = groups[position - 1];
     const after = groups[last + 1];
-    const first = groups[position];
-    const lastGroup = groups[last];
-    if (first === undefined || lastGroup === undefined) break;
-    if (before === undefined && after !== undefined) {
+    const first = groups[position] as FlowchartTermGroup;
+    const lastGroup = groups[last] as FlowchartTermGroup;
+    if (before === undefined) {
       edits.push({
         start: first.span.start,
-        end: after.span.start,
+        end: itemAt(groups, last + 1, lastGroup).span.start,
         text: "",
       });
-    } else if (before !== undefined && after !== undefined) {
+    } else if (after !== undefined) {
       edits.push({
         start: before.span.end,
         end: after.span.start,
         text: BRIDGE,
       });
-    } else if (before !== undefined) {
+    } else {
       edits.push({
         start: before.span.end,
         end: lastGroup.span.end,

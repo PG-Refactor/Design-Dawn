@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { planNodeDeletion } from "./flowchart-node-delete-plan";
 import type { PreparedFlowchart } from "./flowchart-operation-support";
 import {
   reasonOfRefusal,
@@ -210,5 +211,44 @@ describe("deleting a node", () => {
     expect(
       readFlowchart(result).meaning?.nodes.map((node) => node.id),
     ).not.toContain(nodeId);
+  });
+});
+
+describe("deleting a node, more cases", () => {
+  it("cuts a run of the node's groups out of a chain", () => {
+    const result = runOperation("flowchart TD\n    A --> B --> B --> C\n", {
+      kind: "deleteNode",
+      nodeId: "B",
+    });
+    expect(readFlowchart(result).meaning?.nodes.map((node) => node.id)).toEqual(
+      ["A", "C"],
+    );
+  });
+
+  it("keeps a statement on the header's line rather than removing it whole", () => {
+    const result = runOperation("flowchart TD; A --> X\n", {
+      kind: "deleteNode",
+      nodeId: "X",
+    });
+    expect(result).toBe("flowchart TD; A\n");
+  });
+
+  it("refuses when the result would not read back as promised", () => {
+    const base = prepared("flowchart TD\n    A --> B\n");
+    const promising = {
+      ...base,
+      meaning: {
+        ...base.meaning,
+        nodes: [...base.meaning.nodes, { ...base.meaning.nodes[0], id: "Z" }],
+      },
+    } as PreparedFlowchart;
+    const result = planNodeDeletion(
+      "flowchart TD\n    A --> B\n",
+      promising,
+      "B",
+    );
+    expect(!result.ok && reasonOfRefusal(result.error)).toBe(
+      "notPlainlyDeletable",
+    );
   });
 });
