@@ -13,6 +13,7 @@ import type {
   EntryId,
   FolderId,
 } from "../../../domain/shared/entity-id";
+import { orderPosition } from "../../../domain/shared/ordered-ids";
 import type { UiState } from "../ui-state/ui-state";
 
 export interface DocumentNode {
@@ -81,10 +82,7 @@ function selectChildren(
   application: TreeStateInput,
   ui: TreeUiInput,
 ): readonly TreeEntryNode[] {
-  const position = (id: EntryId): number => {
-    const index = order.indexOf(id);
-    return index < 0 ? order.length : index;
-  };
+  const position = (id: EntryId): number => orderPosition(order, id);
   const children: { readonly id: EntryId; readonly node: TreeEntryNode }[] = [
     ...project.folders
       .filter((entry) => entry.parentFolderId === parentId)

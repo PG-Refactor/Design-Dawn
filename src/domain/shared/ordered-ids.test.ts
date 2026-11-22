@@ -1,9 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { addToOrder, moveInOrder, removeFromOrder } from "./ordered-ids";
+import {
+  addToOrder,
+  moveInOrder,
+  orderPosition,
+  removeFromOrder,
+} from "./ordered-ids";
 import { unwrap } from "./test-support";
 
 describe("ordered ids", () => {
   const order = ["a", "b", "c"] as const;
+
+  it("places an unlisted id after every listed one", () => {
+    expect(orderPosition(order, "b")).toBe(1);
+    expect(orderPosition<string>(order, "z")).toBe(order.length);
+  });
 
   it("appends an id", () => {
     expect(unwrap(addToOrder(order, "d"))).toEqual(["a", "b", "c", "d"]);

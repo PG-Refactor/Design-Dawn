@@ -9,7 +9,7 @@ import type {
   EntryId,
   FolderId,
 } from "../../domain/shared/entity-id";
-import { addToOrder, removeFromOrder } from "../../domain/shared/ordered-ids";
+import { addToOrder, orderPosition } from "../../domain/shared/ordered-ids";
 import {
   failWith,
   fromDomainResult,
@@ -114,8 +114,7 @@ export function orderWithout(
     return operationErr("entityNotFound", `folder not found: ${parentId}`);
   }
   if (!order.includes(entryId)) return operationOk(null);
-  const removed = fromDomainResult(removeFromOrder(order, entryId));
-  return removed.ok ? operationOk(removed.value) : failWith(removed.error);
+  return operationOk(order.filter((id) => id !== entryId));
 }
 
 export function withParentSave(
@@ -238,16 +237,14 @@ export function sortSiblings<
   order: readonly EntryId[],
   idOf: (entry: Entry) => EntryId,
 ): readonly Entry[] {
-  const position = (entry: Entry): number => {
-    const index = order.indexOf(idOf(entry));
-    return index < 0 ? order.length : index;
-  };
+  const position = (entry: Entry): number => orderPosition(order, idOf(entry));
   const sorted = entries
     .filter((entry) => entry.parentFolderId === parentId)
     .sort((first, second) => position(first) - position(second));
   let next = 0;
   return entries.map((entry) =>
-    entry.parentFolderId === parentId ? (sorted[next++] ?? entry) : entry,
+    // `sorted` holds exactly the entries of this parent, one per slot.
+    entry.parentFolderId === parentId ? (sorted[next++] as Entry) : entry,
   );
 }
 
@@ -283,14 +280,10 @@ export function deletionSteps(
     return false;
   };
   const steps: DeletionStep[] = [];
-  const addFolder = (folderId: FolderId): void => {
-    const folder = findFolder(project, folderId);
-    if (folder === undefined) return;
+  const addFolder = (folder: OpenProjectFolderEntry): void => {
+    const { folderId } = folder;
     const order = folder.childOrder;
-    const position = (id: EntryId): number => {
-      const index = order.indexOf(id);
-      return index < 0 ? order.length : index;
-    };
+    const position = (id: EntryId): number => orderPosition(order, id);
     const documents = project.documents
       .filter((entry) => entry.parentFolderId === folderId)
       .sort((a, b) => position(a.documentId) - position(b.documentId));
@@ -304,7 +297,7 @@ export function deletionSteps(
     const folders = project.folders
       .filter((entry) => entry.parentFolderId === folderId)
       .sort((a, b) => position(a.folderId) - position(b.folderId));
-    for (const entry of folders) addFolder(entry.folderId);
+    for (const entry of folders) addFolder(entry);
     steps.push({ kind: "folder", folderId, name: folder.name });
   };
   for (const entryId of entryIds) {
@@ -319,7 +312,7 @@ export function deletionSteps(
         name: found.entry.name,
       });
     } else {
-      addFolder(found.entry.folderId);
+      addFolder(found.entry);
     }
   }
   return steps;

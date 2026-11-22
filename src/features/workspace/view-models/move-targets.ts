@@ -10,6 +10,7 @@ import {
   type ParentId,
 } from "../../../application/workspace/project-entries";
 import type { EntryId, FolderId } from "../../../domain/shared/entity-id";
+import { orderPosition } from "../../../domain/shared/ordered-ids";
 
 export type MoveTargetDisabledReason =
   // Moving to where the entries already are would change nothing.
@@ -77,10 +78,8 @@ export function selectMoveTargets(
   function addFolders(parentId: ParentId, depth: number): void {
     if (project === null) return;
     const order = childOrderOf(project, parentId) ?? [];
-    const position = (folderId: FolderId): number => {
-      const index = order.indexOf(folderId);
-      return index < 0 ? order.length : index;
-    };
+    const position = (folderId: FolderId): number =>
+      orderPosition(order, folderId as EntryId);
     const folders = project.folders
       .filter((entry) => entry.parentFolderId === parentId)
       .sort(
