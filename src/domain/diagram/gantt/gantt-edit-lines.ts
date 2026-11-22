@@ -1,5 +1,9 @@
 import type { TextEdit } from "../text-edit";
 import {
+  deleteLinesEdits as deleteLines,
+  dominantLineEnding as sharedLineEnding,
+} from "../text-lines";
+import {
   GANTT_DEFAULT_INDENT,
   GANTT_DEFAULT_LINE_ENDING,
 } from "./gantt-config";
@@ -10,13 +14,7 @@ import type { GanttLine, ParsedGantt } from "./gantt-types";
 
 // The line break most lines end with, so a line added to a CRLF file is CRLF.
 export function dominantLineEnding(parsed: ParsedGantt): string {
-  let crlf = 0;
-  let lineFeed = 0;
-  for (const line of parsed.lines) {
-    if (line.terminator === "\r\n") crlf += 1;
-    else if (line.terminator === "\n") lineFeed += 1;
-  }
-  return crlf > lineFeed ? "\r\n" : GANTT_DEFAULT_LINE_ENDING;
+  return sharedLineEnding(parsed.lines, GANTT_DEFAULT_LINE_ENDING);
 }
 
 export function indentOf(line: GanttLine | undefined): string {
@@ -48,34 +46,5 @@ export function deleteLinesEdits(
   parsed: ParsedGantt,
   lineIndexes: ReadonlySet<number>,
 ): readonly TextEdit[] {
-  const sorted = [...lineIndexes].sort((left, right) => left - right);
-  const edits: TextEdit[] = [];
-  let position = 0;
-  while (position < sorted.length) {
-    const first = sorted[position] as number;
-    let last = first;
-    while (sorted[position + 1] === last + 1) {
-      position += 1;
-      last += 1;
-    }
-    position += 1;
-    const firstLine = parsed.lines[first];
-    const lastLine = parsed.lines[last];
-    if (firstLine === undefined || lastLine === undefined) continue;
-    if (lastLine.terminator !== "" || first === 0) {
-      edits.push({
-        start: firstLine.start,
-        end: lastLine.end + lastLine.terminator.length,
-        text: "",
-      });
-    } else {
-      const previous = parsed.lines[first - 1];
-      edits.push({
-        start: previous === undefined ? firstLine.start : previous.end,
-        end: lastLine.end,
-        text: "",
-      });
-    }
-  }
-  return edits;
+  return deleteLines(parsed.lines, lineIndexes);
 }
