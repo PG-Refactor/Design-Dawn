@@ -3,6 +3,8 @@
 // source of truth: an operation rewrites only the table's own lines, and a table this
 // module does not fully understand is not offered for editing at all.
 
+import { itemAt } from "../shared/item-at";
+
 export type ColumnAlignment = "none" | "left" | "center" | "right";
 
 export interface MarkdownTable {
@@ -137,12 +139,12 @@ function fencedLines(lines: readonly string[]): boolean[] {
   return inside;
 }
 
-function parseTableLines(lines: readonly string[]): MarkdownTable | null {
-  const [headerLine, delimiterLine, ...bodyLines] = lines;
-  if (headerLine === undefined || delimiterLine === undefined) return null;
-  const header = splitRow(headerLine);
-  const delimiter = splitRow(delimiterLine);
-  if (header === null || delimiter === null) return null;
+// The table of consecutive table lines, already split into cells.
+function parseTableRows(
+  lines: readonly (readonly string[])[],
+): MarkdownTable | null {
+  const [header, delimiter, ...bodyLines] = lines;
+  if (header === undefined || delimiter === undefined) return null;
   if (header.length !== delimiter.length || header.length === 0) return null;
   const alignments: ColumnAlignment[] = [];
   for (const cell of delimiter) {
@@ -151,9 +153,7 @@ function parseTableLines(lines: readonly string[]): MarkdownTable | null {
     alignments.push(alignment);
   }
   const rows: string[][] = [];
-  for (const line of bodyLines) {
-    const cells = splitRow(line);
-    if (cells === null) return null;
+  for (const cells of bodyLines) {
     // Extra cells are dropped by Markdown renderers; editing would lose them for good.
     if (cells.length > header.length) return null;
     rows.push([
@@ -161,7 +161,7 @@ function parseTableLines(lines: readonly string[]): MarkdownTable | null {
       ...Array.from({ length: header.length - cells.length }, () => ""),
     ]);
   }
-  return { header, alignments, rows };
+  return { header: [...header], alignments, rows };
 }
 
 function lineStartOffsets(lines: readonly string[]): number[] {
@@ -177,7 +177,7 @@ function lineStartOffsets(lines: readonly string[]): number[] {
 function lineIndexAt(starts: readonly number[], offset: number): number {
   let index = 0;
   for (let candidate = 0; candidate < starts.length; candidate += 1) {
-    if ((starts[candidate] ?? 0) <= offset) index = candidate;
+    if (itemAt(starts, candidate, 0) <= offset) index = candidate;
   }
   return index;
 }
@@ -208,17 +208,24 @@ export function findTableAt(
   const starts = lineStartOffsets(lines);
   const caretLine = lineIndexAt(starts, caret);
   const fenced = fencedLines(lines);
-  const isCandidate = (index: number) =>
-    !fenced[index] && splitRow(lines[index] ?? "") !== null;
+  // The cells of each line that is a table line (null for the others).
+  const cellsOf = lines.map((line, index) =>
+    fenced[index] ? null : splitRow(line),
+  );
+  const isCandidate = (index: number) => cellsOf[index] != null;
   if (!isCandidate(caretLine)) return null;
   let first = caretLine;
   while (first > 0 && isCandidate(first - 1)) first -= 1;
   let last = caretLine;
   while (last < lines.length - 1 && isCandidate(last + 1)) last += 1;
-  const table = parseTableLines(lines.slice(first, last + 1));
+  const table = parseTableRows(
+    cellsOf
+      .slice(first, last + 1)
+      .filter((cells): cells is string[] => cells !== null),
+  );
   if (table === null) return null;
   const rowIndex = caretLine - first;
-  const caretLineText = lines[caretLine] ?? "";
+  const caretLineText = itemAt(lines, caretLine, "");
   return {
     firstLine: first,
     lineCount: last - first + 1,
@@ -228,7 +235,7 @@ export function findTableAt(
       row: rowIndex <= 1 ? null : rowIndex - 2,
       column: columnAt(
         caretLineText,
-        caret - (starts[caretLine] ?? 0),
+        caret - itemAt(starts, caretLine, 0),
         table.header.length,
       ),
     },
@@ -274,16 +281,18 @@ export function formatTable(table: MarkdownTable): string[] {
     Math.max(
       MIN_DELIMITER_DASHES,
       visualWidth(cell),
-      ...table.rows.map((row) => visualWidth(row[column] ?? "")),
+      ...table.rows.map((row) => visualWidth(itemAt(row, column, ""))),
     ),
   );
   const line = (cells: readonly string[]) =>
-    joinCells(cells.map((cell, column) => padCell(cell, widths[column] ?? 0)));
+    joinCells(
+      cells.map((cell, column) => padCell(cell, itemAt(widths, column, 0))),
+    );
   return [
     line(table.header),
     joinCells(
       table.alignments.map((alignment, column) =>
-        delimiterCell(alignment, widths[column] ?? MIN_DELIMITER_DASHES),
+        delimiterCell(alignment, itemAt(widths, column, MIN_DELIMITER_DASHES)),
       ),
     ),
     ...table.rows.map(line),
@@ -296,8 +305,7 @@ function emptyRow(table: MarkdownTable): string[] {
 
 function moved<T>(items: readonly T[], from: number, to: number): T[] {
   const result = [...items];
-  const [item] = result.splice(from, 1);
-  if (item !== undefined) result.splice(to, 0, item);
+  result.splice(to, 0, ...result.splice(from, 1));
   return result;
 }
 
@@ -407,11 +415,11 @@ function cellOffset(
   const lineIndex = cell.row === null ? 0 : cell.row + 2;
   let offset = tableStart;
   for (let index = 0; index < lineIndex; index += 1) {
-    offset += (lines[index] ?? "").length + LINE_BREAK.length;
+    offset += itemAt(lines, index, "").length + LINE_BREAK.length;
   }
-  const line = lines[lineIndex] ?? "";
+  const line = itemAt(lines, lineIndex, "");
   const separators = separatorOffsets(line);
-  const separator = separators[cell.column] ?? 0;
+  const separator = itemAt(separators, cell.column, 0);
   // `| ` before each cell: the text starts two characters after its separator.
   return offset + Math.min(separator + 2, line.length);
 }
@@ -432,7 +440,11 @@ export function writeTable(
     ...lines.slice(location.firstLine + location.lineCount),
   ];
   const text = next.join(LINE_BREAK);
-  const tableStart = lineStartOffsets(next)[location.firstLine] ?? text.length;
+  const tableStart = itemAt(
+    lineStartOffsets(next),
+    location.firstLine,
+    text.length,
+  );
   const reread = findTableAt(text, tableStart);
   if (
     reread === null ||
@@ -468,7 +480,7 @@ function parseTabSeparated(text: string): string[][] {
   let quoted = false;
   let atCellStart = true;
   for (let index = 0; index < text.length; index += 1) {
-    const character = text[index] ?? "";
+    const character = itemAt(text, index, "");
     if (quoted) {
       if (character === QUOTE && text[index + 1] === QUOTE) {
         cell += QUOTE;
@@ -533,8 +545,9 @@ export function tableFromCells(
       markdownCell,
     ),
   );
-  const [header, ...body] = padded;
-  if (header === undefined) return null;
+  // There is a first row: `rows` is not empty.
+  const header = itemAt(padded, 0, []);
+  const body = padded.slice(1);
   return {
     header,
     alignments: header.map(() => "none" as const),

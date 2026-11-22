@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { contentBounds, paginate } from "./page-layout";
+import { contentBounds, drawnPictureRect, paginate } from "./page-layout";
 
 const block = (x: number, y: number, width: number, height: number) => ({
   x,
@@ -124,5 +124,43 @@ describe("paginate", () => {
           gantt.y < page.y + page.height,
       ),
     ).toBe(true);
+  });
+});
+
+describe("a figure's strip downwards and its picture", () => {
+  it("leaves out a page with only a thin strip of a tall figure below the picture", () => {
+    const figure = {
+      ...block(0, 0, 50, 120),
+      figure: true,
+      drawn: block(0, 10, 50, 80),
+    };
+    expect(
+      paginate(block(0, 0, 50, 120), [figure], 100, 100, 0.25).map(
+        (page) => page.y,
+      ),
+    ).toEqual([0]);
+    // A figure without a known picture is printed whole.
+    expect(
+      paginate(
+        block(0, 0, 50, 120),
+        [{ ...figure, drawn: undefined }],
+        100,
+        100,
+        0.25,
+      ).length,
+    ).toBe(2);
+  });
+
+  it("draws a picture as large as it is, or shrunk and centred, never enlarged", () => {
+    const frame = block(0, 0, 200, 100);
+    expect(drawnPictureRect(frame, { width: 100, height: 50 })).toEqual(
+      block(50, 25, 100, 50),
+    );
+    expect(drawnPictureRect(frame, { width: 400, height: 100 })).toEqual(
+      block(0, 25, 200, 50),
+    );
+    // A picture without a size fills the block.
+    expect(drawnPictureRect(frame, { width: 0, height: 10 })).toBe(frame);
+    expect(drawnPictureRect(frame, { width: 10, height: 0 })).toBe(frame);
   });
 });
