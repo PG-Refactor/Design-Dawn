@@ -27,19 +27,18 @@ fn is_canonical_entity_id(value: &str) -> bool {
         && ENTITY_ID_VARIANT_CHARACTERS.contains(&bytes[ENTITY_ID_VARIANT_POSITION])
 }
 
-// `Uuid::parse_str` alone would accept uppercase, braces, urn and simple forms,
-// so the canonical check must come first; it never normalizes.
+// `Uuid::parse_str` alone would accept uppercase, braces, urn and simple forms, so only
+// a canonical text is taken; it never normalizes. A canonical text always parses.
 fn parse_canonical_uuid(value: &str) -> Result<Uuid, DomainError> {
-    let invalid = || {
-        DomainError::new(
-            DomainErrorKind::InvalidEntityId,
-            format!("not a canonical UUIDv7: {value:?}"),
-        )
-    };
-    if !is_canonical_entity_id(value) {
-        return Err(invalid());
-    }
-    Uuid::parse_str(value).map_err(|_| invalid())
+    Uuid::parse_str(value)
+        .ok()
+        .filter(|_| is_canonical_entity_id(value))
+        .ok_or_else(|| {
+            DomainError::new(
+                DomainErrorKind::InvalidEntityId,
+                format!("not a canonical UUIDv7: {value:?}"),
+            )
+        })
 }
 
 macro_rules! define_entity_id {
