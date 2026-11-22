@@ -181,7 +181,8 @@
                 "structure": false,
                 "files": []
               },
-              "documents": []
+              "documents": [],
+              "picturesTouched": false
             }
           },
           "ignoreValuePaths": ["sessionGeneration"]

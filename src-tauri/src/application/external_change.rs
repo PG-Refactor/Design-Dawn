@@ -22,6 +22,7 @@ use crate::infrastructure::file_format::constants::{
     DOCUMENTS_DIRECTORY_NAME, DOCUMENT_FILE_NAME, FOLDER_FILE_NAME, PROJECT_FILE_NAME,
 };
 use crate::infrastructure::file_format::dto::parse_json_text;
+use crate::infrastructure::file_format::image_validation::ImageFormat;
 use crate::infrastructure::filesystem::directory::{list_directory, EntryKind};
 use crate::infrastructure::filesystem::hashing::sha256_hex;
 use crate::infrastructure::filesystem::path_resolution::resolve_existing;
@@ -94,6 +95,10 @@ pub struct ExternalChanges {
     pub project: ProjectChanges,
     /// Only Documents that are open: an unopened Document is read fresh when it is opened.
     pub documents: Vec<DocumentChanges>,
+    /// The events named a picture file (or may have been lost). Pictures are not recorded
+    /// like the other files (the webview reads them directly), so this is all that tells the
+    /// window to show them again.
+    pub pictures_touched: bool,
 }
 
 impl ExternalChanges {
@@ -324,6 +329,7 @@ pub fn detect(session: &ProjectSession, scope: &Scope<'_>, rescan: bool) -> Exte
         rescan,
         project,
         documents,
+        pictures_touched: false,
     }
 }
 
@@ -371,7 +377,12 @@ pub fn confirm_batch(
     } else {
         Scope::Paths(&batch.paths)
     };
-    let changes = detect(session, &scope, batch.rescan);
+    let mut changes = detect(session, &scope, batch.rescan);
+    changes.pictures_touched = batch.rescan
+        || batch
+            .paths
+            .iter()
+            .any(|path| ImageFormat::from_file_name(path).is_some());
     let touches_untracked_file = batch
         .paths
         .iter()

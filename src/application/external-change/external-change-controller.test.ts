@@ -463,6 +463,14 @@ describe("checking and waiting", () => {
     expect(events).toContainEqual({ type: "projectFilesActivity" });
   });
 
+  it("tells that pictures changed only when the notice says so", async () => {
+    const { harness, controller, events } = await opened();
+    await controller.handleNotice(notice(harness));
+    expect(events).not.toContainEqual({ type: "picturesChanged" });
+    await controller.handleNotice(notice(harness, { picturesTouched: true }));
+    expect(events).toContainEqual({ type: "picturesChanged" });
+  });
+
   it("reports a failed comparison", async () => {
     const { harness, controller, events } = await opened();
     harness.gateway.failOn("checkExternalChanges", "ioError");
