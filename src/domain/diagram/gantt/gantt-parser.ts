@@ -111,11 +111,8 @@ export function parseGantt(source: string): ParsedGantt {
     const lead = leadingBlanks(line.text);
     const text = line.text.slice(lead);
     const base = line.start + lead;
+    // A statement line has text (blank lines are sorted out before).
     const trimmed = text.trim();
-    if (trimmed === "") {
-      setKind(index, "blank");
-      return;
-    }
     if (trimmed.startsWith(COMMENT_START)) {
       setKind(index, "comment");
       return;
