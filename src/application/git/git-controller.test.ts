@@ -2088,3 +2088,152 @@ describe("remotes", () => {
     expect(gitGateway.remotesCalls).toEqual([]);
   });
 });
+
+describe("operations overtaken by a Project switch", () => {
+  async function opened() {
+    const context = setup();
+    await context.workspace.openProject(SELECTION_ID);
+    await settle();
+    return context;
+  }
+
+  it("skips queued operations whose Project closed while they waited", async () => {
+    const { workspace, gitGateway, controller } = await opened();
+    const release = gitGateway.holdNextCall();
+    const refresh = controller.refreshGitStatus();
+    const queuedRefresh = controller.refreshGitStatusInBackground();
+    const stage = controller.stage(["a.md"]);
+    const commit = controller.commit("message");
+    const diff = controller.loadDiff("a.md", "unstaged");
+    const history = controller.loadHistory();
+    await settle();
+    await workspace.closeProject();
+    release();
+    await Promise.all([refresh, queuedRefresh]);
+    expect((await stage).ok).toBe(true);
+    expect((await commit).ok).toBe(true);
+    expect((await diff).ok).toBe(true);
+    expect((await history).ok).toBe(true);
+    expect(controller.store.getState().operating).toBe(false);
+  });
+
+  it("drops the answer of an operation whose Project closed while git ran it", async () => {
+    const { workspace, gitGateway, controller, failures } = await opened();
+    const releaseStage = gitGateway.holdNextStage();
+    const stage = controller.stage(["a.md"]);
+    await settle();
+    await workspace.closeProject();
+    releaseStage();
+    expect((await stage).ok).toBe(true);
+
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.failure = { kind: "gitTimeout", detail: "slow" };
+    const releasePush = gitGateway.holdNextRemote();
+    const push = controller.push();
+    await settle();
+    await workspace.closeProject();
+    releasePush();
+    expect((await push).ok).toBe(false);
+    expect(failures).toEqual([]);
+  });
+
+  it("leaves the state of a new Project alone after a failure whose status read it overtook", async () => {
+    const { workspace, gitGateway, controller } = await opened();
+    gitGateway.failure = { kind: "gitTimeout", detail: "slow" };
+    const releaseRemote = gitGateway.holdNextRemote();
+    const push = controller.push();
+    await settle();
+    const releaseRead = gitGateway.holdNextCall();
+    releaseRemote();
+    await settle();
+    await workspace.closeProject();
+    releaseRead();
+    expect((await push).ok).toBe(false);
+    expect(controller.store.getState().operating).toBe(false);
+  });
+
+  it("skips a refresh queued behind an operation when the Project closes", async () => {
+    const { workspace, gitGateway, controller } = await opened();
+    const release = gitGateway.holdNextStage();
+    const stage = controller.stage(["a.md"]);
+    const refresh = controller.refreshGitStatus();
+    await settle();
+    await workspace.closeProject();
+    release();
+    expect((await stage).ok).toBe(true);
+    expect((await refresh).ok).toBe(true);
+  });
+
+  it("passes on a failed index change and a diff answered after the switch", async () => {
+    const { workspace, gitGateway, controller } = await opened();
+    gitGateway.failure = { kind: "gitTimeout", detail: "slow" };
+    const releaseStage = gitGateway.holdNextStage();
+    const stage = controller.stage(["a.md"]);
+    await settle();
+    await workspace.closeProject();
+    releaseStage();
+    expect((await stage).ok).toBe(false);
+
+    gitGateway.failure = null;
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    const releaseDiff = gitGateway.holdNextDiff();
+    const diff = controller.loadDiff("a.md", "unstaged");
+    await settle();
+    await workspace.closeProject();
+    releaseDiff();
+    expect((await diff).ok).toBe(true);
+
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.failure = { kind: "gitTimeout", detail: "slow" };
+    const releaseFailingDiff = gitGateway.holdNextDiff();
+    const failingDiff = controller.loadDiff("a.md", "unstaged");
+    await settle();
+    await workspace.closeProject();
+    releaseFailingDiff();
+    expect((await failingDiff).ok).toBe(false);
+  });
+
+  it("leaves a new Project alone after an index change failure whose status read it overtook", async () => {
+    const { workspace, gitGateway, controller } = await opened();
+    gitGateway.failure = { kind: "gitTimeout", detail: "slow" };
+    const releaseStage = gitGateway.holdNextStage();
+    const stage = controller.stage(["a.md"]);
+    await settle();
+    const releaseRead = gitGateway.holdNextCall();
+    releaseStage();
+    await settle();
+    await workspace.closeProject();
+    releaseRead();
+    expect((await stage).ok).toBe(false);
+    expect(controller.store.getState().operating).toBe(false);
+  });
+
+  it("reports a failed conflict resolution under its own label", async () => {
+    const { gitGateway, controller, failureLabels } = await opened();
+    gitGateway.failure = { kind: "gitTimeout", detail: "slow" };
+    await controller.resolveConflict("a.md", "text");
+    expect(failureLabels).toContain("resolveGitConflict");
+  });
+});
+
+describe("without an open Project", () => {
+  it("refuses to read versions, and turns on long paths for nothing", async () => {
+    const { controller } = setup();
+    expect((await controller.conflictVersions("a.md")).ok).toBe(false);
+    expect((await controller.sheetVersions("a.json", "head" as never)).ok).toBe(
+      false,
+    );
+    expect((await controller.enableLongPaths()).ok).toBe(true);
+  });
+
+  it("reports a failure to turn on long paths", async () => {
+    const { workspace, gitGateway, controller } = setup();
+    await workspace.openProject(SELECTION_ID);
+    await settle();
+    gitGateway.failure = { kind: "gitTimeout", detail: "slow" };
+    expect((await controller.enableLongPaths()).ok).toBe(false);
+  });
+});
