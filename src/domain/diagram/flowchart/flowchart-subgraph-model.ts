@@ -23,6 +23,8 @@ export interface SubgraphBlock {
   // The statements written directly in the block: nested blocks (their `subgraph` and `end`
   // lines and everything between) are not part of it.
   readonly statements: readonly FlowchartStatement[];
+  // The ids written directly in the block (nodes and the blocks nested in it).
+  readonly mentions: readonly string[];
 }
 
 // What Mermaid lists as the members of a block before it applies "the first definition
@@ -53,6 +55,7 @@ interface OpenBlock {
   readonly parentId: string | null;
   direction: FlowchartSubgraphDirectionStatement | null;
   readonly statements: FlowchartStatement[];
+  readonly mentions: string[];
 }
 
 // The blocks in the order they close (inner before outer, which is also the order of
@@ -64,7 +67,6 @@ export function readSubgraphBlocks(reading: FlowchartReading): {
   const blocks: SubgraphBlock[] = [];
   const mentionBlocks: MentionBlock[] = [];
   const open: OpenBlock[] = [];
-  const openMentions: string[][] = [];
   for (const statement of reading.statements) {
     const top = open[open.length - 1];
     if (statement.kind === "subgraphStart") {
@@ -73,33 +75,33 @@ export function readSubgraphBlocks(reading: FlowchartReading): {
         parentId: top?.start.id.text ?? null,
         direction: null,
         statements: [],
+        mentions: [],
       });
-      openMentions.push([]);
       continue;
     }
     if (statement.kind === "subgraphEnd") {
-      const closed = open.pop();
-      const mentions = openMentions.pop();
-      if (closed === undefined || mentions === undefined) continue;
-      const id = closed.start.id.text;
-      blocks.push({
-        id,
-        start: closed.start,
-        end: statement,
-        direction: closed.direction,
-        parentId: closed.parentId,
-        statements: closed.statements,
-      });
-      mentionBlocks.push({ id, parentId: closed.parentId, mentions });
-      openMentions[openMentions.length - 1]?.push(id);
+      // A readable flowchart closes only blocks it opened: this is the block on top.
+      for (const closed of open.splice(-1)) {
+        const id = closed.start.id.text;
+        const { mentions } = closed;
+        blocks.push({
+          id,
+          start: closed.start,
+          end: statement,
+          direction: closed.direction,
+          parentId: closed.parentId,
+          statements: closed.statements,
+          mentions,
+        });
+        mentionBlocks.push({ id, parentId: closed.parentId, mentions });
+        open[open.length - 1]?.mentions.push(id);
+      }
       continue;
     }
     if (top === undefined) continue;
     if (statement.kind === "subgraphDirection") top.direction = statement;
     top.statements.push(statement);
-    openMentions[openMentions.length - 1]?.push(
-      ...mentionsOfStatement(statement),
-    );
+    top.mentions.push(...mentionsOfStatement(statement));
   }
   return { blocks, mentionBlocks };
 }

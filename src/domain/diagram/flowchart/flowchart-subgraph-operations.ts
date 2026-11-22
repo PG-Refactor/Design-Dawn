@@ -27,6 +27,7 @@ import {
   withAppendedSubgraph,
   withMembers,
   withNodeFirstMention,
+  withNodePlacedAt,
   withoutSubgraph,
   withSubgraph,
   withSubgraphDirection,
@@ -42,7 +43,7 @@ import {
   type PreparedFlowchart,
   refuse,
 } from "./flowchart-operation-support";
-import { removeStatements } from "./flowchart-statement-removal";
+import { statementRemovalEdits } from "./flowchart-statement-removal";
 import {
   type MentionBlock,
   ownerOf,
@@ -189,12 +190,6 @@ export function planSetSubgraphDirection(
   const { reading, meaning } = prepared;
   const token =
     direction === null ? null : FLOWCHART_DIRECTION_WRITE_TOKENS[direction];
-  if (direction !== null && token === undefined) {
-    return refuse(
-      "invalidDirection",
-      `cannot write the direction ${direction}`,
-    );
-  }
   const existing = block.direction;
   if (existing === null) {
     if (token === null) return ok({ edits: [], expected: meaning });
@@ -212,14 +207,10 @@ export function planSetSubgraphDirection(
     );
   }
   if (token === null) {
-    const removal = removeStatements(reading, new Set([existing]));
-    if (!removal.ok) return removal;
+    const removal = statementRemovalEdits(reading, new Set([existing]));
     return planned(
       source,
-      [
-        ...deleteLinesEdits(reading, removal.value.lines),
-        ...removal.value.edits,
-      ],
+      [...deleteLinesEdits(reading, removal.lines), ...removal.edits],
       withSubgraphDirection(meaning, subgraphId, null),
     );
   }
@@ -293,7 +284,8 @@ export function planCreateSubgraph(
       id,
       title: encoded.value,
       labelType: "text",
-      members: members.get(id) ?? [],
+      // Its own: anything taken by a block closed earlier was refused above.
+      members: created.mentions,
       direction: null,
       classes: [],
       statementIndex: reading.statements.length,
@@ -336,18 +328,12 @@ export function planDissolveSubgraph(
   const found = findBlock(model.value, subgraphId);
   if (!found.ok) return found;
   const block = found.value;
-  const references = referencesToSubgraph(prepared, subgraphId);
-  if (references.length > 0) {
+  const [reference] = referencesToSubgraph(prepared, subgraphId);
+  if (reference !== undefined) {
     return refuse(
       "subgraphReferenced",
-      `${subgraphId} is named by a ${references[0]?.kind} statement on line ${(references[0]?.lineIndex ?? 0) + 1}`,
+      `${subgraphId} is named by a ${reference.kind} statement on line ${reference.lineIndex + 1}`,
     );
-  }
-  const own = model.value.mentionBlocks.find(
-    (candidate) => candidate.id === subgraphId,
-  );
-  if (own === undefined) {
-    return refuse("targetNotFound", `no subgraph ${subgraphId}`);
   }
   // What was written inside the block is now written in the block around it (or at the top
   // level), where the id of the dissolved block stood.
@@ -358,7 +344,7 @@ export function planDissolveSubgraph(
         ? {
             ...candidate,
             mentions: candidate.mentions.flatMap((mention) =>
-              mention === subgraphId ? own.mentions : [mention],
+              mention === subgraphId ? block.mentions : [mention],
             ),
           }
         : candidate,
@@ -366,12 +352,11 @@ export function planDissolveSubgraph(
   const members = resolveMembers(remaining);
   const removed = new Set<FlowchartStatement>([block.start, block.end]);
   if (block.direction !== null) removed.add(block.direction);
-  const removal = removeStatements(reading, removed);
-  if (!removal.ok) return removal;
+  const removal = statementRemovalEdits(reading, removed);
   const expected = withMembers(withoutSubgraph(meaning, subgraphId), members);
   const removing = [
-    ...deleteLinesEdits(reading, removal.value.lines),
-    ...removal.value.edits,
+    ...deleteLinesEdits(reading, removal.lines),
+    ...removal.edits,
   ];
   return planned(
     source,
@@ -466,14 +451,8 @@ export function planMoveNodeToSubgraph(
   const position = block.end.index - HALF_STATEMENT;
   let withOrder = meaning;
   if (first !== undefined && position < first.firstMention.statementIndex) {
-    const moved = withNodeFirstMention(meaning, nodeId, position);
-    if (moved === null) {
-      return refuse(
-        "nodeOrderAmbiguous",
-        `${nodeId} shares its first statement with another node`,
-      );
-    }
-    withOrder = moved;
+    // Half-way between two statements: no other node is first written there.
+    withOrder = withNodePlacedAt(meaning, first, position);
   }
   return planned(
     source,
@@ -528,14 +507,11 @@ export function planRemoveNodeFromSubgraph(
     }
     bare.push(statement);
   }
-  if (bare.length === 0) {
-    return refuse("notAMember", `${nodeId} is not written in ${subgraphId}`);
-  }
-  const removal = removeStatements(reading, new Set(bare));
-  if (!removal.ok) return removal;
+  // A member of the block is written in it, so `bare` holds at least one statement.
+  const removal = statementRemovalEdits(reading, new Set(bare));
   const removalEdits = [
-    ...deleteLinesEdits(reading, removal.value.lines),
-    ...removal.value.edits,
+    ...deleteLinesEdits(reading, removal.lines),
+    ...removal.edits,
   ];
   // Statements that keep the node alive without the removed ones.
   const stays = reading.statements.flatMap((statement) => {
