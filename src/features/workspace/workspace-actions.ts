@@ -137,6 +137,9 @@ export interface WorkspaceActions {
   // Whether closing the app window must ask first: auto-save is off and something of the
   // open Project (or a Markdown draft) is not saved.
   windowCloseNeedsConfirmation(): boolean;
+  // Waits for the workspace steps in progress (a Document leaving this window may still be
+  // here while Rust already asks the emptied window to close).
+  whenWorkspaceIdle(): Promise<void>;
   // Something in these Documents is not saved yet (an editor draft included).
   hasUnsavedChanges(documentIds: readonly DocumentId[]): boolean;
   // Shows the question for a window close and resolves to the user's answer.
@@ -1099,6 +1102,7 @@ export function createWorkspaceActions(
     },
     deleteUnusedAssets: (documentId, contentPaths) =>
       workspace.deleteUnusedAssets(documentId, contentPaths),
+    whenWorkspaceIdle: () => workspace.whenIdle(),
     windowCloseNeedsConfirmation: () =>
       !autoSavePolicy.isEnabled() && hasUnsavedProjectChanges(),
     askUnsavedWindowClose() {

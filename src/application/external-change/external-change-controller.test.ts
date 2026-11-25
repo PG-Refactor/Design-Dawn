@@ -585,6 +585,15 @@ describe("conflict actions at their edges", () => {
     expect((await controller.overwrite({ kind: "project" })).ok).toBe(false);
   });
 
+  async function withUnsavedConflict() {
+    const context = await opened();
+    await makeUnsaved(context.harness);
+    await context.controller.handleNotice(
+      notice(context.harness, documentChanges([MARKDOWN_FILE])),
+    );
+    return context;
+  }
+
   async function withTextBlock() {
     const context = await opened();
     const session = context.harness.workspace.getDocumentSession(DOCUMENT_A);
@@ -686,6 +695,30 @@ describe("conflict actions at their edges", () => {
     expect(harness.gateway.methods("restoreBlockContent")).toHaveLength(1);
     expect(harness.gateway.files.get(secondPath)).toBe("beta");
     expect(path).not.toBe(secondPath);
+  });
+
+  it("writes the app's content over a file changed outside that the app did not change", async () => {
+    const { harness, controller, path } = await withTextBlock();
+    await makeUnsaved(harness);
+    harness.gateway.files.set(path, "changed outside");
+    const changed: ChangedFile = { path, change: "modified", readable: true };
+    await controller.handleNotice(notice(harness, documentChanges([changed])));
+    expect((await controller.overwrite(documentTarget)).ok).toBe(true);
+    expect(harness.gateway.files.get(path)).toBe("alpha");
+    expect(
+      harness.workspace.getDocumentSession(DOCUMENT_A)?.getState().save
+        .lastError,
+    ).toBeNull();
+  });
+
+  it("stops overwriting when the Document's session takes nothing more", async () => {
+    const { harness, controller } = await withUnsavedConflict();
+    const session = harness.workspace.getDocumentSession(DOCUMENT_A);
+    if (session === null) throw new Error("not open");
+    Object.assign(session, {
+      runExclusive: async () => operationErr("notWritable", "closed"),
+    });
+    expect((await controller.overwrite(documentTarget)).ok).toBe(false);
   });
 
   it("refuses to overwrite without a Project, and checks nothing then", async () => {

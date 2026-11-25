@@ -12,6 +12,10 @@ export interface WindowCloseDependencies {
   // closing without saving leaves the view as it was saved last).
   readonly finishViewportSaves: () => Promise<void>;
   readonly closeRequestSource: CloseRequestSource;
+  // Resolves when the steps already under way are done: Rust asks a Document window to
+  // close as soon as its last Document is handed over, before this window has let it go,
+  // and the questions below must see the window as those steps leave it.
+  readonly settled: () => Promise<void>;
   // Auto-save off with unsaved changes: the user is asked before anything happens.
   readonly needsConfirmation: () => boolean;
   readonly askUnsavedClose: () => Promise<UnsavedCloseChoice>;
@@ -72,6 +76,7 @@ export function createWindowCloseHandler(
       saveAll,
       finishViewportSaves,
       closeRequestSource,
+      settled,
       needsConfirmation,
       askUnsavedClose,
       afterRepaint,
@@ -79,6 +84,7 @@ export function createWindowCloseHandler(
       templateEdit,
     } = getDependencies();
     try {
+      await settled();
       if (printing !== undefined && (await printing.isOpen())) {
         // Every question below is asked in front: the close may come from the taskbar of a
         // window behind others (or minimized).

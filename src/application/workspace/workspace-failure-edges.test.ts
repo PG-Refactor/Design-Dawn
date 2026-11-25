@@ -469,3 +469,16 @@ describe("the last workspace edges", () => {
     harness.gateway.clearFailures();
   });
 });
+
+describe("waiting for the lifecycle", () => {
+  it("resolves after the steps queued before it", async () => {
+    const harness = createWorkspaceHarness();
+    const order: string[] = [];
+    const opened = harness.workspace
+      .openProject(SELECTION_ID)
+      .then(() => order.push("open"));
+    await harness.workspace.whenIdle().then(() => order.push("idle"));
+    await opened;
+    expect(order).toEqual(["open", "idle"]);
+  });
+});
