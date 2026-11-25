@@ -99,7 +99,10 @@ export interface ExternalChangeControllerOptions {
   readonly applicationStore: ApplicationStore;
   readonly getDocumentSession: (
     documentId: DocumentId,
-  ) => Pick<DocumentSession, "suspendSaving" | "resumeSaving" | "flush"> | null;
+  ) => Pick<
+    DocumentSession,
+    "suspendSaving" | "resumeSaving" | "flush" | "runExclusive"
+  > | null;
   // Text still being typed that is not a command yet (the UI's draft registry).
   readonly hasPendingDraft: (documentIds: readonly DocumentId[]) => boolean;
   readonly reload: ExternalChangeReloader;
@@ -424,9 +427,24 @@ export function createExternalChangeController(
     );
     if (!restored.ok) return restored;
     const session = options.getDocumentSession(documentId);
-    session?.resumeSaving();
     removeDocumentConflict(documentId);
-    return session === null ? operationOk(undefined) : session.flush();
+    if (session === null) return operationOk(undefined);
+    session.resumeSaving();
+    // "Overwrite with the current content": everything the app holds for the Document is
+    // written, not only what changed since the last save, so a file changed outside that
+    // the app did not change gets the app's content back (memory and disk agree again).
+    // Texts that were never loaded are not in memory and stay as they are.
+    const marked = await session.runExclusive(async (scope) => {
+      const data = scope.getData();
+      scope.markDirty({
+        documentChanged: true,
+        changedSheetIds: [...data.sheets.keys()],
+        changedContentBlockIds: [...data.contents.keys()],
+      });
+      return operationOk(undefined);
+    });
+    if (!marked.ok) return marked;
+    return session.flush();
   }
 
   return {
