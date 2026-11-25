@@ -5,6 +5,8 @@ mod support;
 
 use std::fs;
 use std::path::{Path, PathBuf};
+
+use design_dawn_lib::domain::entity_id::ProjectId;
 use std::sync::Mutex;
 
 use design_dawn_lib::application::error::{ApplicationError, ErrorKind};
@@ -359,5 +361,27 @@ fn the_target_of_a_dawn_without_a_project_above_it_is_file_not_found() {
             .unwrap_err()
             .kind,
         ErrorKind::Persistence(PersistenceErrorKind::FileNotFound)
+    );
+}
+
+#[test]
+fn only_a_hand_over_request_names_a_transfer() {
+    let mut pending = PendingOpenRequests::default();
+    pending.put(
+        MAIN_WINDOW_LABEL,
+        OpenRequest::EntryPoint(PathBuf::from("a.dawn")),
+    );
+    pending.put(
+        OTHER_WINDOW_LABEL,
+        OpenRequest::DocumentTransfer {
+            project_id: ProjectId::parse("01928f3a-5b6c-7d8e-9f01-23456789abcd").unwrap(),
+            transfer_id: "transfer-1".to_owned(),
+        },
+    );
+    assert_eq!(pending.pending_transfer_id(MAIN_WINDOW_LABEL), None);
+    assert_eq!(pending.pending_transfer_id("window-9"), None);
+    assert_eq!(
+        pending.pending_transfer_id(OTHER_WINDOW_LABEL),
+        Some("transfer-1")
     );
 }
