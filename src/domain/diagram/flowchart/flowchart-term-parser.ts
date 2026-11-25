@@ -124,8 +124,9 @@ export function readQuotedLabel(
   scan: Scan,
   position: number,
 ): ParseOutcome<FlowchartLabel> {
+  // There is a closing quote: a statement with an unterminated one is refused before it
+  // is parsed (`unterminatedQuote`).
   const close = scan.text.indexOf(FLOWCHART_STRING_QUOTE, position + 1);
-  if (close === -1) return failed("unterminatedQuote");
   const inner = scan.text.slice(position + 1, close);
   const isMarkdown =
     inner.length >= 2 &&
@@ -203,23 +204,23 @@ function readBracketShape(
     closer = matching;
     closerStart = cursor;
   } else {
-    let earliest = -1;
-    let earliestCloser = form.closers[0];
+    // The closer that comes first.
+    let earliest: {
+      readonly at: number;
+      readonly closer: FlowchartBracketForm["closers"][number];
+    } | null = null;
     for (const candidate of form.closers) {
       const at = scan.text.indexOf(candidate.text, cursor);
-      if (at !== -1 && (earliest === -1 || at < earliest)) {
-        earliest = at;
-        earliestCloser = candidate;
+      if (at !== -1 && (earliest === null || at < earliest.at)) {
+        earliest = { at, closer: candidate };
       }
     }
-    if (earliest === -1 || earliestCloser === undefined) {
-      return failed("unterminatedBracket");
-    }
-    const unquoted = readUnquotedLabel(scan, openerEnd, earliest);
+    if (earliest === null) return failed("unterminatedBracket");
+    const unquoted = readUnquotedLabel(scan, openerEnd, earliest.at);
     if (!unquoted.ok) return unquoted;
     label = unquoted.value;
-    closer = earliestCloser;
-    closerStart = earliest;
+    closer = earliest.closer;
+    closerStart = earliest.at;
   }
   const closerEnd = closerStart + closer.text.length;
   return parsed(
@@ -246,7 +247,7 @@ function findAtBlockEnd(text: string, position: number): number {
     if (quote !== null) {
       if (character === "\\") index += 1;
       else if (character === quote) quote = null;
-    } else if (character === '"' || character === "'") {
+    } else if (character === FLOWCHART_STRING_QUOTE || character === "'") {
       quote = character;
     } else if (character === "{") {
       depth += 1;
@@ -258,10 +259,11 @@ function findAtBlockEnd(text: string, position: number): number {
   return -1;
 }
 
-// Splits the body of an `@{}` block at the commas outside quotes.
+// Splits the body of an `@{}` block at the commas outside double quotes. The body has no
+// single quote (refused before) and its double quotes come in pairs.
 function splitAtBlockBody(
   body: string,
-): readonly { start: number; end: number }[] | null {
+): readonly { start: number; end: number }[] {
   const parts: { start: number; end: number }[] = [];
   let partStart = 0;
   let quote: string | null = null;
@@ -269,14 +271,13 @@ function splitAtBlockBody(
     const character = body.charAt(index);
     if (quote !== null) {
       if (character === quote) quote = null;
-    } else if (character === '"' || character === "'") {
+    } else if (character === FLOWCHART_STRING_QUOTE) {
       quote = character;
     } else if (character === ",") {
       parts.push({ start: partStart, end: index });
       partStart = index + 1;
     }
   }
-  if (quote !== null) return null;
   if (body.slice(partStart).trim() !== "") {
     parts.push({ start: partStart, end: body.length });
   }
@@ -313,12 +314,13 @@ function readAtEntry(
   const rawValue = scan.text.slice(valueStart, valueEnd);
   let quoted = false;
   let valueToken: FlowchartToken;
-  if (rawValue.startsWith('"')) {
-    if (rawValue.length < 2 || !rawValue.endsWith('"')) {
+  if (rawValue.startsWith(FLOWCHART_STRING_QUOTE)) {
+    if (rawValue.length < 2 || !rawValue.endsWith(FLOWCHART_STRING_QUOTE)) {
       return failed("atBlockMalformed");
     }
     const inner = rawValue.slice(1, -1);
-    if (inner.includes('"')) return failed("atBlockMalformed");
+    if (inner.includes(FLOWCHART_STRING_QUOTE))
+      return failed("atBlockMalformed");
     if (inner.length === 0) return failed("atBlockUnsupportedValue");
     quoted = true;
     valueToken = tokenOf(scan, valueStart + 1, valueEnd - 1);
@@ -358,7 +360,6 @@ export function readAtBlock(
   }
   if (bodyText.trim() === "") return failed("atBlockMalformed");
   const split = splitAtBlockBody(bodyText);
-  if (split === null) return failed("atBlockMalformed");
   const entries: FlowchartAtEntry[] = [];
   for (const part of split) {
     const entry = readAtEntry(
@@ -392,9 +393,7 @@ export function readClassName(
   position: number,
 ): ParseOutcome<FlowchartToken> {
   const id = readId(scan, position, ",");
-  return id.ok
-    ? id
-    : failed(id.reason === "unsupportedId" ? "unsupportedId" : id.reason);
+  return id.ok ? id : failed(id.reason);
 }
 
 function readClassOperator(

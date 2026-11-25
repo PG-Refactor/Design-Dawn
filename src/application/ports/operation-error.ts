@@ -170,3 +170,18 @@ export function mapOperationResult<T, U>(
 ): OperationResult<U> {
   return result.ok ? operationOk(convert(result.value)) : result;
 }
+
+// Gateways return failures as values, but a rejected promise (a bug, a broken bridge) must
+// not escape into the UI: it becomes an `unexpectedCommandError` result.
+export async function settleOperation<T>(
+  request: () => Promise<OperationResult<T>>,
+): Promise<OperationResult<T>> {
+  try {
+    return await request();
+  } catch (failure) {
+    return operationErr(
+      "unexpectedCommandError",
+      failure instanceof Error ? failure.message : String(failure),
+    );
+  }
+}

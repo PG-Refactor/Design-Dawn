@@ -219,8 +219,10 @@ export const FLOWCHART_FULL_LINK_PATTERN =
   /(?:~{3,}|[xo<]?={2,}[=xo>]|[xo<]?-?\.+-[xo>]?|[xo<]?-{2,}[-xo>])/y;
 export const FLOWCHART_INLINE_LINK_START_PATTERN =
   /([xo<]?(?:--|==|-\.))(?=[ \t])/y;
+// What the start pattern catches, without its mark: each has its own end.
+export type FlowchartInlineLinkKind = "--" | "==" | "-.";
 export const FLOWCHART_INLINE_LINK_END_PATTERNS: Readonly<
-  Record<string, RegExp>
+  Record<FlowchartInlineLinkKind, RegExp>
 > = {
   "--": /(?:[xo<]?-{2,}[-xo>])/y,
   "==": /(?:[xo<]?={2,}[=xo>])/y,
@@ -418,7 +420,7 @@ export const FLOWCHART_STYLE_FORBIDDEN_SEQUENCES: readonly string[] = [
   "--",
   "-.",
   ":::",
-  "%%",
+  FLOWCHART_COMMENT_MARK,
 ];
 
 export const FLOWCHART_CLICK_TARGETS = [

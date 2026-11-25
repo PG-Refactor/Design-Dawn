@@ -35,6 +35,7 @@ import {
   topLevelIndent,
 } from "./sequence-edit-lines";
 import type {
+  SequenceItemMeaning,
   SequenceMeaning,
   SequenceMessageItem,
   SequenceNoteItem,
@@ -198,7 +199,8 @@ function textTokenEdit(token: SequenceToken, encoded: string): TextEdit {
     return {
       start: token.span.start,
       end: token.span.end,
-      text: encoded === "" ? "" : `${SEQUENCE_TEXT_LEAD}${encoded}`,
+      // Not empty: an unchanged text is planned without an edit.
+      text: `${SEQUENCE_TEXT_LEAD}${encoded}`,
     };
   }
   return { start: token.span.start, end: token.span.end, text: encoded };
@@ -214,16 +216,17 @@ function entityRestriction(written: string): Planned | null {
       );
 }
 
+// The declaration of a declared participant (it has one: that is what declared means).
 function participantStatement(
   prepared: PreparedSequence,
   participantId: string,
-): Extract<SequenceStatement, { kind: "participant" }> | undefined {
+): Extract<SequenceStatement, { kind: "participant" }> {
   return prepared.reading.statements.find(
     (
       statement,
     ): statement is Extract<SequenceStatement, { kind: "participant" }> =>
       statement.kind === "participant" && statement.id.text === participantId,
-  );
+  ) as Extract<SequenceStatement, { kind: "participant" }>;
 }
 
 function findParticipant(
@@ -284,8 +287,11 @@ function planAddParticipant(
     );
     position = meaning.participants.filter(
       (participant) =>
-        (reading.statements[participant.firstMention.statementIndex]
-          ?.lineIndex ?? 0) <= lastDeclaration.lineIndex,
+        (
+          reading.statements[
+            participant.firstMention.statementIndex
+          ] as SequenceStatement
+        ).lineIndex <= lastDeclaration.lineIndex,
     ).length;
   } else if (first !== undefined) {
     const indent = indentOfLine(reading, first.lineIndex);
@@ -316,13 +322,13 @@ function declarationsForImplicit(
 ): {
   readonly statement: SequenceStatement;
   readonly texts: readonly string[];
-} | null {
-  const statement =
-    prepared.reading.statements[participant.firstMention.statementIndex];
-  if (statement === undefined) return null;
+} {
+  // An implicit participant is created by the statement that first mentions it.
+  const statement = prepared.reading.statements[
+    participant.firstMention.statementIndex
+  ] as SequenceStatement;
   const created = participantsCreatedBy(prepared.meaning, statement.index);
   const through = created.findIndex((entry) => entry.id === participant.id);
-  if (through === -1) return null;
   return {
     statement,
     texts: created
@@ -359,12 +365,6 @@ function planRenameParticipantLabel(
   if (restricted !== null) return restricted;
   if (participant.declared) {
     const statement = participantStatement(prepared, participant.id);
-    if (statement === undefined) {
-      return refuse(
-        "declarationNotFound",
-        `${participant.id} has no declaration`,
-      );
-    }
     const edit: TextEdit =
       statement.alias === null
         ? {
@@ -384,9 +384,6 @@ function planRenameParticipantLabel(
     participant,
     declarationText(participant.kind, participant.id, encoded.value),
   );
-  if (declarations === null) {
-    return refuse("firstMentionNotFound", `${participant.id} is not written`);
-  }
   return planned(
     source,
     [
@@ -420,12 +417,6 @@ function planChangeParticipantKind(
   });
   if (participant.declared) {
     const statement = participantStatement(prepared, participant.id);
-    if (statement === undefined) {
-      return refuse(
-        "declarationNotFound",
-        `${participant.id} has no declaration`,
-      );
-    }
     return planned(
       source,
       [{ ...statement.keyword.span, text: operation.participantKind }],
@@ -437,9 +428,6 @@ function planChangeParticipantKind(
     participant,
     declarationText(operation.participantKind, participant.id, null),
   );
-  if (declarations === null) {
-    return refuse("firstMentionNotFound", `${participant.id} is not written`);
-  }
   return planned(
     source,
     [
@@ -621,15 +609,12 @@ function planEditText(
     "branch",
   ]);
   if (!resolved.ok) return resolved;
-  const { index, item, statement } = resolved.value;
-  if (
-    item.kind !== "message" &&
-    item.kind !== "note" &&
-    item.kind !== "blockStart" &&
-    item.kind !== "branch"
-  ) {
-    return refuse("wrongTargetKind", "this entry has no text");
-  }
+  // An entry has the kind of its statement, so it is one with a text.
+  const { index, statement } = resolved.value;
+  const item = resolved.value.item as Extract<
+    SequenceItemMeaning,
+    { kind: "message" | "note" | "blockStart" | "branch" }
+  >;
   let field: SequenceTextField = "blockLabel";
   let token: SequenceToken;
   switch (statement.kind) {
@@ -650,11 +635,10 @@ function planEditText(
       }
       token = statement.label;
       break;
-    case "branch":
-      token = statement.label;
-      break;
     default:
-      return refuse("wrongTargetKind", "this entry has no text");
+      // A branch (the kinds were narrowed by the target).
+      token = (statement as Extract<SequenceStatement, { kind: "branch" }>)
+        .label;
   }
   const encoded = encodeSequenceText(text, field);
   if (!encoded.ok) return encoded;
@@ -681,9 +665,12 @@ function planChangeArrow(
   }
   const resolved = resolveItem(prepared, target, ["message"]);
   if (!resolved.ok) return resolved;
-  const { index, item, statement } = resolved.value;
-  if (item.kind !== "message")
-    return refuse("wrongTargetKind", "not a message");
+  // An entry has the kind of its statement.
+  const { index, statement } = resolved.value;
+  const item = resolved.value.item as Extract<
+    SequenceItemMeaning,
+    { kind: "message" }
+  >;
   if (item.arrow === arrow && statement.arrow.text === arrow) {
     return ok({ edits: NO_EDITS, expected: prepared.meaning });
   }
@@ -826,15 +813,19 @@ function planChangeNotePlacement(
   }
   const resolved = resolveItem(prepared, target, ["note"]);
   if (!resolved.ok) return resolved;
-  const { index, item, statement } = resolved.value;
-  if (item.kind !== "note") return refuse("wrongTargetKind", "not a note");
+  // An entry has the kind of its statement.
+  const { index, statement } = resolved.value;
+  const item = resolved.value.item as Extract<
+    SequenceItemMeaning,
+    { kind: "note" }
+  >;
   if (item.placement === placement) {
     return ok({ edits: NO_EDITS, expected: prepared.meaning });
   }
   const word = SEQUENCE_NOTE_PLACEMENT_WORDS[placement];
-  const [firstId, secondId] = statement.ids;
-  if (firstId === undefined)
-    return refuse("targetNotFound", "the note has no participant");
+  // A note names at least one participant.
+  const firstId = statement.ids[0] as SequenceToken;
+  const secondId = statement.ids[1];
   if (placement === "over" || secondId === undefined) {
     return planned(
       source,
@@ -904,15 +895,14 @@ function planSetAutonumber(
       withItemRemoved(meaning, index),
     );
   }
-  if (reading.headerLineIndex === null) {
-    return refuse("noHeader", "the diagram has no header line");
-  }
+  // An editable diagram has its header line.
+  const headerLineIndex = reading.headerLineIndex as number;
   return planned(
     source,
     [
       insertLineAfterEdit(
         reading,
-        reading.headerLineIndex,
+        headerLineIndex,
         `${topLevelIndent(reading)}${SEQUENCE_AUTONUMBER_KEYWORD}`,
       ),
     ],
@@ -962,15 +952,14 @@ function planSetTitle(
       withTitle(meaning, encoded.value),
     );
   }
-  if (reading.headerLineIndex === null) {
-    return refuse("noHeader", "the diagram has no header line");
-  }
+  // An editable diagram has its header line.
+  const headerLineIndex = reading.headerLineIndex as number;
   return planned(
     source,
     [
       insertLineAfterEdit(
         reading,
-        reading.headerLineIndex,
+        headerLineIndex,
         `${topLevelIndent(reading)}${SEQUENCE_TITLE_KEYWORD} ${encoded.value}`,
       ),
     ],
@@ -986,7 +975,16 @@ export function planSequenceOperation(
 ): Planned {
   const prepared = prepareSequence(source);
   if (!prepared.ok) return prepared;
-  const state = prepared.value;
+  return planPreparedSequenceOperation(source, prepared.value, operation);
+}
+
+// The same for a diagram already read (its reading and meaning). Every plan proves itself
+// against `state`, so one that does not hold for it is refused.
+export function planPreparedSequenceOperation(
+  source: string,
+  state: PreparedSequence,
+  operation: SequenceOperation,
+): Planned {
   switch (operation.kind) {
     case "addParticipant":
       return planAddParticipant(source, state, operation);

@@ -53,10 +53,12 @@ import type {
   OpenInNewWindowResult,
 } from "../ports/persistence-types";
 import type { Scheduler } from "../ports/scheduler";
+import { createSerialQueue } from "../serial-queue";
 import {
   type ApplicationState,
   connectSessionToStore,
   createInitialApplicationState,
+  type DocumentSessionState,
   type OpenDocumentDetails,
   type OpenProjectState,
   putDocumentDetails,
@@ -78,11 +80,7 @@ import {
   withParentSave,
 } from "./project-entries";
 import { createProjectTreeSteps } from "./project-tree-steps";
-import {
-  documentWithoutSheet,
-  withSheetAdded,
-  withSheetRemoved,
-} from "./sheet-structure";
+import { withSheetAdded, withSheetRemoved } from "./sheet-structure";
 import {
   validateDocumentSnapshot,
   validateProjectSnapshot,
@@ -316,24 +314,14 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     }
   });
   const connectSession = connectSessionToStore(store);
-  let lifecycleTail: Promise<void> = Promise.resolve();
+  // Lifecycle steps (open / close / create / delete ...) run one after another.
+  const runLifecycle = createSerialQueue().run;
 
   // Lives as long as the app: the workspace has no teardown and the policy never outlives it.
   autoSavePolicy?.subscribe((enabled) => {
     if (!enabled) return;
     for (const session of sessions.values()) session.resumeAutoSave();
   });
-
-  function runLifecycle<T>(
-    task: () => Promise<OperationResult<T>>,
-  ): Promise<OperationResult<T>> {
-    const result = lifecycleTail.then(task);
-    lifecycleTail = result.then(
-      () => undefined,
-      () => undefined,
-    );
-    return result;
-  }
 
   function requireProject(): OperationResult<OpenProjectState> {
     const project = store.getState().project;
@@ -345,10 +333,9 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
   function updateProject(
     update: (project: OpenProjectState) => OpenProjectState,
   ): void {
+    // Only called while a Project is open: the lifecycle queue keeps it open meanwhile.
     store.setState((state) =>
-      state.project === null
-        ? state
-        : setOpenProject(state, update(state.project)),
+      setOpenProject(state, update(state.project as OpenProjectState)),
     );
   }
 
@@ -397,9 +384,13 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
   // ---- documents: open / close ----
 
   function sheetIdsOf(documentId: DocumentId): readonly SheetId[] {
+    // Of an open Document, which has its state and its details.
     const state = store.getState();
-    const entries = state.documentDetails.get(documentId)?.sheetEntries ?? [];
-    const order = state.documents.get(documentId)?.document.sheetOrder ?? [];
+    const { sheetEntries: entries } = state.documentDetails.get(
+      documentId,
+    ) as OpenDocumentDetails;
+    const order = (state.documents.get(documentId) as DocumentSessionState)
+      .document.sheetOrder;
     return [...new Set([...order, ...entries.map((entry) => entry.sheetId)])];
   }
 
@@ -428,11 +419,11 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
       if (!closed.ok) return closed;
     }
     detachDocument(documentId);
-    const project = requireProject();
-    if (!project.ok) return project;
+    // Closing runs on the lifecycle queue, which keeps the Project open meanwhile.
+    const { projectId } = store.getState().project as OpenProjectState;
     // After the detach: the Document is already closed in the UI, so a failure here only
     // means Rust may keep serving its assets until the Project is replaced.
-    return gateway.closeDocument(project.value.projectId, documentId);
+    return gateway.closeDocument(projectId, documentId);
   }
 
   // Explicit save of everything unsaved. Unlike closeEverything it does not stop at the
@@ -655,8 +646,10 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
           `document ${documentId} is not open`,
         );
       }
-      const issues =
-        store.getState().documentDetails.get(documentId)?.issues ?? [];
+      // An open Document has its details.
+      const { issues } = store
+        .getState()
+        .documentDetails.get(documentId) as OpenDocumentDetails;
       const handed = await session.handOver();
       if (!handed.ok) return handed;
       const payload = encodeDocumentTransfer({
@@ -718,12 +711,13 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
       adoptSession(project.value.projectId, transfer.seed, { issues: [] });
       // The tree shows the name the Document arrives with (renamed elsewhere, maybe not
       // saved yet), not the one it had when it left.
-      store.setState((state) => {
-        const adopted = state.documents.get(transfer.documentId);
-        return adopted === undefined
-          ? state
-          : replaceDocumentSession(state, adopted);
-      });
+      // Just adopted, so its state is there.
+      store.setState((state) =>
+        replaceDocumentSession(
+          state,
+          state.documents.get(transfer.documentId) as DocumentSessionState,
+        ),
+      );
       takenTransfers.set(transferId, transfer.documentId);
       return operationOk(transfer.documentId);
     });
@@ -795,13 +789,13 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
       if (!created.ok) return created;
       const valid = validateDocumentSnapshot(created.value, documentId);
       if (!valid.ok) return valid;
-      const current = requireProject();
-      if (!current.ok) return current;
+      // The lifecycle queue keeps the Project open meanwhile; read again for what changed.
+      const current = store.getState().project as OpenProjectState;
       const listed = withAppendedChild(
         {
-          ...current.value,
+          ...current,
           documents: [
-            ...current.value.documents,
+            ...current.documents,
             {
               documentId,
               parentFolderId,
@@ -878,9 +872,13 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
           documents: [...current.documents, entry],
         };
         if (without.value === null) return restored;
-        // Appended: the original position is not worth a second order of truth.
-        const listed = withAppendedChild(restored, parentId, documentId);
-        return withParentSave(listed.ok ? listed.value : restored, parentId, {
+        // Appended to the order it was just taken out of: the original position is not
+        // worth a second order of truth.
+        const listed = withChildOrder(restored, parentId, [
+          ...without.value,
+          documentId,
+        ]);
+        return withParentSave(listed, parentId, {
           dirty: true,
           lastError: deleted.error,
         });
@@ -895,13 +893,10 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
       if (!project.ok) return project;
       const displayName = fromDomainResult(parseDisplayName(name));
       if (!displayName.ok) return failWith(displayName.error);
-      const renamed = fromDomainResult(
-        renameProject(project.value.project, displayName.value),
-      );
-      if (!renamed.ok) return failWith(renamed.error);
+      const renamed = renameProject(project.value.project, displayName.value);
       return applyProjectChange((current) => ({
         ...current,
-        project: renamed.value,
+        project: renamed,
       }));
     });
   }
@@ -949,11 +944,13 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
       // Rust wrote the sheet and added it to the order on disk, so nothing becomes
       // unsaved, and nothing else is saved: the Document's other edits stay as they were
       // (with Auto Save off they wait for an explicit save).
-      const applied = scope.applyStructuralChange(
-        (data) => withSheetAdded(data, sheet.value),
-        { clearHistory: false, markDirty: false },
-      );
-      return applied.ok ? operationOk(sheetId) : applied;
+      const added = withSheetAdded(scope.getData(), sheet.value);
+      if (!added.ok) return failWith(added.error);
+      scope.applyStructuralChange(added.value, {
+        clearHistory: false,
+        markDirty: false,
+      });
+      return operationOk(sheetId);
     });
   }
 
@@ -966,8 +963,10 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     const { projectId, session } = target.value;
     return session.runExclusive(async (scope) => {
       const data = scope.getData();
-      const entries =
-        store.getState().documentDetails.get(documentId)?.sheetEntries ?? [];
+      // The Document is open while its session runs this, so it has its details.
+      const { sheetEntries: entries } = store
+        .getState()
+        .documentDetails.get(documentId) as OpenDocumentDetails;
       const known =
         data.sheets.has(sheetId) ||
         data.document.sheetOrder.includes(sheetId) ||
@@ -979,13 +978,12 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
       // if the process stops between the steps below.
       const flushed = await scope.saveDirty();
       if (!flushed.ok) return flushed;
-      const without = documentWithoutSheet(data, sheetId);
-      if (!without.ok) return failWith(without.error);
-      const orderChanged = without.value !== data.document;
+      const without = withSheetRemoved(data, sheetId);
+      const orderChanged = without.document !== data.document;
       // Order first, directory second. Memory is untouched
       // until the directory is really gone, so a failure here changes nothing.
       if (orderChanged) {
-        const saved = await gateway.saveDocument(projectId, without.value);
+        const saved = await gateway.saveDocument(projectId, without.document);
         if (!saved.ok) return saved;
       }
       const deleted = await gateway.deleteSheet(projectId, documentId, sheetId);
@@ -1005,22 +1003,21 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
         return deleted;
       }
       store.setState((state) => {
-        const details = state.documentDetails.get(documentId);
-        return details === undefined
-          ? state
-          : putDocumentDetails(state, documentId, {
-              ...details,
-              sheetEntries: details.sheetEntries.filter(
-                (entry) => entry.sheetId !== sheetId,
-              ),
-            });
+        const details = state.documentDetails.get(
+          documentId,
+        ) as OpenDocumentDetails;
+        return putDocumentDetails(state, documentId, {
+          ...details,
+          sheetEntries: details.sheetEntries.filter(
+            (entry) => entry.sheetId !== sheetId,
+          ),
+        });
       });
-      const applied = scope.applyStructuralChange(
-        (current) => withSheetRemoved(current, sheetId),
-        // The order was saved above; history may reference the removed sheet.
-        { clearHistory: true, markDirty: false },
-      );
-      if (!applied.ok) return applied;
+      // The order was saved above; history may reference the removed sheet.
+      scope.applyStructuralChange(without, {
+        clearHistory: true,
+        markDirty: false,
+      });
       events.emit({ type: "sheetDeleted", documentId, sheetId });
       return operationOk(undefined);
     });
@@ -1175,10 +1172,9 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
           if (!created.ok) return created;
           parent = created.value;
         }
-        // Every level was there already: nothing new, the deepest one is the answer.
-        return parent === null
-          ? operationErr("invalidDisplayName", "the name names no folder")
-          : operationOk(parent);
+        // There are at least two levels, so `parent` is the deepest one's folder (one that
+        // was there already when nothing new was needed).
+        return operationOk(parent as FolderId);
       }),
     renameFolder: (folderId, name) =>
       runLifecycle(() => treeSteps.renameFolder(folderId, name)),

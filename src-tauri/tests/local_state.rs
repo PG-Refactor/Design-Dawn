@@ -14,8 +14,10 @@ use design_dawn_lib::application::local_state::constants::{
 };
 use design_dawn_lib::application::local_state::operations::{LocalState, LocalStateDirectories};
 use design_dawn_lib::application::local_state::window_size::WindowSize;
+use design_dawn_lib::application::templates::TEMPLATES_DIRECTORY_NAME;
+use design_dawn_lib::domain::entity_id::ProjectId;
 use design_dawn_lib::infrastructure::local_state::constants::{
-    SETTINGS_FILE_NAME, SHEET_VIEWPORTS_FILE_NAME,
+    ACTIVE_SHEETS_FILE_NAME, SETTINGS_FILE_NAME, SHEET_VIEWPORTS_FILE_NAME,
 };
 use serde_json::{json, Number, Value};
 use support::*;
@@ -972,4 +974,65 @@ fn the_window_position_is_kept_and_a_file_without_it_still_reads() {
     let reread = fixture.state.get_app_settings();
     assert_eq!(reread.window_position, None);
     assert!(reread.load_issue.is_none());
+}
+
+#[test]
+fn the_active_sheet_of_a_document_is_remembered_and_a_broken_file_is_replaced() {
+    let fixture = fixture();
+    let state = &fixture.state;
+    let sheet = "01928f3a-7d8e-7f90-b123-456789abcdef";
+    assert_eq!(
+        state
+            .get_active_sheet(SECOND_PROJECT_ID, SECOND_DOCUMENT_ID)
+            .unwrap(),
+        None
+    );
+    state
+        .save_active_sheet(SECOND_PROJECT_ID, SECOND_DOCUMENT_ID, sheet)
+        .unwrap();
+    assert_eq!(
+        state
+            .get_active_sheet(SECOND_PROJECT_ID, SECOND_DOCUMENT_ID)
+            .unwrap()
+            .as_deref(),
+        Some(sheet)
+    );
+    assert!(state
+        .save_active_sheet(SECOND_PROJECT_ID, SECOND_DOCUMENT_ID, "not-an-id")
+        .is_err());
+    assert!(state
+        .get_active_sheet("not-an-id", SECOND_DOCUMENT_ID)
+        .is_err());
+
+    let path = fixture
+        .temp
+        .path()
+        .join("data")
+        .join("app")
+        .join(ACTIVE_SHEETS_FILE_NAME);
+    write_text(&path, "{ broken");
+    assert_eq!(
+        state
+            .get_active_sheet(SECOND_PROJECT_ID, SECOND_DOCUMENT_ID)
+            .unwrap(),
+        None
+    );
+    state
+        .save_active_sheet(SECOND_PROJECT_ID, SECOND_DOCUMENT_ID, sheet)
+        .unwrap();
+    assert!(state
+        .get_active_sheet(SECOND_PROJECT_ID, SECOND_DOCUMENT_ID)
+        .unwrap()
+        .is_some());
+}
+
+#[test]
+fn the_ai_history_starts_empty_and_templates_live_in_the_local_data() {
+    let fixture = fixture();
+    let project_id = ProjectId::parse(SECOND_PROJECT_ID).unwrap();
+    assert!(fixture.state.ai_history(&project_id).is_empty());
+    assert!(fixture
+        .state
+        .templates_directory()
+        .ends_with(TEMPLATES_DIRECTORY_NAME));
 }

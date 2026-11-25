@@ -23,7 +23,11 @@ import type {
   ChangedFile,
   ExternalChanges,
 } from "../ports/persistence-types";
-import type { ApplicationStore } from "../state/application-state";
+import { createSerialQueue } from "../serial-queue";
+import type {
+  ApplicationStore,
+  OpenProjectState,
+} from "../state/application-state";
 import {
   hasUnsavedDocumentChanges,
   hasUnsavedProjectChanges,
@@ -157,7 +161,7 @@ export function createExternalChangeController(
 ): ExternalChangeController {
   const { gateway, applicationStore } = options;
   const store = createStore<ExternalChangeState>(EMPTY_STATE);
-  let queueTail: Promise<unknown> = Promise.resolve();
+  const enqueue = createSerialQueue().run;
   let recheckPending = false;
   let trackedRead: string | null = null;
   let watchUnavailableReported = false;
@@ -166,15 +170,6 @@ export function createExternalChangeController(
   function emit(event: ExternalChangeEvent): void {
     options.onEvent?.(event);
     for (const listener of [...eventListeners]) listener(event);
-  }
-
-  function enqueue<T>(task: () => Promise<T>): Promise<T> {
-    const result = queueTail.then(task);
-    queueTail = result.then(
-      () => undefined,
-      () => undefined,
-    );
-    return result;
   }
 
   function currentProject() {
@@ -270,9 +265,10 @@ export function createExternalChangeController(
     );
   }
 
-  async function process(changes: ExternalChanges): Promise<void> {
-    const project = currentProject();
-    if (project === null) return;
+  async function process(
+    project: OpenProjectState,
+    changes: ExternalChanges,
+  ): Promise<void> {
     // A notice made for an earlier read of the Project describes files read again since.
     if (changes.sessionGeneration !== project.sessionGeneration) return;
     if (!changes.watching && !watchUnavailableReported) {
@@ -366,7 +362,7 @@ export function createExternalChangeController(
       emit({ type: "checkFailed", error: checked.error });
       return;
     }
-    await process(checked.value);
+    await process(project, checked.value);
   }
 
   function findConflict(documentId: DocumentId): DocumentConflict | undefined {
@@ -446,7 +442,7 @@ export function createExternalChangeController(
       enqueue(async () => {
         const project = currentProject();
         if (project === null || notice.projectId !== project.projectId) return;
-        await process(notice.changes);
+        await process(project, notice.changes);
       }),
     resume: () =>
       enqueue(async () => {

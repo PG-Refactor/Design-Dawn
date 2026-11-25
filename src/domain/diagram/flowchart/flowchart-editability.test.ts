@@ -24,7 +24,7 @@ function ofLength(length: number): string {
 
 describe("flowchartEditability", () => {
   it("accepts an ordinary diagram", () => {
-    expect(check(f("A[Start] --> B{Ok?}\nB -->|yes| C"))).toEqual({
+    expect(check(f("A[Start] --> B{Ok?}\nB -->|yes| C"))).toMatchObject({
       editable: true,
     });
   });
@@ -67,13 +67,13 @@ describe("flowchartEditability", () => {
   });
 
   it("draws the edge limit between 500 and 501", () => {
-    expect(check(edges(FLOWCHART_MAX_EDGES))).toEqual({ editable: true });
+    expect(check(edges(FLOWCHART_MAX_EDGES))).toMatchObject({ editable: true });
     expect(reasonOf(edges(FLOWCHART_MAX_EDGES + 1))).toBe("tooManyEdges");
   });
 
   it("draws the length limit between 50000 and 50001", () => {
     expect(ofLength(FLOWCHART_MAX_SOURCE_LENGTH).length).toBe(50000);
-    expect(check(ofLength(FLOWCHART_MAX_SOURCE_LENGTH))).toEqual({
+    expect(check(ofLength(FLOWCHART_MAX_SOURCE_LENGTH))).toMatchObject({
       editable: true,
     });
     expect(reasonOf(ofLength(FLOWCHART_MAX_SOURCE_LENGTH + 1))).toBe(
@@ -84,7 +84,7 @@ describe("flowchartEditability", () => {
   it("refuses reserved ids", () => {
     expect(reasonOf(f("A-->end"))).toBe("unsupportedStatements");
     expect(reasonOf(f("default-->B"))).toBe("unsupportedStatements");
-    expect(check(f("endA-->Aend"))).toEqual({ editable: true });
+    expect(check(f("endA-->Aend"))).toMatchObject({ editable: true });
   });
 
   it("separates an inline directive from a pure directive line", () => {
@@ -92,13 +92,15 @@ describe("flowchartEditability", () => {
       check(
         '%%{init: {"flowchart": {"curve": "linear"}}}%%\nflowchart TD\nA-->B\n',
       ),
-    ).toEqual({ editable: true });
+    ).toMatchObject({ editable: true });
     expect(reasonOf(f('A["x %%{init: {}}%% y"]'))).toBe("inlineDirective");
   });
 
   it("tells a harmless style semicolon from a harmful one", () => {
-    expect(check(f("A\nstyle A fill:#f00;"))).toEqual({ editable: true });
-    expect(check(f("A\nstyle A fill:#f00;   "))).toEqual({ editable: true });
+    expect(check(f("A\nstyle A fill:#f00;"))).toMatchObject({ editable: true });
+    expect(check(f("A\nstyle A fill:#f00;   "))).toMatchObject({
+      editable: true,
+    });
     expect(reasonOf(f('A["style x:#a; y"]'))).toBe("styleLikeText");
     expect(reasonOf(f("style A fill:#f00; B"))).toBe("styleLikeText");
   });

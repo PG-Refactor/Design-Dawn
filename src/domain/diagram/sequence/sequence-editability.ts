@@ -1,5 +1,6 @@
 import type { LineRef } from "../source-lines";
 import { SEQUENCE_MAX_SOURCE_LENGTH } from "./sequence-config";
+import type { SequenceMeaning } from "./sequence-meaning";
 import type { SequenceReading } from "./sequence-reader";
 
 // When may the GUI edit a sequence diagram?
@@ -24,7 +25,8 @@ export type SequenceNotEditableReason =
   | "participantRedeclared";
 
 export type SequenceEditability =
-  | { readonly editable: true }
+  // With the meaning the reading established (an editable diagram always has one).
+  | { readonly editable: true; readonly meaning: SequenceMeaning }
   | {
       readonly editable: false;
       readonly reason: SequenceNotEditableReason;
@@ -33,11 +35,10 @@ export type SequenceEditability =
       readonly lines: readonly LineRef[];
     };
 
+// A line the reading reported (always one of its lines).
 function refOf(reading: SequenceReading, lineIndex: number): LineRef {
-  const line = reading.lines[lineIndex];
-  return line === undefined
-    ? { index: lineIndex, start: 0, end: 0 }
-    : { index: line.index, start: line.start, end: line.end };
+  const line = reading.lines[lineIndex] as SequenceReading["lines"][number];
+  return { index: line.index, start: line.start, end: line.end };
 }
 
 function uniqueLineRefs(
@@ -110,16 +111,8 @@ export function sequenceEditability(
       lines: [],
     };
   }
-  const meaning = reading.meaning;
-  if (meaning === null) {
-    // Cannot happen once the checks above passed; refuse instead of guessing.
-    return {
-      editable: false,
-      reason: "unsupportedStatements",
-      detail: "the meaning of the text could not be established",
-      lines: [],
-    };
-  }
+  // A reading without opaque statements and invalid parts has a meaning.
+  const meaning = reading.meaning as SequenceMeaning;
   if (
     meaning.redeclaredParticipants.length > 0 ||
     !meaning.layoutChainConsistent
@@ -131,5 +124,5 @@ export function sequenceEditability(
       lines: [],
     };
   }
-  return { editable: true };
+  return { editable: true, meaning };
 }

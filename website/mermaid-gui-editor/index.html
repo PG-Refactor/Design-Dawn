@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Mermaid GUI editor: flowchart, sequence, Gantt, pie | Design Dawn</title>
-  <meta name="description" content="Edit Mermaid flowcharts, sequence diagrams, Gantt charts and pie charts with lists and fields instead of syntax. The Mermaid source stays the source of truth.">
+  <meta name="description" content="Edit Mermaid flowcharts, sequence, class, state and ER diagrams, Gantt and pie charts with lists and fields instead of syntax. The Mermaid source stays the source of truth.">
   <link rel="canonical" href="https://pg-refactor.github.io/Design-Dawn/mermaid-gui-editor/">
   <link rel="alternate" hreflang="en" href="https://pg-refactor.github.io/Design-Dawn/mermaid-gui-editor/">
   <link rel="alternate" hreflang="ja" href="https://pg-refactor.github.io/Design-Dawn/ja/mermaid-gui-editor/">
@@ -16,7 +16,7 @@
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Design Dawn">
   <meta property="og:title" content="A GUI editor for Mermaid diagrams">
-  <meta property="og:description" content="Edit Mermaid flowcharts, sequence diagrams, Gantt charts and pie charts with lists and fields instead of syntax. The Mermaid source stays the source of truth.">
+  <meta property="og:description" content="Edit Mermaid flowcharts, sequence, class, state and ER diagrams, Gantt and pie charts with lists and fields instead of syntax. The Mermaid source stays the source of truth.">
   <meta property="og:url" content="https://pg-refactor.github.io/Design-Dawn/mermaid-gui-editor/">
   <meta property="og:image" content="https://pg-refactor.github.io/Design-Dawn/images/og.png">
   <meta property="og:image:width" content="1280">
@@ -65,7 +65,7 @@
     <div class="wrap narrow">
       <nav class="crumbs" aria-label="Breadcrumb"><a href="../">Home</a> / <span>Mermaid GUI editor</span></nav>
       <h1>A GUI editor for Mermaid diagrams</h1>
-      <p class="lead">In Design Dawn, a Mermaid block can be edited in two ways: as <strong>Source</strong> (the Mermaid text, with a live preview) or in a <strong>GUI</strong> with lists and property fields. The GUI covers four kinds of diagram today; every other kind is edited as Source.</p>
+      <p class="lead">In Design Dawn, a Mermaid block can be edited in two ways: as <strong>Source</strong> (the Mermaid text, with a live preview) or in a <strong>GUI</strong> with lists and property fields. The GUI covers seven kinds of diagram today; every other kind is edited as Source.</p>
 
       <figure class="fig"><img class="shot" loading="lazy" src="../images/flowchart-gui.png" width="1600" height="1000" alt="Flowchart GUI editor with its node list and the right-click menu of a node"><figcaption>The flowchart GUI editor: lists on the left, the diagram on the right</figcaption></figure>
 
@@ -77,6 +77,9 @@
           <tr><td>Sequence diagram</td><td>Participants and actors; messages; notes; blocks such as <code>loop</code>, <code>opt</code>, <code>alt</code>, <code>par</code>, <code>critical</code> and <code>break</code> with their branches; turning <code>autonumber</code> on or off.</td></tr>
           <tr><td>Gantt chart</td><td>Sections; tasks and their state (<code>done</code>, <code>active</code>, <code>crit</code>, <code>milestone</code>); chart settings such as <code>axisFormat</code> and <code>excludes</code>.</td></tr>
           <tr><td>Pie chart</td><td>The title; slices with a label and a value; the order of the slices.</td></tr>
+          <tr><td>Class diagram</td><td>Classes and their members (attributes and methods, as written); relationships with an arrow type (inheritance, composition, aggregation, association, dependency, realization, link), cardinalities and a label.</td></tr>
+          <tr><td>State diagram</td><td>States with a description; transitions with a label, including the start and end (<code>[*]</code>).</td></tr>
+          <tr><td>ER diagram</td><td>Entities and their attributes (type, name, <code>PK</code> / <code>FK</code> / <code>UK</code> keys, comment); relationships with the cardinality of each end, identifying or not, and a label.</td></tr>
         </tbody>
       </table></div>
       <p>You can also right-click a shape in the diagram to edit or delete it, and new elements are added in a dialog that shows a preview of the result.</p>
@@ -84,7 +87,7 @@
       <figure class="fig"><img class="shot" loading="lazy" src="../images/sequence-gui.png" width="1600" height="1000" alt="Sequence diagram GUI editor with a selected message and its right-click menu"><figcaption>The sequence diagram GUI editor</figcaption></figure>
 
       <h2>Other diagram types</h2>
-      <p>Class diagrams, state diagrams, ER diagrams and the other diagram types of Mermaid are rendered on the canvas, but they have <strong>no GUI editor yet</strong>. You edit them as Mermaid source next to a live preview. The “+ Block” menu has starting templates for sequence, Gantt, pie, class, state and ER diagrams.</p>
+      <p>Mindmaps, timelines, journeys, quadrant charts and the other diagram types of Mermaid are rendered on the canvas, but they have <strong>no GUI editor yet</strong>. You edit them as Mermaid source next to a live preview. The “+ Block” menu has starting templates for sequence, Gantt, pie, class, state and ER diagrams.</p>
 
       <h2>The Mermaid source stays the source of truth</h2>
       <p>The GUI does not keep a separate model of your diagram. Each diagram is one <code>.mmd</code> text file, and a GUI edit rewrites only the part of that text it has to. After each edit the app reads the result again and checks that Mermaid can render it. If the check fails, the change is not applied and the source is left as it was. Each GUI edit is one undo step.</p>

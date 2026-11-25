@@ -7,10 +7,11 @@ use std::sync::Mutex;
 use serde::{Deserialize, Serialize, Serializer};
 
 use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
+use crate::application::git_operations::ready_runner;
 use crate::application::git_operations::{
-    head_is_pushed, is_unstageable, long_paths_of, not_ready_error, project_root_of,
-    read_file_statuses, read_git_status, repository_state, run_error, GitFileChange, GitFileStatus,
-    GitRepositoryState, GitStatusResult, GitUnfinishedOperation,
+    head_is_pushed, is_unstageable, long_paths_of, project_root_of, read_file_statuses,
+    read_git_status, run_error, GitFileChange, GitFileStatus, GitStatusResult,
+    GitUnfinishedOperation,
 };
 use crate::application::git_remote::GitRemoteResult;
 use crate::application::session::ProjectSessions;
@@ -158,10 +159,7 @@ pub fn commit_with_options(
     message: &str,
     options: GitCommitOptions,
 ) -> ApplicationResult<GitCommitResult> {
-    let state = repository_state(runner, project_root)?;
-    let (GitRepositoryState::Ready, Some(runner)) = (state, runner) else {
-        return Err(not_ready_error(state));
-    };
+    let runner = ready_runner(runner, project_root)?;
 
     // An amend without a message keeps the old one (`--no-edit`); for a new commit a
     // blank message is an error.
@@ -304,10 +302,7 @@ pub fn undo_last_commit(
     runner: Option<&GitRunner>,
     project_root: &Path,
 ) -> ApplicationResult<GitUndoCommitResult> {
-    let state = repository_state(runner, project_root)?;
-    let (GitRepositoryState::Ready, Some(runner)) = (state, runner) else {
-        return Err(not_ready_error(state));
-    };
+    let runner = ready_runner(runner, project_root)?;
 
     let cannot_undo = |detail: &str| ApplicationError::new(ErrorKind::GitCannotUndoCommit, detail);
     if read_head_object_id_if_any(runner, project_root)?.is_none() {
@@ -514,10 +509,7 @@ pub fn abort_merge(
     runner: Option<&GitRunner>,
     project_root: &Path,
 ) -> ApplicationResult<GitRemoteResult> {
-    let state = repository_state(runner, project_root)?;
-    let (GitRepositoryState::Ready, Some(runner)) = (state, runner) else {
-        return Err(not_ready_error(state));
-    };
+    let runner = ready_runner(runner, project_root)?;
     match unfinished_operation(runner, project_root)? {
         None => {}
         Some(GitUnfinishedOperation::Merge) => {

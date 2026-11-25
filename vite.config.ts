@@ -15,6 +15,24 @@ const WATCH_POLLING_ENV_NAME = "DAWN_WATCH_POLLING";
 // way of the app's own assets; the script reads it from here.
 const LICENSE_REPORT_FILE_NAME = ".vite/license.json";
 
+// Coverage reports (`npm run coverage`); ignored by Git.
+const COVERAGE_DIRECTORY = "coverage";
+
+// The domain and application layers are covered completely; the rest of the code may not
+// fall below what it reached (percent of statements, branches, functions and lines).
+const FULL_COVERAGE = {
+  statements: 100,
+  branches: 100,
+  functions: 100,
+  lines: 100,
+} as const;
+const COVERAGE_FLOOR = {
+  statements: 93,
+  branches: 88,
+  functions: 93,
+  lines: 95,
+} as const;
+
 // Git worktrees for parallel work (development tooling creates them here); never part of this checkout.
 const WORKTREES_GLOB = "**/.claude/worktrees/**";
 
@@ -42,6 +60,26 @@ export default defineConfig(({ mode }) => {
       css: { include: [/\.css/] },
       // A worktree carries its own copy of every test.
       exclude: [...configDefaults.exclude, WORKTREES_GLOB],
+      // `npm run coverage`: statements (C0) and branches (C1) of the app's own code. Tests,
+      // test helpers and type-only files are not measured.
+      coverage: {
+        provider: "v8",
+        include: ["src/**/*.{ts,tsx}"],
+        exclude: [
+          "src/**/*.test.{ts,tsx}",
+          "src/**/test-support/**",
+          "src/**/*test-support.{ts,tsx}",
+          "src/**/test-fixtures.ts",
+          "src/**/*.d.ts",
+        ],
+        reporter: ["text-summary", "json-summary", "json", "html"],
+        reportsDirectory: COVERAGE_DIRECTORY,
+        thresholds: {
+          ...COVERAGE_FLOOR,
+          "src/domain/**": FULL_COVERAGE,
+          "src/application/**": FULL_COVERAGE,
+        },
+      },
     },
   };
 });

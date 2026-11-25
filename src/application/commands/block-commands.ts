@@ -38,7 +38,13 @@ export interface BlockFrame {
   readonly size: Size;
 }
 
-export type ReorderDirection = "forward" | "backward" | "toFront" | "toBack";
+export const REORDER_DIRECTIONS = [
+  "forward",
+  "backward",
+  "toFront",
+  "toBack",
+] as const;
+export type ReorderDirection = (typeof REORDER_DIRECTIONS)[number];
 
 const REORDER_OPERATIONS: Readonly<
   Record<
@@ -178,12 +184,11 @@ export function setBlockCaptionCommand(
       updateSheet(state, sheetId, (sheet) => {
         const next = setBlockCaption(sheet, blockId, caption);
         if (next.ok && next.value !== sheet && previous === null) {
+          // The caption changed, so the Block is on the sheet.
           const block = sheet.blocks.find(
             (candidate) => candidate.blockId === blockId,
-          );
-          previous = {
-            caption: block === undefined ? null : figureCaptionOf(block),
-          };
+          ) as Block;
+          previous = { caption: figureCaptionOf(block) };
         }
         return next;
       }),
@@ -222,11 +227,11 @@ export function setBlockDisplayCommand(
       updateSheet(state, sheetId, (sheet) => {
         const next = setBlockDisplay(sheet, blockId, display);
         if (next.ok && next.value !== sheet && previous === null) {
+          // The display changed, so the Block is on the sheet.
           const block = sheet.blocks.find(
             (candidate) => candidate.blockId === blockId,
-          );
-          if (block !== undefined)
-            previous = { display: blockDisplayOf(block) };
+          ) as Block;
+          previous = { display: blockDisplayOf(block) };
         }
         return next;
       }),

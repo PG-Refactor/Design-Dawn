@@ -91,4 +91,11 @@ RUN rustup target add x86_64-pc-windows-msvc \
     && cargo install cargo-xwin --locked --version "${CARGO_XWIN_VERSION}" \
     && cargo xwin --version
 
+# Test coverage of the Rust code (`npm run coverage:rust`): cargo-llvm-cov (MIT OR
+# Apache-2.0) with rustup's llvm-tools. Development only; nothing of it is in the app.
+ARG CARGO_LLVM_COV_VERSION=0.9.2
+RUN rustup component add llvm-tools-preview \
+    && cargo install cargo-llvm-cov --locked --version "${CARGO_LLVM_COV_VERSION}" \
+    && cargo llvm-cov --version
+
 WORKDIR /workspace

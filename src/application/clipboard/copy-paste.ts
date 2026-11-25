@@ -151,7 +151,8 @@ function readGroup(request: CopyRequest): OperationResult<{
           ...base,
           kind: "text" as const,
           blockType: block.blockType as TextBlockType,
-          text: request.state.contents.get(block.blockId) ?? "",
+          // Only targets with loaded text are read into the group.
+          text: request.state.contents.get(block.blockId) as string,
           sourceContentPath: block.contentPath,
         }
       : {

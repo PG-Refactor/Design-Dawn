@@ -4,6 +4,7 @@
 // here touches the DOM and nothing throws: a header that cannot be read just loses its
 // line numbers.
 
+import { capturedText } from "../../domain/shared/captured-text";
 import { classifyDiffLines } from "./git-diff-text";
 
 export type DiffContentKind = "context" | "added" | "removed";
@@ -74,7 +75,7 @@ function parseHeader(text: string): Hunk {
     return { context: "", oldStart: null, newStart: null, items: [] };
   }
   return {
-    context: match[3] ?? "",
+    context: capturedText(match, 3),
     oldStart: Number(match[1]),
     newStart: Number(match[2]),
     items: [],

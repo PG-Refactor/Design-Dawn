@@ -42,13 +42,7 @@ export function prepareSequence(
       `${editability.reason}: ${editability.detail}`,
     );
   }
-  if (reading.meaning === null) {
-    return err(
-      "diagramNotEditable",
-      "unsupportedStatements: the meaning of the text could not be established",
-    );
-  }
-  return ok({ reading, meaning: reading.meaning });
+  return ok({ reading, meaning: editability.meaning });
 }
 
 // What an entry holds, without where it came from. Two entries that are the same text give
@@ -95,13 +89,11 @@ export function resolveItem<K extends SequenceStatement["kind"]>(
       `entry ${target.index} is not what the target describes`,
     );
   }
+  // Every entry comes from one statement of the reading.
   const statement = reading.statements.find(
     (candidate) => candidate.index === item.statementIndex,
-  );
-  if (
-    statement === undefined ||
-    !(statementKinds as readonly string[]).includes(statement.kind)
-  ) {
+  ) as SequenceStatement;
+  if (!(statementKinds as readonly string[]).includes(statement.kind)) {
     return refuse(
       "wrongTargetKind",
       `entry ${target.index} is not a ${statementKinds.join(" / ")}`,
@@ -164,13 +156,10 @@ export function checkSequenceMeaning(
       `candidate ${editability.reason}: ${editability.detail}`,
     );
   }
-  if (candidate.meaning === null) {
-    return err(
-      "diagramNotEditable",
-      "candidate meaning: the meaning of the text could not be established",
-    );
-  }
-  const differences = describeSequenceDifferences(candidate.meaning, expected);
+  const differences = describeSequenceDifferences(
+    editability.meaning,
+    expected,
+  );
   return differences.length === 0
     ? ok(undefined)
     : err(

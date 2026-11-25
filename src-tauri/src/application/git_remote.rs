@@ -13,9 +13,9 @@ use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
 use crate::application::git_commit::{
     require_no_operation_in_progress, require_no_unmerged, status_after_change, GitCommitStatus,
 };
+use crate::application::git_operations::ready_runner;
 use crate::application::git_operations::{
-    not_ready_error, project_root_of, read_file_statuses, read_git_status, repository_state,
-    run_error, GitBranchInfo, GitFileChange, GitRepositoryState,
+    project_root_of, read_file_statuses, read_git_status, run_error, GitBranchInfo, GitFileChange,
 };
 use crate::application::session::ProjectSessions;
 use crate::infrastructure::git::constants::{
@@ -194,17 +194,6 @@ pub fn classify_remote_failure(stderr: &str) -> ErrorKind {
         ErrorKind::GitNetworkUnavailable
     } else {
         ErrorKind::GitCommandFailed
-    }
-}
-
-fn ready_runner<'a>(
-    runner: Option<&'a GitRunner>,
-    project_root: &Path,
-) -> ApplicationResult<&'a GitRunner> {
-    let state = repository_state(runner, project_root)?;
-    match (state, runner) {
-        (GitRepositoryState::Ready, Some(runner)) => Ok(runner),
-        _ => Err(not_ready_error(state)),
     }
 }
 

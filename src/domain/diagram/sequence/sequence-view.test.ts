@@ -161,3 +161,15 @@ describe("readSequenceView", () => {
     expect(entry(3)).toMatchObject({ kind: "branch", deleteRestriction: null });
   });
 });
+
+describe("wrap ends around nested blocks and global statements", () => {
+  it("offers an outer block but not one nested in it, and stops at a declaration", () => {
+    const view = readSequenceView(
+      "sequenceDiagram\n    A->>B: one\n    loop outer\n        loop inner\n            A->>B: two\n        end\n    end\n    participant C\n    A->>C: three\n",
+    );
+    const first = view?.entries[0];
+    if (first === undefined || first.kind !== "message")
+      throw new Error("no message");
+    expect(first.wrapEnds.map((end) => end.index)).toEqual([0, 1]);
+  });
+});

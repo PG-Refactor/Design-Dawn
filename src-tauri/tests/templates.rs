@@ -383,3 +383,69 @@ fn a_template_is_rewritten_in_place_keeping_its_id_name_and_folder() {
     assert_eq!(unchanged.block.unwrap().text.as_deref(), Some("new\n"));
     assert_eq!(list_templates(&roots).templates.len(), 1);
 }
+
+#[test]
+fn places_and_kinds_are_named_and_an_unknown_name_is_refused() {
+    for name in ["shared", "project", "global"] {
+        assert!(TemplateScope::parse(name).is_ok(), "{name}");
+    }
+    for name in ["markdown", "mermaid", "sheet", "document"] {
+        assert!(TemplateKind::parse(name).is_ok(), "{name}");
+    }
+    assert!(TemplateScope::parse("cloud").is_err());
+    assert!(TemplateKind::parse("image").is_err());
+}
+
+#[test]
+fn a_template_of_another_kind_or_format_is_reported_and_a_link_out_is_refused() {
+    let temp = TempDir::new();
+    let roots = roots(temp.path());
+    let saved = save_template(
+        &roots,
+        TemplateScope::Global,
+        TemplateKind::Markdown,
+        &block_template("Memo", "memo\n"),
+        &read_asset,
+    )
+    .unwrap();
+    let markdown = temp.path().join("local/global/markdown");
+    let folder = fs::read_dir(&markdown)
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+
+    // The same folder copied into the Mermaid templates, and one with another format.
+    let misplaced = temp.path().join("local/global/mermaid/misplaced");
+    support::copy_dir_all(&folder, &misplaced);
+    let newer = markdown.join("newer");
+    support::copy_dir_all(&folder, &newer);
+    let json = fs::read_to_string(newer.join("template.json")).unwrap();
+    let json = json.replacen("\"schemaVersion\": 1", "\"schemaVersion\": 99", 1);
+    fs::write(newer.join("template.json"), json).unwrap();
+    let list = list_templates(&roots);
+    let mut folders: Vec<_> = list
+        .issues
+        .iter()
+        .map(|issue| issue.folder.as_str())
+        .collect();
+    folders.sort_unstable();
+    assert_eq!(folders, ["misplaced", "newer"]);
+
+    // A file of the template that is a link to a file outside it.
+    #[cfg(unix)]
+    {
+        fs::write(temp.path().join("outside.md"), "outside").unwrap();
+        fs::remove_file(folder.join("content.md")).unwrap();
+        std::os::unix::fs::symlink(temp.path().join("outside.md"), folder.join("content.md"))
+            .unwrap();
+        assert!(read_template(
+            &roots,
+            TemplateScope::Global,
+            TemplateKind::Markdown,
+            &saved.template_id
+        )
+        .is_err());
+    }
+}

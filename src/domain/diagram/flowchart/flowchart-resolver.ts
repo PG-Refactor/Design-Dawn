@@ -377,13 +377,7 @@ export function resolveFlowchart(
     }
     const origin: FlowchartFirstMentionOrigin =
       pending.kind === "edge" ? "edgeEndpoint" : "bareNode";
-    for (
-      let groupIndex = 0;
-      groupIndex < pending.groups.length;
-      groupIndex += 1
-    ) {
-      const group = pending.groups[groupIndex];
-      if (group === undefined) continue;
+    for (const [groupIndex, group] of pending.groups.entries()) {
       for (const term of group.terms) {
         const verdict = declareNode(term, statementIndex, origin);
         if (verdict !== null) return verdict;
@@ -548,8 +542,8 @@ export function resolveFlowchart(
           if (interpolate !== null) edge.interpolate = interpolate;
           if (pending.styleText !== null) {
             const style = [...pending.styles];
+            // A style text has at least one piece.
             if (
-              style.length > 0 &&
               !style.some((item) =>
                 item.startsWith(FLOWCHART_LINK_STYLE_FILL_PREFIX),
               )
@@ -576,7 +570,6 @@ export function resolveFlowchart(
         output.push(withIndex(pending));
         break;
       }
-      case "edgeAttributes":
       case "accessibility":
         output.push(withIndex(pending));
         break;

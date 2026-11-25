@@ -23,11 +23,10 @@ import {
   resolveGanttSchedule,
 } from "./gantt-meaning";
 import {
-  finish,
+  finishChecked,
   type GanttOperationPlan,
   type PreparedGantt,
   prepare,
-  readBack,
   refuse,
 } from "./gantt-operation-support";
 import { validateGanttAxisFormat } from "./gantt-text";
@@ -88,7 +87,10 @@ function writeSetting(
     const dateFormatPosition = parsed.settings.findIndex(
       (entry) => entry.keyword === "dateformat",
     );
-    const anchor = parsed.settings[dateFormatPosition]?.lineIndex ?? 0;
+    // An editable chart has its dateFormat line.
+    const anchor = (
+      parsed.settings[dateFormatPosition] as { lineIndex: number }
+    ).lineIndex;
     const settings = [...meaning.settings];
     settings.splice(dateFormatPosition + 1, 0, written);
     return {
@@ -96,7 +98,7 @@ function writeSetting(
         insertLineAfter(
           parsed,
           anchor,
-          `${indentOf(parsed.lines[anchor])}${setting} ${value}`,
+          `${indentOf(parsed.lines[anchor] as GanttLine)}${setting} ${value}`,
         ),
       ],
       settings,
@@ -108,7 +110,10 @@ function writeSetting(
   const edits: TextEdit[] = [];
   const valueStart =
     keptSite.line.start +
-    (GANTT_SETTING_PREFIX_PATTERN.exec(keptSite.line.text)?.[0].length ?? 0);
+    // The line was read as this setting, so its prefix is there.
+    (
+      GANTT_SETTING_PREFIX_PATTERN.exec(keptSite.line.text) as RegExpExecArray
+    )[0].length;
   const current = meaning.settings[keptSite.position] as GanttSettingMeaning;
   if (current.value !== value) {
     edits.push({ start: valueStart, end: keptSite.line.end, text: value });
@@ -140,10 +145,7 @@ export function setAxisFormat(
     format,
   );
   const expected: GanttMeaning = { ...prepared.value.meaning, settings };
-  const planned = finish(edits, expected);
-  if (!planned.ok) return planned;
-  const verdict = readBack(source, edits, expected);
-  return verdict.ok ? planned : verdict;
+  return finishChecked(source, edits, expected);
 }
 
 const WEEKDAY_NAMES: readonly string[] = GANTT_WEEKDAY_NAMES;
@@ -200,10 +202,7 @@ function planExcludes(
     );
   }
   const expected: GanttMeaning = { ...candidate, schedule: after };
-  const planned = finish(edits, expected);
-  if (!planned.ok) return planned;
-  const verdict = readBack(prepared.parsed.source, edits, expected);
-  return verdict.ok ? planned : verdict;
+  return finishChecked(prepared.parsed.source, edits, expected);
 }
 
 export function setExcludes(

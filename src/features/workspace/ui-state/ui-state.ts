@@ -767,10 +767,6 @@ export function beginRenaming(state: UiState, target: RenamingTarget): UiState {
     : { ...state, renaming: target };
 }
 
-export function isFolderCollapsed(state: UiState, folderId: FolderId): boolean {
-  return state.collapsedFolderIds.has(folderId);
-}
-
 export function setFolderCollapsed(
   state: UiState,
   folderId: FolderId,

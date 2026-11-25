@@ -49,11 +49,9 @@ export function parseProject(raw: RawProject): DomainResult<Project> {
   });
 }
 
-export function renameProject(
-  project: Project,
-  name: DisplayName,
-): DomainResult<Project> {
-  return ok({ ...project, name });
+// Any valid name can be given (the name was checked when it was parsed).
+export function renameProject(project: Project, name: DisplayName): Project {
+  return { ...project, name };
 }
 
 function withChildOrder(

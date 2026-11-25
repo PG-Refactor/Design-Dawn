@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { err } from "../domain/shared/domain-result";
 import {
   parseBlockId,
   parseDocumentId,
@@ -9,6 +10,7 @@ import {
 import {
   generateBlockId,
   generateDocumentId,
+  generateEntityId,
   generateFolderId,
   generateProjectId,
   generateSheetId,
@@ -37,5 +39,13 @@ describe("entity id generator", () => {
     );
     expect([...generated].sort()).toEqual(generated);
     expect(new Set(generated).size).toBe(SUCCESSIVE_ID_COUNT);
+  });
+});
+
+describe("generateEntityId", () => {
+  it("throws when the generated value is not a valid id", () => {
+    expect(() =>
+      generateEntityId(() => err("invalidEntityId", "not a uuid")),
+    ).toThrow("invalid entity id");
   });
 });

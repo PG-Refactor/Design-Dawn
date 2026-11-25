@@ -1,4 +1,5 @@
 import { type DomainResult, err, ok } from "../../shared/domain-result";
+import { itemAt } from "../../shared/item-at";
 import type { TextEdit } from "../text-edit";
 import {
   PIE_DEFAULT_INDENT,
@@ -165,9 +166,10 @@ function deleteLine(parsed: ParsedPie, lineIndex: number): TextEdit {
       text: "",
     };
   }
-  const previous = parsed.lines[lineIndex - 1];
+  // The last line, not the first (that is the header): one comes before it.
+  const previous = itemAt(parsed.lines, lineIndex - 1, line);
   return {
-    start: previous === undefined ? line.start : previous.end,
+    start: previous.end,
     end: line.end,
     text: "",
   };
@@ -421,11 +423,9 @@ export function removeTitle(source: string): DomainResult<PieOperationPlan> {
     return ok({ edits: [deleteLine(parsed, existing.lineIndex)], expected });
   }
   // `pie showData title X`: remove the blank before `title` through the end of the text.
-  const header = parsed.header;
-  const start =
-    header?.showDataSpan?.end ??
-    header?.keywordSpan.end ??
-    existing.keywordSpan.start;
+  // A title on the header line has the header before it.
+  const header = parsed.header as NonNullable<ParsedPie["header"]>;
+  const start = header.showDataSpan?.end ?? header.keywordSpan.end;
   const end =
     existing.textSpan.end > existing.textSpan.start
       ? existing.textSpan.end

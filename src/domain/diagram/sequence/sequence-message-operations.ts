@@ -10,7 +10,10 @@ import {
   insertLineAfterEdit,
   isLastOnLine,
 } from "./sequence-edit-lines";
-import type { SequenceItemMeaning } from "./sequence-meaning";
+import type {
+  SequenceItemMeaning,
+  SequenceMessageItem,
+} from "./sequence-meaning";
 import { withItemInserted } from "./sequence-meaning-edit";
 import {
   SEQUENCE_COPY_COLON,
@@ -63,9 +66,9 @@ export function planSetMessageActivation(
   }
   const resolved = resolveItem(prepared, operation.target, ["message"]);
   if (!resolved.ok) return resolved;
-  const { index, item, statement } = resolved.value;
-  if (item.kind !== "message")
-    return refuse("wrongTargetKind", "not a message");
+  // An entry has the kind of its statement.
+  const { index, statement } = resolved.value;
+  const item = resolved.value.item as SequenceMessageItem;
   const current = statement.sign?.text ?? null;
   if (current === operation.sign) {
     return ok({ edits: NO_EDITS, expected: meaning });
@@ -121,7 +124,8 @@ export function planSetMessageActivation(
       ? {
           start: statement.to.span.start,
           end: statement.to.span.start,
-          text: operation.sign ?? "",
+          // A sign is added: none for none changes nothing (planned before).
+          text: operation.sign as string,
         }
       : {
           start: statement.sign.span.start,
@@ -141,9 +145,9 @@ export function planDuplicateMessage(
   const { reading, meaning } = prepared;
   const resolved = resolveItem(prepared, operation.target, ["message"]);
   if (!resolved.ok) return resolved;
-  const { item, statement } = resolved.value;
-  if (item.kind !== "message")
-    return refuse("wrongTargetKind", "not a message");
+  // An entry has the kind of its statement.
+  const { statement } = resolved.value;
+  const item = resolved.value.item as SequenceMessageItem;
   if (!isLastOnLine(reading, statement)) {
     return refuse("sharedLine", "the message is followed by another statement");
   }

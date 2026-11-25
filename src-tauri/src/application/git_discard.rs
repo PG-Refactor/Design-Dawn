@@ -11,10 +11,10 @@ use std::sync::Mutex;
 use serde::Serialize;
 
 use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
+use crate::application::git_operations::ready_runner;
 use crate::application::git_operations::{
-    not_ready_error, project_root_of, read_file_statuses, read_git_status, repository_state,
-    run_error, validate_requested_paths, GitFileChange, GitFileStatus, GitRepositoryState,
-    GitStatusResult,
+    project_root_of, read_file_statuses, read_git_status, run_error, validate_requested_paths,
+    GitFileChange, GitFileStatus, GitStatusResult,
 };
 use crate::application::session::{document_base_path, ProjectSession, ProjectSessions};
 use crate::domain::constants::PATH_SEPARATOR;
@@ -177,10 +177,7 @@ pub fn discard_paths(
     project_root: &Path,
     paths: &[String],
 ) -> ApplicationResult<GitStatusResult> {
-    let state = repository_state(runner, project_root)?;
-    let (GitRepositoryState::Ready, Some(runner)) = (state, runner) else {
-        return Err(not_ready_error(state));
-    };
+    let runner = ready_runner(runner, project_root)?;
 
     let requested = validate_requested_paths(paths, "discard")?;
     if requested.is_empty() {

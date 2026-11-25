@@ -451,23 +451,6 @@ pub(crate) fn base64(bytes: &[u8]) -> String {
     text
 }
 
-/// An image file outside the Project (one an AI asks to add) as a `data:` URL, validated
-/// like a dropped file, so the user sees exactly what would be imported.
-pub fn image_file_data_url(path: &Path) -> ApplicationResult<String> {
-    let image = read_validated_image(path)?;
-    let format = ImageFormat::from_file_name(&base_name(path)).ok_or_else(|| {
-        DomainError::new(
-            DomainErrorKind::InvalidContentExtension,
-            "unsupported image extension",
-        )
-    })?;
-    Ok(format!(
-        "data:{};base64,{}",
-        format.mime_type(),
-        base64(&image.bytes)
-    ))
-}
-
 /// One asset of an opened Document as a `data:` URL, for an export that must carry its
 /// images inside the file (an HTML page). Read like the `dawn-asset` protocol reads it.
 pub fn asset_data_url(

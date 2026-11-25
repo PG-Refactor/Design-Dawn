@@ -1,4 +1,4 @@
-import type { DomainResult } from "../shared/domain-result";
+import { type DomainResult, mapOk } from "../shared/domain-result";
 import {
   type FlowchartOperation,
   planFlowchartOperation,
@@ -66,101 +66,59 @@ export interface DiagramOperationPlan {
   readonly verify: (candidateSource: string) => DomainResult<void>;
 }
 
+// A type's plan with the check of its promise for the candidate text.
+function withVerify<Meaning>(
+  plan: DomainResult<{
+    readonly edits: readonly TextEdit[];
+    readonly expected: Meaning;
+  }>,
+  verify: (candidateSource: string, expected: Meaning) => DomainResult<void>,
+): DomainResult<DiagramOperationPlan> {
+  return mapOk(plan, ({ edits, expected }) => ({
+    edits,
+    verify: (candidateSource) => verify(candidateSource, expected),
+  }));
+}
+
 export function planDiagramOperation(
   source: string,
   request: DiagramOperation,
 ): DomainResult<DiagramOperationPlan> {
   switch (request.diagram) {
-    case "pie": {
-      const plan = planPieOperation(source, request.operation);
-      if (!plan.ok) return plan;
-      const { edits, expected } = plan.value;
-      return {
-        ok: true,
-        value: {
-          edits,
-          verify: (candidateSource) =>
-            verifyPieCandidate(candidateSource, expected),
-        },
-      };
-    }
-    case "flowchart": {
-      const plan = planFlowchartOperation(source, request.operation);
-      if (!plan.ok) return plan;
-      const { edits, expected } = plan.value;
-      return {
-        ok: true,
-        value: {
-          edits,
-          verify: (candidateSource) =>
-            verifyFlowchartCandidate(candidateSource, expected),
-        },
-      };
-    }
-    case "gantt": {
-      const plan = planGanttOperation(source, request.operation);
-      if (!plan.ok) return plan;
-      const { edits, expected } = plan.value;
-      return {
-        ok: true,
-        value: {
-          edits,
-          verify: (candidateSource) =>
-            verifyGanttCandidate(candidateSource, expected),
-        },
-      };
-    }
-    case "er": {
-      const plan = planErOperation(source, request.operation);
-      if (!plan.ok) return plan;
-      const { edits, expected } = plan.value;
-      return {
-        ok: true,
-        value: {
-          edits,
-          verify: (candidateSource) =>
-            verifyErCandidate(candidateSource, expected),
-        },
-      };
-    }
-    case "state": {
-      const plan = planStateOperation(source, request.operation);
-      if (!plan.ok) return plan;
-      const { edits, expected } = plan.value;
-      return {
-        ok: true,
-        value: {
-          edits,
-          verify: (candidateSource) =>
-            verifyStateCandidate(candidateSource, expected),
-        },
-      };
-    }
-    case "class": {
-      const plan = planClassOperation(source, request.operation);
-      if (!plan.ok) return plan;
-      const { edits, expected } = plan.value;
-      return {
-        ok: true,
-        value: {
-          edits,
-          verify: (candidateSource) =>
-            verifyClassCandidate(candidateSource, expected),
-        },
-      };
-    }
-    case "sequence": {
-      const plan = planSequenceOperation(source, request.operation);
-      if (!plan.ok) return plan;
-      const { edits, expected } = plan.value;
-      return {
-        ok: true,
-        value: {
-          edits,
-          verify: (candidateSource) =>
-            verifySequenceCandidate(candidateSource, expected),
-        },
-      };
-    }
+    case "pie":
+      return withVerify(
+        planPieOperation(source, request.operation),
+        verifyPieCandidate,
+      );
+    case "flowchart":
+      return withVerify(
+        planFlowchartOperation(source, request.operation),
+        verifyFlowchartCandidate,
+      );
+    case "gantt":
+      return withVerify(
+        planGanttOperation(source, request.operation),
+        verifyGanttCandidate,
+      );
+    case "er":
+      return withVerify(
+        planErOperation(source, request.operation),
+        verifyErCandidate,
+      );
+    case "state":
+      return withVerify(
+        planStateOperation(source, request.operation),
+        verifyStateCandidate,
+      );
+    case "class":
+      return withVerify(
+        planClassOperation(source, request.operation),
+        verifyClassCandidate,
+      );
+    case "sequence":
+      return withVerify(
+        planSequenceOperation(source, request.operation),
+        verifySequenceCandidate,
+      );
   }
 }

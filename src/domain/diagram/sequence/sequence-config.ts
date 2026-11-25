@@ -129,7 +129,6 @@ export const SEQUENCE_NOTE_PLACEMENT_WORDS: Readonly<
   over: "over",
 };
 export const SEQUENCE_NOTE_KEYWORD = "Note";
-export const SEQUENCE_PARTICIPANT_ALIAS_WORD = "as";
 export const SEQUENCE_AUTONUMBER_KEYWORD = "autonumber";
 export const SEQUENCE_TITLE_KEYWORD = "title";
 export const SEQUENCE_END_KEYWORD = "end";

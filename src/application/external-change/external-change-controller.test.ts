@@ -4,7 +4,7 @@ import { unwrap } from "../../domain/shared/test-support";
 import { createBlocksCommand } from "../commands/file-backed-commands";
 import { renameSheetCommand } from "../commands/naming-commands";
 import type { ProjectFilesNotice } from "../ports/app-request-source";
-import { operationOk } from "../ports/operation-error";
+import { operationErr, operationOk } from "../ports/operation-error";
 import type { ChangedFile, ExternalChanges } from "../ports/persistence-types";
 import {
   blockIdOf,
@@ -47,14 +47,18 @@ interface Setup {
   readonly controller: ExternalChangeController;
   readonly events: ExternalChangeEvent[];
   readonly reloaded: string[];
-  readonly state: { blocked: boolean; pendingDraft: boolean };
+  readonly state: {
+    blocked: boolean;
+    pendingDraft: boolean;
+    reloadFails: boolean;
+  };
   readonly saveAllCalls: { count: number };
 }
 
 function setup(harness: WorkspaceHarness): Setup {
   const events: ExternalChangeEvent[] = [];
   const reloaded: string[] = [];
-  const state = { blocked: false, pendingDraft: false };
+  const state = { blocked: false, pendingDraft: false, reloadFails: false };
   const saveAllCalls = { count: 0 };
   const controller = createExternalChangeController({
     gateway: harness.gateway,
@@ -65,11 +69,15 @@ function setup(harness: WorkspaceHarness): Setup {
     reload: {
       document: async (documentId) => {
         reloaded.push(`document:${documentId}`);
-        return operationOk(undefined);
+        return state.reloadFails
+          ? operationErr("ioError", "unreadable")
+          : operationOk(undefined);
       },
       project: async () => {
         reloaded.push("project");
-        return operationOk(undefined);
+        return state.reloadFails
+          ? operationErr("ioError", "unreadable")
+          : operationOk(undefined);
       },
     },
     saveAll: async () => {
@@ -479,5 +487,224 @@ describe("checking and waiting", () => {
       type: "checkFailed",
       error: expect.objectContaining({ kind: "ioError" }),
     });
+  });
+});
+
+describe("conflict actions at their edges", () => {
+  const projectFile: ChangedFile = {
+    path: "project.json",
+    change: "modified",
+    readable: true,
+  };
+  const documentTarget = { kind: "document", documentId: DOCUMENT_A } as const;
+
+  async function withConflict() {
+    const context = await opened();
+    await makeUnsaved(context.harness);
+    await context.controller.handleNotice(
+      notice(context.harness, documentChanges([MARKDOWN_FILE])),
+    );
+    return context;
+  }
+
+  it("reports a reload that fails, for a Document and for the Project", async () => {
+    const { controller, events, state } = await withConflict();
+    state.reloadFails = true;
+    expect((await controller.reload(documentTarget)).ok).toBe(false);
+    expect((await controller.reload({ kind: "project" })).ok).toBe(false);
+    expect(
+      events.filter((event) => event.type === "reloadFailed"),
+    ).toHaveLength(2);
+    expect(controller.store.getState().conflicts).toHaveLength(1);
+  });
+
+  it("replaces a Document's conflict with a later one", async () => {
+    const { harness, controller } = await withConflict();
+    controller.keepCurrent(documentTarget);
+    await controller.handleNotice(
+      notice(harness, documentChanges([SHEET_FILE])),
+    );
+    expect(controller.store.getState().conflicts).toHaveLength(1);
+  });
+
+  it("replaces one Document's conflict and keeps another Document's", async () => {
+    const { harness, controller, state } = await opened();
+    await harness.workspace.openDocument(DOCUMENT_B);
+    state.pendingDraft = true;
+    await controller.handleNotice(
+      notice(harness, {
+        documents: [
+          { documentId: DOCUMENT_A, files: [MARKDOWN_FILE] },
+          { documentId: DOCUMENT_B, files: [MARKDOWN_FILE] },
+        ],
+      }),
+    );
+    await controller.handleNotice(
+      notice(harness, documentChanges([SHEET_FILE])),
+    );
+    const { conflicts } = controller.store.getState();
+    expect(conflicts.map((conflict) => conflict.documentId)).toEqual([
+      DOCUMENT_A,
+      DOCUMENT_B,
+    ]);
+    expect(conflicts[1]?.files).toEqual([MARKDOWN_FILE]);
+  });
+
+  it("merges a later Project change into the Project's conflict", async () => {
+    const { harness, controller } = await withConflict();
+    const projectChange = (structure: boolean) =>
+      notice(harness, { project: { structure, files: [projectFile] } });
+    await controller.handleNotice(projectChange(false));
+    controller.keepCurrent({ kind: "project" });
+    await controller.handleNotice(projectChange(true));
+    const conflict = controller.store.getState().projectConflict;
+    expect(conflict?.structure).toBe(true);
+    expect(conflict?.status).toBe("kept");
+  });
+
+  it("keeps nothing that is not in conflict", async () => {
+    const { controller } = await opened();
+    controller.keepCurrent({ kind: "project" });
+    controller.keepCurrent(documentTarget);
+    expect(controller.store.getState()).toMatchObject({
+      conflicts: [],
+      projectConflict: null,
+    });
+  });
+
+  it("overwrites nothing for a Document without a conflict, and stops when the disk state is not accepted", async () => {
+    const { harness, controller } = await opened();
+    expect((await controller.overwrite(documentTarget)).ok).toBe(true);
+    await makeUnsaved(harness);
+    await controller.handleNotice(
+      notice(harness, documentChanges([MARKDOWN_FILE])),
+    );
+    harness.gateway.failOn("acceptDiskState", "ioError");
+    expect((await controller.overwrite(documentTarget)).ok).toBe(false);
+    harness.gateway.failOn("acceptDiskState", "ioError");
+    expect((await controller.overwrite({ kind: "project" })).ok).toBe(false);
+  });
+
+  async function withTextBlock() {
+    const context = await opened();
+    const session = context.harness.workspace.getDocumentSession(DOCUMENT_A);
+    await session?.execute(
+      createBlocksCommand(SHEET_A1, [
+        {
+          blockId: blockIdOf(10),
+          blockType: "markdown",
+          position: position(1, 1),
+          size: size(100, 80),
+          text: "alpha",
+        },
+      ]),
+    );
+    const path =
+      session
+        ?.getState()
+        .sheets.get(SHEET_A1)
+        ?.blocks.find((block) => block.blockId === blockIdOf(10))
+        ?.contentPath ?? "";
+    return { ...context, path };
+  }
+
+  function forgetTexts(harness: WorkspaceHarness): void {
+    harness.store.setState((state) => {
+      const document = state.documents.get(DOCUMENT_A);
+      if (document === undefined) return state;
+      const documents = new Map(state.documents);
+      documents.set(DOCUMENT_A, { ...document, contents: new Map() });
+      return { ...state, documents };
+    });
+  }
+
+  it("stops overwriting when a removed text cannot be written again, and skips a text never loaded", async () => {
+    const { harness, controller, path } = await withTextBlock();
+    const removed: ChangedFile = { path, change: "removed", readable: false };
+    await makeUnsaved(harness);
+    await controller.handleNotice(notice(harness, documentChanges([removed])));
+    harness.gateway.clearCalls();
+    harness.gateway.failOn("restoreBlockContent", "ioError");
+    const failed = await controller.overwrite(documentTarget);
+    expect(failed.ok).toBe(false);
+    // Stopped before saving anything.
+    expect(harness.gateway.methods("saveSheet")).toEqual([]);
+
+    forgetTexts(harness);
+    harness.gateway.clearCalls();
+    await controller.overwrite(documentTarget);
+    expect(harness.gateway.methods("restoreBlockContent")).toEqual([]);
+  });
+
+  it("overwrites a Document that closes while the disk state is accepted", async () => {
+    const { harness, controller, path } = await withTextBlock();
+    await makeUnsaved(harness);
+    const removed: ChangedFile = { path, change: "removed", readable: false };
+    await controller.handleNotice(notice(harness, documentChanges([removed])));
+    const accept = harness.gateway.acceptDiskState.bind(harness.gateway);
+    harness.gateway.acceptDiskState = async (projectId, documentId) => {
+      await harness.workspace.closeDocument(DOCUMENT_A, {
+        discardChanges: true,
+      });
+      return accept(projectId, documentId);
+    };
+    expect((await controller.overwrite(documentTarget)).ok).toBe(true);
+    expect(harness.gateway.methods("restoreBlockContent")).toEqual([]);
+  });
+
+  it("writes again only the removed text files of text Blocks", async () => {
+    const { harness, controller, path } = await withTextBlock();
+    const session = harness.workspace.getDocumentSession(DOCUMENT_A);
+    await session?.execute(
+      createBlocksCommand(SHEET_A1, [
+        {
+          blockId: blockIdOf(11),
+          blockType: "markdown",
+          position: position(5, 5),
+          size: size(100, 80),
+          text: "beta",
+        },
+      ]),
+    );
+    const secondPath =
+      session
+        ?.getState()
+        .sheets.get(SHEET_A1)
+        ?.blocks.find((block) => block.blockId === blockIdOf(11))
+        ?.contentPath ?? "";
+    await makeUnsaved(harness);
+    const removed: ChangedFile = {
+      path: secondPath,
+      change: "removed",
+      readable: false,
+    };
+    await controller.handleNotice(notice(harness, documentChanges([removed])));
+    // Removed outside the app.
+    harness.gateway.files.delete(secondPath);
+    harness.gateway.clearCalls();
+    expect((await controller.overwrite(documentTarget)).ok).toBe(true);
+    expect(harness.gateway.methods("restoreBlockContent")).toHaveLength(1);
+    expect(harness.gateway.files.get(secondPath)).toBe("beta");
+    expect(path).not.toBe(secondPath);
+  });
+
+  it("refuses to overwrite without a Project, and checks nothing then", async () => {
+    const { harness, controller, events } = await opened();
+    await harness.workspace.closeProject();
+    expect((await controller.overwrite(documentTarget)).ok).toBe(false);
+    await controller.check();
+    expect(events).toEqual([]);
+  });
+
+  it("compares only an open Document's loaded text Block", async () => {
+    const { harness, controller, path } = await withTextBlock();
+    expect((await controller.compare(DOCUMENT_B, path)).ok).toBe(false);
+    expect((await controller.compare(DOCUMENT_A, "sheets/a1/none.md")).ok).toBe(
+      false,
+    );
+    expect((await controller.compare(DOCUMENT_A, path)).ok).toBe(true);
+    forgetTexts(harness);
+    const unloaded = await controller.compare(DOCUMENT_A, path);
+    expect(!unloaded.ok && unloaded.error.detail).toContain("not loaded");
   });
 });

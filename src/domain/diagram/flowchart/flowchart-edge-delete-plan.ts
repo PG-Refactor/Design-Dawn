@@ -10,7 +10,11 @@ import {
   type ResolvedEdge,
   refuse,
 } from "./flowchart-operation-support";
-import type { FlowchartLinkStyleStatement } from "./flowchart-types";
+import type {
+  FlowchartLinkStyleStatement,
+  FlowchartTermGroup,
+  FlowchartToken,
+} from "./flowchart-types";
 
 // Deleting an edge. The statement is cut so that nothing else
 // it said is lost, and everything that names the edge by position is repaired in the same set
@@ -86,9 +90,11 @@ export function repairLinkStyles(
       });
       continue;
     }
-    const first = statement.targets[0];
-    const last = statement.targets[statement.targets.length - 1];
-    if (first === undefined || last === undefined) continue;
+    // A linkStyle statement names at least one edge.
+    const first = statement.targets[0] as FlowchartToken;
+    const last = statement.targets[
+      statement.targets.length - 1
+    ] as FlowchartToken;
     edits.push({
       start: first.span.start,
       end: last.span.end,
@@ -135,10 +141,9 @@ interface StatementCut {
 function statementCuts(edge: ResolvedEdge, prepared: PreparedFlowchart) {
   const { statement, linkIndex } = edge;
   const cuts: StatementCut[] = [];
-  const groups = statement.kind === "edge" ? statement.groups : [];
-  const before = groups[linkIndex];
-  const after = groups[linkIndex + 1];
-  if (before === undefined || after === undefined) return cuts;
+  // A link stands between two groups.
+  const before = statement.groups[linkIndex] as FlowchartTermGroup;
+  const after = statement.groups[linkIndex + 1] as FlowchartTermGroup;
   if (
     statement.links.length === 1 &&
     occupiesWholeLine(prepared.reading, statement)

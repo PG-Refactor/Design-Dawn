@@ -4,6 +4,7 @@ import {
   FLOWCHART_MAX_SOURCE_LENGTH,
   FLOWCHART_UNDRAWABLE_SHAPES,
 } from "./flowchart-config";
+import type { FlowchartMeaning } from "./flowchart-meaning";
 import type { FlowchartReading } from "./flowchart-reader";
 import type { FlowchartStatement } from "./flowchart-types";
 
@@ -33,7 +34,8 @@ export type FlowchartNotEditableReason =
   | "undrawableShape";
 
 export type FlowchartEditability =
-  | { readonly editable: true }
+  // With the meaning the reading established (an editable flowchart always has one).
+  | { readonly editable: true; readonly meaning: FlowchartMeaning }
   | {
       readonly editable: false;
       readonly reason: FlowchartNotEditableReason;
@@ -42,11 +44,10 @@ export type FlowchartEditability =
       readonly lines: readonly LineRef[];
     };
 
+// A line the reading reported (always one of its lines).
 function refOf(reading: FlowchartReading, lineIndex: number): LineRef {
-  const line = reading.lines[lineIndex];
-  return line === undefined
-    ? { index: lineIndex, start: 0, end: 0 }
-    : { index: line.index, start: line.start, end: line.end };
+  const line = reading.lines[lineIndex] as FlowchartReading["lines"][number];
+  return { index: line.index, start: line.start, end: line.end };
 }
 
 function uniqueLineRefs(
@@ -92,7 +93,10 @@ function describeOpaque(reading: FlowchartReading): string {
     .join(", ");
 }
 
-function findDuplicateEdgeIds(reading: FlowchartReading): ReadonlySet<string> {
+function findDuplicateEdgeIds(
+  reading: FlowchartReading,
+  meaning: FlowchartMeaning,
+): ReadonlySet<string> {
   const seen = new Set<string>();
   const duplicates = new Set<string>();
   for (const id of reading.declaredEdgeIds) {
@@ -102,9 +106,7 @@ function findDuplicateEdgeIds(reading: FlowchartReading): ReadonlySet<string> {
   // A declared id that Mermaid did not take (an auto id already has that name) is as
   // ambiguous as a repeated one.
   const applied = new Set(
-    (reading.meaning?.edges ?? [])
-      .filter((edge) => edge.userDefinedId)
-      .map((edge) => edge.id),
+    meaning.edges.filter((edge) => edge.userDefinedId).map((edge) => edge.id),
   );
   for (const id of reading.declaredEdgeIds) {
     if (!applied.has(id)) duplicates.add(id);
@@ -159,7 +161,17 @@ export function flowchartEditability(
       lines: uniqueLineRefs(reading, sourceIssue.lineIndexes),
     };
   }
-  if (reading.opaque.length > 0) {
+  if (reading.edgeCount > FLOWCHART_MAX_EDGES) {
+    return {
+      editable: false,
+      reason: "tooManyEdges",
+      detail: `${reading.edgeCount} edges; Mermaid draws at most ${FLOWCHART_MAX_EDGES}`,
+      lines: [],
+    };
+  }
+  // A reading without a meaning (once the edge count is allowed) has statements it could
+  // not place.
+  if (reading.opaque.length > 0 || reading.meaning === null) {
     return {
       editable: false,
       reason: "unsupportedStatements",
@@ -170,25 +182,8 @@ export function flowchartEditability(
       ),
     };
   }
-  if (reading.edgeCount > FLOWCHART_MAX_EDGES) {
-    return {
-      editable: false,
-      reason: "tooManyEdges",
-      detail: `${reading.edgeCount} edges; Mermaid draws at most ${FLOWCHART_MAX_EDGES}`,
-      lines: [],
-    };
-  }
   const meaning = reading.meaning;
-  if (meaning === null) {
-    // Cannot happen once the checks above passed; refuse instead of guessing.
-    return {
-      editable: false,
-      reason: "unsupportedStatements",
-      detail: "the meaning of the text could not be established",
-      lines: [],
-    };
-  }
-  const duplicateEdgeIds = findDuplicateEdgeIds(reading);
+  const duplicateEdgeIds = findDuplicateEdgeIds(reading, meaning);
   if (duplicateEdgeIds.size > 0) {
     return {
       editable: false,
@@ -258,5 +253,5 @@ export function flowchartEditability(
       lines: linesMentioning(reading, undrawable),
     };
   }
-  return { editable: true };
+  return { editable: true, meaning };
 }

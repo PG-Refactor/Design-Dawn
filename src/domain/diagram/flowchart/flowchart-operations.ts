@@ -1,4 +1,5 @@
 import { type DomainResult, ok } from "../../shared/domain-result";
+import { refusalReason } from "../refusal-reason";
 import type { TextEdit } from "../text-edit";
 import {
   FLOWCHART_MAX_EDGES,
@@ -58,6 +59,11 @@ import {
   planSetSubgraphDirection,
   planSetSubgraphTitle,
 } from "./flowchart-subgraph-operations";
+import type {
+  FlowchartHeader,
+  FlowchartNodeTerm,
+  FlowchartTermGroup,
+} from "./flowchart-types";
 
 // Tier 1 operations of the flowchart GUI editor ("Tier 1" is the basic set of edits, "Tier 2" the
 // later, more structural ones: deleting nodes and editing subgraphs).
@@ -190,14 +196,9 @@ function planSetDirection(
   prepared: PreparedFlowchart,
   direction: FlowchartDirection,
 ): DomainResult<FlowchartOperationPlan> {
-  const header = prepared.reading.header;
+  // An editable flowchart has its header.
+  const header = prepared.reading.header as FlowchartHeader;
   const token = FLOWCHART_DIRECTION_WRITE_TOKENS[direction];
-  if (header === null || token === undefined) {
-    return refuse(
-      "invalidDirection",
-      `cannot write the direction ${direction}`,
-    );
-  }
   const expected = withDirection(prepared.meaning, direction);
   if (header.direction === direction) return ok({ edits: [], expected });
   const edit: TextEdit =
@@ -266,9 +267,7 @@ export function nodeEditRestriction(
   nodeId: string,
 ): string | null {
   const writing = writingOfNode(prepared, nodeId);
-  return writing.ok
-    ? null
-    : (writing.error.detail.split(":")[0]?.trim() ?? null);
+  return writing.ok ? null : refusalReason(writing.error.detail);
 }
 
 function findNode(
@@ -284,9 +283,7 @@ function findNode(
 }
 
 function squareBrackets() {
-  const square = bracketPairOf(FLOWCHART_DEFAULT_NEW_NODE_SHAPE);
-  if (square === null) throw new Error("the default shape has no brackets");
-  return square;
+  return bracketPairOf(FLOWCHART_DEFAULT_NEW_NODE_SHAPE);
 }
 
 function planSetNodeLabel(
@@ -354,9 +351,6 @@ function planSetNodeShape(
     );
   }
   const brackets = bracketPairOf(shapeName);
-  if (brackets === null) {
-    return refuse("invalidShape", `${shapeName} has no bracket form`);
-  }
   const node = findNode(prepared, nodeId);
   if (!node.ok) return node;
   const writing = writingOfNode(prepared, nodeId);
@@ -706,10 +700,8 @@ function planReconnectEdge(
 ): DomainResult<FlowchartOperationPlan> {
   const resolved = resolveEdge(prepared, target);
   if (!resolved.ok) return resolved;
+  // A statement with a link (`edge`), whose groups sit on both sides of each link.
   const { statement, linkIndex } = resolved.value;
-  if (statement.kind !== "edge") {
-    return refuse("targetNotFound", "the edge has no written statement");
-  }
   if (!prepared.meaning.nodes.some((node) => node.id === nodeId)) {
     return refuse(
       "targetNotFound",
@@ -729,10 +721,8 @@ function planReconnectEdge(
       "the node is also the end of the neighbouring edge in the same chain",
     );
   }
-  const term = statement.groups[groupIndex]?.terms[0];
-  if (term === undefined) {
-    return refuse("targetNotFound", "the edge has no written endpoint");
-  }
+  const group = statement.groups[groupIndex] as FlowchartTermGroup;
+  const term = group.terms[0] as FlowchartNodeTerm;
   if (term.id.text === nodeId) {
     return ok({ edits: [], expected: prepared.meaning });
   }
@@ -794,7 +784,16 @@ export function planFlowchartOperation(
 ): DomainResult<FlowchartOperationPlan> {
   const prepared = prepareFlowchart(source);
   if (!prepared.ok) return prepared;
-  const state = prepared.value;
+  return planPreparedFlowchartOperation(source, prepared.value, operation);
+}
+
+// The same for a flowchart already read (its reading and meaning). Every plan proves itself
+// against `prepared`, so one that does not hold for it is refused.
+export function planPreparedFlowchartOperation(
+  source: string,
+  state: PreparedFlowchart,
+  operation: FlowchartOperation,
+): DomainResult<FlowchartOperationPlan> {
   switch (operation.kind) {
     case "setDirection":
       return planSetDirection(source, state, operation.direction);

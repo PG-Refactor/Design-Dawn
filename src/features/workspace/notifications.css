@@ -161,3 +161,10 @@
   box-shadow: var(--shadow-raised);
   color: var(--color-text);
 }
+
+/* The bell, the size of the other line icons. */
+.notifications__icon {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+}

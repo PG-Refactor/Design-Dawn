@@ -93,10 +93,10 @@ function isBlank(text: string): boolean {
 // Front matter exists only when the very first line is the fence (Mermaid anchors it at
 // the start of the text). Returns the index of the closing fence, or null if unterminated.
 function findFrontMatterEnd(lines: readonly SourceLine[]): number | null {
-  for (let index = 1; index < lines.length; index += 1) {
-    if (FRONT_MATTER_FENCE_PATTERN.test(lines[index]?.text ?? "")) return index;
-  }
-  return null;
+  const after = lines
+    .slice(1)
+    .findIndex((line) => FRONT_MATTER_FENCE_PATTERN.test(line.text));
+  return after === -1 ? null : after + 1;
 }
 
 export function classifyLines(
@@ -150,10 +150,8 @@ function findDirectiveEnd(
   lines: readonly SourceLine[],
   startIndex: number,
 ): number | null {
-  for (let index = startIndex; index < lines.length; index += 1) {
-    if ((lines[index]?.text ?? "").trimEnd().endsWith(DIRECTIVE_SUFFIX)) {
-      return index;
-    }
-  }
-  return null;
+  const after = lines
+    .slice(startIndex)
+    .findIndex((line) => line.text.trimEnd().endsWith(DIRECTIVE_SUFFIX));
+  return after === -1 ? null : after + startIndex;
 }

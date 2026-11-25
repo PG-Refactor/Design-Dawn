@@ -69,16 +69,15 @@ export function orderGanttTags(tags: readonly GanttTag[]): readonly GanttTag[] {
 export function ganttMeaningOf(parsed: ParsedGantt): GanttMeaning | null {
   if (parsed.dateFormat === null) return null;
   const tasks: GanttTaskMeaning[] = [];
+  // The parser keeps no task whose start or end it cannot read (the line is unsupported).
   for (const task of parsed.tasks) {
-    if (task.start.kind === "invalid" || task.end.kind === "invalid")
-      return null;
     tasks.push({
       section: parsed.sections[task.sectionIndex]?.name ?? "",
       name: task.name,
       id: task.id,
       tags: orderGanttTags(task.tags),
-      start: task.start,
-      end: task.end,
+      start: task.start as GanttTaskMeaning["start"],
+      end: task.end as GanttTaskMeaning["end"],
     });
   }
   return {
@@ -139,8 +138,8 @@ export function resolveGanttSchedule(
     return result;
   };
   const resolveTask = (index: number): ResolvedDates | null => {
-    const task = meaning.tasks[index];
-    if (task === undefined) return null;
+    // Called for tasks of the chart only (the one before, or one an id names).
+    const task = meaning.tasks[index] as GanttTaskMeaning;
     let start: number | null = null;
     switch (task.start.kind) {
       case "date":
@@ -362,10 +361,8 @@ export function checkGanttMeaning(
       `candidate ${editability.reason}: ${editability.detail}`,
     );
   }
-  const actual = ganttMeaningOf(candidate);
-  if (actual === null) {
-    return err("diagramNotEditable", "candidate has no meaning");
-  }
+  // An editable chart has a meaning (see ganttEditability).
+  const actual = ganttMeaningOf(candidate) as GanttMeaning;
   const differences = describeDifferences(actual, expected);
   return differences.length === 0
     ? ok(undefined)

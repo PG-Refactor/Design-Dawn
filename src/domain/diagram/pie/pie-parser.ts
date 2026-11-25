@@ -293,9 +293,8 @@ export function parsePie(source: string): ParsedPie {
     };
     switch (result.kind) {
       case "empty":
-        if (!onHeaderLine) {
-          target.kind = BLANK_PATTERN.test(line.text) ? "blank" : "comment";
-        }
+        // Only the rest of the header line can be empty here: blank and comment lines are
+        // sorted out before their statements are looked at.
         return lineIndex + 1;
       case "slice":
         if (onHeaderLine) {

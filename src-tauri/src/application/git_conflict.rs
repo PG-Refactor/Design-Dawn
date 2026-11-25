@@ -11,11 +11,12 @@ use super::asset_import::base64;
 use super::error::{ApplicationError, ApplicationResult, ErrorKind};
 use super::export_markdown::write_file_atomically;
 use super::git_operations::{
-    not_ready_error, project_root_of, read_file_statuses, repository_state, stage_paths,
-    validate_requested_paths, GitFileChange, GitRepositoryState, GitStatusResult,
+    project_root_of, read_file_statuses, stage_paths, validate_requested_paths, GitFileChange,
+    GitStatusResult,
 };
 use super::session::ProjectSessions;
 use super::sheet_merge::merge_sheet;
+use crate::application::git_operations::ready_runner;
 use crate::infrastructure::file_format::constants::{ASSET_MAX_BYTES, SHEET_FILE_NAME};
 use crate::infrastructure::file_format::image_validation::{validate_image_content, ImageFormat};
 use crate::infrastructure::git::constants::{
@@ -177,24 +178,16 @@ fn require_conflicted(runner: &GitRunner, root: &Path, path: &str) -> Applicatio
     }
 }
 
-fn ready_runner(runner: Option<&GitRunner>, root: &Path) -> ApplicationResult<GitRunner> {
-    let state = repository_state(runner, root)?;
-    match (state, runner) {
-        (GitRepositoryState::Ready, Some(runner)) => Ok(runner.clone()),
-        _ => Err(not_ready_error(state)),
-    }
-}
-
 pub fn read_conflict_versions(
     runner: Option<&GitRunner>,
     root: &Path,
     path: &str,
 ) -> ApplicationResult<ConflictVersions> {
     let runner = ready_runner(runner, root)?;
-    let path = require_conflicted(&runner, root, path)?;
-    let base = show_stage(&runner, root, STAGE_BASE, &path);
-    let ours = show_stage(&runner, root, STAGE_OURS, &path);
-    let theirs = show_stage(&runner, root, STAGE_THEIRS, &path);
+    let path = require_conflicted(runner, root, path)?;
+    let base = show_stage(runner, root, STAGE_BASE, &path);
+    let ours = show_stage(runner, root, STAGE_OURS, &path);
+    let theirs = show_stage(runner, root, STAGE_THEIRS, &path);
     let current = std::fs::read_to_string(root.join(&path)).ok();
     let is_sheet = path.rsplit(PATH_SEPARATOR).next() == Some(SHEET_FILE_NAME);
     let (merged, conflicting_blocks) = match (is_sheet, &ours, &theirs) {
@@ -210,11 +203,11 @@ pub fn read_conflict_versions(
     let images = match ImageFormat::from_file_name(&path) {
         None => None,
         Some(_) => Some(ConflictImages {
-            base: stage_picture(&runner, root, STAGE_BASE, &path),
-            ours: stage_picture(&runner, root, STAGE_OURS, &path),
-            theirs: stage_picture(&runner, root, STAGE_THEIRS, &path),
-            ours_deleted: !stage_exists(&runner, root, STAGE_OURS, &path)?,
-            theirs_deleted: !stage_exists(&runner, root, STAGE_THEIRS, &path)?,
+            base: stage_picture(runner, root, STAGE_BASE, &path),
+            ours: stage_picture(runner, root, STAGE_OURS, &path),
+            theirs: stage_picture(runner, root, STAGE_THEIRS, &path),
+            ours_deleted: !stage_exists(runner, root, STAGE_OURS, &path)?,
+            theirs_deleted: !stage_exists(runner, root, STAGE_THEIRS, &path)?,
         }),
     };
     Ok(ConflictVersions {
@@ -237,9 +230,9 @@ pub fn resolve_conflict(
     content: &str,
 ) -> ApplicationResult<GitStatusResult> {
     let ready = ready_runner(runner, root)?;
-    let path = require_conflicted(&ready, root, path)?;
+    let path = require_conflicted(ready, root, path)?;
     write_file_atomically(&root.join(&path), content.as_bytes())?;
-    stage_paths(Some(&ready), root, &[path])
+    stage_paths(Some(ready), root, &[path])
 }
 
 /// Resolves the conflict with one side's file as it is (byte for byte, for a picture or any
@@ -252,10 +245,10 @@ pub fn resolve_conflict_with_side(
     side: ConflictSide,
 ) -> ApplicationResult<GitStatusResult> {
     let ready = ready_runner(runner, root)?;
-    let path = require_conflicted(&ready, root, path)?;
+    let path = require_conflicted(ready, root, path)?;
     let target = root.join(&path);
-    if stage_exists(&ready, root, side.stage(), &path)? {
-        let bytes = show_stage_bytes(&ready, root, side.stage(), &path, picture_size_limit())
+    if stage_exists(ready, root, side.stage(), &path)? {
+        let bytes = show_stage_bytes(ready, root, side.stage(), &path, picture_size_limit())
             .ok_or_else(|| {
                 ApplicationError::new(
                     ErrorKind::GitCommandFailed,
@@ -271,7 +264,7 @@ pub fn resolve_conflict_with_side(
             )
         })?;
     }
-    stage_paths(Some(&ready), root, &[path])
+    stage_paths(Some(ready), root, &[path])
 }
 
 pub fn git_resolve_conflict_with_side(

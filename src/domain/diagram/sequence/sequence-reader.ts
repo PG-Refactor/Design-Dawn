@@ -170,7 +170,8 @@ export function readSequence(source: string): SequenceReading {
   for (const line of lines) {
     if (line.kind === "header") {
       headerLineIndex = line.index;
-      const keywordEnd = headerMatch?.[0].length ?? 0;
+      // Only a sequence diagram is read this far, and its header matched.
+      const keywordEnd = (headerMatch as RegExpExecArray)[0].length;
       const rest = line.text.slice(keywordEnd);
       if (rest.trim() !== "") {
         const trimmed = rest.trim();

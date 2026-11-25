@@ -409,11 +409,6 @@ impl LocalState {
         })
     }
 
-    /// Where the AI access list and the AI history are.
-    pub fn config_dir(&self) -> &Path {
-        &self.directories.config_dir
-    }
-
     pub fn set_ai_write_access(
         &self,
         project_id: &str,

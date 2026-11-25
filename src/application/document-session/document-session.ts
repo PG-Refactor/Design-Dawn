@@ -12,7 +12,6 @@
 
 import { isTextBlockType } from "../../domain/block/block-type";
 import type { Document } from "../../domain/document/document";
-import type { DomainResult } from "../../domain/shared/domain-result";
 import type {
   BlockId,
   ProjectId,
@@ -59,7 +58,6 @@ import {
 } from "../ports/auto-save-policy";
 import {
   failWith,
-  fromDomainResult,
   type OperationError,
   type OperationResult,
   operationErr,
@@ -67,6 +65,7 @@ import {
 } from "../ports/operation-error";
 import type { PersistenceGateway } from "../ports/persistence-gateway";
 import type { Scheduler } from "../ports/scheduler";
+import { createSerialQueue } from "../serial-queue";
 import type {
   ContentLoadStatus,
   DocumentSessionState,
@@ -106,7 +105,7 @@ export interface DocumentSessionSeed {
   // What is not saved yet; the new session saves it (auto-save, flush, close).
   readonly unsaved: DocumentDataChange;
   // Auto-save off: block files the next save creates and deletes.
-  readonly plannedFiles?: PlannedFiles;
+  readonly plannedFiles: PlannedFiles;
 }
 
 export interface StructuralChangeOptions {
@@ -129,10 +128,12 @@ export interface SessionExclusiveScope {
   // so it never goes through `execute`. Sheets that
   // appear or disappear are not marked dirty: their files are created / deleted by
   // the caller through the gateway, not saved by the coordinator.
+  // `next` is computed by the caller from `getData()` (where it can be refused); taking
+  // it over cannot fail.
   applyStructuralChange(
-    change: (data: DocumentData) => DomainResult<DocumentData>,
+    next: DocumentData,
     options: StructuralChangeOptions,
-  ): OperationResult<void>;
+  ): void;
 }
 
 export interface DocumentSession {
@@ -231,17 +232,9 @@ export function createDocumentSession(
   let savedStateId: number | null = currentStateId;
   let warnings: readonly OperationWarning[] = [];
   let closed = false;
-  let queueTail: Promise<void> = Promise.resolve();
   let current: DocumentSessionState;
 
-  function runExclusive<T>(task: () => Promise<T>): Promise<T> {
-    const result = queueTail.then(task);
-    queueTail = result.then(
-      () => undefined,
-      () => undefined,
-    );
-    return result;
-  }
+  const runExclusive = createSerialQueue().run;
 
   const coordinator = createSaveCoordinator({
     projectId,
@@ -257,9 +250,7 @@ export function createDocumentSession(
     relocate: (blockId, contentPath) => {
       data = withContentPath(data, blockId, contentPath);
     },
-    ...(seed?.plannedFiles === undefined
-      ? {}
-      : { plannedFiles: seed.plannedFiles }),
+    ...(seed === undefined ? {} : { plannedFiles: seed.plannedFiles }),
   });
   const autoSavePolicy =
     options.autoSavePolicy ?? ALWAYS_ENABLED_AUTO_SAVE_POLICY;
@@ -415,14 +406,16 @@ export function createDocumentSession(
   ): void {
     if (move === "undo") {
       redoStateIds = [...redoStateIds, currentStateId];
-      currentStateId = undoStateIds.at(-1) ?? newStateId();
+      // An undo has an entry, and the ids run parallel to the entries.
+      currentStateId = undoStateIds.at(-1) as number;
       undoStateIds = undoStateIds.slice(0, -1);
       return;
     }
     const pushed = [...undoStateIds, currentStateId];
     undoStateIds = pushed.slice(Math.max(0, pushed.length - undoLength));
     if (move === "redo") {
-      currentStateId = redoStateIds.at(-1) ?? newStateId();
+      // A redo has an entry, and the ids run parallel to the entries.
+      currentStateId = redoStateIds.at(-1) as number;
       redoStateIds = redoStateIds.slice(0, -1);
     } else {
       currentStateId = newStateId();
@@ -610,21 +603,18 @@ export function createDocumentSession(
   }
 
   function applyStructuralChange(
-    change: (current: DocumentData) => DomainResult<DocumentData>,
+    next: DocumentData,
     structuralOptions: StructuralChangeOptions,
-  ): OperationResult<void> {
-    const changed = fromDomainResult(change(data));
-    if (!changed.ok) return failWith(changed.error);
-    const diff = diffDocumentData(data, changed.value);
+  ): void {
+    const diff = diffDocumentData(data, next);
     const pending: DocumentDataChange = {
       changedContentBlockIds: diff.changedContentBlockIds,
       documentChanged: diff.documentChanged,
       changedSheetIds: diff.changedSheetIds.filter(
-        (sheetId) =>
-          data.sheets.has(sheetId) && changed.value.sheets.has(sheetId),
+        (sheetId) => data.sheets.has(sheetId) && next.sheets.has(sheetId),
       ),
     };
-    data = syncBlockState(changed.value);
+    data = syncBlockState(next);
     if (structuralOptions.clearHistory) {
       undoStack = [];
       redoStack = [];
@@ -636,7 +626,6 @@ export function createDocumentSession(
     } else {
       publish();
     }
-    return operationOk(undefined);
   }
 
   const exclusiveScope: SessionExclusiveScope = {

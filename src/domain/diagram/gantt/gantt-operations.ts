@@ -62,6 +62,7 @@ import {
 } from "./gantt-text";
 import type {
   GanttEnd,
+  GanttLine,
   GanttReference,
   GanttStart,
   GanttTaskEntry,
@@ -291,7 +292,8 @@ export function setTitle(
   const next = parsed.lines.find(
     (line, index) => index > header && !NON_CONTENT_KINDS.has(line.kind),
   );
-  const statement = `${indentOf(next)}${GANTT_TITLE_KEYWORD} ${title}`;
+  // An editable chart has its dateFormat line after the header.
+  const statement = `${indentOf(next as GanttLine)}${GANTT_TITLE_KEYWORD} ${title}`;
   return ok({ edits: [insertLineAfter(parsed, header, statement)], expected });
 }
 
@@ -339,7 +341,7 @@ export function addSection(
     return refuse("invalidIndex", `section ${after} does not exist`);
   }
   const anchor = regionEnd(parsed, after);
-  const indent = indentOf(parsed.lines[anchor]);
+  const indent = indentOf(parsed.lines[anchor] as GanttLine);
   const statement = `${indent}${GANTT_SECTION_KEYWORD} ${input.name}`;
   const sections = [...meaning.sections];
   sections.splice(

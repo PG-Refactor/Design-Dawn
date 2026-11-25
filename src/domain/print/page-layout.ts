@@ -4,6 +4,8 @@
 // through, when that edge is inside the page, so blocks are not split unless one is
 // larger than a page. Empty pages are left out. Pure: world units in, rectangles out.
 
+import { itemAt } from "../shared/item-at";
+
 export interface Rect {
   readonly x: number;
   readonly y: number;
@@ -145,15 +147,13 @@ export function paginate(
     blocks.map((block) => [block.y, block.y + block.height] as const),
   );
   const pages: Rect[] = [];
-  for (let row = 0; row < rows.length - 1; row += 1) {
-    for (let column = 0; column < columns.length - 1; column += 1) {
-      const x = columns[column] ?? 0;
-      const y = rows[row] ?? 0;
+  for (const row of spans(rows)) {
+    for (const column of spans(columns)) {
       const page = {
-        x,
-        y,
-        width: (columns[column + 1] ?? x) - x,
-        height: (rows[row + 1] ?? y) - y,
+        x: column.start,
+        y: row.start,
+        width: column.size,
+        height: row.size,
       };
       const shown = blocks.some(
         (block) =>
@@ -168,4 +168,14 @@ export function paginate(
     }
   }
   return pages;
+}
+
+// The stretches between consecutive cuts.
+function spans(
+  edges: readonly number[],
+): { readonly start: number; readonly size: number }[] {
+  return edges.slice(1).map((end, index) => {
+    const start = itemAt(edges, index, end);
+    return { start, size: end - start };
+  });
 }

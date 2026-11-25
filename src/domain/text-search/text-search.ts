@@ -5,6 +5,8 @@
 // the app has not opened; the common part, without look-around and back-references, means
 // the same in both). An empty match marks no text and is skipped.
 
+import { itemAt } from "../shared/item-at";
+
 export interface TextQuery {
   readonly text: string;
   readonly matchCase: boolean;
@@ -49,7 +51,7 @@ type LineMatcher = (line: string) => LineOccurrence[];
 
 function foldCharacters(text: string, matchCase: boolean): string[] {
   return [...text].map((character) =>
-    matchCase ? character : ([...character.toLowerCase()][0] ?? character),
+    matchCase ? character : itemAt([...character.toLowerCase()], 0, character),
   );
 }
 
@@ -160,7 +162,8 @@ function replacementFor(
 }
 
 function linesOf(text: string): string[] {
-  return text.match(LINE_WITH_BREAK) ?? [text];
+  // The pattern matches an empty line too, so there is always a match.
+  return text.match(LINE_WITH_BREAK) as RegExpMatchArray;
 }
 
 function splitBreak(lineWithBreak: string): {

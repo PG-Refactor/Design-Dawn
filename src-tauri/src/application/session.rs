@@ -50,10 +50,6 @@ impl HashLedger {
         self.hashes.get(relative_path).map(String::as_str)
     }
 
-    pub fn len(&self) -> usize {
-        self.hashes.len()
-    }
-
     /// Every recorded `(path, hash)`, in path order.
     pub fn entries(&self) -> impl Iterator<Item = (&str, &str)> {
         self.hashes
@@ -66,10 +62,6 @@ impl HashLedger {
     pub fn matches(&self, relative_path: &str, bytes: &[u8]) -> Option<bool> {
         self.hash_of(relative_path)
             .map(|recorded| recorded == sha256_hex(bytes))
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.hashes.is_empty()
     }
 
     /// Re-keys the entry for `old_directory` itself and everything below it, after the

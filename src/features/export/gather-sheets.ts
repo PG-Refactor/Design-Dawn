@@ -18,6 +18,7 @@ import {
   blockDisplayOf,
   isScalableBlockType,
 } from "../../domain/block/content-scale";
+import { capturedText } from "../../domain/shared/captured-text";
 import type {
   DocumentId,
   ProjectId,
@@ -56,7 +57,7 @@ async function inlineImages(
 ): Promise<string> {
   const urls = new Set(
     [...html.matchAll(SOURCE_ATTRIBUTE_PATTERN)]
-      .map((match) => match[1] ?? "")
+      .map((match) => capturedText(match, 1))
       .filter((url) => url.startsWith(prefix)),
   );
   let result = html;

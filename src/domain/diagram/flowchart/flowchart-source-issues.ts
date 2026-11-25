@@ -133,8 +133,8 @@ function isReadableFrontMatter(bodyLines: readonly string[]): boolean {
       }
       keysByLevel[level] = new Set();
     } else {
+      // Back to a level that is open: every level up to it has its keys.
       keysByLevel.length = level + 1;
-      if (keysByLevel[level] === undefined) return false;
     }
     const keys = keysByLevel[level] as Set<string>;
     if (keys.has(key)) return false;

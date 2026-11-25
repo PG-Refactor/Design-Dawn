@@ -7,6 +7,7 @@ import type {
   ProjectId,
   SheetId,
 } from "../../domain/shared/entity-id";
+import { createListenerSet } from "../listener-set";
 
 export type WorkspaceEvent =
   | {
@@ -29,36 +30,9 @@ export interface WorkspaceEvents {
   subscribe(listener: WorkspaceEventListener): () => void;
 }
 
-// Rethrown outside the emitting call so it surfaces as an unhandled error.
-function rethrowLater(failure: unknown): void {
-  queueMicrotask(() => {
-    throw failure;
-  });
-}
-
 export function createWorkspaceEvents(
-  reportListenerFailure: (failure: unknown) => void = rethrowLater,
+  reportListenerFailure?: (failure: unknown) => void,
 ): WorkspaceEvents {
-  const listeners = new Set<{ readonly listener: WorkspaceEventListener }>();
-  return {
-    emit(event) {
-      for (const subscription of [...listeners]) {
-        if (!listeners.has(subscription)) continue;
-        try {
-          subscription.listener(event);
-        } catch (failure) {
-          // A faulty subscriber must not abort the operation that is emitting (it may
-          // sit between two disk steps), but the failure must not vanish either.
-          reportListenerFailure(failure);
-        }
-      }
-    },
-    subscribe(listener) {
-      const subscription = { listener };
-      listeners.add(subscription);
-      return () => {
-        listeners.delete(subscription);
-      };
-    },
-  };
+  const listeners = createListenerSet<WorkspaceEvent>(reportListenerFailure);
+  return { emit: listeners.notify, subscribe: listeners.subscribe };
 }

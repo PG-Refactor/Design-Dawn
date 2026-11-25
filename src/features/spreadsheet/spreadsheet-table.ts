@@ -11,6 +11,7 @@ import type {
   ColumnAlignment,
   MarkdownTable,
 } from "../../domain/markdown-table/markdown-table";
+import { capturedText } from "../../domain/shared/captured-text";
 
 export interface SpreadsheetImportOptions {
   // The first row is the header (otherwise the column letters are).
@@ -79,7 +80,7 @@ function cellPosition(
   if (match === null) return null;
   return {
     row: Number(match[2]) - 1,
-    column: columnIndex(match[1] ?? ""),
+    column: columnIndex(capturedText(match, 1)),
   };
 }
 
@@ -107,7 +108,9 @@ export function previewLines(markdown: string): readonly string[] {
   // A link cell (`[text](<address>)`) shows its text, as the table will.
   const link = WHOLE_LINK.exec(markdown);
   const shown =
-    link === null ? markdown : (link[1] ?? "").replace(ESCAPED_BRACKET, "$1");
+    link === null
+      ? markdown
+      : capturedText(link, 1).replace(ESCAPED_BRACKET, "$1");
   return shown
     .split(LINE_BREAK_TAG)
     .map((line) =>

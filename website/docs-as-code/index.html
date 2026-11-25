@@ -97,9 +97,10 @@
         <li>the list of changes, with stage and unstage;</li>
         <li>commit, and undo of the last commit;</li>
         <li>history;</li>
-        <li>side-by-side diffs that open in tabs;</li>
+        <li>side-by-side diffs that open in tabs, and for a sheet, a visual before/after of how it looks, with an <strong>Open Sheet</strong> button that goes to the changed block;</li>
         <li>discarding changes;</li>
         <li>fetch, pull and push, and publishing a branch to a remote;</li>
+        <li>resolving merge conflicts: text side by side with an editable result, <code>sheet.json</code> merged block by block, images chosen by looking at both versions; a band while a merge is unfinished, finishing it with a commit or aborting it;</li>
         <li>the name of the current branch.</li>
       </ul>
 
@@ -107,7 +108,7 @@
       <ul>
         <li>The app runs the <code>git</code> command installed on your computer. <strong>Git 2.25 or later</strong> is required for the Git features; everything else works without Git.</li>
         <li>The app does not create a repository. Run <code>git init</code> (or clone one) with your usual tools; a folder that is not a repository is shown as “not managed by Git”.</li>
-        <li>Creating and switching branches, merging and resolving conflicts are done with your usual Git tools, not in the app.</li>
+        <li>Creating and switching branches, and starting a merge, rebase or cherry-pick, are done with your usual Git tools, not in the app. A conflict a pull or merge leaves behind can be resolved in the app.</li>
       </ul>
 
       <h2>When files change outside the app</h2>

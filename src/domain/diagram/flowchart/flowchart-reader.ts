@@ -1,3 +1,4 @@
+import { capturedText } from "../../shared/captured-text";
 import { type DiagramTypeDetection, detectDiagramType } from "../diagram-type";
 import {
   type ClassifiedLine,
@@ -84,7 +85,8 @@ const FIRST_TOKEN_PATTERN = /^[ \t]*([^\s;]+)/;
 function firstHeaderToken(lines: readonly ClassifiedLine[]): string | null {
   const header = lines.find((line) => line.kind === "header");
   if (header === undefined) return null;
-  return FIRST_TOKEN_PATTERN.exec(header.text)?.[1] ?? null;
+  const match = FIRST_TOKEN_PATTERN.exec(header.text);
+  return match === null ? null : capturedText(match, 1);
 }
 
 function toReadingLine(line: ClassifiedLine): FlowchartLine {

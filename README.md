@@ -25,28 +25,38 @@ can be read and edited by people, reviewed with Git, and changed safely by AI to
 - **Free-form canvas** — pan, zoom (wheel, or the zoom control in the corner: - / + or a typed
   percentage), select, move, resize, align, z-order, copy/paste, and undo/redo for every edit.
 - **Project → Document → Sheet → Block** — a project tree with folders (drag rows to reorder or
-  move them), document tabs and sheet tabs; several documents (and windows) open at once. The
+  move them; a folder name with `/` or `\` makes nested folders), document tabs and sheet tabs that
+  scroll sideways when there are many; several documents (and windows) open at once. The
   sidebar can be folded away.
 - **Markdown blocks** — rendered view on the canvas; a split source/preview editor while editing
   (the divider moves, and the preview can be hidden; the same for Mermaid source).
 - **Mermaid blocks** — any Mermaid 12 diagram, rendered locally and sanitised (no network, no
   scripts).
-- **Mermaid GUI editor** — edit pie charts, flowcharts, sequence diagrams and Gantt charts with
-  lists and property fields instead of syntax; right-click a shape in the diagram to edit or
+- **Mermaid GUI editor** — edit flowcharts, sequence, class, state and ER diagrams, Gantt and pie
+  charts with lists and property fields instead of syntax; right-click a shape in the diagram to edit or
   delete it, and add elements in a dialog with a preview. The Mermaid source stays the single
   source of truth: each GUI edit changes only the bytes it must, is checked by re-reading the
   result and rendering it, and is one undo step. Anything the editor does not fully understand
   stays read-only rather than being rewritten.
-- **Image blocks** — PNG, JPEG, WebP, SVG and GIF, added by drag and drop or from a file dialog.
+- **Display size** — the text or diagram of a Markdown or Mermaid block can be zoomed (− / + or a
+  percentage, when the block is hovered) or fitted to the block; the size is kept in the sheet.
+- **Image blocks** — PNG, JPEG, WebP, SVG and GIF, added by drag and drop or from a file dialog;
+  right-click to go back to the original size.
 - **Captions** — diagrams and images can have a one-line caption above or below them.
-- **Git integration** — status, stage/unstage, commit, history, side-by-side diffs in tabs,
-  discard, fetch/pull/push, branch display.
+- **Git integration** — status, stage/unstage, commit (amend, commit and push), undo of the last
+  commit, history, side-by-side diffs in tabs and a visual before/after of a sheet (with **Open
+  Sheet** to go to the changed block), discard, fetch/pull/push, branch display. Merge conflicts
+  are resolved in the app: text side by side, `sheet.json` block by block, images by looking at
+  both versions; an unfinished merge is shown and can be finished or aborted.
 - **External changes** — edits made by another editor, Git or an AI tool are detected; documents
   without unsaved work reload automatically, otherwise you choose to reload, keep your version or
   compare.
 - **AI / MCP** — `design-dawn-mcp`, a local MCP server (stdio only) that lets AI tools such as
   Claude, Codex, GitHub Copilot or Cursor read and edit the projects you offer to them. Every
-  project is read-only for AI until you allow editing, in the app or when the AI asks.
+  project is read-only for AI until you allow editing, in the app or by approving the AI's
+  request in your AI tool; every change by AI is listed in AI Change History.
+- **Templates, print and export** — documents from built-in or your own templates, a table block
+  from a spreadsheet, project-wide search, printing, and export to PDF, HTML or Markdown.
 - **Load issue repair and format migration** — inconsistencies found when a project is opened
   (missing or unlisted items, duplicate IDs, orphan files, leftovers of an interrupted save) can be
   repaired from the notification panel; files written by older versions are read and upgraded on
@@ -66,9 +76,9 @@ can be read and edited by people, reviewed with Git, and changed safely by AI to
 |---|---|
 | ![Gantt chart and pie chart on a sheet](assets/screenshots/plan.png) | ![The overview sheet in the light theme](assets/screenshots/light-theme.png) |
 
-| AI integration (MCP) | An AI asks for edit permission |
-|---|---|
-| ![AI Integration screen with the command to register and the projects offered to AI](assets/screenshots/ai-integration.png) | ![The app asking whether an AI may edit a project](assets/screenshots/ai-request.png) |
+| AI integration (MCP) |
+|---|
+| ![AI Integration screen with the command to register and the projects offered to AI](assets/screenshots/ai-integration.png) |
 
 ## Why Design Dawn
 

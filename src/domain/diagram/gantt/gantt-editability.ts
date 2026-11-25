@@ -45,11 +45,10 @@ export type GanttEditability =
       readonly lines: readonly LineRef[];
     };
 
+// A line the parser reported (always one of its lines).
 function refOf(parsed: ParsedGantt, lineIndex: number): LineRef {
-  const line = parsed.lines[lineIndex];
-  return line === undefined
-    ? { index: lineIndex, start: 0, end: 0 }
-    : { index: line.index, start: line.start, end: line.end };
+  const line = parsed.lines[lineIndex] as ParsedGantt["lines"][number];
+  return { index: line.index, start: line.start, end: line.end };
 }
 
 function describeUnsupported(
@@ -80,8 +79,8 @@ export function dependencyIndexes(
   const targets: number[] = [];
   if (task.start.kind === "implicit" && index > 0) targets.push(index - 1);
   for (const reference of [...task.startReferences, ...task.endReferences]) {
-    const target = parsed.tasks.findIndex((other) => other.id === reference.id);
-    if (target !== -1) targets.push(target);
+    // Every reference names a task here (a dangling one is refused before).
+    targets.push(parsed.tasks.findIndex((other) => other.id === reference.id));
   }
   return targets;
 }

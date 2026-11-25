@@ -284,7 +284,7 @@ describe("B: recognised statements that do not block", () => {
     );
     const reading = readFlowchart(source);
     expect(reading.opaque).toEqual([]);
-    expect(flowchartEditability(reading)).toEqual({ editable: true });
+    expect(flowchartEditability(reading)).toMatchObject({ editable: true });
     expect(
       reading.meaning?.nodes.find((node) => node.id === "C")?.labelType,
     ).toBe("markdown");
@@ -299,9 +299,9 @@ describe("B: recognised statements that do not block", () => {
       reason: "undrawableShape",
     });
     // A later definition with a drawable shape wins, as in Mermaid.
-    expect(flowchartEditability(readFlowchart(f("A(-x-)\nA[x]")))).toEqual({
-      editable: true,
-    });
+    expect(
+      flowchartEditability(readFlowchart(f("A(-x-)\nA[x]"))),
+    ).toMatchObject({ editable: true });
   });
 });
 

@@ -1,4 +1,9 @@
 import type { TextEdit } from "../text-edit";
+import {
+  appendLineEdit as appendLine,
+  deleteLinesEdits as deleteLines,
+  dominantLineEnding as sharedLineEnding,
+} from "../text-lines";
 import { FLOWCHART_STATEMENT_SEPARATOR } from "./flowchart-config";
 import {
   FLOWCHART_DEFAULT_INDENT,
@@ -13,13 +18,7 @@ import type { FlowchartStatement } from "./flowchart-types";
 // The line break most lines end with, so a line added to a CRLF file is CRLF. A tie, or a
 // file without any line break, uses the default.
 export function dominantLineEnding(reading: FlowchartReading): string {
-  let crlf = 0;
-  let lineFeed = 0;
-  for (const line of reading.lines) {
-    if (line.terminator === "\r\n") crlf += 1;
-    else if (line.terminator === "\n") lineFeed += 1;
-  }
-  return crlf > lineFeed ? "\r\n" : FLOWCHART_DEFAULT_LINE_ENDING;
+  return sharedLineEnding(reading.lines, FLOWCHART_DEFAULT_LINE_ENDING);
 }
 
 // The indentation of the first statement line after the header: a statement there is never
@@ -42,16 +41,7 @@ export function appendLineEdit(
   reading: FlowchartReading,
   content: string,
 ): TextEdit {
-  const ending = dominantLineEnding(reading);
-  const last = reading.lines[reading.lines.length - 1];
-  if (last === undefined) {
-    return { start: 0, end: 0, text: content + ending };
-  }
-  if (last.terminator === "") {
-    return { start: last.end, end: last.end, text: ending + content };
-  }
-  const at = last.end + last.terminator.length;
-  return { start: at, end: at, text: content + ending };
+  return appendLine(reading.lines, content, dominantLineEnding(reading));
 }
 
 // True when the line holds this statement and nothing else (a trailing `;` aside), so the
@@ -80,36 +70,7 @@ export function deleteLinesEdits(
   reading: FlowchartReading,
   lineIndexes: ReadonlySet<number>,
 ): readonly TextEdit[] {
-  const sorted = [...lineIndexes].sort((left, right) => left - right);
-  const edits: TextEdit[] = [];
-  let position = 0;
-  while (position < sorted.length) {
-    const first = sorted[position] as number;
-    let last = first;
-    while (sorted[position + 1] === last + 1) {
-      position += 1;
-      last += 1;
-    }
-    position += 1;
-    const firstLine = reading.lines[first];
-    const lastLine = reading.lines[last];
-    if (firstLine === undefined || lastLine === undefined) continue;
-    if (lastLine.terminator !== "" || first === 0) {
-      edits.push({
-        start: firstLine.start,
-        end: lastLine.end + lastLine.terminator.length,
-        text: "",
-      });
-    } else {
-      const previous = reading.lines[first - 1];
-      edits.push({
-        start: previous === undefined ? firstLine.start : previous.end,
-        end: lastLine.end,
-        text: "",
-      });
-    }
-  }
-  return edits;
+  return deleteLines(reading.lines, lineIndexes);
 }
 
 // A new line directly before the given line (its first character). Used to put a statement

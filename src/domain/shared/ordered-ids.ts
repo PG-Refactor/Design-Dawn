@@ -17,14 +17,14 @@ export function findDuplicate<Id extends string>(
   return null;
 }
 
-export function ensureUniqueIds<Id extends string>(
-  ids: readonly Id[],
-): DomainResult<readonly Id[]> {
-  const duplicate = findDuplicate(ids);
-  if (duplicate !== null) {
-    return err("duplicateId", `duplicate id: ${duplicate}`);
-  }
-  return ok(ids);
+// Where an id sorts by an order: its index, and after every listed id when the order does
+// not list it (an entry found on disk but not in the order is shown last).
+export function orderPosition<Id extends string>(
+  order: readonly Id[],
+  id: Id,
+): number {
+  const index = order.indexOf(id);
+  return index < 0 ? order.length : index;
 }
 
 export function addToOrder<Id extends string>(

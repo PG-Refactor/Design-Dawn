@@ -16,7 +16,6 @@ import type { TextEdit } from "../text-edit";
 
 export const DEFAULT_INDENT = "    ";
 const LINE_FEED = "\n";
-const LEADING_WHITESPACE = /^\s*/;
 
 // Names an editor accepts for an entity, a state or a class: what Mermaid reads as one word
 // in every one of these grammars.
@@ -55,13 +54,11 @@ export function lineRef(line: ClassifiedLine): LineRef {
 // The indentation of the first statement, so new lines look like the old ones.
 export function indentOf(read: ReadLines): string {
   const first = read.statements[0];
-  return first === undefined
-    ? DEFAULT_INDENT
-    : (LEADING_WHITESPACE.exec(first.text)?.[0] ?? DEFAULT_INDENT);
+  return first === undefined ? DEFAULT_INDENT : leadingWhitespace(first);
 }
 
 export function leadingWhitespace(line: ClassifiedLine): string {
-  return LEADING_WHITESPACE.exec(line.text)?.[0] ?? "";
+  return line.text.slice(0, line.text.length - line.text.trimStart().length);
 }
 
 export function replaceLine(line: ClassifiedLine, text: string): TextEdit {
@@ -103,13 +100,12 @@ export function insertAfter(
       };
 }
 
-// New lines at the end of the diagram.
-export function append(
-  read: ReadLines,
-  texts: readonly string[],
-): TextEdit | null {
+// New lines at the end of the diagram (an empty text gets them as its only lines).
+export function append(read: ReadLines, texts: readonly string[]): TextEdit {
   const last = read.lines[read.lines.length - 1];
-  return last === undefined ? null : insertAfter(last, texts);
+  return last === undefined
+    ? { start: 0, end: 0, text: texts.join(LINE_FEED) }
+    : insertAfter(last, texts);
 }
 
 export function refuse<Value>(

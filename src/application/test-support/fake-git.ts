@@ -374,6 +374,9 @@ export function createFakeGitGateway(): FakeGitGateway {
     },
     async enableLongPaths(projectId) {
       gateway.longPathsEnabled.push(projectId);
+      if (gateway.failure) {
+        return operationErr(gateway.failure.kind, gateway.failure.detail);
+      }
       if (gateway.status.longPaths !== undefined) {
         gateway.status = {
           ...gateway.status,

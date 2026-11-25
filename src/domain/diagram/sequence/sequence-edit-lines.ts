@@ -1,4 +1,9 @@
 import type { TextEdit } from "../text-edit";
+import {
+  appendLineEdit as appendLine,
+  deleteLinesEdits as deleteLines,
+  dominantLineEnding as sharedLineEnding,
+} from "../text-lines";
 import { SEQUENCE_STATEMENT_SEPARATOR } from "./sequence-config";
 import {
   SEQUENCE_DEFAULT_INDENT,
@@ -6,6 +11,9 @@ import {
   SEQUENCE_INLINE_SEPARATOR,
 } from "./sequence-operation-config";
 import type { SequenceReading } from "./sequence-reader";
+
+type SequenceLine = SequenceReading["lines"][number];
+
 import type { SequenceStatement } from "./sequence-types";
 
 // Whole-line edits and the facts about the file's layout that make a new line look like its
@@ -14,21 +22,15 @@ import type { SequenceStatement } from "./sequence-types";
 // The line break most lines end with, so a line added to a CRLF file is CRLF. A tie, or a
 // file without any line break, uses the default.
 export function dominantLineEnding(reading: SequenceReading): string {
-  let crlf = 0;
-  let lineFeed = 0;
-  for (const line of reading.lines) {
-    if (line.terminator === "\r\n") crlf += 1;
-    else if (line.terminator === "\n") lineFeed += 1;
-  }
-  return crlf > lineFeed ? "\r\n" : SEQUENCE_DEFAULT_LINE_ENDING;
+  return sharedLineEnding(reading.lines, SEQUENCE_DEFAULT_LINE_ENDING);
 }
 
 export function indentOfLine(
   reading: SequenceReading,
   lineIndex: number,
 ): string {
-  const line = reading.lines[lineIndex];
-  if (line === undefined) return SEQUENCE_DEFAULT_INDENT;
+  // Always a line of the reading: the line of a statement or of the header.
+  const line = reading.lines[lineIndex] as SequenceLine;
   return line.text.slice(0, line.text.length - line.text.trimStart().length);
 }
 
@@ -48,16 +50,7 @@ export function appendLineEdit(
   reading: SequenceReading,
   content: string,
 ): TextEdit {
-  const ending = dominantLineEnding(reading);
-  const last = reading.lines[reading.lines.length - 1];
-  if (last === undefined) {
-    return { start: 0, end: 0, text: content + ending };
-  }
-  if (last.terminator === "") {
-    return { start: last.end, end: last.end, text: ending + content };
-  }
-  const at = last.end + last.terminator.length;
-  return { start: at, end: at, text: content + ending };
+  return appendLine(reading.lines, content, dominantLineEnding(reading));
 }
 
 // A new line directly behind a line. When that line is the last one and has no line break,
@@ -67,8 +60,7 @@ export function insertLineAfterEdit(
   lineIndex: number,
   content: string,
 ): TextEdit {
-  const line = reading.lines[lineIndex];
-  if (line === undefined) return appendLineEdit(reading, content);
+  const line = reading.lines[lineIndex] as SequenceLine;
   const ending = dominantLineEnding(reading);
   if (line.terminator === "") {
     return { start: line.end, end: line.end, text: ending + content };
@@ -82,8 +74,7 @@ export function insertLineBeforeEdit(
   lineIndex: number,
   content: string,
 ): TextEdit {
-  const line = reading.lines[lineIndex];
-  if (line === undefined) return appendLineEdit(reading, content);
+  const line = reading.lines[lineIndex] as SequenceLine;
   return {
     start: line.start,
     end: line.start,
@@ -114,8 +105,8 @@ export function occupiesWholeLine(
   reading: SequenceReading,
   statement: SequenceStatement,
 ): boolean {
-  const line = reading.lines[statement.lineIndex];
-  if (line === undefined || line.kind !== "statement") return false;
+  // The line of a statement is a statement line.
+  const line = reading.lines[statement.lineIndex] as SequenceLine;
   if (statementsOnLine(reading, statement.lineIndex).length !== 1) return false;
   const text = line.text.trim();
   return (
@@ -131,36 +122,7 @@ export function deleteLinesEdits(
   reading: SequenceReading,
   lineIndexes: ReadonlySet<number>,
 ): readonly TextEdit[] {
-  const sorted = [...lineIndexes].sort((left, right) => left - right);
-  const edits: TextEdit[] = [];
-  let position = 0;
-  while (position < sorted.length) {
-    const first = sorted[position] as number;
-    let last = first;
-    while (sorted[position + 1] === last + 1) {
-      position += 1;
-      last += 1;
-    }
-    position += 1;
-    const firstLine = reading.lines[first];
-    const lastLine = reading.lines[last];
-    if (firstLine === undefined || lastLine === undefined) continue;
-    if (lastLine.terminator !== "" || first === 0) {
-      edits.push({
-        start: firstLine.start,
-        end: lastLine.end + lastLine.terminator.length,
-        text: "",
-      });
-    } else {
-      const previous = reading.lines[first - 1];
-      edits.push({
-        start: previous === undefined ? firstLine.start : previous.end,
-        end: lastLine.end,
-        text: "",
-      });
-    }
-  }
-  return edits;
+  return deleteLines(reading.lines, lineIndexes);
 }
 
 // Removes one statement and what only belonged to it: its whole line, or its separator when
@@ -207,8 +169,7 @@ export function insertStatementsBeforeEdit(
   if (occupiesWholeLine(reading, statement)) {
     const indent = indentOfLine(reading, statement.lineIndex);
     const ending = dominantLineEnding(reading);
-    const line = reading.lines[statement.lineIndex];
-    const start = line?.start ?? statement.span.start;
+    const start = (reading.lines[statement.lineIndex] as SequenceLine).start;
     return {
       start,
       end: start,
@@ -229,8 +190,8 @@ export function replaceStatementEdit(
   statement: SequenceStatement,
   texts: readonly string[],
 ): TextEdit {
-  const line = reading.lines[statement.lineIndex];
-  if (line !== undefined && occupiesWholeLine(reading, statement)) {
+  const line = reading.lines[statement.lineIndex] as SequenceLine;
+  if (occupiesWholeLine(reading, statement)) {
     const indent = indentOfLine(reading, statement.lineIndex);
     const ending = dominantLineEnding(reading);
     return {

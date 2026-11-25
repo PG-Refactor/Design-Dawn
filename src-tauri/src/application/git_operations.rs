@@ -393,10 +393,7 @@ pub fn stage_paths(
     project_root: &Path,
     paths: &[String],
 ) -> ApplicationResult<GitStatusResult> {
-    let state = repository_state(runner, project_root)?;
-    let (GitRepositoryState::Ready, Some(runner)) = (state, runner) else {
-        return Err(not_ready_error(state));
-    };
+    let runner = ready_runner(runner, project_root)?;
 
     let validated = validate_requested_paths(paths, "stage")?;
     // An empty request is a no-op, not an error: the caller just gets the current status.
@@ -459,6 +456,18 @@ pub(crate) fn validate_requested_paths(
     Ok(validated)
 }
 
+/// The `git` to run in a repository that is ready for git operations; otherwise why not.
+pub(crate) fn ready_runner<'a>(
+    runner: Option<&'a GitRunner>,
+    project_root: &Path,
+) -> ApplicationResult<&'a GitRunner> {
+    let state = repository_state(runner, project_root)?;
+    match (state, runner) {
+        (GitRepositoryState::Ready, Some(runner)) => Ok(runner),
+        _ => Err(not_ready_error(state)),
+    }
+}
+
 pub(crate) fn not_ready_error(state: GitRepositoryState) -> ApplicationError {
     ApplicationError::new(
         ErrorKind::GitNotReady,
@@ -487,10 +496,7 @@ pub fn unstage_paths(
     project_root: &Path,
     paths: &[String],
 ) -> ApplicationResult<GitStatusResult> {
-    let state = repository_state(runner, project_root)?;
-    let (GitRepositoryState::Ready, Some(runner)) = (state, runner) else {
-        return Err(not_ready_error(state));
-    };
+    let runner = ready_runner(runner, project_root)?;
 
     let requested = validate_requested_paths(paths, "unstage")?;
     if requested.is_empty() {
@@ -635,10 +641,7 @@ pub fn diff_path(
     path: &str,
     side: DiffSide,
 ) -> ApplicationResult<GitDiff> {
-    let state = repository_state(runner, project_root)?;
-    let (GitRepositoryState::Ready, Some(runner)) = (state, runner) else {
-        return Err(not_ready_error(state));
-    };
+    let runner = ready_runner(runner, project_root)?;
 
     let validated = validate_project_relative_path(path).map_err(|reason| {
         ApplicationError::new(

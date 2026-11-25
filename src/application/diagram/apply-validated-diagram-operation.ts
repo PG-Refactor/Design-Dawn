@@ -1,14 +1,9 @@
-import {
-  type DiagramOperation,
-  planDiagramOperation,
-} from "../../domain/diagram/diagram-operation";
-import { applyTextEdits } from "../../domain/diagram/text-edit";
+import type { DiagramOperation } from "../../domain/diagram/diagram-operation";
 import type {
   BlockId,
   DocumentId,
   SheetId,
 } from "../../domain/shared/entity-id";
-import { normalizeLineEndings } from "../commands/text-content";
 import type { DocumentSession } from "../document-session/document-session";
 import {
   fromDomainResult,
@@ -21,6 +16,7 @@ import {
   applyDiagramEdits,
   readMermaidBlockSource,
 } from "./apply-diagram-edits";
+import { diagramCandidate } from "./diagram-candidate";
 import type { DiagramRenderCheck } from "./diagram-render-check";
 
 export interface ApplyValidatedDiagramOperationRequest {
@@ -57,22 +53,13 @@ export async function applyValidatedDiagramOperation(
   );
   if (!snapshot.ok) return snapshot;
 
-  const plan = fromDomainResult(
-    planDiagramOperation(snapshot.value, operation),
+  const candidate = fromDomainResult(
+    diagramCandidate(snapshot.value, operation),
   );
-  if (!plan.ok) return plan;
+  if (!candidate.ok) return candidate;
+  if (!candidate.value.changed) return operationOk({ changed: false });
 
-  const applied = fromDomainResult(
-    applyTextEdits(snapshot.value, plan.value.edits),
-  );
-  if (!applied.ok) return applied;
-  if (!applied.value.changed) return operationOk({ changed: false });
-
-  const candidate = normalizeLineEndings(applied.value.text);
-  const verified = fromDomainResult(plan.value.verify(candidate));
-  if (!verified.ok) return verified;
-
-  const rendered = await renderCheck(candidate);
+  const rendered = await renderCheck(candidate.value.text);
   if (!rendered.ok) {
     return operationErr(
       "diagramRenderRejected",
@@ -85,6 +72,6 @@ export async function applyValidatedDiagramOperation(
     sheetId,
     blockId,
     expectedSource: snapshot.value,
-    edits: plan.value.edits,
+    edits: candidate.value.edits,
   });
 }

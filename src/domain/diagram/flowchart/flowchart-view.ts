@@ -1,3 +1,4 @@
+import { refusalReason } from "../refusal-reason";
 import type {
   FlowchartDirection,
   FlowchartLinkStroke,
@@ -93,7 +94,7 @@ function restrictionOf(
   operation: FlowchartOperation,
 ): string | null {
   const plan = planFlowchartOperation(source, operation);
-  return plan.ok ? null : (plan.error.detail.split(":")[0]?.trim() ?? null);
+  return plan.ok ? null : refusalReason(plan.error.detail);
 }
 
 // Null when the text is not an editable flowchart (the GUI shows the reason instead).
@@ -104,7 +105,8 @@ export function readFlowchartView(source: string): FlowchartView | null {
   const labelOf = new Map(
     meaning.nodes.map((node) => [node.id, decodeFlowchartLabel(node.text)]),
   );
-  const displayOf = (id: string): string => labelOf.get(id) ?? id;
+  // Edges join nodes, so every endpoint has a label.
+  const displayOf = (id: string): string => labelOf.get(id) as string;
   const members = new Map(
     meaning.subgraphs.map((subgraph) => [subgraph.id, subgraph.members]),
   );
@@ -121,11 +123,8 @@ export function readFlowchartView(source: string): FlowchartView | null {
       const resolved = resolveEdge(prepared.value, { index, id: edge.id });
       const restriction = resolved.ok
         ? null
-        : (resolved.error.detail.split(":")[0]?.trim() ?? null);
-      const links =
-        resolved.ok && resolved.value.statement.kind === "edge"
-          ? resolved.value.statement.links
-          : [];
+        : refusalReason(resolved.error.detail);
+      const links = resolved.ok ? resolved.value.statement.links : [];
       const linkIndex = resolved.ok ? resolved.value.linkIndex : 0;
       return {
         index,

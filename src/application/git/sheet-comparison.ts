@@ -43,11 +43,7 @@ const NOTHING = {
   order: false,
 } as const;
 
-function contentOf(
-  version: GitSheetVersion | null,
-  block: Block,
-): string | undefined {
-  if (version === null) return undefined;
+function contentOf(version: GitSheetVersion, block: Block): string | undefined {
   return version.texts[block.contentPath] ?? version.images[block.contentPath];
 }
 
@@ -71,34 +67,38 @@ function reordered(
       .filter((block) => shared.has(block.blockId))
       .map((block, index) => [block.blockId, index]),
   );
+  // Every Block in `order` is a shared one, so it has an earlier index.
   const order = afterBlocks
     .filter((block) => shared.has(block.blockId))
     .map((block) => ({
       blockId: block.blockId,
-      index: beforeIndex.get(block.blockId) ?? 0,
+      index: beforeIndex.get(block.blockId) as number,
     }));
-  // Longest increasing run of earlier indices (patience sorting, with back links).
+  type Entry = (typeof order)[number];
+  const indexAt = (position: number): number =>
+    (order[position] as Entry).index;
+  // Longest increasing run of earlier indices (patience sorting, with back links). `tails`
+  // and `previous` hold positions in `order` only.
   const tails: number[] = [];
-  const previous: number[] = new Array(order.length).fill(-1);
-  for (let position = 0; position < order.length; position += 1) {
-    const value = order[position]?.index ?? 0;
+  const previous: number[] = order.map(() => -1);
+  order.forEach(({ index: value }, position) => {
     let low = 0;
     let high = tails.length;
     while (low < high) {
       const middle = (low + high) >> 1;
-      const tail = tails[middle] ?? 0;
-      if ((order[tail]?.index ?? 0) < value) low = middle + 1;
+      if (indexAt(tails[middle] as number) < value) low = middle + 1;
       else high = middle;
     }
-    if (low > 0) previous[position] = tails[low - 1] ?? -1;
+    if (low > 0) previous[position] = tails[low - 1] as number;
     tails[low] = position;
-  }
+  });
   const kept = new Set<BlockId>();
-  let position = tails[tails.length - 1] ?? -1;
-  while (position >= 0) {
-    const entry = order[position];
-    if (entry !== undefined) kept.add(entry.blockId);
-    position = previous[position] ?? -1;
+  for (
+    let position = tails.at(-1) ?? -1;
+    position >= 0;
+    position = previous[position] as number
+  ) {
+    kept.add((order[position] as Entry).blockId);
   }
   return new Set(
     order.map((entry) => entry.blockId).filter((blockId) => !kept.has(blockId)),
@@ -137,7 +137,9 @@ export function compareSheetVersions(
         earlier.size.height !== block.size.height,
       content:
         earlier.contentPath !== block.contentPath ||
-        contentOf(before, earlier) !== contentOf(after, block),
+        // A Block both versions have: both versions exist.
+        contentOf(before as GitSheetVersion, earlier) !==
+          contentOf(after as GitSheetVersion, block),
       display: !sameDisplay(earlier, block),
       caption:
         earlier.caption !== block.caption ||

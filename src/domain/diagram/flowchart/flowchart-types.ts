@@ -228,8 +228,6 @@ export type FlowchartStatement =
   | FlowchartEdgeAttributesStatement
   | FlowchartAccessibilityStatement;
 
-export type FlowchartStatementKind = FlowchartStatement["kind"];
-
 export interface FlowchartHeader {
   readonly lineIndex: number;
   readonly keyword: FlowchartHeaderKeyword;

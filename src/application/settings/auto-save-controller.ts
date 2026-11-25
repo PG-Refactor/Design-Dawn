@@ -8,8 +8,9 @@ import type { AutoSavePolicy } from "../ports/auto-save-policy";
 import {
   type OperationError,
   type OperationResult,
-  operationErr,
+  settleOperation,
 } from "../ports/operation-error";
+import { createSerialQueue } from "../serial-queue";
 
 export type AutoSaveStatus = "loading" | "ready";
 
@@ -39,20 +40,6 @@ export interface AutoSaveControllerDependencies {
   readonly defaultEnabled: boolean;
 }
 
-// The gateway should return errors as values, but a rejection must not break start-up.
-async function settle<T>(
-  request: () => Promise<OperationResult<T>>,
-): Promise<OperationResult<T>> {
-  try {
-    return await request();
-  } catch (error) {
-    return operationErr(
-      "unexpectedCommandError",
-      error instanceof Error ? error.message : String(error),
-    );
-  }
-}
-
 export function createAutoSaveController(
   dependencies: AutoSaveControllerDependencies,
 ): AutoSaveController {
@@ -66,13 +53,7 @@ export function createAutoSaveController(
   const listeners = new Set<(enabled: boolean) => void>();
   let initialization: Promise<void> | null = null;
   // Requests run one at a time so the last requested value is the one stored.
-  let queue: Promise<unknown> = Promise.resolve();
-
-  function enqueue<T>(task: () => Promise<T>): Promise<T> {
-    const result = queue.then(task);
-    queue = result.catch(() => undefined);
-    return result;
-  }
+  const enqueue = createSerialQueue().run;
 
   // Notifies only on a real change, so a no-op save does not restart anything.
   function applyEnabled(enabled: boolean): void {
@@ -82,7 +63,7 @@ export function createAutoSaveController(
   }
 
   async function load(): Promise<void> {
-    const result = await settle(() => gateway.getAppSettings());
+    const result = await settleOperation(() => gateway.getAppSettings());
     if (!result.ok) {
       store.setState((state) => ({
         ...state,
@@ -115,7 +96,9 @@ export function createAutoSaveController(
     applyExternal: applyEnabled,
     setEnabled(enabled) {
       return enqueue(async () => {
-        const result = await settle(() => gateway.setAutoSave(enabled));
+        const result = await settleOperation(() =>
+          gateway.setAutoSave(enabled),
+        );
         if (!result.ok) {
           store.setState((state) => ({ ...state, saveError: result.error }));
           return result;

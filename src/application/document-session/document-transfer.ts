@@ -41,7 +41,11 @@ import {
   type RawSheet,
   type Sheet,
 } from "../../domain/sheet/sheet";
-import type { BlockFrame, BlockMove } from "../commands/block-commands";
+import {
+  type BlockFrame,
+  type BlockMove,
+  REORDER_DIRECTIONS,
+} from "../commands/block-commands";
 import type { CapturedBlock } from "../commands/block-file-sequences";
 import { COMMAND_KINDS } from "../commands/command-kind";
 import {
@@ -55,17 +59,10 @@ import {
   operationOk,
 } from "../ports/operation-error";
 import type { DocumentSessionSeed } from "./document-session";
-import { NO_PLANNED_FILES, type PlannedFiles } from "./save-coordinator";
+import type { PlannedFiles } from "./save-coordinator";
 
 // Raised when the payload's shape changes; a window never takes in another version.
 export const DOCUMENT_TRANSFER_VERSION = 2;
-
-const REORDER_DIRECTIONS = [
-  "forward",
-  "backward",
-  "toFront",
-  "toBack",
-] as const;
 
 export interface DocumentTransfer {
   readonly projectId: ProjectId;
@@ -118,7 +115,7 @@ export function encodeDocumentTransfer(transfer: DocumentTransfer): string {
     undo: seed.undo.map(entryToJson),
     redo: seed.redo.map(entryToJson),
     unsaved: seed.unsaved,
-    plannedFiles: seed.plannedFiles ?? NO_PLANNED_FILES,
+    plannedFiles: seed.plannedFiles,
   };
   return JSON.stringify(json);
 }

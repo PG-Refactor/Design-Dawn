@@ -87,6 +87,22 @@ describe("markdownImageReference", () => {
     );
   });
 
+  it("keeps the whole name of a file without an extension, or one that starts with a dot", () => {
+    expect(markdownImageReference(MARKDOWN_FILE, "assets/diagram")).toBe(
+      "![diagram](../../../assets/diagram)",
+    );
+    expect(markdownImageReference(MARKDOWN_FILE, "assets/.png")).toBe(
+      "![.png](../../../assets/.png)",
+    );
+  });
+
+  it("encodes a character outside ASCII that would break the destination", () => {
+    // An ideographic space is whitespace: UTF-8 encoded, not kept.
+    expect(markdownImageDestination(MARKDOWN_FILE, "assets/a\u3000b.png")).toBe(
+      "../../../assets/a%E3%80%80b.png",
+    );
+  });
+
   it("escapes brackets in the alt text", () => {
     expect(markdownImageReference(MARKDOWN_FILE, "assets/a[1].png")).toBe(
       "![a\\[1\\]](../../../assets/a%5B1%5D.png)",

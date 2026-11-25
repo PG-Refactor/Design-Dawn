@@ -15,7 +15,7 @@ import { createStore, type Store } from "../../shared/store/store";
 import {
   DEFAULT_GIT_COMMIT_OPTIONS,
   type GitCommitOptions,
-  type GitCommitResult,
+  type GitCommitStatus,
   type GitConflictSide,
   type GitConflictVersions,
   type GitDiff,
@@ -27,7 +27,6 @@ import {
   type GitRemoteResult,
   type GitSheetVersions,
   type GitStatus,
-  type GitUndoCommitResult,
 } from "../ports/git-gateway";
 import {
   type OperationError,
@@ -35,7 +34,9 @@ import {
   type OperationResult,
   operationErr,
   operationOk,
+  settleOperation,
 } from "../ports/operation-error";
+import { createSerialQueue } from "../serial-queue";
 import type { ApplicationStore } from "../state/application-state";
 
 // The Diff the UI shows or waits for. Only the latest request is kept.
@@ -296,7 +297,7 @@ export function createGitController(
   let epoch = 0;
   // Git operations of this controller run one after another, so two index-changing calls
   // never overlap and a status read never interleaves with them.
-  let queueTail: Promise<unknown> = Promise.resolve();
+  const enqueue = createSerialQueue().run;
   // Identifies the latest Diff request; older answers are dropped.
   let latestDiffRequest = 0;
   // Same for the history; `settledHistory` is what a failed load goes back to.
@@ -305,33 +306,13 @@ export function createGitController(
   let waitingRefresh: Promise<OperationResult<void>> | null = null;
   let waitingRefreshSilent = false;
 
-  function enqueue<T>(task: () => Promise<T>): Promise<T> {
-    const next = queueTail.then(task);
-    // A task never rejects (failures are results); this keeps the chain alive regardless.
-    queueTail = next.catch(() => undefined);
-    return next;
-  }
-
-  async function call(
-    request: () => Promise<OperationResult<GitStatus>>,
-  ): Promise<OperationResult<GitStatus>> {
-    try {
-      return await request();
-    } catch (failure) {
-      return operationErr(
-        "unexpectedCommandError",
-        failure instanceof Error ? failure.message : String(failure),
-      );
-    }
-  }
-
   async function readStatus(
     projectId: ProjectId,
     taskEpoch: number,
     silent = false,
   ): Promise<OperationResult<void>> {
     if (!silent) store.setState((state) => ({ ...state, refreshing: true }));
-    const result = await call(() => gateway.gitStatus(projectId));
+    const result = await settleOperation(() => gateway.gitStatus(projectId));
     if (taskEpoch !== epoch) return result.ok ? operationOk(undefined) : result;
     if (result.ok) {
       store.setState((state) => ({
@@ -383,7 +364,7 @@ export function createGitController(
     return enqueue(async () => {
       if (taskEpoch !== epoch) return operationOk(undefined);
       store.setState((state) => ({ ...state, operating: true }));
-      const result = await call(() => {
+      const result = await settleOperation(() => {
         if (typeof operation !== "string") {
           return "side" in operation
             ? gateway.resolveConflictWithSide(
@@ -434,207 +415,114 @@ export function createGitController(
     });
   }
 
+  // Commit, undo and the remote operations share one shape: git answers with the status
+  // read after the operation. Success shows that status (one that could not be read is
+  // dropped and reported as a status problem: the operation itself succeeded). A failure is
+  // reported under the operation's label and the status is read again inside this task
+  // (nothing may run in between), because git may have changed the repository (a
+  // conflicted pull, hooks). The "...ing" line goes with the attempt either way.
+  function runWithStatus<
+    Value extends { readonly status: GitCommitStatus },
+    Output,
+  >(operation: {
+    readonly running: GitRunningOperation;
+    readonly failureLabel: GitOperationLabel;
+    readonly request: (projectId: ProjectId) => Promise<OperationResult<Value>>;
+    // What a success adds to the state, and what the caller gets.
+    readonly succeeded: (value: Value) => {
+      readonly state: Partial<GitState>;
+      readonly output: Output;
+    };
+    // What the caller gets when the operation did not run (no Project, or another one).
+    readonly skipped: Output;
+  }): Promise<OperationResult<Output>> {
+    const projectId = store.getState().projectId;
+    if (projectId === null) {
+      return Promise.resolve(operationOk(operation.skipped));
+    }
+    const taskEpoch = epoch;
+    return enqueue(async () => {
+      if (taskEpoch !== epoch) return operationOk(operation.skipped);
+      store.setState((state) => ({
+        ...state,
+        operating: true,
+        runningOperation: operation.running,
+      }));
+      const result = await settleOperation(() => operation.request(projectId));
+      if (taskEpoch !== epoch) {
+        return result.ok ? operationOk(operation.skipped) : result;
+      }
+      if (!result.ok) {
+        reportFailure(operation.failureLabel, result.error);
+        await readStatus(projectId, taskEpoch);
+        if (taskEpoch === epoch) {
+          store.setState((state) => ({
+            ...state,
+            operating: false,
+            runningOperation: null,
+          }));
+        }
+        return result;
+      }
+      const { status } = result.value;
+      const { state: added, output } = operation.succeeded(result.value);
+      store.setState((state) => ({
+        ...state,
+        ...added,
+        ...(status.outcome === "updated"
+          ? { status: status.status, statusError: null }
+          : { status: null, statusError: status.errorKind }),
+        operating: false,
+        runningOperation: null,
+      }));
+      if (status.outcome !== "updated") {
+        reportFailure("refreshGitStatus", {
+          kind: status.errorKind,
+          detail: `the status could not be read after the ${operation.running}`,
+        });
+      }
+      return operationOk(output);
+    });
+  }
+
   function commit(
     message: string,
     options: GitCommitOptions = DEFAULT_GIT_COMMIT_OPTIONS,
   ): Promise<OperationResult<void>> {
-    const projectId = store.getState().projectId;
-    if (projectId === null) return Promise.resolve(operationOk(undefined));
-    const taskEpoch = epoch;
-    return enqueue(async () => {
-      if (taskEpoch !== epoch) return operationOk(undefined);
-      store.setState((state) => ({
-        ...state,
-        operating: true,
-        runningOperation: options.amend ? "amend" : "commit",
-      }));
-      let result: OperationResult<GitCommitResult>;
-      try {
-        result = await gateway.commit(projectId, message, options);
-      } catch (failure) {
-        result = operationErr(
-          "unexpectedCommandError",
-          failure instanceof Error ? failure.message : String(failure),
-        );
-      }
-      if (taskEpoch !== epoch)
-        return result.ok ? operationOk(undefined) : result;
-      if (result.ok) {
-        const { commitId, status } = result.value;
-        const lastCommit = { commitId };
-        if (status.outcome === "updated") {
-          store.setState((state) => ({
-            ...state,
-            status: status.status,
-            statusError: null,
-            lastCommit,
-            operating: false,
-            runningOperation: null,
-          }));
-        } else {
-          // The commit exists; only the status read after it failed. Same as a failed
-          // refresh: a stale status must not be shown as current.
-          store.setState((state) => ({
-            ...state,
-            status: null,
-            statusError: status.errorKind,
-            lastCommit,
-            operating: false,
-            runningOperation: null,
-          }));
-          reportFailure("refreshGitStatus", {
-            kind: status.errorKind,
-            detail: "the status could not be read after the commit",
-          });
-        }
-        return operationOk(undefined);
-      }
-      reportFailure("commitGitChanges", result.error);
-      // Inside this task, like Stage: nothing may run between the failure and the read.
-      await readStatus(projectId, taskEpoch);
-      if (taskEpoch === epoch) {
-        // The "Committing..." line goes with the attempt.
-        store.setState((state) => ({
-          ...state,
-          operating: false,
-          runningOperation: null,
-        }));
-      }
-      return result;
+    return runWithStatus({
+      running: options.amend ? "amend" : "commit",
+      failureLabel: "commitGitChanges",
+      request: (projectId) => gateway.commit(projectId, message, options),
+      succeeded: ({ commitId }) => ({
+        state: { lastCommit: { commitId } },
+        output: undefined,
+      }),
+      skipped: undefined,
     });
   }
 
   function undoLastCommit(): Promise<OperationResult<GitUndoOutcome>> {
-    const projectId = store.getState().projectId;
-    if (projectId === null) {
-      return Promise.resolve(operationOk({ message: null }));
-    }
-    const taskEpoch = epoch;
-    return enqueue(async () => {
-      if (taskEpoch !== epoch) return operationOk({ message: null });
-      store.setState((state) => ({
-        ...state,
-        operating: true,
-        runningOperation: "undo",
-      }));
-      let result: OperationResult<GitUndoCommitResult>;
-      try {
-        result = await gateway.undoLastCommit(projectId);
-      } catch (failure) {
-        result = operationErr(
-          "unexpectedCommandError",
-          failure instanceof Error ? failure.message : String(failure),
-        );
-      }
-      if (taskEpoch !== epoch) {
-        return result.ok ? operationOk({ message: null }) : result;
-      }
-      if (result.ok) {
-        const { message, status } = result.value;
-        if (status.outcome === "updated") {
-          store.setState((state) => ({
-            ...state,
-            status: status.status,
-            statusError: null,
-            operating: false,
-            runningOperation: null,
-          }));
-        } else {
-          // The commit was taken back; only the status read after it failed.
-          store.setState((state) => ({
-            ...state,
-            status: null,
-            statusError: status.errorKind,
-            operating: false,
-            runningOperation: null,
-          }));
-          reportFailure("refreshGitStatus", {
-            kind: status.errorKind,
-            detail: "the status could not be read after the undo",
-          });
-        }
-        return operationOk({ message });
-      }
-      reportFailure("undoGitCommit", result.error);
-      await readStatus(projectId, taskEpoch);
-      if (taskEpoch === epoch) {
-        // The "Undoing the commit..." line goes with the attempt.
-        store.setState((state) => ({
-          ...state,
-          operating: false,
-          runningOperation: null,
-        }));
-      }
-      return result;
+    return runWithStatus({
+      running: "undo",
+      failureLabel: "undoGitCommit",
+      request: (projectId) => gateway.undoLastCommit(projectId),
+      succeeded: ({ message }) => ({ state: {}, output: { message } }),
+      skipped: { message: null },
     });
   }
 
-  // Fetch / Pull / Push / Publish: one shape. Success replaces the status like a commit
-  // (an `unavailable` status is dropped and reported as a status problem, the operation
-  // itself succeeded); a failure is reported under the operation's label and the status is
-  // read again, because git may have changed the repository (a conflicted pull, hooks).
   function runRemote(
     operation: RemoteOperation,
     request: (
       projectId: ProjectId,
     ) => Promise<OperationResult<GitRemoteResult>>,
   ): Promise<OperationResult<void>> {
-    const projectId = store.getState().projectId;
-    if (projectId === null) return Promise.resolve(operationOk(undefined));
-    const taskEpoch = epoch;
-    return enqueue(async () => {
-      if (taskEpoch !== epoch) return operationOk(undefined);
-      store.setState((state) => ({
-        ...state,
-        operating: true,
-        runningOperation: operation,
-      }));
-      let result: OperationResult<GitRemoteResult>;
-      try {
-        result = await request(projectId);
-      } catch (failure) {
-        result = operationErr(
-          "unexpectedCommandError",
-          failure instanceof Error ? failure.message : String(failure),
-        );
-      }
-      if (taskEpoch !== epoch)
-        return result.ok ? operationOk(undefined) : result;
-      if (result.ok) {
-        const { status } = result.value;
-        if (status.outcome === "updated") {
-          store.setState((state) => ({
-            ...state,
-            status: status.status,
-            statusError: null,
-            operating: false,
-            runningOperation: null,
-          }));
-        } else {
-          store.setState((state) => ({
-            ...state,
-            status: null,
-            statusError: status.errorKind,
-            operating: false,
-            runningOperation: null,
-          }));
-          reportFailure("refreshGitStatus", {
-            kind: status.errorKind,
-            detail: `the status could not be read after the ${operation}`,
-          });
-        }
-        return operationOk(undefined);
-      }
-      reportFailure(REMOTE_OPERATION_LABELS[operation], result.error);
-      await readStatus(projectId, taskEpoch);
-      if (taskEpoch === epoch) {
-        store.setState((state) => ({
-          ...state,
-          operating: false,
-          runningOperation: null,
-        }));
-      }
-      return result;
+    return runWithStatus({
+      running: operation,
+      failureLabel: REMOTE_OPERATION_LABELS[operation],
+      request,
+      succeeded: () => ({ state: {}, output: undefined }),
+      skipped: undefined,
     });
   }
 
@@ -657,14 +545,7 @@ export function createGitController(
         return operationOk(undefined);
       }
       let result: OperationResult<GitDiff>;
-      try {
-        result = await gateway.diff(projectId, path, side);
-      } catch (failure) {
-        result = operationErr(
-          "unexpectedCommandError",
-          failure instanceof Error ? failure.message : String(failure),
-        );
-      }
+      result = await settleOperation(() => gateway.diff(projectId, path, side));
       if (taskEpoch !== epoch || request !== latestDiffRequest) {
         return result.ok ? operationOk(undefined) : result;
       }
@@ -685,14 +566,9 @@ export function createGitController(
     projectId: ProjectId,
     cursor: string | null,
   ): Promise<OperationResult<GitHistoryPage>> {
-    try {
-      return await gateway.history(projectId, HISTORY_PAGE_SIZE, cursor);
-    } catch (failure) {
-      return operationErr(
-        "unexpectedCommandError",
-        failure instanceof Error ? failure.message : String(failure),
-      );
-    }
+    return settleOperation(() =>
+      gateway.history(projectId, HISTORY_PAGE_SIZE, cursor),
+    );
   }
 
   // `previous` is the loaded state a `loadMore` appends to; null for the first page.
@@ -830,14 +706,7 @@ export function createGitController(
       if (projectId === null) {
         return operationOk({ documentIds: [], projectFilesAffected: false });
       }
-      try {
-        return await gateway.discardImpact(projectId, paths);
-      } catch (failure) {
-        return operationErr(
-          "unexpectedCommandError",
-          failure instanceof Error ? failure.message : String(failure),
-        );
-      }
+      return settleOperation(() => gateway.discardImpact(projectId, paths));
     },
     loadDiff,
     commit,
@@ -851,28 +720,16 @@ export function createGitController(
     async enableLongPaths() {
       const projectId = store.getState().projectId;
       if (projectId === null) return operationOk(undefined);
-      try {
-        const enabled = await gateway.enableLongPaths(projectId);
-        if (!enabled.ok) return enabled;
-      } catch (failure) {
-        return operationErr(
-          "unexpectedCommandError",
-          failure instanceof Error ? failure.message : String(failure),
-        );
-      }
+      const enabled = await settleOperation(() =>
+        gateway.enableLongPaths(projectId),
+      );
+      if (!enabled.ok) return enabled;
       return refreshProject(projectId);
     },
     async remotes() {
       const projectId = store.getState().projectId;
       if (projectId === null) return operationOk([]);
-      try {
-        return await gateway.remotes(projectId);
-      } catch (failure) {
-        return operationErr(
-          "unexpectedCommandError",
-          failure instanceof Error ? failure.message : String(failure),
-        );
-      }
+      return settleOperation(() => gateway.remotes(projectId));
     },
     loadHistory,
     loadMoreHistory,

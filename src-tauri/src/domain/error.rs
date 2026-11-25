@@ -82,3 +82,35 @@ impl fmt::Display for DomainError {
 }
 
 impl std::error::Error for DomainError {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_kind_has_a_public_description() {
+        for kind in [
+            DomainErrorKind::InvalidEntityId,
+            DomainErrorKind::InvalidDisplayName,
+            DomainErrorKind::InvalidCaption,
+            DomainErrorKind::InvalidContentScale,
+            DomainErrorKind::InvalidFolderName,
+            DomainErrorKind::InvalidPosition,
+            DomainErrorKind::InvalidSize,
+            DomainErrorKind::UnsupportedBlockType,
+            DomainErrorKind::InvalidContentPath,
+            DomainErrorKind::InvalidContentExtension,
+            DomainErrorKind::InvalidSchemaVersion,
+            DomainErrorKind::UnsupportedSchemaVersion,
+            DomainErrorKind::DuplicateId,
+        ] {
+            assert!(!kind.public_description().is_empty());
+        }
+    }
+
+    #[test]
+    fn an_error_shows_its_kind_and_its_detail() {
+        let error = DomainError::new(DomainErrorKind::DuplicateId, "block 1");
+        assert_eq!(error.to_string(), "duplicateId: block 1");
+    }
+}

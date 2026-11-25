@@ -1,13 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { moveBlocksCommand } from "../commands/block-commands";
+import { parseCaption } from "../../domain/block/caption";
+import { blockDisplayOf } from "../../domain/block/content-scale";
+import { unwrap } from "../../domain/shared/test-support";
+import {
+  moveBlocksCommand,
+  reorderBlocksCommand,
+  resizeBlocksCommand,
+  setBlockCaptionCommand,
+  setBlockDisplayCommand,
+} from "../commands/block-commands";
 import { editBlockContentCommand } from "../commands/content-commands";
-import { createBlocksCommand } from "../commands/file-backed-commands";
-import { renameDocumentCommand } from "../commands/naming-commands";
+import {
+  createBlocksCommand,
+  deleteBlocksCommand,
+} from "../commands/file-backed-commands";
+import {
+  moveSheetCommand,
+  renameDocumentCommand,
+} from "../commands/naming-commands";
 import type { DocumentSessionState } from "../state/application-state";
 import {
   blockIdOf,
   DOCUMENT_ID,
   displayName,
+  OTHER_SHEET_ID,
   PROJECT_ID,
   position,
   SHEET_ID,
@@ -198,3 +214,163 @@ describe("moving a document to another window", () => {
     expect(!decoded.ok && decoded.error.kind).toBe("invalidDocumentTransfer");
   });
 });
+
+describe("transferring every kind of history entry", () => {
+  async function richSession(): Promise<SessionHarness> {
+    const harness = await editedSession();
+    const { session } = harness;
+    const commands = [
+      resizeBlocksCommand(SHEET_ID, [
+        { blockId: FIRST, position: position(55, 66), size: size(120, 90) },
+      ]),
+      reorderBlocksCommand(SHEET_ID, [FIRST], "toFront"),
+      moveSheetCommand(SHEET_ID, null),
+      setBlockCaptionCommand(SHEET_ID, FIRST, {
+        text: unwrap(parseCaption("Figure")),
+        position: "below",
+      }),
+      setBlockCaptionCommand(SHEET_ID, FIRST, null),
+      setBlockDisplayCommand(SHEET_ID, FIRST, {
+        ...blockDisplayOf({ blockType: "markdown" }),
+        autoFit: true,
+      }),
+      deleteBlocksCommand(SHEET_ID, [blockIdOf(2)]),
+    ];
+    for (const command of commands) {
+      const executed = await session.execute(command);
+      if (!executed.ok) throw new Error(JSON.stringify(executed.error));
+    }
+    return harness;
+  }
+
+  it("arrives with the same history and undoes all of it there", async () => {
+    const harness = await richSession();
+    const before = harness.session.getState();
+    const { session } = receive(harness, await handOver(harness));
+    expect(session.getState().history).toEqual(before.history);
+    for (let step = 0; step < 11; step += 1) {
+      expect((await session.undo()).ok).toBe(true);
+    }
+  });
+
+  it("takes in a block without text and a sheet moved in front of another", async () => {
+    const harness = await richSession();
+    const payload = JSON.parse(await handOver(harness));
+    const fileBacked = (
+      payload.undo as { type: string; blocks?: { text: string | null }[] }[]
+    ).find((entry) => entry.type === "fileBacked");
+    const captured = fileBacked?.blocks?.[0];
+    if (captured === undefined) throw new Error("no file-backed entry");
+    captured.text = null;
+    mutateCommand(payload, "moveSheet", (command) => {
+      command.beforeSheetId = OTHER_SHEET_ID;
+    });
+    expect(decodeDocumentTransfer(JSON.stringify(payload)).ok).toBe(true);
+  });
+
+  it.each<[string, (payload: Record<string, unknown>) => void]>([
+    [
+      "a payload that is not an object",
+      (payload) => {
+        for (const key of Object.keys(payload)) delete payload[key];
+        payload.version = null;
+      },
+    ],
+    [
+      "a history that is not a list",
+      (payload) => {
+        payload.undo = 1;
+      },
+    ],
+    [
+      "a project id that is not a string",
+      (payload) => {
+        payload.projectId = 5;
+      },
+    ],
+    [
+      "a generation that is not an integer",
+      (payload) => {
+        payload.sessionGeneration = 1.5;
+      },
+    ],
+    [
+      "another document than the one named",
+      (payload) => {
+        payload.documentId = "01928f3a-6c7d-7e8f-a012-3456789abc00";
+      },
+    ],
+    [
+      "an unknown entry type",
+      (payload) => {
+        (payload.undo as unknown[])[0] = { type: "other" };
+      },
+    ],
+    [
+      "an unknown file-backed label",
+      (payload) => {
+        (payload.undo as unknown[])[0] = { type: "fileBacked", label: "other" };
+      },
+    ],
+    [
+      "a file-backed entry without a presence",
+      (payload) => {
+        (payload.undo as unknown[])[0] = {
+          type: "fileBacked",
+          label: "createBlocks",
+          present: "yes",
+        };
+      },
+    ],
+    [
+      "an unsaved mark that is not a boolean",
+      (payload) => {
+        (payload.unsaved as Record<string, unknown>).documentChanged = "yes";
+      },
+    ],
+    [
+      "an unknown reorder direction",
+      (payload) => {
+        mutateCommand(payload, "reorderBlocks", (command) => {
+          command.direction = "sideways";
+        });
+      },
+    ],
+    [
+      "an auto-fit that is not a boolean",
+      (payload) => {
+        mutateCommand(payload, "setBlockDisplay", (command) => {
+          (command.display as Record<string, unknown>).autoFit = "yes";
+        });
+      },
+    ],
+    [
+      "a scale that is not a number",
+      (payload) => {
+        mutateCommand(payload, "setBlockDisplay", (command) => {
+          (command.display as Record<string, unknown>).scalePercent = "big";
+        });
+      },
+    ],
+  ])("refuses %s", async (_what, corrupt) => {
+    const harness = await richSession();
+    const payload = JSON.parse(await handOver(harness));
+    corrupt(payload);
+    const decoded = decodeDocumentTransfer(
+      Object.keys(payload).length === 1 ? "null" : JSON.stringify(payload),
+    );
+    expect(!decoded.ok && decoded.error.kind).toBe("invalidDocumentTransfer");
+  });
+});
+
+function mutateCommand(
+  payload: Record<string, unknown>,
+  kind: string,
+  change: (command: Record<string, unknown>) => void,
+): void {
+  const entry = (
+    payload.undo as { type: string; command?: Record<string, unknown> }[]
+  ).find((candidate) => candidate.command?.kind === kind);
+  if (entry?.command === undefined) throw new Error(`no ${kind} entry`);
+  change(entry.command);
+}

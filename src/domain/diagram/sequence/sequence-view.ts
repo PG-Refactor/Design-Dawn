@@ -1,3 +1,4 @@
+import { refusalReason } from "../refusal-reason";
 import type {
   SequenceArrow,
   SequenceBlock,
@@ -6,6 +7,7 @@ import type {
   SequenceParticipantKind,
 } from "./sequence-config";
 import { SEQUENCE_COLOUR_BLOCK } from "./sequence-config";
+import type { SequenceItemMeaning } from "./sequence-meaning";
 import type { SequenceActivationSign } from "./sequence-message-operations";
 import {
   prepareSequence,
@@ -162,7 +164,7 @@ function refusalOf(
 ): string | null {
   const plan = planSequenceOperation(source, operation);
   if (plan.ok) return null;
-  return plan.error.detail.split(":")[0]?.trim() ?? null;
+  return refusalReason(plan.error.detail);
 }
 
 // Null when the text can be edited; the restriction a written text carries otherwise.
@@ -189,9 +191,8 @@ function wrapEndStatements(
 ): readonly SequenceStatement[] {
   const ends: SequenceStatement[] = [];
   let level = 0;
-  for (let index = start.index; index < statements.length; index += 1) {
-    const statement = statements[index];
-    if (statement === undefined || !WRAPPABLE_KINDS.has(statement.kind)) break;
+  for (const statement of statements.slice(start.index)) {
+    if (!WRAPPABLE_KINDS.has(statement.kind)) break;
     if (statement.kind === "blockStart") {
       if (level === 0) ends.push(statement);
       level += 1;
@@ -218,28 +219,28 @@ export function readSequenceView(source: string): SequenceView | null {
       decodeSequenceText(participant.label, LABEL_FIELD),
     ]),
   );
-  const labelFor = (id: string): string => labelOf.get(id) ?? id;
-  const firstItemOf = (statementIndex: number): SequenceItemTarget | null => {
+  // Every id a message or a note names is a participant of the meaning.
+  const labelFor = (id: string): string => labelOf.get(id) as string;
+  // A message, a note or a block header always has its entry.
+  const firstItemOf = (statementIndex: number): SequenceItemTarget => {
     const position = meaning.items.findIndex(
       (candidate) => candidate.statementIndex === statementIndex,
     );
-    const found = meaning.items[position];
-    return found === undefined ? null : targetOfItem(position, found);
+    return targetOfItem(
+      position,
+      meaning.items[position] as SequenceItemMeaning,
+    );
   };
   const wrapOf = (
-    statement: SequenceStatement | undefined,
+    statement: SequenceStatement,
     target: SequenceItemTarget,
   ): {
     wrapEnds: readonly SequenceItemTarget[];
     wrapRestriction: string | null;
   } => {
-    if (statement === undefined) return { wrapEnds: [], wrapRestriction: null };
-    const wrapEnds = wrapEndStatements(reading.statements, statement).flatMap(
-      (end) => {
-        // A block header ends a range with its whole block.
-        const endTarget = firstItemOf(end.index);
-        return endTarget === null ? [] : [endTarget];
-      },
+    // A block header ends a range with its whole block.
+    const wrapEnds = wrapEndStatements(reading.statements, statement).map(
+      (end) => firstItemOf(end.index),
     );
     return {
       wrapEnds,
@@ -266,13 +267,15 @@ export function readSequenceView(source: string): SequenceView | null {
   let depth = 0;
   meaning.items.forEach((item, index) => {
     const target = targetOfItem(index, item);
+    // Every entry comes from a statement of its own kind.
     const statement = reading.statements.find(
       (candidate) => candidate.index === item.statementIndex,
-    );
+    ) as SequenceStatement;
     switch (item.kind) {
       case "message": {
         const sign =
-          statement?.kind === "message" ? (statement.sign?.text ?? null) : null;
+          (statement as Extract<SequenceStatement, { kind: "message" }>).sign
+            ?.text ?? null;
         entries.push({
           kind: "message",
           target,

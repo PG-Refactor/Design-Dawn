@@ -19,22 +19,23 @@ export interface BlockExtent {
 export function blockExtentOf(
   statements: readonly SequenceStatement[],
   startIndex: number,
-): BlockExtent | null {
+): BlockExtent {
   let level = 0;
   const branches: number[] = [];
-  for (let index = startIndex + 1; index < statements.length; index += 1) {
-    const statement = statements[index];
-    if (statement === undefined) break;
+  const first = startIndex + 1;
+  const offset = statements.slice(first).findIndex((statement, position) => {
     if (statement.kind === "blockStart") {
       level += 1;
     } else if (statement.kind === "blockEnd") {
-      if (level === 0) return { start: startIndex, end: index, branches };
+      if (level === 0) return true;
       level -= 1;
     } else if (statement.kind === "branch" && level === 0) {
-      branches.push(index);
+      branches.push(first + position);
     }
-  }
-  return null;
+    return false;
+  });
+  // A readable diagram closes every block it opens, so the end is found.
+  return { start: startIndex, end: first + offset, branches };
 }
 
 // The statements of one branch: its header and everything up to the next branch header or
@@ -42,23 +43,26 @@ export function blockExtentOf(
 export function branchSegmentOf(
   statements: readonly SequenceStatement[],
   branchIndex: number,
-): readonly number[] | null {
+): readonly number[] {
   let level = 0;
-  const segment = [branchIndex];
-  for (let index = branchIndex + 1; index < statements.length; index += 1) {
-    const statement = statements[index];
-    if (statement === undefined) return null;
+  const first = branchIndex + 1;
+  // A readable diagram closes every block, so the branch ends at the next branch of its
+  // block or at the block's end.
+  const offset = statements.slice(first).findIndex((statement) => {
     if (statement.kind === "blockStart") {
       level += 1;
     } else if (statement.kind === "blockEnd") {
-      if (level === 0) return segment;
+      if (level === 0) return true;
       level -= 1;
     } else if (statement.kind === "branch" && level === 0) {
-      return segment;
+      return true;
     }
-    segment.push(index);
-  }
-  return null;
+    return false;
+  });
+  return Array.from(
+    { length: offset + 1 },
+    (_, position) => branchIndex + position,
+  );
 }
 
 // For every statement, the index of the block header that directly contains it (null at

@@ -80,7 +80,8 @@ export function encodeSequenceText(
     .map((line) =>
       line.replace(
         SEQUENCE_ENCODE_PATTERN,
-        (character) => SEQUENCE_ENCODED_CHARACTERS[character] ?? character,
+        // The pattern matches only the characters that have an entity.
+        (character) => SEQUENCE_ENCODED_CHARACTERS[character] as string,
       ),
     )
     .join(SEQUENCE_LINE_BREAK_TAG);

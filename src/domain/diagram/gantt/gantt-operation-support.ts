@@ -58,14 +58,9 @@ export function prepare(source: string): DomainResult<PreparedGantt> {
       `${editability.reason}: ${editability.detail}`,
     );
   }
-  const meaning = ganttMeaningOf(parsed);
-  if (meaning === null || parsed.dateFormat === null) {
-    return err(
-      "diagramNotEditable",
-      "noMeaning: the chart has no meaning to edit",
-    );
-  }
-  return ok({ parsed, meaning, format: parsed.dateFormat });
+  // An editable chart has a usable dateFormat and no invalid task, so it has a meaning.
+  const meaning = ganttMeaningOf(parsed) as GanttMeaning;
+  return ok({ parsed, meaning, format: meaning.dateFormat });
 }
 
 export function resolveTask(
@@ -190,7 +185,9 @@ export function taskIndentNear(parsed: ParsedGantt, lineIndex: number): string {
     .reverse()
     .find((entry) => entry.lineIndex <= lineIndex);
   return indentOf(
-    parsed.lines[(task ?? parsed.tasks[0])?.lineIndex ?? lineIndex],
+    parsed.lines[
+      (task ?? parsed.tasks[0])?.lineIndex ?? lineIndex
+    ] as GanttLine,
   );
 }
 
@@ -214,4 +211,17 @@ export function readBack(
   return verdict.ok
     ? ok(undefined)
     : refuse("unreadableResult", verdict.error.detail);
+}
+
+// `finish`, and then the read-back: for a plan whose text could read differently from what
+// it promises (moves, links, settings that share lines with others).
+export function finishChecked(
+  source: string,
+  edits: readonly TextEdit[],
+  expected: GanttMeaning,
+): DomainResult<GanttOperationPlan> {
+  const planned = finish(edits, expected);
+  if (!planned.ok) return planned;
+  const verdict = readBack(source, edits, expected);
+  return verdict.ok ? planned : verdict;
 }

@@ -57,7 +57,12 @@ type DistributiveOmit<Type, Key extends PropertyKey> = Type extends unknown
   ? Omit<Type, Key>
   : never;
 
-export type PendingStatement = DistributiveOmit<FlowchartStatement, "index">;
+// What the parser reads; an edge attribute statement is made by the resolver (it needs the
+// edges read before it).
+export type PendingStatement = DistributiveOmit<
+  Exclude<FlowchartStatement, { readonly kind: "edgeAttributes" }>,
+  "index"
+>;
 
 // A stray `;` (see segments). Not a statement of the reading: the resolver drops it, or
 // refuses it inside a subgraph block.
@@ -79,12 +84,11 @@ const DIRECTION_STATEMENT_PATTERN = new RegExp(
   `^${FLOWCHART_DIRECTION_KEYWORD}[ \\t]+(${FLOWCHART_DIRECTION_TOKENS.join("|")})$`,
 );
 const NUMBER_PATTERN = /^(?:0|[1-9][0-9]*)$/;
-const TOOLTIP_PATTERN = /^"[^"]+"$/;
 // Only characters that cannot be mistaken for syntax; Mermaid rejects parentheses and some
 // other characters in a click target.
 const URL_PATTERN = /^"[A-Za-z0-9:/._~%#?&=+@-]+"$/;
-const CALL_PATTERN = /^call +\w+\([A-Za-z0-9_, .-]*\)(?: +("[^"]+"))?$/d;
-const CALLBACK_PATTERN = /^\w+(?: +("[^"]+"))?$/d;
+const CALL_PATTERN = /^call +\w+\([A-Za-z0-9_, .-]*\)(?: +("[^"]+"))?$/;
+const CALLBACK_PATTERN = /^\w+(?: +("[^"]+"))?$/;
 const CLICK_TARGET_PATTERN = new RegExp(
   `^(?:${FLOWCHART_CLICK_TARGETS.join("|")})$`,
 );
@@ -148,8 +152,9 @@ function readStyleText(
 ): ParseOutcome<{ token: FlowchartToken; styles: readonly string[] }> {
   if (!isBlankCharacter(scan.text[position]))
     return failed("unrecognizedStatement");
+  // A statement has no blanks at its end (they are cut off before it is parsed), so
+  // something follows the blanks.
   const start = skipBlanks(scan.text, position);
-  if (start >= scan.text.length) return failed("unrecognizedStatement");
   const token = tokenOf(scan, start, scan.text.length);
   if (
     !FLOWCHART_STYLE_TEXT_PATTERN.test(token.text) ||
@@ -401,9 +406,10 @@ function readClickRest(scan: Scan, position: number): ClickRest | null {
     form = "href";
     cursor = skipBlanks(scan.text, cursor + HREF_KEYWORD.length);
   }
+  // Quotes come in pairs here: a statement with an unterminated one is refused before it
+  // is parsed (`unterminatedQuote`).
   if (scan.text[cursor] === '"') {
     const urlEnd = scan.text.indexOf('"', cursor + 1);
-    if (urlEnd === -1) return null;
     const rawUrl = scan.text.slice(cursor, urlEnd + 1);
     if (!URL_PATTERN.test(rawUrl)) return null;
     const url = tokenOf(scan, cursor + 1, urlEnd);
@@ -412,7 +418,7 @@ function readClickRest(scan: Scan, position: number): ClickRest | null {
     let next = skipBlanks(scan.text, cursor);
     if (next > cursor && scan.text[next] === '"') {
       const tipEnd = scan.text.indexOf('"', next + 1);
-      if (tipEnd === -1 || tipEnd === next + 1) return null;
+      if (tipEnd === next + 1) return null;
       tooltip = tokenOf(scan, next + 1, tipEnd);
       cursor = tipEnd + 1;
       next = skipBlanks(scan.text, cursor);
@@ -440,20 +446,18 @@ function readClickRest(scan: Scan, position: number): ClickRest | null {
   };
 }
 
+// The tooltip a click pattern caught (group 1), or null when the line has none. The
+// patterns end with it, so it is the end of the line.
 function tooltipOf(
   scan: Scan,
   restStart: number,
   match: RegExpExecArray,
 ): FlowchartToken | null {
-  const indices = (
-    match as RegExpExecArray & {
-      indices?: readonly ([number, number] | undefined)[];
-    }
-  ).indices;
-  const group = indices?.[1];
-  if (group === undefined || match[1] === undefined) return null;
-  if (!TOOLTIP_PATTERN.test(match[1])) return null;
-  return tokenOf(scan, restStart + group[0] + 1, restStart + group[1] - 1);
+  const tooltip = match[1];
+  if (tooltip === undefined) return null;
+  const end = restStart + match[0].length;
+  // Inside its quotes.
+  return tokenOf(scan, end - tooltip.length + 1, end - 1);
 }
 
 function parseClick(scan: Scan, lineIndex: number): SegmentParse {

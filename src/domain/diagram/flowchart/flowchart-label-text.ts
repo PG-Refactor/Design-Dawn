@@ -1,9 +1,5 @@
 import { type DomainResult, err, ok } from "../../shared/domain-result";
-import {
-  hasControlCharacter,
-  hasMarkupRewrite,
-  hasStyleLikeText,
-} from "../pie/pie-text";
+import { hasControlCharacter, hasStyleLikeText } from "../pie/pie-text";
 import {
   FLOWCHART_DIRECTIVE_MARK,
   FLOWCHART_MARKDOWN_QUOTE,
@@ -94,9 +90,8 @@ export function encodeFlowchartLabel(text: string): DomainResult<string> {
     .join(FLOWCHART_LABEL_GREATER_THAN_ENTITY)
     .split(FLOWCHART_LABEL_GUI_LINE_BREAK)
     .join(FLOWCHART_LABEL_LINE_BREAK_TAG);
-  if (hasMarkupRewrite(encoded)) {
-    return refuse("markup", "Mermaid rewrites the quotes of markup-like text");
-  }
+  // No markup is left for Mermaid to rewrite: `<` is written as an entity, and the line
+  // break tag has no attributes.
   if (hasStyleLikeText(encoded)) {
     return refuse(
       "styleLikeText",

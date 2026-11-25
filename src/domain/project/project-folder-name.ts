@@ -5,6 +5,7 @@
 
 import type { Brand } from "../shared/brand";
 import { type DomainResult, err, ok } from "../shared/domain-result";
+import { itemAt } from "../shared/item-at";
 
 export type ProjectFolderName = Brand<string, "ProjectFolderName">;
 
@@ -15,7 +16,8 @@ const CONTROL_CODE_POINT_MAX = 0x1f;
 const DELETE_CODE_POINT = 0x7f;
 
 function isForbidden(character: string): boolean {
-  const codePoint = character.codePointAt(0) ?? 0;
+  // A character of the text: it has a code point.
+  const codePoint = character.codePointAt(0) as number;
   return (
     FORBIDDEN_CHARACTERS.includes(character) ||
     codePoint <= CONTROL_CODE_POINT_MAX ||
@@ -48,7 +50,7 @@ export function parseProjectFolderName(
   if (FORBIDDEN_TRAILING.test(value)) {
     return err("invalidFolderName", "ends with '.' or a space");
   }
-  const stem = value.split(DEVICE_NAME_SEPARATOR)[0] ?? value;
+  const stem = itemAt(value.split(DEVICE_NAME_SEPARATOR), 0, value);
   if (RESERVED_DEVICE_NAMES.includes(stem.toUpperCase())) {
     return err("invalidFolderName", "reserved device name");
   }

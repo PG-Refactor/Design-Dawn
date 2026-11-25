@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DOCUMENT_ID } from "../../domain/shared/test-fixtures";
 import { openSession } from "../test-support/session-harness";
+import { openedDocumentA } from "../test-support/workspace-harness";
 import {
   createInitialApplicationState,
   type DocumentSessionState,
@@ -55,5 +56,31 @@ describe("unsaved changes", () => {
   it("ignores documents that are not in the asked list", () => {
     const state = stateWithSave({ documentDirty: true });
     expect(hasUnsavedDocumentChanges(state, [])).toBe(false);
+  });
+});
+
+describe("unsaved Project-level changes", () => {
+  it("counts the Project's own save and a Folder's save", async () => {
+    const harness = await openedDocumentA();
+    const state = harness.store.getState();
+    const project = state.project;
+    if (project === null) throw new Error("no project");
+    const dirty = { dirty: true, lastError: null };
+    expect(
+      hasUnsavedProjectChanges({
+        ...state,
+        project: { ...project, save: dirty },
+      }),
+    ).toBe(true);
+    const folder = { ...project.folders[0], save: dirty };
+    expect(
+      hasUnsavedProjectChanges({
+        ...state,
+        project: {
+          ...project,
+          folders: [folder as (typeof project.folders)[number]],
+        },
+      }),
+    ).toBe(true);
   });
 });

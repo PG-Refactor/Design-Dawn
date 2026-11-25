@@ -1,23 +1,34 @@
 import { describe, expect, it } from "vitest";
 import { PASTE_OFFSET } from "../../config/canvas-config";
 import type { Block } from "../../domain/block/block";
+import { POSITION_MAX } from "../../domain/domain-constants";
 import { type DocumentData, withContents } from "../commands/document-data";
 import {
   blockIdOf,
+  createFakeGateway,
   createSequentialIdGenerator,
   DOCUMENT_ID,
+  documentIdOf,
   makeBlockAt,
   makeDocumentData,
   OTHER_SHEET_ID,
+  PROJECT_ID,
   position,
   SHEET_ID,
+  sheetIdOf,
   size,
   textOf,
   textOfBlockLike,
 } from "../test-support/fakes";
 import { openSession } from "../test-support/session-harness";
 import { type ClipboardContent, createInMemoryClipboard } from "./clipboard";
-import { copyBlocks, duplicateBlocks, pasteBlocksCommand } from "./copy-paste";
+import {
+  copyBlocks,
+  duplicateBlocks,
+  pasteBlocksCommand,
+  resolvePasteAssets,
+  validateAssetBlocks,
+} from "./copy-paste";
 
 // Back-to-front: 1 (at 100,100), 2 (at 150,120), 3 (at 400,300).
 const BLOCKS: readonly Block[] = [
@@ -357,5 +368,70 @@ describe("in-memory clipboard", () => {
     };
     clipboard.write(content);
     expect(clipboard.read()).toBe(content);
+  });
+});
+
+const UNKNOWN_SHEET = sheetIdOf(77);
+
+describe("copy, duplicate and paste edges", () => {
+  it("refuses an unknown sheet and a block named twice", () => {
+    const { data, clipboard, idGenerator } = setup();
+    const unknown = {
+      state: data,
+      sheetId: UNKNOWN_SHEET,
+      blockIds: [blockIdOf(1)],
+    };
+    expect(copyBlocks({ ...unknown, clipboard }).ok).toBe(false);
+    expect(duplicateBlocks({ ...unknown, idGenerator }).ok).toBe(false);
+    expect(
+      copyBlocks({
+        state: data,
+        sheetId: SHEET_ID,
+        blockIds: [blockIdOf(1), blockIdOf(1)],
+        clipboard,
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("refuses a duplicate that would land outside the canvas", () => {
+    const far = makeBlockAt(9, POSITION_MAX, POSITION_MAX);
+    const state = withContents(makeDocumentData([far]), [[far.blockId, "x"]]);
+    const result = duplicateBlocks({
+      state,
+      sheetId: SHEET_ID,
+      blockIds: [far.blockId],
+      idGenerator: createSequentialIdGenerator(),
+    });
+    expect(!result.ok && result.error.kind).toBe("invalidPosition");
+  });
+
+  it("validates no asset of an unknown sheet", async () => {
+    const errors = await validateAssetBlocks({
+      gateway: createFakeGateway(),
+      projectId: PROJECT_ID,
+      state: loadedData(),
+      sheetId: UNKNOWN_SHEET,
+      blockIds: [blockIdOf(1)],
+    });
+    expect(errors.size).toBe(0);
+  });
+
+  it("pastes a text block into another document as it is without a reference finder", async () => {
+    const { data, clipboard } = setup();
+    copyBlocks({
+      state: data,
+      sheetId: SHEET_ID,
+      blockIds: [blockIdOf(1)],
+      clipboard,
+    });
+    const content = clipboard.read();
+    if (content === null) throw new Error("nothing copied");
+    const resolved = await resolvePasteAssets({
+      gateway: createFakeGateway(),
+      projectId: PROJECT_ID,
+      content,
+      targetDocumentId: documentIdOf(8),
+    });
+    expect(resolved.content.blocks).toEqual(content.blocks);
   });
 });
