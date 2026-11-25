@@ -16,7 +16,9 @@ function setup(
     saveResult?: OperationResult<void>;
     flushFails?: boolean;
     holdSave?: boolean;
-    needsConfirmation?: boolean;
+    needsConfirmation?: boolean | (() => boolean);
+    // Steps still under way when the close request comes (`settle` ends them).
+    holdSettled?: boolean;
     // Resolves the question; "hold" leaves it open until `answer` is called.
     choice?: UnsavedCloseChoice | "hold";
   } = {},
@@ -26,8 +28,19 @@ function setup(
   let releaseSave: () => void = () => undefined;
   let saveResult = options.saveResult ?? operationOk(undefined);
   let answer: (choice: UnsavedCloseChoice) => void = () => undefined;
+  let settle: () => void = () => undefined;
+  const settledSteps =
+    options.holdSettled === true
+      ? new Promise<void>((resolve) => {
+          settle = resolve;
+        })
+      : Promise.resolve();
   const handler = createWindowCloseHandler(() => ({
-    needsConfirmation: () => options.needsConfirmation ?? false,
+    settled: () => settledSteps,
+    needsConfirmation: () =>
+      typeof options.needsConfirmation === "function"
+        ? options.needsConfirmation()
+        : (options.needsConfirmation ?? false),
     afterRepaint: async () => {
       calls.push("repaint");
     },
@@ -70,6 +83,7 @@ function setup(
     source,
     calls,
     releaseSave: () => releaseSave(),
+    settle: () => settle(),
     answer: (choice: UnsavedCloseChoice) => answer(choice),
     setSaveResult: (result: OperationResult<void>) => {
       saveResult = result;
@@ -78,6 +92,21 @@ function setup(
 }
 
 describe("window close handler", () => {
+  it("decides only after the steps under way are done", async () => {
+    let unsaved = true;
+    const context = setup({
+      holdSettled: true,
+      choice: "save",
+      needsConfirmation: () => unsaved,
+    });
+    const closing = context.handler({ subscriptionToken: TOKEN });
+    // The last Document leaves the window meanwhile.
+    unsaved = false;
+    context.settle();
+    await closing;
+    expect(context.calls).toEqual(["saveAll", "flush", `confirm:${TOKEN}`]);
+  });
+
   it("saves, flushes the viewport, then confirms with the token, in that order", async () => {
     const { handler, calls } = setup();
     await handler({ subscriptionToken: TOKEN });
@@ -258,6 +287,7 @@ describe("a window that edits a Custom Template", () => {
     const source = createFakeCloseRequestSource();
     const calls: string[] = [];
     const handler = createWindowCloseHandler(() => ({
+      settled: async () => undefined,
       needsConfirmation: () => true,
       askUnsavedClose: async () => {
         calls.push("askDocument");
@@ -332,6 +362,7 @@ describe("window close while printing", () => {
     const source = createFakeCloseRequestSource();
     const calls: string[] = [];
     const handler = createWindowCloseHandler(() => ({
+      settled: async () => undefined,
       needsConfirmation: () => false,
       askUnsavedClose: () => Promise.resolve("cancel" as UnsavedCloseChoice),
       saveAll: async () => {

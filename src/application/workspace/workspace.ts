@@ -249,6 +249,9 @@ export interface Workspace {
   // Saves everything that is unsaved (the project, then every open document) without
   // closing anything. Tries all of it; returns the first error.
   saveAll(): Promise<OperationResult<void>>;
+  // Resolves once the lifecycle steps queued so far (open, close, a Document moving to
+  // another window ...) are done, so a decision taken then sees the state they leave.
+  whenIdle(): Promise<void>;
 
   // Moves an open Document to another window WITHOUT saving: its unsaved changes and
   // undo / redo history go with it, and this window drops it. When the move fails the
@@ -1197,6 +1200,7 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     flushDocuments: (documentIds) =>
       runLifecycle(() => flushOpenDocuments(documentIds)),
     saveAll: () => runLifecycle(saveEverything),
+    whenIdle: () => runLifecycle(async () => undefined),
     moveDocumentToWindow: moveDocumentStep,
     receiveDocument: receiveDocumentStep,
     refreshProjectTree: refreshProjectTreeStep,

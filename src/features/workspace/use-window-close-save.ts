@@ -56,6 +56,7 @@ export function useWindowCloseSave(): WindowCloseStatus {
         finishViewportSaves: () =>
           latest.current.viewportPersistence.waitForSaves(),
         closeRequestSource: latest.current.closeRequestSource,
+        settled: () => latest.current.actions.whenWorkspaceIdle(),
         needsConfirmation: () =>
           latest.current.actions.windowCloseNeedsConfirmation(),
         askUnsavedClose: () => latest.current.actions.askUnsavedWindowClose(),
