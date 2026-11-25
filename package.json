@@ -17,7 +17,7 @@
     "check": "biome check .",
     "test": "vitest run",
     "coverage": "vitest run --coverage",
-    "coverage:rust": "cargo llvm-cov --manifest-path src-tauri/Cargo.toml --summary-only",
+    "coverage:rust": "cargo llvm-cov --manifest-path src-tauri/Cargo.toml --summary-only --fail-under-regions 85 --fail-under-lines 86",
     "tauri": "tauri",
     "tauri:build:windows": "tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc --no-bundle",
     "rust:fmt:check": "cargo fmt --check --manifest-path src-tauri/Cargo.toml",
