@@ -14,9 +14,9 @@ use serde_json::Value;
 
 use super::asset_import::base64;
 use super::error::{ApplicationError, ApplicationResult, ErrorKind};
-use super::git_operations::GitRepositoryState;
-use super::git_operations::{not_ready_error, project_root_of, repository_state, DiffSide};
+use super::git_operations::{project_root_of, DiffSide};
 use super::session::ProjectSessions;
+use crate::application::git_operations::ready_runner;
 use crate::domain::constants::SHEETS_DIRECTORY_NAME;
 use crate::infrastructure::file_format::constants::{
     ASSET_MAX_BYTES, DOCUMENT_FILE_NAME, SHEET_FILE_NAME,
@@ -225,10 +225,7 @@ pub fn read_sheet_versions(
     path: &str,
     side: DiffSide,
 ) -> ApplicationResult<SheetVersions> {
-    let state = repository_state(runner, root)?;
-    let (GitRepositoryState::Ready, Some(runner)) = (state, runner) else {
-        return Err(not_ready_error(state));
-    };
+    let runner = ready_runner(runner, root)?;
     let valid = validate_project_relative_path(path).map_err(|reason| {
         ApplicationError::new(
             ErrorKind::InvalidGitPath,

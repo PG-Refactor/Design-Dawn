@@ -9,9 +9,8 @@ use std::sync::Mutex;
 use serde::Serialize;
 
 use crate::application::error::{ApplicationError, ApplicationResult, ErrorKind};
-use crate::application::git_operations::{
-    not_ready_error, project_root_of, repository_state, run_error, GitRepositoryState,
-};
+use crate::application::git_operations::ready_runner;
+use crate::application::git_operations::{project_root_of, run_error};
 use crate::application::session::ProjectSessions;
 use crate::infrastructure::git::constants::{
     ARG_END_OF_OPTIONS, ARG_LOG, ARG_MAX_COUNT, ARG_NO_COLOR, ARG_NO_OPTIONAL_LOCKS,
@@ -117,10 +116,7 @@ pub fn read_history(
     limit: usize,
     cursor: Option<&str>,
 ) -> ApplicationResult<GitHistory> {
-    let state = repository_state(runner, project_root)?;
-    let (GitRepositoryState::Ready, Some(runner)) = (state, runner) else {
-        return Err(not_ready_error(state));
-    };
+    let runner = ready_runner(runner, project_root)?;
 
     if !(HISTORY_LIMIT_MIN..=HISTORY_LIMIT_MAX).contains(&limit) {
         return Err(invalid_request("the history page size is out of range"));
