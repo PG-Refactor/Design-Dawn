@@ -1,7 +1,8 @@
 // Project-level operations on Folders and on where entries sit in the tree: create /
 // rename / reorder / move / delete a Folder, and saving the files that hold an order
-// (`project.json`, `folder.json`). Every step is NOT undoable and runs on the workspace's
-// lifecycle queue (the caller wraps it); the gateway calls are made in a fixed order.
+// (`project.json`, `folder.json`). Only a reorder can be taken back (the workspace keeps
+// those steps); the rest is not undoable. Every step runs on the workspace's lifecycle
+// queue (the caller wraps it); the gateway calls are made in a fixed order.
 //
 // Failure rule (same as the rest of the workspace): memory never claims something that is
 // not true on disk. When a step fails AFTER something changed on disk, the affected parent
@@ -38,6 +39,7 @@ import {
   withFolderName,
   withParentSave,
 } from "./project-entries";
+import type { TreeReorder } from "./tree-order-history";
 
 export interface ProjectTreeContext {
   readonly gateway: PersistenceGateway;
@@ -68,11 +70,19 @@ export interface ProjectTreeSteps {
     folderId: FolderId,
     name: string,
   ): Promise<OperationResult<void>>;
+  // The move made, or null when the entry was already there.
   reorder(
     kind: "folder" | "document",
     entryId: EntryId,
     beforeEntryId: EntryId | null,
-  ): Promise<OperationResult<void>>;
+  ): Promise<OperationResult<TreeReorder | null>>;
+  // Puts the entry of a recorded move back where it was (`from`) or where it went (`to`).
+  // False, with nothing changed, when that place is gone: the entry left the parent, or
+  // the sibling it stood in front of did.
+  replay(
+    step: TreeReorder,
+    side: "from" | "to",
+  ): Promise<OperationResult<boolean>>;
   moveEntry(
     entryId: EntryId,
     targetParentFolderId: ParentId,
@@ -234,7 +244,7 @@ export function createProjectTreeSteps(
     kind: "folder" | "document",
     entryId: EntryId,
     beforeEntryId: EntryId | null,
-  ): Promise<OperationResult<void>> {
+  ): Promise<OperationResult<TreeReorder | null>> {
     const project = requireProject();
     if (!project.ok) return project;
     const found = findProjectEntry(project.value, entryId);
@@ -251,6 +261,9 @@ export function createProjectTreeSteps(
     }
     const moved = fromDomainResult(moveInOrder(order, entryId, beforeEntryId));
     if (!moved.ok) return failWith(moved.error);
+    if (moved.value.every((id, index) => id === order[index])) {
+      return operationOk(null);
+    }
     updateProject((current) => {
       const next = withChildOrder(current, parentId, moved.value);
       return {
@@ -269,7 +282,35 @@ export function createProjectTreeSteps(
         ),
       };
     });
-    return saveParent(parentId);
+    const saved = await saveParent(parentId);
+    if (!saved.ok) return saved;
+    const from = order[order.indexOf(entryId) + 1] ?? null;
+    return operationOk({
+      kind,
+      entryId,
+      parentId,
+      from,
+      to: beforeEntryId,
+    });
+  }
+
+  async function replay(
+    step: TreeReorder,
+    side: "from" | "to",
+  ): Promise<OperationResult<boolean>> {
+    const project = requireProject();
+    if (!project.ok) return project;
+    const found = findProjectEntry(project.value, step.entryId);
+    const sibling = step[side];
+    const order = childOrderOf(project.value, step.parentId);
+    const placeIsThere =
+      found !== null &&
+      found.kind === step.kind &&
+      found.entry.parentFolderId === step.parentId &&
+      (sibling === null || order?.includes(sibling) === true);
+    if (!placeIsThere) return operationOk(false);
+    const moved = await reorder(step.kind, step.entryId, sibling);
+    return moved.ok ? operationOk(true) : moved;
   }
 
   // The rules Rust validates again; checked here first so an impossible move never starts.
@@ -422,6 +463,7 @@ export function createProjectTreeSteps(
     createFolder,
     renameFolder,
     reorder,
+    replay,
     moveEntry,
     deleteFolder,
   };

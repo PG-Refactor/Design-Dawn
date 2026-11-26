@@ -91,6 +91,7 @@ import {
   validateProjectSnapshot,
   validateSheetSnapshot,
 } from "./snapshot-validation";
+import { createTreeOrderHistory, type TreeReorder } from "./tree-order-history";
 import {
   createWorkspaceEvents,
   type WorkspaceEventListener,
@@ -211,7 +212,8 @@ export interface Workspace {
     name: string,
   ): Promise<OperationResult<void>>;
   // Reorder among the siblings of the same parent (Project or Folder), directly before
-  // `beforeEntryId`, or last when null. Saves the parent's file; not undoable.
+  // `beforeEntryId`, or last when null. Saves the parent's file; `undoTreeOrder` takes it
+  // back.
   moveFolder(
     folderId: FolderId,
     beforeEntryId: EntryId | null,
@@ -240,6 +242,11 @@ export interface Workspace {
     documentId: DocumentId,
     beforeEntryId: EntryId | null,
   ): Promise<OperationResult<void>>;
+  // Takes back / makes again the last reorder of the tree (Project history, apart from the
+  // Documents'). False when there is none, or when the tree changed so that the place it
+  // went back to is gone (then the steps are dropped).
+  undoTreeOrder(): Promise<OperationResult<boolean>>;
+  redoTreeOrder(): Promise<OperationResult<boolean>>;
   // Explicit retry of a project save that failed.
   saveProject(): Promise<OperationResult<void>>;
   // The open Documents a move of `entryId` would carry along: the Document itself, or the
@@ -382,6 +389,7 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     return saveCurrentProject();
   }
 
+  const treeOrderHistory = createTreeOrderHistory(config.undoHistoryLimit);
   const treeSteps = createProjectTreeSteps({
     gateway,
     idGenerator,
@@ -1063,6 +1071,28 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     });
   }
 
+  async function reorderStep(
+    kind: "folder" | "document",
+    entryId: EntryId,
+    beforeEntryId: EntryId | null,
+  ): Promise<OperationResult<void>> {
+    const moved = await treeSteps.reorder(kind, entryId, beforeEntryId);
+    if (!moved.ok) return moved;
+    if (moved.value !== null) treeOrderHistory.record(moved.value);
+    return operationOk(undefined);
+  }
+
+  async function replayTreeOrder(
+    step: TreeReorder | null,
+    side: "from" | "to",
+  ): Promise<OperationResult<boolean>> {
+    if (step === null) return operationOk(false);
+    const replayed = await treeSteps.replay(step, side);
+    // A place that is gone, or a failed save: the other steps no longer fit the tree.
+    if (!replayed.ok || !replayed.value) treeOrderHistory.clear();
+    return replayed;
+  }
+
   // Runs `task` on the serial queue of an open Document (no save or command in between).
   function withOpenSession<T>(
     documentId: DocumentId,
@@ -1219,7 +1249,7 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     renameFolder: (folderId, name) =>
       runLifecycle(() => treeSteps.renameFolder(folderId, name)),
     moveFolder: (folderId, beforeEntryId) =>
-      runLifecycle(() => treeSteps.reorder("folder", folderId, beforeEntryId)),
+      runLifecycle(() => reorderStep("folder", folderId, beforeEntryId)),
     moveEntry: (entryId, targetParentFolderId) =>
       runLifecycle(() => treeSteps.moveEntry(entryId, targetParentFolderId)),
     deleteFolder: (folderId) =>
@@ -1229,9 +1259,11 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     deleteDocument: (documentId) => deleteDocumentStep(documentId),
     renameProject: renameProjectStep,
     moveDocument: (documentId, beforeEntryId) =>
-      runLifecycle(() =>
-        treeSteps.reorder("document", documentId, beforeEntryId),
-      ),
+      runLifecycle(() => reorderStep("document", documentId, beforeEntryId)),
+    undoTreeOrder: () =>
+      runLifecycle(() => replayTreeOrder(treeOrderHistory.takeUndo(), "from")),
+    redoTreeOrder: () =>
+      runLifecycle(() => replayTreeOrder(treeOrderHistory.takeRedo(), "to")),
     saveProject: () => runLifecycle(saveCurrentProject),
     openDocumentsUnder: openDocumentsUnderEntry,
     flushDocuments: (documentIds) =>

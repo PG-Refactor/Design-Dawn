@@ -238,9 +238,10 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
     });
   }
 
-  // Ctrl/Cmd+Z / Shift+Z / Y with focus in the tree undo / redo the ACTIVE document's
-  // history, the same as on the canvas. Typing in the rename input never gets here (the
-  // input keeps its key events).
+  // Ctrl/Cmd+Z / Shift+Z / Y with focus in the tree take back / make again the last
+  // reorder of the tree; with none, they undo / redo the ACTIVE document's history, the
+  // same as on the canvas. Typing in the rename input never gets here (the input keeps its
+  // key events).
   function handleHistoryKey(event: KeyboardEvent<HTMLUListElement>): void {
     const command = keyCommandOf(event);
     if (
@@ -250,11 +251,18 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
       return;
     }
     event.preventDefault();
-    const documentId = uiStateStore.getState().activeDocumentId;
-    if (documentId === null) return;
-    void (command === CANVAS_KEY_COMMANDS.undo
-      ? canvasActions.undo(documentId)
-      : canvasActions.redo(documentId));
+    const undo = command === CANVAS_KEY_COMMANDS.undo;
+    void (async () => {
+      const took = undo
+        ? await actions.undoTreeOrder()
+        : await actions.redoTreeOrder();
+      if (took) return;
+      const documentId = uiStateStore.getState().activeDocumentId;
+      if (documentId === null) return;
+      await (undo
+        ? canvasActions.undo(documentId)
+        : canvasActions.redo(documentId));
+    })();
   }
 
   // The chosen rows' entries (the Project row is not an entry).
