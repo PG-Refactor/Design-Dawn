@@ -359,6 +359,11 @@ footer > .wrap.foot {
 .more {
   margin: 28px 0 0;
 }
+/* The demo project line sits right under the guide link it goes with. */
+.more.demo {
+  margin-top: 12px;
+  color: var(--muted);
+}
 .card h3 a {
   color: inherit;
 }
