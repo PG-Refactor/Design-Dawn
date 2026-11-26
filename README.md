@@ -23,14 +23,15 @@ can be read and edited by people, reviewed with Git, and changed safely by AI to
 ## Features
 
 - **Free-form canvas** — pan, zoom (wheel, or the zoom control in the corner: - / + or a typed
-  percentage), select, move, resize, align, z-order, copy/paste, and undo/redo for every edit.
+  percentage), select, move, resize, align, z-order, copy/paste, and undo/redo (creating and deleting
+  sheets and documents are confirmed instead and cannot be undone).
 - **Project → Document → Sheet → Block** — a project tree with folders (drag rows to reorder or
-  move them; a folder name with `/` or `\` makes nested folders), document tabs and sheet tabs that
+  move them, and undo a reorder with Ctrl+Z / Ctrl+Y in the tree; a folder name with `/` or `\` makes nested folders), document tabs and sheet tabs that
   scroll sideways when there are many; several documents (and windows) open at once. The
   sidebar can be folded away.
 - **Markdown blocks** — rendered view on the canvas; a split source/preview editor while editing
   (the divider moves, and the preview can be hidden; the same for Mermaid source).
-- **Mermaid blocks** — any Mermaid 12 diagram, rendered locally and sanitised (no network, no
+- **Mermaid blocks** — the diagrams Mermaid 12 can draw, rendered locally and sanitised (no network, no
   scripts).
 - **Mermaid GUI editor** — edit flowcharts, sequence, class, state and ER diagrams, Gantt and pie
   charts with lists and property fields instead of syntax; right-click a shape in the diagram to edit or
@@ -87,7 +88,8 @@ can be read and edited by people, reviewed with Git, and changed safely by AI to
   side like a whiteboard, but keep every block as a `.md` or `.mmd` file you can diff and review in
   a pull request.
 - **Write it with AI** — AI tools work through a local MCP server, read-only until you allow
-  editing, with conflict detection instead of silent overwrites.
+  editing; a block's text is changed only against what the AI read, so an edit made in the
+  meantime comes back as a conflict instead of being overwritten.
 - **Mermaid without memorising syntax** — edit flowcharts, sequence diagrams and Gantt charts in a
   GUI while the Mermaid source stays the source of truth.
 - **Offline and local** — no account, no cloud, no network access for rendering.

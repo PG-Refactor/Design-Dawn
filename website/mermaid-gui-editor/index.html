@@ -90,7 +90,7 @@
       <p>Mindmaps, timelines, journeys, quadrant charts and the other diagram types of Mermaid are rendered on the canvas, but they have <strong>no GUI editor yet</strong>. You edit them as Mermaid source next to a live preview. The “+ Block” menu has starting templates for sequence, Gantt, pie, class, state and ER diagrams.</p>
 
       <h2>The Mermaid source stays the source of truth</h2>
-      <p>The GUI does not keep a separate model of your diagram. Each diagram is one <code>.mmd</code> text file, and a GUI edit rewrites only the part of that text it has to. After each edit the app reads the result again and checks that Mermaid can render it. If the check fails, the change is not applied and the source is left as it was. Each GUI edit is one undo step.</p>
+      <p>The GUI does not keep a separate model of your diagram. Each diagram is one <code>.mmd</code> text file, and a GUI edit rewrites only the part of that text it has to. After each edit the app reads the result again and checks that Mermaid can render it. If the check fails, the change is not applied and the source is left as it was. Each GUI edit is one undo step, and Ctrl+Z / Ctrl+Y step through them while the GUI is still open.</p>
       <p>Because of this, a diagram written by hand, by a colleague or by an AI tool opens in the same editor, and what the GUI writes is still ordinary Mermaid you can paste anywhere else.</p>
 
       <h2>Limits you should know about</h2>

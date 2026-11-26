@@ -96,10 +96,10 @@
       <h2>A Markdown and Mermaid editor built for design docs</h2>
       <p class="sub">A document is a set of sheets; each sheet holds freely placed blocks. Edit text, diagrams and screenshots side by side instead of in one long scroll.</p>
       <div class="grid">
-        <div class="card"><h3>Free-form canvas</h3><p>Pan, zoom, select, move, resize, align and reorder blocks, with undo/redo for every edit.</p></div>
+        <div class="card"><h3>Free-form canvas</h3><p>Pan, zoom, select, move, resize, align and reorder blocks, with undo/redo.</p></div>
         <div class="card"><h3>Project tree</h3><p>Documents in folders, several open at once; drag rows to reorder or move them.</p></div>
         <div class="card"><h3>Markdown blocks</h3><p>Rendered on the canvas; split source/preview editor while you write.</p></div>
-        <div class="card"><h3>Mermaid diagrams</h3><p>Any Mermaid diagram, rendered locally and sanitised — no network, no scripts.</p></div>
+        <div class="card"><h3>Mermaid diagrams</h3><p>The diagrams Mermaid 12 can draw, rendered locally and sanitised — no network, no scripts.</p></div>
         <div class="card"><h3><a href="mermaid-gui-editor/">Mermaid GUI editor</a></h3><p>Edit flowcharts, sequence, class, state and ER diagrams, Gantt and pie charts with lists and property fields. The Mermaid source stays the single source of truth.</p></div>
         <div class="card"><h3><a href="docs-as-code/">Git integration</a></h3><p>Status, stage, commit, history, side-by-side diffs and a visual before/after of a sheet, merge conflicts resolved in the app (images by looking at both), fetch, pull and push.</p></div>
         <div class="card"><h3>External change detection</h3><p>Edits from another editor, Git or an AI tool are picked up; reload, keep yours or compare.</p></div>
@@ -161,7 +161,7 @@
         <p><code>design-dawn-mcp</code> is a local MCP server (stdio only, no network port) that lets
           <strong>Claude, Codex, GitHub Copilot, Cursor</strong> and other MCP clients read and edit the projects you offer to them.</p>
         <p>Every project is read-only for AI until you allow editing — in the app, or by approving the AI’s request in your AI tool (for example Claude Code’s permission prompt).
-          Edits use content hashes, so concurrent changes become conflicts instead of silent overwrites.</p>
+          A block’s text is changed only against what the AI read, so an edit made in the meantime comes back as a conflict instead of being overwritten.</p>
 <pre><code>claude mcp add design-dawn -- /path/to/design-dawn-mcp</code></pre>
         <p class="more"><a href="mcp/">Set-up, permissions and the list of tools →</a></p>
       </div>
