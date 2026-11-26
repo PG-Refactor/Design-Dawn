@@ -130,11 +130,6 @@ export const GIT_OPERATION_LABELS = [
 
 export type GitOperationLabel = (typeof GIT_OPERATION_LABELS)[number];
 
-// What Undo Last Commit hands back to the UI.
-export interface GitUndoOutcome {
-  readonly message: string | null;
-}
-
 export interface GitController {
   readonly store: Store<GitState>;
   // Reads the status of the open Project. Failures are also reported through
@@ -199,11 +194,9 @@ export interface GitController {
     options?: GitCommitOptions,
   ): Promise<OperationResult<void>>;
   // Takes the last commit back (index and working tree stay) on the same queue. On success
-  // the status is replaced and the commit's message is returned (null when it is not valid
-  // UTF-8) for the UI to put back into the message box. On failure it is reported as
-  // `undoGitCommit` and the status is read again. When the project changed meanwhile the
-  // message is not returned (the commit belonged to the previous Project).
-  undoLastCommit(): Promise<OperationResult<GitUndoOutcome>>;
+  // the status is replaced; on failure it is reported as `undoGitCommit` and the status is
+  // read again.
+  undoLastCommit(): Promise<OperationResult<void>>;
   // Remote operations, on the same queue / epoch /
   // `operating` as Commit. Success replaces the status; failure is reported as `fetchGit`
   // / `pullGit` / `pushGit` / `publishGit` and the status is read again. The failure is
@@ -274,12 +267,17 @@ const INDEX_OPERATION_LABELS: Record<IndexOperation, GitOperationLabel> = {
   discard: "discardGitChanges",
 };
 
-type RemoteOperation = Extract<
+// Operations whose only answer is the status read afterwards.
+type StatusOnlyOperation = Extract<
   GitRunningOperation,
-  "fetch" | "pull" | "push" | "publish" | "abortMerge"
+  "undo" | "fetch" | "pull" | "push" | "publish" | "abortMerge"
 >;
 
-const REMOTE_OPERATION_LABELS: Record<RemoteOperation, GitOperationLabel> = {
+const STATUS_ONLY_OPERATION_LABELS: Record<
+  StatusOnlyOperation,
+  GitOperationLabel
+> = {
+  undo: "undoGitCommit",
   fetch: "fetchGit",
   pull: "pullGit",
   push: "pushGit",
@@ -501,25 +499,15 @@ export function createGitController(
     });
   }
 
-  function undoLastCommit(): Promise<OperationResult<GitUndoOutcome>> {
-    return runWithStatus({
-      running: "undo",
-      failureLabel: "undoGitCommit",
-      request: (projectId) => gateway.undoLastCommit(projectId),
-      succeeded: ({ message }) => ({ state: {}, output: { message } }),
-      skipped: { message: null },
-    });
-  }
-
-  function runRemote(
-    operation: RemoteOperation,
+  function runStatusOnly(
+    operation: StatusOnlyOperation,
     request: (
       projectId: ProjectId,
     ) => Promise<OperationResult<GitRemoteResult>>,
   ): Promise<OperationResult<void>> {
     return runWithStatus({
       running: operation,
-      failureLabel: REMOTE_OPERATION_LABELS[operation],
+      failureLabel: STATUS_ONLY_OPERATION_LABELS[operation],
       request,
       succeeded: () => ({ state: {}, output: undefined }),
       skipped: undefined,
@@ -710,13 +698,15 @@ export function createGitController(
     },
     loadDiff,
     commit,
-    undoLastCommit,
-    fetch: () => runRemote("fetch", (id) => gateway.fetch(id)),
-    pull: () => runRemote("pull", (id) => gateway.pull(id)),
-    abortMerge: () => runRemote("abortMerge", (id) => gateway.abortMerge(id)),
-    push: () => runRemote("push", (id) => gateway.push(id)),
+    undoLastCommit: () =>
+      runStatusOnly("undo", (id) => gateway.undoLastCommit(id)),
+    fetch: () => runStatusOnly("fetch", (id) => gateway.fetch(id)),
+    pull: () => runStatusOnly("pull", (id) => gateway.pull(id)),
+    abortMerge: () =>
+      runStatusOnly("abortMerge", (id) => gateway.abortMerge(id)),
+    push: () => runStatusOnly("push", (id) => gateway.push(id)),
     publish: (remote) =>
-      runRemote("publish", (id) => gateway.publish(id, remote)),
+      runStatusOnly("publish", (id) => gateway.publish(id, remote)),
     async enableLongPaths() {
       const projectId = store.getState().projectId;
       if (projectId === null) return operationOk(undefined);

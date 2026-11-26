@@ -622,12 +622,9 @@ describe("branch information", () => {
 });
 
 describe("gitUndoLastCommit", () => {
-  const UPDATED = {
-    message: "元のメッセージ\n",
-    status: { outcome: "updated", status: VALID_PAYLOAD },
-  };
+  const UPDATED = { status: { outcome: "updated", status: VALID_PAYLOAD } };
 
-  it("sends only the project id and decodes the message and status", async () => {
+  it("sends only the project id and decodes the status", async () => {
     invokeMock.mockResolvedValueOnce(UPDATED);
 
     const result = await gitUndoLastCommit(PROJECT_ID);
@@ -638,7 +635,6 @@ describe("gitUndoLastCommit", () => {
     expect(result).toStrictEqual({
       ok: true,
       value: {
-        message: "元のメッセージ\n",
         status: {
           outcome: "updated",
           status: {
@@ -651,9 +647,8 @@ describe("gitUndoLastCommit", () => {
     });
   });
 
-  it("accepts a null message and an unavailable status", async () => {
+  it("accepts an unavailable status", async () => {
     invokeMock.mockResolvedValueOnce({
-      message: null,
       status: { outcome: "unavailable", errorKind: "gitTimeout" },
     });
 
@@ -661,22 +656,14 @@ describe("gitUndoLastCommit", () => {
 
     expect(result).toStrictEqual({
       ok: true,
-      value: {
-        message: null,
-        status: { outcome: "unavailable", errorKind: "gitTimeout" },
-      },
+      value: { status: { outcome: "unavailable", errorKind: "gitTimeout" } },
     });
   });
 
   it.each([
-    ["a missing message", { status: UPDATED.status }],
-    ["a numeric message", { ...UPDATED, message: 1 }],
-    ["a missing status", { message: "m" }],
-    ["an unknown outcome", { message: "m", status: { outcome: "later" } }],
-    [
-      "an updated outcome without a status",
-      { message: "m", status: { outcome: "updated" } },
-    ],
+    ["a missing status", {}],
+    ["an unknown outcome", { status: { outcome: "later" } }],
+    ["an updated outcome without a status", { status: { outcome: "updated" } }],
     ["a non object payload", "ok"],
   ])("rejects %s", async (_name, payload) => {
     invokeMock.mockResolvedValueOnce(payload);

@@ -14,7 +14,6 @@ import type {
   GitRemoteResult,
   GitSheetVersions,
   GitStatus,
-  GitUndoCommitResult,
 } from "../ports/git-gateway";
 import {
   type OperationError,
@@ -74,9 +73,8 @@ export interface FakeGitGateway extends GitGateway {
     options: GitCommitOptions;
   }[];
   readonly undoCalls: { projectId: ProjectId }[];
-  // Answer of `undoLastCommit` (when `failure` is null); defaults to message "undone" and
-  // the status `status`.
-  undoResult: GitUndoCommitResult | null;
+  // Answer of `undoLastCommit` (when `failure` is null); defaults to the status `status`.
+  undoResult: GitRemoteResult | null;
   // Suspends the next `undoLastCommit` call until the returned function is called.
   holdNextUndo(): () => void;
   // Answer of `commit` (when `failure` is null): the status after it defaults to `status`.
@@ -118,8 +116,6 @@ export const FAKE_COMMIT_ID = "0123456789abcdef0123456789abcdef01234567";
 
 export const FAKE_BRANCH_NAME = "main";
 
-export const FAKE_UNDONE_MESSAGE = "undone";
-
 export const CLEAN_GIT_STATUS: GitStatus = {
   repositoryState: "ready",
   branch: {
@@ -143,8 +139,20 @@ export function createFakeGitGateway(): FakeGitGateway {
   let undoHold: Promise<void> | null = null;
   let discardHold: Promise<void> | null = null;
   let remoteHold: Promise<void> | null = null;
-  async function remoteAnswer(
+  function takeRemoteHold(): Promise<void> | null {
+    const pending = remoteHold;
+    remoteHold = null;
+    return pending;
+  }
+  function takeUndoHold(): Promise<void> | null {
+    const pending = undoHold;
+    undoHold = null;
+    return pending;
+  }
+  // The answer of a call whose only result is the status read afterwards.
+  async function statusOnlyAnswer(
     configured: GitRemoteResult | null,
+    takeHold: () => Promise<void> | null = takeRemoteHold,
   ): Promise<OperationResult<GitRemoteResult>> {
     // Captured before waiting, like the other calls.
     const answer: OperationResult<GitRemoteResult> = gateway.failure
@@ -157,8 +165,7 @@ export function createFakeGitGateway(): FakeGitGateway {
             status: { outcome: "updated", status: gateway.status },
           },
         );
-    const pending = remoteHold;
-    remoteHold = null;
+    const pending = takeHold();
     if (pending !== null) await pending;
     return answer;
   }
@@ -229,11 +236,11 @@ export function createFakeGitGateway(): FakeGitGateway {
     },
     async fetch(projectId) {
       gateway.fetchCalls.push({ projectId });
-      return remoteAnswer(gateway.fetchResult);
+      return statusOnlyAnswer(gateway.fetchResult);
     },
     async pull(projectId) {
       gateway.pullCalls.push({ projectId });
-      return remoteAnswer(gateway.pullResult);
+      return statusOnlyAnswer(gateway.pullResult);
     },
     async abortMerge(projectId) {
       gateway.abortMergeCalls.push({ projectId });
@@ -241,15 +248,15 @@ export function createFakeGitGateway(): FakeGitGateway {
         const { operation: _ended, ...rest } = gateway.status;
         gateway.status = rest;
       }
-      return remoteAnswer(null);
+      return statusOnlyAnswer(null);
     },
     async push(projectId) {
       gateway.pushCalls.push({ projectId });
-      return remoteAnswer(gateway.pushResult);
+      return statusOnlyAnswer(gateway.pushResult);
     },
     async publish(projectId, remote) {
       gateway.publishCalls.push({ projectId, remote });
-      return remoteAnswer(gateway.publishResult);
+      return statusOnlyAnswer(gateway.publishResult);
     },
     async remotes(projectId) {
       gateway.remotesCalls.push({ projectId });
@@ -424,23 +431,9 @@ export function createFakeGitGateway(): FakeGitGateway {
           )
         : operationOk(gateway.impactResult);
     },
-    async undoLastCommit(projectId) {
+    undoLastCommit(projectId) {
       gateway.undoCalls.push({ projectId });
-      const answer: OperationResult<GitUndoCommitResult> = gateway.failure
-        ? operationErr<GitUndoCommitResult>(
-            gateway.failure.kind,
-            gateway.failure.detail,
-          )
-        : operationOk(
-            gateway.undoResult ?? {
-              message: FAKE_UNDONE_MESSAGE,
-              status: { outcome: "updated", status: gateway.status },
-            },
-          );
-      const pending = undoHold;
-      undoHold = null;
-      if (pending !== null) await pending;
-      return answer;
+      return statusOnlyAnswer(gateway.undoResult, takeUndoHold);
     },
     async commit(projectId, message, options) {
       gateway.commitCalls.push({ projectId, message, options });

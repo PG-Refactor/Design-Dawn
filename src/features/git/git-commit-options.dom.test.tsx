@@ -444,7 +444,7 @@ describe("header More Actions menu", () => {
     );
   });
 
-  it("undoes the last commit and fills a blank draft only", async () => {
+  it("undoes the last commit without touching the draft", async () => {
     const shell = await openGit(statusOf([]));
     const box = () =>
       screen.getByRole("textbox", {
@@ -454,8 +454,7 @@ describe("header More Actions menu", () => {
     await shell.user.click(menuItem(ja.headerActions.undoLastCommit));
     await settled();
     expect(shell.gitGateway.undoCalls).toHaveLength(1);
-    expect(box().value).not.toBe("");
-    await shell.user.clear(box());
+    expect(box().value).toBe("");
     await typeMessage(shell, "mine");
     await shell.user.click(moreTrigger());
     await shell.user.click(menuItem(ja.headerActions.undoLastCommit));

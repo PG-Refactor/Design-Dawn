@@ -26,7 +26,6 @@ import {
   type GitRemoteResult,
   type GitRepositoryState,
   type GitStatus,
-  type GitUndoCommitResult,
   type GitUnfinishedOperation,
 } from "../../application/ports/git-gateway";
 import { GIT_ERROR_KINDS } from "../../application/ports/operation-error";
@@ -247,29 +246,6 @@ export function toGitCommitResult(
   const decodedStatus = toCommitStatus(status.outcome, rawStatus);
   return decodedStatus.ok
     ? commandOk({ commitId, status: decodedStatus.value })
-    : decodedStatus;
-}
-
-const rawGitUndoCommitHead = objectOf<{
-  readonly message: string | null;
-  readonly status: { readonly outcome: GitCommitOutcome };
-}>({
-  message: nullable(decodeString),
-  status: objectOf<{ readonly outcome: GitCommitOutcome }>({
-    outcome: oneOf<readonly GitCommitOutcome[]>(GIT_COMMIT_OUTCOMES),
-  }),
-});
-
-export function toGitUndoCommitResult(
-  payload: unknown,
-): CommandResult<GitUndoCommitResult> {
-  const head = rawGitUndoCommitHead(payload, PAYLOAD_ROOT);
-  if (!head.ok) return commandErr("invalidCommandResponse", head.detail);
-  const { message, status } = head.value;
-  const rawStatus = (payload as { readonly status: unknown }).status;
-  const decodedStatus = toCommitStatus(status.outcome, rawStatus);
-  return decodedStatus.ok
-    ? commandOk({ message, status: decodedStatus.value })
     : decodedStatus;
 }
 

@@ -2074,7 +2074,7 @@ fn git_commit_over_ipc_amends_with_a_blank_message() {
 }
 
 #[test]
-fn git_undo_last_commit_over_ipc_returns_the_message_and_the_status() {
+fn git_undo_last_commit_over_ipc_returns_the_status_and_no_message() {
     let fixture = fixture_or_skip!();
     let (_app, webview, project_id) = open_repository_project(&fixture, true);
     give_repository_an_identity(&fixture);
@@ -2102,7 +2102,7 @@ fn git_undo_last_commit_over_ipc_returns_the_message_and_the_status() {
     )
     .unwrap();
 
-    assert_eq!(response["message"], "second\n");
+    assert!(response.get("message").is_none());
     assert_eq!(response["status"]["outcome"], "updated");
     assert_eq!(
         response["status"]["status"]["files"][0]["path"],

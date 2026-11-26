@@ -217,7 +217,6 @@ pub const ARG_SOFT: &str = "--soft";
 /// `-n 1` for the commit at HEAD.
 pub const SINGLE_COMMIT_COUNT: &str = "1";
 pub const FORMAT_PARENTS: &str = "--format=%P";
-pub const FORMAT_RAW_BODY: &str = "--format=%B";
 pub const ARG_FOR_EACH_REF: &str = "for-each-ref";
 pub const ARG_CONTAINS: &str = "--contains";
 pub const ARG_COUNT_ONE: &str = "--count=1";

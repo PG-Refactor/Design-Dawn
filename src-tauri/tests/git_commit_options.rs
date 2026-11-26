@@ -14,11 +14,11 @@ use std::process::Command;
 use design_dawn_lib::application::error::ErrorKind;
 use design_dawn_lib::application::git_commit::{
     commit_with_options, undo_last_commit, GitCommitOptions, GitCommitResult, GitCommitStatus,
-    GitUndoCommitResult,
 };
 use design_dawn_lib::application::git_operations::{
     read_git_status, GitBranchInfo, GitFileChange, GitStatusResult,
 };
+use design_dawn_lib::application::git_remote::GitRemoteResult;
 use design_dawn_lib::infrastructure::git::executable::find_git_executable;
 use design_dawn_lib::infrastructure::git::runner::GitRunner;
 use support::*;
@@ -187,7 +187,7 @@ impl Fixture {
     fn undo(
         &self,
         project: &Path,
-    ) -> design_dawn_lib::application::error::ApplicationResult<GitUndoCommitResult> {
+    ) -> design_dawn_lib::application::error::ApplicationResult<GitRemoteResult> {
         undo_last_commit(Some(&self.runner()), project)
     }
 
@@ -608,7 +608,7 @@ fn amend_during_a_merge_is_refused() {
 // ---- Undo Last Commit ----
 
 #[test]
-fn undo_returns_the_message_and_keeps_the_changes_staged() {
+fn undo_keeps_the_changes_staged() {
     let fixture = fixture_or_skip!();
     let project = fixture.repository();
     let first = fixture.head(&project);
@@ -622,10 +622,6 @@ fn undo_returns_the_message_and_keeps_the_changes_staged() {
 
     let result = fixture.undo(&project).unwrap();
 
-    assert_eq!(
-        result.message.as_deref(),
-        Some("second commit\n\nbody 日本語\n")
-    );
     assert_eq!(fixture.head(&project), first);
     assert_eq!(
         fs::read_to_string(project.join("tracked.md")).unwrap(),
@@ -736,9 +732,8 @@ fn undo_of_a_local_commit_after_a_push_is_allowed() {
     let pushed = fixture.head(&project);
     fixture.commit_file(&project, "a.md", "a\n", "local");
 
-    let result = fixture.undo(&project).unwrap();
+    fixture.undo(&project).unwrap();
 
-    assert_eq!(result.message.as_deref(), Some("local\n"));
     assert_eq!(fixture.head(&project), pushed);
 }
 
