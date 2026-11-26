@@ -30,7 +30,7 @@ import type { MenuDefinition } from "../menu-bar/menu-bar-types";
 import { FIND_KEY } from "../search/find-shortcuts";
 import { requestFind } from "../search/find-store";
 import { openTemplateManager } from "../templates/template-dialogs";
-import { Notifications } from "./notifications";
+import { Notifications, TransientNotice } from "./notifications";
 import { saveEverything, saveShownDocument } from "./save-everything";
 import {
   modifierShortcutHint,
@@ -519,7 +519,9 @@ export function TopBar() {
           this heading is for assistive technology only. */}
       <h1 className="top-bar__app-name">{APP_CONFIG.displayName}</h1>
       <MenuBar label={topBar.menubarLabel} menus={menus} />
-      <div className="top-bar__spacer" />
+      {/* The notice takes the empty part of the bar, between the menus and the controls on
+          the right, so it never covers one of them. */}
+      <TransientNotice />
       {/* Auto Save off is a state to keep in mind (changes wait for Ctrl+S): shown all
           the time, not only as an unchecked menu item. */}
       {!autoSaveEnabled && !autoSaveLoading && (
