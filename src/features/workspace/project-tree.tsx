@@ -277,6 +277,15 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
     });
   }
 
+  // A row that is one of several chosen rows acts for all of them.
+  function isOneOfChosen(itemKey: string): boolean {
+    return selection.keys.length > 1 && selection.keys.includes(itemKey);
+  }
+
+  function deleteChosen(): void {
+    actions.requestDeleteEntries(chosenEntries().map(entryIdOf));
+  }
+
   // A right-click on one of several chosen rows offers what applies to all of them: move
   // and delete (a name cannot be given to several at once). Any other row has its own menu.
   const openRowMenu: TreeContextMenuHandler = (
@@ -287,7 +296,7 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
     anchorElement,
   ) => {
     const chosen = chosenEntries();
-    if (!(selection.keys.length > 1 && selection.keys.includes(itemKey))) {
+    if (!isOneOfChosen(itemKey)) {
       contextMenu.openFromEvent(event, label, entries, anchorElement);
       return;
     }
@@ -309,7 +318,7 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
           id: "deleteChosen",
           label: messages.tree.deleteChosen,
           disabled: chosen.length === 0,
-          onSelect: () => actions.requestDeleteEntries(chosen.map(entryIdOf)),
+          onSelect: deleteChosen,
         },
       ],
       anchorElement,
@@ -326,6 +335,8 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
     onChoose: choose,
     onNavigate: handleNavigate,
     onContextMenu: openRowMenu,
+    deleteRow: (itemKey, deleteThisOne) =>
+      isOneOfChosen(itemKey) ? deleteChosen() : deleteThisOne(),
     drag,
   };
 

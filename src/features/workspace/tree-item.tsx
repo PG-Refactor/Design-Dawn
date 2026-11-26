@@ -51,6 +51,9 @@ export interface TreeItemProps {
   readonly onActivate?: () => void;
   // Starts the inline rename (F2, the menu). Undefined: the row cannot be renamed.
   readonly onRename?: () => void;
+  // Asks to delete the entry (the Delete key, as the menu's "Delete" does). Undefined:
+  // the row cannot be deleted.
+  readonly onDelete?: () => void;
   // A second click on this row while it is selected renames it (the active Document's
   // row); otherwise every click activates.
   readonly renameOnReclick?: boolean;
@@ -118,6 +121,7 @@ export function TreeItem({
   onNavigate,
   onActivate,
   onRename,
+  onDelete,
   renameOnReclick = false,
   dragHandlers,
   dropMarker = null,
@@ -190,6 +194,16 @@ export function TreeItem({
       if (onRename === undefined) return;
       event.preventDefault();
       onRename();
+      return;
+    }
+    // Plain Delete only: with a modifier it may be some other shortcut.
+    if (
+      event.key === NAVIGATION_KEYS.delete &&
+      !(event.ctrlKey || event.metaKey || event.altKey || event.shiftKey)
+    ) {
+      if (onDelete === undefined) return;
+      event.preventDefault();
+      onDelete();
       return;
     }
     // Ctrl/Cmd+Arrow moves the entry; it must not fall through to focus navigation.

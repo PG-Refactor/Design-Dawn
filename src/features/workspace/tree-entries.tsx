@@ -50,6 +50,8 @@ export interface TreeHandlers {
     key: string,
   ) => void;
   readonly onContextMenu: TreeContextMenuHandler;
+  // The Delete key on a row: the row alone, or all chosen rows when it is one of them.
+  readonly deleteRow: (key: string, deleteThisOne: () => void) => void;
   readonly drag: TreeRowDrag;
 }
 
@@ -200,6 +202,11 @@ function DocumentTreeItem({
         failed ? undefined : () => void actions.openDocument(documentId)
       }
       onRename={failed ? undefined : rename}
+      onDelete={() =>
+        handlers.deleteRow(itemKey, () =>
+          actions.requestDeleteDocument(documentId),
+        )
+      }
       onMove={failed ? undefined : move}
       renaming={renamingProps(actions, isRenaming)}
       menuItems={menuItems}
@@ -290,6 +297,9 @@ function FolderTreeItem({
       // A folder has nothing to open: choosing its row folds or unfolds it.
       onActivate={() => actions.toggleFolder(folderId)}
       onRename={failed ? undefined : rename}
+      onDelete={() =>
+        handlers.deleteRow(itemKey, () => actions.requestDeleteFolder(folderId))
+      }
       onMove={failed ? undefined : move}
       renaming={renamingProps(actions, isRenaming)}
       menuItems={menuItems}
