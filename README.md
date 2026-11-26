@@ -24,9 +24,10 @@ can be read and edited by people, reviewed with Git, and changed safely by AI to
 
 - **Free-form canvas** — pan, zoom (wheel, or the zoom control in the corner: - / + or a typed
   percentage), select, move, resize, align, z-order, copy/paste, and undo/redo (creating and deleting
-  sheets and documents are confirmed instead and cannot be undone).
+  sheets, and deleting documents and folders, are confirmed instead and cannot be undone).
 - **Project → Document → Sheet → Block** — a project tree with folders (drag rows to reorder or
-  move them, and undo a reorder with Ctrl+Z / Ctrl+Y in the tree; a folder name with `/` or `\` makes nested folders), document tabs and sheet tabs that
+  move them, and undo a reorder, move, creation or folder rename with Ctrl+Z / Ctrl+Y in the tree
+  or the notice's Undo button; a folder name with `/` or `\` makes nested folders), document tabs and sheet tabs that
   scroll sideways when there are many; several documents (and windows) open at once. The
   sidebar can be folded away.
 - **Markdown blocks** — rendered view on the canvas; a split source/preview editor while editing
