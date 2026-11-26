@@ -96,10 +96,10 @@
       <h2>設計書のための Markdown・Mermaid エディタ</h2>
       <p class="sub">ドキュメントは複数のシートからなり、各シートにブロックを自由に配置できます。長い1本のページではなく、文章・図・画面写真を並べて書けます。</p>
       <div class="grid">
-        <div class="card"><h3>自由配置キャンバス</h3><p>パン・ズーム・選択・移動・リサイズ・整列・重なり順。すべての編集を Undo / Redo できます。</p></div>
+        <div class="card"><h3>自由配置キャンバス</h3><p>パン・ズーム・選択・移動・リサイズ・整列・重なり順。編集は Undo / Redo できます。</p></div>
         <div class="card"><h3>Project ツリー</h3><p>Document をフォルダで整理し、複数を同時に開けます。行のドラッグで並べ替え・移動できます。</p></div>
         <div class="card"><h3>Markdown ブロック</h3><p>キャンバス上では表示結果、編集中はソースとプレビューの分割表示。</p></div>
-        <div class="card"><h3>Mermaid の図</h3><p>Mermaid のあらゆる図をローカルで描画・サニタイズ。ネットワークもスクリプトも使いません。</p></div>
+        <div class="card"><h3>Mermaid の図</h3><p>Mermaid 12 で描ける図をローカルで描画・サニタイズ。ネットワークもスクリプトも使いません。</p></div>
         <div class="card"><h3><a href="mermaid-gui-editor/">Mermaid の GUI 編集</a></h3><p>フローチャート・シーケンス図・クラス図・状態遷移図・ER 図・ガントチャート・円グラフを、構文を書かずに一覧とプロパティ欄で編集。正本は Mermaid のソースのままです。</p></div>
         <div class="card"><h3><a href="docs-as-code/">Git 連携</a></h3><p>状態・ステージ・コミット・履歴・左右比較の差分と、シートの見た目での比較。マージの競合もアプリ内で解決（画像は両方を見て選ぶ）。フェッチ / プル / プッシュも。</p></div>
         <div class="card"><h3>外部変更の検知</h3><p>他のエディタ・Git・AI ツールによる変更を検知。読み直す・維持する・比較するを選べます。</p></div>
@@ -161,7 +161,7 @@
         <p><code>design-dawn-mcp</code> はローカルの MCP サーバー（標準入出力のみ、ネットワークポートなし）で、
           <strong>Claude・Codex・GitHub Copilot・Cursor</strong> などの MCP クライアントが、あなたが許可した Project を読み書きできます。</p>
         <p>どの Project も、編集を許可するまでは AI からは読み取り専用です。編集の許可は、アプリで付けるか、AI ツールで AI の依頼を承認して付けます（Claude Code の許可の確認など）。
-          編集は内容のハッシュで確認されるため、同時の変更は黙って上書きされず衝突として返ります。</p>
+          Block の本文は AI が読んだときの内容と照らして書き換えるので、その間の変更は黙って上書きされず衝突として返ります。</p>
 <pre><code>claude mcp add design-dawn -- /path/to/design-dawn-mcp</code></pre>
         <p class="more"><a href="mcp/">設定・権限・ツールの一覧 →</a></p>
       </div>
