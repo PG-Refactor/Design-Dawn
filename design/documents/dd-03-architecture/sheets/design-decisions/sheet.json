@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 2,
+  "sheetId": "01a218c8-9fa4-7708-90df-e945bde6d626",
+  "name": "Design Decisions",
+  "blocks": [
+    {
+      "blockId": "01a218c8-9faf-7125-9d87-7d5655ac000e",
+      "blockType": "markdown",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "size": {
+        "width": 1300,
+        "height": 400
+      },
+      "contentPath": "sheets/design-decisions/blocks/markdown-1-design-decisions.md"
+    }
+  ]
+}

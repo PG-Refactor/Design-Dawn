@@ -120,6 +120,10 @@ Layout lives in small JSON files and content lives in `.md` / `.mmd` files, so d
 and a human or an AI can change one block without touching the rest. Every JSON file carries a
 `schemaVersion`; IDs are stable UUIDs, and display names are independent of folder names.
 
+A real example: the design description of Design Dawn itself is a Design Dawn project in
+[`design/`](design/), written through the MCP server. Open `design/design-dawn.dawn` in the app, or
+read its `.md` and `.mmd` files here on GitHub.
+
 ## Building and running
 
 Development happens entirely inside a dev container; nothing but Docker is needed on the host.

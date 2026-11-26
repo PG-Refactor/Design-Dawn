@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 2,
+  "sheetId": "01a218c8-9f88-708d-8c63-d24b2523a11f",
+  "name": "Runtime View",
+  "blocks": [
+    {
+      "blockId": "01a218c8-9f92-7000-86dd-559e9bc70088",
+      "blockType": "markdown",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "size": {
+        "width": 760,
+        "height": 400
+      },
+      "contentPath": "sheets/runtime-view/blocks/markdown-1-runtime-view.md"
+    },
+    {
+      "blockId": "01a218c8-9f99-7379-823e-490aaf683168",
+      "blockType": "mermaid",
+      "position": {
+        "x": 820,
+        "y": 0
+      },
+      "size": {
+        "width": 620,
+        "height": 400
+      },
+      "contentPath": "sheets/runtime-view/blocks/mermaid-1.mmd",
+      "caption": "Figure 3-2. Processes and shared data"
+    }
+  ]
+}

@@ -82,6 +82,8 @@ my-project/
 配置は小さな JSON に、内容は `.md` / `.mmd` に分けて保存するため、差分が読みやすく、人や AI が他の部分に触れずに1つの Block だけを変更できます。
 すべての JSON ファイルは `schemaVersion` を持ち、ID は変わらない UUID、表示名はフォルダ名と独立しています。
 
+実例として、Design Dawn 自身の設計書（英語）を、MCP サーバー経由で書いた Design Dawn の Project として [`design/`](design/) に置いています。アプリで `design/design-dawn.dawn` を開くか、GitHub 上で `.md` / `.mmd` のファイルをそのまま読めます。
+
 ## ビルドと実行
 
 開発はすべて開発コンテナの中で行います。ホストに必要なのは Docker だけです。

@@ -1,0 +1,6 @@
+stateDiagram-v2
+    [*] --> NotListed
+    NotListed --> ReadOnly: add to the list
+    ReadOnly --> Writable: allow editing
+    Writable --> ReadOnly: stop editing
+    ReadOnly --> NotListed: remove from the list

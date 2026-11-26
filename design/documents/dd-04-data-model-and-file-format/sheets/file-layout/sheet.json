@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 2,
+  "sheetId": "01a218c8-9fda-77bf-a015-449faeebf34c",
+  "name": "File Layout",
+  "blocks": [
+    {
+      "blockId": "01a218c8-9fe4-714a-9d27-70623ee38ee8",
+      "blockType": "markdown",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "size": {
+        "width": 680,
+        "height": 420
+      },
+      "contentPath": "sheets/file-layout/blocks/markdown-1-file-layout.md"
+    },
+    {
+      "blockId": "01a218c8-9fec-712d-9de0-88e88d239ad8",
+      "blockType": "markdown",
+      "position": {
+        "x": 740,
+        "y": 0
+      },
+      "size": {
+        "width": 700,
+        "height": 420
+      },
+      "contentPath": "sheets/file-layout/blocks/markdown-2-why-this-layout.md"
+    }
+  ]
+}

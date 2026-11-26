@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 2,
+  "sheetId": "01a218c8-9f02-741a-a93a-7bd0959f9eb4",
+  "name": "Purpose and Scope",
+  "blocks": [
+    {
+      "blockId": "01a218c8-9f0d-7453-9dec-f75f491f3bc9",
+      "blockType": "markdown",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "size": {
+        "width": 680,
+        "height": 440
+      },
+      "contentPath": "sheets/purpose-and-scope/blocks/markdown-1-purpose-and-scope.md"
+    },
+    {
+      "blockId": "01a218c8-9f14-77b2-9658-bc2ffb0c6d0a",
+      "blockType": "mermaid",
+      "position": {
+        "x": 740,
+        "y": 0
+      },
+      "size": {
+        "width": 560,
+        "height": 560
+      },
+      "contentPath": "sheets/purpose-and-scope/blocks/mermaid-1.mmd",
+      "caption": "Figure 1-1. System context"
+    }
+  ]
+}

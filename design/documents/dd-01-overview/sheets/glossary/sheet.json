@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 2,
+  "sheetId": "01a218c8-9f1e-7128-b574-21c79763e744",
+  "name": "Glossary",
+  "blocks": [
+    {
+      "blockId": "01a218c8-9f29-76fe-9a39-2b46f2c61d9d",
+      "blockType": "markdown",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "size": {
+        "width": 980,
+        "height": 420
+      },
+      "contentPath": "sheets/glossary/blocks/markdown-1-glossary.md"
+    }
+  ]
+}
