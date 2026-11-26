@@ -373,6 +373,29 @@ describe("reordering", () => {
     await waitFor(() => expect(treeLabels()[1]).toBe("Folder 1"));
   });
 
+  it("takes a reorder back with Ctrl+Z in the tree and makes it again with Ctrl+Y", async () => {
+    const harness = await openedShell();
+    const rootRows = () =>
+      treeLabels().filter((l) => /^(Folder 1|Document [AB])$/.test(l));
+    treeItemNamed("Folder 1").focus();
+    await harness.user.keyboard(CTRL_DOWN);
+    await waitFor(() =>
+      expect(rootRows()).toEqual(["Document A", "Folder 1", "Document B"]),
+    );
+
+    await harness.user.keyboard("{Control>}z{/Control}");
+    await waitFor(() =>
+      expect(rootRows()).toEqual(["Folder 1", "Document A", "Document B"]),
+    );
+    expect(harness.gateway.disk.childOrder[0]).toBe(FOLDER_1);
+
+    await harness.user.keyboard("{Control>}y{/Control}");
+    await waitFor(() =>
+      expect(rootRows()).toEqual(["Document A", "Folder 1", "Document B"]),
+    );
+    expect(harness.uiStateStore.getState().operationErrors).toEqual([]);
+  });
+
   it("moves a nested document by dragging it in front of its sibling, saving its folder", async () => {
     const harness = await openedShell();
     await dragTreeRow(harness.user, "Document C", yOnRow("Folder 2", 0.1));

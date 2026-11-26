@@ -140,6 +140,10 @@ export interface WorkspaceActions {
   // Waits for the workspace steps in progress (a Document leaving this window may still be
   // here while Rust already asks the emptied window to close).
   whenWorkspaceIdle(): Promise<void>;
+  // Undo / redo of the last reorder in the Project tree. False when there is none, so the
+  // key can go to the Document's history instead.
+  undoTreeOrder(): Promise<boolean>;
+  redoTreeOrder(): Promise<boolean>;
   // Something in these Documents is not saved yet (an editor draft included).
   hasUnsavedChanges(documentIds: readonly DocumentId[]): boolean;
   // Shows the question for a window close and resolves to the user's answer.
@@ -673,6 +677,19 @@ export function createWorkspaceActions(
     return result;
   }
 
+  async function treeOrderStep(operation: "undo" | "redo"): Promise<boolean> {
+    const result =
+      operation === "undo"
+        ? await workspace.undoTreeOrder()
+        : await workspace.redoTreeOrder();
+    if (!result.ok) {
+      record(operation, null, result.error);
+      // The steps were dropped: the key has done its part.
+      return true;
+    }
+    return result.value;
+  }
+
   // Reorders among the siblings of the entry's own parent.
   async function reorderEntry(
     entryId: EntryId,
@@ -1103,6 +1120,8 @@ export function createWorkspaceActions(
     deleteUnusedAssets: (documentId, contentPaths) =>
       workspace.deleteUnusedAssets(documentId, contentPaths),
     whenWorkspaceIdle: () => workspace.whenIdle(),
+    undoTreeOrder: () => treeOrderStep("undo"),
+    redoTreeOrder: () => treeOrderStep("redo"),
     windowCloseNeedsConfirmation: () =>
       !autoSavePolicy.isEnabled() && hasUnsavedProjectChanges(),
     askUnsavedWindowClose() {
