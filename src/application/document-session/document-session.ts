@@ -126,14 +126,17 @@ export interface SessionExclusiveScope {
   // Changes the document's structure (sheets added to / removed from the document).
   // Deliberately NOT a history step: creating and deleting sheets is not undoable,
   // so it never goes through `execute`. Sheets that
-  // appear or disappear are not marked dirty: their files are created / deleted by
-  // the caller through the gateway, not saved by the coordinator.
+  // appear or disappear are not marked dirty here: the caller writes or deletes them
+  // through the gateway, or (auto-save off) marks a reserved sheet dirty and plans a
+  // deletion with `planSheetRemoval`.
   // `next` is computed by the caller from `getData()` (where it can be refused); taking
   // it over cannot fail.
   applyStructuralChange(
     next: DocumentData,
     options: StructuralChangeOptions,
   ): void;
+  // The next save deletes the sheet's directory (auto-save off).
+  planSheetRemoval(sheetId: SheetId): void;
 }
 
 export interface DocumentSession {
@@ -633,6 +636,7 @@ export function createDocumentSession(
     saveDirty: () => coordinator.saveDirty(),
     markDirty: markDirtyOutsideHistory,
     applyStructuralChange,
+    planSheetRemoval: (sheetId) => coordinator.planSheetRemoval(sheetId),
   };
 
   async function loadContents(

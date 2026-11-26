@@ -14,7 +14,7 @@ import {
   SHEET_ID,
   sheetIdOf,
 } from "../test-support/fakes";
-import { createSaveCoordinator } from "./save-coordinator";
+import { createSaveCoordinator, NO_PLANNED_FILES } from "./save-coordinator";
 
 const BLOCK = makeBlockAt(1, 0, 0);
 const NEW_PATH = "sheets/s/blocks/markdown-new.md" as ContentPath;
@@ -146,6 +146,57 @@ describe("save coordinator lifecycle", () => {
     saver.planRemoval(planned.blockId, planned.contentPath);
     saver.planRemoval(blockIdOf(9), NEW_PATH);
     saver.planRestore({ ...planned, blockId: blockIdOf(9) });
-    expect(saver.plannedFiles()).toEqual({ creates: [], deletes: [] });
+    expect(saver.plannedFiles()).toEqual(NO_PLANNED_FILES);
+  });
+});
+
+describe("planned sheet deletions", () => {
+  const data = withContents(makeDocumentData([BLOCK]), [[BLOCK.blockId, "x"]]);
+
+  it("drops the files planned for the deleted sheet's blocks", () => {
+    const { saver } = coordinator(createFakeGateway(), data);
+    const elsewhere = {
+      ...planned,
+      blockId: blockIdOf(9),
+      sheetId: sheetIdOf(9),
+    };
+    saver.planCreate(planned);
+    saver.planCreate(elsewhere);
+
+    saver.planSheetRemoval(SHEET_ID);
+
+    expect(saver.plannedFiles()).toEqual({
+      creates: [elsewhere],
+      deletes: [],
+      sheetDeletes: [SHEET_ID],
+    });
+  });
+
+  it("takes a directory that is already gone as deleted", async () => {
+    const gateway = createFakeGateway();
+    gateway.failOn("deleteSheet", "fileNotFound");
+    const { saver } = coordinator(gateway, data);
+    saver.planSheetRemoval(SHEET_ID);
+
+    expect((await saver.saveDirty()).ok).toBe(true);
+    expect(saver.plannedFiles()).toEqual(NO_PLANNED_FILES);
+  });
+
+  it("starts from the deletions handed over with a moved Document", () => {
+    const saver = createSaveCoordinator({
+      projectId: PROJECT_ID,
+      documentId: DOCUMENT_ID,
+      gateway: createFakeGateway(),
+      scheduler: createFakeScheduler(),
+      autoSaveDelayMs: 1,
+      autoSavePolicy: ALWAYS_ENABLED_AUTO_SAVE_POLICY,
+      getData: () => data,
+      runExclusive: (task) => task(),
+      onChange: () => {},
+      relocate: () => {},
+      plannedFiles: { ...NO_PLANNED_FILES, sheetDeletes: [SHEET_ID] },
+    });
+
+    expect(saver.plannedFiles().sheetDeletes).toEqual([SHEET_ID]);
   });
 });

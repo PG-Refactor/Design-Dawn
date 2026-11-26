@@ -1,10 +1,11 @@
 // Tracks what is dirty and persists it. Metadata-only changes
 // mark things dirty; saving happens after a quiet period (debounce), on `saveDirty`, or
-// before a file-backed sequence. With auto-save off, adding and removing text blocks does
-// not touch files either: the files to create (under names reserved in Rust) and to delete
-// are planned here and handled by the next save, in the order the file-backed sequences
-// use (content files first, then the sheets, then deletions). It never runs concurrently with commands: the timer
-// goes through `runExclusive`, the session's serial queue.
+// before a file-backed sequence. With auto-save off, adding and removing text blocks and
+// sheets does not touch files either: the files to create (under names reserved in Rust)
+// and to delete, and the sheets to delete, are planned here and handled by the next save,
+// in the order the file-backed sequences use (content files first, then the sheets, then
+// file deletions, then the document, then sheet deletions). It never runs concurrently
+// with commands: the timer goes through `runExclusive`, the session's serial queue.
 
 import type { BlockType } from "../../domain/block/block-type";
 import type { ContentPath } from "../../domain/block/content-path";
@@ -39,9 +40,15 @@ export interface PlannedCreate {
 export interface PlannedFiles {
   readonly creates: readonly PlannedCreate[];
   readonly deletes: readonly ContentPath[];
+  // Sheets whose directories go once the saved order no longer names them.
+  readonly sheetDeletes: readonly SheetId[];
 }
 
-export const NO_PLANNED_FILES: PlannedFiles = { creates: [], deletes: [] };
+export const NO_PLANNED_FILES: PlannedFiles = {
+  creates: [],
+  deletes: [],
+  sheetDeletes: [],
+};
 
 const ALREADY_EXISTS = "alreadyExists";
 const FILE_NOT_FOUND = "fileNotFound";
@@ -102,6 +109,9 @@ export interface SaveCoordinator {
   // A text block came back (undo / redo): its file stays when a deletion was planned (and
   // its text is saved again), otherwise the next save creates it.
   planRestore(create: PlannedCreate): void;
+  // Auto-save off: a sheet went away. The next save deletes its directory after the order
+  // without it; creations planned for its blocks are dropped.
+  planSheetRemoval(sheetId: SheetId): void;
   plannedFiles(): PlannedFiles;
   dispose(): void;
 }
@@ -138,6 +148,9 @@ export function createSaveCoordinator(
     initialPlan.creates.map((create) => [create.blockId, create]),
   );
   let plannedDeletes: ReadonlySet<ContentPath> = new Set(initialPlan.deletes);
+  let plannedSheetDeletes: ReadonlySet<SheetId> = new Set(
+    initialPlan.sheetDeletes,
+  );
 
   function stopTimer(): void {
     cancelTimer?.();
@@ -161,7 +174,8 @@ export function createSaveCoordinator(
       dirtySheetIds.size > 0 ||
       documentDirty ||
       plannedCreates.size > 0 ||
-      plannedDeletes.size > 0
+      plannedDeletes.size > 0 ||
+      plannedSheetDeletes.size > 0
     );
   }
 
@@ -215,6 +229,18 @@ export function createSaveCoordinator(
         return deleted.error;
       }
       plannedDeletes = withoutId(plannedDeletes, contentPath);
+      return null;
+    });
+  }
+
+  // Once the saved order no longer names them. A directory that is already gone is fine.
+  function deletePlannedSheets(): Promise<OperationError | null> {
+    return firstFailure(plannedSheetDeletes, async (sheetId) => {
+      const deleted = await gateway.deleteSheet(projectId, documentId, sheetId);
+      if (!deleted.ok && deleted.error.kind !== FILE_NOT_FOUND) {
+        return deleted.error;
+      }
+      plannedSheetDeletes = withoutId(plannedSheetDeletes, sheetId);
       return null;
     });
   }
@@ -292,7 +318,14 @@ export function createSaveCoordinator(
       createError === null ? await saveSheets(data) : createError;
     const deleteError = sheetError === null ? await deletePlannedFiles() : null;
     const documentError = await saveDocumentIfDirty(data.document);
-    const error = contentError ?? sheetError ?? deleteError ?? documentError;
+    const sheetDeleteError =
+      documentError === null ? await deletePlannedSheets() : null;
+    const error =
+      contentError ??
+      sheetError ??
+      deleteError ??
+      documentError ??
+      sheetDeleteError;
     saving = false;
     // Dirty flags of failed parts stay set, so the next change or flush retries them.
     lastError = error;
@@ -357,6 +390,7 @@ export function createSaveCoordinator(
       documentDirty = false;
       plannedCreates = new Map();
       plannedDeletes = new Set();
+      plannedSheetDeletes = new Set();
       lastError = null;
       stopTimer();
       options.onChange();
@@ -384,9 +418,16 @@ export function createSaveCoordinator(
       }
       plannedCreates = new Map([...plannedCreates, [create.blockId, create]]);
     },
+    planSheetRemoval(sheetId) {
+      plannedCreates = new Map(
+        [...plannedCreates].filter(([, create]) => create.sheetId !== sheetId),
+      );
+      plannedSheetDeletes = new Set([...plannedSheetDeletes, sheetId]);
+    },
     plannedFiles: () => ({
       creates: [...plannedCreates.values()],
       deletes: [...plannedDeletes],
+      sheetDeletes: [...plannedSheetDeletes],
     }),
     dispose() {
       disposed = true;

@@ -145,6 +145,7 @@ pub fn load_document(
             SheetRecord {
                 directory_name: child.directory_name.clone(),
                 writable: child.payload.is_some(),
+                reserved_name: None,
             },
         );
         effective_order.push(child.id.to_string());
@@ -231,8 +232,20 @@ pub fn close_document(
     let document_id = DocumentId::parse(document_id)?;
     let record = session.document_mut(&document_id)?;
     record.opened = false;
-    // Closed without saving, an unsaved name is gone too.
+    // Closed without saving, an unsaved name and the sheets only reserved are gone too.
     let had_shown_name = record.shown_name.take().is_some();
+    let reserved: Vec<String> = record
+        .sheets
+        .values()
+        .filter(|sheet| sheet.reserved_name.is_some())
+        .map(|sheet| sheet.directory_name.clone())
+        .collect();
+    record
+        .sheets
+        .retain(|_, sheet| sheet.reserved_name.is_none());
+    for directory_name in &reserved {
+        session.forget_block_numbers(&document_id, Some(directory_name));
+    }
     // Its history is gone with it: an image imported now and kept nowhere is only clutter
     // (and would be committed). What could not be removed simply stays.
     super::asset_cleanup::remove_unused_new_assets(session, &document_id);

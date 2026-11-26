@@ -47,6 +47,8 @@ export const GATEWAY_METHOD_KINDS = {
   loadDocument: "read",
   closeDocument: "read",
   createSheet: "write",
+  // Only picks a directory name; the first write into the sheet writes.
+  reserveSheet: "read",
   deleteSheet: "write",
   deleteDocument: "write",
   saveSheet: "write",

@@ -38,6 +38,7 @@ import {
   readBlockContent,
   reloadProject,
   repairLoadIssue,
+  reserveSheet,
   restoreBlockContent,
   saveFolder,
   saveProject,
@@ -443,6 +444,21 @@ describe("successful conversion", () => {
       name: "Name",
     });
     expect(created.ok && created.value.sheet?.name).toBe("Overview");
+
+    invokeMock.mockResolvedValueOnce({
+      sheetId: SHEET_ID,
+      name: "Overview",
+      state: "loaded",
+      sheet: rawSheet,
+    });
+    const reserved = await reserveSheet(projectId, documentId, sheetId, name);
+    expect(invokeMock).toHaveBeenLastCalledWith(COMMANDS.reserveSheet, {
+      projectId: PROJECT_ID,
+      documentId: DOCUMENT_ID,
+      sheetId: SHEET_ID,
+      name: "Name",
+    });
+    expect(reserved.ok && reserved.value.sheetId).toBe(SHEET_ID);
 
     invokeMock.mockResolvedValueOnce(CONTENT_PATH);
     const path = await createBlockContent(

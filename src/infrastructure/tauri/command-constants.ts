@@ -22,6 +22,7 @@ export const COMMANDS = {
   closeDocument: "close_document",
   saveDocument: "save_document",
   createSheet: "create_sheet",
+  reserveSheet: "reserve_sheet",
   saveSheet: "save_sheet",
   createBlockContent: "create_block_content",
   readBlockContent: "read_block_content",

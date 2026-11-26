@@ -21,11 +21,13 @@ import type {
   SheetId,
 } from "../../domain/shared/entity-id";
 import type { Store } from "../../shared/store/store";
+import type { DocumentData } from "../commands/document-data";
 import {
   createDocumentSession,
   type DocumentSession,
   type DocumentSessionConfig,
   type DocumentSessionSeed,
+  type SessionExclusiveScope,
 } from "../document-session/document-session";
 import {
   decodeDocumentTransfer,
@@ -33,7 +35,10 @@ import {
 } from "../document-session/document-transfer";
 import type { IdGenerator } from "../id-generator";
 import type { UnusedAsset, UnusedAssets } from "../ports/asset-types";
-import type { AutoSavePolicy } from "../ports/auto-save-policy";
+import {
+  ALWAYS_ENABLED_AUTO_SAVE_POLICY,
+  type AutoSavePolicy,
+} from "../ports/auto-save-policy";
 import type {
   DocumentWindowGateway,
   DocumentWindowTarget,
@@ -289,6 +294,7 @@ export interface Workspace {
 export function createWorkspace(options: WorkspaceOptions): Workspace {
   const { gateway, scheduler, idGenerator, store, config, autoSavePolicy } =
     options;
+  const savingPolicy = autoSavePolicy ?? ALWAYS_ENABLED_AUTO_SAVE_POLICY;
   const { windows } = options;
   // Hand-overs already taken, by id. The same hand-over can be announced again (a window
   // that subscribes while starting hears about the one its start-up request carries), and
@@ -934,7 +940,12 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     const sheetId = idGenerator.sheetId();
     const { projectId, session } = target.value;
     return session.runExclusive(async (scope) => {
-      const created = await gateway.createSheet(
+      // Auto Save off: Rust only reserves the sheet, and it waits for a save like any
+      // other change. Otherwise Rust writes it and adds it to the order on disk now, and
+      // nothing else is saved.
+      const savesNow = savingPolicy.isEnabled();
+      const create = savesNow ? gateway.createSheet : gateway.reserveSheet;
+      const created = await create(
         projectId,
         documentId,
         sheetId,
@@ -944,17 +955,56 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
       const sheet = validateSheetSnapshot(created.value, sheetId);
       if (!sheet.ok) return sheet;
       // History stays: existing commands never reference a sheet that is only added.
-      // Rust wrote the sheet and added it to the order on disk, so nothing becomes
-      // unsaved, and nothing else is saved: the Document's other edits stay as they were
-      // (with Auto Save off they wait for an explicit save).
       const added = withSheetAdded(scope.getData(), sheet.value);
       if (!added.ok) return failWith(added.error);
       scope.applyStructuralChange(added.value, {
         clearHistory: false,
         markDirty: false,
       });
+      if (!savesNow) {
+        scope.markDirty({
+          documentChanged: true,
+          changedSheetIds: [sheetId],
+          changedContentBlockIds: [],
+        });
+      }
       return operationOk(sheetId);
     });
+  }
+
+  // Deletes the sheet's directory now. Pending edits of the other sheets are saved first,
+  // so nothing unsaved is lost if the process stops between the steps; then the order
+  // without the sheet, then the directory. Memory is untouched until the directory is
+  // really gone, so a failure here changes nothing.
+  async function removeSheetNow(
+    scope: SessionExclusiveScope,
+    projectId: ProjectId,
+    documentId: DocumentId,
+    sheetId: SheetId,
+    without: DocumentData,
+  ): Promise<OperationResult<void>> {
+    const data = scope.getData();
+    const flushed = await scope.saveDirty();
+    if (!flushed.ok) return flushed;
+    const orderChanged = without.document !== data.document;
+    if (orderChanged) {
+      const saved = await gateway.saveDocument(projectId, without.document);
+      if (!saved.ok) return saved;
+    }
+    const deleted = await gateway.deleteSheet(projectId, documentId, sheetId);
+    if (!deleted.ok && orderChanged) {
+      // The saved order lost the sheet but the directory is still there: write the
+      // in-memory order back; when that fails too, leave the document dirty.
+      const restored = await gateway.saveDocument(projectId, data.document);
+      if (!restored.ok) {
+        scope.markDirty({
+          documentChanged: true,
+          changedSheetIds: [],
+          changedContentBlockIds: [],
+        });
+      }
+    }
+    return deleted;
   }
 
   async function deleteSheetStep(
@@ -977,33 +1027,20 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
       if (!known) {
         return operationErr("entityNotFound", `sheet not found: ${sheetId}`);
       }
-      // Pending edits of the other sheets are saved first, so nothing unsaved is lost
-      // if the process stops between the steps below.
-      const flushed = await scope.saveDirty();
-      if (!flushed.ok) return flushed;
       const without = withSheetRemoved(data, sheetId);
-      const orderChanged = without.document !== data.document;
-      // Order first, directory second. Memory is untouched
-      // until the directory is really gone, so a failure here changes nothing.
-      if (orderChanged) {
-        const saved = await gateway.saveDocument(projectId, without.document);
-        if (!saved.ok) return saved;
-      }
-      const deleted = await gateway.deleteSheet(projectId, documentId, sheetId);
-      if (!deleted.ok) {
-        if (orderChanged) {
-          // The saved order lost the sheet but the directory is still there: write the
-          // in-memory order back; when that fails too, leave the document dirty.
-          const restored = await gateway.saveDocument(projectId, data.document);
-          if (!restored.ok) {
-            scope.markDirty({
-              documentChanged: true,
-              changedSheetIds: [],
-              changedContentBlockIds: [],
-            });
-          }
-        }
-        return deleted;
+      const savesNow = savingPolicy.isEnabled();
+      if (savesNow) {
+        const removed = await removeSheetNow(
+          scope,
+          projectId,
+          documentId,
+          sheetId,
+          without,
+        );
+        if (!removed.ok) return removed;
+      } else {
+        // Auto Save off: the directory goes with the next save, after the order without it.
+        scope.planSheetRemoval(sheetId);
       }
       store.setState((state) => {
         const details = state.documentDetails.get(
@@ -1016,10 +1053,10 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
           ),
         });
       });
-      // The order was saved above; history may reference the removed sheet.
+      // History may reference the removed sheet. Saved now, the order is on disk already.
       scope.applyStructuralChange(without, {
         clearHistory: true,
-        markDirty: false,
+        markDirty: !savesNow,
       });
       events.emit({ type: "sheetDeleted", documentId, sheetId });
       return operationOk(undefined);

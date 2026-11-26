@@ -159,8 +159,17 @@ export interface PersistenceGateway {
     sheetId: SheetId,
     name: DisplayName,
   ): Promise<OperationResult<SheetSnapshot>>;
+  // A new sheet without writing anything (auto-save off): the first write into it (its
+  // save, a block's file) puts it on disk and in the order. Closing the Document without
+  // that forgets it.
+  reserveSheet(
+    projectId: ProjectId,
+    documentId: DocumentId,
+    sheetId: SheetId,
+    name: DisplayName,
+  ): Promise<OperationResult<SheetSnapshot>>;
   // Destructive; the caller has to have saved the parent's order without the entity
-  // first.
+  // first. A reserved sheet is only forgotten.
   deleteSheet(
     projectId: ProjectId,
     documentId: DocumentId,

@@ -5,6 +5,7 @@ use serde::Serialize;
 use super::error::{ApplicationError, ApplicationResult};
 use super::line_diff::{unified_diff, LineDiff};
 use super::session::{ProjectSession, ProjectSessions};
+use super::sheet_operations::write_reserved_sheet;
 use super::snapshot::SaveResult;
 use crate::domain::block_type::{BlockType, ContentLocation, BLOCK_TYPE_DEFINITIONS};
 use crate::domain::constants::{BLOCKS_DIRECTORY_NAME, PATH_SEPARATOR, SHEETS_DIRECTORY_NAME};
@@ -70,23 +71,24 @@ fn parse_text_content_path(content_path: &str) -> Result<TextContentPath, Domain
     Err(first_error.expect("at least one text block type is defined"))
 }
 
+/// The sheet that owns `sheet_directory`, when it may be written.
 fn require_writable_sheet_directory(
     session: &ProjectSession,
     document_id: &DocumentId,
     sheet_directory: &str,
-) -> ApplicationResult<()> {
+) -> ApplicationResult<SheetId> {
     let record = session.document(document_id)?;
-    let sheet_record = record
+    let (sheet_id, sheet_record) = record
         .sheets
-        .values()
-        .find(|sheet| sheet.directory_name == sheet_directory)
+        .iter()
+        .find(|(_, sheet)| sheet.directory_name == sheet_directory)
         .ok_or_else(|| {
             ApplicationError::entity_not_found(format!(
                 "no loaded sheet uses directory {sheet_directory:?}"
             ))
         })?;
     if sheet_record.writable {
-        Ok(())
+        Ok(*sheet_id)
     } else {
         Err(ApplicationError::not_writable(format!(
             "sheet directory {sheet_directory:?} did not load and cannot be written"
@@ -94,18 +96,30 @@ fn require_writable_sheet_directory(
     }
 }
 
-/// Where a new text block's file goes in the sheet: the blocks folder (created when
-/// missing) and the document base.
+/// Where a new text block's file goes in the sheet: the blocks folder and the document base.
 struct BlocksFolder {
     base: String,
     blocks_directory: String,
     sheet_directory: String,
+    /// The sheet is only reserved: its folder is not on disk and holds nothing yet.
+    reserved: bool,
 }
 
+/// Whether a new block's file is written now or its name is only reserved.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum NewContent {
+    Written,
+    Reserved,
+}
+
+/// The sheet's blocks folder for a new block. A file written now puts a reserved sheet on
+/// disk first and creates a missing folder; a name only reserved touches nothing of a
+/// reserved sheet.
 fn blocks_folder(
     session: &mut ProjectSession,
     document_id: &DocumentId,
     sheet_id: &SheetId,
+    content: NewContent,
 ) -> ApplicationResult<BlocksFolder> {
     let record = session.document(document_id)?;
     let sheet_record = record.sheets.get(sheet_id).ok_or_else(|| {
@@ -121,12 +135,20 @@ fn blocks_folder(
         sheet_record.directory_name
     );
     let sheet_directory = sheet_record.directory_name.clone();
+    let mut reserved = sheet_record.reserved_name.is_some();
+    if content == NewContent::Written {
+        write_reserved_sheet(session, document_id, sheet_id)?;
+        reserved = false;
+    }
     let base = session.document_base(document_id)?;
-    session.ensure_directory(&base, &blocks_directory)?;
+    if !reserved {
+        session.ensure_directory(&base, &blocks_directory)?;
+    }
     Ok(BlocksFolder {
         base,
         blocks_directory,
         sheet_directory,
+        reserved,
     })
 }
 
@@ -139,7 +161,11 @@ fn next_content_path(
     block_type: BlockType,
     text: &str,
 ) -> ApplicationResult<(String, ContentPath)> {
-    let existing = session.entry_names(&folder.base, &folder.blocks_directory)?;
+    let existing = if folder.reserved {
+        Vec::new()
+    } else {
+        session.entry_names(&folder.base, &folder.blocks_directory)?
+    };
     let high_water =
         session.block_number_high_water(document_id, &folder.sheet_directory, block_type);
     let label = block_content_label(block_type, text);
@@ -162,7 +188,7 @@ pub fn create_block_content(
     let document_id = DocumentId::parse(document_id)?;
     let sheet_id = SheetId::parse(sheet_id)?;
     let block_type = BlockType::parse(block_type)?;
-    let folder = blocks_folder(session, &document_id, &sheet_id)?;
+    let folder = blocks_folder(session, &document_id, &sheet_id, NewContent::Written)?;
     loop {
         let (content_path, parsed) =
             next_content_path(session, &document_id, &folder, block_type, text)?;
@@ -204,7 +230,7 @@ pub fn reserve_block_content(
     let document_id = DocumentId::parse(document_id)?;
     let sheet_id = SheetId::parse(sheet_id)?;
     let block_type = BlockType::parse(block_type)?;
-    let folder = blocks_folder(session, &document_id, &sheet_id)?;
+    let folder = blocks_folder(session, &document_id, &sheet_id, NewContent::Reserved)?;
     let (content_path, parsed) =
         next_content_path(session, &document_id, &folder, block_type, text)?;
     note_issued_number(
@@ -380,7 +406,10 @@ pub fn restore_block_content(
     }
     let parsed =
         TextContentPath::from_validated(block_type, &ContentPath::parse(block_type, content_path)?);
-    require_writable_sheet_directory(session, &document_id, &parsed.sheet_directory)?;
+    let sheet_id =
+        require_writable_sheet_directory(session, &document_id, &parsed.sheet_directory)?;
+    // The first block written into a reserved sheet puts the sheet on disk.
+    write_reserved_sheet(session, &document_id, &sheet_id)?;
     let base = session.document_base(&document_id)?;
     // Git does not keep empty directories, so a sheet whose last block was deleted may
     // have no `blocks/` after a clone; restoring must work there just like creating.

@@ -196,6 +196,21 @@ describe("moving a document to another window", () => {
     }
   });
 
+  it("carries a sheet deletion planned for the next save", async () => {
+    const harness = await editedSession();
+    await harness.session.runExclusive(async (scope) => {
+      scope.planSheetRemoval(OTHER_SHEET_ID);
+      return { ok: true, value: undefined };
+    });
+
+    const { session } = receive(harness, await handOver(harness));
+    const handedOnward = await session.handOver();
+
+    expect(
+      handedOnward.ok && handedOnward.value.plannedFiles.sheetDeletes,
+    ).toEqual([OTHER_SHEET_ID]);
+  });
+
   it("refuses a history entry it does not know", async () => {
     const harness = await editedSession();
     const payload = JSON.parse(await handOver(harness));
