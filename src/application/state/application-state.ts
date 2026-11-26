@@ -24,6 +24,11 @@ export interface HistoryState {
   readonly canRedo: boolean;
   readonly undoLabel: CommandKind | null;
   readonly redoLabel: CommandKind | null;
+  // The text block whose content the next undo / redo changes back, when that step only
+  // edits a block's text: an editor of that block can take the step without reaching
+  // anything else.
+  readonly undoTextBlockId: BlockId | null;
+  readonly redoTextBlockId: BlockId | null;
 }
 
 export interface SaveState {

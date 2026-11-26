@@ -1,4 +1,4 @@
-import type { SheetId } from "../../domain/shared/entity-id";
+import type { BlockId, SheetId } from "../../domain/shared/entity-id";
 import type { Sheet } from "../../domain/sheet/sheet";
 import type { OperationResult } from "../ports/operation-error";
 import { operationOk } from "../ports/operation-error";
@@ -10,7 +10,7 @@ import {
   type SequenceSuccess,
 } from "./block-file-sequences";
 import type { MetadataCommand } from "./command";
-import type { CommandKind } from "./command-kind";
+import { COMMAND_KINDS, type CommandKind } from "./command-kind";
 
 // What the undo / redo stacks hold. A file-backed entry is not a command object: after
 // the first run it is the data needed to move the same blocks in and out of the sheet,
@@ -29,6 +29,15 @@ export type FileBackedEntry = Extract<HistoryEntry, { type: "fileBacked" }>;
 
 export function entryLabel(entry: HistoryEntry): CommandKind {
   return entry.type === "metadata" ? entry.command.kind : entry.label;
+}
+
+// The text block whose content the entry changes, when that is all it changes.
+export function editedTextBlockOf(entry: HistoryEntry): BlockId | null {
+  if (entry.type !== "metadata") return null;
+  const snapshot = entry.command.snapshot();
+  return snapshot.kind === COMMAND_KINDS.editBlockContent
+    ? snapshot.blockId
+    : null;
 }
 
 // Drops the oldest entries beyond `limit`.

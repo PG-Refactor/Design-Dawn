@@ -9,6 +9,7 @@ import {
   resizeBlocksCommand,
 } from "../commands/block-commands";
 import type { MetadataCommand } from "../commands/command";
+import { editBlockContentCommand } from "../commands/content-commands";
 import {
   moveSheetCommand,
   renameDocumentCommand,
@@ -108,6 +109,29 @@ describe("history: do, undo, redo", () => {
     expect(session.getState().history).toMatchObject({
       undoLabel: "moveBlocks",
       redoLabel: "renameSheet",
+    });
+  });
+
+  it("names the text block the next undo and redo change, when that is all they change", async () => {
+    const { session } = openSession();
+    await session.loadSheetContents(SHEET_ID);
+    await session.execute(moveBlocksCommand(SHEET_ID, [move(1, 5, 5)]));
+    expect(session.getState().history).toMatchObject({
+      undoTextBlockId: null,
+      redoTextBlockId: null,
+    });
+    await session.execute(
+      editBlockContentCommand({
+        sheetId: SHEET_ID,
+        blockId: blockIdOf(1),
+        text: "edited",
+      }),
+    );
+    expect(session.getState().history.undoTextBlockId).toBe(blockIdOf(1));
+    await session.undo();
+    expect(session.getState().history).toMatchObject({
+      undoTextBlockId: null,
+      redoTextBlockId: blockIdOf(1),
     });
   });
 
@@ -219,6 +243,8 @@ describe("history: do, undo, redo", () => {
       canRedo: false,
       undoLabel: null,
       redoLabel: null,
+      undoTextBlockId: null,
+      redoTextBlockId: null,
     });
   });
 

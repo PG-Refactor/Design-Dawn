@@ -362,6 +362,17 @@ export interface CanvasActions {
   ): Promise<OperationResult<ApplyDiagramEditsOutcome>>;
   undo(documentId: DocumentId): Promise<OperationResult<void>>;
   redo(documentId: DocumentId): Promise<OperationResult<void>>;
+  // Undo / redo for an editor of one text block: the step is taken only when all it does
+  // is change that block's text, so nothing else on the sheet moves under the editor.
+  // False when the next step is something else (or there is none).
+  undoTextEdit(
+    documentId: DocumentId,
+    blockId: BlockId,
+  ): Promise<OperationResult<boolean>>;
+  redoTextEdit(
+    documentId: DocumentId,
+    blockId: BlockId,
+  ): Promise<OperationResult<boolean>>;
 }
 
 export interface CanvasActionsDependencies {
@@ -634,6 +645,20 @@ export function createCanvasActions(
     );
     pruneDocumentReferences(documentId);
     return result;
+  }
+
+  async function textEditHistory(
+    operation: "undo" | "redo",
+    documentId: DocumentId,
+    blockId: BlockId,
+  ): Promise<OperationResult<boolean>> {
+    const { history: next } =
+      workspace.getDocumentSession(documentId)?.getState() ?? {};
+    const target =
+      operation === "undo" ? next?.undoTextBlockId : next?.redoTextBlockId;
+    if (target !== blockId) return operationOk(false);
+    const result = await history(operation, documentId);
+    return result.ok ? operationOk(true) : result;
   }
 
   // Top-left of a new block of `size` that is centred in the visible world rectangle. When
@@ -1650,6 +1675,10 @@ export function createCanvasActions(
 
     undo: (documentId) => history("undo", documentId),
     redo: (documentId) => history("redo", documentId),
+    undoTextEdit: (documentId, blockId) =>
+      textEditHistory("undo", documentId, blockId),
+    redoTextEdit: (documentId, blockId) =>
+      textEditHistory("redo", documentId, blockId),
   };
   return actions;
 }
