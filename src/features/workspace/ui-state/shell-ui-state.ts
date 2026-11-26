@@ -79,6 +79,12 @@ export function showTreeStepNotice(
   };
 }
 
+// Once a tree step is taken back or made again, the notice of the last step no longer says
+// what its Undo button would do.
+export function clearTreeStepNotice(state: UiState): UiState {
+  return state.notice?.kind === "treeStep" ? { ...state, notice: null } : state;
+}
+
 // Only the notice that is still shown: a timer of an earlier, replaced notice does nothing.
 export function clearNotice(state: UiState, id: number): UiState {
   return state.notice?.id === id ? { ...state, notice: null } : state;

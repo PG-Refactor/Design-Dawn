@@ -3,6 +3,7 @@ import type { TreeStepSummary } from "../../application/workspace/workspace-even
 import { LAYOUT_CONFIG } from "../../config/layout-config";
 import { IconFrame } from "../../shared/icons/icon-frame";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
+import { holdTreeFocus } from "./focus-utils";
 import { clearNotice } from "./ui-state/shell-ui-state";
 import type { UiState } from "./ui-state/ui-state";
 import { useMessages } from "./use-messages";
@@ -376,9 +377,12 @@ export function TransientNotice() {
           <button
             type="button"
             className="button transient-notice__action"
+            // The focus stays where it was (a tree row), so Ctrl+Y next still reaches the
+            // tree.
+            onMouseDown={(event) => event.preventDefault()}
             onClick={() => {
-              uiStateStore.setState((state) => clearNotice(state, notice.id));
-              void actions.undoTreeChange();
+              const giveFocusBack = holdTreeFocus();
+              void actions.undoTreeChange().then(giveFocusBack);
             }}
           >
             {messages.treeStepNotices.undo}
