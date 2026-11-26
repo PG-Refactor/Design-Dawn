@@ -110,9 +110,28 @@ nav.top a {
 nav.top a:hover {
   color: var(--text);
 }
+/* A phone has no room for the menu beside the name: it takes a second line of its own,
+   which scrolls sideways when it does not fit, so every page stays one tap away. */
 @media (max-width: 720px) {
-  nav.top .hide-sm {
-    display: none;
+  :root {
+    --header-height: 84px;
+  }
+  header.site .wrap {
+    flex-wrap: wrap;
+    row-gap: 4px;
+    height: auto;
+    padding-top: 10px;
+    padding-bottom: 8px;
+  }
+  nav.top {
+    width: 100%;
+    gap: 18px;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+  }
+  .btn {
+    padding: 10px 18px;
   }
 }
 
