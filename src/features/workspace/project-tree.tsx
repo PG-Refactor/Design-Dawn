@@ -10,7 +10,7 @@ import { useContextMenu } from "../../shared/menu/context-menu";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
 import { CANVAS_KEY_COMMANDS, keyCommandOf } from "../canvas/canvas-keyboard";
 import { documentFromTemplateEntries } from "../templates/template-flows";
-import { restoreFocus } from "./focus-utils";
+import { holdTreeFocus, restoreFocus } from "./focus-utils";
 import {
   EntryItems,
   PROJECT_ENTRY_LEVEL,
@@ -252,16 +252,13 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
     }
     event.preventDefault();
     const undo = command === CANVAS_KEY_COMMANDS.undo;
-    const tree = event.currentTarget;
-    const position = treeRows(tree).indexOf(
-      document.activeElement as HTMLElement,
-    );
+    const giveFocusBack = holdTreeFocus();
     void (async () => {
       const took = undo
         ? await actions.undoTreeChange()
         : await actions.redoTreeChange();
       if (took) {
-        keepFocusInTree(tree, position);
+        giveFocusBack();
         return;
       }
       const documentId = uiStateStore.getState().activeDocumentId;
@@ -270,14 +267,6 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
         ? canvasActions.undo(documentId)
         : canvasActions.redo(documentId));
     })();
-  }
-
-  // The step may have taken away the row that had the focus (a creation undone): the row
-  // now at its place takes it, so the next Ctrl+Z still reaches the tree.
-  function keepFocusInTree(tree: HTMLUListElement, position: number): void {
-    if (tree.contains(document.activeElement)) return;
-    const rows = treeRows(tree);
-    rows[Math.min(Math.max(position, 0), rows.length - 1)]?.focus();
   }
 
   // The chosen rows' entries (the Project row is not an entry).
@@ -506,10 +495,6 @@ function NoProjectTree() {
       {contextMenu.element}
     </>
   );
-}
-
-function treeRows(tree: HTMLElement): HTMLElement[] {
-  return [...tree.querySelectorAll<HTMLElement>('[role="treeitem"]')];
 }
 
 export function ProjectTree() {

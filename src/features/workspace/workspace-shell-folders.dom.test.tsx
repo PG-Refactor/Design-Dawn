@@ -265,7 +265,7 @@ describe("creating and renaming", () => {
     expect(level("Nested")).toBe("3");
   });
 
-  it("tells what was created, and its Undo button takes the creation back", async () => {
+  it("tells what was created, and its Undo button takes the creation back with the focus left in the tree", async () => {
     const harness = await openedShell();
     await chooseRowMenuItem(harness.user, "Folder 2", TREE.createFolder);
     await harness.user.type(
@@ -283,12 +283,41 @@ describe("creating and renaming", () => {
       ),
     );
 
+    treeItemNamed("Inner").focus();
     await harness.user.click(
       within(notice).getByRole("button", {
         name: MESSAGES.treeStepNotices.undo,
       }),
     );
     await waitFor(() => expect(treeLabels()).not.toContain("Inner"));
+    expect(notice.textContent).toBe("");
+    // The row that had the focus is gone; the one at its place takes it, so Ctrl+Y next
+    // makes the creation again.
+    expect(screen.getByRole("tree").contains(document.activeElement)).toBe(
+      true,
+    );
+    await harness.user.keyboard("{Control>}y{/Control}");
+    await screen.findByRole("treeitem", { name: "Inner" });
+  });
+
+  it("takes the notice away once its step is undone from the tree", async () => {
+    const harness = await openedShell();
+    for (const name of ["One", "Two"]) {
+      await applyOutsideUi(() => harness.workspace.createFolder(null, name));
+    }
+    const notice = screen.getByRole("status", {
+      name: MESSAGES.notices.regionLabel,
+    });
+    await waitFor(() =>
+      expect(notice.textContent).toContain(
+        MESSAGES.treeStepNotices.created("Two", 1),
+      ),
+    );
+
+    treeItemNamed("Two").focus();
+    await harness.user.keyboard("{Control>}z{/Control}");
+    await waitFor(() => expect(treeLabels()).not.toContain("Two"));
+    // Its Undo button would now take back "One", not what it says.
     expect(notice.textContent).toBe("");
   });
 

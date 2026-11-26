@@ -65,6 +65,7 @@ import type { DraftRegistry } from "./draft-registry";
 import { restoreMainTab, showDocumentTab } from "./ui-state/diff-tabs";
 import {
   addOperationError,
+  clearTreeStepNotice,
   closeDialog,
   dismissOperationError,
   openDialog,
@@ -684,6 +685,7 @@ export function createWorkspaceActions(
   // True when there was a step: taken, failed (reported) or no longer fitting the tree
   // (told in a notice); in each case the key is done.
   async function treeStep(operation: "undo" | "redo"): Promise<boolean> {
+    uiStateStore.setState(clearTreeStepNotice);
     const result =
       operation === "undo"
         ? await workspace.undoTreeChange()
