@@ -110,7 +110,8 @@ export interface NewProjectRequest {
 // What a "close with unsaved changes" confirmation is about (auto-save off). The window
 // answer is delivered to the pending close request, the others run an action when answered.
 export type UnsavedCloseTarget =
-  | { readonly kind: "window" }
+  // `endsApp`: closing it leaves no window, so the app quits.
+  | { readonly kind: "window"; readonly endsApp: boolean }
   | { readonly kind: "project" }
   // Opening / creating another Project closes the current one first.
   | { readonly kind: "openProject" }

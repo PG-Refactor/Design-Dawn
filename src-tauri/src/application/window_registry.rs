@@ -36,6 +36,8 @@ struct WindowEntry {
     reserved_project: Option<ProjectId>,
     /// 0 = never focused. A larger number means focused more recently.
     focus_order: u64,
+    /// The window has changes a close would ask about (reported by its page).
+    unsaved: bool,
 }
 
 #[derive(Debug, Default)]
@@ -113,6 +115,32 @@ impl WindowRegistry {
                 *role == WindowRole::Project || !self.documents_of(label).is_empty()
             })
             .collect()
+    }
+
+    /// Records whether the window has changes a close would ask about.
+    pub fn set_unsaved(&mut self, label: &str, unsaved: bool) {
+        self.windows.entry(label.to_owned()).or_default().unsaved = unsaved;
+    }
+
+    /// The Document windows that close together with this Project window, by label; none for
+    /// any other window.
+    pub fn document_windows_closing_with(&self, label: &str) -> Vec<String> {
+        match (self.role_of(label), self.project_of(label)) {
+            (Some(WindowRole::Project), Some(project)) => self
+                .windows_of_project(&project)
+                .into_iter()
+                .filter(|(_, role)| *role == WindowRole::Document)
+                .map(|(label, _)| label)
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
+
+    /// Whether one of these windows has changes a close would ask about.
+    pub fn any_unsaved(&self, labels: &[String]) -> bool {
+        labels
+            .iter()
+            .any(|label| self.windows.get(label).is_some_and(|entry| entry.unsaved))
     }
 
     /// The window that holds the Document, if any.
@@ -314,6 +342,28 @@ mod tests {
 
     fn project(number: u8) -> ProjectId {
         ProjectId::parse(&format!("01928f3a-0000-7000-8000-0000000000{number:02}")).unwrap()
+    }
+
+    #[test]
+    fn a_project_window_closes_with_its_document_windows_and_knows_their_unsaved_changes() {
+        let mut registry = WindowRegistry::default();
+        registry.bind("main", project(1)).unwrap();
+        registry.attach_document_window("window-1", project(1));
+        registry.attach_document_window("window-2", project(1));
+        registry.bind("window-3", project(2)).unwrap();
+
+        let along = registry.document_windows_closing_with("main");
+
+        assert_eq!(along, vec!["window-1".to_owned(), "window-2".to_owned()]);
+        assert!(registry
+            .document_windows_closing_with("window-1")
+            .is_empty());
+        assert!(registry.document_windows_closing_with("unknown").is_empty());
+        assert!(!registry.any_unsaved(&along));
+        registry.set_unsaved("window-2", true);
+        assert!(registry.any_unsaved(&along));
+        registry.set_unsaved("window-2", false);
+        assert!(!registry.any_unsaved(&along));
     }
 
     #[test]

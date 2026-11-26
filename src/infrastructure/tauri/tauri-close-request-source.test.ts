@@ -54,14 +54,19 @@ describe("createTauriCloseRequestSource", () => {
     const listener = vi.fn();
     source.subscribe(listener);
     await settle();
-    send({ kind: "closeRequested", subscriptionToken: "t1" });
+    send({ kind: "closeRequested", subscriptionToken: "t1", decided: null });
+    send({ kind: "closeRequested", subscriptionToken: "t2", decided: "save" });
+    send({ kind: "closeRequested", subscriptionToken: "t3", decided: "later" });
+    send({ kind: "closeRequested", subscriptionToken: "t4" });
     send({ kind: "closeRequested" });
-    send({ kind: "closeRequested", subscriptionToken: 5 });
-    send({ kind: "other", subscriptionToken: "t2" });
+    send({ kind: "closeRequested", subscriptionToken: 5, decided: null });
+    send({ kind: "other", subscriptionToken: "t2", decided: null });
     send(null);
     send("closeRequested");
-    expect(listener).toHaveBeenCalledTimes(1);
-    expect(listener).toHaveBeenCalledWith({ subscriptionToken: "t1" });
+    expect(listener.mock.calls).toEqual([
+      [{ subscriptionToken: "t1", decided: null }],
+      [{ subscriptionToken: "t2", decided: "save" }],
+    ]);
   });
 
   it("stops delivering after unsubscribing", async () => {
@@ -79,6 +84,36 @@ describe("createTauriCloseRequestSource", () => {
     expect(result.ok).toBe(true);
     expect(invokeMock).toHaveBeenCalledWith("confirm_window_close", {
       subscriptionToken: "t9",
+    });
+  });
+
+  it("reads the scope of a close, and refuses a malformed one", async () => {
+    const source = createTauriCloseRequestSource();
+    invokeMock.mockResolvedValueOnce({
+      endsApp: false,
+      documentWindowsUnsaved: true,
+    });
+    expect(await source.scope()).toEqual({
+      ok: true,
+      value: { endsApp: false, documentWindowsUnsaved: true },
+    });
+    expect(invokeMock).toHaveBeenLastCalledWith("window_close_scope", {});
+    invokeMock.mockResolvedValueOnce({ endsApp: "no" });
+    const malformed = await source.scope();
+    expect(!malformed.ok && malformed.error.kind).toBe(
+      "invalidCommandResponse",
+    );
+  });
+
+  it("reports unsaved changes and closes the Document windows with an answer", async () => {
+    const source = createTauriCloseRequestSource();
+    await source.reportUnsaved(true);
+    expect(invokeMock).toHaveBeenLastCalledWith("report_window_unsaved", {
+      unsaved: true,
+    });
+    await source.closeDocumentWindows("discard");
+    expect(invokeMock).toHaveBeenLastCalledWith("close_document_windows", {
+      decision: "discard",
     });
   });
 

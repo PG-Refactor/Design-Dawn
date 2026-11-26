@@ -19,7 +19,7 @@ function unsavedCloseTitle(
   const texts = messages.dialogs.confirmUnsavedClose;
   switch (target.kind) {
     case "window":
-      return texts.windowTitle;
+      return target.endsApp ? texts.quitTitle : texts.windowTitle;
     case "project":
       return texts.projectTitle;
     case "openProject":

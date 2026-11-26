@@ -7,7 +7,7 @@
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
 use tauri::{Runtime, Window};
 use uuid::Uuid;
@@ -16,13 +16,26 @@ use super::window_size::record_window_size;
 use crate::application::error::ApplicationError;
 use crate::infrastructure::error::PersistenceErrorKind;
 
-/// What the Frontend receives: `{ "kind": "closeRequested", "subscriptionToken": string }`.
+/// The answer a window closes with when it closes along with its Project window, which
+/// already asked the user for every window.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum CloseDecision {
+    Save,
+    Discard,
+}
+
+/// What the Frontend receives: `{ "kind": "closeRequested", "subscriptionToken": string,
+/// "decided": "save" | "discard" | null }` (`null`: the user asked this window to close).
 /// Deliberately carries nothing else (no path, no content).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum CloseNotification {
     #[serde(rename_all = "camelCase")]
-    CloseRequested { subscription_token: String },
+    CloseRequested {
+        subscription_token: String,
+        decided: Option<CloseDecision>,
+    },
 }
 
 /// Where a notification goes. The production sink is the IPC channel; tests use a fake.
@@ -89,10 +102,14 @@ impl<S: CloseNotificationSink> CloseRequestHub<S> {
             .is_some_and(|subscription| subscription.token == token)
     }
 
-    /// Forwards a close request to the window's current subscription. Returns whether it was
-    /// sent; without a subscription (or when sending fails) nothing happens, so the window
-    /// stays open.
-    pub fn notify_close_requested(&self, window_label: &str) -> bool {
+    /// Forwards a close request to the window's current subscription, with the answer it
+    /// closes with when that is decided already. Returns whether it was sent; without a
+    /// subscription (or when sending fails) nothing happens, so the window stays open.
+    pub fn notify_close_requested(
+        &self,
+        window_label: &str,
+        decided: Option<CloseDecision>,
+    ) -> bool {
         // Cloned so the lock is not held while the message is sent.
         let target = self
             .lock()
@@ -101,7 +118,10 @@ impl<S: CloseNotificationSink> CloseRequestHub<S> {
         let Some((sink, subscription_token)) = target else {
             return false;
         };
-        match sink.send_notification(CloseNotification::CloseRequested { subscription_token }) {
+        match sink.send_notification(CloseNotification::CloseRequested {
+            subscription_token,
+            decided,
+        }) {
             Ok(()) => true,
             Err(error) => {
                 // Nobody to report to; the window simply stays open.
@@ -125,7 +145,7 @@ pub fn handle_close_requested<S: CloseNotificationSink>(
     prevent_close: impl FnOnce(),
 ) -> bool {
     prevent_close();
-    hub.notify_close_requested(window_label)
+    hub.notify_close_requested(window_label, None)
 }
 
 /// Destroys the calling window when `subscription_token` belongs to its current
@@ -179,7 +199,29 @@ mod tests {
     fn requested(token: &str) -> CloseNotification {
         CloseNotification::CloseRequested {
             subscription_token: token.to_owned(),
+            decided: None,
         }
+    }
+
+    #[test]
+    fn a_decided_close_carries_its_answer() {
+        let hub = CloseRequestHub::<RecordingSink>::default();
+        let sink = RecordingSink::default();
+        let token = hub.subscribe(WINDOW, sink.clone());
+
+        assert!(hub.notify_close_requested(WINDOW, Some(CloseDecision::Discard)));
+
+        assert_eq!(
+            *sink.sent.lock().unwrap(),
+            vec![CloseNotification::CloseRequested {
+                subscription_token: token,
+                decided: Some(CloseDecision::Discard),
+            }]
+        );
+        assert_eq!(
+            serde_json::to_value(CloseDecision::Save).unwrap(),
+            serde_json::json!("save")
+        );
     }
 
     #[test]
@@ -223,7 +265,7 @@ mod tests {
         let current = RecordingSink::default();
         hub.subscribe(WINDOW, old.clone());
         let token = hub.subscribe(WINDOW, current.clone());
-        assert!(hub.notify_close_requested(WINDOW));
+        assert!(hub.notify_close_requested(WINDOW, None));
         assert!(old.sent.lock().unwrap().is_empty());
         assert_eq!(*current.sent.lock().unwrap(), vec![requested(&token)]);
     }
@@ -233,15 +275,15 @@ mod tests {
         let hub = CloseRequestHub::<RecordingSink>::default();
         let sink = RecordingSink::default();
         hub.subscribe(WINDOW, sink.clone());
-        hub.notify_close_requested(WINDOW);
-        hub.notify_close_requested(WINDOW);
+        hub.notify_close_requested(WINDOW, None);
+        hub.notify_close_requested(WINDOW, None);
         assert_eq!(sink.sent.lock().unwrap().len(), 2);
     }
 
     #[test]
     fn without_a_subscription_nothing_is_sent() {
         let hub = CloseRequestHub::<RecordingSink>::default();
-        assert!(!hub.notify_close_requested(WINDOW));
+        assert!(!hub.notify_close_requested(WINDOW, None));
     }
 
     #[test]
@@ -254,7 +296,7 @@ mod tests {
                 ..RecordingSink::default()
             },
         );
-        assert!(!hub.notify_close_requested(WINDOW));
+        assert!(!hub.notify_close_requested(WINDOW, None));
     }
 
     #[test]
@@ -291,7 +333,7 @@ mod tests {
         assert!(!hub.accepts(OTHER_WINDOW, &main_token));
         assert!(!hub.accepts(WINDOW, &other_token));
 
-        assert!(hub.notify_close_requested(OTHER_WINDOW));
+        assert!(hub.notify_close_requested(OTHER_WINDOW, None));
         assert!(main_sink.sent.lock().unwrap().is_empty());
         assert_eq!(
             *other_sink.sent.lock().unwrap(),
@@ -306,16 +348,18 @@ mod tests {
         let other_token = hub.subscribe(OTHER_WINDOW, RecordingSink::default());
         hub.discard_window(OTHER_WINDOW);
         assert!(!hub.accepts(OTHER_WINDOW, &other_token));
-        assert!(!hub.notify_close_requested(OTHER_WINDOW));
+        assert!(!hub.notify_close_requested(OTHER_WINDOW, None));
         assert!(hub.accepts(WINDOW, &main_token));
     }
 
     #[test]
-    fn the_wire_form_has_only_the_kind_and_the_token() {
+    fn the_wire_form_has_only_the_kind_the_token_and_the_answer() {
         let value = serde_json::to_value(requested("abc")).unwrap();
         assert_eq!(
             value,
-            serde_json::json!({ "kind": "closeRequested", "subscriptionToken": "abc" })
+            serde_json::json!({
+                "kind": "closeRequested", "subscriptionToken": "abc", "decided": null
+            })
         );
     }
 }

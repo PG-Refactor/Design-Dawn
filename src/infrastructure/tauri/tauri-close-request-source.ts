@@ -1,23 +1,53 @@
 import { Channel } from "@tauri-apps/api/core";
 import type {
+  CloseDecision,
   CloseRequest,
   CloseRequestSource,
+  WindowCloseScope,
 } from "../../application/ports/window-close";
 import { COMMANDS } from "./command-constants";
-import { commandOk } from "./command-error";
+import { type CommandResult, commandErr, commandOk } from "./command-error";
 import { call } from "./invoke-command";
+import { decodeBoolean, objectOf } from "./payload-decoder";
 
 // `kind` of the notification Rust sends; it must match `CloseNotification` in
 // `src-tauri/src/commands/window_close.rs`.
 const CLOSE_REQUESTED_KIND = "closeRequested";
+const CLOSE_DECISIONS: readonly CloseDecision[] = ["save", "discard"];
+const PAYLOAD_ROOT = "payload";
+
+function toDecision(value: unknown): CloseDecision | null | undefined {
+  if (value === null) return null;
+  return CLOSE_DECISIONS.find((decision) => decision === value);
+}
 
 function toCloseRequest(message: unknown): CloseRequest | null {
   if (typeof message !== "object" || message === null) return null;
-  const { kind, subscriptionToken } = message as Record<string, unknown>;
-  return kind === CLOSE_REQUESTED_KIND && typeof subscriptionToken === "string"
-    ? { subscriptionToken }
+  const { kind, subscriptionToken, decided } = message as Record<
+    string,
+    unknown
+  >;
+  const decision = toDecision(decided);
+  return kind === CLOSE_REQUESTED_KIND &&
+    typeof subscriptionToken === "string" &&
+    decision !== undefined
+    ? { subscriptionToken, decided: decision }
     : null;
 }
+
+const decodeScope = objectOf<WindowCloseScope>({
+  endsApp: decodeBoolean,
+  documentWindowsUnsaved: decodeBoolean,
+});
+
+function toScope(payload: unknown): CommandResult<WindowCloseScope> {
+  const decoded = decodeScope(payload, PAYLOAD_ROOT);
+  return decoded.ok
+    ? commandOk(decoded.value)
+    : commandErr("invalidCommandResponse", decoded.detail);
+}
+
+const discard = () => commandOk(undefined);
 
 // Close requests arrive on an IPC channel, not through the window API: listening to window
 // events would need a `core:*` permission, which the capability deliberately does not grant.
@@ -41,8 +71,10 @@ export function createTauriCloseRequestSource(): CloseRequestSource {
     const created = new Channel<unknown>();
     created.onmessage = dispatch;
     channel = created;
-    void call(COMMANDS.subscribeCloseRequests, { channel: created }, () =>
-      commandOk(undefined),
+    void call(
+      COMMANDS.subscribeCloseRequests,
+      { channel: created },
+      discard,
     ).then((result) => {
       // Without the subscription Rust never learns who to ask, and the window cannot be
       // closed by the user; surface it for developers.
@@ -60,12 +92,17 @@ export function createTauriCloseRequestSource(): CloseRequestSource {
       };
     },
     confirmClose(subscriptionToken) {
-      return call(COMMANDS.confirmWindowClose, { subscriptionToken }, () =>
-        commandOk(undefined),
-      );
+      return call(COMMANDS.confirmWindowClose, { subscriptionToken }, discard);
     },
     async bringForward() {
-      await call(COMMANDS.bringWindowForward, {}, () => commandOk(undefined));
+      await call(COMMANDS.bringWindowForward, {}, discard);
+    },
+    scope: () => call(COMMANDS.windowCloseScope, {}, toScope),
+    async reportUnsaved(unsaved) {
+      await call(COMMANDS.reportWindowUnsaved, { unsaved }, discard);
+    },
+    async closeDocumentWindows(decision) {
+      await call(COMMANDS.closeDocumentWindows, { decision }, discard);
     },
   };
 }

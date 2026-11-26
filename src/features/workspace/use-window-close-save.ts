@@ -32,6 +32,8 @@ export function useWindowCloseSave(): WindowCloseStatus {
     closeRequestSource,
     exportActions,
     templateEditor,
+    applicationStore,
+    autoSaveController,
   } = useWorkspaceServices();
   const latest = useRef({
     actions,
@@ -59,7 +61,8 @@ export function useWindowCloseSave(): WindowCloseStatus {
         settled: () => latest.current.actions.whenWorkspaceIdle(),
         needsConfirmation: () =>
           latest.current.actions.windowCloseNeedsConfirmation(),
-        askUnsavedClose: () => latest.current.actions.askUnsavedWindowClose(),
+        askUnsavedClose: (endsApp) =>
+          latest.current.actions.askUnsavedWindowClose(endsApp),
         afterRepaint: nextPaint,
         printing: {
           isOpen: () => latest.current.exportActions.printWindowsOpen(),
@@ -86,6 +89,25 @@ export function useWindowCloseSave(): WindowCloseStatus {
       }),
     [handleRequest],
   );
+
+  // Keeps Rust told whether a close of this window would ask, so the Project window can
+  // ask for it when it closes this one along with itself. Only changes are sent.
+  useEffect(() => {
+    let reported: boolean | null = null;
+    const report = () => {
+      const unsaved = latest.current.actions.windowCloseNeedsConfirmation();
+      if (unsaved === reported) return;
+      reported = unsaved;
+      void latest.current.closeRequestSource.reportUnsaved(unsaved);
+    };
+    report();
+    const stopProject = applicationStore.subscribe(report);
+    const stopAutoSave = autoSaveController.store.subscribe(report);
+    return () => {
+      stopProject();
+      stopAutoSave();
+    };
+  }, [applicationStore, autoSaveController]);
 
   return handleRequest;
 }

@@ -4,6 +4,7 @@ import {
   operationErr,
   operationOk,
 } from "../../application/ports/operation-error";
+import type { CloseRequestSource } from "../../application/ports/window-close";
 import { createFakeCloseRequestSource } from "../../application/test-support/fake-close";
 import { settle } from "../../application/test-support/fakes";
 import { createWindowCloseHandler } from "./window-close";
@@ -21,6 +22,7 @@ function setup(
     holdSettled?: boolean;
     // Resolves the question; "hold" leaves it open until `answer` is called.
     choice?: UnsavedCloseChoice | "hold";
+    scope?: CloseRequestSource["scope"];
   } = {},
 ) {
   const source = createFakeCloseRequestSource();
@@ -44,8 +46,8 @@ function setup(
     afterRepaint: async () => {
       calls.push("repaint");
     },
-    askUnsavedClose: () => {
-      calls.push("ask");
+    askUnsavedClose: (endsApp) => {
+      calls.push(endsApp ? "ask" : "askWindow");
       if (options.choice === "hold" || options.choice === undefined) {
         return new Promise<UnsavedCloseChoice>((resolve) => {
           answer = resolve;
@@ -67,7 +69,7 @@ function setup(
       if (options.flushFails === true) throw new Error("viewport");
     },
     closeRequestSource: {
-      subscribe: source.subscribe,
+      ...source,
       confirmClose: (token) => {
         calls.push(`confirm:${token}`);
         return source.confirmClose(token);
@@ -76,6 +78,11 @@ function setup(
         calls.push("forward");
         return Promise.resolve();
       },
+      closeDocumentWindows: (decision) => {
+        calls.push(`closeDocuments:${decision}`);
+        return source.closeDocumentWindows(decision);
+      },
+      scope: options.scope ?? source.scope,
     },
   }));
   return {
@@ -91,6 +98,82 @@ function setup(
   };
 }
 
+describe("closing a Project window with its Document windows", () => {
+  const withDocumentWindows = (documentWindowsUnsaved: boolean) => async () =>
+    operationOk({ endsApp: false, documentWindowsUnsaved });
+
+  it("asks once for the Document windows' unsaved changes and closes them with the answer", async () => {
+    const context = setup({
+      choice: "discard",
+      scope: withDocumentWindows(true),
+    });
+    await context.handler({ subscriptionToken: TOKEN, decided: null });
+    expect(context.calls).toEqual([
+      "forward",
+      "askWindow",
+      "repaint",
+      "closeDocuments:discard",
+      "flush",
+      `confirm:${TOKEN}`,
+    ]);
+  });
+
+  it("saves itself before the Document windows are told, and keeps them open when that fails", async () => {
+    const context = setup({
+      choice: "save",
+      scope: withDocumentWindows(true),
+      saveResult: operationErr("ioError", "disk"),
+    });
+    await context.handler({ subscriptionToken: TOKEN, decided: null });
+    expect(context.calls).toEqual([
+      "forward",
+      "askWindow",
+      "repaint",
+      "saveAll",
+    ]);
+    expect(context.handler.isClosing()).toBe(false);
+  });
+
+  it("asks about its own changes only when the scope cannot be read", async () => {
+    const context = setup({
+      needsConfirmation: true,
+      choice: "save",
+      scope: async () => operationErr("ioError", "x"),
+    });
+    await context.handler({ subscriptionToken: TOKEN, decided: null });
+    expect(context.calls).toEqual([
+      "forward",
+      "askWindow",
+      "repaint",
+      "saveAll",
+      "closeDocuments:save",
+      "flush",
+      `confirm:${TOKEN}`,
+    ]);
+  });
+});
+
+describe("a window closing along with its Project window", () => {
+  it("asks nothing and saves when the answer was to save", async () => {
+    const context = setup({ needsConfirmation: true });
+    await context.handler({ subscriptionToken: TOKEN, decided: "save" });
+    expect(context.calls).toEqual(["saveAll", "flush", `confirm:${TOKEN}`]);
+  });
+
+  it("closes without saving when the answer was not to save", async () => {
+    const context = setup({ needsConfirmation: true });
+    await context.handler({ subscriptionToken: TOKEN, decided: "discard" });
+    expect(context.calls).toEqual(["flush", `confirm:${TOKEN}`]);
+  });
+
+  it("stays open when its save fails", async () => {
+    const context = setup({ saveResult: operationErr("ioError", "disk") });
+    await context.handler({ subscriptionToken: TOKEN, decided: "save" });
+    expect(context.calls).toEqual(["saveAll"]);
+    expect(context.handler.isClosing()).toBe(false);
+  });
+});
+
 describe("window close handler", () => {
   it("decides only after the steps under way are done", async () => {
     let unsaved = true;
@@ -99,61 +182,90 @@ describe("window close handler", () => {
       choice: "save",
       needsConfirmation: () => unsaved,
     });
-    const closing = context.handler({ subscriptionToken: TOKEN });
+    const closing = context.handler({
+      subscriptionToken: TOKEN,
+      decided: null,
+    });
     // The last Document leaves the window meanwhile.
     unsaved = false;
     context.settle();
     await closing;
-    expect(context.calls).toEqual(["saveAll", "flush", `confirm:${TOKEN}`]);
+    expect(context.calls).toEqual([
+      "saveAll",
+      "closeDocuments:save",
+      "flush",
+      `confirm:${TOKEN}`,
+    ]);
   });
 
   it("saves, flushes the viewport, then confirms with the token, in that order", async () => {
     const { handler, calls } = setup();
-    await handler({ subscriptionToken: TOKEN });
-    expect(calls).toEqual(["saveAll", "flush", `confirm:${TOKEN}`]);
+    await handler({ subscriptionToken: TOKEN, decided: null });
+    expect(calls).toEqual([
+      "saveAll",
+      "closeDocuments:save",
+      "flush",
+      `confirm:${TOKEN}`,
+    ]);
   });
 
   it("does not confirm after a failed save and accepts a later request", async () => {
     const { handler, calls, source, setSaveResult } = setup({
       saveResult: operationErr("ioError", "disk"),
     });
-    await handler({ subscriptionToken: TOKEN });
+    await handler({ subscriptionToken: TOKEN, decided: null });
     expect(calls).toEqual(["saveAll"]);
     expect(source.confirmedTokens).toEqual([]);
 
     setSaveResult(operationOk(undefined));
-    await handler({ subscriptionToken: TOKEN });
-    expect(calls).toEqual(["saveAll", "saveAll", "flush", `confirm:${TOKEN}`]);
+    await handler({ subscriptionToken: TOKEN, decided: null });
+    expect(calls).toEqual([
+      "saveAll",
+      "saveAll",
+      "closeDocuments:save",
+      "flush",
+      `confirm:${TOKEN}`,
+    ]);
   });
 
   it("still confirms when the viewport flush rejects", async () => {
     const { handler, calls } = setup({ flushFails: true });
-    await handler({ subscriptionToken: TOKEN });
-    expect(calls).toEqual(["saveAll", "flush", `confirm:${TOKEN}`]);
+    await handler({ subscriptionToken: TOKEN, decided: null });
+    expect(calls).toEqual([
+      "saveAll",
+      "closeDocuments:save",
+      "flush",
+      `confirm:${TOKEN}`,
+    ]);
   });
 
   it("ignores a request that arrives while one is being processed", async () => {
     const { handler, calls, releaseSave } = setup({ holdSave: true });
-    const first = handler({ subscriptionToken: TOKEN });
+    const first = handler({ subscriptionToken: TOKEN, decided: null });
     await settle();
-    await handler({ subscriptionToken: TOKEN });
+    await handler({ subscriptionToken: TOKEN, decided: null });
     releaseSave();
     await first;
-    expect(calls).toEqual(["saveAll", "flush", `confirm:${TOKEN}`]);
+    expect(calls).toEqual([
+      "saveAll",
+      "closeDocuments:save",
+      "flush",
+      `confirm:${TOKEN}`,
+    ]);
   });
 
   it("accepts a new request after a failed confirmation", async () => {
     const { handler, calls, source } = setup();
     source.setConfirmResult(operationErr("ioError", "x"));
-    await handler({ subscriptionToken: TOKEN });
+    await handler({ subscriptionToken: TOKEN, decided: null });
     source.setConfirmResult(operationOk(undefined));
-    await handler({ subscriptionToken: TOKEN });
+    await handler({ subscriptionToken: TOKEN, decided: null });
     expect(calls.filter((call) => call === "saveAll")).toHaveLength(2);
   });
 
   it("does not ask when nothing needs confirmation", async () => {
     const { handler, calls } = setup({ choice: "discard" });
-    await handler({ subscriptionToken: TOKEN });
+    await handler({ subscriptionToken: TOKEN, decided: null });
     expect(calls).not.toContain("ask");
   });
 
@@ -164,12 +276,13 @@ describe("window close handler", () => {
       needsConfirmation: true,
       choice: "save",
     });
-    await handler({ subscriptionToken: TOKEN });
+    await handler({ subscriptionToken: TOKEN, decided: null });
     expect(calls).toEqual([
       "forward",
       "ask",
       "repaint",
       "saveAll",
+      "closeDocuments:save",
       "flush",
       `confirm:${TOKEN}`,
     ]);
@@ -181,7 +294,7 @@ describe("window close handler", () => {
       choice: "save",
       saveResult: operationErr("ioError", "disk"),
     });
-    await handler({ subscriptionToken: TOKEN });
+    await handler({ subscriptionToken: TOKEN, decided: null });
     expect(calls).toEqual(["forward", "ask", "repaint", "saveAll"]);
     expect(source.confirmedTokens).toEqual([]);
   });
@@ -191,7 +304,7 @@ describe("window close handler", () => {
       needsConfirmation: true,
       choice: "discard",
     });
-    await handler({ subscriptionToken: TOKEN });
+    await handler({ subscriptionToken: TOKEN, decided: null });
     expect(calls).not.toContain("saveAll");
     expect(calls).toContain(`confirm:${TOKEN}`);
   });
@@ -201,8 +314,8 @@ describe("window close handler", () => {
       needsConfirmation: true,
       choice: "cancel",
     });
-    await handler({ subscriptionToken: TOKEN });
-    await handler({ subscriptionToken: TOKEN });
+    await handler({ subscriptionToken: TOKEN, decided: null });
+    await handler({ subscriptionToken: TOKEN, decided: null });
     expect(calls).toEqual(["forward", "ask", "forward", "ask"]);
     expect(source.confirmedTokens).toEqual([]);
   });
@@ -212,9 +325,9 @@ describe("window close handler", () => {
       needsConfirmation: true,
       choice: "hold",
     });
-    const first = handler({ subscriptionToken: TOKEN });
+    const first = handler({ subscriptionToken: TOKEN, decided: null });
     await settle();
-    await handler({ subscriptionToken: TOKEN });
+    await handler({ subscriptionToken: TOKEN, decided: null });
     expect(calls).toEqual(["forward", "ask"]);
     answer("discard");
     await first;
@@ -222,6 +335,7 @@ describe("window close handler", () => {
       "forward",
       "ask",
       "repaint",
+      "closeDocuments:discard",
       "flush",
       `confirm:${TOKEN}`,
     ]);
@@ -240,7 +354,7 @@ describe("close status", () => {
     });
     expect(handler.isClosing()).toBe(false);
 
-    const pending = handler({ subscriptionToken: TOKEN });
+    const pending = handler({ subscriptionToken: TOKEN, decided: null });
     await settle();
     expect(handler.isClosing()).toBe(true);
     expect(released).toBe(0);
@@ -257,14 +371,14 @@ describe("close status", () => {
     failing.handler.onReleased(() => {
       released += 1;
     });
-    await failing.handler({ subscriptionToken: TOKEN });
+    await failing.handler({ subscriptionToken: TOKEN, decided: null });
     expect(released).toBe(1);
 
     const succeeding = setup();
     succeeding.handler.onReleased(() => {
       released += 1;
     });
-    await succeeding.handler({ subscriptionToken: TOKEN });
+    await succeeding.handler({ subscriptionToken: TOKEN, decided: null });
     // The window is about to be destroyed: it stays "closing" and nothing resumes.
     expect(succeeding.handler.isClosing()).toBe(true);
     expect(released).toBe(1);
@@ -277,7 +391,7 @@ describe("close status", () => {
       released += 1;
     });
     stop();
-    await handler({ subscriptionToken: TOKEN });
+    await handler({ subscriptionToken: TOKEN, decided: null });
     expect(released).toBe(0);
   });
 });
@@ -299,7 +413,7 @@ describe("a window that edits a Custom Template", () => {
       },
       finishViewportSaves: async () => undefined,
       closeRequestSource: {
-        subscribe: source.subscribe,
+        ...source,
         confirmClose: (token) => {
           calls.push(`confirm:${token}`);
           return source.confirmClose(token);
@@ -327,7 +441,7 @@ describe("a window that edits a Custom Template", () => {
 
   it("asks about the template only, saves it on Save and closes", async () => {
     const { handler, calls } = editing(true, "save");
-    await handler({ subscriptionToken: TOKEN });
+    await handler({ subscriptionToken: TOKEN, decided: null });
     expect(calls).toEqual([
       "forward",
       "askTemplate",
@@ -338,21 +452,21 @@ describe("a window that edits a Custom Template", () => {
 
   it("closes without writing on Close Without Saving, and stays open on Cancel", async () => {
     const discard = editing(true, "discard");
-    await discard.handler({ subscriptionToken: TOKEN });
+    await discard.handler({ subscriptionToken: TOKEN, decided: null });
     expect(discard.calls).toEqual([
       "forward",
       "askTemplate",
       `confirm:${TOKEN}`,
     ]);
     const cancel = editing(true, "cancel");
-    await cancel.handler({ subscriptionToken: TOKEN });
+    await cancel.handler({ subscriptionToken: TOKEN, decided: null });
     expect(cancel.calls).toEqual(["forward", "askTemplate"]);
     expect(cancel.handler.isClosing()).toBe(false);
   });
 
   it("closes at once when the template is saved", async () => {
     const { handler, calls } = editing(false, "cancel");
-    await handler({ subscriptionToken: TOKEN });
+    await handler({ subscriptionToken: TOKEN, decided: null });
     expect(calls).toEqual([`confirm:${TOKEN}`]);
   });
 });
@@ -384,7 +498,7 @@ describe("window close while printing", () => {
         },
       },
       closeRequestSource: {
-        subscribe: source.subscribe,
+        ...source,
         confirmClose: (token) => {
           calls.push(`confirm:${token}`);
           return source.confirmClose(token);
@@ -400,7 +514,7 @@ describe("window close while printing", () => {
 
   it("puts the print window out of the way of the question", async () => {
     const { handler, calls } = printingSetup(true);
-    await handler({ subscriptionToken: TOKEN });
+    await handler({ subscriptionToken: TOKEN, decided: null });
     await settle();
     expect(calls.slice(0, 4)).toEqual([
       "forward",
@@ -413,7 +527,7 @@ describe("window close while printing", () => {
 
   it("brings the print window back when printing goes on", async () => {
     const { handler, calls } = printingSetup(false);
-    await handler({ subscriptionToken: TOKEN });
+    await handler({ subscriptionToken: TOKEN, decided: null });
     await settle();
     expect(calls).toEqual(["forward", "hidePrint", "askStop", "showPrint"]);
     expect(handler.isClosing()).toBe(false);

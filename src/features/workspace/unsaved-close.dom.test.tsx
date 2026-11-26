@@ -8,8 +8,16 @@ import {
   within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { settle } from "../../application/test-support/fakes";
-import { DOCUMENT_A } from "../../application/test-support/workspace-harness";
+import { moveBlocksCommand } from "../../application/commands/block-commands";
+import {
+  blockIdOf,
+  position,
+  settle,
+} from "../../application/test-support/fakes";
+import {
+  DOCUMENT_A,
+  SHEET_A1,
+} from "../../application/test-support/workspace-harness";
 import {
   blockOption,
   renderOpenedCanvas,
@@ -128,7 +136,10 @@ describe("close confirmation with auto-save off", () => {
   it("asks before closing the window and confirms without saving on 保存せずに閉じる", async () => {
     const { shell } = await editingWithAutoSaveOff();
     await act(async () => {
-      shell.closeRequestSource.emit({ subscriptionToken: TOKEN });
+      shell.closeRequestSource.emit({
+        subscriptionToken: TOKEN,
+        decided: null,
+      });
       await settle();
     });
     expect(screen.getByRole("dialog")).toBeTruthy();
@@ -136,7 +147,10 @@ describe("close confirmation with auto-save off", () => {
 
     // A second request while the question is open is ignored.
     await act(async () => {
-      shell.closeRequestSource.emit({ subscriptionToken: TOKEN });
+      shell.closeRequestSource.emit({
+        subscriptionToken: TOKEN,
+        decided: null,
+      });
       await settle();
     });
     expect(shell.closeRequestSource.confirmedTokens).toEqual([]);
@@ -154,11 +168,54 @@ describe("close confirmation with auto-save off", () => {
     expect(shell.gateway.methods(...WRITE_METHODS)).toEqual([]);
   });
 
+  it("names the app only when closing the window ends it", async () => {
+    const { shell } = await editingWithAutoSaveOff();
+    shell.closeRequestSource.setScope({
+      endsApp: false,
+      documentWindowsUnsaved: false,
+    });
+    await act(async () => {
+      shell.closeRequestSource.emit({
+        subscriptionToken: TOKEN,
+        decided: null,
+      });
+      await settle();
+    });
+    expect(
+      within(screen.getByRole("dialog")).getByText(TEXTS.windowTitle),
+    ).toBeTruthy();
+    expect(screen.queryByText(TEXTS.quitTitle)).toBeNull();
+  });
+
+  it("tells Rust whether a close would ask, as that changes", async () => {
+    const rendered = await renderOpenedCanvas();
+    const reported = rendered.shell.closeRequestSource.reportedUnsaved;
+    expect(reported.at(-1)).toBe(false);
+    await act(async () => {
+      await rendered.shell.autoSaveController.setEnabled(false);
+      await rendered.canvas.session.execute(
+        moveBlocksCommand(SHEET_A1, [
+          { blockId: blockIdOf(1), position: position(9, 9) },
+        ]),
+      );
+      await settle();
+    });
+    expect(reported.at(-1)).toBe(true);
+    await act(async () => {
+      await rendered.canvas.session.flush();
+      await settle();
+    });
+    expect(reported.at(-1)).toBe(false);
+  });
+
   it("asks again after a cancelled window close request", async () => {
     const { shell } = await editingWithAutoSaveOff();
     for (let attempt = 0; attempt < 2; attempt += 1) {
       await act(async () => {
-        shell.closeRequestSource.emit({ subscriptionToken: TOKEN });
+        shell.closeRequestSource.emit({
+          subscriptionToken: TOKEN,
+          decided: null,
+        });
         await settle();
       });
       await shell.user.click(
