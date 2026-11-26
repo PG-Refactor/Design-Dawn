@@ -18,6 +18,8 @@ use crate::infrastructure::file_format::dto::{to_json_bytes, DocumentDto, SheetD
 use crate::infrastructure::file_format::naming::unique_directory_name;
 use crate::infrastructure::filesystem::atomic_write::WriteOutcome;
 
+/// Creates a Sheet on disk now: its directory, `sheet.json` and `blocks/`, and its place at
+/// the end of the order in `document.json`.
 pub fn create_sheet(
     sessions: &mut ProjectSessions,
     project_id: &str,
@@ -27,13 +29,92 @@ pub fn create_sheet(
 ) -> ApplicationResult<SheetSnapshot> {
     let session = sessions.session_mut(project_id)?;
     let document_id = DocumentId::parse(document_id)?;
-    let sheet = Sheet::new(&SheetInput {
+    let (sheet, directory_name) = new_sheet(session, &document_id, sheet_id, name)?;
+    let dto = SheetDto::from_domain(&sheet);
+    write_new_sheet(session, &document_id, &directory_name, &dto)?;
+    session.document_mut(&document_id)?.sheets.insert(
+        *sheet.sheet_id(),
+        SheetRecord {
+            directory_name,
+            writable: true,
+            reserved_name: None,
+        },
+    );
+    Ok(loaded_snapshot(dto))
+}
+
+/// Reserves a Sheet without writing anything (Auto Save off): its directory name is chosen
+/// and kept from other new sheets, and the first write into it (`save_sheet`, a block's
+/// content) puts it on disk the way `create_sheet` does. Closing the Document without that
+/// write forgets it.
+pub fn reserve_sheet(
+    sessions: &mut ProjectSessions,
+    project_id: &str,
+    document_id: &str,
+    sheet_id: &str,
+    name: &str,
+) -> ApplicationResult<SheetSnapshot> {
+    let session = sessions.session_mut(project_id)?;
+    let document_id = DocumentId::parse(document_id)?;
+    let (sheet, directory_name) = new_sheet(session, &document_id, sheet_id, name)?;
+    session.document_mut(&document_id)?.sheets.insert(
+        *sheet.sheet_id(),
+        SheetRecord {
+            directory_name,
+            writable: true,
+            reserved_name: Some(sheet.name().as_str().to_owned()),
+        },
+    );
+    Ok(loaded_snapshot(SheetDto::from_domain(&sheet)))
+}
+
+/// Puts a reserved Sheet on disk, empty and under the name it was reserved with, before
+/// anything is written into it; a Sheet already on disk is left alone. Its blocks and
+/// current name follow with the save that caused this.
+pub(crate) fn write_reserved_sheet(
+    session: &mut ProjectSession,
+    document_id: &DocumentId,
+    sheet_id: &SheetId,
+) -> ApplicationResult<()> {
+    let Some(record) = session.document(document_id)?.sheets.get(sheet_id) else {
+        return Ok(());
+    };
+    let Some(name) = record.reserved_name.clone() else {
+        return Ok(());
+    };
+    let directory_name = record.directory_name.clone();
+    let sheet = empty_sheet(&sheet_id.to_string(), &name)?;
+    write_new_sheet(
+        session,
+        document_id,
+        &directory_name,
+        &SheetDto::from_domain(&sheet),
+    )?;
+    if let Some(record) = session.document_mut(document_id)?.sheets.get_mut(sheet_id) {
+        record.reserved_name = None;
+    }
+    Ok(())
+}
+
+fn empty_sheet(sheet_id: &str, name: &str) -> ApplicationResult<Sheet> {
+    Ok(Sheet::new(&SheetInput {
         schema_version: i64::from(CURRENT_SHEET_SCHEMA_VERSION),
         sheet_id: sheet_id.to_owned(),
         name: DisplayName::new(name)?.as_str().to_owned(),
         blocks: Vec::new(),
-    })?;
-    let record = session.document(&document_id)?;
+    })?)
+}
+
+/// A new empty Sheet for a writable Document and a directory name no other Sheet of it has,
+/// on disk or reserved.
+fn new_sheet(
+    session: &mut ProjectSession,
+    document_id: &DocumentId,
+    sheet_id: &str,
+    name: &str,
+) -> ApplicationResult<(Sheet, String)> {
+    let sheet = empty_sheet(sheet_id, name)?;
+    let record = session.document(document_id)?;
     if !record.writable {
         return Err(ApplicationError::not_writable(format!(
             "document {document_id} did not load and cannot be written"
@@ -46,19 +127,41 @@ pub fn create_sheet(
         )
         .into());
     }
-    let base = session.document_base(&document_id)?;
-    session.ensure_directory(&base, SHEETS_DIRECTORY_NAME)?;
-    let existing = session.entry_names(&base, SHEETS_DIRECTORY_NAME)?;
-    let directory_name = unique_directory_name(name, SHEET_NAME_BASE, &existing);
-    let sheet_directory = format!("{SHEETS_DIRECTORY_NAME}{PATH_SEPARATOR}{directory_name}");
+    let mut taken: Vec<String> = record
+        .sheets
+        .values()
+        .filter(|sheet| sheet.reserved_name.is_some())
+        .map(|sheet| sheet.directory_name.clone())
+        .collect();
+    let base = session.document_base(document_id)?;
+    match session.entry_names(&base, SHEETS_DIRECTORY_NAME) {
+        Ok(names) => taken.extend(names),
+        // A Document whose last sheet was deleted may have no `sheets/` (Git keeps no empty
+        // directory); it is made when a sheet is written.
+        Err(error) if error.kind == PersistenceErrorKind::FileNotFound => {}
+        Err(error) => return Err(error.into()),
+    }
+    let directory_name = unique_directory_name(name, SHEET_NAME_BASE, &taken);
+    Ok((sheet, directory_name))
+}
 
-    // sheet.json first, mirroring create_document: it is what makes the directory a Sheet.
-    let dto = SheetDto::from_domain(&sheet);
+/// Writes a new Sheet's directory, `sheet.json` and `blocks/`, then adds it to the order in
+/// `document.json` on disk. `sheet.json` goes first, mirroring `create_document`: it is
+/// what makes the directory a Sheet.
+fn write_new_sheet(
+    session: &mut ProjectSession,
+    document_id: &DocumentId,
+    directory_name: &str,
+    dto: &SheetDto,
+) -> ApplicationResult<()> {
+    let base = session.document_base(document_id)?;
+    session.ensure_directory(&base, SHEETS_DIRECTORY_NAME)?;
+    let sheet_directory = format!("{SHEETS_DIRECTORY_NAME}{PATH_SEPARATOR}{directory_name}");
     session.create_directory(&base, &sheet_directory)?;
     session.create_file(
         &base,
         &format!("{sheet_directory}{PATH_SEPARATOR}{SHEET_FILE_NAME}"),
-        &to_json_bytes(&dto)?,
+        &to_json_bytes(dto)?,
     )?;
     session.create_directory(
         &base,
@@ -67,24 +170,22 @@ pub fn create_sheet(
     // The new sheet joins the order in the document.json on disk, and nothing else there
     // changes: the Document's other unsaved edits stay unsaved (Auto Save may be off).
     // Without the order the sheet would not be part of the Document, so it is removed again.
-    if let Err(error) = append_to_saved_sheet_order(session, &base, sheet.sheet_id()) {
+    let sheet_id = SheetId::parse(&dto.sheet_id)?;
+    if let Err(error) = append_to_saved_sheet_order(session, &base, &sheet_id) {
         let sheets_container = format!("{base}{PATH_SEPARATOR}{SHEETS_DIRECTORY_NAME}");
-        let _ = session.remove_directory_tree(&sheets_container, &directory_name, SHEET_FILE_NAME);
+        let _ = session.remove_directory_tree(&sheets_container, directory_name, SHEET_FILE_NAME);
         return Err(error);
     }
-    session.document_mut(&document_id)?.sheets.insert(
-        *sheet.sheet_id(),
-        SheetRecord {
-            directory_name,
-            writable: true,
-        },
-    );
-    Ok(SheetSnapshot {
+    Ok(())
+}
+
+fn loaded_snapshot(dto: SheetDto) -> SheetSnapshot {
+    SheetSnapshot {
         sheet_id: dto.sheet_id.clone(),
         name: Some(dto.name.clone()),
         state: EntityState::Loaded,
         sheet: Some(dto),
-    })
+    }
 }
 
 /// Adds `sheet_id` to the end of the order in the Document's `document.json` as it is on
@@ -135,11 +236,14 @@ pub fn save_sheet(
             sheet.sheet_id()
         )));
     }
+    let directory_name = sheet_record.directory_name.clone();
+    if sheet_record.reserved_name.is_some() {
+        write_reserved_sheet(session, &document_id, sheet.sheet_id())?;
+    }
     // The target file is chosen by the payload's own ID, so one sheet's data can never be
     // written into another sheet's directory.
     let relative = format!(
-        "{SHEETS_DIRECTORY_NAME}{PATH_SEPARATOR}{}{PATH_SEPARATOR}{SHEET_FILE_NAME}",
-        sheet_record.directory_name
+        "{SHEETS_DIRECTORY_NAME}{PATH_SEPARATOR}{directory_name}{PATH_SEPARATOR}{SHEET_FILE_NAME}"
     );
     let base = session.document_base(&document_id)?;
     let bytes = to_json_bytes(&SheetDto::from_domain(&sheet))?;
@@ -162,13 +266,20 @@ pub fn delete_sheet(
     let session = sessions.session_mut(project_id)?;
     let document_id = DocumentId::parse(document_id)?;
     let sheet_id = SheetId::parse(sheet_id)?;
-    let sheet_directory = session
+    let record = session
         .document(&document_id)?
         .sheets
         .get(&sheet_id)
-        .ok_or_else(|| ApplicationError::entity_not_found(format!("unknown sheetId: {sheet_id}")))?
-        .directory_name
-        .clone();
+        .ok_or_else(|| {
+            ApplicationError::entity_not_found(format!("unknown sheetId: {sheet_id}"))
+        })?;
+    let sheet_directory = record.directory_name.clone();
+    if record.reserved_name.is_some() {
+        // Nothing of it is on disk: forgetting it is all there is to do.
+        session.document_mut(&document_id)?.sheets.remove(&sheet_id);
+        session.forget_block_numbers(&document_id, Some(&sheet_directory));
+        return Ok(());
+    }
     let base = session.document_base(&document_id)?;
     let sheets_container = format!("{base}{PATH_SEPARATOR}{SHEETS_DIRECTORY_NAME}");
     let removal =

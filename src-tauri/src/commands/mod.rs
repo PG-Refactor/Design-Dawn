@@ -86,7 +86,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 115] = [
+pub const COMMAND_NAMES: [&str; 116] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -113,6 +113,7 @@ pub const COMMAND_NAMES: [&str; 115] = [
     "delete_unused_assets",
     "save_document",
     "create_sheet",
+    "reserve_sheet",
     "save_sheet",
     "create_block_content",
     "reserve_block_content",
@@ -1188,6 +1189,21 @@ pub fn create_sheet<R: Runtime>(
 ) -> Result<SheetSnapshot, ApplicationError> {
     with_project_sessions(&window, &state, &project_id, |sessions| {
         sheets::create_sheet(sessions, &project_id, &document_id, &sheet_id, &name)
+    })
+}
+
+/// A new sheet while Auto Save is off: nothing is written until a save writes into it.
+#[tauri::command]
+pub fn reserve_sheet<R: Runtime>(
+    window: Window<R>,
+    state: SessionState<'_>,
+    project_id: String,
+    document_id: String,
+    sheet_id: String,
+    name: String,
+) -> Result<SheetSnapshot, ApplicationError> {
+    with_project_sessions(&window, &state, &project_id, |sessions| {
+        sheets::reserve_sheet(sessions, &project_id, &document_id, &sheet_id, &name)
     })
 }
 

@@ -62,7 +62,7 @@ import type { DocumentSessionSeed } from "./document-session";
 import type { PlannedFiles } from "./save-coordinator";
 
 // Raised when the payload's shape changes; a window never takes in another version.
-export const DOCUMENT_TRANSFER_VERSION = 2;
+export const DOCUMENT_TRANSFER_VERSION = 3;
 
 export interface DocumentTransfer {
   readonly projectId: ProjectId;
@@ -92,7 +92,7 @@ interface DocumentTransferJson {
     readonly changedSheetIds: readonly string[];
     readonly changedContentBlockIds: readonly string[];
   };
-  // Auto-save off: block files the next save creates and deletes.
+  // Auto-save off: block files the next save creates and deletes, and sheets it deletes.
   readonly plannedFiles: PlannedFiles;
 }
 
@@ -406,6 +406,9 @@ function decode(json: unknown): DocumentTransfer {
     }),
     deletes: list(planned.deletes, "deletes").map((value) =>
       valid(parseContentPath(text(value, "delete")), "delete"),
+    ),
+    sheetDeletes: list(planned.sheetDeletes, "sheetDeletes").map((value) =>
+      sheetIdOf(value),
     ),
   };
   if (typeof unsaved.documentChanged !== "boolean") {

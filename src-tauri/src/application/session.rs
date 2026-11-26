@@ -112,6 +112,9 @@ pub struct SheetRecord {
     pub directory_name: String,
     /// Only a sheet that loaded successfully (or was created here) may be written.
     pub writable: bool,
+    /// The name of a sheet that is only reserved: added while Auto Save is off, nothing of it
+    /// is on disk until the first write into it. `None` for a sheet on disk.
+    pub reserved_name: Option<String>,
 }
 
 /// Where a Folder lives and whether it may be written.

@@ -46,6 +46,7 @@ import {
   reloadProject,
   repairLoadIssue,
   reserveBlockContent,
+  reserveSheet,
   restoreBlockContent,
   saveDocument,
   saveFolder,
@@ -99,6 +100,7 @@ export function createTauriPersistenceGateway(): PersistenceGateway {
     closeDocument: async (projectId, documentId) =>
       mapOperationResult(await closeDocument(projectId, documentId), discard),
     createSheet,
+    reserveSheet,
     deleteSheet: async (projectId, documentId, sheetId) =>
       mapOperationResult(
         await deleteSheet(projectId, documentId, sheetId),

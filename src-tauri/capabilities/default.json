@@ -30,6 +30,7 @@
     "allow-delete-unused-assets",
     "allow-save-document",
     "allow-create-sheet",
+    "allow-reserve-sheet",
     "allow-save-sheet",
     "allow-create-block-content",
     "allow-reserve-block-content",

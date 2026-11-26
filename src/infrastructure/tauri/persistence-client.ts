@@ -296,6 +296,19 @@ export function createSheet(
   );
 }
 
+export function reserveSheet(
+  projectId: ProjectId,
+  documentId: DocumentId,
+  sheetId: SheetId,
+  name: DisplayName,
+): Promise<CommandResult<SheetSnapshot>> {
+  return call(
+    COMMANDS.reserveSheet,
+    { projectId, documentId, sheetId, name },
+    toSheetSnapshotResult,
+  );
+}
+
 export function saveSheet(
   projectId: ProjectId,
   documentId: DocumentId,

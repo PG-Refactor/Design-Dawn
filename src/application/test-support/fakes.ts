@@ -12,7 +12,10 @@ import {
 } from "../../domain/document/document";
 import { type Folder, parseFolder } from "../../domain/folder/folder";
 import { type Project, parseProject } from "../../domain/project/project";
-import { parseDisplayName } from "../../domain/shared/display-name";
+import {
+  type DisplayName,
+  parseDisplayName,
+} from "../../domain/shared/display-name";
 import {
   type BlockId,
   type DocumentId,
@@ -395,6 +398,8 @@ export function createFakeGateway(
     documentParents: new Map(),
   };
   const openDocuments = new Set<DocumentId>();
+  // Sheets reserved and not written yet, by Document: their reserved names.
+  const reservedSheets = new Map<DocumentId, Map<SheetId, DisplayName>>();
 
   function entryIdInUse(entryId: string): boolean {
     return (
@@ -931,6 +936,7 @@ export function createFakeGateway(
     closeDocument: (_project, documentId) =>
       enter("closeDocument", documentId, () => {
         openDocuments.delete(documentId);
+        reservedSheets.delete(documentId);
         return operationOk(undefined);
       }),
     createSheet: (_project, documentId, sheetId, name) =>
@@ -950,8 +956,28 @@ export function createFakeGateway(
         const snapshot: SheetSnapshot = { sheetId, ...entry };
         return operationOk(snapshot);
       }),
+    reserveSheet: (_project, documentId, sheetId, name) =>
+      enter("reserveSheet", sheetId, () => {
+        if (!disk.documents.has(documentId)) {
+          return operationErr("entityNotFound", documentId);
+        }
+        const reserved = reservedSheets.get(documentId) ?? new Map();
+        reserved.set(sheetId, name);
+        reservedSheets.set(documentId, reserved);
+        const snapshot: SheetSnapshot = {
+          sheetId,
+          name,
+          state: "loaded",
+          sheet: newSheet(sheetId, name),
+        };
+        return operationOk(snapshot);
+      }),
     deleteSheet: (_project, documentId, sheetId) =>
       enter("deleteSheet", sheetId, () => {
+        // Like Rust: a reserved sheet is only forgotten.
+        if (reservedSheets.get(documentId)?.delete(sheetId) === true) {
+          return operationOk(undefined);
+        }
         const deleted = disk.documents.get(documentId)?.sheets.delete(sheetId);
         return deleted === true
           ? operationOk(undefined)
@@ -1021,8 +1047,18 @@ export function createFakeGateway(
     clearCalls() {
       calls.length = 0;
     },
-    saveSheet: (_project, _document, sheet) =>
+    saveSheet: (_project, documentId, sheet) =>
       enter("saveSheet", sheet.sheetId, () => {
+        // Like Rust: the first save of a reserved sheet puts it on disk and in the order.
+        if (reservedSheets.get(documentId)?.delete(sheet.sheetId) === true) {
+          const stored = disk.documents.get(documentId) as FakeDiskDocument;
+          stored.sheets.set(sheet.sheetId, {
+            name: sheet.name,
+            state: "loaded",
+            sheet,
+          });
+          stored.document = unwrap(addSheet(stored.document, sheet.sheetId));
+        }
         savedSheets.set(sheet.sheetId, sheet);
         return operationOk(undefined);
       }),

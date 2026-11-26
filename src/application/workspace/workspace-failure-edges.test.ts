@@ -236,6 +236,8 @@ describe("sheets", () => {
 
   it("stops deleting a Sheet when the other edits cannot be saved first", async () => {
     const harness = await withUnsavedDocument();
+    // Deleted at once only while Auto Save is on.
+    harness.autoSaveController.applyExternal(true);
     harness.gateway.failOn("saveSheet", "ioError");
     expect(
       (await harness.workspace.deleteSheet(DOCUMENT_A, SHEET_A2, CONFIRMED)).ok,

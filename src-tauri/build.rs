@@ -28,6 +28,7 @@ const APP_COMMANDS: &[&str] = &[
     "delete_unused_assets",
     "save_document",
     "create_sheet",
+    "reserve_sheet",
     "save_sheet",
     "create_block_content",
     "reserve_block_content",
