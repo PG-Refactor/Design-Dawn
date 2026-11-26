@@ -73,6 +73,12 @@
 </header>
 
 <main>
+  <nav class="toc" aria-label="On this page">
+    <a href="#features">Features</a>
+    <a href="#screens">Screenshots</a>
+    <a href="#files">File format</a>
+    <a href="#ai">AI / MCP</a>
+  </nav>
   <div class="hero">
     <div class="wrap">
       <p class="eyebrow">Design docs app · Markdown · Mermaid · Git · MCP</p>
@@ -99,16 +105,17 @@
         <div class="card"><h3>Free-form canvas</h3><p>Pan, zoom, select, move, resize, align and reorder blocks, with undo/redo.</p></div>
         <div class="card"><h3>Project tree</h3><p>Documents in folders, several open at once; drag rows to reorder or move them.</p></div>
         <div class="card"><h3>Markdown blocks</h3><p>Rendered on the canvas; split source/preview editor while you write.</p></div>
-        <div class="card"><h3>Mermaid diagrams</h3><p>The diagrams Mermaid 12 can draw, rendered locally and sanitised — no network, no scripts.</p></div>
+        <div class="card"><h3><a href="mermaid-gui-editor/#rendering">Mermaid diagrams</a></h3><p>The diagrams Mermaid 12 can draw, rendered locally and sanitised — no network, no scripts.</p></div>
         <div class="card"><h3><a href="mermaid-gui-editor/">Mermaid GUI editor</a></h3><p>Edit flowcharts, sequence, class, state and ER diagrams, Gantt and pie charts with lists and property fields. The Mermaid source stays the single source of truth.</p></div>
         <div class="card"><h3><a href="docs-as-code/">Git integration</a></h3><p>Status, stage, commit, history, side-by-side diffs and a visual before/after of a sheet, merge conflicts resolved in the app (images by looking at both), fetch, pull and push.</p></div>
-        <div class="card"><h3>External change detection</h3><p>Edits from another editor, Git or an AI tool are picked up; reload, keep yours or compare.</p></div>
+        <div class="card"><h3><a href="docs-as-code/#external-changes">External change detection</a></h3><p>Edits from another editor, Git or an AI tool are picked up; reload, keep yours or compare.</p></div>
         <div class="card"><h3>Images and captions</h3><p>PNG, JPEG, WebP, SVG and GIF by drag and drop, with one-line captions for figures.</p></div>
         <div class="card"><h3>Display size and fit</h3><p>Zoom the text or diagram inside a block, or let it fit the block; images go back to their original size.</p></div>
         <div class="card"><h3>Templates, print and export</h3><p>Start documents from templates (yours too), print, and export to PDF, HTML or Markdown.</p></div>
         <div class="card"><h3>Search and spreadsheets</h3><p>Search the whole project; turn a spreadsheet into a Markdown table.</p></div>
         <div class="card"><h3>Light / dark, English / Japanese</h3><p>Both themes and both UI languages are built in.</p></div>
       </div>
+      <p class="more">In detail: <a href="mermaid-gui-editor/">Mermaid GUI editor →</a> · <a href="docs-as-code/">Design docs in Git →</a> · <a href="mcp/">AI / MCP →</a></p>
     </div>
   </section>
 
@@ -117,11 +124,11 @@
       <h2>Screenshots</h2>
       <p class="sub">Diagrams you can edit without memorising syntax, and diffs that stay readable.</p>
       <div class="gallery">
-        <figure><img class="shot" loading="lazy" src="images/flowchart-gui.png" width="1600" height="1000" alt="Mermaid flowchart GUI editor with a node list and a right-click menu"><figcaption>Flowchart GUI editor</figcaption></figure>
-        <figure><img class="shot" loading="lazy" src="images/sequence-gui.png" width="1600" height="1000" alt="Mermaid sequence diagram GUI editor with a selected message"><figcaption>Sequence diagram GUI editor</figcaption></figure>
+        <figure><img class="shot" loading="lazy" src="images/flowchart-gui.png" width="1600" height="1000" alt="Mermaid flowchart GUI editor with a node list and a right-click menu"><figcaption><a href="mermaid-gui-editor/">Flowchart GUI editor</a></figcaption></figure>
+        <figure><img class="shot" loading="lazy" src="images/sequence-gui.png" width="1600" height="1000" alt="Mermaid sequence diagram GUI editor with a selected message"><figcaption><a href="mermaid-gui-editor/">Sequence diagram GUI editor</a></figcaption></figure>
         <figure><img class="shot" loading="lazy" src="images/markdown-edit.png" width="1600" height="1000" alt="Markdown block in split source and preview mode"><figcaption>Markdown with live preview</figcaption></figure>
-        <figure><img class="shot" loading="lazy" src="images/git-diff.png" width="1600" height="1000" alt="Side-by-side Git diff of a Markdown block"><figcaption>Side-by-side Git diff</figcaption></figure>
-        <figure><img class="shot" loading="lazy" src="images/plan.png" width="1600" height="1000" alt="Mermaid Gantt chart and pie chart on a sheet"><figcaption>Gantt and pie charts</figcaption></figure>
+        <figure><img class="shot" loading="lazy" src="images/git-diff.png" width="1600" height="1000" alt="Side-by-side Git diff of a Markdown block"><figcaption><a href="docs-as-code/#git-in-the-app">Side-by-side Git diff</a></figcaption></figure>
+        <figure><img class="shot" loading="lazy" src="images/plan.png" width="1600" height="1000" alt="Mermaid Gantt chart and pie chart on a sheet"><figcaption><a href="mermaid-gui-editor/">Gantt and pie charts</a></figcaption></figure>
         <figure><img class="shot" loading="lazy" src="images/light-theme.png" width="1600" height="1000" alt="Design Dawn in the light theme"><figcaption>Light theme</figcaption></figure>
       </div>
     </div>
@@ -177,5 +184,28 @@
     <span><a href="https://github.com/PG-Refactor/Design-Dawn">GitHub</a> · <a href="https://github.com/PG-Refactor/Design-Dawn/issues">Issues</a> · <a href="ja/" hreflang="ja" lang="ja">日本語</a></span>
   </div>
 </footer>
+<script>
+  // Marks the entry of the section being read. Without scripts the list still works.
+  (() => {
+    const links = new Map(
+      [...document.querySelectorAll(".toc a")].map((link) => [link.hash.slice(1), link]),
+    );
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          for (const link of links.values()) link.removeAttribute("aria-current");
+          links.get(entry.target.id)?.setAttribute("aria-current", "true");
+        }
+      },
+      // A section counts as read while it crosses the band a little above the middle.
+      { rootMargin: "-35% 0px -60% 0px" },
+    );
+    for (const id of links.keys()) {
+      const section = document.getElementById(id);
+      if (section) observer.observe(section);
+    }
+  })();
+</script>
 </body>
 </html>
