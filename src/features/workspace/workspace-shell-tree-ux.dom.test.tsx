@@ -396,6 +396,59 @@ describe("an empty folder", () => {
   });
 });
 
+describe("the Delete key in the tree", () => {
+  it("asks to delete the focused Document, as the menu does", async () => {
+    const harness = await openedShell();
+    treeItemNamed("Document A").focus();
+    await harness.user.keyboard("{Delete}");
+    const dialog = screen.getByRole("dialog", {
+      name: MESSAGES.deleteConfirmationTitle("Document A"),
+    });
+    await harness.user.click(
+      within(dialog).getByRole("button", { name: MESSAGES.dialogs.delete }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(harness.gateway.methods("deleteDocument")).toHaveLength(1);
+    expect(screen.queryByRole("treeitem", { name: "Document A" })).toBeNull();
+  });
+
+  it("asks to delete the focused folder with what is in it", async () => {
+    const harness = await openedShell();
+    treeItemNamed("Folder 1").focus();
+    await harness.user.keyboard("{Delete}");
+    const dialog = screen.getByRole("dialog", {
+      name: MESSAGES.deleteConfirmationTitle("Folder 1"),
+    });
+    expect(dialog.textContent).toContain(
+      MESSAGES.dialogs.deleteFolderWithContents(2, 1),
+    );
+  });
+
+  it("asks once for all chosen rows when the focused row is one of them", async () => {
+    const harness = await openedShell();
+    await clickRow(harness, "Document A");
+    await clickRow(harness, "Document B", "Control");
+    await harness.user.keyboard("{Delete}");
+    expect(
+      screen.getByRole("dialog", { name: MESSAGES.deleteEntriesTitle(2) }),
+    ).toBeTruthy();
+  });
+
+  it("does nothing on the Project row, with a modifier, or while renaming", async () => {
+    const harness = await openedShell();
+    (screen.getAllByRole("treeitem")[0] as HTMLElement).focus();
+    await harness.user.keyboard("{Delete}");
+    treeItemNamed("Document A").focus();
+    await harness.user.keyboard("{Shift>}{Delete}{/Shift}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    await harness.user.keyboard("{F2}");
+    await harness.user.keyboard("{Delete}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByRole("textbox")).toBeTruthy();
+  });
+});
+
 describe("the right-click menu of several chosen rows", () => {
   async function chooseAAndB(harness: ShellHarness) {
     await clickRow(harness, "Document A");

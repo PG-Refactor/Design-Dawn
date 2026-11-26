@@ -10,6 +10,7 @@ export const NAVIGATION_KEYS = {
   end: "End",
   enter: "Enter",
   space: " ",
+  delete: "Delete",
 } as const;
 
 // Index to move to for ArrowLeft / ArrowRight (wrapping), Home and End, or null when
