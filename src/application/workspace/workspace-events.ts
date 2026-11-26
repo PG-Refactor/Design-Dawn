@@ -21,7 +21,16 @@ export type WorkspaceEvent =
       readonly documentId: DocumentId;
       readonly sheetId: SheetId;
     }
-  | { readonly type: "projectClosed"; readonly projectId: ProjectId };
+  | { readonly type: "projectClosed"; readonly projectId: ProjectId }
+  // The user changed the tree, and the step can be undone.
+  | { readonly type: "treeStepRecorded"; readonly summary: TreeStepSummary };
+
+// What a tree step did, for a short notice: the entry's name when there is one entry.
+export interface TreeStepSummary {
+  readonly change: "created" | "moved" | "reordered" | "renamed";
+  readonly name: string | null;
+  readonly count: number;
+}
 
 export type WorkspaceEventListener = (event: WorkspaceEvent) => void;
 

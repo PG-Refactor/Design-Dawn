@@ -3,6 +3,7 @@
 // each returns the same state object when nothing changes.
 
 import type { OperationError } from "../../../application/ports/operation-error";
+import type { TreeStepSummary } from "../../../application/workspace/workspace-events";
 import { LAYOUT_CONFIG } from "../../../config/layout-config";
 import type { TreeSelection } from "../view-models/tree-selection";
 import type {
@@ -63,6 +64,17 @@ export function showNotice(state: UiState, kind: NoticeKind): UiState {
   return {
     ...state,
     notice: { id: state.nextNoticeId, kind },
+    nextNoticeId: state.nextNoticeId + 1,
+  };
+}
+
+export function showTreeStepNotice(
+  state: UiState,
+  summary: TreeStepSummary,
+): UiState {
+  return {
+    ...state,
+    notice: { id: state.nextNoticeId, kind: "treeStep", summary },
     nextNoticeId: state.nextNoticeId + 1,
   };
 }

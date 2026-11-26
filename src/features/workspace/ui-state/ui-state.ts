@@ -9,6 +9,7 @@
 import type { Viewport } from "../../../application/local-state/viewport";
 import type { OperationError } from "../../../application/ports/operation-error";
 import type { BlockContentComparison } from "../../../application/ports/persistence-types";
+import type { TreeStepSummary } from "../../../application/workspace/workspace-events";
 import { LAYOUT_CONFIG } from "../../../config/layout-config";
 import {
   MERMAID_EDITOR_INITIAL_VIEW,
@@ -174,6 +175,8 @@ export type DialogState =
       readonly kind: "confirmUnsavedClose";
       readonly target: UnsavedCloseTarget;
     }
+  // Undoing a tree step deletes Documents / Folders that changed since they were made.
+  | { readonly kind: "confirmUndoCreation"; readonly names: readonly string[] }
   | {
       readonly kind: "confirmDeleteFolder";
       readonly folderId: FolderId;
@@ -319,15 +322,21 @@ export const NOTICE_KINDS = [
   "fileFormatUpdated",
   "longPathsFound",
   "portablePathsFound",
+  // A tree step could not be taken back or made again: the tree changed since.
+  "treeStepNotApplied",
 ] as const;
 
 export type NoticeKind = (typeof NOTICE_KINDS)[number];
 
-export interface UiNotice {
-  // A new notice replaces the shown one and restarts its timer, so each has its own id.
-  readonly id: number;
-  readonly kind: NoticeKind;
-}
+// A new notice replaces the shown one and restarts its timer, so each has its own id. A
+// tree step's notice says what was done and offers to undo it.
+export type UiNotice =
+  | { readonly id: number; readonly kind: NoticeKind }
+  | {
+      readonly id: number;
+      readonly kind: "treeStep";
+      readonly summary: TreeStepSummary;
+    };
 
 // A failed operation, kept until the user dismisses it. Never swallowed: it is shown in
 // the notifications.

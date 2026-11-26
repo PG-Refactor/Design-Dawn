@@ -65,6 +65,8 @@ import {
   createInitialApplicationState,
   type DocumentSessionState,
   type OpenDocumentDetails,
+  type OpenProjectDocumentEntry,
+  type OpenProjectFolderEntry,
   type OpenProjectState,
   putDocumentDetails,
   putDocumentSession,
@@ -76,7 +78,9 @@ import {
 import {
   CLEAN_SAVE,
   documentsUnder,
+  findFolder,
   findProjectEntry,
+  hasChildren,
   orderWithout,
   type ParentId,
   requireWritableParent,
@@ -91,9 +95,15 @@ import {
   validateProjectSnapshot,
   validateSheetSnapshot,
 } from "./snapshot-validation";
-import { createTreeOrderHistory, type TreeReorder } from "./tree-order-history";
+import { replayTreeStep } from "./tree-change-replay";
+import {
+  createTreeHistory,
+  type TreeChange,
+  type TreeStep,
+} from "./tree-history";
 import {
   createWorkspaceEvents,
+  type TreeStepSummary,
   type WorkspaceEventListener,
   type WorkspaceEvents,
 } from "./workspace-events";
@@ -136,6 +146,13 @@ const CONTENT_PATH_SEPARATOR = "/";
 // The last part of a contentPath ("assets/photo.png" -> "photo.png").
 function fileNameOf(contentPath: string): string {
   return contentPath.slice(contentPath.lastIndexOf(CONTENT_PATH_SEPARATOR) + 1);
+}
+
+export type TreeStepOutcome = "none" | "applied" | "notApplied";
+
+// What undoing the next tree step deletes that changed since it was created, by name.
+export interface TreeUndoPreview {
+  readonly changedCreations: readonly string[];
 }
 
 export interface Workspace {
@@ -212,8 +229,8 @@ export interface Workspace {
     name: string,
   ): Promise<OperationResult<void>>;
   // Reorder among the siblings of the same parent (Project or Folder), directly before
-  // `beforeEntryId`, or last when null. Saves the parent's file; `undoTreeOrder` takes it
-  // back.
+  // `beforeEntryId`, or last when null. Saves the parent's file; `undoTreeChange` takes
+  // it back.
   moveFolder(
     folderId: FolderId,
     beforeEntryId: EntryId | null,
@@ -242,11 +259,18 @@ export interface Workspace {
     documentId: DocumentId,
     beforeEntryId: EntryId | null,
   ): Promise<OperationResult<void>>;
-  // Takes back / makes again the last reorder of the tree (Project history, apart from the
-  // Documents'). False when there is none, or when the tree changed so that the place it
-  // went back to is gone (then the steps are dropped).
-  undoTreeOrder(): Promise<OperationResult<boolean>>;
-  redoTreeOrder(): Promise<OperationResult<boolean>>;
+  // The Project tree's own history (apart from the Documents'): reorders, moves into
+  // another parent, Documents and Folders created, Folders renamed. Everything done until
+  // the returned function is called is one step (a drag of several rows).
+  groupTreeChanges(): () => void;
+  // What undoing the next tree step deletes that changed since it was created (a Document
+  // edited, a Folder with something in it), by name, for the user to confirm first; null
+  // when there is no step.
+  treeUndoPreview(): TreeUndoPreview | null;
+  // Takes back / makes again the last tree step. "notApplied": the tree changed so that
+  // the step no longer fits, and the steps are dropped.
+  undoTreeChange(): Promise<OperationResult<TreeStepOutcome>>;
+  redoTreeChange(): Promise<OperationResult<TreeStepOutcome>>;
   // Explicit retry of a project save that failed.
   saveProject(): Promise<OperationResult<void>>;
   // The open Documents a move of `entryId` would carry along: the Document itself, or the
@@ -389,7 +413,46 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     return saveCurrentProject();
   }
 
-  const treeOrderHistory = createTreeOrderHistory(config.undoHistoryLimit);
+  const treeHistory = createTreeHistory(config.undoHistoryLimit, (step) =>
+    events.emit({ type: "treeStepRecorded", summary: summarize(step) }),
+  );
+
+  function summarize(step: TreeStep): TreeStepSummary {
+    const creations = step.filter((change) => change.kind === "create");
+    if (creations.length > 0) {
+      return {
+        change: "created",
+        // The deepest of several folders made at once.
+        name: (creations.at(-1) as (typeof creations)[number]).name,
+        count: creations.length,
+      };
+    }
+    const renamed = step.find((change) => change.kind === "renameFolder");
+    if (renamed !== undefined) {
+      return { change: "renamed", name: renamed.to, count: 1 };
+    }
+    // What is left is placing entries: a drag of rows, a move into a folder.
+    const placed = step.filter(
+      (change): change is Extract<TreeChange, { kind: "reorder" | "move" }> =>
+        change.kind === "reorder" || change.kind === "move",
+    );
+    const entryIds = [...new Set(placed.map((change) => change.entryId))];
+    const [only] = entryIds;
+    const found =
+      entryIds.length === 1
+        ? findProjectEntry(
+            store.getState().project as OpenProjectState,
+            only as EntryId,
+          )
+        : null;
+    return {
+      change: placed.some((change) => change.kind === "move")
+        ? "moved"
+        : "reordered",
+      name: found?.entry.name ?? null,
+      count: entryIds.length,
+    };
+  }
   const treeSteps = createProjectTreeSteps({
     gateway,
     idGenerator,
@@ -790,118 +853,155 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     parentFolderId: ParentId,
   ): Promise<OperationResult<DocumentId>> {
     return runLifecycle(async () => {
-      const project = requireProject();
-      if (!project.ok) return project;
-      const parent = requireWritableParent(project.value, parentFolderId);
-      if (!parent.ok) return parent;
-      const displayName = fromDomainResult(parseDisplayName(name));
-      if (!displayName.ok) return failWith(displayName.error);
-      const documentId = idGenerator.documentId();
-      const created = await gateway.createDocument(
-        project.value.projectId,
-        documentId,
-        displayName.value,
+      const created = await createDocumentNow(
+        name,
         parentFolderId,
+        idGenerator.documentId(),
       );
       if (!created.ok) return created;
-      const valid = validateDocumentSnapshot(created.value, documentId);
-      if (!valid.ok) return valid;
-      // The lifecycle queue keeps the Project open meanwhile; read again for what changed.
-      const current = store.getState().project as OpenProjectState;
-      const listed = withAppendedChild(
-        {
-          ...current,
-          documents: [
-            ...current.documents,
-            {
-              documentId,
-              parentFolderId,
-              name: valid.value.document.name,
-              state: "loaded",
-            },
-          ],
-        },
-        parentFolderId,
-        documentId,
-      );
-      if (!listed.ok) return failWith(listed.error);
-      // The directory exists now, so it is listed even if saving the order fails.
-      updateProject(() => listed.value);
-      const saved = await treeSteps.saveParent(parentFolderId);
-      return saved.ok ? operationOk(documentId) : saved;
+      // Created just now, so it is listed, named and counted.
+      const listed = (
+        store.getState().project as OpenProjectState
+      ).documents.find(
+        (entry) => entry.documentId === created.value,
+      ) as OpenProjectDocumentEntry;
+      treeHistory.record({
+        kind: "create",
+        entryKind: "document",
+        entryId: created.value,
+        parentId: parentFolderId,
+        name: listed.name as string,
+        sheetCount: createdSheetCounts.get(created.value) as number,
+      });
+      return created;
     });
+  }
+
+  // How many sheets each Document created in this run had when it was made.
+  const createdSheetCounts = new Map<DocumentId, number>();
+
+  // Inside the lifecycle queue (a redo makes a Document again with its old id).
+  async function createDocumentNow(
+    name: string,
+    parentFolderId: ParentId,
+    documentId: DocumentId,
+  ): Promise<OperationResult<DocumentId>> {
+    const project = requireProject();
+    if (!project.ok) return project;
+    const parent = requireWritableParent(project.value, parentFolderId);
+    if (!parent.ok) return parent;
+    const displayName = fromDomainResult(parseDisplayName(name));
+    if (!displayName.ok) return failWith(displayName.error);
+    const created = await gateway.createDocument(
+      project.value.projectId,
+      documentId,
+      displayName.value,
+      parentFolderId,
+    );
+    if (!created.ok) return created;
+    const valid = validateDocumentSnapshot(created.value, documentId);
+    if (!valid.ok) return valid;
+    // The lifecycle queue keeps the Project open meanwhile; read again for what changed.
+    const current = store.getState().project as OpenProjectState;
+    const listed = withAppendedChild(
+      {
+        ...current,
+        documents: [
+          ...current.documents,
+          {
+            documentId,
+            parentFolderId,
+            name: valid.value.document.name,
+            state: "loaded",
+          },
+        ],
+      },
+      parentFolderId,
+      documentId,
+    );
+    if (!listed.ok) return failWith(listed.error);
+    // The directory exists now, so it is listed even if saving the order fails.
+    updateProject(() => listed.value);
+    createdSheetCounts.set(documentId, valid.value.document.sheetOrder.length);
+    const saved = await treeSteps.saveParent(parentFolderId);
+    return saved.ok ? operationOk(documentId) : saved;
   }
 
   function deleteDocumentStep(
     documentId: DocumentId,
   ): Promise<OperationResult<void>> {
-    return runLifecycle(async () => {
-      const project = requireProject();
-      if (!project.ok) return project;
-      const found = findProjectEntry(project.value, documentId);
-      if (found === null || found.kind !== "document") {
-        return operationErr(
-          "entityNotFound",
-          `document not found: ${documentId}`,
-        );
-      }
-      const entry = found.entry;
-      const parentId = entry.parentFolderId;
-      const without = orderWithout(project.value, parentId, documentId);
-      if (!without.ok) return failWith(without.error);
-      // Order first: if the process dies before the directory is deleted, an unlisted
-      // directory remains (reported on load) instead of a listed one that is gone. A
-      // Document that its parent does not list has nothing to remove.
-      if (without.value !== null) {
-        const saved = await treeSteps.saveOrderOf(parentId, without.value);
-        if (!saved.ok) return saved;
-      }
-      updateProject((current) => {
-        const removed = {
-          ...current,
-          documents: current.documents.filter(
-            (candidate) => candidate.documentId !== documentId,
-          ),
-        };
-        if (without.value === null) return removed;
-        return withParentSave(
-          withChildOrder(removed, parentId, without.value),
-          parentId,
-          CLEAN_SAVE,
-        );
-      });
-      const session = sessions.get(documentId);
-      if (session !== undefined) {
-        // Unsaved edits of a document that is being deleted are meant to be dropped.
-        await session.discard();
-        detachDocument(documentId);
-      }
-      const deleted = await gateway.deleteDocument(
-        project.value.projectId,
-        documentId,
+    return runLifecycle(() => deleteDocumentNow(documentId));
+  }
+
+  // Inside the lifecycle queue (undoing a creation deletes what was created).
+  async function deleteDocumentNow(
+    documentId: DocumentId,
+  ): Promise<OperationResult<void>> {
+    const project = requireProject();
+    if (!project.ok) return project;
+    const found = findProjectEntry(project.value, documentId);
+    if (found === null || found.kind !== "document") {
+      return operationErr(
+        "entityNotFound",
+        `document not found: ${documentId}`,
       );
-      if (deleted.ok) return deleted;
-      // The directory still exists, but the saved order no longer lists it: show it
-      // again and keep the parent dirty so the order is saved again.
-      updateProject((current) => {
-        const restored = {
-          ...current,
-          documents: [...current.documents, entry],
-        };
-        if (without.value === null) return restored;
-        // Appended to the order it was just taken out of: the original position is not
-        // worth a second order of truth.
-        const listed = withChildOrder(restored, parentId, [
-          ...without.value,
-          documentId,
-        ]);
-        return withParentSave(listed, parentId, {
-          dirty: true,
-          lastError: deleted.error,
-        });
-      });
-      return deleted;
+    }
+    const entry = found.entry;
+    const parentId = entry.parentFolderId;
+    const without = orderWithout(project.value, parentId, documentId);
+    if (!without.ok) return failWith(without.error);
+    // Order first: if the process dies before the directory is deleted, an unlisted
+    // directory remains (reported on load) instead of a listed one that is gone. A
+    // Document that its parent does not list has nothing to remove.
+    if (without.value !== null) {
+      const saved = await treeSteps.saveOrderOf(parentId, without.value);
+      if (!saved.ok) return saved;
+    }
+    updateProject((current) => {
+      const removed = {
+        ...current,
+        documents: current.documents.filter(
+          (candidate) => candidate.documentId !== documentId,
+        ),
+      };
+      if (without.value === null) return removed;
+      return withParentSave(
+        withChildOrder(removed, parentId, without.value),
+        parentId,
+        CLEAN_SAVE,
+      );
     });
+    const session = sessions.get(documentId);
+    if (session !== undefined) {
+      // Unsaved edits of a document that is being deleted are meant to be dropped.
+      await session.discard();
+      detachDocument(documentId);
+    }
+    const deleted = await gateway.deleteDocument(
+      project.value.projectId,
+      documentId,
+    );
+    if (deleted.ok) return deleted;
+    // The directory still exists, but the saved order no longer lists it: show it
+    // again and keep the parent dirty so the order is saved again.
+    updateProject((current) => {
+      const restored = {
+        ...current,
+        documents: [...current.documents, entry],
+      };
+      if (without.value === null) return restored;
+      // Appended to the order it was just taken out of: the original position is not
+      // worth a second order of truth.
+      const listed = withChildOrder(restored, parentId, [
+        ...without.value,
+        documentId,
+      ]);
+      return withParentSave(listed, parentId, {
+        dirty: true,
+        lastError: deleted.error,
+      });
+    });
+    return deleted;
   }
 
   function renameProjectStep(name: string): Promise<OperationResult<void>> {
@@ -1076,21 +1176,128 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     entryId: EntryId,
     beforeEntryId: EntryId | null,
   ): Promise<OperationResult<void>> {
-    const moved = await treeSteps.reorder(kind, entryId, beforeEntryId);
-    if (!moved.ok) return moved;
-    if (moved.value !== null) treeOrderHistory.record(moved.value);
+    return recorded(await treeSteps.reorder(kind, entryId, beforeEntryId));
+  }
+
+  // Keeps the change a tree step made, if it made one, for undo.
+  function recorded(
+    result: OperationResult<TreeChange | null>,
+  ): OperationResult<void> {
+    if (!result.ok) return result;
+    if (result.value !== null) treeHistory.record(result.value);
     return operationOk(undefined);
   }
 
-  async function replayTreeOrder(
-    step: TreeReorder | null,
-    side: "from" | "to",
-  ): Promise<OperationResult<boolean>> {
-    if (step === null) return operationOk(false);
-    const replayed = await treeSteps.replay(step, side);
+  // A created Document changed since: edited (history, unsaved changes, sheets added or
+  // deleted), or not open any more, so it cannot be told. A Folder changed when something
+  // is in it.
+  function createdEntryChanged(
+    change: Extract<TreeChange, { kind: "create" }>,
+  ): boolean {
+    const project = store.getState().project;
+    if (change.entryKind === "folder") {
+      return (
+        project !== null && hasChildren(project, change.entryId as FolderId)
+      );
+    }
+    const session = sessions.get(change.entryId as DocumentId);
+    if (session === undefined) return true;
+    const { history, save, document } = session.getState();
+    return (
+      history.canUndo ||
+      save.documentDirty ||
+      save.dirtySheetIds.size > 0 ||
+      save.dirtyContentBlockIds.size > 0 ||
+      document.sheetOrder.length !== change.sheetCount
+    );
+  }
+
+  function changedCreations(step: TreeStep): readonly string[] {
+    return step.flatMap((change) =>
+      change.kind === "create" && createdEntryChanged(change)
+        ? [change.name]
+        : [],
+    );
+  }
+
+  async function replayTreeHistory(
+    step: TreeStep | null,
+    direction: "undo" | "redo",
+  ): Promise<OperationResult<TreeStepOutcome>> {
+    if (step === null) return operationOk("none");
+    // Read before the step deletes them: a changed creation cannot be made again as it was.
+    const changed = direction === "undo" && changedCreations(step).length > 0;
+    const replayed = await replayTreeStep(
+      {
+        treeSteps,
+        requireProject,
+        createDocument: createDocumentNow,
+        deleteDocument: deleteDocumentNow,
+      },
+      step,
+      direction,
+    );
     // A place that is gone, or a failed save: the other steps no longer fit the tree.
-    if (!replayed.ok || !replayed.value) treeOrderHistory.clear();
-    return replayed;
+    if (!replayed.ok || !replayed.value) treeHistory.clear();
+    else if (changed) treeHistory.dropRedo();
+    if (!replayed.ok) return replayed;
+    return operationOk(replayed.value ? "applied" : "notApplied");
+  }
+
+  // "a/b" or "a\\b" makes nested folders; a level that is there already is used. Resolves
+  // to the deepest one.
+  async function createFolders(
+    parentFolderId: ParentId,
+    name: string,
+  ): Promise<OperationResult<FolderId>> {
+    const levels = name
+      .split(FOLDER_PATH_SEPARATORS)
+      .map((level) => level.trim())
+      .filter((level) => level !== "");
+    if (levels.length <= 1) return createFolderLevel(parentFolderId, name);
+    let parent = parentFolderId;
+    for (const level of levels) {
+      const existing = store
+        .getState()
+        .project?.folders.find(
+          (folder) =>
+            folder.parentFolderId === parent &&
+            folder.name === level &&
+            folder.state === LOADED_STATE,
+        );
+      if (existing !== undefined) {
+        parent = existing.folderId;
+        continue;
+      }
+      const created = await createFolderLevel(parent, level);
+      if (!created.ok) return created;
+      parent = created.value;
+    }
+    // There are at least two levels, so `parent` is the deepest one's folder (one that
+    // was there already when nothing new was needed).
+    return operationOk(parent as FolderId);
+  }
+
+  async function createFolderLevel(
+    parentFolderId: ParentId,
+    name: string,
+  ): Promise<OperationResult<FolderId>> {
+    const created = await treeSteps.createFolder(parentFolderId, name);
+    if (!created.ok) return created;
+    // Created just now, so it is listed and named.
+    const folder = findFolder(
+      store.getState().project as OpenProjectState,
+      created.value,
+    ) as OpenProjectFolderEntry;
+    treeHistory.record({
+      kind: "create",
+      entryKind: "folder",
+      entryId: created.value,
+      parentId: parentFolderId,
+      name: folder.name as string,
+      sheetCount: 0,
+    });
+    return created;
   }
 
   // Runs `task` on the serial queue of an open Document (no save or command in between).
@@ -1217,41 +1424,24 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
       createDocumentStep(name, parentFolderId),
     createFolder: (parentFolderId, name) =>
       runLifecycle(async () => {
-        // "a/b" or "a\\b" makes nested folders; a level that is there already is used.
-        const levels = name
-          .split(FOLDER_PATH_SEPARATORS)
-          .map((level) => level.trim())
-          .filter((level) => level !== "");
-        if (levels.length <= 1)
-          return treeSteps.createFolder(parentFolderId, name);
-        let parent = parentFolderId;
-        for (const level of levels) {
-          const existing = store
-            .getState()
-            .project?.folders.find(
-              (folder) =>
-                folder.parentFolderId === parent &&
-                folder.name === level &&
-                folder.state === LOADED_STATE,
-            );
-          if (existing !== undefined) {
-            parent = existing.folderId;
-            continue;
-          }
-          const created = await treeSteps.createFolder(parent, level);
-          if (!created.ok) return created;
-          parent = created.value;
+        // Every folder made here is one step, however many levels the name has.
+        const endStep = treeHistory.group();
+        try {
+          return await createFolders(parentFolderId, name);
+        } finally {
+          endStep();
         }
-        // There are at least two levels, so `parent` is the deepest one's folder (one that
-        // was there already when nothing new was needed).
-        return operationOk(parent as FolderId);
       }),
     renameFolder: (folderId, name) =>
-      runLifecycle(() => treeSteps.renameFolder(folderId, name)),
+      runLifecycle(async () =>
+        recorded(await treeSteps.renameFolder(folderId, name)),
+      ),
     moveFolder: (folderId, beforeEntryId) =>
       runLifecycle(() => reorderStep("folder", folderId, beforeEntryId)),
     moveEntry: (entryId, targetParentFolderId) =>
-      runLifecycle(() => treeSteps.moveEntry(entryId, targetParentFolderId)),
+      runLifecycle(async () =>
+        recorded(await treeSteps.moveEntry(entryId, targetParentFolderId)),
+      ),
     deleteFolder: (folderId) =>
       runLifecycle(() => treeSteps.deleteFolder(folderId)),
     saveFolder: (folderId) =>
@@ -1260,10 +1450,17 @@ export function createWorkspace(options: WorkspaceOptions): Workspace {
     renameProject: renameProjectStep,
     moveDocument: (documentId, beforeEntryId) =>
       runLifecycle(() => reorderStep("document", documentId, beforeEntryId)),
-    undoTreeOrder: () =>
-      runLifecycle(() => replayTreeOrder(treeOrderHistory.takeUndo(), "from")),
-    redoTreeOrder: () =>
-      runLifecycle(() => replayTreeOrder(treeOrderHistory.takeRedo(), "to")),
+    groupTreeChanges: () => treeHistory.group(),
+    treeUndoPreview() {
+      const step = treeHistory.peekUndo();
+      return step === null
+        ? null
+        : { changedCreations: changedCreations(step) };
+    },
+    undoTreeChange: () =>
+      runLifecycle(() => replayTreeHistory(treeHistory.takeUndo(), "undo")),
+    redoTreeChange: () =>
+      runLifecycle(() => replayTreeHistory(treeHistory.takeRedo(), "redo")),
     saveProject: () => runLifecycle(saveCurrentProject),
     openDocumentsUnder: openDocumentsUnderEntry,
     flushDocuments: (documentIds) =>

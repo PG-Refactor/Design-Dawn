@@ -1,8 +1,9 @@
 // Project-level operations on Folders and on where entries sit in the tree: create /
 // rename / reorder / move / delete a Folder, and saving the files that hold an order
-// (`project.json`, `folder.json`). Only a reorder can be taken back (the workspace keeps
-// those steps); the rest is not undoable. Every step runs on the workspace's lifecycle
-// queue (the caller wraps it); the gateway calls are made in a fixed order.
+// (`project.json`, `folder.json`). A reorder, a move and a folder rename report the change
+// they made, for the workspace's tree history; deleting is not undoable. Every step runs
+// on the workspace's lifecycle queue (the caller wraps it); the gateway calls are made in
+// a fixed order.
 //
 // Failure rule (same as the rest of the workspace): memory never claims something that is
 // not true on disk. When a step fails AFTER something changed on disk, the affected parent
@@ -39,7 +40,11 @@ import {
   withFolderName,
   withParentSave,
 } from "./project-entries";
-import type { TreeReorder } from "./tree-order-history";
+import type { TreeChange } from "./tree-history";
+
+type ReorderChange = Extract<TreeChange, { kind: "reorder" }>;
+type MoveChange = Extract<TreeChange, { kind: "move" }>;
+type RenameFolderChange = Extract<TreeChange, { kind: "renameFolder" }>;
 
 export interface ProjectTreeContext {
   readonly gateway: PersistenceGateway;
@@ -62,32 +67,37 @@ export interface ProjectTreeSteps {
   saveFolder(folderId: FolderId): Promise<OperationResult<void>>;
   // Saves every folder with unsaved changes; stops at the first failure when `stopOnError`.
   saveDirtyFolders(stopOnError: boolean): Promise<OperationResult<void>>;
+  // `folderId`: the id to create it with (making a folder again for a redo).
   createFolder(
     parentFolderId: ParentId,
     name: string,
+    folderId?: FolderId,
   ): Promise<OperationResult<FolderId>>;
+  // The rename made, or null when the name was already that.
   renameFolder(
     folderId: FolderId,
     name: string,
-  ): Promise<OperationResult<void>>;
+  ): Promise<OperationResult<RenameFolderChange | null>>;
   // The move made, or null when the entry was already there.
   reorder(
     kind: "folder" | "document",
     entryId: EntryId,
     beforeEntryId: EntryId | null,
-  ): Promise<OperationResult<TreeReorder | null>>;
-  // Puts the entry of a recorded move back where it was (`from`) or where it went (`to`).
-  // False, with nothing changed, when that place is gone: the entry left the parent, or
-  // the sibling it stood in front of did.
-  replay(
-    step: TreeReorder,
-    side: "from" | "to",
-  ): Promise<OperationResult<boolean>>;
+  ): Promise<OperationResult<ReorderChange | null>>;
+  // The move made, or null when the entry was in that parent already.
   moveEntry(
     entryId: EntryId,
     targetParentFolderId: ParentId,
-  ): Promise<OperationResult<void>>;
+  ): Promise<OperationResult<MoveChange | null>>;
   deleteFolder(folderId: FolderId): Promise<OperationResult<void>>;
+}
+
+// The entry right after `entryId` in `order` (null: it is the last).
+function siblingAfter(
+  order: readonly EntryId[],
+  entryId: EntryId,
+): EntryId | null {
+  return order[order.indexOf(entryId) + 1] ?? null;
 }
 
 export function createProjectTreeSteps(
@@ -165,6 +175,7 @@ export function createProjectTreeSteps(
   async function createFolder(
     parentFolderId: ParentId,
     name: string,
+    folderId: FolderId = idGenerator.folderId(),
   ): Promise<OperationResult<FolderId>> {
     const project = requireProject();
     if (!project.ok) return project;
@@ -172,7 +183,6 @@ export function createProjectTreeSteps(
     if (!parent.ok) return parent;
     const displayName = fromDomainResult(parseDisplayName(name));
     if (!displayName.ok) return failWith(displayName.error);
-    const folderId = idGenerator.folderId();
     const created = await gateway.createFolder(
       project.value.projectId,
       parentFolderId,
@@ -222,7 +232,7 @@ export function createProjectTreeSteps(
   async function renameFolder(
     folderId: FolderId,
     name: string,
-  ): Promise<OperationResult<void>> {
+  ): Promise<OperationResult<RenameFolderChange | null>> {
     const project = requireProject();
     if (!project.ok) return project;
     const entry = findFolder(project.value, folderId);
@@ -234,17 +244,26 @@ export function createProjectTreeSteps(
     }
     const displayName = fromDomainResult(parseDisplayName(name));
     if (!displayName.ok) return failWith(displayName.error);
+    if (entry.name === displayName.value) return operationOk(null);
     updateProject((current) =>
       withFolderName(current, folderId, displayName.value),
     );
-    return saveFolder(folderId);
+    const saved = await saveFolder(folderId);
+    if (!saved.ok) return saved;
+    return operationOk({
+      kind: "renameFolder",
+      folderId,
+      // Checked above: a loaded folder has its name.
+      from: entry.name as string,
+      to: displayName.value,
+    });
   }
 
   async function reorder(
     kind: "folder" | "document",
     entryId: EntryId,
     beforeEntryId: EntryId | null,
-  ): Promise<OperationResult<TreeReorder | null>> {
+  ): Promise<OperationResult<ReorderChange | null>> {
     const project = requireProject();
     if (!project.ok) return project;
     const found = findProjectEntry(project.value, entryId);
@@ -284,33 +303,14 @@ export function createProjectTreeSteps(
     });
     const saved = await saveParent(parentId);
     if (!saved.ok) return saved;
-    const from = order[order.indexOf(entryId) + 1] ?? null;
     return operationOk({
-      kind,
+      kind: "reorder",
+      entryKind: kind,
       entryId,
       parentId,
-      from,
+      from: siblingAfter(order, entryId),
       to: beforeEntryId,
     });
-  }
-
-  async function replay(
-    step: TreeReorder,
-    side: "from" | "to",
-  ): Promise<OperationResult<boolean>> {
-    const project = requireProject();
-    if (!project.ok) return project;
-    const found = findProjectEntry(project.value, step.entryId);
-    const sibling = step[side];
-    const order = childOrderOf(project.value, step.parentId);
-    const placeIsThere =
-      found !== null &&
-      found.kind === step.kind &&
-      found.entry.parentFolderId === step.parentId &&
-      (sibling === null || order?.includes(sibling) === true);
-    if (!placeIsThere) return operationOk(false);
-    const moved = await reorder(step.kind, step.entryId, sibling);
-    return moved.ok ? operationOk(true) : moved;
   }
 
   // The rules Rust validates again; checked here first so an impossible move never starts.
@@ -344,7 +344,7 @@ export function createProjectTreeSteps(
   async function moveEntry(
     entryId: EntryId,
     targetParentFolderId: ParentId,
-  ): Promise<OperationResult<void>> {
+  ): Promise<OperationResult<MoveChange | null>> {
     const project = requireProject();
     if (!project.ok) return project;
     const checked = checkMove(project.value, entryId, targetParentFolderId);
@@ -352,7 +352,18 @@ export function createProjectTreeSteps(
     const found = checked.value;
     const sourceParentId = found.entry.parentFolderId;
     // Moving to where it already is changes nothing (Rust accepts it as a no-op too).
-    if (sourceParentId === targetParentFolderId) return operationOk(undefined);
+    if (sourceParentId === targetParentFolderId) return operationOk(null);
+    const change: MoveChange = {
+      kind: "move",
+      entryKind: found.kind,
+      entryId,
+      fromParent: sourceParentId,
+      fromBefore: siblingAfter(
+        childOrderOf(project.value, sourceParentId) ?? [],
+        entryId,
+      ),
+      toParent: targetParentFolderId,
+    };
     const moved = await gateway.moveEntry(
       project.value.projectId,
       entryId,
@@ -397,7 +408,8 @@ export function createProjectTreeSteps(
       withoutSource.value === null
         ? operationOk(undefined)
         : await saveParent(sourceParentId);
-    return targetSaved.ok ? sourceSaved : targetSaved;
+    if (!targetSaved.ok) return targetSaved;
+    return sourceSaved.ok ? operationOk(change) : sourceSaved;
   }
 
   async function deleteFolder(
@@ -463,7 +475,6 @@ export function createProjectTreeSteps(
     createFolder,
     renameFolder,
     reorder,
-    replay,
     moveEntry,
     deleteFolder,
   };

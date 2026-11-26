@@ -149,6 +149,18 @@ export function WorkspaceDialogs() {
           onConfirm={() => void actions.answerUnsavedClose("save")}
         />
       );
+    case "confirmUndoCreation":
+      return (
+        <ConfirmDialog
+          title={texts.undoCreation.title(dialog.names)}
+          paragraphs={[texts.undoCreation.body]}
+          cancelLabel={texts.cancel}
+          confirmLabel={texts.undoCreation.confirm}
+          busy={busy}
+          onCancel={actions.cancelDialog}
+          onConfirm={() => void actions.confirmUndoCreation()}
+        />
+      );
     case "confirmDeleteFolder":
       return (
         <ConfirmDialog

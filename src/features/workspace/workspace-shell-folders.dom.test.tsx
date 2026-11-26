@@ -4,6 +4,7 @@ import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   DOCUMENT_A,
+  DOCUMENT_B,
   DOCUMENT_D,
   FOLDER_1,
   FOLDER_2,
@@ -262,6 +263,99 @@ describe("creating and renaming", () => {
     );
     await screen.findByRole("tab", { name: /Nested/ });
     expect(level("Nested")).toBe("3");
+  });
+
+  it("tells what was created, and its Undo button takes the creation back", async () => {
+    const harness = await openedShell();
+    await chooseRowMenuItem(harness.user, "Folder 2", TREE.createFolder);
+    await harness.user.type(
+      screen.getByRole("textbox", {
+        name: MESSAGES.dialogs.createFolder.nameLabel,
+      }),
+      "Inner{Enter}",
+    );
+    const notice = await screen.findByRole("status", {
+      name: MESSAGES.notices.regionLabel,
+    });
+    await waitFor(() =>
+      expect(notice.textContent).toContain(
+        MESSAGES.treeStepNotices.created("Inner", 1),
+      ),
+    );
+
+    await harness.user.click(
+      within(notice).getByRole("button", {
+        name: MESSAGES.treeStepNotices.undo,
+      }),
+    );
+    await waitFor(() => expect(treeLabels()).not.toContain("Inner"));
+    expect(notice.textContent).toBe("");
+  });
+
+  it("keeps the focus in the tree when the row it was on goes, so Ctrl+Z goes on", async () => {
+    const harness = await openedShell();
+    for (const name of ["One", "Two"]) {
+      await applyOutsideUi(() => harness.workspace.createFolder(null, name));
+    }
+    treeItemNamed("Two").focus();
+    await harness.user.keyboard("{Control>}z{/Control}");
+    await waitFor(() => expect(treeLabels()).not.toContain("Two"));
+    expect(screen.getByRole("tree").contains(document.activeElement)).toBe(
+      true,
+    );
+    await harness.user.keyboard("{Control>}z{/Control}");
+    await waitFor(() => expect(treeLabels()).not.toContain("One"));
+  });
+
+  it("asks before undoing the creation of a Document that changed since", async () => {
+    const harness = await openedShell();
+    await chooseRowMenuItem(harness.user, "Folder 1", TREE.createDocument);
+    await harness.user.type(
+      screen.getByRole("textbox", {
+        name: MESSAGES.dialogs.createDocument.nameLabel,
+      }),
+      "Nested{Enter}",
+    );
+    await screen.findByRole("tab", { name: /Nested/ });
+    await applyOutsideUi(async () => {
+      const created = harness.store
+        .getState()
+        .project?.documents.find((entry) => entry.name === "Nested");
+      if (created === undefined) throw new Error("not created");
+      await harness.workspace.createSheet(created.documentId, "Added");
+    });
+
+    treeItemNamed("Nested").focus();
+    await harness.user.keyboard("{Control>}z{/Control}");
+    const dialog = await screen.findByRole("dialog", {
+      name: MESSAGES.dialogs.undoCreation.title(["Nested"]),
+    });
+    await harness.user.click(
+      within(dialog).getByRole("button", {
+        name: MESSAGES.dialogs.undoCreation.confirm,
+      }),
+    );
+    await waitFor(() => expect(treeLabels()).not.toContain("Nested"));
+  });
+
+  it("tells when a step can no longer be undone", async () => {
+    const harness = await openedShell();
+    treeItemNamed("Document A").focus();
+    await harness.user.keyboard("{Control>}{ArrowDown}{/Control}");
+    await waitFor(() => expect(treeLabels().at(-1)).toBe("Document A"));
+    // Document A stood in front of Document B, which goes without a step.
+    await applyOutsideUi(() =>
+      harness.workspace.deleteDocument(DOCUMENT_B, { confirmedByUser: true }),
+    );
+
+    treeItemNamed("Document A").focus();
+    await harness.user.keyboard("{Control>}z{/Control}");
+    await waitFor(() =>
+      expect(
+        screen.getByRole("status", { name: MESSAGES.notices.regionLabel })
+          .textContent,
+      ).toBe(MESSAGES.notices.treeStepNotApplied),
+    );
   });
 
   it("renames a folder inline with F2 and Enter, saving its file", async () => {
