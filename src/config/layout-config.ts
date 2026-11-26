@@ -19,6 +19,8 @@ export const LAYOUT_CONFIG = {
   splitterWidthPx: 8,
   // How long a light, non-modal notice ("already open") stays before it fades away.
   noticeDurationMs: 4000,
+  // A notice with an Undo button (a step in the Project tree) stays longer.
+  undoNoticeDurationMs: 8000,
   // A right-click menu is kept at least this far inside the window edges.
   contextMenuEdgeMarginPx: 4,
   // The full text of a name cut short with "…" (the Project Tree), shown beside the pointer:

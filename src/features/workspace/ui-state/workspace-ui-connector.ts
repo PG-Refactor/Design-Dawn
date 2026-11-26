@@ -1,7 +1,9 @@
-// Non-React glue: applies the workspace's removal events to UI state. Application code
-// never touches UI state, so this subscriber is the only place that links the two.
+// Non-React glue: applies the workspace's events to UI state (removals, and the notice of
+// a tree step). Application code never touches UI state, so this subscriber is the only
+// place that links the two.
 
 import type { Workspace } from "../../../application/workspace/workspace";
+import { showTreeStepNotice } from "./shell-ui-state";
 import type { UiStateStore } from "./ui-state";
 import {
   removeDocumentReferences,
@@ -25,6 +27,9 @@ export function connectWorkspaceToUiState(
         uiStore.setState((state) =>
           removeSheetFromUiState(state, event.documentId, event.sheetId),
         );
+        return;
+      case "treeStepRecorded":
+        uiStore.setState((state) => showTreeStepNotice(state, event.summary));
         return;
       case "projectClosed":
         // The left panel mode, whether the sidebar is folded and the diff layout are view

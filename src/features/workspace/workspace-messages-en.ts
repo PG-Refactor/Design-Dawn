@@ -273,6 +273,17 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
       "Some file paths are too long for Git on Windows (see Source Control)",
     portablePathsFound:
       "Some paths inside the Project are long; other PCs may not handle them (see Source Control)",
+    treeStepNotApplied: "The tree changed since, so this could not be undone",
+  },
+  treeStepNotices: {
+    created: (name: string | null, count: number): string =>
+      count > 1 ? `Created ${count} items` : `Created “${name}”`,
+    moved: (name: string | null, count: number): string =>
+      name === null ? `Moved ${count} items` : `Moved “${name}”`,
+    reordered: (name: string | null, count: number): string =>
+      name === null ? `Reordered ${count} items` : `Reordered “${name}”`,
+    renamed: (name: string | null): string => `Renamed the folder to “${name}”`,
+    undo: "Undo",
   },
   tree: {
     openProjectInNewWindow: "Open Project in New Window",
@@ -505,6 +516,14 @@ export const WORKSPACE_MESSAGES_EN: WorkspaceMessages = {
     cancel: "Cancel",
     delete: "Delete",
     undoNotice: "This operation cannot be undone.",
+    undoCreation: {
+      title: (names: readonly string[]): string =>
+        names.length === 1
+          ? `Undo creating “${names[0]}”?`
+          : `Undo creating ${names.length} items?`,
+      body: "What was added to it since is deleted too. This deletion cannot be redone.",
+      confirm: "Undo and Delete",
+    },
     deleteFolderConsequence: "This folder (empty) will be deleted.",
     deleteFolderWithContents: (documents: number, folders: number): string =>
       `This folder and everything in it will be deleted: ${documents} Documents and ${folders} folders (with the Documents' Sheets, block text files and Assets).`,

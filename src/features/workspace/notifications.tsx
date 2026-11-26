@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef } from "react";
+import type { TreeStepSummary } from "../../application/workspace/workspace-events";
 import { LAYOUT_CONFIG } from "../../config/layout-config";
 import { IconFrame } from "../../shared/icons/icon-frame";
 import { useStoreSelector } from "../../shared/store/use-store-selector";
@@ -335,28 +336,55 @@ export function LoadStatus() {
 
 const selectNotice = (ui: UiState) => ui.notice;
 
+function treeStepText(
+  messages: WorkspaceMessages,
+  summary: TreeStepSummary,
+): string {
+  return messages.treeStepNotices[summary.change](summary.name, summary.count);
+}
+
 // A light, polite notice ("already open") that clears itself. The region always exists so
 // a notice added later is announced; it is not a failure, so it is not in the panel.
 export function TransientNotice() {
   const messages = useMessages().workspace;
   const { uiStateStore } = useWorkspaceServices();
+  const { actions } = useWorkspaceServices();
   const notice = useUiState(selectNotice);
   const noticeId = notice?.id ?? null;
+  // One with an Undo button stays long enough to reach the button.
+  const duration =
+    notice?.kind === "treeStep"
+      ? LAYOUT_CONFIG.undoNoticeDurationMs
+      : LAYOUT_CONFIG.noticeDurationMs;
   useEffect(() => {
     if (noticeId === null) return;
     const timer = setTimeout(
       () => uiStateStore.setState((state) => clearNotice(state, noticeId)),
-      LAYOUT_CONFIG.noticeDurationMs,
+      duration,
     );
     return () => clearTimeout(timer);
-  }, [noticeId, uiStateStore]);
+  }, [noticeId, duration, uiStateStore]);
   return (
     <div
       role="status"
       aria-label={messages.notices.regionLabel}
       className="transient-notice"
     >
-      {notice === null ? null : (
+      {notice === null ? null : notice.kind === "treeStep" ? (
+        <p className="transient-notice__message">
+          {treeStepText(messages, notice.summary)}
+          <button
+            type="button"
+            className="button transient-notice__action"
+            onClick={() => {
+              uiStateStore.setState((state) => clearNotice(state, notice.id));
+              void actions.undoTreeChange();
+            }}
+          >
+            {messages.treeStepNotices.undo}
+          </button>
+        </p>
+      ) : (
         <p className="transient-notice__message">
           {messages.notices[notice.kind]}
         </p>

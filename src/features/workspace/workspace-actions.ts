@@ -140,10 +140,13 @@ export interface WorkspaceActions {
   // Waits for the workspace steps in progress (a Document leaving this window may still be
   // here while Rust already asks the emptied window to close).
   whenWorkspaceIdle(): Promise<void>;
-  // Undo / redo of the last reorder in the Project tree. False when there is none, so the
-  // key can go to the Document's history instead.
-  undoTreeOrder(): Promise<boolean>;
-  redoTreeOrder(): Promise<boolean>;
+  // Undo / redo of the last step in the Project tree (reorder, move, create, folder
+  // rename). Undoing a creation that changed since asks first. False when there is no
+  // step, so the key can go to the Document's history instead.
+  undoTreeChange(): Promise<boolean>;
+  redoTreeChange(): Promise<boolean>;
+  // The answer to "undo creating …?".
+  confirmUndoCreation(): Promise<OperationResult<void>>;
   // Something in these Documents is not saved yet (an editor draft included).
   hasUnsavedChanges(documentIds: readonly DocumentId[]): boolean;
   // Shows the question for a window close and resolves to the user's answer.
@@ -678,17 +681,21 @@ export function createWorkspaceActions(
     return result;
   }
 
-  async function treeOrderStep(operation: "undo" | "redo"): Promise<boolean> {
+  // True when there was a step: taken, failed (reported) or no longer fitting the tree
+  // (told in a notice); in each case the key is done.
+  async function treeStep(operation: "undo" | "redo"): Promise<boolean> {
     const result =
       operation === "undo"
-        ? await workspace.undoTreeOrder()
-        : await workspace.redoTreeOrder();
+        ? await workspace.undoTreeChange()
+        : await workspace.redoTreeChange();
     if (!result.ok) {
       record(operation, null, result.error);
-      // The steps were dropped: the key has done its part.
       return true;
     }
-    return result.value;
+    if (result.value === "notApplied") {
+      uiStateStore.setState((state) => showNotice(state, "treeStepNotApplied"));
+    }
+    return result.value !== "none";
   }
 
   // Reorders among the siblings of the entry's own parent.
@@ -717,8 +724,21 @@ export function createWorkspaceActions(
 
   // Puts each entry, in the order given, into the target in front of `beforeEntryId`: a
   // reorder within its own parent, a move into another one. Stops at the first failure
-  // (what moved before it stays moved, like any move).
+  // (what moved before it stays moved, like any move). All of it is one undo step.
   async function placeAll(
+    entryIds: readonly EntryId[],
+    targetParentFolderId: FolderId | null,
+    beforeEntryId: EntryId | null,
+  ): Promise<OperationResult<void>> {
+    const endStep = workspace.groupTreeChanges();
+    try {
+      return await placeEach(entryIds, targetParentFolderId, beforeEntryId);
+    } finally {
+      endStep();
+    }
+  }
+
+  async function placeEach(
     entryIds: readonly EntryId[],
     targetParentFolderId: FolderId | null,
     beforeEntryId: EntryId | null,
@@ -1121,8 +1141,32 @@ export function createWorkspaceActions(
     deleteUnusedAssets: (documentId, contentPaths) =>
       workspace.deleteUnusedAssets(documentId, contentPaths),
     whenWorkspaceIdle: () => workspace.whenIdle(),
-    undoTreeOrder: () => treeOrderStep("undo"),
-    redoTreeOrder: () => treeOrderStep("redo"),
+    undoTreeChange() {
+      const preview = workspace.treeUndoPreview();
+      if (preview === null) return Promise.resolve(false);
+      if (preview.changedCreations.length > 0) {
+        uiStateStore.setState((state) =>
+          openDialog(state, {
+            kind: "confirmUndoCreation",
+            names: preview.changedCreations,
+          }),
+        );
+        return Promise.resolve(true);
+      }
+      return treeStep("undo");
+    },
+    redoTreeChange: () => treeStep("redo"),
+    confirmUndoCreation() {
+      const { dialog, busy } = uiStateStore.getState();
+      if (busy || dialog.kind !== "confirmUndoCreation") {
+        return Promise.resolve(operationOk(undefined));
+      }
+      return runBusy(async () => {
+        await treeStep("undo");
+        uiStateStore.setState(closeDialog);
+        return operationOk(undefined);
+      });
+    },
     windowCloseNeedsConfirmation: () =>
       !autoSavePolicy.isEnabled() && hasUnsavedProjectChanges(),
     askUnsavedWindowClose(endsApp) {

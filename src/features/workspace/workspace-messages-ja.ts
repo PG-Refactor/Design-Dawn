@@ -274,6 +274,21 @@ export const WORKSPACE_MESSAGES_JA = {
       "パスが長すぎるファイルがあります。Windows の Git では扱えないことがあります（ソース管理を参照）",
     portablePathsFound:
       "Project の中のパスが長いファイルがあります。ほかのパソコンでは扱えないことがあります（ソース管理を参照）",
+    treeStepNotApplied: "ツリーがその後に変わったため、元に戻せませんでした",
+  },
+  // What a step in the Project tree did, with the way to undo it (Ctrl+Z in the tree too).
+  treeStepNotices: {
+    created: (name: string | null, count: number): string =>
+      count > 1 ? `${count}件を作成しました` : `「${name}」を作成しました`,
+    moved: (name: string | null, count: number): string =>
+      name === null ? `${count}件を移動しました` : `「${name}」を移動しました`,
+    reordered: (name: string | null, count: number): string =>
+      name === null
+        ? `${count}件を並べ替えました`
+        : `「${name}」を並べ替えました`,
+    renamed: (name: string | null): string =>
+      `フォルダの名前を「${name}」に変更しました`,
+    undo: "元に戻す",
   },
   tree: {
     openProjectInNewWindow: "新しいウィンドウでProjectを開く",
@@ -506,6 +521,14 @@ export const WORKSPACE_MESSAGES_JA = {
     cancel: "キャンセル",
     delete: "削除",
     undoNotice: "この操作はUndoできません。",
+    undoCreation: {
+      title: (names: readonly string[]): string =>
+        names.length === 1
+          ? `「${names[0]}」の作成を元に戻しますか？`
+          : `${names.length}件の作成を元に戻しますか？`,
+      body: "作成のあとに加えた内容も削除されます。この削除はやり直せません。",
+      confirm: "元に戻して削除",
+    },
     deleteFolderConsequence: "このフォルダ（空）が削除されます。",
     deleteFolderWithContents: (documents: number, folders: number): string =>
       `このフォルダと、その中のDocument ${documents}件・フォルダ ${folders}件がすべて削除されます（DocumentのSheet、Block本文ファイル、Assetを含む）。`,

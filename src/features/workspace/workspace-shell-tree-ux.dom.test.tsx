@@ -325,6 +325,28 @@ describe("choosing several rows", () => {
     );
   });
 
+  it("takes a drag of several rows back with one Ctrl+Z", async () => {
+    const harness = await openedShell();
+    await clickRow(harness, "Document B");
+    await clickRow(harness, "Document C", "Control");
+    await dragTreeRow(harness.user, "Document B", yOnRow("Folder 2", 0.6));
+    const folderTwo = () =>
+      harness.store
+        .getState()
+        .project?.folders.find((folder) => folder.folderId === FOLDER_2)
+        ?.childOrder;
+    await waitFor(() =>
+      expect(folderTwo()).toEqual([DOCUMENT_D, DOCUMENT_C, DOCUMENT_B]),
+    );
+
+    treeItemNamed("Document B").focus();
+    await harness.user.keyboard("{Control>}z{/Control}");
+    await waitFor(() => expect(folderTwo()).toEqual([DOCUMENT_D]));
+    expect(harness.store.getState().project?.project.childOrder).toContain(
+      DOCUMENT_B,
+    );
+  });
+
   it("keeps the choice for a right-click inside it, and replaces it outside", async () => {
     const harness = await openedShell();
     await clickRow(harness, "Document A");

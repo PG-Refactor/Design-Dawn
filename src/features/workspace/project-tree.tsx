@@ -238,9 +238,9 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
     });
   }
 
-  // Ctrl/Cmd+Z / Shift+Z / Y with focus in the tree take back / make again the last
-  // reorder of the tree; with none, they undo / redo the ACTIVE document's history, the
-  // same as on the canvas. Typing in the rename input never gets here (the input keeps its
+  // Ctrl/Cmd+Z / Shift+Z / Y with focus in the tree take back / make again the last step
+  // of the tree (reorder, move, create, folder rename); with none, they undo / redo the
+  // ACTIVE document's history, the same as on the canvas. Typing in the rename input never gets here (the input keeps its
   // key events).
   function handleHistoryKey(event: KeyboardEvent<HTMLUListElement>): void {
     const command = keyCommandOf(event);
@@ -252,17 +252,32 @@ function ProjectTreeView({ model }: { readonly model: ProjectTreeModel }) {
     }
     event.preventDefault();
     const undo = command === CANVAS_KEY_COMMANDS.undo;
+    const tree = event.currentTarget;
+    const position = treeRows(tree).indexOf(
+      document.activeElement as HTMLElement,
+    );
     void (async () => {
       const took = undo
-        ? await actions.undoTreeOrder()
-        : await actions.redoTreeOrder();
-      if (took) return;
+        ? await actions.undoTreeChange()
+        : await actions.redoTreeChange();
+      if (took) {
+        keepFocusInTree(tree, position);
+        return;
+      }
       const documentId = uiStateStore.getState().activeDocumentId;
       if (documentId === null) return;
       await (undo
         ? canvasActions.undo(documentId)
         : canvasActions.redo(documentId));
     })();
+  }
+
+  // The step may have taken away the row that had the focus (a creation undone): the row
+  // now at its place takes it, so the next Ctrl+Z still reaches the tree.
+  function keepFocusInTree(tree: HTMLUListElement, position: number): void {
+    if (tree.contains(document.activeElement)) return;
+    const rows = treeRows(tree);
+    rows[Math.min(Math.max(position, 0), rows.length - 1)]?.focus();
   }
 
   // The chosen rows' entries (the Project row is not an entry).
@@ -491,6 +506,10 @@ function NoProjectTree() {
       {contextMenu.element}
     </>
   );
+}
+
+function treeRows(tree: HTMLElement): HTMLElement[] {
+  return [...tree.querySelectorAll<HTMLElement>('[role="treeitem"]')];
 }
 
 export function ProjectTree() {
