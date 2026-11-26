@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 2,
+  "sheetId": "01a218c8-a04c-70ca-8000-0de9f03ec519",
+  "name": "Interaction Rules",
+  "blocks": [
+    {
+      "blockId": "01a218c8-a056-7230-bc7f-c46796aa1f56",
+      "blockType": "markdown",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "size": {
+        "width": 820,
+        "height": 460
+      },
+      "contentPath": "sheets/interaction-rules/blocks/markdown-1-undo-and-redo-policy.md"
+    },
+    {
+      "blockId": "01a218c8-a05e-70fd-a797-b4aad16aea51",
+      "blockType": "markdown",
+      "position": {
+        "x": 880,
+        "y": 0
+      },
+      "size": {
+        "width": 560,
+        "height": 400
+      },
+      "contentPath": "sheets/interaction-rules/blocks/markdown-2-keyboard.md"
+    }
+  ]
+}

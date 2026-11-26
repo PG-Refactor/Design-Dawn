@@ -1,0 +1,13 @@
+sequenceDiagram
+    participant UI as UI
+    participant App as Application layer
+    participant Rust as Rust
+    participant Disk as Disk
+    UI->>App: User operation (command)
+    App->>App: Update in-memory model
+    App->>Rust: Save (auto save or Ctrl+S)
+    Rust->>Rust: Validate
+    Rust->>Disk: Write body to temp file, replace
+    Rust->>Disk: Write metadata to temp file, replace
+    Rust->>Rust: Record content hashes
+    Rust-->>App: Result

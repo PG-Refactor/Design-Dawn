@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 2,
+  "sheetId": "01a218c8-a151-70e6-8f35-8e549c1dbd52",
+  "name": "Candidates",
+  "blocks": [
+    {
+      "blockId": "01a218c8-a15c-7036-a483-8598a26ef4ff",
+      "blockType": "markdown",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "size": {
+        "width": 1400,
+        "height": 420
+      },
+      "contentPath": "sheets/candidates/blocks/markdown-1-future-work-candidates.md"
+    }
+  ]
+}

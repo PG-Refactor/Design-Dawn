@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 2,
+  "sheetId": "01a218c8-9f56-706d-8fa8-d8beb247de90",
+  "name": "Constraints and Assumptions",
+  "blocks": [
+    {
+      "blockId": "01a218c8-9f60-769f-84af-b6eab779b4c2",
+      "blockType": "markdown",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "size": {
+        "width": 760,
+        "height": 440
+      },
+      "contentPath": "sheets/constraints-and-assumptions/blocks/markdown-1-constraints-and-assumptions.md"
+    }
+  ]
+}

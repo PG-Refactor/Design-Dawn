@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 2,
+  "sheetId": "01a218c8-9f6d-76d8-ae0a-8cc0d302c6e0",
+  "name": "Layered Architecture",
+  "blocks": [
+    {
+      "blockId": "01a218c8-9f75-72b8-b708-19ca5374814c",
+      "blockType": "markdown",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "size": {
+        "width": 700,
+        "height": 640
+      },
+      "contentPath": "sheets/layered-architecture/blocks/markdown-1-layered-architecture.md"
+    },
+    {
+      "blockId": "01a218c8-9f7d-770f-bbf3-af5369649fe5",
+      "blockType": "mermaid",
+      "position": {
+        "x": 760,
+        "y": 0
+      },
+      "size": {
+        "width": 620,
+        "height": 640
+      },
+      "contentPath": "sheets/layered-architecture/blocks/mermaid-1.mmd",
+      "caption": "Figure 3-1. Logical layers"
+    }
+  ]
+}

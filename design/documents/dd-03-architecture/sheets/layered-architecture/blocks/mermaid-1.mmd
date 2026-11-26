@@ -1,0 +1,9 @@
+flowchart TD
+    ui["React UI"] --> app["Application layer (TS)<br/>use cases, commands, state"]
+    app --> domain["Domain layer (TS)<br/>types, invariants, pure functions"]
+    app --> infra["Infrastructure layer (TS)<br/>Tauri command client"]
+    infra --> cmd["Tauri commands (Rust)"]
+    cmd --> rapp["Rust application layer"]
+    rapp --> rdomain["Rust domain layer<br/>file formats, validation"]
+    rapp --> rinfra["Rust infrastructure<br/>file system, watcher, Git"]
+    rinfra --> os["Operating system, files, Git"]

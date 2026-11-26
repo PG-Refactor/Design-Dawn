@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 2,
+  "sheetId": "01a218c8-a001-7379-b52e-ff46e3d975ad",
+  "name": "Versioning and Persistence",
+  "blocks": [
+    {
+      "blockId": "01a218c8-a00c-73ad-8581-3e048000fd7b",
+      "blockType": "markdown",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "size": {
+        "width": 680,
+        "height": 460
+      },
+      "contentPath": "sheets/versioning-and-persistence/blocks/markdown-1-versioning-and-persistence.md"
+    },
+    {
+      "blockId": "01a218c8-a014-75e4-a05c-3e28108f2e41",
+      "blockType": "mermaid",
+      "position": {
+        "x": 740,
+        "y": 0
+      },
+      "size": {
+        "width": 680,
+        "height": 520
+      },
+      "contentPath": "sheets/versioning-and-persistence/blocks/mermaid-1.mmd",
+      "caption": "Figure 4-2. Save sequence"
+    }
+  ]
+}

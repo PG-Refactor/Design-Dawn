@@ -1,0 +1,7 @@
+flowchart TD
+    author(["Author"]) --> app["Design Dawn application"]
+    ai(["AI tool"]) -- "stdio" --> mcp["design-dawn-mcp"]
+    app --> files[("Project folder<br/>plain files")]
+    mcp --> files
+    files <-- "git" --> remote[("Git remote")]
+    reviewer(["Reviewer"]) --> remote

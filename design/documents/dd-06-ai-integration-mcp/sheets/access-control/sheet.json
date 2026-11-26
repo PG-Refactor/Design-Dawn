@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 2,
+  "sheetId": "01a218c8-a06d-73f0-bfd6-f3bdf3e1b302",
+  "name": "Access Control",
+  "blocks": [
+    {
+      "blockId": "01a218c8-a077-74ce-82c3-93f5ec15628e",
+      "blockType": "markdown",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "size": {
+        "width": 700,
+        "height": 380
+      },
+      "contentPath": "sheets/access-control/blocks/markdown-1-access-control.md"
+    },
+    {
+      "blockId": "01a218c8-a07f-7101-8ec6-2e5673d53cda",
+      "blockType": "mermaid",
+      "position": {
+        "x": 760,
+        "y": 0
+      },
+      "size": {
+        "width": 560,
+        "height": 480
+      },
+      "contentPath": "sheets/access-control/blocks/mermaid-1.mmd",
+      "caption": "Figure 6-1. Project state as seen by AI"
+    },
+    {
+      "blockId": "01a218c8-a08f-7253-ad77-ca097178240d",
+      "blockType": "image",
+      "position": {
+        "x": 0,
+        "y": 440
+      },
+      "size": {
+        "width": 640,
+        "height": 400
+      },
+      "contentPath": "assets/ai-integration.png",
+      "caption": "Figure 6-2. AI Integration screen"
+    }
+  ]
+}

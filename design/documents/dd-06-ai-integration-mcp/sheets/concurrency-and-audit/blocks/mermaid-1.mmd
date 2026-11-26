@@ -1,0 +1,15 @@
+sequenceDiagram
+    participant AI as AI tool
+    participant MCP as design-dawn-mcp
+    participant Disk as Project files
+    AI->>MCP: getBlock
+    MCP->>Disk: Read body
+    MCP-->>AI: Text and contentHash
+    AI->>MCP: updateBlock (expectedContentHash)
+    MCP->>Disk: Check current hash
+    alt Unchanged
+        MCP->>Disk: Write
+        MCP-->>AI: written
+    else Changed by someone else
+        MCP-->>AI: conflict
+    end

@@ -1,0 +1,8 @@
+flowchart LR
+    user(["User"]) --> app["Desktop application"]
+    ai(["AI tool"]) -- "stdio" --> mcp["design-dawn-mcp"]
+    app --> files[("Project files")]
+    mcp --> files
+    app --> list[("ai-access.json")]
+    mcp --> list
+    files -. "file watching" .-> app

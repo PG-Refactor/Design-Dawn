@@ -1,0 +1,11 @@
+stateDiagram-v2
+    [*] --> Watching
+    Watching --> Checking: file changed
+    Checking --> Watching: own write
+    Checking --> Reloading: no unsaved changes
+    Checking --> Choosing: unsaved changes
+    Reloading --> Watching
+    Choosing --> Reloading: Reload
+    Choosing --> Watching: Keep Current
+    Choosing --> Comparing: Compare
+    Comparing --> Choosing

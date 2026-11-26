@@ -10,6 +10,7 @@
       "!**/src-tauri/target",
       "!**/src-tauri/gen",
       "!**/fixtures/projects",
+      "!design",
       "!.claude"
     ]
   },

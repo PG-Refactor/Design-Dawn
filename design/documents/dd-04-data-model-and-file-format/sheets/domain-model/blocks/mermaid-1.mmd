@@ -1,0 +1,35 @@
+classDiagram
+    direction LR
+    class Project {
+        projectId
+        name
+        childOrder
+    }
+    class Folder {
+        folderId
+        name
+        childOrder
+    }
+    class Document {
+        documentId
+        name
+        sheetOrder
+    }
+    class Sheet {
+        sheetId
+        name
+        blocks
+    }
+    class Block {
+        blockId
+        blockType
+        position
+        size
+        contentPath
+    }
+    Project "1" --> "*" Folder
+    Project "1" --> "*" Document
+    Folder "1" --> "*" Folder
+    Folder "1" --> "*" Document
+    Document "1" --> "*" Sheet
+    Sheet "1" --> "*" Block
