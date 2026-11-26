@@ -30,6 +30,11 @@ import {
   BLOCK_BODY_ATTRIBUTE,
   BLOCK_EDITOR_ATTRIBUTE,
 } from "../canvas/block-dom";
+import {
+  CANVAS_KEY_COMMANDS,
+  isEditableTarget,
+  keyCommandOf,
+} from "../canvas/canvas-keyboard";
 import { FIND_BOX_ATTRIBUTE, type FindState } from "../search/find-store";
 import { stopEditing } from "../workspace/ui-state/ui-state";
 import { useUiState } from "../workspace/workspace-hooks";
@@ -355,7 +360,28 @@ export function TextBlockEditor({
     [draftRegistry, documentId, commitDraft],
   );
 
+  // In the GUI every operation is committed at once, so Ctrl/Cmd+Z and redo step through
+  // this block's edits one at a time. A field keeps the keys for its own text, and a step
+  // that is not an edit of this block's text is left for the canvas.
+  function onGuiHistoryKey(event: KeyboardEvent<HTMLDivElement>): boolean {
+    if (view !== "gui" || isEditableTarget(event.target)) return false;
+    const command = keyCommandOf(event);
+    if (
+      command !== CANVAS_KEY_COMMANDS.undo &&
+      command !== CANVAS_KEY_COMMANDS.redo
+    ) {
+      return false;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    void (command === CANVAS_KEY_COMMANDS.undo
+      ? canvasActions.undoTextEdit(documentId, blockId)
+      : canvasActions.redoTextEdit(documentId, blockId));
+    return true;
+  }
+
   function onEditorKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
+    if (onGuiHistoryKey(event)) return;
     if (
       event.key !== ESCAPE_KEY ||
       event.defaultPrevented ||

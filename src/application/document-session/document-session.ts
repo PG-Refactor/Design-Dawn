@@ -44,6 +44,7 @@ import {
   withContents,
 } from "../commands/document-data";
 import {
+  editedTextBlockOf,
   entryLabel,
   type FileBackedEntry,
   type HistoryEntry,
@@ -310,6 +311,10 @@ export function createDocumentSession(
         canRedo: lastRedo !== undefined,
         undoLabel: lastUndo === undefined ? null : entryLabel(lastUndo),
         redoLabel: lastRedo === undefined ? null : entryLabel(lastRedo),
+        undoTextBlockId:
+          lastUndo === undefined ? null : editedTextBlockOf(lastUndo),
+        redoTextBlockId:
+          lastRedo === undefined ? null : editedTextBlockOf(lastRedo),
       },
       save: coordinator.getState(),
       warnings,

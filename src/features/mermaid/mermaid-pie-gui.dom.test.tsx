@@ -8,12 +8,17 @@ import {
   within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { makeBlockAt, settle } from "../../application/test-support/fakes";
+import { moveBlocksCommand } from "../../application/commands/block-commands";
+import {
+  makeBlockAt,
+  position,
+  settle,
+} from "../../application/test-support/fakes";
 import {
   DOCUMENT_A,
   SHEET_A1,
 } from "../../application/test-support/workspace-harness";
-import { BLOCK_ONE } from "../canvas/test-support/canvas-harness";
+import { BLOCK_ONE, BLOCK_TWO } from "../canvas/test-support/canvas-harness";
 import {
   blockOption,
   canvasElement,
@@ -471,6 +476,50 @@ describe("a pie chart in the GUI", () => {
     await rendered.shell.user.click(button(GUI.modeGui));
     await act(settle);
     expect(optionNames()).toEqual([GUI.sliceOption("Z", "1")]);
+  });
+
+  it("steps back and forward through its edits with Ctrl+Z and Ctrl+Y", async () => {
+    const rendered = await openGui();
+    await select(rendered, "Cats", "85");
+    await rendered.shell.user.click(button(GUI.deleteSlice));
+    await act(settle);
+    expect(storedText(rendered)).toBe(PIE.replace('  "Cats" : 85\n', ""));
+
+    await rendered.shell.user.keyboard("{Control>}z{/Control}");
+    await act(settle);
+    expect(storedText(rendered)).toBe(PIE);
+    expect(optionNames()).toHaveLength(3);
+
+    await rendered.shell.user.keyboard("{Control>}y{/Control}");
+    await act(settle);
+    expect(storedText(rendered)).toBe(PIE.replace('  "Cats" : 85\n', ""));
+    expect(rendered.shell.uiStateStore.getState().editingBlock).not.toBeNull();
+  });
+
+  it("leaves Ctrl+Z to a field, and to a step that is not an edit of this diagram", async () => {
+    const rendered = await renderOpenedCanvas(seedMermaid(PIE), {
+      mermaidRenderer: createFakeRenderer(),
+    });
+    await act(async () => {
+      await rendered.canvas.session.execute(
+        moveBlocksCommand(SHEET_A1, [
+          { blockId: BLOCK_TWO, position: position(500, 500) },
+        ]),
+      );
+    });
+    fireEvent.doubleClick(blockOption(0));
+    await rendered.shell.user.click(getShown("button", GUI.modeGui));
+    await act(settle);
+    await select(rendered, "Dogs", "386");
+
+    await rendered.shell.user.click(textbox(GUI.valueField));
+    await rendered.shell.user.keyboard("{Control>}z{/Control}");
+    await rendered.shell.user.click(option("Dogs", "386"));
+    await rendered.shell.user.keyboard("{Control>}z{/Control}");
+    await act(settle);
+
+    expect(await rendered.canvas.undoDepth()).toBe(1);
+    expect(storedText(rendered)).toBe(PIE);
   });
 
   it("shows an empty chart as an empty list and can add the first slice", async () => {
