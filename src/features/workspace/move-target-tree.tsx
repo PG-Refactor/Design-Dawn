@@ -242,6 +242,7 @@ export function MoveTargetTree({
                 onSubmit={(name) => onCreateFolder(name, row.key)}
                 onCancel={onCancelCreate}
                 restoreFocus={() => elements.current.get(row.key)?.focus()}
+                onLeave="cancel"
               />
             </div>
           </li>,

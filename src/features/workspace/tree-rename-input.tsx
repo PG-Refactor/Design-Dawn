@@ -12,12 +12,16 @@ export interface TreeRenameInputProps {
   readonly onCancel: () => void;
   // Puts focus back on the tree item the input belongs to.
   readonly restoreFocus: () => void;
+  // What leaving the input (a click elsewhere, Tab) does: a rename keeps the name typed,
+  // as most editors do; a creation inside a dialog is dropped, as the click may be on the
+  // dialog's Cancel.
+  readonly onLeave: "submit" | "cancel";
 }
 
 const KEYS = { enter: "Enter", escape: "Escape" } as const;
 
 // The inline name editor of a tree row. The draft is local; the application is only
-// told once, on Enter. Every key event is kept inside the input (stopPropagation), so the
+// told once, on Enter (or as `onLeave` says, when the focus leaves the input). Every key event is kept inside the input (stopPropagation), so the
 // tree's own shortcuts (F2, Ctrl+Arrow, Ctrl+Z, arrow navigation) and any shortcut above
 // it never see typing; native text editing and its own Ctrl+Z stay in charge.
 export function TreeRenameInput({
@@ -26,12 +30,13 @@ export function TreeRenameInput({
   onSubmit,
   onCancel,
   restoreFocus,
+  onLeave,
 }: TreeRenameInputProps) {
   const messages = useMessages().workspace;
   const errorId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
-  // Set once Enter / Escape ended the edit, so the blur caused by moving focus away does
-  // not report a second ending.
+  // Set once the edit ended, so the blur caused by moving focus away after Enter / Escape
+  // does not report a second ending.
   const finished = useRef(false);
   const [draft, setDraft] = useState(initialName);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -81,10 +86,14 @@ export function TreeRenameInput({
           setErrorMessage(null);
         }}
         onKeyDown={handleKeyDown}
-        // Leaving the input by other means (a click elsewhere, Tab) cancels: a rename that
-        // was never confirmed with Enter must not be saved silently.
+        // A name that cannot be used is dropped on leaving, as there is no input left to
+        // show why. The focus stays where the user put it.
         onBlur={() => {
-          if (!finished.current) onCancel();
+          if (finished.current) return;
+          finished.current = true;
+          if (onLeave === "submit" && parseDisplayName(draft).ok)
+            onSubmit(draft);
+          else onCancel();
         }}
       />
       {errorMessage === null ? null : (

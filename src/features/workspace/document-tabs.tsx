@@ -485,6 +485,7 @@ export function DocumentTabs() {
                 restoreFocus={() =>
                   tabElements.current.get(documentKey(tab.documentId))?.focus()
                 }
+                onLeave="submit"
               />
             ) : null}
             {tab.saveStatus === "error" ? (

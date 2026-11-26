@@ -267,6 +267,7 @@ export function TreeItem({
             onSubmit={renaming.onSubmit}
             onCancel={renaming.onCancel}
             restoreFocus={() => itemElement.current?.focus()}
+            onLeave="submit"
           />
         )}
         {failed ? (
