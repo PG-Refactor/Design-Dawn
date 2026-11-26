@@ -20,7 +20,7 @@ async function requestClose(
   shell: Awaited<ReturnType<typeof renderOpenedCanvas>>["shell"],
 ): Promise<void> {
   await act(async () => {
-    shell.closeRequestSource.emit({ subscriptionToken: TOKEN });
+    shell.closeRequestSource.emit({ subscriptionToken: TOKEN, decided: null });
     await settle();
   });
 }

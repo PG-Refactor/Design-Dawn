@@ -271,7 +271,10 @@ describe("printing", () => {
   it("asks before closing the window while a print window is open", async () => {
     const { shell } = await renderOpenedCanvas();
     shell.gateway.printWindows.count = 1;
-    shell.closeRequestSource.emit({ subscriptionToken: "token" });
+    shell.closeRequestSource.emit({
+      subscriptionToken: "token",
+      decided: null,
+    });
     const question = await screen.findByRole("dialog", {
       name: MESSAGES.closeWhilePrintingTitle,
     });
@@ -282,7 +285,10 @@ describe("printing", () => {
     expect(shell.closeRequestSource.confirmedTokens).toEqual([]);
     expect(shell.gateway.printWindows.count).toBe(1);
 
-    shell.closeRequestSource.emit({ subscriptionToken: "token" });
+    shell.closeRequestSource.emit({
+      subscriptionToken: "token",
+      decided: null,
+    });
     await shell.user.click(
       within(
         await screen.findByRole("dialog", {

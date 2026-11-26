@@ -243,7 +243,10 @@ describe("openDocument requests from Rust", () => {
     });
     await makeDocumentADirty(shell);
     await act(async () => {
-      shell.closeRequestSource.emit({ subscriptionToken: TOKEN });
+      shell.closeRequestSource.emit({
+        subscriptionToken: TOKEN,
+        decided: null,
+      });
       await settle();
     });
     expect(screen.getByRole("dialog")).toBeTruthy();

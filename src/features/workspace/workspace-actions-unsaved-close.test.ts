@@ -301,10 +301,10 @@ describe("closing the window with auto-save off", () => {
 
   it("delivers the answer of the dialog to the pending request", async () => {
     const harness = await dirtyHarness(false);
-    const answer = harness.actions.askUnsavedWindowClose();
+    const answer = harness.actions.askUnsavedWindowClose(true);
     expect(dialog(harness)).toMatchObject({
       kind: "confirmUnsavedClose",
-      target: { kind: "window" },
+      target: { kind: "window", endsApp: true },
     });
     await harness.actions.answerUnsavedClose("discard");
     expect(await answer).toBe("discard");
@@ -314,10 +314,10 @@ describe("closing the window with auto-save off", () => {
 
   it("resolves to cancel when the dialog is cancelled, and can ask again", async () => {
     const harness = await dirtyHarness(false);
-    const first = harness.actions.askUnsavedWindowClose();
+    const first = harness.actions.askUnsavedWindowClose(true);
     harness.actions.cancelDialog();
     expect(await first).toBe("cancel");
-    const second = harness.actions.askUnsavedWindowClose();
+    const second = harness.actions.askUnsavedWindowClose(true);
     await harness.actions.answerUnsavedClose("save");
     expect(await second).toBe("save");
   });

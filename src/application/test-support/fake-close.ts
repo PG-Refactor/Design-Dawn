@@ -2,7 +2,12 @@
 // Not imported by production code.
 
 import { type OperationResult, operationOk } from "../ports/operation-error";
-import type { CloseRequest, CloseRequestSource } from "../ports/window-close";
+import type {
+  CloseDecision,
+  CloseRequest,
+  CloseRequestSource,
+  WindowCloseScope,
+} from "../ports/window-close";
 
 export interface FakeCloseRequestSource extends CloseRequestSource {
   emit(request: CloseRequest): void;
@@ -13,13 +18,27 @@ export interface FakeCloseRequestSource extends CloseRequestSource {
   // The result the next confirmations return (default: success).
   setConfirmResult(result: OperationResult<void>): void;
   listenerCount(): number;
+  // What `scope` answers (default: the app ends, nothing unsaved elsewhere).
+  setScope(scope: WindowCloseScope): void;
+  // What `reportUnsaved` was told, in call order.
+  readonly reportedUnsaved: boolean[];
+  // Decisions passed to `closeDocumentWindows`, in call order.
+  readonly closedDocumentWindows: CloseDecision[];
 }
+
+export const LAST_WINDOW_SCOPE: WindowCloseScope = {
+  endsApp: true,
+  documentWindowsUnsaved: false,
+};
 
 export function createFakeCloseRequestSource(): FakeCloseRequestSource {
   const listeners = new Set<(request: CloseRequest) => void>();
   const confirmedTokens: string[] = [];
   let confirmResult: OperationResult<void> = operationOk(undefined);
   let forwarded = 0;
+  let scope = LAST_WINDOW_SCOPE;
+  const reportedUnsaved: boolean[] = [];
+  const closedDocumentWindows: CloseDecision[] = [];
   return {
     subscribe(listener) {
       listeners.add(listener);
@@ -42,5 +61,19 @@ export function createFakeCloseRequestSource(): FakeCloseRequestSource {
       confirmResult = result;
     },
     listenerCount: () => listeners.size,
+    scope: () => Promise.resolve(operationOk(scope)),
+    setScope(next) {
+      scope = next;
+    },
+    reportUnsaved(unsaved) {
+      reportedUnsaved.push(unsaved);
+      return Promise.resolve();
+    },
+    reportedUnsaved,
+    closeDocumentWindows(decision) {
+      closedDocumentWindows.push(decision);
+      return Promise.resolve();
+    },
+    closedDocumentWindows,
   };
 }

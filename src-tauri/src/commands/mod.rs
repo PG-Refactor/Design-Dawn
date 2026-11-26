@@ -86,7 +86,7 @@ use crate::infrastructure::file_format::dto::{
 
 /// Every exposed command. `build.rs` (app manifest) and `capabilities/default.json`
 /// must list exactly these; `tests/command_permissions.rs` enforces that.
-pub const COMMAND_NAMES: [&str; 116] = [
+pub const COMMAND_NAMES: [&str; 119] = [
     "select_project_folder",
     "apply_window_theme",
     "ai_access_overview",
@@ -169,6 +169,9 @@ pub const COMMAND_NAMES: [&str; 116] = [
     "copy_asset_to_document",
     "subscribe_drop_notifications",
     "subscribe_close_requests",
+    "window_close_scope",
+    "report_window_unsaved",
+    "close_document_windows",
     "confirm_window_close",
     "bring_window_forward",
     "take_open_request",
@@ -217,7 +220,7 @@ pub use open_dispatch::{
     TauriWindowHost, TransferTarget, WindowGeometry, WindowHost, WindowPlacement,
 };
 pub use window_close::{
-    confirm_close, handle_close_requested, CloseNotification, CloseNotificationSink,
+    confirm_close, handle_close_requested, CloseDecision, CloseNotification, CloseNotificationSink,
     CloseRequestHub, CloseRequestSubscriber,
 };
 pub use window_size::apply_startup_window_size;
@@ -2352,6 +2355,58 @@ pub fn apply_window_theme<R: Runtime>(
         )
     });
     log_failure(applied)
+}
+
+/// What closing the calling window takes with it, for the question asked before.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowCloseScope {
+    /// No other window is left afterwards (print windows do not count): the app ends.
+    pub ends_app: bool,
+    /// A Document window closing along with this Project window has changes a close would
+    /// ask about.
+    pub document_windows_unsaved: bool,
+}
+
+#[tauri::command]
+pub fn window_close_scope<R: Runtime>(window: Window<R>) -> WindowCloseScope {
+    let label = window.label();
+    let registry = window.state::<Mutex<WindowRegistry>>();
+    let registry = lock_registry(&registry);
+    let along = registry.document_windows_closing_with(label);
+    let ends_app = !window.app_handle().webview_windows().keys().any(|other| {
+        other != label
+            && !along.contains(other)
+            && !print_window::is_print_window(other)
+            && !pdf_printer::is_pdf_window(other)
+    });
+    WindowCloseScope {
+        ends_app,
+        document_windows_unsaved: registry.any_unsaved(&along),
+    }
+}
+
+/// The calling window has (or no longer has) changes a close would ask about.
+#[tauri::command]
+pub fn report_window_unsaved<R: Runtime>(window: Window<R>, unsaved: bool) {
+    let registry = window.state::<Mutex<WindowRegistry>>();
+    lock_registry(&registry).set_unsaved(window.label(), unsaved);
+}
+
+/// The calling Project window is closing: its Document windows close too, with the answer
+/// the user gave it. Nothing for any other window.
+#[tauri::command]
+pub fn close_document_windows<R: Runtime>(
+    window: Window<R>,
+    subscriber: State<'_, CloseRequestSubscriber>,
+    decision: CloseDecision,
+) {
+    // The registry is let go before the windows are told (they lock it when they close).
+    let registry = window.state::<Mutex<WindowRegistry>>();
+    let along = lock_registry(&registry).document_windows_closing_with(window.label());
+    for label in along {
+        subscriber.notify_close_requested(&label, Some(decision));
+    }
 }
 
 /// A window of the calling window's Project, for "move to window …".

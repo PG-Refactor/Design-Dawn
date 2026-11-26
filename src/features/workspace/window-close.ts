@@ -1,7 +1,9 @@
 import type { OperationResult } from "../../application/ports/operation-error";
 import type {
+  CloseDecision,
   CloseRequest,
   CloseRequestSource,
+  WindowCloseScope,
 } from "../../application/ports/window-close";
 import type { UnsavedCloseChoice } from "./workspace-actions";
 
@@ -18,7 +20,8 @@ export interface WindowCloseDependencies {
   readonly settled: () => Promise<void>;
   // Auto-save off with unsaved changes: the user is asked before anything happens.
   readonly needsConfirmation: () => boolean;
-  readonly askUnsavedClose: () => Promise<UnsavedCloseChoice>;
+  // `endsApp`: no other window is left afterwards (the question says the app quits).
+  readonly askUnsavedClose: (endsApp: boolean) => Promise<UnsavedCloseChoice>;
   // Resolves once the screen has been drawn again: after an answer the question goes away
   // on screen before the window does (otherwise it stays in the window's last picture).
   readonly afterRepaint?: () => Promise<void>;
@@ -52,9 +55,18 @@ export interface WindowCloseHandler {
   onReleased(listener: () => void): () => void;
 }
 
+// When the scope cannot be read: the question names only this window, and the Document
+// windows are asked to save (nothing is lost).
+const UNKNOWN_SCOPE: WindowCloseScope = {
+  endsApp: false,
+  documentWindowsUnsaved: false,
+};
+
 // Saves, then asks Rust to close. Order is strict: saveAll,
 // viewport flush, confirm. "Close without saving" (auto-save off, chosen by the user) skips
-// only the saveAll. The "in progress" flag lives in this closure rather than in a
+// only the saveAll. A Project window asks once for its Document windows as well and, once
+// it has saved, has them close with the same answer; such a window (`decided`) asks
+// nothing. The "in progress" flag lives in this closure rather than in a
 // store: a page reload drops the closure and the flag with it, so a stale flag can never
 // keep a fresh page from closing.
 export function createWindowCloseHandler(
@@ -85,6 +97,10 @@ export function createWindowCloseHandler(
     } = getDependencies();
     try {
       await settled();
+      if (request.decided !== null) {
+        await closeAlong(request, request.decided);
+        return;
+      }
       if (printing !== undefined && (await printing.isOpen())) {
         // Every question below is asked in front: the close may come from the taskbar of a
         // window behind others (or minimized).
@@ -118,25 +134,50 @@ export function createWindowCloseHandler(
         if (!confirmedEdit.ok) release();
         return;
       }
+      const read = await closeRequestSource.scope();
+      const scope = read.ok ? read.value : UNKNOWN_SCOPE;
       // The flag stays set while the question is open, so a repeated request is ignored.
-      const asks = needsConfirmation();
+      const asks = needsConfirmation() || scope.documentWindowsUnsaved;
       if (asks) await closeRequestSource.bringForward();
-      const choice = asks ? await askUnsavedClose() : "save";
+      const choice = asks ? await askUnsavedClose(scope.endsApp) : "save";
       if (asks && choice !== "cancel") await afterRepaint?.();
       if (choice === "cancel") {
         // Reset, so a later close request asks again.
         release();
         return;
       }
-      if (choice === "save") {
-        const saved = await saveAll();
-        // The failure is already shown as a save / operation error; the window stays open
-        // so the user can retry.
-        if (!saved.ok) {
-          release();
-          return;
-        }
+      if (choice === "save" && !(await saved())) return;
+      // Only once this window has saved: a failure keeps every window open.
+      await closeRequestSource.closeDocumentWindows(choice);
+      await confirm(request);
+    } catch (error) {
+      // An unexpected throw must not leave the flag set, or the window could never close.
+      release();
+      throw error;
+    }
+
+    // Closing along with the Project window, which asked already: print windows simply
+    // close, and the answer it got decides the save.
+    async function closeAlong(
+      closing: CloseRequest,
+      decision: CloseDecision,
+    ): Promise<void> {
+      if (printing !== undefined && (await printing.isOpen())) {
+        await printing.closeAll();
       }
+      if (decision === "save" && !(await saved())) return;
+      await confirm(closing);
+    }
+
+    // The failure is already shown as a save / operation error; the window stays open so
+    // the user can retry.
+    async function saved(): Promise<boolean> {
+      const result = await saveAll();
+      if (!result.ok) release();
+      return result.ok;
+    }
+
+    async function confirm(closing: CloseRequest): Promise<void> {
       try {
         await finishViewportSaves();
       } catch {
@@ -144,13 +185,9 @@ export function createWindowCloseHandler(
         // keep the window open once the document is saved.
       }
       const confirmed = await closeRequestSource.confirmClose(
-        request.subscriptionToken,
+        closing.subscriptionToken,
       );
       if (!confirmed.ok) release();
-    } catch (error) {
-      // An unexpected throw must not leave the flag set, or the window could never close.
-      release();
-      throw error;
     }
   }
 

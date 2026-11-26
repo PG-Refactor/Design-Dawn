@@ -147,7 +147,8 @@ export interface WorkspaceActions {
   // Something in these Documents is not saved yet (an editor draft included).
   hasUnsavedChanges(documentIds: readonly DocumentId[]): boolean;
   // Shows the question for a window close and resolves to the user's answer.
-  askUnsavedWindowClose(): Promise<UnsavedCloseChoice>;
+  // `endsApp`: no other window is left afterwards, so the question says the app quits.
+  askUnsavedWindowClose(endsApp: boolean): Promise<UnsavedCloseChoice>;
   // The answer to the open `confirmUnsavedClose` dialog. "save" runs the normal
   // save-then-close path (a failure keeps everything open, the error stays visible);
   // "discard" closes without saving and drops the drafts.
@@ -1124,7 +1125,7 @@ export function createWorkspaceActions(
     redoTreeOrder: () => treeOrderStep("redo"),
     windowCloseNeedsConfirmation: () =>
       !autoSavePolicy.isEnabled() && hasUnsavedProjectChanges(),
-    askUnsavedWindowClose() {
+    askUnsavedWindowClose(endsApp) {
       // A question that is still open can only be replaced by this one: answer it as
       // cancelled so nothing waits forever.
       settleWindowDecision("cancel");
@@ -1133,7 +1134,7 @@ export function createWorkspaceActions(
         uiStateStore.setState((state) =>
           openDialog(state, {
             kind: "confirmUnsavedClose",
-            target: { kind: "window" },
+            target: { kind: "window", endsApp },
           }),
         );
       });
