@@ -73,6 +73,12 @@
 </header>
 
 <main>
+  <nav class="toc" aria-label="このページの内容">
+    <a href="#features">機能</a>
+    <a href="#screens">画面</a>
+    <a href="#files">保存形式</a>
+    <a href="#ai">AI / MCP</a>
+  </nav>
   <div class="hero">
     <div class="wrap">
       <p class="eyebrow">設計書アプリ · Markdown · Mermaid · Git · MCP</p>
@@ -99,16 +105,17 @@
         <div class="card"><h3>自由配置キャンバス</h3><p>パン・ズーム・選択・移動・リサイズ・整列・重なり順。編集は Undo / Redo できます。</p></div>
         <div class="card"><h3>Project ツリー</h3><p>Document をフォルダで整理し、複数を同時に開けます。行のドラッグで並べ替え・移動できます。</p></div>
         <div class="card"><h3>Markdown ブロック</h3><p>キャンバス上では表示結果、編集中はソースとプレビューの分割表示。</p></div>
-        <div class="card"><h3>Mermaid の図</h3><p>Mermaid 12 で描ける図をローカルで描画・サニタイズ。ネットワークもスクリプトも使いません。</p></div>
+        <div class="card"><h3><a href="mermaid-gui-editor/#rendering">Mermaid の図</a></h3><p>Mermaid 12 で描ける図をローカルで描画・サニタイズ。ネットワークもスクリプトも使いません。</p></div>
         <div class="card"><h3><a href="mermaid-gui-editor/">Mermaid の GUI 編集</a></h3><p>フローチャート・シーケンス図・クラス図・状態遷移図・ER 図・ガントチャート・円グラフを、構文を書かずに一覧とプロパティ欄で編集。正本は Mermaid のソースのままです。</p></div>
         <div class="card"><h3><a href="docs-as-code/">Git 連携</a></h3><p>状態・ステージ・コミット・履歴・左右比較の差分と、シートの見た目での比較。マージの競合もアプリ内で解決（画像は両方を見て選ぶ）。フェッチ / プル / プッシュも。</p></div>
-        <div class="card"><h3>外部変更の検知</h3><p>他のエディタ・Git・AI ツールによる変更を検知。読み直す・維持する・比較するを選べます。</p></div>
+        <div class="card"><h3><a href="docs-as-code/#external-changes">外部変更の検知</a></h3><p>他のエディタ・Git・AI ツールによる変更を検知。読み直す・維持する・比較するを選べます。</p></div>
         <div class="card"><h3>画像とキャプション</h3><p>PNG・JPEG・WebP・SVG・GIF をドラッグ & ドロップで。図には1行のキャプションを付けられます。</p></div>
         <div class="card"><h3>表示サイズと自動調整</h3><p>ブロックの中の文字や図を拡大・縮小、またはブロックに合わせて自動調整。画像は元の大きさに戻せます。</p></div>
         <div class="card"><h3>テンプレート・印刷・書き出し</h3><p>テンプレート（自分で作ったものも）から設計書を作成。印刷し、PDF・HTML・Markdown に書き出せます。</p></div>
         <div class="card"><h3>検索と表計算の取り込み</h3><p>Project 全体を検索。表計算ファイルの表を Markdown の表として取り込めます。</p></div>
         <div class="card"><h3>ライト / ダーク、日本語 / 英語</h3><p>2つのテーマと2つの表示言語に対応しています。</p></div>
       </div>
+      <p class="more">詳しく: <a href="mermaid-gui-editor/">Mermaid の GUI 編集 →</a> · <a href="docs-as-code/">設計書を Git で管理する →</a> · <a href="mcp/">AI / MCP →</a></p>
     </div>
   </section>
 
@@ -117,11 +124,11 @@
       <h2>画面</h2>
       <p class="sub">構文を覚えなくても編集できる図と、読みやすいままの差分。（画面は英語表示です）</p>
       <div class="gallery">
-        <figure><img class="shot" loading="lazy" src="../images/flowchart-gui.png" width="1600" height="1000" alt="ノード一覧と右クリックメニューを出した Mermaid フローチャートの GUI 編集"><figcaption>フローチャートの GUI 編集</figcaption></figure>
-        <figure><img class="shot" loading="lazy" src="../images/sequence-gui.png" width="1600" height="1000" alt="メッセージを選んだ Mermaid シーケンス図の GUI 編集"><figcaption>シーケンス図の GUI 編集</figcaption></figure>
+        <figure><img class="shot" loading="lazy" src="../images/flowchart-gui.png" width="1600" height="1000" alt="ノード一覧と右クリックメニューを出した Mermaid フローチャートの GUI 編集"><figcaption><a href="mermaid-gui-editor/">フローチャートの GUI 編集</a></figcaption></figure>
+        <figure><img class="shot" loading="lazy" src="../images/sequence-gui.png" width="1600" height="1000" alt="メッセージを選んだ Mermaid シーケンス図の GUI 編集"><figcaption><a href="mermaid-gui-editor/">シーケンス図の GUI 編集</a></figcaption></figure>
         <figure><img class="shot" loading="lazy" src="../images/markdown-edit.png" width="1600" height="1000" alt="ソースとプレビューを分割表示した Markdown ブロック"><figcaption>Markdown のプレビュー付き編集</figcaption></figure>
-        <figure><img class="shot" loading="lazy" src="../images/git-diff.png" width="1600" height="1000" alt="Markdown ブロックの左右比較の Git 差分"><figcaption>左右比較の Git 差分</figcaption></figure>
-        <figure><img class="shot" loading="lazy" src="../images/plan.png" width="1600" height="1000" alt="シート上の Mermaid ガントチャートと円グラフ"><figcaption>ガントチャートと円グラフ</figcaption></figure>
+        <figure><img class="shot" loading="lazy" src="../images/git-diff.png" width="1600" height="1000" alt="Markdown ブロックの左右比較の Git 差分"><figcaption><a href="docs-as-code/#git-in-the-app">左右比較の Git 差分</a></figcaption></figure>
+        <figure><img class="shot" loading="lazy" src="../images/plan.png" width="1600" height="1000" alt="シート上の Mermaid ガントチャートと円グラフ"><figcaption><a href="mermaid-gui-editor/">ガントチャートと円グラフ</a></figcaption></figure>
         <figure><img class="shot" loading="lazy" src="../images/light-theme.png" width="1600" height="1000" alt="ライトテーマの Design Dawn"><figcaption>ライトテーマ</figcaption></figure>
       </div>
     </div>
@@ -177,5 +184,28 @@
     <span><a href="https://github.com/PG-Refactor/Design-Dawn">GitHub</a> · <a href="https://github.com/PG-Refactor/Design-Dawn/issues">Issues</a> · <a href="../" hreflang="en" lang="en">English</a></span>
   </div>
 </footer>
+<script>
+  // Marks the entry of the section being read. Without scripts the list still works.
+  (() => {
+    const links = new Map(
+      [...document.querySelectorAll(".toc a")].map((link) => [link.hash.slice(1), link]),
+    );
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          for (const link of links.values()) link.removeAttribute("aria-current");
+          links.get(entry.target.id)?.setAttribute("aria-current", "true");
+        }
+      },
+      // A section counts as read while it crosses the band a little above the middle.
+      { rootMargin: "-35% 0px -60% 0px" },
+    );
+    for (const id of links.keys()) {
+      const section = document.getElementById(id);
+      if (section) observer.observe(section);
+    }
+  })();
+</script>
 </body>
 </html>

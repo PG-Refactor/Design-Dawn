@@ -9,6 +9,9 @@
   --accent-2: #ff8a5c;
   --link: #9cc3ff;
   --radius: 14px;
+  --header-height: 60px;
+  --wrap-width: 1120px;
+  --toc-width: 150px;
   color-scheme: dark;
 }
 * {
@@ -16,6 +19,13 @@
 }
 html {
   scroll-behavior: smooth;
+  /* A jump to a section stops below the sticky header, not under it. */
+  scroll-padding-top: calc(var(--header-height) + 16px);
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }
 body {
   margin: 0;
@@ -55,7 +65,7 @@ pre code {
   padding: 0;
 }
 .wrap {
-  max-width: 1120px;
+  max-width: var(--wrap-width);
   margin: 0 auto;
   padding: 0 24px;
 }
@@ -72,7 +82,7 @@ header.site .wrap {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 60px;
+  height: var(--header-height);
   gap: 16px;
 }
 .brand {
@@ -338,4 +348,40 @@ nav.top a[aria-current="page"] {
 }
 .foot-guides {
   flex-basis: 100%;
+}
+
+/* ---- Home: the list of its sections, in the margin left of the content ---- */
+.toc {
+  display: none;
+}
+/* Only where the margin is wide enough for it (the content's own side padding is the gap);
+   narrower windows keep the header menu. */
+@media (min-width: 1460px) {
+  .toc {
+    position: fixed;
+    top: calc(var(--header-height) + 40px);
+    left: calc((100vw - var(--wrap-width)) / 2 - var(--toc-width));
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: var(--toc-width);
+    font-size: 0.92rem;
+  }
+  .toc a {
+    padding: 4px 12px;
+    border-left: 2px solid var(--line);
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .toc a:hover {
+    color: var(--text);
+  }
+  .toc a[aria-current="true"] {
+    border-left-color: var(--accent);
+    color: var(--text);
+  }
+}
+.gallery figcaption a {
+  color: inherit;
 }
