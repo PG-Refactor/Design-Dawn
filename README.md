@@ -36,7 +36,8 @@ can be read and edited by people, reviewed with Git, and changed safely by AI to
   charts with lists and property fields instead of syntax; right-click a shape in the diagram to edit or
   delete it, and add elements in a dialog with a preview. The Mermaid source stays the single
   source of truth: each GUI edit changes only the bytes it must, is checked by re-reading the
-  result and rendering it, and is one undo step. Anything the editor does not fully understand
+  result and rendering it, and is one undo step (Ctrl+Z / Ctrl+Y step through them while
+  the GUI is still open). Anything the editor does not fully understand
   stays read-only rather than being rewritten.
 - **Display size** — the text or diagram of a Markdown or Mermaid block can be zoomed (− / + or a
   percentage, when the block is hovered) or fitted to the block; the size is kept in the sheet.
