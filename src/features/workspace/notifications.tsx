@@ -344,6 +344,15 @@ function treeStepText(
   return messages.treeStepNotices[summary.change](summary.name, summary.count);
 }
 
+// Cut short when the bar has little room, so its whole text is the hint too.
+function NoticeText({ text }: { readonly text: string }) {
+  return (
+    <span className="transient-notice__text" title={text}>
+      {text}
+    </span>
+  );
+}
+
 // A light, polite notice ("already open") that clears itself. The region always exists so
 // a notice added later is announced; it is not a failure, so it is not in the panel.
 export function TransientNotice() {
@@ -373,7 +382,7 @@ export function TransientNotice() {
     >
       {notice === null ? null : notice.kind === "treeStep" ? (
         <p className="transient-notice__message">
-          {treeStepText(messages, notice.summary)}
+          <NoticeText text={treeStepText(messages, notice.summary)} />
           <button
             type="button"
             className="button transient-notice__action"
@@ -390,7 +399,7 @@ export function TransientNotice() {
         </p>
       ) : (
         <p className="transient-notice__message">
-          {messages.notices[notice.kind]}
+          <NoticeText text={messages.notices[notice.kind]} />
         </p>
       )}
     </div>

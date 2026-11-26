@@ -137,25 +137,31 @@
   color: var(--color-warning);
 }
 
-/* A short notice ("read again", "already open") floats in the middle of the menu bar (its
-   empty part) instead of taking a line: nothing moves while it shows, so a click lands where
-   it was aimed, and the tabs below stay readable. The region stays (empty) between notices so screen readers hear each one; it takes
-   no pointer, so what is under it can still be used. */
+/* A short notice ("read again", "already open") sits in the empty part of the menu bar
+   instead of taking a line: nothing moves while it shows, so a click lands where it was
+   aimed. The region is that empty part (it grows between the menus and the controls on the
+   right), so the notice never covers a control; when the gap is narrow its text is cut
+   short (the whole text stays the accessible one and the hint). The region stays (empty)
+   between notices so screen readers hear each one. */
 .transient-notice {
-  --transient-notice-top: var(--space-1);
-  position: fixed;
-  top: var(--transient-notice-top);
-  right: var(--space-3);
-  left: var(--space-3);
-  z-index: 40;
   display: flex;
+  flex: 1 1 0;
+  align-items: center;
   justify-content: center;
-  pointer-events: none;
+  min-width: 0;
+  /* Takes no height: the notice is centred on the bar's middle line, so the bar (and all
+     below it) stays where it was while one shows. */
+  height: 0;
 }
 
 .transient-notice__message {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
   margin: 0;
-  padding: var(--space-1) var(--space-3);
+  /* Compact, to fit inside the bar with its button. */
+  padding: 0 var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-medium);
   background: var(--color-surface-raised);
@@ -163,16 +169,15 @@
   color: var(--color-text);
 }
 
-/* A notice that offers to undo what was just done: its button takes the pointer (the rest
-   of the region still does not). */
-.transient-notice__message:has(.transient-notice__action) {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+.transient-notice__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .transient-notice__action {
-  pointer-events: auto;
+  flex: 0 0 auto;
+  padding: 0 var(--space-2);
 }
 
 /* The bell, the size of the other line icons. */

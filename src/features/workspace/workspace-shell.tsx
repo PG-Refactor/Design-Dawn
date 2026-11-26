@@ -14,7 +14,7 @@ import { SpreadsheetImportDialog } from "../spreadsheet/spreadsheet-import-dialo
 import { TemplateDialogs } from "../templates/template-dialogs";
 import { TemplateEditBanner } from "../templates/template-edit-banner";
 import { UnusedAssetsDialog } from "../unused-assets/unused-assets-dialog";
-import { LoadStatus, TransientNotice } from "./notifications";
+import { LoadStatus } from "./notifications";
 import { TopBar } from "./top-bar";
 import { useAppRequests } from "./use-app-requests";
 import { useHistoryShortcut } from "./use-history-shortcut";
@@ -59,7 +59,6 @@ export function WorkspaceShell() {
       <TopBar />
       <TemplateEditBanner />
       <LoadStatus />
-      <TransientNotice />
       <ProjectBanner />
       <WorkspaceBody />
       <WorkspaceDialogs />

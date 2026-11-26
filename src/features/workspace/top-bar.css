@@ -22,10 +22,6 @@
   border: 0;
 }
 
-.top-bar__spacer {
-  flex: 1 1 0;
-}
-
 /* Shown while Auto Save is off; a click turns it back on. */
 .top-bar__auto-save-off {
   margin: 0 var(--space-2);
