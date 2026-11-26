@@ -146,8 +146,12 @@
 .transient-notice {
   display: flex;
   flex: 1 1 0;
+  align-items: center;
   justify-content: center;
   min-width: 0;
+  /* Takes no height: the notice is centred on the bar's middle line, so the bar (and all
+     below it) stays where it was while one shows. */
+  height: 0;
 }
 
 .transient-notice__message {
@@ -156,7 +160,8 @@
   gap: var(--space-2);
   min-width: 0;
   margin: 0;
-  padding: var(--space-1) var(--space-3);
+  /* Compact, to fit inside the bar with its button. */
+  padding: 0 var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-medium);
   background: var(--color-surface-raised);
@@ -172,6 +177,7 @@
 
 .transient-notice__action {
   flex: 0 0 auto;
+  padding: 0 var(--space-2);
 }
 
 /* The bell, the size of the other line icons. */
