@@ -158,6 +158,16 @@ describe("new folder from the move dialog", () => {
     expect(created.getAttribute("aria-level")).toBe("2");
   });
 
+  it("creates nothing when the focus leaves the input, as the click may be on Cancel", async () => {
+    const { harness, dialog } = await openedMoveDialog("Document A");
+    const { user } = harness;
+    await user.click(newFolderButton(dialog));
+    await user.keyboard("Typed");
+    await user.click(within(dialog).getByText("Folder 1"));
+    expect(within(dialog).queryByRole("textbox")).toBeNull();
+    expect(harness.gateway.methods("createFolder")).toEqual([]);
+  });
+
   it("shows the name validation inline, and Escape cancels only the input", async () => {
     const { harness, dialog } = await openedMoveDialog("Document A");
     const { user } = harness;

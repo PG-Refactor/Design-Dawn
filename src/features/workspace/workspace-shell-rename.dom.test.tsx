@@ -141,11 +141,24 @@ describe("document rename (inline)", () => {
     expect(await undoDepth(harness)).toBe(0);
   });
 
-  it("treats losing focus as a cancel, never as a silent commit", async () => {
+  it("keeps the typed name when the focus leaves the input, as a commit", async () => {
     const harness = await openedShell();
     await openDocumentByClick(harness, "Document A");
     await startRenameWithF2(harness, "Document A");
     await harness.user.keyboard("Other");
+
+    await harness.user.click(document.body);
+
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(await screen.findByRole("treeitem", { name: "Other" })).toBeTruthy();
+    expect(await undoDepth(harness)).toBe(1);
+  });
+
+  it("drops a name that cannot be used when the focus leaves the input", async () => {
+    const harness = await openedShell();
+    await openDocumentByClick(harness, "Document A");
+    await startRenameWithF2(harness, "Document A");
+    await harness.user.clear(screen.getByRole("textbox"));
 
     await harness.user.click(document.body);
 
@@ -296,20 +309,13 @@ describe("sheet rename (inline, in the Sheet Tabs)", () => {
     expect(await undoDepth(harness)).toBe(0);
   });
 
-  it("Escape and losing focus cancel; an unchanged name and invalid names create no history entry", async () => {
+  it("Escape cancels; an unchanged name and invalid names create no history entry", async () => {
     const harness = await withDocumentA();
     await startSheetRenameWithF2(harness, "Sheet A2");
     await harness.user.keyboard("Other{Escape}");
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(await undoDepth(harness)).toBe(0);
     expect(document.activeElement).toBe(sheetTab("Sheet A2"));
-
-    await startSheetRenameWithF2(harness, "Sheet A2");
-    await harness.user.keyboard("Other");
-    await harness.user.click(document.body);
-    expect(screen.queryByRole("textbox")).toBeNull();
-    expect(sheetTabNames()).toEqual(["Sheet A1", "Sheet A2"]);
-    expect(await undoDepth(harness)).toBe(0);
 
     await startSheetRenameWithF2(harness, "Sheet A2");
     await harness.user.keyboard("{Enter}");
@@ -327,6 +333,16 @@ describe("sheet rename (inline, in the Sheet Tabs)", () => {
     await harness.user.keyboard("{Escape}");
     expect(await undoDepth(harness)).toBe(0);
     expect(sheetTab("Sheet A2")).toBeTruthy();
+  });
+
+  it("losing focus commits the typed name in the tab", async () => {
+    const harness = await withDocumentA();
+    await startSheetRenameWithF2(harness, "Sheet A2");
+    await harness.user.keyboard("Other");
+    await harness.user.click(document.body);
+    expect(screen.queryByRole("textbox")).toBeNull();
+    await waitFor(() => expect(sheetTabNames()).toEqual(["Sheet A1", "Other"]));
+    expect(await undoDepth(harness)).toBe(1);
   });
 
   it("keeps the keys in the input: arrows, Ctrl+Arrow and F2 do not move, reorder or restart anything", async () => {

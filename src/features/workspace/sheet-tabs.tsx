@@ -284,6 +284,7 @@ function SheetTabList({ model }: { readonly model: SheetTabsModel }) {
                 restoreFocus={() =>
                   tabElements.current.get(tab.sheetId)?.focus()
                 }
+                onLeave="submit"
               />
             ) : null}
             <button
