@@ -21,9 +21,8 @@ use crate::infrastructure::git::constants::{
     ARG_GIT_PATH, ARG_LOG, ARG_MAX_COUNT, ARG_MERGE, ARG_MESSAGE_FILE, ARG_NO_EDIT,
     ARG_NO_SHOW_SIGNATURE, ARG_QUIET, ARG_RESET, ARG_REV_PARSE, ARG_SOFT, ARG_STDIN_FILE, ARG_VAR,
     ARG_VERIFY, COMMIT_MESSAGE_LIMIT_BYTES, CONFIG_COMMIT_ENCODING_UTF8, FORMAT_PARENTS,
-    FORMAT_RAW_BODY, GIT_COMMAND_TIMEOUT, GIT_COMMIT_TIMEOUT, GIT_FATAL_EXIT_CODE,
-    IN_PROGRESS_GIT_PATHS, OBJECT_ID_LENGTHS, REVISION_HEAD, SINGLE_COMMIT_COUNT, VAR_AUTHOR_IDENT,
-    VAR_COMMITTER_IDENT,
+    GIT_COMMAND_TIMEOUT, GIT_COMMIT_TIMEOUT, GIT_FATAL_EXIT_CODE, IN_PROGRESS_GIT_PATHS,
+    OBJECT_ID_LENGTHS, REVISION_HEAD, SINGLE_COMMIT_COUNT, VAR_AUTHOR_IDENT, VAR_COMMITTER_IDENT,
 };
 use crate::infrastructure::git::redaction::redact_credentials;
 use crate::infrastructure::git::runner::GitRunner;
@@ -71,15 +70,6 @@ pub struct GitCommitOptions {
     pub stage_all: bool,
 }
 
-/// Outcome of Undo Last Commit: the message of the commit that was taken back (`null`
-/// when it is not valid UTF-8) and the status read afterwards.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GitUndoCommitResult {
-    pub message: Option<String>,
-    pub status: GitCommitStatus,
-}
-
 /// Commits the staged changes of the Project's Repository with the `git` found on PATH.
 pub fn git_commit(
     sessions: &Mutex<ProjectSessions>,
@@ -100,7 +90,7 @@ pub fn git_commit(
 pub fn git_undo_last_commit(
     sessions: &Mutex<ProjectSessions>,
     project_id: &str,
-) -> ApplicationResult<GitUndoCommitResult> {
+) -> ApplicationResult<GitRemoteResult> {
     let project_root = project_root_of(sessions, project_id)?;
     undo_last_commit(GitRunner::discover().ok().as_ref(), &project_root)
 }
@@ -297,11 +287,12 @@ pub fn commit_with_options(
 /// Undo Last Commit: `git reset --soft <parent>`. The
 /// index and the working tree are not touched, so everything the commit contained is
 /// staged again. The target is the parent's object ID read here, never text from the
-/// caller. The message is returned to the caller and never logged.
+/// caller. Only the status read afterwards is returned: the message of the commit taken
+/// back is not offered again.
 pub fn undo_last_commit(
     runner: Option<&GitRunner>,
     project_root: &Path,
-) -> ApplicationResult<GitUndoCommitResult> {
+) -> ApplicationResult<GitRemoteResult> {
     let runner = ready_runner(runner, project_root)?;
 
     let cannot_undo = |detail: &str| ApplicationError::new(ErrorKind::GitCannotUndoCommit, detail);
@@ -322,13 +313,6 @@ pub fn undo_last_commit(
     require_head_not_pushed(runner, project_root)?;
     require_no_operation_in_progress(runner, project_root)?;
 
-    let mut body = read_head_log(runner, project_root, FORMAT_RAW_BODY)?;
-    // `--format` terminates the record with one newline that is not part of the message.
-    if body.last() == Some(&b'\n') {
-        body.pop();
-    }
-    let message = String::from_utf8(body).ok();
-
     let output = runner
         .run(
             &[ARG_RESET, ARG_SOFT, &parent_id],
@@ -347,8 +331,7 @@ pub fn undo_last_commit(
             ),
         ));
     }
-    Ok(GitUndoCommitResult {
-        message,
+    Ok(GitRemoteResult {
         status: status_after_change(runner, project_root, "an undo"),
     })
 }

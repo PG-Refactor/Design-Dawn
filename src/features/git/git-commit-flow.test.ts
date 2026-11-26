@@ -202,16 +202,15 @@ describe("runGitCommit", () => {
 });
 
 describe("runUndoLastCommit", () => {
-  it("puts the trimmed message into a blank draft", async () => {
+  it("leaves a blank draft blank", async () => {
     const harness = await opened();
     harness.gitGateway.undoResult = {
-      message: "old message\n\n",
       status: { outcome: "updated", status: STAGED_STATUS },
     };
 
     expect(await runUndoLastCommit(harness.services)).toBe("done");
 
-    expect(draftOf(harness)).toBe("old message");
+    expect(draftOf(harness)).toBe("");
   });
 
   it("leaves a draft the user has written", async () => {
@@ -221,18 +220,6 @@ describe("runUndoLastCommit", () => {
     await runUndoLastCommit(harness.services);
 
     expect(draftOf(harness)).toBe("mine");
-  });
-
-  it("leaves the draft when the message is unknown", async () => {
-    const harness = await opened();
-    harness.gitGateway.undoResult = {
-      message: null,
-      status: { outcome: "updated", status: STAGED_STATUS },
-    };
-
-    await runUndoLastCommit(harness.services);
-
-    expect(draftOf(harness)).toBe("");
   });
 
   it("returns failed and leaves the draft on failure", async () => {

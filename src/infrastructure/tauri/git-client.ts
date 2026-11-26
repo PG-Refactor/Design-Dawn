@@ -15,7 +15,6 @@ import type {
   GitSheetVersion,
   GitSheetVersions,
   GitStatus,
-  GitUndoCommitResult,
 } from "../../application/ports/git-gateway";
 import type { ProjectId } from "../../domain/shared/entity-id";
 import { COMMANDS } from "./command-constants";
@@ -27,7 +26,6 @@ import {
   toGitHistoryPage,
   toGitRemoteResult,
   toGitStatus,
-  toGitUndoCommitResult,
   toRemoteNames,
 } from "./git-payloads";
 import { call } from "./invoke-command";
@@ -114,8 +112,8 @@ export function gitCommit(
 
 export function gitUndoLastCommit(
   projectId: ProjectId,
-): Promise<CommandResult<GitUndoCommitResult>> {
-  return call(COMMANDS.gitUndoLastCommit, { projectId }, toGitUndoCommitResult);
+): Promise<CommandResult<GitRemoteResult>> {
+  return call(COMMANDS.gitUndoLastCommit, { projectId }, toGitRemoteResult);
 }
 
 export function gitHistory(

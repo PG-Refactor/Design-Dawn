@@ -1758,21 +1758,17 @@ describe("commit options", () => {
 });
 
 describe("undoLastCommit", () => {
-  it("replaces the status and returns the message of the undone commit", async () => {
+  it("replaces the status", async () => {
     const { workspace, gitGateway, controller, failureLabels } = setup();
     await workspace.openProject(SELECTION_ID);
     await settle();
     gitGateway.undoResult = {
-      message: "元のメッセージ\n",
       status: { outcome: "updated", status: MODIFIED_STATUS },
     };
 
     const result = await controller.undoLastCommit();
 
-    expect(result).toEqual({
-      ok: true,
-      value: { message: "元のメッセージ\n" },
-    });
+    expect(result).toEqual({ ok: true, value: undefined });
     expect(gitGateway.undoCalls).toEqual([{ projectId: PROJECT_ID }]);
     const state = controller.store.getState();
     expect(state.status).toEqual(MODIFIED_STATUS);
@@ -1786,7 +1782,7 @@ describe("undoLastCommit", () => {
 
     const result = await controller.undoLastCommit();
 
-    expect(result).toEqual({ ok: true, value: { message: null } });
+    expect(result).toEqual({ ok: true, value: undefined });
     expect(gitGateway.undoCalls).toEqual([]);
   });
 
@@ -1796,13 +1792,12 @@ describe("undoLastCommit", () => {
     await workspace.openProject(SELECTION_ID);
     await settle();
     gitGateway.undoResult = {
-      message: "m",
       status: { outcome: "unavailable", errorKind: "gitTimeout" },
     };
 
     const result = await controller.undoLastCommit();
 
-    expect(result).toEqual({ ok: true, value: { message: "m" } });
+    expect(result).toEqual({ ok: true, value: undefined });
     expect(controller.store.getState().status).toBeNull();
     expect(controller.store.getState().statusError).toBe("gitTimeout");
     expect(failureLabels).toEqual(["refreshGitStatus"]);
@@ -1866,7 +1861,7 @@ describe("undoLastCommit", () => {
     release();
     const result = await pending;
 
-    expect(result).toEqual({ ok: true, value: { message: null } });
+    expect(result).toEqual({ ok: true, value: undefined });
     expect(controller.store.getState().status).toBeNull();
   });
 });

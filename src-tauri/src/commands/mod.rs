@@ -1910,14 +1910,13 @@ pub async fn git_commit<R: Runtime>(
 }
 
 /// Takes the last commit of the calling window's Project back, keeping the index and the
-/// working tree. Not an Undo step and never saves. The
-/// returned message is user text and is never logged here.
+/// working tree. Not an Undo step and never saves.
 #[tauri::command]
 pub async fn git_undo_last_commit<R: Runtime>(
     app: AppHandle<R>,
     window: Window<R>,
     project_id: String,
-) -> Result<git_commit::GitUndoCommitResult, ApplicationError> {
+) -> Result<git_remote::GitRemoteResult, ApplicationError> {
     ensure_window_project(&window, &project_id)?;
     run_blocking(move || {
         let sessions = app.state::<Mutex<ProjectSessions>>();

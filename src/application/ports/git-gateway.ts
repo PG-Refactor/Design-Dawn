@@ -148,13 +148,6 @@ export const DEFAULT_GIT_COMMIT_OPTIONS: GitCommitOptions = {
   stageAll: false,
 };
 
-// Undo Last Commit: the commit's message (null when it is not valid UTF-8) and the status
-// read afterwards, like a commit.
-export interface GitUndoCommitResult {
-  readonly message: string | null;
-  readonly status: GitCommitStatus;
-}
-
 export interface GitCommitResult {
   // Object ID of the new HEAD (40 or 64 lowercase hexadecimal characters); null only when
   // the commit was made but HEAD could not be read afterwards.
@@ -317,7 +310,7 @@ export interface GitGateway {
   // refuses a first, merge or pushed commit. After a failure read the status again.
   undoLastCommit(
     projectId: ProjectId,
-  ): Promise<OperationResult<GitUndoCommitResult>>;
+  ): Promise<OperationResult<GitRemoteResult>>;
   // Aborts the unfinished merge (`git merge --abort`): back to before the merge. Rewrites
   // working tree files: the caller saves first and reloads afterwards. Nothing unfinished
   // is not an error; another unfinished operation is `gitOperationInProgress`.

@@ -84,29 +84,18 @@ export async function runGitCommit(
     : runGitSync(services);
 }
 
-// Takes the last commit back. Its message goes back into the draft, but only into a blank
-// one (never over what the user is writing), without the trailing newline git stores.
+// Takes the last commit back. Its message does not come back into the draft: the box keeps
+// what the user is writing, and an empty box stays empty for whatever is committed next.
 export async function runUndoLastCommit(
   services: CommitServices,
 ): Promise<GitFlowOutcome> {
-  const { gitController, uiStateStore } = services;
+  const { gitController } = services;
   const projectId = gitController.store.getState().projectId;
   if (projectId === null) return "skipped";
   const result = await gitController.undoLastCommit();
-  if (!result.ok) {
-    refreshDiffAfterStatusChange(services);
-    return "failed";
-  }
-  const restored = result.value.message?.trimEnd() ?? null;
-  const sameProject = gitController.store.getState().projectId === projectId;
-  if (restored !== null && sameProject) {
-    uiStateStore.setState((state) =>
-      state.gitCommitMessage.trim() === ""
-        ? setGitCommitMessage(state, restored)
-        : state,
-    );
-  }
   refreshDiffAfterStatusChange(services);
+  if (!result.ok) return "failed";
+  const sameProject = gitController.store.getState().projectId === projectId;
   if (sameProject) reloadHistoryIfShown(services);
   return "done";
 }
